@@ -380,9 +380,15 @@ const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 /* Formulaire d'avis / idées → envoyé vers un Google Forms (sans serveur).
    À CONFIGURER : coller l'URL « formResponse » et les identifiants « entry.XXXX »
    obtenus depuis le lien pré-rempli du formulaire (voir instructions). Vide = pas encore branché. */
-/* Les avis/idées sont envoyés par e-mail (via l'appli mail du téléphone) à cette adresse. */
-const FEEDBACK_EMAIL = "magalicontrino@hotmail.fr";
-const EQUIPES = ["Médicale","Sociale","Aide-soignante","Éducative","Autre"];
+/* Les avis/idées sont envoyés vers le formulaire Google « COUSIN — Avis & idées ».
+   Les réponses arrivent dans l'onglet « Réponses » du formulaire. */
+const FEEDBACK = {
+  action: "https://docs.google.com/forms/d/e/1FAIpQLSdqJfKLkaJBaM0Gy0gxAWzSztfK67gK2mOVRlckHP9d1VQRTA/formResponse",
+  idee:   "entry.1995875144",   // « Une idée, une recommandation ? » (on y met aussi la note)
+  equipe: "entry.545984953"     // « Votre équipe »
+};
+// Doit correspondre EXACTEMENT aux options du formulaire, sinon Google écarte la réponse.
+const EQUIPES = ["Social","Médical","Educ","Psy","Aide-soignante"];
 
 const DEMARCHES = [
   "Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale",
@@ -940,28 +946,15 @@ function submitFeedback(){
   const idee = document.getElementById('fb-idee').value.trim();
   const equipe = document.getElementById('fb-equipe').value;
   if(!fbNote && !idee){ alert("Ajoutez une note en étoiles ou une idée avant d'envoyer."); return; }
-  const sujet = "COUSIN — Avis / idée" + (equipe ? " (" + equipe + ")" : "");
-  const data = {
-    _subject: sujet, _template: "table", _captcha: "false",
-    Satisfaction: fbNote ? fbNote + "/5 " + "★".repeat(fbNote) : "—",
-    Equipe: equipe || "—",
-    Idee: idee || "—"
-  };
-  // Affiche le remerciement tout de suite ; l'envoi part en arrière-plan.
+  const texte = (fbNote ? "Satisfaction : " + fbNote + "/5\n\n" : "") + (idee || "—");
+  const fd = new FormData();
+  fd.append(FEEDBACK.idee, texte);
+  if(equipe) fd.append(FEEDBACK.equipe, equipe);
+  // Remerciement immédiat ; l'envoi part en arrière-plan vers le formulaire Google.
   document.getElementById('fbForm').style.display='none';
   document.getElementById('fbThanks').style.display='block';
-  // Envoi silencieux via FormSubmit (relais e-mail, sans compte).
-  fetch("https://formsubmit.co/ajax/" + FEEDBACK_EMAIL, {
-    method: "POST",
-    headers: {"Content-Type": "application/json", "Accept": "application/json"},
-    body: JSON.stringify(data)
-  }).catch(function(){
-    // Hors ligne ou envoi bloqué : on bascule sur l'appli mail comme secours.
-    var corps = ["Satisfaction : " + data.Satisfaction, "Équipe : " + data.Equipe,
-                 "", "Idée / recommandation :", data.Idee].join("\n");
-    window.location.href = "mailto:" + FEEDBACK_EMAIL +
-      "?subject=" + encodeURIComponent(sujet) + "&body=" + encodeURIComponent(corps);
-  });
+  // Google Forms ne renvoie pas d'en-têtes CORS : envoi en « no-cors » (effectif, réponse opaque).
+  fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
 }
 function savePartner(){
   const g=f=>document.getElementById(f).value.trim();
