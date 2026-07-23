@@ -350,7 +350,7 @@
     <div id="fbThanks" style="display:none; text-align:center; padding:14px 4px">
       <div style="font-size:44px; line-height:1">🙏</div>
       <h3 style="justify-content:center">Merci !</h3>
-      <p class="hint" style="text-align:center">Votre messagerie s'ouvre avec le message pré-rempli — appuyez sur <b>Envoyer</b> pour finir. Merci, ça aide à faire évoluer COUSIN&nbsp;!</p>
+      <p class="hint" style="text-align:center">Votre retour a bien été envoyé. Merci, ça aide à faire évoluer COUSIN&nbsp;!</p>
       <div class="modal-actions"><button class="save" onclick="closeFeedback()">Fermer</button></div>
     </div>
   </div>
@@ -940,17 +940,28 @@ function submitFeedback(){
   const idee = document.getElementById('fb-idee').value.trim();
   const equipe = document.getElementById('fb-equipe').value;
   if(!fbNote && !idee){ alert("Ajoutez une note en étoiles ou une idée avant d'envoyer."); return; }
-  const lignes = [];
-  lignes.push("Satisfaction : " + (fbNote ? fbNote + "/5 " + "★".repeat(fbNote) : "—"));
-  if(equipe) lignes.push("Équipe : " + equipe);
-  lignes.push("");
-  lignes.push("Idée / recommandation :");
-  lignes.push(idee || "—");
   const sujet = "COUSIN — Avis / idée" + (equipe ? " (" + equipe + ")" : "");
-  window.location.href = "mailto:" + FEEDBACK_EMAIL +
-    "?subject=" + encodeURIComponent(sujet) + "&body=" + encodeURIComponent(lignes.join("\n"));
+  const data = {
+    _subject: sujet, _template: "table", _captcha: "false",
+    Satisfaction: fbNote ? fbNote + "/5 " + "★".repeat(fbNote) : "—",
+    Equipe: equipe || "—",
+    Idee: idee || "—"
+  };
+  // Affiche le remerciement tout de suite ; l'envoi part en arrière-plan.
   document.getElementById('fbForm').style.display='none';
   document.getElementById('fbThanks').style.display='block';
+  // Envoi silencieux via FormSubmit (relais e-mail, sans compte).
+  fetch("https://formsubmit.co/ajax/" + FEEDBACK_EMAIL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "Accept": "application/json"},
+    body: JSON.stringify(data)
+  }).catch(function(){
+    // Hors ligne ou envoi bloqué : on bascule sur l'appli mail comme secours.
+    var corps = ["Satisfaction : " + data.Satisfaction, "Équipe : " + data.Equipe,
+                 "", "Idée / recommandation :", data.Idee].join("\n");
+    window.location.href = "mailto:" + FEEDBACK_EMAIL +
+      "?subject=" + encodeURIComponent(sujet) + "&body=" + encodeURIComponent(corps);
+  });
 }
 function savePartner(){
   const g=f=>document.getElementById(f).value.trim();
