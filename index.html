@@ -181,6 +181,15 @@
   .f-note b{color:var(--ink)}
   .mailfield{font-size:13px; color:var(--ink); background:var(--soft); border-radius:9px; padding:8px 11px; margin:2px 0 8px}
   .mailfield .mlab{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-right:6px}
+  /* Guide de questions */
+  .g-box{padding:2px 0}
+  .g-q{font-size:15px; font-weight:750; margin:4px 0 12px; line-height:1.4}
+  .g-opts{display:flex; flex-direction:column; gap:8px}
+  .g-opt{width:100%; text-align:left; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer}
+  .g-opt:active{transform:scale(.98)}
+  .g-res{font-size:14px; line-height:1.55; background:#e9f5ec; border-left:4px solid #1f7a44; border-radius:10px; padding:12px 14px; color:#123}
+  .g-res-note{font-size:12px; color:var(--muted); margin:10px 0 12px}
+  .g-restart{background:var(--gold); border-color:var(--gold); color:#141414; text-align:center; margin-top:2px}
   .detail-inner{padding:2px 15px 14px; border-top:1px solid var(--line)}
   .row{display:flex; align-items:flex-start; gap:10px; padding:10px 0; font-size:14px; border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
@@ -405,6 +414,31 @@ const FEEDBACK = {
 // Doit correspondre EXACTEMENT aux options du formulaire, sinon Google écarte la réponse.
 const EQUIPES = ["Social","Médical","Educ","Psy","Aide-soignante"];
 
+/* Guides de questions (arbres) : orientation, PAS conseil juridique.
+   Chaque nœud a soit une question `q` + options `opts` [{t,go}], soit un résultat `r`. */
+const GUIDES = {
+  cartes: {
+    start: "q1",
+    nodes: {
+      q1: {q:"La personne a-t-elle un titre de séjour ?", opts:[
+        {t:"Oui, elle a une carte", go:"q2"},
+        {t:"Non / sans-papiers", go:"sp"},
+        {t:"En attente d'une décision (carte orange)", go:"orange"}
+      ]},
+      q2: {q:"Quelle carte ?", opts:[
+        {t:"Carte A (temporaire)", go:"a"},
+        {t:"Carte B / K / L (illimité, établissement)", go:"illim"},
+        {t:"Carte EU / EU+ ou F / F+ (UE ou famille UE)", go:"ue"}
+      ]},
+      sp:    {r:"Sans-papiers : droits très limités → aide médicale urgente, école (6–18 ans), ester en justice, se marier. Pas de travail, pas de CPAS. Piste possible : régularisation 9bis/9ter si circonstances exceptionnelles."},
+      orange:{r:"Carte orange (séjour provisoire) : les droits dépendent de la situation — demandeur d'asile (travail après 4 mois, aide Fedasil), RF avec un·e Belge (travail immédiat), régularisation médicale (aide sociale). Vérifier le statut précis."},
+      a:     {r:"Carte A (séjour temporaire) : en général travail ✓ et CPAS ✓. Les droits exacts dépendent du statut (réfugié, protection, RF, régularisé, étudiant, permis unique)."},
+      illim: {r:"Carte B / K / L (illimité, établissement, résident longue durée) : travail ✓ et CPAS ✓."},
+      ue:    {r:"Citoyen UE (EU/EU+) ou membre de famille d'un·e Belge/UE (F/F+) : travail ✓ ; CPAS selon les conditions (ressources, durée). Attention au risque pour le séjour si aide sociale en regroupement familial."}
+    }
+  }
+};
+
 const DEMARCHES = [
   "Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale",
   "RIS (revenu d'intégration)","Domiciliation","Mutuelle","Autre"
@@ -535,6 +569,7 @@ const SAMPLE = [
   </div>
   <div class="f-note">⚠️ <b>Orientation, pas un conseil juridique.</b> Le droit des étrangers change souvent — pour une situation précise, orienter vers une permanence spécialisée (<b>CIRÉ, ADDE</b>). Source : formation CIRÉ « Cartes de séjour : quelle carte, quels droits ? » (2025).</div>
 </div>`),
+  guide("Guide — Quels droits selon la carte ?","Réponds à quelques questions → la piste de droits (travail, CPAS).",[],"cartes"),
 
   // SANTÉ MENTALE
   d("santementale","WOPS – Woluwe-Psycho-Social","Woluwe-Saint-Lambert","Service de Santé Mentale : consultations, centre de jour et de nuit, lieu de liens.","Adultes","","info@wops-asbl.be","wops-asbl.be","Chaussée de Roodebeek 471, 1200 Bruxelles","","Affilié Iriscare / Cocof."),
@@ -659,6 +694,10 @@ function formation(nom,desc,metiers,page){
 function mailtpl(nom,desc,keywords,objet,corps){
   const o=d("mails",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.objet=objet; o.corps=corps; o.keywords=keywords||[]; return o;
 }
+/* Guide de questions (arbre interactif) : `guideKey` renvoie vers GUIDES. */
+function guide(nom,desc,metiers,guideKey){
+  const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.isGuide=true; o.guideKey=guideKey; o.metiers=metiers||[]; return o;
+}
 /* Fiche « démarche » : format standard. `attention` = la particularité locale,
    c'est le champ qui explique pourquoi Anderlecht ≠ Molenbeek ≠ Ville de Bruxelles. */
 function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
@@ -670,7 +709,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 11;
+const SEED_VERSION = 12;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -701,7 +740,8 @@ function normalize(p){
     // champs propres aux fiches « démarche »
     demarche:p.demarche||"", ou:p.ou||"", comment:p.comment||"", attention:p.attention||"",
     delai:p.delai||"", maj:p.maj||"", memo:p.memo||"", page:p.page||"", metiers:Array.isArray(p.metiers)?p.metiers:[],
-    objet:p.objet||"", corps:p.corps||"", keywords:Array.isArray(p.keywords)?p.keywords:[]};
+    objet:p.objet||"", corps:p.corps||"", keywords:Array.isArray(p.keywords)?p.keywords:[],
+    isGuide:!!p.isGuide, guideKey:p.guideKey||""};
 }
 function load(){
   let stored=null;
@@ -871,7 +911,8 @@ function demarcheCard(p){
 function cardsHTML(items){
   if(!items.length) return "";
   items=items.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
-  return items.map(p=> DOM[p.domaine].isFormation ? formationCard(p)
+  return items.map(p=> p.isGuide ? guideCard(p)
+                     : DOM[p.domaine].isFormation ? formationCard(p)
                      : DOM[p.domaine].isMail ? mailCard(p)
                      : DOM[p.domaine].isDem ? demarcheCard(p)
                      : DOM[p.domaine].method ? methodCard(p) : contactCard(p)).join('');
@@ -903,6 +944,33 @@ function copyMail(ev,id,field){
   const ok=function(){ btn.textContent='✓ Copié'; setTimeout(function(){btn.innerHTML=orig;},1500); };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){prompt('Copiez :',txt);}); }
   else { prompt('Copiez :',txt); }
+}
+
+let guideSteps = {};
+function guideBody(id){
+  const p=data.find(x=>x.id===id); const g=GUIDES[p.guideKey]; if(!g) return '';
+  const cur=guideSteps[id]||g.start; const node=g.nodes[cur];
+  if(node.q){
+    return `<div class="g-q">${esc(node.q)}</div><div class="g-opts">`+
+      node.opts.map(o=>`<button class="g-opt" onclick="guideAnswer(event,'${id}','${o.go}')">${esc(o.t)}</button>`).join('')+`</div>`;
+  }
+  return `<div class="g-res">${esc(node.r)}</div>`+
+    `<div class="g-res-note">⚠️ Orientation, pas un conseil juridique — à confirmer avec CIRÉ / ADDE.</div>`+
+    `<button class="g-opt g-restart" onclick="guideAnswer(event,'${id}','${g.start}')">↺ Recommencer</button>`;
+}
+function guideAnswer(ev,id,go){
+  ev.stopPropagation(); guideSteps[id]=go;
+  const box=document.querySelector('#c-'+id+' .g-box'); if(box) box.innerHTML=guideBody(id);
+}
+function guideCard(p){
+  return `<div class="card" id="c-${p.id}">
+    <div class="card-top" onclick="toggle('${p.id}')">
+      <div class="tags">${domTag(p)}<span class="tag com">Guide</span></div>
+      <h2>${esc(p.nom)}</h2>
+      ${p.desc?`<p class="desc">${esc(p.desc)}</p>`:''}
+    </div>
+    <div class="detail"><div class="detail-inner"><div class="g-box">${guideBody(p.id)}</div></div></div>
+  </div>`;
 }
 
 function formationCard(p){
