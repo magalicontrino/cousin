@@ -385,14 +385,14 @@
 const GOLD = "#f3c53f", GOLD_SOFT = "#fbf0c4";
 const DOMAINES = [
   {key:"demarches",   label:"Démarches CPAS",     short:"Démarches", ic:"demarche",    color:GOLD, soft:GOLD_SOFT, byCommune:true, isDem:true},
-  {key:"medical",     label:"Médical",            short:"Médical",   ic:"medical",     color:GOLD, soft:GOLD_SOFT, byCommune:true},
-  {key:"social",      label:"Social",             short:"Social",    ic:"social",      color:GOLD, soft:GOLD_SOFT},
-  {key:"educatif",    label:"Éducatif",           short:"Éducatif",  ic:"educatif",    color:GOLD, soft:GOLD_SOFT},
-  {key:"juridique",   label:"Juridique",          short:"Juridique", ic:"juridique",   color:GOLD, soft:GOLD_SOFT},
-  {key:"etrangers",   label:"Droit des étrangers",short:"Étrangers", ic:"globe",       color:GOLD, soft:GOLD_SOFT},
-  {key:"santementale",label:"Santé mentale",      short:"Santé",     ic:"mind",        color:GOLD, soft:GOLD_SOFT},
-  {key:"logement",    label:"Logement",           short:"Logement",  ic:"home",        color:GOLD, soft:GOLD_SOFT},
-  {key:"urgences",    label:"Urgences",           short:"Urgences",  ic:"alert",       color:GOLD, soft:GOLD_SOFT},
+  {key:"medical",     label:"Médical",            short:"Médical",   ic:"medical",     color:GOLD, soft:GOLD_SOFT, byCommune:true, reseau:true},
+  {key:"social",      label:"Social",             short:"Social",    ic:"social",      color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"educatif",    label:"Éducatif",           short:"Éducatif",  ic:"educatif",    color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"juridique",   label:"Juridique",          short:"Juridique", ic:"juridique",   color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"etrangers",   label:"Droit des étrangers",short:"Étrangers", ic:"globe",       color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"santementale",label:"Santé mentale",      short:"Santé",     ic:"mind",        color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"logement",    label:"Logement",           short:"Logement",  ic:"home",        color:GOLD, soft:GOLD_SOFT, reseau:true},
+  {key:"urgences",    label:"Urgences",           short:"Urgences",  ic:"alert",       color:GOLD, soft:GOLD_SOFT, reseau:true},
   {key:"methodes",    label:"Méthodes de travail",short:"Méthodes",  ic:"clipboard",   color:GOLD, soft:GOLD_SOFT, method:true, hidden:true},
   {key:"formations",  label:"Formations",         short:"Formations",ic:"book",        color:GOLD, soft:GOLD_SOFT, isFormation:true},
   {key:"mails",       label:"Mails types",        short:"Mails",     ic:"mail",        color:GOLD, soft:GOLD_SOFT, isMail:true}
@@ -770,6 +770,7 @@ function countDom(k){return data.filter(p=>p.domaine===k).length}
 /* ---------- Navigation ---------- */
 function goHome(){view="home"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; render()}
 function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 function updateHeader(){
   const back=document.getElementById('backBtn');
@@ -785,12 +786,22 @@ function updateHeader(){
     hnav.style.display="flex";
     hnav.innerHTML =
       `<button class="hicon" title="Votre avis / vos idées" onclick="openFeedback()">${icon('chat')}</button>`;
+    return;
+  }
+  back.style.display="flex"; back.innerHTML=icon('chevron');
+  logoImg.style.display="none"; h1.style.display="flex"; em.style.display="inline-flex";
+  hnav.style.display="none"; sub.style.display="block";
+  if(view==="reseau"){
+    em.innerHTML=icon('compass');
+    document.getElementById('hName').textContent="Réseau";
+    sub.textContent="L'annuaire par domaine";
+    back.onclick=goHome;
   }else{
-    const dm=DOM[view]; back.style.display="flex"; back.innerHTML=icon('chevron');
-    logoImg.style.display="none"; h1.style.display="flex"; em.style.display="inline-flex"; em.innerHTML=icon(dm.ic);
-    hnav.style.display="none"; sub.style.display="block";
+    const dm=DOM[view];
+    em.innerHTML=icon(dm.ic);
     document.getElementById('hName').textContent=dm.label;
-    sub.textContent = dm.byCommune?"Par commune de Bruxelles":(dm.method?"Repères pour l'équipe":"Ressources du réseau");
+    sub.textContent = dm.byCommune?"Par commune de Bruxelles":(dm.isFormation?"Pages & guides":(dm.isMail?"Modèles à copier":"Ressources du réseau"));
+    back.onclick = dm.reseau ? openReseau : goHome;
   }
 }
 
@@ -800,12 +811,13 @@ function render(){
   const el=document.getElementById('view');
   const q=query.trim().toLowerCase();
 
-  // Recherche globale (depuis l'accueil)
-  if(view==="home" && q){
+  // Recherche globale (depuis l'accueil ou le Réseau)
+  if((view==="home"||view==="reseau") && q){
     el.innerHTML = cardsHTML(match(data,q).filter(p=>!DOM[p.domaine].hidden)) || emptyHTML();
     return;
   }
   if(view==="home"){ el.innerHTML = homeHTML(); return; }
+  if(view==="reseau"){ el.innerHTML = reseauHTML(); return; }
 
   // Vue domaine
   const dm=DOM[view];
@@ -851,7 +863,9 @@ function setMetier(m){activeMetier=m; render()}
 function setKw(k){activeKw=k; render()}
 
 function domNavHTML(active){
-  return `<div class="domnav">`+DOMAINES.filter(dm=>!dm.hidden).map(dm=>
+  // Pavés uniquement dans le Réseau (pour sauter d'un domaine à l'autre).
+  if(!DOM[active]||!DOM[active].reseau) return '';
+  return `<div class="domnav">`+DOMAINES.filter(dm=>dm.reseau).map(dm=>
     `<button class="pave ${dm.key===active?'active':''}" onclick="openDomaine('${dm.key}')">${icon(dm.ic)}<span>${esc(dm.short||dm.label)}</span></button>`
   ).join('')+`</div>`;
 }
@@ -861,20 +875,30 @@ function match(list,q){
     p.demarche,p.ou,p.comment,p.attention].join(' ').toLowerCase().includes(q));
 }
 
+function tileHTML(ic,label,count,onclickAttr){
+  return `<button class="dcard" onclick="${onclickAttr}">${icon(ic)}<span>${esc(label)}</span><em>${count}</em></button>`;
+}
 function homeHTML(){
-  const cards=DOMAINES.filter(dm=>!dm.hidden).map(dm=>`
-    <button class="dcard" onclick="openDomaine('${dm.key}')">
-      ${icon(dm.ic)}
-      <span>${esc(dm.short||dm.label)}</span>
-      <em>${countDom(dm.key)}</em>
-    </button>`).join('');
+  const reseauCount=data.filter(p=>DOM[p.domaine]&&DOM[p.domaine].reseau).length;
+  const tiles=[
+    tileHTML('compass',"Réseau",reseauCount,"openReseau()"),
+    tileHTML('demarche',"Démarches",countDom('demarches'),"openDomaine('demarches')"),
+    tileHTML('book',"Formations",countDom('formations'),"openDomaine('formations')"),
+    tileHTML('mail',"Mails types",countDom('mails'),"openDomaine('mails')")
+  ].join('');
   return `
     <h2 class="home-title">Vous cherchez quoi&nbsp;?</h2>
     <button class="hero" onclick="openDomaine('urgences')">
       <span class="hero-ic">${icon('alert')}</span>
       <span class="hero-txt"><b>Urgences</b><small>112 · 101 · 107 · Samusocial — accès rapide</small></span>
     </button>
-    <div class="dgrid">${cards}</div>`;
+    <div class="dgrid">${tiles}</div>
+    <div class="section-note">${icon('bulb','width="15" height="15" style="vertical-align:-3px;margin-right:4px"')}<b>Astuce :</b> 4 espaces — <b>Réseau</b> (l'annuaire par domaine), <b>Démarches</b>, <b>Formations</b>, <b>Mails types</b>. La recherche en haut cherche dans tout.</div>`;
+}
+function reseauHTML(){
+  const tiles=DOMAINES.filter(dm=>dm.reseau).map(dm=>
+    tileHTML(dm.ic,dm.label,countDom(dm.key),"openDomaine('"+dm.key+"')")).join('');
+  return `<div class="dgrid">${tiles}</div>`;
 }
 
 function demarcheCard(p){
