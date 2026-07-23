@@ -179,6 +179,8 @@
   .f-chip.mid{background:#fbf0c4; color:#8a6a00}
   .f-note{font-size:12px; color:var(--muted); line-height:1.5; margin-top:14px; border-top:1px solid var(--line); padding-top:10px}
   .f-note b{color:var(--ink)}
+  .mailfield{font-size:13px; color:var(--ink); background:var(--soft); border-radius:9px; padding:8px 11px; margin:2px 0 8px}
+  .mailfield .mlab{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-right:6px}
   .detail-inner{padding:2px 15px 14px; border-top:1px solid var(--line)}
   .row{display:flex; align-items:flex-start; gap:10px; padding:10px 0; font-size:14px; border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
@@ -383,7 +385,8 @@ const DOMAINES = [
   {key:"logement",    label:"Logement",           short:"Logement",  ic:"home",        color:GOLD, soft:GOLD_SOFT},
   {key:"urgences",    label:"Urgences",           short:"Urgences",  ic:"alert",       color:GOLD, soft:GOLD_SOFT},
   {key:"methodes",    label:"Méthodes de travail",short:"Méthodes",  ic:"clipboard",   color:GOLD, soft:GOLD_SOFT, method:true},
-  {key:"formations",  label:"Formations",         short:"Formations",ic:"book",        color:GOLD, soft:GOLD_SOFT, isFormation:true}
+  {key:"formations",  label:"Formations",         short:"Formations",ic:"book",        color:GOLD, soft:GOLD_SOFT, isFormation:true},
+  {key:"mails",       label:"Mails types",        short:"Mails",     ic:"mail",        color:GOLD, soft:GOLD_SOFT, isMail:true}
 ];
 const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 
@@ -617,7 +620,21 @@ const SAMPLE = [
   m("Aide Médicale Urgente (AMU)","Repère pour les personnes sans séjour légal — information générale, non juridique.",
     "L'AMU permet des soins pour les personnes en séjour irrégulier, via le CPAS.\n• Orienter la personne vers le CPAS de sa commune\n• Un médecin atteste le caractère « urgent » des soins\n• En parallèle : Médecins du Monde (CASO) pour l'accès aux soins\n\n⚠️ Confirmer la procédure avec le CPAS concerné."),
   m("Orientation « droit des étrangers »","Quand et vers qui rediriger.",
-    "Ne pas donner de conseil juridique soi-même.\n• Questions de séjour / regroupement familial → ADDE, CIRÉ, Myria\n• Demande d'asile → Fedasil, avocat spécialisé (BAJ)\n• Toujours vérifier les délais : ils sont souvent courts et impératifs.")
+    "Ne pas donner de conseil juridique soi-même.\n• Questions de séjour / regroupement familial → ADDE, CIRÉ, Myria\n• Demande d'asile → Fedasil, avocat spécialisé (BAJ)\n• Toujours vérifier les délais : ils sont souvent courts et impératifs."),
+
+  // MAILS TYPES — squelettes à remplacer par vos vrais textes.
+  mailtpl("Demande de réquisitoire (CPAS)","Modèle à personnaliser.",["Réquisitoire","CPAS","Social"],
+    "Demande de réquisitoire — [votre service]",
+    "Madame, Monsieur,\n\nDans le cadre de notre accompagnement, nous sollicitons un réquisitoire pour [soins / médicaments / autre].\n\nBénéficiaire : [nom, date de naissance ou référence]\nMotif : [préciser]\n\nNous restons à disposition pour tout complément et vous remercions pour votre suivi.\n\nBien à vous,\n[Nom – fonction – service – téléphone]"),
+  mailtpl("Aide Médicale Urgente (AMU)","Modèle à personnaliser.",["AMU","Médical","CPAS"],
+    "Demande d'aide médicale urgente (AMU) — [votre service]",
+    "Madame, Monsieur,\n\nNous sollicitons l'ouverture d'une aide médicale urgente pour la personne suivante, en séjour irrégulier.\n\nBénéficiaire : [nom, date de naissance ou référence]\nAttestation médicale : [jointe / à suivre]\n\nMerci de nous indiquer la marche à suivre et les pièces nécessaires.\n\nBien à vous,\n[Nom – fonction – service – téléphone]"),
+  mailtpl("Demande de carte médicale","Modèle à personnaliser.",["Carte médicale","CPAS","Social"],
+    "Demande de carte médicale — [votre service]",
+    "Madame, Monsieur,\n\nNous sollicitons une carte médicale pour la personne suivante.\n\nBénéficiaire : [nom, date de naissance ou référence]\nPièces jointes : [composition de ménage / preuve de ressources / autre]\n\nMerci de nous préciser la durée de validité et les modalités de renouvellement.\n\nBien à vous,\n[Nom – fonction – service – téléphone]"),
+  mailtpl("Prise de contact — avocat droit des étrangers","Modèle à personnaliser.",["Avocat","Étrangers","Juridique"],
+    "Demande de consultation — droit des étrangers",
+    "Maître,\n\nNous accompagnons une personne dont la situation de séjour nécessite un avis juridique.\n\nSituation en bref : [statut actuel / procédure en cours / échéance éventuelle]\nDocuments disponibles : [lister]\n\nSeriez-vous disponible pour une consultation ? Merci de nous indiquer vos disponibilités et modalités.\n\nBien à vous,\n[Nom – fonction – service – téléphone]")
 ];
 
 function d(dom,nom,commune,desc,pub,tel,mail,site,adr,horaires,notes){
@@ -638,6 +655,10 @@ function memo(dom,nom,desc,site,memoTxt){
 function formation(nom,desc,metiers,page){
   const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.page=page; o.metiers=metiers||[]; return o;
 }
+/* Modèle de mail : `objet` + `corps` copiables ; `keywords` pour le filtre par mot-clé. */
+function mailtpl(nom,desc,keywords,objet,corps){
+  const o=d("mails",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.objet=objet; o.corps=corps; o.keywords=keywords||[]; return o;
+}
 /* Fiche « démarche » : format standard. `attention` = la particularité locale,
    c'est le champ qui explique pourquoi Anderlecht ≠ Molenbeek ≠ Ville de Bruxelles. */
 function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
@@ -649,7 +670,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 10;
+const SEED_VERSION = 11;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -668,6 +689,7 @@ let query = "";
 let activeCommune = "Toutes";
 let activeDemarche = "Toutes";
 let activeMetier = "Toutes";
+let activeKw = "Tous";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function normalize(p){
@@ -678,7 +700,8 @@ function normalize(p){
     tel:p.tel||"", mail:p.mail||"", site:p.site||"", adr:p.adr||"", horaires:p.horaires||"", notes:p.notes||"",
     // champs propres aux fiches « démarche »
     demarche:p.demarche||"", ou:p.ou||"", comment:p.comment||"", attention:p.attention||"",
-    delai:p.delai||"", maj:p.maj||"", memo:p.memo||"", page:p.page||"", metiers:Array.isArray(p.metiers)?p.metiers:[]};
+    delai:p.delai||"", maj:p.maj||"", memo:p.memo||"", page:p.page||"", metiers:Array.isArray(p.metiers)?p.metiers:[],
+    objet:p.objet||"", corps:p.corps||"", keywords:Array.isArray(p.keywords)?p.keywords:[]};
 }
 function load(){
   let stored=null;
@@ -705,8 +728,8 @@ function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
 /* ---------- Navigation ---------- */
-function goHome(){view="home"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; render()}
-function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; document.getElementById('search').value=""; query=""; render()}
+function goHome(){view="home"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; render()}
+function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 function updateHeader(){
   const back=document.getElementById('backBtn');
@@ -770,6 +793,14 @@ function render(){
     // Une formation sans métier = pour tout le monde (toujours affichée).
     if(activeMetier!=="Toutes") items=items.filter(p=>!p.metiers||!p.metiers.length||p.metiers.includes(activeMetier));
   }
+  if(dm.isMail){
+    const kws=[]; items.forEach(p=>(p.keywords||[]).forEach(k=>{ if(kws.indexOf(k)<0) kws.push(k); }));
+    kws.sort((a,b)=>a.localeCompare(b,'fr'));
+    const all=["Tous",...kws];
+    html+=`<div class="chips">`+all.map(k=>
+      `<div class="chip ${k===activeKw?'active':''}" onclick="setKw('${k.replace(/'/g,"\\'")}')">${esc(k)}</div>`).join('')+`</div>`;
+    if(activeKw!=="Tous") items=items.filter(p=>(p.keywords||[]).includes(activeKw));
+  }
   items.sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
   html+=`<div class="count">${items.length} ${items.length>1?'ressources':'ressource'}</div>`;
   html+= cardsHTML(items) || emptyHTML();
@@ -778,6 +809,7 @@ function render(){
 function setCommune(c){activeCommune=c; render()}
 function setDemarche(t){activeDemarche=t; render()}
 function setMetier(m){activeMetier=m; render()}
+function setKw(k){activeKw=k; render()}
 
 function domNavHTML(active){
   return `<div class="domnav">`+DOMAINES.map(dm=>
@@ -841,8 +873,37 @@ function cardsHTML(items){
   if(!items.length) return "";
   items=items.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
   return items.map(p=> DOM[p.domaine].isFormation ? formationCard(p)
+                     : DOM[p.domaine].isMail ? mailCard(p)
                      : DOM[p.domaine].isDem ? demarcheCard(p)
                      : DOM[p.domaine].method ? methodCard(p) : contactCard(p)).join('');
+}
+
+function mailCard(p){
+  const kw = (p.keywords&&p.keywords.length) ? p.keywords.map(k=>`<span class="tag com">${esc(k)}</span>`).join('') : '';
+  return `<div class="card" id="c-${p.id}">
+    <div class="card-top" onclick="toggle('${p.id}')">
+      <div class="tags">${domTag(p)}${kw}</div>
+      <h2>${esc(p.nom)}</h2>
+      ${p.desc?`<p class="desc">${esc(p.desc)}</p>`:''}
+    </div>
+    <div class="detail"><div class="detail-inner">
+      ${p.objet?`<div class="mailfield"><span class="mlab">Objet</span> ${esc(p.objet)}</div>`:''}
+      ${p.corps?`<div class="memo">${esc(p.corps)}</div>`:'<div class="row" style="color:var(--muted)">Texte à ajouter</div>'}
+      <div class="actions">
+        ${p.objet?`<button class="btn map" onclick="copyMail(event,'${p.id}','objet')">${icon('note')}Copier l'objet</button>`:''}
+        <button class="btn call" onclick="copyMail(event,'${p.id}','corps')">${icon('mail')}Copier le message</button>
+      </div>
+    </div></div>
+  </div>`;
+}
+function copyMail(ev,id,field){
+  ev.stopPropagation();
+  const p=data.find(x=>x.id===id); if(!p) return;
+  const txt=(field==='objet'?p.objet:p.corps)||'';
+  const btn=ev.currentTarget, orig=btn.innerHTML;
+  const ok=function(){ btn.textContent='✓ Copié'; setTimeout(function(){btn.innerHTML=orig;},1500); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){prompt('Copiez :',txt);}); }
+  else { prompt('Copiez :',txt); }
 }
 
 function formationCard(p){
