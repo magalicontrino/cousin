@@ -203,6 +203,9 @@
     background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
     padding:10px 12px; font-size:12.5px; line-height:1.5; color:#141414; margin:2px 0 6px;
   }
+  .stars{display:flex; gap:6px; margin:2px 0 4px}
+  .stars button{background:none; border:0; font-size:34px; line-height:1; padding:2px; cursor:pointer; color:#d3d7e2}
+  .stars button.on{color:var(--gold)}
   .empty{text-align:center; color:var(--ondark-muted); padding:46px 20px; font-size:15px; line-height:1.6}
 
   /* FAB + tools */
@@ -324,6 +327,37 @@
   </div>
 </div>
 
+<!-- Formulaire d'avis / idées -->
+<div class="modal-bg" id="fbBg">
+  <div class="modal">
+    <div id="fbForm">
+      <h3>💬 Votre avis, vos idées</h3>
+      <p class="hint">Cette application est faite pour vous faciliter le travail. Dites-nous ce qui va, ce qui manque, ce qu'on pourrait améliorer.</p>
+      <label>Votre satisfaction</label>
+      <div class="stars" id="fbStars">
+        <button type="button" data-v="1">★</button><button type="button" data-v="2">★</button>
+        <button type="button" data-v="3">★</button><button type="button" data-v="4">★</button>
+        <button type="button" data-v="5">★</button>
+      </div>
+      <label>Une idée, une recommandation ?</label>
+      <textarea id="fb-idee" placeholder="Ex. Ajouter les horaires des permanences, une fiche pour telle démarche…"></textarea>
+      <label>Votre équipe (facultatif)</label>
+      <select id="fb-equipe"></select>
+      <div class="form-note" style="margin-top:14px">🔒 Merci de ne pas mentionner le nom d'une personne suivie.</div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeFeedback()">Annuler</button>
+        <button class="save" onclick="submitFeedback()">Envoyer</button>
+      </div>
+    </div>
+    <div id="fbThanks" style="display:none; text-align:center; padding:14px 4px">
+      <div style="font-size:44px; line-height:1">🙏</div>
+      <h3 style="justify-content:center">Merci !</h3>
+      <p class="hint" style="text-align:center">Votre retour a bien été envoyé. Il aidera à faire évoluer COUSIN.</p>
+      <div class="modal-actions"><button class="save" onclick="closeFeedback()">Fermer</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ---------- Référentiels ---------- */
 /* Identité COUSIN : fond noir, accent or, icônes pleines « bold ».
@@ -345,6 +379,17 @@ const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 
 /* Types de démarches. Une fiche = une démarche × un CPAS, au format toujours identique,
    pour qu'un nouveau collègue trouve la procédure sans qu'on la lui réexplique. */
+/* Formulaire d'avis / idées → envoyé vers un Google Forms (sans serveur).
+   À CONFIGURER : coller l'URL « formResponse » et les identifiants « entry.XXXX »
+   obtenus depuis le lien pré-rempli du formulaire (voir instructions). Vide = pas encore branché. */
+const FEEDBACK = {
+  action: "",   // ex. https://docs.google.com/forms/d/e/XXXX/formResponse
+  note:   "",   // ex. entry.111111
+  idee:   "",   // ex. entry.222222
+  equipe: ""    // ex. entry.333333
+};
+const EQUIPES = ["Médicale","Sociale","Aide-soignante","Éducative","Autre"];
+
 const DEMARCHES = [
   "Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale",
   "RIS (revenu d'intégration)","Domiciliation","Mutuelle","Autre"
@@ -634,6 +679,7 @@ function updateHeader(){
     sub.style.display="none";
     hnav.style.display="flex";
     hnav.innerHTML =
+      `<button class="hicon" title="Votre avis / vos idées" onclick="openFeedback()">${icon('chat')}</button>`+
       `<button class="hicon" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
       `<button class="hicon" title="Guide de l'équipe" onclick="openDomaine('methodes')">${icon('book')}</button>`;
   }else if(view==="favoris"){
@@ -877,6 +923,43 @@ function openForm(id){
   document.getElementById('modalBg').classList.add('show');
 }
 function closeForm(){document.getElementById('modalBg').classList.remove('show')}
+
+/* ---------- Avis / idées ---------- */
+let fbNote = 0;
+function openFeedback(){
+  fbNote = 0;
+  document.getElementById('fb-idee').value = '';
+  document.getElementById('fb-equipe').innerHTML =
+    '<option value="">—</option>' + EQUIPES.map(e=>`<option value="${esc(e)}">${esc(e)}</option>`).join('');
+  document.querySelectorAll('#fbStars button').forEach(b=>b.classList.remove('on'));
+  document.getElementById('fbForm').style.display='';
+  document.getElementById('fbThanks').style.display='none';
+  document.getElementById('fbBg').classList.add('show');
+}
+function closeFeedback(){document.getElementById('fbBg').classList.remove('show')}
+document.getElementById('fbStars').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  fbNote = +b.dataset.v;
+  document.querySelectorAll('#fbStars button').forEach(x=>x.classList.toggle('on', +x.dataset.v<=fbNote));
+});
+function submitFeedback(){
+  const idee = document.getElementById('fb-idee').value.trim();
+  const equipe = document.getElementById('fb-equipe').value;
+  if(!fbNote && !idee){ alert("Ajoutez une note en étoiles ou une idée avant d'envoyer."); return; }
+  if(!FEEDBACK.action){
+    alert("Le formulaire n'est pas encore branché. (À configurer par Mag.)");
+    return;
+  }
+  const fd = new FormData();
+  if(FEEDBACK.note)   fd.append(FEEDBACK.note, fbNote||'');
+  if(FEEDBACK.idee)   fd.append(FEEDBACK.idee, idee);
+  if(FEEDBACK.equipe) fd.append(FEEDBACK.equipe, equipe);
+  // Google Forms ne renvoie pas d'en-têtes CORS : on envoie en « no-cors » (envoi effectif,
+  // réponse opaque) et on considère l'envoi réussi.
+  fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(()=>{});
+  document.getElementById('fbForm').style.display='none';
+  document.getElementById('fbThanks').style.display='block';
+}
 function savePartner(){
   const g=f=>document.getElementById(f).value.trim();
   const nom=g('f-nom');
@@ -925,6 +1008,7 @@ function importData(ev){
 document.getElementById('search').addEventListener('input', e=>{query=e.target.value; render()});
 document.getElementById('f-dom').addEventListener('change', syncFormMode);
 document.getElementById('modalBg').addEventListener('click', e=>{if(e.target.id==='modalBg') closeForm()});
+document.getElementById('fbBg').addEventListener('click', e=>{if(e.target.id==='fbBg') closeFeedback()});
 
 render();
 
