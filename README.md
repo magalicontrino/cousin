@@ -1,6 +1,6 @@
 # COUSIN
 
-Annuaire mobile du **réseau d'aide aux personnes à Bruxelles**, pour les équipes de travail social.
+**Outil interne pour faciliter le travail d'équipe** (services du réseau et démarches CPAS) à Bruxelles, pour les équipes de travail social.
 
 Application web autonome (un seul fichier `index.html`, sans serveur) : elle fonctionne hors ligne et enregistre les données sur l'appareil.
 
