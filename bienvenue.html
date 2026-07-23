@@ -10,162 +10,131 @@
 <style>
   :root{--gold:#f3c53f; --bg:#000; --card:#fff; --ink:#141414; --muted:#5f6672; --line:#e9e9ee}
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html,body{margin:0}
+  html,body{margin:0; height:100%}
   body{
-    background:var(--bg); color:#fff; min-height:100vh;
+    background:var(--bg); color:#fff; min-height:100%;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.5; padding:30px 18px calc(env(safe-area-inset-bottom) + 40px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:36px 20px calc(env(safe-area-inset-bottom) + 36px); text-align:center;
   }
-  .wrap{max-width:460px; margin:0 auto}
-  .brand{text-align:center; margin-bottom:22px}
-  .brand img{height:46px; width:auto}
-  h1{font-size:25px; font-weight:800; text-align:center; margin:6px 0 4px; text-wrap:balance}
-  .lead{color:#c7c7cd; font-size:14.5px; text-align:center; margin:0 auto 22px; max-width:34ch}
-  .detected{
-    display:none; align-items:center; gap:10px; justify-content:center;
-    background:#161616; border:1px solid #2a2a2e; border-radius:12px; padding:10px 14px; margin-bottom:16px;
-    font-size:13.5px; color:#d6d6db;
+  .logo{height:52px; width:auto; margin-bottom:10px}
+  .tag{color:#c7c7cd; font-size:15px; margin:0 0 34px}
+  .tiles{display:flex; gap:16px; width:100%; max-width:440px}
+  .tile{
+    flex:1; background:var(--card); color:var(--ink); border:3px solid transparent; border-radius:24px;
+    padding:26px 12px 20px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.3); transition:transform .12s ease;
   }
-  .detected b{color:var(--gold)}
-  .open{
-    display:block; text-align:center; text-decoration:none; background:var(--gold); color:var(--ink);
-    font-size:17px; font-weight:800; padding:16px; border-radius:16px; margin-bottom:12px;
+  .tile:active{transform:scale(.96)}
+  .tile.reco{border-color:var(--gold)}
+  .tile svg{width:64px; height:64px; color:var(--ink)}
+  .tile .name{font-size:18px; font-weight:800}
+  .tile .act{font-size:12.5px; font-weight:700; color:#fff; background:var(--ink); border-radius:20px; padding:7px 14px}
+  .reco .act{background:var(--gold); color:var(--ink)}
+  .hint{margin-top:26px; font-size:12.5px; color:#7f7f86; max-width:34ch}
+  .installed{display:none; background:#161616; border:1px solid #2a2a2e; border-radius:16px; padding:18px 20px; max-width:440px; width:100%}
+  .installed b{color:var(--gold)}
+
+  /* Bulle d'instructions */
+  .sheet-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:20}
+  .sheet-bg.show{display:flex}
+  .sheet{
+    background:#fff; color:var(--ink); width:100%; max-width:440px; border-radius:24px 24px 0 0;
+    padding:24px 22px calc(env(safe-area-inset-bottom) + 24px); text-align:left; animation:up .25s ease;
   }
-  .open.small{background:#161616; color:#fff; border:1px solid #2a2a2e; font-size:14px; padding:13px; font-weight:700}
-  .card{
-    background:var(--card); color:var(--ink); border-radius:20px; padding:20px 18px; margin-top:14px;
-    box-shadow:0 6px 24px rgba(0,0,0,.25); scroll-margin-top:16px;
-  }
-  .card.dim{opacity:.55}
-  .head{display:flex; align-items:center; gap:12px}
-  .os{width:44px; height:44px; border-radius:13px; background:var(--gold); display:flex; align-items:center; justify-content:center; flex:0 0 auto}
-  .os svg{width:26px; height:26px; color:var(--ink)}
-  .card h2{font-size:18px; font-weight:800; margin:0}
-  .browser{margin:2px 0 14px 56px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px}
-  ol{margin:0; padding:0; list-style:none; counter-reset:step}
-  li{counter-increment:step; position:relative; padding:10px 0 10px 44px; border-top:1px solid var(--line); font-size:14.5px}
+  @keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:translateY(0);opacity:1}}
+  .sheet h2{margin:0 0 4px; font-size:20px; font-weight:800; display:flex; align-items:center; gap:10px}
+  .sheet h2 svg{width:26px; height:26px}
+  .sheet .sub{margin:0 0 16px; font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px}
+  ol{margin:0; padding:0; list-style:none; counter-reset:s}
+  li{counter-increment:s; position:relative; padding:12px 0 12px 46px; border-top:1px solid var(--line); font-size:15.5px}
   li:first-child{border-top:0}
-  li::before{content:counter(step); position:absolute; left:0; top:8px; width:29px; height:29px; border-radius:50%;
-    background:var(--ink); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center}
+  li::before{content:counter(s); position:absolute; left:0; top:10px; width:30px; height:30px; border-radius:50%;
+    background:var(--ink); color:#fff; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center}
   li b{background:#fff6d6; padding:1px 5px; border-radius:5px; font-weight:800}
-  .toggle{
-    display:block; width:100%; text-align:center; background:none; border:0; color:#9a9aa2;
-    font-size:13px; font-weight:700; padding:16px 0 4px; cursor:pointer; text-decoration:underline;
-  }
-  .note{margin-top:22px; background:#161616; border-left:4px solid var(--gold); border-radius:12px; padding:14px 16px; font-size:13.5px; color:#d6d6db}
-  .note b{color:#fff}
-  .foot{margin-top:18px; color:#7f7f86; font-size:12px; text-align:center}
-  .hidden{display:none}
+  .sheet .close{margin-top:18px; width:100%; background:var(--gold); color:var(--ink); border:0; border-radius:14px; padding:14px; font-size:15px; font-weight:800; cursor:pointer}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand"><img src="data:image/png;base64,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" alt="COUSIN"></div>
-  <h1>Installez COUSIN sur votre téléphone</h1>
-  <p class="lead">Rien à télécharger sur un store. Comptez 30 secondes.</p>
+  <img class="logo" alt="COUSIN" src="data:image/png;base64,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">
+  <p class="tag">Installez l'application</p>
 
-  <div class="detected" id="detected"></div>
-
-  <a class="open" href="./" id="openBtn">Ouvrir l'application</a>
-
-  <!-- iPhone -->
-  <div class="card" id="card-ios">
-    <div class="head">
-      <span class="os"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.15-2.8.85-3.5.85-.7 0-1.9-.83-3.1-.8-1.6.02-3 .93-3.8 2.36-1.65 2.85-.42 7.06 1.16 9.37.78 1.13 1.7 2.4 2.9 2.36 1.17-.05 1.6-.75 3-.75s1.8.75 3.1.73c1.28-.02 2.08-1.15 2.85-2.3.9-1.3 1.27-2.58 1.29-2.64-.03-.02-2.48-.95-2.5-3.78zM15.3 5.6c.64-.78 1.07-1.86.95-2.94-.92.04-2.04.61-2.7 1.39-.6.69-1.11 1.79-.97 2.85 1.03.08 2.08-.52 2.72-1.3z"/></svg></span>
-      <h2>iPhone / iPad</h2>
+  <div class="tiles" id="tiles">
+    <div class="tile" id="tile-ios" onclick="clickIos()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.15-2.8.85-3.5.85-.7 0-1.9-.83-3.1-.8-1.6.02-3 .93-3.8 2.36-1.65 2.85-.42 7.06 1.16 9.37.78 1.13 1.7 2.4 2.9 2.36 1.17-.05 1.6-.75 3-.75s1.8.75 3.1.73c1.28-.02 2.08-1.15 2.85-2.3.9-1.3 1.27-2.58 1.29-2.64-.03-.02-2.48-.95-2.5-3.78zM15.3 5.6c.64-.78 1.07-1.86.95-2.94-.92.04-2.04.61-2.7 1.39-.6.69-1.11 1.79-.97 2.85 1.03.08 2.08-.52 2.72-1.3z"/></svg>
+      <span class="name">iPhone</span>
+      <span class="act">Installer</span>
     </div>
-    <p class="browser">À faire dans Safari</p>
-    <ol>
-      <li>Ouvrez cette page <b>dans Safari</b> (pas depuis WhatsApp ni Chrome).</li>
-      <li>Touchez le bouton <b>Partager</b> en bas — le carré avec une flèche vers le haut.</li>
-      <li>Faites défiler et touchez <b>Sur l'écran d'accueil</b>.</li>
-      <li>Touchez <b>Ajouter</b> en haut à droite.</li>
-    </ol>
-  </div>
-
-  <!-- Android -->
-  <div class="card" id="card-android">
-    <div class="head">
-      <span class="os"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9v8.5A1.5 1.5 0 0 0 7.5 19H8v2.2a1.3 1.3 0 0 0 2.6 0V19h2.8v2.2a1.3 1.3 0 0 0 2.6 0V19h.5a1.5 1.5 0 0 0 1.5-1.5V9zM3.8 9a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 3.8 9zm16.4 0a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 20.2 9zM15.6 3.2l1.1-1.6a.3.3 0 0 0-.5-.34l-1.2 1.7a6.6 6.6 0 0 0-5.9 0L7.8 1.26a.3.3 0 1 0-.5.34l1.1 1.6A6 6 0 0 0 6 8h12a6 6 0 0 0-2.4-4.8zM9.5 6.3a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/></svg></span>
-      <h2>Android</h2>
+    <div class="tile" id="tile-android" onclick="clickAndroid()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9v8.5A1.5 1.5 0 0 0 7.5 19H8v2.2a1.3 1.3 0 0 0 2.6 0V19h2.8v2.2a1.3 1.3 0 0 0 2.6 0V19h.5a1.5 1.5 0 0 0 1.5-1.5V9zM3.8 9a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 3.8 9zm16.4 0a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 20.2 9zM15.6 3.2l1.1-1.6a.3.3 0 0 0-.5-.34l-1.2 1.7a6.6 6.6 0 0 0-5.9 0L7.8 1.26a.3.3 0 1 0-.5.34l1.1 1.6A6 6 0 0 0 6 8h12a6 6 0 0 0-2.4-4.8zM9.5 6.3a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/></svg>
+      <span class="name">Android</span>
+      <span class="act">Installer</span>
     </div>
-    <p class="browser">À faire dans Chrome</p>
-    <ol>
-      <li>Ouvrez cette page <b>dans Chrome</b>.</li>
-      <li>Touchez le menu <b>⋮</b> (trois points, en haut à droite).</li>
-      <li>Touchez <b>Installer l'application</b> (ou « Ajouter à l'écran d'accueil »).</li>
-      <li>Confirmez avec <b>Installer</b>.</li>
-    </ol>
   </div>
 
-  <button class="toggle hidden" id="toggle">Voir l'autre téléphone</button>
+  <div class="installed" id="installed">✓ L'application est <b>déjà installée</b>. <a href="./" style="color:#fff">Ouvrir COUSIN →</a></div>
 
-  <div class="note" id="deskNote" style="display:none">
-    💻 Vous êtes sur ordinateur. Pour installer l'app, ouvrez cette page <b>sur votre téléphone</b> à l'adresse&nbsp;: <b>cousin.magalicontrino.com/bienvenue.html</b>
+  <p class="hint" id="hint">Touchez votre téléphone. L'app s'ouvre en plein écran et se met à jour toute seule.</p>
+
+  <!-- Bulle iPhone -->
+  <div class="sheet-bg" id="sheet-ios" onclick="if(event.target.id==='sheet-ios')closeSheet()">
+    <div class="sheet">
+      <h2><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.15-2.8.85-3.5.85-.7 0-1.9-.83-3.1-.8-1.6.02-3 .93-3.8 2.36-1.65 2.85-.42 7.06 1.16 9.37.78 1.13 1.7 2.4 2.9 2.36 1.17-.05 1.6-.75 3-.75s1.8.75 3.1.73c1.28-.02 2.08-1.15 2.85-2.3.9-1.3 1.27-2.58 1.29-2.64-.03-.02-2.48-.95-2.5-3.78zM15.3 5.6c.64-.78 1.07-1.86.95-2.94-.92.04-2.04.61-2.7 1.39-.6.69-1.11 1.79-.97 2.85 1.03.08 2.08-.52 2.72-1.3z"/></svg> Sur iPhone</h2>
+      <p class="sub">Dans Safari · 2 gestes</p>
+      <ol>
+        <li>Touchez <b>⬆︎ Partager</b> en bas de l'écran.</li>
+        <li>Choisissez <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li>
+      </ol>
+      <button class="close" onclick="closeSheet()">J'ai compris</button>
+    </div>
   </div>
 
-  <div class="note">
-    <b>Une fois installée :</b> l'icône COUSIN (noire et or) est sur l'écran d'accueil. L'app s'ouvre en plein écran, marche même sans réseau et <b>se met à jour toute seule</b>.
+  <!-- Bulle Android (secours si l'installation directe n'est pas proposée) -->
+  <div class="sheet-bg" id="sheet-android" onclick="if(event.target.id==='sheet-android')closeSheet()">
+    <div class="sheet">
+      <h2><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9v8.5A1.5 1.5 0 0 0 7.5 19H8v2.2a1.3 1.3 0 0 0 2.6 0V19h2.8v2.2a1.3 1.3 0 0 0 2.6 0V19h.5a1.5 1.5 0 0 0 1.5-1.5V9zM3.8 9a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 3.8 9zm16.4 0a1.3 1.3 0 0 0-1.3 1.3v4.9a1.3 1.3 0 0 0 2.6 0v-4.9A1.3 1.3 0 0 0 20.2 9zM15.6 3.2l1.1-1.6a.3.3 0 0 0-.5-.34l-1.2 1.7a6.6 6.6 0 0 0-5.9 0L7.8 1.26a.3.3 0 1 0-.5.34l1.1 1.6A6 6 0 0 0 6 8h12a6 6 0 0 0-2.4-4.8z"/></svg> Sur Android</h2>
+      <p class="sub">Dans Chrome</p>
+      <ol>
+        <li>Touchez le menu <b>⋮</b> en haut à droite.</li>
+        <li>Touchez <b>Installer l'application</b>.</li>
+      </ol>
+      <button class="close" onclick="closeSheet()">J'ai compris</button>
+    </div>
   </div>
-  <p class="foot">Outil interne d'équipe · ne jamais renseigner le nom d'une personne suivie.</p>
-</div>
 
 <script>
-(function(){
-  var ua = navigator.userAgent || navigator.vendor || '';
-  var isIOS = /iphone|ipad|ipod/i.test(ua) ||
-              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferred = e; });
+
+  var ua = navigator.userAgent || '';
+  var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var isAndroid = /android/i.test(ua);
   var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
-  var cardIos = document.getElementById('card-ios');
-  var cardAnd = document.getElementById('card-android');
-  var det = document.getElementById('detected');
-  var toggle = document.getElementById('toggle');
-  var deskNote = document.getElementById('deskNote');
-  var openBtn = document.getElementById('openBtn');
+  // Met en avant le téléphone détecté (les deux restent cliquables).
+  if (isIOS) document.getElementById('tile-ios').classList.add('reco');
+  if (isAndroid) document.getElementById('tile-android').classList.add('reco');
 
-  // Déjà installée : on invite juste à ouvrir.
   if (standalone) {
-    det.style.display = 'flex';
-    det.innerHTML = "✓ <span>L'application est <b>déjà installée</b>.</span>";
-    cardIos.style.display = cardAnd.style.display = 'none';
-    return;
+    document.getElementById('tiles').style.display = 'none';
+    document.getElementById('hint').style.display = 'none';
+    document.getElementById('installed').style.display = 'block';
   }
 
-  function show(primary, secondary, osLabel){
-    det.style.display = 'flex';
-    det.innerHTML = "On dirait que vous êtes sur <b>" + osLabel + "</b>.";
-    secondary.classList.add('hidden');
-    toggle.classList.remove('hidden');
-    // ordre : la carte du bon téléphone d'abord
-    primary.parentNode.insertBefore(primary, det.nextSibling);
-    toggle.onclick = function(){
-      var hidden = secondary.classList.toggle('hidden');
-      toggle.textContent = hidden ? "Voir l'autre téléphone" : "Masquer l'autre téléphone";
-    };
+  function openSheet(id){ document.getElementById('sheet-'+id).classList.add('show'); }
+  function closeSheet(){
+    document.getElementById('sheet-ios').classList.remove('show');
+    document.getElementById('sheet-android').classList.remove('show');
   }
-
-  if (isIOS) {
-    show(cardIos, cardAnd, 'iPhone');
-  } else if (isAndroid) {
-    show(cardAnd, cardIos, 'Android');
-    // Sur Android/Chrome, propose l'installation native si disponible.
-    window.addEventListener('beforeinstallprompt', function(e){
-      e.preventDefault();
-      openBtn.textContent = "📲 Installer l'application";
-      openBtn.href = '#';
-      openBtn.onclick = function(ev){
-        ev.preventDefault();
-        e.prompt();
-      };
-    });
-  } else {
-    // Ordinateur : on montre les deux + une note.
-    deskNote.style.display = 'block';
-    openBtn.classList.add('small');
+  function clickIos(){ openSheet('ios'); }
+  function clickAndroid(){
+    if (deferred) {
+      deferred.prompt();
+      deferred.userChoice.then(function(){ deferred = null; });
+    } else {
+      openSheet('android');
+    }
   }
-})();
 </script>
 </body>
 </html>
