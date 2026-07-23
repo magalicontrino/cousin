@@ -271,8 +271,9 @@
 
 <div class="modal-bg" id="modalBg">
   <div class="modal">
-    <h3 id="modalTitle">Nouvelle ressource</h3>
-    <div class="form-note">🔒 <b>Jamais de nom d'hébergé ici.</b> Cette application sert à documenter des services et des procédures — jamais des situations individuelles.</div>
+    <h3 id="modalTitle">Proposer une fiche</h3>
+    <div class="form-note" style="background:#eef4ff;border-left-color:#4f6bd6">✋ <b>C'est une proposition.</b> Elle est envoyée à l'équipe pour validation — elle n'apparaît pas tout de suite. Une fois vérifiée, elle est ajoutée pour tout le monde.</div>
+    <div class="form-note">🔒 <b>Jamais de nom d'hébergé ici.</b> On documente des services et des procédures — jamais des situations individuelles.</div>
     <input type="hidden" id="f-id">
     <label>Nom *</label>
     <input id="f-nom" placeholder="Ex. CPAS d'Ixelles">
@@ -320,7 +321,7 @@
 
     <div class="modal-actions">
       <button class="cancel" onclick="closeForm()">Annuler</button>
-      <button class="save" onclick="savePartner()">Enregistrer</button>
+      <button class="save" onclick="submitProposal()">Envoyer la proposition</button>
     </div>
   </div>
 </div>
@@ -798,10 +799,6 @@ function demarcheCard(p){
       ${rows.join('')||'<div class="row" style="color:var(--muted)">Procédure à compléter</div>'}
       ${act.length?`<div class="actions">${act.join('')}</div>`:''}
       ${p.maj?`<div class="maj">Mis à jour : ${esc(p.maj)}</div>`:''}
-      <div class="mini">
-        <button onclick="openForm('${p.id}')">${icon('pencil')}Modifier</button>
-        <button class="del" onclick="delPartner('${p.id}')">${icon('trash')}Supprimer</button>
-      </div>
     </div></div>
   </div>`;
 }
@@ -847,10 +844,6 @@ function contactCard(p){
     <div class="detail"><div class="detail-inner">
       ${rows.join('')||'<div class="row" style="color:var(--muted)">Coordonnées à compléter</div>'}
       ${act.length?`<div class="actions">${act.join('')}</div>`:''}
-      <div class="mini">
-        <button onclick="openForm('${p.id}')">${icon('pencil')}Modifier</button>
-        <button class="del" onclick="delPartner('${p.id}')">${icon('trash')}Supprimer</button>
-      </div>
     </div></div>
   </div>`;
 }
@@ -865,10 +858,6 @@ function methodCard(p){
     </div>
     <div class="detail"><div class="detail-inner">
       ${p.notes?`<div class="body">${esc(p.notes)}</div>`:'<div class="body" style="color:var(--muted)">Contenu à compléter</div>'}
-      <div class="mini">
-        <button onclick="openForm('${p.id}')">${icon('pencil')}Modifier</button>
-        <button class="del" onclick="delPartner('${p.id}')">${icon('trash')}Supprimer</button>
-      </div>
     </div></div>
   </div>`;
 }
@@ -900,7 +889,7 @@ function syncFormMode(){
 function openForm(id){
   fillSelects();
   const p=id?data.find(x=>x.id===id):null;
-  document.getElementById('modalTitle').textContent = p?'Modifier':'Nouvelle ressource';
+  document.getElementById('modalTitle').textContent = 'Proposer une fiche';
   const g=f=>document.getElementById(f);
   g('f-id').value=p?p.id:'';
   g('f-nom').value=p?p.nom:'';
@@ -941,26 +930,31 @@ function submitFeedback(){
   // Google Forms ne renvoie pas d'en-têtes CORS : envoi en « no-cors » (effectif, réponse opaque).
   fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
 }
-function savePartner(){
+/* La proposition n'est PAS enregistrée sur l'appareil : elle est envoyée à l'équipe
+   (formulaire Google) pour validation, puis ajoutée au catalogue commun après vérification. */
+function submitProposal(){
   const g=f=>document.getElementById(f).value.trim();
   const nom=g('f-nom');
-  if(!nom){alert("Le nom est obligatoire.");return}
-  const id=document.getElementById('f-id').value;
-  const old=id?data.find(x=>x.id===id):null;
-  const newId=id||uid();
-  const obj={id:newId, sid:old?old.sid:('user-'+newId), fav:old?old.fav:false,
-    domaine:document.getElementById('f-dom').value,
-    nom, commune:document.getElementById('f-com').value, desc:g('f-desc'), public:g('f-public'),
-    referent:g('f-referent'), tel:g('f-tel'), mail:g('f-mail'), site:g('f-site'),
-    adr:g('f-adr'), horaires:g('f-horaires'), notes:g('f-notes'),
-    demarche:document.getElementById('f-demarche').value, ou:g('f-ou'), comment:g('f-comment'),
-    attention:g('f-attention'), delai:g('f-delai'), maj:g('f-maj')};
-  if(id){const i=data.findIndex(x=>x.id===id); data[i]=obj;} else data.push(obj);
-  persist(); closeForm(); render();
-}
-function delPartner(id){
-  const p=data.find(x=>x.id===id);
-  if(confirm(`Supprimer « ${p.nom} » ?`)){data=data.filter(x=>x.id!==id); persist(); render();}
+  if(!nom){alert("Indiquez au moins le nom de la structure.");return}
+  const dom=document.getElementById('f-dom').value;
+  const isDem = dom==="demarches", isMeth = dom==="methodes";
+  const lignes=["PROPOSITION DE FICHE", "Domaine : "+(DOM[dom]?DOM[dom].label:dom), "Nom : "+nom];
+  const add=(label,val)=>{ if(val) lignes.push(label+" : "+val); };
+  add("Commune", document.getElementById('f-com').value);
+  if(isDem) add("Type de démarche", document.getElementById('f-demarche').value);
+  add(isMeth?"Résumé":"Ce qu'ils proposent", g('f-desc'));
+  if(isDem){ add("Où envoyer", g('f-ou')); add("Comment", g('f-comment')); add("Particularité", g('f-attention')); add("Délai", g('f-delai')); add("Mis à jour", g('f-maj')); }
+  add("Public", g('f-public')); add("Référent", g('f-referent'));
+  add("Téléphone", g('f-tel')); add("Email", g('f-mail')); add("Site", g('f-site'));
+  add("Adresse", g('f-adr')); add("Horaires", g('f-horaires'));
+  add(isMeth?"Contenu":"Notes", g('f-notes'));
+
+  const fd=new FormData();
+  fd.append(FEEDBACK.idee, lignes.join("\n"));
+  // Envoi silencieux vers le formulaire Google, comme les idées.
+  fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
+  closeForm();
+  alert("Merci ! Votre proposition a été envoyée à l'équipe. Elle sera ajoutée après vérification.");
 }
 
 /* ---------- Sauvegarde ---------- */
