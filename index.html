@@ -185,6 +185,18 @@
   .method .body{white-space:pre-line; font-size:14px; color:var(--ink); padding:2px 15px 6px}
   .method .body.collapsed{max-height:0; overflow:hidden; padding-top:0; padding-bottom:0}
 
+  /* Fiche démarche : la particularité locale doit sauter aux yeux */
+  .warn{
+    display:block; background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
+    padding:11px 13px; margin:10px 0 4px; font-size:13.5px; line-height:1.5; color:#141414;
+  }
+  .warn b{display:block; font-size:12px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px}
+  .maj{padding:8px 15px 0; font-size:11.5px; color:var(--muted); font-style:italic}
+  .only-dem{display:none}
+  .form-note{
+    background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
+    padding:10px 12px; font-size:12.5px; line-height:1.5; color:#141414; margin:2px 0 6px;
+  }
   .empty{text-align:center; color:var(--ondark-muted); padding:46px 20px; font-size:15px; line-height:1.6}
 
   /* FAB + tools */
@@ -253,12 +265,28 @@
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h3 id="modalTitle">Nouvelle ressource</h3>
+    <div class="form-note">🔒 <b>Jamais de nom d'hébergé ici.</b> Cette application sert à documenter des services et des procédures — jamais des situations individuelles.</div>
     <input type="hidden" id="f-id">
     <label>Nom *</label>
     <input id="f-nom" placeholder="Ex. CPAS d'Ixelles">
     <div class="grid2">
       <div><label>Domaine</label><select id="f-dom"></select></div>
       <div><label>Commune</label><select id="f-com"></select></div>
+    </div>
+
+    <div class="only-dem">
+      <label>Type de démarche</label>
+      <select id="f-demarche"></select>
+      <label>Où envoyer</label>
+      <textarea id="f-ou" placeholder="Ex. à l'antenne sociale du secteur (mails), ou adresse unique…"></textarea>
+      <label>Comment (formulaire, pièces, qui signe)</label>
+      <textarea id="f-comment" placeholder="Ex. formulaire X + composition de ménage + attestation médicale…"></textarea>
+      <label>⚠️ Particularité de ce CPAS</label>
+      <textarea id="f-attention" placeholder="Ce qui change par rapport aux autres communes — le piège à connaître."></textarea>
+      <div class="grid2">
+        <div><label>Délai habituel</label><input id="f-delai" placeholder="Ex. 10 jours"></div>
+        <div><label>Mis à jour (date + initiales)</label><input id="f-maj" placeholder="Ex. 07/2026 – MC"></div>
+      </div>
     </div>
     <label id="lab-desc">Ce qu'ils proposent</label>
     <textarea id="f-desc" placeholder="Ex. Aide sociale, revenu d'intégration, guidance…"></textarea>
@@ -296,6 +324,7 @@
    Accent commun à tous les domaines ; on pourra en donner un par domaine plus tard. */
 const GOLD = "#f3c53f", GOLD_SOFT = "#fbf0c4";
 const DOMAINES = [
+  {key:"demarches",   label:"Démarches CPAS",     short:"Démarches", ic:"demarche",    color:GOLD, soft:GOLD_SOFT, byCommune:true, isDem:true},
   {key:"medical",     label:"Médical",            short:"Médical",   ic:"medical",     color:GOLD, soft:GOLD_SOFT, byCommune:true},
   {key:"social",      label:"Social",             short:"Social",    ic:"social",      color:GOLD, soft:GOLD_SOFT},
   {key:"educatif",    label:"Éducatif",           short:"Éducatif",  ic:"educatif",    color:GOLD, soft:GOLD_SOFT},
@@ -308,8 +337,16 @@ const DOMAINES = [
 ];
 const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 
+/* Types de démarches. Une fiche = une démarche × un CPAS, au format toujours identique,
+   pour qu'un nouveau collègue trouve la procédure sans qu'on la lui réexplique. */
+const DEMARCHES = [
+  "Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale",
+  "RIS (revenu d'intégration)","Domiciliation","Mutuelle","Autre"
+];
+
 /* Jeu d'icônes maison, style « bold » plein (currentColor). Le globe reste au trait. */
 const ICONS = {
+  demarche: '<path fill-rule="evenodd" d="M6 2.8h7.2L18 7.6v3.1h-2V9.4h-3.8V4.4H8v15.2h5v2H6zM13 3.6V8h4.4zM8.8 11.4h5.4v1.5H8.8z"/><path d="M18.4 13.4l3.6 3.6-3.6 3.6v-2.6h-4.2v-2h4.2z"/>',
   medical:  '<rect x="9.3" y="4" width="5.4" height="16" rx="2.4"/><rect x="4" y="9.3" width="16" height="5.4" rx="2.4"/>',
   social:   '<circle cx="8" cy="8" r="3.1"/><circle cx="16.4" cy="8.6" r="2.6"/><path d="M2.6 19.6c0-3 2.4-5.2 5.4-5.2s5.4 2.2 5.4 5.2v.4H2.6z"/><path d="M14.8 14.5c2.6.1 4.6 2.3 4.6 5.1v.4h-3.1z"/>',
   educatif: '<path d="M12 3.6L1.4 8.3 12 13l10.6-4.7z"/><path d="M6 10.6V15c0 .9 2.7 2.5 6 2.5s6-1.6 6-2.5v-4.4l-6 2.7z"/><path d="M21.4 9v5.4"/>',
@@ -453,6 +490,41 @@ const SAMPLE = [
   d("urgences","SOS Viol","Régional / Toutes communes","Écoute et accompagnement des victimes de violences sexuelles, anonyme.","Victimes et proches","0800 98 100","","sosviol.be","","","Gratuit et anonyme. À vérifier."),
   d("urgences","Infor-Drogues","Régional / Toutes communes","Écoute et information sur les drogues et les dépendances.","Tout public","02 227 52 52","","infordrogues.be","","","À vérifier."),
 
+  // DÉMARCHES CPAS — trames à compléter par l'équipe.
+  // ⚠️ Ne jamais écrire ici le nom d'un hébergé : ce sont des procédures, pas des dossiers.
+  dem("Réquisitoire","CPAS d'Anderlecht","Anderlecht",
+    "À envoyer à l'antenne sociale dont dépend la personne — pas à l'adresse générale. (Liste des antennes et de leurs mails à compléter.)",
+    "À compléter : formulaire utilisé, pièces à joindre, qui signe.",
+    "Anderlecht fonctionne par antennes sociales : un envoi à une adresse unique ne passe pas. Vérifier de quelle antenne dépend la personne selon son adresse.",
+    "À compléter",""),
+  dem("Réquisitoire","CPAS de la Ville de Bruxelles","Bruxelles-Ville",
+    "Une seule adresse mail centralisée pour toutes les demandes. (Adresse à compléter.)",
+    "À compléter : formulaire utilisé, pièces à joindre.",
+    "Contrairement à Anderlecht, pas d'envoi par antenne : tout passe par l'adresse unique.",
+    "À compléter",""),
+  dem("Réquisitoire","CPAS de Molenbeek-Saint-Jean","Molenbeek-Saint-Jean",
+    "À compléter.",
+    "À compléter : formulaire utilisé, pièces à joindre.",
+    "Molenbeek a sa propre procédure, différente d'Anderlecht et de la Ville de Bruxelles — à documenter précisément.",
+    "À compléter",""),
+  dem("Aide Médicale Urgente (AMU)","CPAS d'Anderlecht","Anderlecht",
+    "À compléter.","À compléter : attestation du médecin, pièces, circuit interne.",
+    "À compléter : ce qui diffère des autres CPAS.","À compléter",""),
+  dem("Aide Médicale Urgente (AMU)","CPAS de la Ville de Bruxelles","Bruxelles-Ville",
+    "À compléter.","À compléter : attestation du médecin, pièces, circuit interne.",
+    "À compléter : ce qui diffère des autres CPAS.","À compléter",""),
+  dem("Aide Médicale Urgente (AMU)","CPAS de Molenbeek-Saint-Jean","Molenbeek-Saint-Jean",
+    "À compléter.","À compléter : attestation du médecin, pièces, circuit interne.",
+    "À compléter : ce qui diffère des autres CPAS.","À compléter",""),
+  dem("Carte médicale","Tous CPAS — trame générale","Régional / Toutes communes",
+    "À compléter par CPAS.","À compléter : conditions, durée de validité, renouvellement.",
+    "Les conditions et la durée varient d'un CPAS à l'autre : dupliquer cette fiche par commune.",
+    "À compléter",""),
+  dem("RIS (revenu d'intégration)","Tous CPAS — trame générale","Régional / Toutes communes",
+    "CPAS de la commune de résidence.","À compléter : pièces, prise de rendez-vous, enquête sociale.",
+    "Délais et modalités de rendez-vous très variables selon les communes.",
+    "À compléter",""),
+
   // MÉTHODES DE TRAVAIL (modèles à compléter par l'équipe)
   m("Premier accueil d'un bénéficiaire","Trame d'entretien d'accueil — à adapter par l'équipe.",
     "1. Identité et situation familiale\n2. Besoins prioritaires : logement, santé, revenus, séjour, sécurité\n3. Droits déjà ouverts : mutuelle, CPAS, allocations\n4. Information sur la confidentialité (RGPD) et recueil du consentement\n5. Première orientation et prochain rendez-vous\n\n👉 À compléter avec vos propres points de vigilance."),
@@ -473,10 +545,18 @@ function m(nom,desc,notes){
 function cpas(nom,commune,tel,site,adr){
   return d("social",nom,commune,"Revenu d'intégration (RIS), aide sociale, guidance budgétaire, aide médicale urgente.","Habitants de la commune",tel,"",site,adr,"","");
 }
+/* Fiche « démarche » : format standard. `attention` = la particularité locale,
+   c'est le champ qui explique pourquoi Anderlecht ≠ Molenbeek ≠ Ville de Bruxelles. */
+function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
+  return {id:uid(),fav:false,domaine:"demarches",demarche:type,
+    nom:type+" — "+cpasNom, commune, desc:"", public:"", referent:"",
+    tel:"", mail:mail||"", site:"", adr:"", horaires:"",
+    ou:ou||"", comment:comment||"", attention:attention||"", delai:delai||"", maj:"", notes:""};
+}
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 7;
+const SEED_VERSION = 8;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -493,6 +573,7 @@ let data = load();
 let view = "home";          // "home" ou clé de domaine
 let query = "";
 let activeCommune = "Toutes";
+let activeDemarche = "Toutes";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function normalize(p){
@@ -500,7 +581,10 @@ function normalize(p){
   return {id, sid:p.sid||('user-'+id), fav:!!p.fav,
     domaine:p.domaine&&DOM[p.domaine]?p.domaine:"social",
     nom:p.nom||"", commune:p.commune||"", desc:p.desc||"", public:p.public||"", referent:p.referent||"",
-    tel:p.tel||"", mail:p.mail||"", site:p.site||"", adr:p.adr||"", horaires:p.horaires||"", notes:p.notes||""};
+    tel:p.tel||"", mail:p.mail||"", site:p.site||"", adr:p.adr||"", horaires:p.horaires||"", notes:p.notes||"",
+    // champs propres aux fiches « démarche »
+    demarche:p.demarche||"", ou:p.ou||"", comment:p.comment||"", attention:p.attention||"",
+    delai:p.delai||"", maj:p.maj||""};
 }
 function load(){
   let stored=null;
@@ -527,8 +611,8 @@ function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
 /* ---------- Navigation ---------- */
-function goHome(){view="home"; activeCommune="Toutes"; render()}
-function openDomaine(k){view=k; activeCommune="Toutes"; document.getElementById('search').value=""; query=""; render()}
+function goHome(){view="home"; activeCommune="Toutes"; activeDemarche="Toutes"; render()}
+function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; document.getElementById('search').value=""; query=""; render()}
 function openFavoris(){view="favoris"; document.getElementById('search').value=""; query=""; render()}
 
 function updateHeader(){
@@ -593,6 +677,12 @@ function render(){
   if(q) items=match(items,q);
 
   let html=domNavHTML(view);
+  if(dm.isDem){
+    const types=["Toutes",...DEMARCHES.filter(t=>items.some(p=>p.demarche===t))];
+    html+=`<div class="chips">`+types.map(t=>
+      `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+    if(activeDemarche!=="Toutes") items=items.filter(p=>p.demarche===activeDemarche);
+  }
   if(dm.byCommune){
     const communes=["Toutes",...COMMUNES.filter(c=>items.some(p=>p.commune===c))];
     html+=`<div class="chips">`+communes.map(c=>
@@ -605,6 +695,7 @@ function render(){
   el.innerHTML=html;
 }
 function setCommune(c){activeCommune=c; render()}
+function setDemarche(t){activeDemarche=t; render()}
 
 function domNavHTML(active){
   return `<div class="domnav">`+DOMAINES.map(dm=>
@@ -613,8 +704,8 @@ function domNavHTML(active){
 }
 
 function match(list,q){
-  return list.filter(p=>[p.nom,p.desc,p.public,p.commune,p.notes,p.adr,p.referent,DOM[p.domaine].label]
-    .join(' ').toLowerCase().includes(q));
+  return list.filter(p=>[p.nom,p.desc,p.public,p.commune,p.notes,p.adr,p.referent,DOM[p.domaine].label,
+    p.demarche,p.ou,p.comment,p.attention].join(' ').toLowerCase().includes(q));
 }
 
 function homeHTML(){
@@ -633,10 +724,47 @@ function homeHTML(){
     <div class="dgrid">${cards}</div>`;
 }
 
+function demarcheCard(p){
+  const telClean=(p.tel||'').replace(/\s/g,'');
+  const rows=[];
+  if(p.ou)      rows.push(`<div class="row"><span class="ico">${icon('demarche')}</span><span><b>Où envoyer :</b> ${esc(p.ou)}</span></div>`);
+  if(p.comment) rows.push(`<div class="row"><span class="ico">${icon('clipboard')}</span><span><b>Comment :</b> ${esc(p.comment)}</span></div>`);
+  if(p.delai)   rows.push(`<div class="row"><span class="ico">${icon('clock')}</span><span><b>Délai :</b> ${esc(p.delai)}</span></div>`);
+  if(p.referent)rows.push(`<div class="row"><span class="ico">${icon('user')}</span><span>${esc(p.referent)}</span></div>`);
+  if(p.mail)    rows.push(`<div class="row"><span class="ico">${icon('mail')}</span><a href="mailto:${esc(p.mail)}">${esc(p.mail)}</a></div>`);
+  if(p.tel)     rows.push(`<div class="row"><span class="ico">${icon('phone')}</span><a href="tel:${esc(telClean)}">${esc(p.tel)}</a></div>`);
+  if(p.notes)   rows.push(`<div class="row"><span class="ico">${icon('note')}</span><span>${esc(p.notes)}</span></div>`);
+
+  const act=[];
+  if(p.mail) act.push(`<a class="btn call" href="mailto:${esc(p.mail)}">${icon('mail')}Écrire</a>`);
+  if(p.tel)  act.push(`<a class="btn map" href="tel:${esc(telClean)}">${icon('phone')}Appeler</a>`);
+
+  const comTag = (p.commune && p.commune!=="Régional / Toutes communes") ? `<span class="tag com">${icon('pin')}${esc(p.commune)}</span>` : "";
+  return `<div class="card" id="c-${p.id}">
+    <button class="star ${p.fav?'on':''}" onclick="toggleFav(event,'${p.id}')">${p.fav?'★':'☆'}</button>
+    <div class="card-top" onclick="toggle('${p.id}')">
+      <div class="tags">${domTag(p)}${comTag}</div>
+      <h2>${esc(p.nom)}</h2>
+      ${p.attention?`<p class="desc">${esc(p.attention).slice(0,90)}${p.attention.length>90?'…':''}</p>`:''}
+    </div>
+    <div class="detail"><div class="detail-inner">
+      ${p.attention?`<div class="warn"><b>⚠️ Particularité de ce CPAS</b><span>${esc(p.attention)}</span></div>`:''}
+      ${rows.join('')||'<div class="row" style="color:var(--muted)">Procédure à compléter</div>'}
+      ${act.length?`<div class="actions">${act.join('')}</div>`:''}
+      ${p.maj?`<div class="maj">Mis à jour : ${esc(p.maj)}</div>`:''}
+      <div class="mini">
+        <button onclick="openForm('${p.id}')">${icon('pencil')}Modifier</button>
+        <button class="del" onclick="delPartner('${p.id}')">${icon('trash')}Supprimer</button>
+      </div>
+    </div></div>
+  </div>`;
+}
+
 function cardsHTML(items){
   if(!items.length) return "";
   items=items.slice().sort((a,b)=>(b.fav-a.fav)||a.nom.localeCompare(b.nom,'fr'));
-  return items.map(p=> DOM[p.domaine].method ? methodCard(p) : contactCard(p)).join('');
+  return items.map(p=> DOM[p.domaine].isDem ? demarcheCard(p)
+                     : DOM[p.domaine].method ? methodCard(p) : contactCard(p)).join('');
 }
 
 function domTag(p){
@@ -710,12 +838,18 @@ function toggleFav(ev,id){ev.stopPropagation(); const p=data.find(x=>x.id===id);
 function fillSelects(){
   document.getElementById('f-dom').innerHTML = DOMAINES.map(dm=>`<option value="${dm.key}">${esc(dm.label)}</option>`).join('');
   document.getElementById('f-com').innerHTML = COMMUNES.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  document.getElementById('f-demarche').innerHTML = DEMARCHES.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
 }
 function syncFormMode(){
-  const isM = document.getElementById('f-dom').value==="methodes";
+  const v = document.getElementById('f-dom').value;
+  const isM = v==="methodes", isD = v==="demarches";
   document.querySelectorAll('.not-method').forEach(e=>e.style.display=isM?'none':'');
+  document.querySelectorAll('.only-dem').forEach(e=>e.style.display=isD?'block':'none');
+  document.getElementById('lab-desc').style.display = isD?'none':'';
+  document.getElementById('f-desc').style.display   = isD?'none':'';
   document.getElementById('lab-desc').textContent = isM?"Résumé / à quoi ça sert":"Ce qu'ils proposent";
-  document.getElementById('lab-notes').textContent = isM?"Contenu de la méthode (étapes)":"Notes personnelles";
+  document.getElementById('lab-notes').textContent =
+    isM?"Contenu de la méthode (étapes)":(isD?"Remarques complémentaires":"Notes personnelles");
 }
 function openForm(id){
   fillSelects();
@@ -729,6 +863,10 @@ function openForm(id){
   g('f-desc').value=p?p.desc:''; g('f-public').value=p?p.public:''; g('f-referent').value=p?p.referent:'';
   g('f-tel').value=p?p.tel:''; g('f-mail').value=p?p.mail:''; g('f-site').value=p?p.site:'';
   g('f-adr').value=p?p.adr:''; g('f-horaires').value=p?p.horaires:''; g('f-notes').value=p?p.notes:'';
+  g('f-demarche').value = p&&p.demarche ? p.demarche : DEMARCHES[0];
+  g('f-ou').value=p?(p.ou||''):''; g('f-comment').value=p?(p.comment||''):'';
+  g('f-attention').value=p?(p.attention||''):''; g('f-delai').value=p?(p.delai||''):'';
+  g('f-maj').value=p?(p.maj||''):'';
   syncFormMode();
   document.getElementById('modalBg').classList.add('show');
 }
@@ -744,7 +882,9 @@ function savePartner(){
     domaine:document.getElementById('f-dom').value,
     nom, commune:document.getElementById('f-com').value, desc:g('f-desc'), public:g('f-public'),
     referent:g('f-referent'), tel:g('f-tel'), mail:g('f-mail'), site:g('f-site'),
-    adr:g('f-adr'), horaires:g('f-horaires'), notes:g('f-notes')};
+    adr:g('f-adr'), horaires:g('f-horaires'), notes:g('f-notes'),
+    demarche:document.getElementById('f-demarche').value, ou:g('f-ou'), comment:g('f-comment'),
+    attention:g('f-attention'), delai:g('f-delai'), maj:g('f-maj')};
   if(id){const i=data.findIndex(x=>x.id===id); data[i]=obj;} else data.push(obj);
   persist(); closeForm(); render();
 }
