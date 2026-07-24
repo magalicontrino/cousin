@@ -3,7 +3,7 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v1';
+const CACHE = 'cousin-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './icon-192.png', './icon-512.png', './icon-180.png'];
 
