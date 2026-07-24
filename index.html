@@ -1456,7 +1456,7 @@ render();
 const SB_URL = 'https://khuxeqxaqrvmbwcbaxes.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtodXhlcXhhcXJ2bWJ3Y2JheGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDIwODgsImV4cCI6MjA5OTg3ODA4OH0.IJJV7JCjMbcv-IU9Dh0vCZdTRS9T_pf7JCdTBHCJL10';
 let sb = null;
-try{ if(window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY); }catch(e){}
+try{ if(window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY, { auth:{ detectSessionInUrl:false, flowType:'pkce', persistSession:true, autoRefreshToken:true } }); }catch(e){}
 // Réutilise le vrai logo COUSIN de l'en-tête pour l'écran de connexion
 try{ var _lg=document.getElementById('logoImg'); if(_lg) document.getElementById('authLogo').src=_lg.src; }catch(e){}
 
@@ -1488,6 +1488,18 @@ async function initAuth(){
     showMessage("Connecte-toi à internet pour ouvrir COUSIN.");
     return;
   }
+  // Retour de Google : on échange le code d'autorisation contre une session.
+  try{
+    const code = new URL(location.href).searchParams.get('code');
+    const errDesc = new URL(location.href).searchParams.get('error_description');
+    if(errDesc){ showMessage("Google a refusé : "+errDesc+"\n\n(capture d'écran à envoyer)"); return; }
+    if(code){
+      const { error } = await sb.auth.exchangeCodeForSession(code);
+      history.replaceState({}, '', location.origin + location.pathname);
+      if(error){ showMessage("Connexion échouée : "+error.message+"\n\n(fais une capture et envoie-la)"); return; }
+    }
+  }catch(e){ showMessage("Connexion échouée : "+(e && e.message ? e.message : e)+"\n\n(fais une capture et envoie-la)"); return; }
+
   let session=null;
   try{ session=(await sb.auth.getSession()).data.session; }catch(e){}
   if(!session){ showLogin(); return; }
@@ -1500,7 +1512,6 @@ async function initAuth(){
   markSeen(session.user);
   hideGate();
 }
-if(sb){ sb.auth.onAuthStateChange((event)=>{ if(event==='SIGNED_IN') initAuth(); }); }
 initAuth();
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
