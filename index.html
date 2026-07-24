@@ -146,9 +146,9 @@
   .urg-sq b{font-size:11.5px; font-weight:800; line-height:1.1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
   .urg-sq em{font-style:normal; font-size:9.5px; font-weight:600; color:var(--muted); line-height:1.1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
   /* Secours vital : bouton rouge « partagé en deux » */
-  .urg-vital{display:flex; gap:3px; background:#d92d20; border-radius:16px; overflow:hidden; margin-bottom:10px}
+  .urg-vital{display:flex; gap:10px; margin-bottom:10px}
   .urg-vhalf{flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-    padding:15px 8px; color:#fff; text-decoration:none; text-align:center; background:#e5372f}
+    padding:15px 8px; color:#fff; text-decoration:none; text-align:center; background:#e5372f; border-radius:16px}
   .urg-vhalf:active{background:#c82a1e}
   .urg-vhalf > svg{width:22px; height:22px; color:#fff}
   .urg-vhalf b{font-size:13px; font-weight:800; line-height:1.1}
@@ -166,7 +166,11 @@
   .urg-catbtn{transition:border-color .25s ease, background .25s ease, transform .12s cubic-bezier(.22,1,.36,1)}
   .urg-catbtn.open{border-color:var(--gold); background:#fffdf5}
   .urg-catbtn.open .urg-cbchev svg{transform:rotate(90deg)}
-  .urg-catbtn.open + .urg-slider{margin-top:-2px; margin-bottom:10px; padding-bottom:2px; animation:urgFade .34s cubic-bezier(.22,1,.36,1) both}
+  /* Accordéon : la hauteur exacte s'anime en douceur (height posée en JS) */
+  .urg-acc{height:0; overflow:hidden; transition:height .36s cubic-bezier(.22,1,.36,1)}
+  .urg-acc-inner{opacity:.3; transition:opacity .34s ease}
+  .urg-acc.open .urg-acc-inner{opacity:1}
+  .urg-acc .urg-slider{padding:0 0 10px}
   .urg-row{display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line);
     border-radius:14px; padding:11px 13px; margin-bottom:8px; color:#141414; text-decoration:none}
   .urg-row:active{transform:scale(.99)}
@@ -864,7 +868,8 @@ function openUrgences(){ view="home"; urgOpen=true; urgCat=null; query=""; docum
 
 /* Les 3 pictos + le chat, en haut à droite, présents sur tous les écrans. */
 function navPictos(){
-  return `<button class="hicon" title="Accueil" onclick="goHome()">${icon('home')}</button>`+
+  // La maison ne s'affiche que hors accueil (sur l'accueil, on y est déjà).
+  return (view!=="home" ? `<button class="hicon" title="Accueil" onclick="goHome()">${icon('home')}</button>` : '')+
          `<button class="hicon" title="Urgences" onclick="openUrgences()">${icon('alarm')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
          `<button class="hicon" title="Votre avis / vos idées" onclick="openFeedback()">${icon('chat')}</button>`;
@@ -1070,18 +1075,38 @@ function urgencesListHTML(){
       }).join('');
       return `<div class="urg-vital">${halves}</div>`;
     }
-    // Autres catégories : bouton replié qui se déploie au clic.
+    // Autres catégories : bouton replié + conteneur accordéon (toujours dans le DOM, animé en hauteur).
     const open = urgCat===idx;
-    const sqs = open ? `<div class="urg-slider">${b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(urgSq).join('')}</div>` : '';
-    return `<button class="urg-catbtn ${open?'open':''}" onclick="toggleUrgCat(${idx})">`+
+    const sqs = `<div class="urg-slider">${b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(urgSq).join('')}</div>`;
+    return `<button class="urg-catbtn ${open?'open':''}" onclick="toggleUrgCat(this,${idx})">`+
              `<span class="urg-cbic">${icon(URG_ICON[b.label]||'phone')}</span>`+
              `<span class="urg-cblab">${esc(b.label)}</span>`+
              `<span class="urg-cbn">${b.list.length}</span>`+
              `<span class="urg-cbchev">${icon('chevron')}</span>`+
-           `</button>${sqs}`;
+           `</button><div class="urg-acc ${open?'open':''}"><div class="urg-acc-inner">${sqs}</div></div>`;
   }).join('');
 }
-function toggleUrgCat(i){ urgCat=(urgCat===i)?null:i; render(); }
+// Effet accordéon : on anime la hauteur exacte (mesurée) de chaque conteneur, sans re-render.
+function setAcc(acc, open){
+  // L'accordéon a toujours une hauteur en px explicite → on peut animer directement vers 0.
+  const inner=acc.querySelector('.urg-acc-inner');
+  acc.style.height = open ? inner.scrollHeight+'px' : '0px';
+}
+function toggleUrgCat(btn,i){
+  const willOpen = urgCat!==i;
+  urgCat = willOpen ? i : null;
+  // Fermer la catégorie actuellement ouverte (si différente) — on n'anime QUE ce qui change.
+  const cur = document.querySelector('.urg-catbtn.open');
+  if(cur && cur!==btn){
+    cur.classList.remove('open');
+    const a=cur.nextElementSibling;
+    if(a && a.classList.contains('urg-acc')){ a.classList.remove('open'); setAcc(a, false); }
+  }
+  // Basculer la catégorie cliquée.
+  btn.classList.toggle('open', willOpen);
+  const acc=btn.nextElementSibling;
+  if(acc && acc.classList.contains('urg-acc')){ acc.classList.toggle('open', willOpen); setAcc(acc, willOpen); }
+}
 function reseauHTML(){
   const tiles=DOMAINES.filter(dm=>dm.reseau).map(dm=>
     tileHTML(dm.ic,dm.short||dm.label,countDom(dm.key),"openDomaine('"+dm.key+"')")).join('');
