@@ -1799,7 +1799,9 @@ async function loadProfile(){
     let email='', nom='', uid=''; try{ const ss=(await sb.auth.getSession()).data.session; if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||''; const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; } }catch(e){}
     let equipe='', pfo=false, admin=false;
     try{
-      const { data:me } = await sb.from('allowed_emails').select('email,equipe,pfo,admin').limit(1);
+      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin');
+      if(email) qy = qy.ilike('email', email);   // cible SA ligne (l'admin voit tout le monde via RLS → on filtre sur son email)
+      const { data:me } = await qy.limit(1);
       if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; if(me[0].email) email=me[0].email; }
     }catch(e){}
     PROFILE={ email, nom, equipe, pfo, admin, uid };
