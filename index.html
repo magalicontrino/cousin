@@ -390,10 +390,12 @@
   .fab:active{ transform:scale(.94); }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{position:fixed; left:0; right:0; bottom:0; height:92px; pointer-events:none; z-index:29; background:linear-gradient(180deg,rgba(242,238,230,0) 0%,rgba(242,238,230,0) 30%,var(--bg) 96%)}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; gap:10px}
-  .dock-fil{flex:1 1 auto; min-width:0; height:58px; border-radius:29px; background:#1b1b1b; color:#f2eee6; border:0; display:flex; align-items:center; gap:12px; padding:0 20px; cursor:pointer; text-align:left}
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; gap:10px}
+  .dock-fil{flex:0 0 auto; height:58px; max-width:58px; border-radius:29px; background:#1b1b1b; color:#f2eee6; border:0; display:flex; align-items:center; justify-content:center; gap:12px; padding:0; overflow:hidden; cursor:pointer; text-align:left; transition:max-width .38s cubic-bezier(.22,1,.36,1), padding .38s}
+  .dock-fil.open{max-width:300px; padding:0 22px; justify-content:flex-start}
   .dock-fil svg{width:23px; height:23px; flex:0 0 auto}
-  .dock-fil-tx{display:flex; flex-direction:column; gap:1px; min-width:0}
+  .dock-fil-tx{display:flex; flex-direction:column; gap:1px; min-width:0; white-space:nowrap; opacity:0; transition:opacity .16s}
+  .dock-fil.open .dock-fil-tx{opacity:1; transition:opacity .28s .12s}
   .dock-fil-tx b{font-size:14px; font-weight:900; letter-spacing:-.01em}
   .dock-fil-tx em{font-style:normal; font-size:10px; font-weight:700; color:rgba(242,238,230,.6); letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .dock-plus{flex:0 0 auto; width:58px; height:58px; border-radius:50%; background:#f5c542; color:#1b1b1b; border:0; display:flex; align-items:center; justify-content:center; cursor:pointer}
@@ -680,7 +682,7 @@
 <div id="printHead"><img src="logo.png" alt="COUSIN" class="ph-logo"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
-  <button class="dock-fil" onclick="openFeed()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="3.6" rx="1.8"></rect><rect x="2" y="10.2" width="14" height="3.6" rx="1.8"></rect><rect x="2" y="16.4" width="9" height="3.6" rx="1.8"></rect><circle cx="19.6" cy="18.2" r="2.6"></circle></svg><span class="dock-fil-tx"><b>LES NEWS</b><em>Les infos de l'équipe</em></span></button>
+  <button class="dock-fil" title="Les news de l'équipe" onclick="toggleNews(this)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="3.6" rx="1.8"></rect><rect x="2" y="10.2" width="14" height="3.6" rx="1.8"></rect><rect x="2" y="16.4" width="9" height="3.6" rx="1.8"></rect><circle cx="19.6" cy="18.2" r="2.6"></circle></svg><span class="dock-fil-tx"><b>LES NEWS</b><em>Les infos de l'équipe</em></span></button>
   <button class="dock-plus" title="Ajouter une fiche" onclick="openForm()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.9" y="2.4" width="4.2" height="19.2" rx="2.1"></rect><rect x="2.4" y="9.9" width="19.2" height="4.2" rx="2.1"></rect></svg></button>
 </div>
 
@@ -2136,6 +2138,12 @@ function profilHTML(){
 
 /* ---------- Fil d'actu de l'équipe (feed, base privée) ---------- */
 let FEED=[], feedLoaded=false;
+// Bouton LES NEWS : rond compact → se déploie en pastille au clic, puis ouvre le fil
+function toggleNews(btn){
+  btn.classList.add('open');
+  clearTimeout(btn._t);
+  btn._t=setTimeout(function(){ openFeed(); btn.classList.remove('open'); }, 340);
+}
 function openFeed(){
   view="feed"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
