@@ -612,6 +612,11 @@
   .quiz-res{text-align:center; padding:30px 20px; background:var(--card); border:1px solid var(--line); border-radius:16px}
   .quiz-score{font-size:46px; font-weight:900; color:var(--gold-d)}
   .quiz-msg{font-size:16px; font-weight:800; margin:6px 0 18px; color:var(--ink)}
+  .quiz-intro{font-size:14px; font-weight:600; color:var(--muted); margin-bottom:14px; line-height:1.5}
+  .quiz-themes{display:flex; flex-direction:column; gap:9px}
+  .quiz-theme{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:15px 16px; border-radius:14px; background:var(--card); border:1.5px solid var(--line); font-size:15px; font-weight:800; color:var(--ink); cursor:pointer; font-family:inherit; text-align:left}
+  .quiz-theme em{font-style:normal; font-size:11.5px; font-weight:700; color:var(--muted); flex:0 0 auto}
+  .quiz-theme:active{transform:scale(.99)}
 </style>
 </head>
 <body>
@@ -1103,6 +1108,17 @@ const SAMPLE = [
     "Demande de consultation — droit des étrangers",
     "Maître,\n\nNous accompagnons une personne dont la situation de séjour nécessite un avis juridique.\n\nSituation en bref : [statut actuel / procédure en cours / échéance éventuelle]\nDocuments disponibles : [lister]\n\nSeriez-vous disponible pour une consultation ? Merci de nous indiquer vos disponibilités et modalités.\n\nBien à vous,"),
 
+  // ===== Hébergement d'urgence (hors Samusocial) — public =====
+  d("hebergement","Centre d'accueil d'urgence Ariane","Forest","Hébergement d'urgence, repas, soutien social. Tous profils.","","02 346 66 60","","","Avenue du Pont de Luttre 132, 1190 Forest","24h/24 · 7j/7","Contacter la permanence téléphonique avant le déplacement."),
+  d("hebergement","Pierre d'Angle","Bruxelles-Ville","Asile de nuit — accueil inconditionnel, anonyme et gratuit (48 lits). Repas, douche.","","02 513 38 01","","pierredangle.be","Rue Terre-Neuve 153, 1000 Bruxelles","Ouvert 20h–8h","Accueil en début de soirée ; appeler pour vérifier la disponibilité et la faisabilité (ex. personne âgée)."),
+  d("hebergement","Armée du Salut — Le Foyer","Bruxelles-Ville","Centre d'hébergement temporaire et soutien social.","","02 217 61 36","","","Boulevard d'Ypres 24, 1000 Bruxelles","","Signaler l'âge dès le premier contact si personne âgée."),
+  d("hebergement","CAW Archipel","Bruxelles-Ville","Accueil, orientation et assistance sociale d'urgence pour adultes vulnérables.","","0800 13 500","","","Rue du Nouveau Marché aux Grains 28, 1000 Bruxelles","","Numéro gratuit CAW."),
+  d("hebergement","L'Ilot — Maison d'accueil (femmes & familles)","Saint-Gilles","Femmes seules avec enfants et familles sans abri, 24/7 (22 lits). Accompagnement social.","","02 538 59 09","","ilot.be","Chaussée de Charleroi 160, 1060 Saint-Gilles","24h/24 · 7j/7","Profils : femmes et familles."),
+  d("hebergement","Albatros","Régional / Toutes communes","Hommes et femmes seuls (18+), couples, familles et familles monoparentales (2 enfants de moins de 8 ans).","","02 511 53 30","","","","","Profils : adultes seuls, couples, familles."),
+  d("hebergement","Talita asbl","Bruxelles-Ville","Hébergement d'urgence pour femmes avec ou sans enfants (quartier Béguinage). Admission sur rendez-vous.","","","","talita.brussels","","Lun–ven 7h–21h · week-end 10h–21h","Profils : femmes (± enfants)."),
+  d("hebergement","Brusshelp — recherche de place","Bruxelles-Ville","Service d'orientation : suit les places disponibles dans les centres d'hébergement et aide à trouver un abri.","","02 880 86 89","","brusshelp.org","","","Appeler pour connaître les places du jour."),
+  d("hebergement","CPAS — logement de transit / Housing First","Régional / Toutes communes","Solutions de logement via le CPAS : logement de transit, Housing First, logement communautaire. (Il n'existe pas d'« hôtel pas cher » comme dispositif — passer par le CPAS ou Brusshelp.)","","","","cpasbxl.brussels","","","Orienter vers le CPAS de la commune de la personne."),
+
   // ===== Drogues & addictions (poster public féda bxl, Édition 2024) =====
   d("addictions","Infor Drogues & Addictions","Régional / Toutes communes","Prévention — permanence téléphonique, accompagnement de projets, info anonyme.","","02 227 52 61","","infordrogues.be","","","Écoute anonyme : 02 227 52 52"),
   d("addictions","Prospective Jeunesse","Régional / Toutes communes","Prévention des addictions et promotion de la santé (jeunes, étudiants).","","02 512 17 66","","","","",""),
@@ -1229,7 +1245,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 28;
+const SEED_VERSION = 29;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -1410,7 +1426,7 @@ function updateHeader(){
     em.innerHTML=icon('bulb');
     document.getElementById('hName').textContent="Quiz";
     sub.textContent="Teste tes connaissances";
-    back.onclick=function(){ openDomaine('formations'); };
+    back.onclick=function(){ if(QUIZ.theme){ openQuiz(); } else { goHome(); } };
   }else if(view==="reseau"){
     em.innerHTML=icon('compass');
     document.getElementById('hName').textContent="Réseau";
@@ -2249,37 +2265,55 @@ async function approveRequest(email,id){
 async function refuseRequest(id){ try{ await sb.from('access_requests').update({statut:'refuse'}).eq('id',id); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 
 /* ---------- Quiz de connaissances (questions générées depuis le catalogue → toujours à jour) ---------- */
-let QUIZ={ qs:[], i:0, score:0, answered:false, picked:-1 };
+let QUIZ={ qs:[], i:0, score:0, answered:false, picked:-1, theme:null };
 function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
-function openQuiz(){ view="quiz"; QUIZ=quizGen(); render(); }
-function quizGen(){
-  const pool=data.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.domaine!=='urgences');
-  const withTel=pool.filter(p=>p.tel && /\d/.test(p.tel));
-  const chosen=qShuffle(pool).slice(0,8);
+function openQuiz(theme){
+  view="quiz";
+  QUIZ = theme ? quizGen(theme) : { qs:[], i:0, score:0, answered:false, picked:-1, theme:null };
+  render();
+}
+function quizGen(theme){
+  const allReseau=data.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau);
+  const pool = (theme==='all') ? allReseau : allReseau.filter(p=>p.domaine===theme);
+  const telAll=allReseau.filter(p=>p.tel && /\d/.test(p.tel));
+  const adrAll=allReseau.filter(p=>p.adr);
+  const pick=(arr,n)=>qShuffle(arr).slice(0,n);
   const qs=[];
-  chosen.forEach(p=>{
-    if(withTel.indexOf(p)>=0 && Math.random()<0.5){
-      const others=qShuffle(withTel.filter(x=>x.tel && x.tel!==p.tel)).slice(0,3).map(x=>x.tel);
-      if(others.length<3) return;
-      const opts=qShuffle([p.tel].concat(others));
-      qs.push({ q:"Quel est le numéro de « "+p.nom+" » ?", opts, correct:opts.indexOf(p.tel) });
-    }else{
-      const correctLabel=DOM[p.domaine].label;
-      const others=qShuffle(DOMAINES.filter(x=>x.reseau && x.key!==p.domaine)).slice(0,3).map(x=>x.label);
-      const opts=qShuffle([correctLabel].concat(others));
-      qs.push({ q:"À quel domaine appartient « "+p.nom+" » ?", opts, correct:opts.indexOf(correctLabel) });
+  pool.forEach(p=>{
+    if(theme==='all'){
+      const correct=DOM[p.domaine].label;
+      const others=pick(DOMAINES.filter(x=>x.reseau && x.key!==p.domaine).map(x=>x.label),3);
+      if(others.length===3){ const opts=qShuffle([correct].concat(others)); qs.push({q:"À quel domaine appartient « "+p.nom+" » ?",opts,correct:opts.indexOf(correct)}); }
+    }
+    if(p.tel && /\d/.test(p.tel)){
+      const o1=pick(telAll.filter(x=>x.tel!==p.tel).map(x=>x.tel),3);
+      if(o1.length===3){ const opts=qShuffle([p.tel].concat(o1)); qs.push({q:"Quel est le numéro de « "+p.nom+" » ?",opts,correct:opts.indexOf(p.tel)}); }
+      const o2=pick(telAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),3);
+      if(o2.length===3){ const opts=qShuffle([p.nom].concat(o2)); qs.push({q:"Quel service a le numéro "+p.tel+" ?",opts,correct:opts.indexOf(p.nom)}); }
+    }
+    if(p.adr){
+      const o3=pick(adrAll.filter(x=>x.adr!==p.adr).map(x=>x.adr),3);
+      if(o3.length===3){ const opts=qShuffle([p.adr].concat(o3)); qs.push({q:"Quelle est l'adresse de « "+p.nom+" » ?",opts,correct:opts.indexOf(p.adr)}); }
     }
   });
-  return { qs, i:0, score:0, answered:false, picked:-1 };
+  return { qs:qShuffle(qs).slice(0,40), i:0, score:0, answered:false, picked:-1, theme };
 }
 function quizAnswer(i){ if(QUIZ.answered) return; QUIZ.answered=true; QUIZ.picked=i; if(i===QUIZ.qs[QUIZ.i].correct) QUIZ.score++; render(); }
 function quizNext(){ QUIZ.i++; QUIZ.answered=false; QUIZ.picked=-1; render(); }
 function quizHTML(){
-  if(!QUIZ.qs.length) return `<div class="empty"><p><b>Pas assez de contenu pour un quiz.</b></p></div>`;
+  if(!QUIZ.theme){
+    const themes=[{k:'all',l:'Tout mélangé'}].concat(DOMAINES.filter(d=>d.reseau).map(d=>({k:d.key,l:d.label})));
+    const btns=themes.map(t=>{
+      const n=data.filter(p=>t.k==='all'?(DOM[p.domaine]&&DOM[p.domaine].reseau):p.domaine===t.k).length;
+      return `<button class="quiz-theme" onclick="openQuiz('${t.k}')"><span>${esc(t.l)}</span><em>${n} fiches</em></button>`;
+    }).join('');
+    return `<div class="pf-wrap"><div class="quiz-intro">Choisis un thème à réviser — le quiz pioche un maximum de questions (numéro, adresse, service…) pour bien le connaître par cœur.</div><div class="quiz-themes">${btns}</div></div>`;
+  }
+  if(!QUIZ.qs.length) return `<div class="pf-wrap"><div class="pf-empty">${icon('bulb','width="34" height="34"')}<p><b>Pas encore de questions pour ce thème.</b></p></div><button class="quiz-next" onclick="openQuiz()">Choisir un autre thème</button></div>`;
   if(QUIZ.i>=QUIZ.qs.length){
     const n=QUIZ.qs.length, s=QUIZ.score, r=s/n;
     const msg = r===1?"Sans faute ! 🎉" : r>=.7?"Bien joué !" : r>=.4?"Pas mal, continue !" : "À revoir 🙂";
-    return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${s}/${n}</div><div class="quiz-msg">${msg}</div><button class="pf-golist" onclick="openQuiz()">${icon('bulb')}<span>Rejouer</span></button></div></div>`;
+    return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${s}/${n}</div><div class="quiz-msg">${msg}</div><button class="pf-golist" onclick="openQuiz('${QUIZ.theme}')">${icon('bulb')}<span>Rejouer ce thème</span></button><button class="quiz-next" style="margin-top:10px" onclick="openQuiz()">Changer de thème</button></div></div>`;
   }
   const Q=QUIZ.qs[QUIZ.i];
   const opts=Q.opts.map((o,idx)=>{
