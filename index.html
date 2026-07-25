@@ -592,6 +592,23 @@
   .vm-z.orange{background:#f6d0a8}
   .vm-z.red{background:#f3b4ad}
   .vm-src{font-size:11px; color:var(--muted); margin:8px 2px 0; font-style:italic}
+  /* Quiz */
+  .quiz-launch{width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:16px; border-radius:14px; background:var(--gold); color:#1b1b1b; border:0; font-size:15px; font-weight:800; cursor:pointer; margin-bottom:14px}
+  .quiz-launch svg{width:20px; height:20px}
+  .quiz-launch:active{transform:scale(.98)}
+  .quiz-top{display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:var(--muted); margin-bottom:14px; text-transform:uppercase; letter-spacing:.04em}
+  .quiz-q{font-size:19px; font-weight:900; color:var(--ink); line-height:1.3; margin-bottom:18px}
+  .quiz-opts{display:flex; flex-direction:column; gap:10px}
+  .quiz-opt{text-align:left; padding:15px 16px; border-radius:14px; background:var(--card); border:1.5px solid var(--line); font-size:15px; font-weight:700; color:var(--ink); cursor:pointer; font-family:inherit}
+  .quiz-opt:active{transform:scale(.99)}
+  .quiz-opt.good{background:#c9e7d5; border-color:#6cb392; color:#155}
+  .quiz-opt.bad{background:#f3b4ad; border-color:#e63329; color:#611}
+  .quiz-opt[disabled]{cursor:default}
+  .quiz-next{margin-top:16px; width:100%; padding:15px; border-radius:14px; background:#1b1b1b; color:#f2eee6; border:0; font-size:15px; font-weight:800; cursor:pointer}
+  .quiz-next:active{transform:scale(.98)}
+  .quiz-res{text-align:center; padding:30px 20px; background:var(--card); border:1px solid var(--line); border-radius:16px}
+  .quiz-score{font-size:46px; font-weight:900; color:var(--gold-d)}
+  .quiz-msg{font-size:16px; font-weight:800; margin:6px 0 18px; color:var(--ink)}
 </style>
 </head>
 <body>
@@ -1157,6 +1174,9 @@ const SAMPLE = [
   d("addictions","Aidants-Proches","Régional / Toutes communes","Information et soutien aux proches.","","02 474 02 55","","","","",""),
   d("addictions","Similes BXL","Régional / Toutes communes","Association de proches (santé mentale).","","02 511 06 19","","","","",""),
   d("addictions","Réseau Nomade","Régional / Toutes communes","Représentation des personnes concernées, secteur social-santé.","","","","reseaunomade.be","","",""),
+  d("addictions","Rizome-Bxl","Bruxelles-Ville","Aide aux justiciables — accompagnement psychosocial (détenus, ex-détenus, proches).","","02 209 34 00","info@rizome-bxl.be","rizome-bxl.be","Boulevard Anspach 41, 1000 Bruxelles","",""),
+  d("addictions","RaPR — Relais Psychosocial pour la Réinsertion","Schaerbeek","Accompagnement des personnes détenues ou ex-détenues dans leur projet de réinsertion.","","02 211 34 40","","","Rue des Palais 44, 1030 Schaerbeek","",""),
+  d("addictions","I.Care asbl","Régional / Toutes communes","Promotion de la santé en milieu carcéral et continuité des soins (prison de Haren).","","","info@i-careasbl.be","i-careasbl.be","","",""),
 
   // ===== Pratiques : conduite à tenir face à un risque suicidaire (généralisée, sans données internes) =====
   m("Risque suicidaire — conduite à tenir","Repères généraux face à un risque suicidaire ou une tentative.","RISQUE SUICIDAIRE IDENTIFIÉ\n• Proposer à la personne de voir un·e psy (du centre ou externe).\n• Prévenir l'équipe de la fragilité de la personne, sans entrer dans les détails, pour qu'une attention particulière soit portée.\n• Demander de transmettre toute observation particulière du comportement.\n• Si la personne refuse : contacter l'équipe mobile de crise de la zone.\n• Si un·e psy objective un risque élevé de passage à l'acte : proposer un accompagnement aux urgences psychiatriques et/ou une feuille de liaison, avec reprise de contact.\n\nTENTATIVE DE SUICIDE\n• Appeler le 112.\n• Contacter les urgences pour expliquer la situation et demander une évaluation par un·e psychiatre.\n• Si retour en rue : avertir le réseau de la personne.\n\nURGENCE VITALE : 112 · Prévention du suicide (gratuit, 24h/24) : 0800 32 123."),
@@ -1206,7 +1226,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 27;
+const SEED_VERSION = 28;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -1383,6 +1403,11 @@ function updateHeader(){
     document.getElementById('hName').textContent="Admin";
     sub.textContent="Gérer l'équipe";
     back.onclick=openProfil;
+  }else if(view==="quiz"){
+    em.innerHTML=icon('bulb');
+    document.getElementById('hName').textContent="Quiz";
+    sub.textContent="Teste tes connaissances";
+    back.onclick=function(){ openDomaine('formations'); };
   }else if(view==="reseau"){
     em.innerHTML=icon('compass');
     document.getElementById('hName').textContent="Réseau";
@@ -1424,6 +1449,7 @@ function render(){
   if(view==="maliste"){ el.innerHTML = maListeHTML(); return; }
   if(view==="feed"){ el.innerHTML = feedHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
+  if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
 
   // Vue domaine
   const dm=DOM[view];
@@ -1444,6 +1470,7 @@ function render(){
     if(activeCommune!=="Toutes") items=items.filter(p=>p.commune===activeCommune);
   }
   if(dm.isFormation){
+    html+=`<button class="quiz-launch" onclick="openQuiz()">${icon('bulb')}<span>Lancer le quiz de connaissances</span></button>`;
     const metiers=["Toutes",...EQUIPES];
     html+=`<div class="chips">`+metiers.map(mt=>
       `<div class="chip ${mt===activeMetier?'active':''}" onclick="setMetier('${mt.replace(/'/g,"\\'")}')">${esc(mt)}</div>`).join('')+`</div>`;
@@ -2216,6 +2243,49 @@ async function approveRequest(email,id){
   catch(e){ cousinToast('Erreur : '+(e.message||e)); }
 }
 async function refuseRequest(id){ try{ await sb.from('access_requests').update({statut:'refuse'}).eq('id',id); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
+
+/* ---------- Quiz de connaissances (questions générées depuis le catalogue → toujours à jour) ---------- */
+let QUIZ={ qs:[], i:0, score:0, answered:false, picked:-1 };
+function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function openQuiz(){ view="quiz"; QUIZ=quizGen(); render(); }
+function quizGen(){
+  const pool=data.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.domaine!=='urgences');
+  const withTel=pool.filter(p=>p.tel && /\d/.test(p.tel));
+  const chosen=qShuffle(pool).slice(0,8);
+  const qs=[];
+  chosen.forEach(p=>{
+    if(withTel.indexOf(p)>=0 && Math.random()<0.5){
+      const others=qShuffle(withTel.filter(x=>x.tel && x.tel!==p.tel)).slice(0,3).map(x=>x.tel);
+      if(others.length<3) return;
+      const opts=qShuffle([p.tel].concat(others));
+      qs.push({ q:"Quel est le numéro de « "+p.nom+" » ?", opts, correct:opts.indexOf(p.tel) });
+    }else{
+      const correctLabel=DOM[p.domaine].label;
+      const others=qShuffle(DOMAINES.filter(x=>x.reseau && x.key!==p.domaine)).slice(0,3).map(x=>x.label);
+      const opts=qShuffle([correctLabel].concat(others));
+      qs.push({ q:"À quel domaine appartient « "+p.nom+" » ?", opts, correct:opts.indexOf(correctLabel) });
+    }
+  });
+  return { qs, i:0, score:0, answered:false, picked:-1 };
+}
+function quizAnswer(i){ if(QUIZ.answered) return; QUIZ.answered=true; QUIZ.picked=i; if(i===QUIZ.qs[QUIZ.i].correct) QUIZ.score++; render(); }
+function quizNext(){ QUIZ.i++; QUIZ.answered=false; QUIZ.picked=-1; render(); }
+function quizHTML(){
+  if(!QUIZ.qs.length) return `<div class="empty"><p><b>Pas assez de contenu pour un quiz.</b></p></div>`;
+  if(QUIZ.i>=QUIZ.qs.length){
+    const n=QUIZ.qs.length, s=QUIZ.score, r=s/n;
+    const msg = r===1?"Sans faute ! 🎉" : r>=.7?"Bien joué !" : r>=.4?"Pas mal, continue !" : "À revoir 🙂";
+    return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${s}/${n}</div><div class="quiz-msg">${msg}</div><button class="pf-golist" onclick="openQuiz()">${icon('bulb')}<span>Rejouer</span></button></div></div>`;
+  }
+  const Q=QUIZ.qs[QUIZ.i];
+  const opts=Q.opts.map((o,idx)=>{
+    let cls='quiz-opt';
+    if(QUIZ.answered){ if(idx===Q.correct) cls+=' good'; else if(idx===QUIZ.picked) cls+=' bad'; }
+    return `<button class="${cls}" ${QUIZ.answered?'disabled':''} onclick="quizAnswer(${idx})">${esc(o)}</button>`;
+  }).join('');
+  const next = QUIZ.answered ? `<button class="quiz-next" onclick="quizNext()">${QUIZ.i+1<QUIZ.qs.length?'Question suivante':'Voir mon score'}</button>` : '';
+  return `<div class="pf-wrap"><div class="quiz-top"><span>Question ${QUIZ.i+1}/${QUIZ.qs.length}</span><span>Score : ${QUIZ.score}</span></div><div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>${next}</div>`;
+}
 
 async function toggleTache(id, el){
   const on=el.checked;
