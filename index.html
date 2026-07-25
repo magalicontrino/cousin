@@ -559,6 +559,15 @@
   .hs-chips::-webkit-scrollbar{display:none}
   .hs-chip{flex:none; padding:8px 12px; border-radius:8px; background:#fff; border:1.5px solid rgba(27,27,27,.14); font-size:11.5px; font-weight:800; color:#1b1b1b; cursor:pointer; white-space:nowrap}
   .hs-chip:active{transform:scale(.97)}
+  .pbr{display:flex; align-items:center; gap:12px; background:#f5c542; border-radius:12px; padding:12px 15px; margin-bottom:14px; cursor:pointer; color:#1b1b1b}
+  .pbr-ic{flex:0 0 auto; width:38px; height:38px; border-radius:10px; background:#1b1b1b; display:flex; align-items:center; justify-content:center}
+  .pbr-ic svg{width:20px; height:20px; color:#f5c542}
+  .pbr-tx{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px}
+  .pbr-tx b{font-size:13.5px; font-weight:900; text-transform:uppercase; letter-spacing:-.01em}
+  .pbr-tx span{font-size:12px; font-weight:700; color:rgba(0,0,0,.6)}
+  .pbr-dots{flex:0 0 auto; display:flex; gap:5px}
+  .pbr-dot{width:16px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,.18)}
+  .pbr-dot.noire{background:#242424} .pbr-dot.jaune{background:#f5c518} .pbr-dot.bleue{background:#2f6fed}
   .home-quiz{width:100%; display:flex; align-items:center; justify-content:center; gap:9px; margin-top:16px; padding:15px; border-radius:12px; background:#1b1b1b; color:#f5c542; border:0; font-size:14.5px; font-weight:800; cursor:pointer}
   .home-quiz svg{width:19px; height:19px}
   .home-quiz:active{transform:scale(.98)}
@@ -1547,6 +1556,7 @@ function homeHTML(){
     `<span class="tl">Qu<svg width="0.66em" height="0.66em" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.4" fill="#f8763f"></circle><circle cx="12" cy="12" r="4.6" fill="#f2eee6"></circle><circle cx="12" cy="12" r="1.3" fill="#1b1b1b"></circle></svg>i<span style="margin-left:.04em">?</span></span>`+
     `</div><div class="home-sub">Annuaire du réseau &amp; procédures d'équipe</div>`;
   return `
+    ${poubellesReminder()}
     ${titre}
     <button class="hero ${urgOpen?'open':''}" id="urgHero" onclick="toggleUrg()">
       <span class="hero-ic">${icon('siren')}</span>
@@ -1836,6 +1846,22 @@ function methodCard(p){
   </div>`;
 }
 // Schéma coloré des poubelles (poubelles aux vraies couleurs + nombre, par jour).
+// Rappel poubelles : jours de sortie (getDay : 1=lundi, 3=mercredi, 5=vendredi)
+const POUBELLES={
+  1:[{n:3,c:'noire',l:'noires'}],
+  3:[{n:3,c:'noire',l:'noires'},{n:2,c:'jaune',l:'jaunes'},{n:2,c:'bleue',l:'bleues'}],
+  5:[{n:3,c:'noire',l:'noires'}]
+};
+function poubellesReminder(){
+  const now=new Date(), d=now.getDay(), hr=now.getHours(), tm=(d+1)%7;
+  let label, bins;
+  if(POUBELLES[d]){ label="Aujourd'hui"; bins=POUBELLES[d]; }
+  else if(POUBELLES[tm] && hr>=16){ label="Ce soir · collecte demain"; bins=POUBELLES[tm]; }
+  else return '';
+  const dots=bins.map(b=>`<span class="pbr-dot ${b.c}"></span>`).join('');
+  const txt=bins.map(b=>b.n+' '+b.l).join(' + ');
+  return `<div class="pbr" onclick="openDomaine('centre')"><div class="pbr-ic">${icon('trash')}</div><div class="pbr-tx"><b>Poubelles · ${label}</b><span>À sortir : ${txt}</span></div><div class="pbr-dots">${dots}</div></div>`;
+}
 function poubellesSchema(){
   const bin=(n,cls)=>`<span class="pb-bin ${cls}">${n}</span>`;
   const day=(nom,bins)=>`<div class="pb-day"><span class="pb-dayname">${nom}</span><span class="pb-bins">${bins}</span></div>`;
