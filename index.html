@@ -515,6 +515,12 @@
   .adm-chips{display:flex; flex-wrap:wrap; gap:6px}
   .adm-chip{background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:11px; font-weight:700; cursor:pointer; color:var(--muted)}
   .adm-chip.on{background:#6cb392; border-color:#6cb392; color:#1b1b1b}
+  .adm-shift{display:flex; gap:8px}
+  .adm-sh{flex:0 0 auto; padding:9px 18px; border-radius:9px; border:1.5px solid var(--line); background:none; font-size:12.5px; font-weight:800; color:var(--muted); cursor:pointer; font-family:inherit}
+  .adm-sh.on{background:#1b1b1b; border-color:#1b1b1b; color:#f5c542}
+  .adm-sh:active{transform:scale(.97)}
+  .adm-listnow{font-size:11.5px; color:var(--muted); margin-top:8px; font-weight:700}
+  .adm-listnow.faint,.adm-lists-h.faint{color:var(--faint)}
   /* Impression / téléchargement PDF */
   .listbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 2px 12px}
   .listbar .count{padding:0}
@@ -1165,16 +1171,16 @@ function load(){
 function persist(arr){localStorage.setItem(KEY, JSON.stringify({v:SEED_VERSION, items:arr||data}));}
 function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 /* Pop-up de confirmation maison (remplace confirm()) + petit toast (remplace alert()) */
-let _cModalCb=null;
+let _cModalCb=null, _cModalCancel=null;
 function cousinConfirm(msg, onOk, opts){
   opts=opts||{};
   const m=document.getElementById('cModal'), msgEl=document.getElementById('cModalMsg'), okEl=document.getElementById('cModalOk');
-  if(!m){ if(window.confirm(msg)&&typeof onOk==='function') onOk(); return; }
+  if(!m){ if(window.confirm(msg)){ if(typeof onOk==='function') onOk(); } else if(typeof opts.onCancel==='function') opts.onCancel(); return; }
   msgEl.textContent=msg; okEl.textContent=opts.ok||'OK'; okEl.classList.toggle('danger', !!opts.danger);
-  _cModalCb=onOk; m.classList.add('show');
-  okEl.onclick=function(){ cModalClose(); if(typeof _cModalCb==='function'){ const cb=_cModalCb; _cModalCb=null; cb(); } };
+  _cModalCb=onOk; _cModalCancel=opts.onCancel||null; m.classList.add('show');
+  okEl.onclick=function(){ const cb=_cModalCb; _cModalCb=null; _cModalCancel=null; m.classList.remove('show'); if(typeof cb==='function') cb(); };
 }
-function cModalClose(){ const m=document.getElementById('cModal'); if(m) m.classList.remove('show'); _cModalCb=null; }
+function cModalClose(){ const m=document.getElementById('cModal'); if(m) m.classList.remove('show'); const c=_cModalCancel; _cModalCb=null; _cModalCancel=null; if(typeof c==='function') c(); }
 function cousinToast(msg){
   let t=document.getElementById('cToast');
   if(!t){ t=document.createElement('div'); t.id='cToast'; t.className='ctoast'; document.body.appendChild(t); }
@@ -2022,6 +2028,14 @@ async function deleteFeedItem(id){
 let ADMIN={ members:[], requests:[] }, adminLoaded=false;
 const ROLE_OPTS=["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Polyvalent","Article 60"];
 const LISTE_KEYS=["pfo-jour","pfo-nuit","médical","polyvalent-jour","polyvalent-nuit"];
+// Déduire le quart (jour/nuit) des listes, et les listes du rôle+quart
+function shiftOf(listes){ listes=listes||[]; if(listes.some(function(l){return /-nuit$/.test(l);})) return 'nuit'; if(listes.some(function(l){return /-jour$/.test(l);})) return 'jour'; return ''; }
+function deriveListes(equipe, shift){
+  const e=String(equipe||'').toLowerCase();
+  if(e.indexOf('polyvalent')>=0) return shift==='nuit'?['polyvalent-nuit']:shift==='jour'?['polyvalent-jour']:[];
+  if(e.indexOf('médical')>=0||e.indexOf('medical')>=0) return ['médical'];
+  return [];
+}
 
 function openAdmin(){
   view="admin"; query=""; urgOpen=false;
@@ -2048,10 +2062,18 @@ function adminHTML(){
   const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option>${esc(r)}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   const members=ADMIN.members.map(mb=>{
     const isMe=PROFILE&&mb.email&&PROFILE.email&&mb.email.toLowerCase()===PROFILE.email.toLowerCase();
-    const lst=mb.listes||[]; const seesAll=mb.pfo||mb.admin;
-    const chips=LISTE_KEYS.map(k=>`<button class="adm-chip ${lst.includes(k)?'on':''}" onclick="toggleList('${esc(mb.email)}','${k}')">${esc(LISTE_LABELS[k]||k)}</button>`).join('');
+    const seesAll=mb.pfo||mb.admin;
+    const e=String(mb.equipe||'').toLowerCase();
+    const hasShift=e.indexOf('polyvalent')>=0;
+    const hasFixed=e.indexOf('médical')>=0||e.indexOf('medical')>=0;
+    const shift=shiftOf(mb.listes);
     const roleSel=`<select class="adm-role" onchange="setRole('${esc(mb.email)}',this.value)">${ROLE_OPTS.map(r=>`<option${r===mb.equipe?' selected':''}>${esc(r)}</option>`).join('')}</select>`;
-    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists"><div class="adm-lists-h">${seesAll?'Voit toutes les listes (PFO/admin)':'Listes visibles :'}</div>${seesAll?'':`<div class="adm-chips">${chips}</div>`}</div></div>`;
+    let listSection;
+    if(seesAll){ listSection=`<div class="adm-lists-h">Voit toutes les listes (PFO/admin)</div>`; }
+    else if(hasShift){ listSection=`<div class="adm-lists-h">Quart :</div><div class="adm-shift"><button class="adm-sh ${shift==='jour'?'on':''}" onclick="setShift('${esc(mb.email)}','jour')">Jour</button><button class="adm-sh ${shift==='nuit'?'on':''}" onclick="setShift('${esc(mb.email)}','nuit')">Nuit</button></div>${shift?`<div class="adm-listnow">Voit : Polyvalent — ${shift==='nuit'?'Nuit':'Jour'}</div>`:`<div class="adm-listnow faint">Choisis Jour ou Nuit pour lui donner sa liste</div>`}`; }
+    else if(hasFixed){ listSection=`<div class="adm-lists-h">Voit : Médical</div>`; }
+    else { listSection=`<div class="adm-lists-h faint">Pas de check-list pour ce rôle</div>`; }
+    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div></div>`;
   }).join('');
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${members}</div>`;
   return `<div class="pf-wrap">${reqs}${add}${team}</div>`;
@@ -2059,12 +2081,29 @@ function adminHTML(){
 async function addMember(){
   const em=document.getElementById('admEmail'), ro=document.getElementById('admRole');
   const email=(em.value||'').trim().toLowerCase(); if(!email||email.indexOf('@')<1){ em.focus(); return; }
-  try{ await sb.from('allowed_emails').upsert({ email, equipe:ro.value||'', actif:true }, { onConflict:'email' }); em.value=''; await loadAdmin(); if(view==='admin') render(); }
-  catch(e){ cousinToast('Impossible d\'ajouter : '+(e.message||e)); }
+  const equipe=ro.value||'';
+  cousinConfirm("Ajouter "+email+(equipe?(" en "+equipe):"")+" ?", async function(){
+    try{ await sb.from('allowed_emails').upsert({ email, equipe, actif:true, listes:deriveListes(equipe,'') }, { onConflict:'email' }); em.value=''; await loadAdmin(); if(view==='admin') render(); cousinToast('Ajouté ✓'); }
+    catch(e){ cousinToast('Impossible d\'ajouter : '+(e.message||e)); }
+  }, {ok:'Ajouter'});
 }
-async function toggleActif(email,on){ try{ await sb.from('allowed_emails').update({actif:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
+async function toggleActif(email,on){
+  cousinConfirm((on?'Réactiver ':'Suspendre ')+email+' ?', async function(){
+    try{ await sb.from('allowed_emails').update({actif:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+  }, {ok:(on?'Réactiver':'Suspendre'), danger:!on, onCancel:function(){ if(view==='admin') render(); }});
+}
 async function togglePfo(email,on){ try{ await sb.from('allowed_emails').update({pfo:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
-async function setRole(email,equipe){ try{ await sb.from('allowed_emails').update({equipe}).eq('email',email); }catch(e){} }
+async function setRole(email,equipe){
+  const mb=ADMIN.members.find(x=>x.email===email);
+  const listes=deriveListes(equipe, shiftOf(mb&&mb.listes));
+  try{ await sb.from('allowed_emails').update({equipe, listes}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+}
+async function setShift(email, shift){
+  const mb=ADMIN.members.find(x=>x.email===email); if(!mb) return;
+  const newShift = shiftOf(mb.listes)===shift ? '' : shift;
+  const listes = deriveListes(mb.equipe, newShift);
+  try{ await sb.from('allowed_emails').update({listes}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+}
 async function toggleList(email,k){
   const mb=ADMIN.members.find(x=>x.email===email); if(!mb) return;
   let lst=(mb.listes||[]).slice();
