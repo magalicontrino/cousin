@@ -568,6 +568,14 @@
   .cmodal-cancel:active,.cmodal-ok:active{transform:scale(.98)}
   .ctoast{position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(10px); background:#1b1b1b; color:#f2eee6; padding:12px 18px; border-radius:12px; font-size:13.5px; font-weight:700; z-index:9999; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:90%; text-align:center}
   .ctoast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  /* Fiche : boutons Mail-type / Copier infos (refonte v6) */
+  .fiche-btns{display:flex; gap:10px; margin-top:12px}
+  .fbtn{flex:1; display:flex; align-items:center; justify-content:center; gap:9px; border:0; border-radius:14px; padding:15px; font-size:12px; font-weight:900; letter-spacing:.04em; cursor:pointer; color:#1b1b1b; font-family:inherit}
+  .fbtn.mailt{background:#f5c542}
+  .fbtn.copy{background:#6cb392}
+  .fbtn svg{width:16px; height:16px}
+  .fbtn:active{transform:scale(.98)}
+  @media print{ .fiche-btns{display:none} }
 </style>
 </head>
 <body>
@@ -620,7 +628,7 @@
 <div id="printHead"><img src="logo.png" alt="COUSIN" class="ph-logo"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
-  <button class="dock-fil" onclick="openFeed()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="3.6" rx="1.8"></rect><rect x="2" y="10.2" width="14" height="3.6" rx="1.8"></rect><rect x="2" y="16.4" width="9" height="3.6" rx="1.8"></rect><circle cx="19.6" cy="18.2" r="2.6"></circle></svg><span class="dock-fil-tx"><b>LE FIL</b><em>Les infos de l'équipe</em></span></button>
+  <button class="dock-fil" onclick="openFeed()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="3.6" rx="1.8"></rect><rect x="2" y="10.2" width="14" height="3.6" rx="1.8"></rect><rect x="2" y="16.4" width="9" height="3.6" rx="1.8"></rect><circle cx="19.6" cy="18.2" r="2.6"></circle></svg><span class="dock-fil-tx"><b>LES NEWS</b><em>Les infos de l'équipe</em></span></button>
   <button class="dock-plus" title="Ajouter une fiche" onclick="openForm()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.9" y="2.4" width="4.2" height="19.2" rx="2.1"></rect><rect x="2.4" y="9.9" width="19.2" height="4.2" rx="2.1"></rect></svg></button>
 </div>
 
@@ -818,7 +826,8 @@ const ICONS = {
   send:     '<path d="M3.4 11.2 20 4.2a.6.6 0 0 1 .8.8l-7 16.6a.6.6 0 0 1-1.1 0l-2.3-6.2a1 1 0 0 0-.6-.6L3.4 12.3a.6.6 0 0 1 0-1.1z"/>',
   cog:      '<path fill-rule="evenodd" d="M10.6 2.6h2.8l.5 2.3a6.8 6.8 0 0 1 1.7 1l2.2-.8 1.4 2.4-1.7 1.6c.1.6.1 1.2 0 1.8l1.7 1.6-1.4 2.4-2.2-.8a6.8 6.8 0 0 1-1.7 1l-.5 2.3h-2.8l-.5-2.3a6.8 6.8 0 0 1-1.7-1l-2.2.8-1.4-2.4 1.7-1.6a6.8 6.8 0 0 1 0-1.8L4.3 7.5l1.4-2.4 2.2.8a6.8 6.8 0 0 1 1.7-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
   search:   '<path d="M10.4 2a8.4 8.4 0 1 0 4.9 15.2l4.4 4.4 2.2-2.2-4.4-4.4A8.4 8.4 0 0 0 10.4 2zm0 3.2a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4z"/>',
-  shield:   '<path d="M12 2 20 5v6.4c0 5-3.4 8.6-8 9.6-4.6-1-8-4.6-8-9.6V5z"/>'
+  shield:   '<path d="M12 2 20 5v6.4c0 5-3.4 8.6-8 9.6-4.6-1-8-4.6-8-9.6V5z"/>',
+  copy:     '<rect x="3" y="2.6" width="11.4" height="14.4" rx="2.4"/><rect x="9.6" y="7" width="11.4" height="14.4" rx="2.4"/>'
 };
 function icon(name,extra){
   return `<svg viewBox="0 0 24 24" fill="currentColor"${extra?' '+extra:''}>${ICONS[name]||''}</svg>`;
@@ -1174,12 +1183,30 @@ function cousinToast(msg){
 }
 // Couleur permanente par personne (piochée dans la palette de l'app)
 const USER_PALETTE=['#f3c6da','#b28b7a','#6cb392','#f5c542','#fd8fd0','#f8763f','#2f6fd0','#2e8b57'];
+// Couleurs fixées à la main (priment sur le calcul auto)
+const USER_FIXED={'magali contrino':'#fd8fd0','magali':'#fd8fd0','grosbalou55@hotmail.com':'#fd8fd0'};
 function userColor(key){
-  key=String(key||'').toLowerCase(); let h=0;
-  for(let i=0;i<key.length;i++){ h=(h*31 + key.charCodeAt(i))>>>0; }
+  key=String(key||'').toLowerCase().trim();
+  if(USER_FIXED[key]) return USER_FIXED[key];
+  let h=0; for(let i=0;i<key.length;i++){ h=(h*31 + key.charCodeAt(i))>>>0; }
   return USER_PALETTE[h % USER_PALETTE.length];
 }
 function userInitial(nom){ const c=(String(nom||'?').trim().charAt(0)||'?'); return c.toUpperCase(); }
+// Copier les infos d'une fiche (pour coller/remettre à un hébergé)
+function copyFiche(id){
+  const p = data.find(x=>String(x.id)===String(id)); if(!p) return;
+  const L=[p.nom];
+  if(p.adr) L.push('Adresse : '+p.adr);
+  if(p.tel) L.push('Tél : '+p.tel);
+  if(p.horaires) L.push('Horaires : '+p.horaires);
+  if(p.public) L.push('Public : '+p.public);
+  if(p.mail) L.push('Email : '+p.mail);
+  if(p.site) L.push('Site : '+p.site);
+  const txt=L.join('\n');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ cousinToast('Infos copiées ✓'); }).catch(function(){ cousinToast('Copie impossible'); });
+  } else { cousinToast('Copie non supportée ici'); }
+}
 function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
@@ -1204,7 +1231,7 @@ function navPictos(){
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
          `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
          `<button class="hicon" title="Votre avis / vos idées" onclick="openFeedback()">${icon('chat')}</button>`+
-         `<button class="hicon notif" title="Le fil de l'équipe" onclick="openFeed()">${icon('bell')}</button>`+
+         `<button class="hicon notif" title="Les news de l'équipe" onclick="openFeed()">${icon('bell')}</button>`+
          `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}</button>`;
 }
 function updateFavBadge(){
@@ -1248,7 +1275,7 @@ function updateHeader(){
     back.onclick=goHome;
   }else if(view==="feed"){
     em.innerHTML=icon('feed');
-    document.getElementById('hName').textContent="Fil d'actu";
+    document.getElementById('hName').textContent="Les news";
     sub.textContent="Les infos de l'équipe";
     back.onclick=goHome;
   }else if(view==="admin"){
@@ -1640,6 +1667,10 @@ function contactCard(p){
       <div class="fiche-rows">${rows || (call?'':'<div class="frow"><div class="fv" style="color:var(--muted)">Coordonnées à compléter</div></div>')}</div>
       ${note}
       ${map?`<div class="actions">${map}</div>`:''}
+      <div class="fiche-btns">
+        <button class="fbtn mailt" onclick="event.stopPropagation();openDomaine('mails')">${icon('mail')}<span>MAIL-TYPE</span></button>
+        <button class="fbtn copy" onclick="event.stopPropagation();copyFiche('${p.id}')">${icon('copy')}<span>COPIER INFOS</span></button>
+      </div>
     </div></div>
   </div>`;
 }
@@ -1683,7 +1714,7 @@ function doPrint(){
   try{
     if(view==='maliste') t='Ma liste du jour';
     else if(view==='favoris') t='Mes favoris';
-    else if(view==='feed') t="Fil d'actu de l'équipe";
+    else if(view==='feed') t="Les news de l'équipe";
     else if(DOM[view]) t=DOM[view].label;
   }catch(e){}
   const ph=document.querySelector('#printHead .ph-title'); if(ph) ph.textContent=t;
