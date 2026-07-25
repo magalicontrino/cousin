@@ -303,6 +303,20 @@
   .g-restart{background:var(--gold); border-color:var(--gold); color:#141414; text-align:center; margin-top:2px}
   .detail-inner{padding:2px 15px 14px; border-top:1px solid var(--line)}
   .row{display:flex; align-items:flex-start; gap:10px; padding:10px 0; font-size:14px; border-bottom:1px solid var(--line)}
+  /* Fiche d'un service (style refonte) : gros appel + lignes label/valeur + « à savoir » */
+  .fiche-call{display:flex; align-items:center; justify-content:center; gap:10px; background:#0e0e0e; border-radius:14px; padding:16px; margin:12px 0 4px; text-decoration:none; transition:transform .16s cubic-bezier(.22,1,.36,1)}
+  .fiche-call:active{transform:scale(.98)}
+  .fiche-call svg{width:18px; height:18px; color:var(--gold)}
+  .fiche-call span{font-weight:800; font-size:20px; color:var(--gold); letter-spacing:.02em}
+  .fiche-rows{display:flex; flex-direction:column}
+  .frow{display:flex; gap:12px; align-items:baseline; border-top:1px solid var(--line); padding:11px 0}
+  .frow:first-child{border-top:0}
+  .fk{flex:0 0 78px; font-size:10px; font-weight:800; letter-spacing:.06em; color:var(--muted); text-transform:uppercase}
+  .fv{flex:1; min-width:0; font-size:13px; font-weight:600; color:var(--ink); line-height:1.4; overflow-wrap:anywhere}
+  .fv a{color:var(--gold-d); font-weight:700}
+  .fiche-note{background:#1a1a1a; border-radius:14px; padding:14px; margin-top:12px}
+  .fiche-note-h{font-size:10px; font-weight:800; letter-spacing:.08em; color:var(--gold); text-transform:uppercase; margin-bottom:6px}
+  .fiche-note-b{font-size:12.5px; font-weight:500; color:#cfcfcf; line-height:1.55; white-space:pre-line}
   .row:last-child{border-bottom:0}
   .row .ico{flex:0 0 22px; text-align:center; opacity:.75; padding-top:1px}
   .row a{color:var(--iris-d); text-decoration:underline; font-weight:650; word-break:break-word}
@@ -1326,20 +1340,13 @@ function domTag(p){
 
 function contactCard(p){
   const telClean=(p.tel||'').replace(/\s/g,'');
-  const rows=[];
-  if(p.referent) rows.push(`<div class="row"><span class="ico">${icon('user')}</span><span>${esc(p.referent)}</span></div>`);
-  if(p.tel) rows.push(`<div class="row"><span class="ico">${icon('phone')}</span><a href="tel:${esc(telClean)}">${esc(p.tel)}</a></div>`);
-  if(p.horaires) rows.push(`<div class="row"><span class="ico">${icon('clock')}</span><span>${esc(p.horaires)}</span></div>`);
-  if(p.mail) rows.push(`<div class="row"><span class="ico">${icon('mail')}</span><a href="mailto:${esc(p.mail)}">${esc(p.mail)}</a></div>`);
-  if(p.site) rows.push(`<div class="row"><span class="ico">${icon('globe')}</span><a href="${esc(urlHref(p.site))}" target="_blank" rel="noopener">${esc(p.site)}</a></div>`);
-  if(p.adr) rows.push(`<div class="row"><span class="ico">${icon('pin')}</span><span>${esc(p.adr)}</span></div>`);
-  if(p.notes) rows.push(`<div class="row"><span class="ico">${icon('note')}</span><span>${esc(p.notes)}</span></div>`);
-
-  const act=[];
-  if(p.tel) act.push(`<a class="btn call" href="tel:${esc(telClean)}">${icon('phone')}Appeler</a>`);
-  if(p.adr) act.push(`<a class="btn map" href="https://maps.google.com/?q=${encodeURIComponent(p.adr)}" target="_blank" rel="noopener">${icon('pin')}Itinéraire</a>`);
-  if(p.mail) act.push(`<a class="btn mail" href="mailto:${esc(p.mail)}">${icon('mail')}Email</a>`);
-  if(p.site) act.push(`<a class="btn web" href="${esc(urlHref(p.site))}" target="_blank" rel="noopener">${icon('globe')}Site web</a>`);
+  const frow=(k,v)=> v ? `<div class="frow"><div class="fk">${k}</div><div class="fv">${esc(v)}</div></div>` : '';
+  const frowLink=(k,v,href,blank)=> v ? `<div class="frow"><div class="fk">${k}</div><div class="fv"><a href="${esc(href)}"${blank?' target="_blank" rel="noopener"':''}>${esc(v)}</a></div></div>` : '';
+  const rows = frow('Public',p.public) + frow('Adresse',p.adr) + frow('Horaires',p.horaires) + frow('Référent',p.referent)
+    + frowLink('Email',p.mail,'mailto:'+p.mail) + frowLink('Site',p.site,urlHref(p.site),true);
+  const call = p.tel ? `<a class="fiche-call" href="tel:${esc(telClean)}">${icon('phone')}<span>${esc(p.tel)}</span></a>` : '';
+  const note = p.notes ? `<div class="fiche-note"><div class="fiche-note-h">À savoir</div><div class="fiche-note-b">${esc(p.notes)}</div></div>` : '';
+  const map = p.adr ? `<a class="btn map" href="https://maps.google.com/?q=${encodeURIComponent(p.adr)}" target="_blank" rel="noopener">${icon('pin')}Itinéraire</a>` : '';
 
   const comTag = (p.commune && p.commune!=="Régional / Toutes communes") ? `<span class="tag com">${icon('pin')}${esc(p.commune)}</span>` : "";
   return `<div class="card" id="c-${p.id}">
@@ -1347,12 +1354,12 @@ function contactCard(p){
       <div class="tags">${domTag(p)}${comTag}</div>
       <h2>${esc(p.nom)}</h2>
       ${p.desc?`<p class="desc">${esc(p.desc)}</p>`:''}
-      ${p.public?`<p class="public"><b>Public :</b> ${esc(p.public)}</p>`:''}
     </div>
     <div class="detail"><div class="detail-inner">
-      ${p.memo?`<div class="memo">${esc(p.memo)}</div>`:''}
-      ${rows.join('')||(p.memo?'':'<div class="row" style="color:var(--muted)">Coordonnées à compléter</div>')}
-      ${act.length?`<div class="actions">${act.join('')}</div>`:''}
+      ${call}
+      <div class="fiche-rows">${rows || (call?'':'<div class="frow"><div class="fv" style="color:var(--muted)">Coordonnées à compléter</div></div>')}</div>
+      ${note}
+      ${map?`<div class="actions">${map}</div>`:''}
     </div></div>
   </div>`;
 }
