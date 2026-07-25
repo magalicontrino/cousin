@@ -404,8 +404,9 @@
   .pf-ic{flex:0 0 46px; width:46px; height:46px; border-radius:50%; background:var(--gold); display:flex; align-items:center; justify-content:center}
   .pf-ic svg{width:26px; height:26px; color:#141414}
   .pf-id{min-width:0}
-  .pf-role{font-size:15px; font-weight:800; color:var(--ink)}
-  .pf-mail{font-size:12.5px; color:var(--muted); font-weight:600; overflow-wrap:anywhere}
+  .pf-name{font-size:15px; font-weight:800; color:var(--ink)}
+  .pf-role{font-size:12px; font-weight:750; color:var(--gold-d); margin-top:1px}
+  .pf-mail{font-size:12px; color:var(--muted); font-weight:600; margin-top:1px; overflow-wrap:anywhere}
   .pf-list{background:var(--card); border:1px solid var(--line); border-radius:16px; margin-bottom:12px; overflow:hidden}
   .pf-list-h{display:flex; align-items:center; justify-content:space-between; padding:13px 15px 9px}
   .pf-list-t{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gold-d)}
@@ -1606,13 +1607,13 @@ async function loadProfile(){
   profileLoaded=false;
   if(!sb) return;
   try{
-    let email=''; try{ const ss=(await sb.auth.getSession()).data.session; email = ss&&ss.user ? (ss.user.email||'') : ''; }catch(e){}
+    let email='', nom=''; try{ const ss=(await sb.auth.getSession()).data.session; if(ss&&ss.user){ email=ss.user.email||''; const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; } }catch(e){}
     let equipe='', pfo=false;
     try{
       const { data:me } = await sb.from('allowed_emails').select('email,equipe,pfo').limit(1);
       if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; if(me[0].email) email=me[0].email; }
     }catch(e){}
-    PROFILE={ email, equipe, pfo };
+    PROFILE={ email, nom, equipe, pfo };
     let cl=[];
     try{ const { data } = await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
     const groups={}, order=[];
@@ -1632,7 +1633,9 @@ function profilHTML(){
   if(!profileLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   const p=PROFILE||{};
   const roleTxt = p.pfo ? ('PFO'+(p.equipe?' · '+esc(p.equipe):'')) : (p.equipe?esc(p.equipe):'Équipe');
-  const head=`<div class="pf-card"><div class="pf-ic">${icon('user')}</div><div class="pf-id"><div class="pf-role">${roleTxt}</div><div class="pf-mail">${esc(p.email||'')}</div></div></div>`;
+  const nameLine = esc(p.nom || p.email || '');
+  const mailLine = (p.nom && p.email) ? `<div class="pf-mail">${esc(p.email)}</div>` : '';
+  const head=`<div class="pf-card"><div class="pf-ic">${icon('user')}</div><div class="pf-id"><div class="pf-name">${nameLine}</div><div class="pf-role">${roleTxt}</div>${mailLine}</div></div>`;
   let body;
   if(!CHECKLISTS.length){
     body=`<div class="pf-empty">${icon('clipboard','width="34" height="34"')}<p><b>Aucune check-list pour ton rôle.</b></p><p>Si tu penses que c'est une erreur, préviens Mag.</p></div>`;
