@@ -88,7 +88,7 @@
     content:""; position:absolute; left:1px; right:5px; bottom:-5px; height:3px;
     background:var(--gold); border-radius:3px; transform:skewY(-4deg);
   }
-  .logo-img{height:52px; width:auto; display:none; margin:2px 0}
+  .logo-img{height:52px; width:auto; display:none; margin:2px 0; cursor:pointer}
   .htitle .sub{margin:6px 0 0; font-size:12.5px; color:var(--ondark-muted); font-weight:500}
   .search{display:flex; align-items:center; background:#fff; border:2px solid #1b1b1b; border-radius:8px; padding:0 12px; margin:14px auto 0; width:var(--appw); max-width:100%}
   .search input{border:0; outline:0; padding:12px 8px; font-size:16px; width:100%; background:transparent; color:var(--ink)}
@@ -553,6 +553,20 @@
   .hs-chip:active{transform:scale(.97)}
   .home-foot{margin-top:14px; display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; color:rgba(22,19,15,.5)}
   .home-foot svg{width:12px; height:12px; color:rgba(22,19,15,.5); flex:none}
+  /* Pop-up de confirmation maison + toast */
+  .cmodal{position:fixed; inset:0; z-index:9998; background:rgba(27,27,27,.5); display:none; align-items:center; justify-content:center; padding:24px; -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px)}
+  .cmodal.show{display:flex; animation:cmFade .18s ease-out both}
+  @keyframes cmFade{from{opacity:0} to{opacity:1}}
+  .cmodal-card{background:var(--card); border-radius:18px; padding:22px 20px 18px; width:100%; max-width:340px; box-shadow:0 20px 50px rgba(0,0,0,.28); animation:cmUp .22s cubic-bezier(.22,1,.36,1) both}
+  @keyframes cmUp{from{transform:translateY(14px); opacity:.6} to{transform:translateY(0); opacity:1}}
+  .cmodal-msg{font-size:16px; font-weight:800; color:var(--ink); line-height:1.4; margin-bottom:18px}
+  .cmodal-actions{display:flex; gap:10px}
+  .cmodal-cancel{flex:1; padding:13px; border-radius:12px; background:var(--soft); border:0; font-size:14px; font-weight:800; color:var(--ink); cursor:pointer; font-family:inherit}
+  .cmodal-ok{flex:1; padding:13px; border-radius:12px; background:var(--gold); border:0; font-size:14px; font-weight:800; color:#1b1b1b; cursor:pointer; font-family:inherit}
+  .cmodal-ok.danger{background:#e63329; color:#fff}
+  .cmodal-cancel:active,.cmodal-ok:active{transform:scale(.98)}
+  .ctoast{position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(10px); background:#1b1b1b; color:#f2eee6; padding:12px 18px; border-radius:12px; font-size:13.5px; font-weight:700; z-index:9999; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:90%; text-align:center}
+  .ctoast.show{opacity:1; transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -573,11 +587,22 @@
   </div>
 </div>
 
+<!-- Pop-up de confirmation maison (remplace confirm()) -->
+<div id="cModal" class="cmodal">
+  <div class="cmodal-card">
+    <div class="cmodal-msg" id="cModalMsg"></div>
+    <div class="cmodal-actions">
+      <button class="cmodal-cancel" onclick="cModalClose()">Annuler</button>
+      <button class="cmodal-ok" id="cModalOk">OK</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="hrow">
     <button class="back" id="backBtn" onclick="goHome()">‹</button>
     <div class="htitle">
-      <img id="logoImg" class="logo-img" alt="COUSIN" src="logo.png">
+      <img id="logoImg" class="logo-img" alt="COUSIN" src="logo.png" onclick="goHome()">
       <h1 id="hTitle"><span id="hEmoji" style="display:none"></span><span id="hName">COUSIN</span></h1>
       <div class="sub" id="hSub">Faciliter le travail d'équipe · Bruxelles</div>
     </div>
@@ -1129,6 +1154,23 @@ function load(){
 }
 function persist(arr){localStorage.setItem(KEY, JSON.stringify({v:SEED_VERSION, items:arr||data}));}
 function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+/* Pop-up de confirmation maison (remplace confirm()) + petit toast (remplace alert()) */
+let _cModalCb=null;
+function cousinConfirm(msg, onOk, opts){
+  opts=opts||{};
+  const m=document.getElementById('cModal'), msgEl=document.getElementById('cModalMsg'), okEl=document.getElementById('cModalOk');
+  if(!m){ if(window.confirm(msg)&&typeof onOk==='function') onOk(); return; }
+  msgEl.textContent=msg; okEl.textContent=opts.ok||'OK'; okEl.classList.toggle('danger', !!opts.danger);
+  _cModalCb=onOk; m.classList.add('show');
+  okEl.onclick=function(){ cModalClose(); if(typeof _cModalCb==='function'){ const cb=_cModalCb; _cModalCb=null; cb(); } };
+}
+function cModalClose(){ const m=document.getElementById('cModal'); if(m) m.classList.remove('show'); _cModalCb=null; }
+function cousinToast(msg){
+  let t=document.getElementById('cToast');
+  if(!t){ t=document.createElement('div'); t.id='cToast'; t.className='ctoast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._to); t._to=setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
 function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
@@ -1148,7 +1190,8 @@ function openUrgences(){ view="home"; urgOpen=true; urgCat=null; query=""; docum
 /* Les 3 pictos + le chat, en haut à droite, présents sur tous les écrans. */
 function navPictos(){
   // La maison ne s'affiche que hors accueil (sur l'accueil, on y est déjà).
-  return `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
+  return `<button class="hicon home" title="Accueil" onclick="goHome()">${icon('home')}</button>`+
+         `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
          `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
          `<button class="hicon" title="Votre avis / vos idées" onclick="openFeedback()">${icon('chat')}</button>`+
@@ -1323,16 +1366,6 @@ function homeHTML(){
     `</div><div class="home-sub">Annuaire du réseau &amp; procédures d'équipe</div>`;
   return `
     ${titre}
-    <div class="home-search">
-      <button class="hs-btn" onclick="toggleHomeSearch()" title="Rechercher">${icon('search')}</button>
-      <div class="hs-chips">
-        <button class="hs-chip" onclick="quickSearch('CPAS')">CPAS</button>
-        <button class="hs-chip" onclick="quickSearch('médecin sans mutuelle')">Médecin sans mutuelle</button>
-        <button class="hs-chip" onclick="quickSearch('hébergement')">Lit de nuit</button>
-        <button class="hs-chip" onclick="quickSearch('séjour')">Séjour</button>
-        <button class="hs-chip" onclick="quickSearch('santé mentale')">Psy</button>
-      </div>
-    </div>
     <button class="hero ${urgOpen?'open':''}" id="urgHero" onclick="toggleUrg()">
       <span class="hero-ic">${icon('siren')}</span>
       <span class="hero-txt"><b>Urgences</b><small>101 · 112 · numéros d'écoute</small></span>
@@ -1939,8 +1972,9 @@ async function publishFeed(){
 }
 async function deleteFeedItem(id){
   if(!sb) return;
-  if(!confirm("Supprimer ce message ?")) return;
-  try{ await sb.from('feed').delete().eq('id', id); await loadFeed(); if(view==="feed") render(); }catch(e){}
+  cousinConfirm("Supprimer ce message ?", async function(){
+    try{ await sb.from('feed').delete().eq('id', id); await loadFeed(); if(view==="feed") render(); }catch(e){}
+  }, {ok:'Supprimer', danger:true});
 }
 
 /* ---------- Page Admin (réservée à Magali super-admin) : gérer l'équipe + demandes ---------- */
@@ -1985,7 +2019,7 @@ async function addMember(){
   const em=document.getElementById('admEmail'), ro=document.getElementById('admRole');
   const email=(em.value||'').trim().toLowerCase(); if(!email||email.indexOf('@')<1){ em.focus(); return; }
   try{ await sb.from('allowed_emails').upsert({ email, equipe:ro.value||'', actif:true }, { onConflict:'email' }); em.value=''; await loadAdmin(); if(view==='admin') render(); }
-  catch(e){ alert('Impossible d\'ajouter : '+(e.message||e)); }
+  catch(e){ cousinToast('Impossible d\'ajouter : '+(e.message||e)); }
 }
 async function toggleActif(email,on){ try{ await sb.from('allowed_emails').update({actif:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 async function togglePfo(email,on){ try{ await sb.from('allowed_emails').update({pfo:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
@@ -1997,14 +2031,15 @@ async function toggleList(email,k){
   try{ await sb.from('allowed_emails').update({listes:lst}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
 }
 async function removeMember(email){
-  if(!confirm("Retirer "+email+" de l'application ?")) return;
-  try{ await sb.from('allowed_emails').delete().eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+  cousinConfirm("Retirer "+email+" de l'application ?", async function(){
+    try{ await sb.from('allowed_emails').delete().eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+  }, {ok:'Retirer', danger:true});
 }
 async function approveRequest(email,id){
   try{ await sb.from('allowed_emails').upsert({ email:(email||'').toLowerCase(), equipe:'', actif:true }, { onConflict:'email' });
        await sb.from('access_requests').update({statut:'approuve'}).eq('id',id);
        await loadAdmin(); if(view==='admin') render(); }
-  catch(e){ alert('Erreur : '+(e.message||e)); }
+  catch(e){ cousinToast('Erreur : '+(e.message||e)); }
 }
 async function refuseRequest(id){ try{ await sb.from('access_requests').update({statut:'refuse'}).eq('id',id); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 
