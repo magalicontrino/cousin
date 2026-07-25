@@ -5,7 +5,7 @@
 
 const CACHE = 'cousin-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
-                './icon-192.png', './icon-512.png', './icon-180.png'];
+                './logo.png', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // la nouvelle version prend la main immédiatement
