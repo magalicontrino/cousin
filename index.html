@@ -619,6 +619,31 @@
   .pf-empty{text-align:center; color:var(--muted); padding:34px 20px; background:var(--card); border:1px solid var(--line); border-radius:16px}
   .pf-empty svg, .pf-empty .pico{color:var(--faint); margin-bottom:8px}
   .pf-empty p{margin:4px 0; font-size:14px}
+  /* Carte du jour : l'action principale, avec l'avancement visible */
+  .pf-jour{display:block; width:100%; text-align:left; margin-bottom:12px; padding:16px 17px; border-radius:16px;
+    background:var(--gold); border:0; color:#141414; cursor:pointer}
+  .pf-jour:active{transform:scale(.99)}
+  .pf-jour-h{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .pf-jour-t{display:flex; align-items:center; gap:9px; font-size:15.5px; font-weight:900}
+  .pf-jour-t svg,.pf-jour-t .pico{width:19px; height:19px}
+  .pf-jour-n{font-size:14px; font-weight:900; background:rgba(0,0,0,.14); border-radius:20px; padding:3px 11px}
+  .pf-bar{height:7px; border-radius:4px; background:rgba(0,0,0,.14); margin:11px 0 7px; overflow:hidden}
+  .pf-bar i{display:block; height:100%; border-radius:4px; background:#1b1b1b; transition:width .35s}
+  .pf-jour-s{font-size:12px; font-weight:700; color:rgba(0,0,0,.6)}
+  /* Étiquettes du profil : rôle, quart, admin */
+  .pf-tags{display:flex; flex-wrap:wrap; gap:5px; margin:5px 0 3px}
+  .pf-tag{font-size:10.5px; font-weight:900; letter-spacing:.03em; text-transform:uppercase;
+    background:rgba(27,27,27,.07); color:var(--muted); border-radius:11px; padding:3px 9px}
+  /* Raccourcis secondaires : contour, pas de aplat, pour ne pas concurrencer la liste du jour */
+  .pf-outils{display:flex; flex-direction:column; gap:9px; margin-bottom:12px}
+  .pf-out{display:flex; align-items:center; gap:11px; width:100%; padding:14px 16px; border-radius:14px;
+    background:transparent; border:1.5px solid rgba(27,27,27,.14); color:var(--ink); font-size:14.5px;
+    font-weight:800; cursor:pointer; text-align:left}
+  .pf-out svg,.pf-out .pico{width:18px; height:18px; flex:0 0 auto}
+  .pf-out span{flex:1 1 auto; min-width:0}
+  .pf-out .pf-out-lien{width:11px !important; height:11px !important; opacity:.45}
+  .pf-out:active{transform:scale(.99)}
+  .pf-empty-s{padding:20px 16px; margin-bottom:12px}
   .pf-golist{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; margin-bottom:12px; padding:16px; border-radius:14px; background:var(--gold); border:0; color:#141414; font-size:15px; font-weight:800; cursor:pointer}
   .pf-golist svg, .pf-golist .pico{width:20px; height:20px}
   .pf-golist:active{transform:scale(.98)}
@@ -2569,14 +2594,14 @@ async function loadProfile(){
   if(!sb) return;
   try{
     let email='', nom='', uid=''; try{ const ss=(await sb.auth.getSession()).data.session; if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||''; const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; } }catch(e){}
-    let equipe='', pfo=false, admin=false;
+    let equipe='', pfo=false, admin=false, listes=[];
     try{
-      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin');
+      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin,listes');
       if(email) qy = qy.ilike('email', email);   // cible SA ligne (l'admin voit tout le monde via RLS → on filtre sur son email)
       const { data:me } = await qy.limit(1);
-      if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; if(me[0].email) email=me[0].email; }
+      if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; listes=Array.isArray(me[0].listes)?me[0].listes:[]; if(me[0].email) email=me[0].email; }
     }catch(e){}
-    PROFILE={ email, nom, equipe, pfo, admin, uid };
+    PROFILE={ email, nom, equipe, pfo, admin, uid, listes };
     // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
     if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
     let cl=[];
@@ -2621,16 +2646,40 @@ function profilHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ton profil.</p></div>`;
   if(!profileLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   const p=PROFILE||{};
-  const roleTxt = p.pfo ? ('PFO'+(p.equipe?' · '+esc(p.equipe):'')) : (p.equipe?esc(p.equipe):'Équipe');
-  const nameLine = esc(p.nom || p.email || '');
-  const mailLine = (p.nom && p.email) ? `<div class="pf-mail">${esc(p.email)}</div>` : '';
-  const head=`<div class="pf-card"><div class="pf-ic" style="background:${userColor(p.nom||p.email)}">${icon('user')}</div><div class="pf-id"><div class="pf-name">${nameLine}</div><div class="pf-role">${roleTxt}</div>${mailLine}</div></div>`;
-  const golist=`<button class="pf-golist" onclick="openMaListe()">${icon('list')}<span>Voir ma liste du jour</span></button>`;
-  const adminBtn=(PROFILE&&PROFILE.admin)?`<button class="pf-admin" onclick="openAdmin()">${icon('cog')}<span>Gestion de l'équipe</span></button>`:'';
-  const protime=`<button class="pf-golist" style="margin-top:10px" onclick="window.open('https://samusocial.myprotime.eu/','_blank','noopener')">${icon('clock')}<span>myprotime</span></button>`;
-  const idee=`<button class="pf-golist" style="margin-top:10px" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>`;
+
+  // Carte d'identité : nom, rôle, quart (jour/nuit) et adresse
+  const quart=shiftOf(p.listes);
+  const badges=[p.pfo?'PFO':null, p.equipe||null, quart?(quart==='nuit'?'Nuit':'Jour'):null, p.admin?'Admin':null]
+    .filter(Boolean).map(b=>`<span class="pf-tag">${esc(b)}</span>`).join('');
+  const head=`<div class="pf-card">
+    <div class="pf-ic" style="background:${userColor(p.nom||p.email)}">${icon('user')}</div>
+    <div class="pf-id"><div class="pf-name">${esc(p.nom||p.email||'')}</div>
+      <div class="pf-tags">${badges}</div>
+      ${(p.nom&&p.email)?`<div class="pf-mail">${esc(p.email)}</div>`:''}</div></div>`;
+
+  // Ma liste du jour : on montre l'avancement, pas seulement un bouton
+  let total=0, faites=0;
+  CHECKLISTS.forEach(g=>{ total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
+  const pct = total ? Math.round(faites/total*100) : 0;
+  const liste = total
+    ? `<button class="pf-jour" onclick="openMaListe()">
+         <div class="pf-jour-h"><span class="pf-jour-t">${icon('list')}Ma liste du jour</span>
+           <span class="pf-jour-n">${faites}/${total}</span></div>
+         <div class="pf-bar"><i style="width:${pct}%"></i></div>
+         <div class="pf-jour-s">${faites===total?'Tout est fait, bravo 🎉':(faites?`Il reste ${total-faites} tâche${total-faites>1?'s':''}`:'À commencer')}</div>
+       </button>`
+    : `<div class="pf-empty pf-empty-s">${icon('list')}<p>Aucune check-list pour ton rôle.</p></div>`;
+
+  // Raccourcis, moins appuyés que l'action du jour
+  const outils=`<div class="pf-outils">
+    <button class="pf-out" onclick="window.open('https://samusocial.myprotime.eu/','_blank','noopener')">
+      ${icon('clock')}<span>myprotime</span>${icon('lien','class="pf-out-lien"')}</button>
+    <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
+  </div>`;
+
+  const adminBtn=p.admin?`<button class="pf-admin" onclick="openAdmin()">${icon('cog')}<span>Gestion de l'équipe</span></button>`:'';
   const foot=`<button class="pf-logout" onclick="signOutCousin()">${icon('logout')}<span>Se déconnecter</span></button>`;
-  return `<div class="pf-wrap">${head}${golist}${protime}${idee}${adminBtn}${foot}</div>`;
+  return `<div class="pf-wrap">${head}${liste}${outils}${adminBtn}${foot}</div>`;
 }
 
 /* ---------- Fil d'actu de l'équipe (feed, base privée) ---------- */
