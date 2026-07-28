@@ -661,6 +661,7 @@ input, textarea, select{
   /* Libération des chambres : circuit partagé, une couleur par étape */
   .ch-add{display:flex; gap:8px; margin-bottom:16px}
   .ch-add input{flex:1 1 auto; min-width:0}
+  .ch-add #chIni{flex:0 0 92px; text-transform:uppercase}
   .ch-addbtn{flex:0 0 auto; padding:0 20px; border-radius:12px; background:var(--gold); border:0;
     font-size:14px; font-weight:800; color:#141414; cursor:pointer; font-family:inherit}
   .ch-note{background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px; padding:12px 14px;
@@ -675,6 +676,13 @@ input, textarea, select{
   .ch-prog{font-size:11px; font-weight:900; background:rgba(27,27,27,.07); border-radius:11px; padding:3px 9px; color:var(--muted)}
   .ch-fin{font-size:10.5px; font-weight:900; letter-spacing:.04em; text-transform:uppercase;
     background:#d8ecdf; color:#1f7a44; border-radius:10px; padding:3px 9px}
+  .ch-ini{font-size:12px; font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+    background:#1b1b1b; color:var(--gold); border-radius:9px; padding:3px 9px}
+  .ch-rgpd{background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px; padding:11px 13px;
+    font-size:12.5px; line-height:1.5; margin:-6px 0 16px}
+  .ch-badge{font-style:normal; flex:0 0 auto; min-width:22px; height:22px; padding:0 6px; border-radius:11px;
+    background:#e63329; color:#fff; font-size:12px; font-weight:900;
+    display:inline-flex; align-items:center; justify-content:center}
   .ch-del{margin-left:auto; background:none; border:0; color:var(--faint); cursor:pointer; padding:3px}
   .ch-del svg,.ch-del .pico{width:16px; height:16px}
   .ch-ets{display:flex; flex-direction:column; gap:7px}
@@ -1848,7 +1856,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v111';
+const APP_VERSION = 'v112';
 const SEED_VERSION = 42;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2900,7 +2908,7 @@ function checklistsHTML(){
 }
 
 // Vue « Ma liste » : accès direct aux tâches du jour (le picto liste)
-function maListeHTML(){ const lien=`<button class="pf-out" style="margin-bottom:14px" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span></button>`; const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${lien}${bar}${checklistsHTML()}</div>`; }
+function maListeHTML(){ const lien=`<button class="pf-out" style="margin-bottom:14px" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span>${CH_ENCOURS?`<em class="ch-badge">${CH_ENCOURS}</em>`:''}</button>`; const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${lien}${bar}${checklistsHTML()}</div>`; }
 function openMaListe(){
   view="maliste"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
@@ -2941,7 +2949,7 @@ function profilHTML(){
   const outils=`<div class="pf-outils">
     <button class="pf-out" onclick="window.open('https://samusocial.myprotime.eu/','_blank','noopener')">
       ${icon('clock')}<span>myprotime</span>${icon('lien','class="pf-out-lien"')}</button>
-    <button class="pf-out" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span></button>
+    <button class="pf-out" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span>${CH_ENCOURS?`<em class="ch-badge">${CH_ENCOURS}</em>`:''}</button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
   </div>`;
 
@@ -2963,6 +2971,11 @@ const CH_ETAPES=[
 ];
 let CHAMBRES=[], chambresLoaded=false;
 
+/* Créer une chambre : PFO, coordination, admin. Cocher : eux + TS et éducateurs. */
+function peutCreerChambre(){
+  const p=PROFILE||{};
+  return !!(p.admin || p.pfo || p.equipe==='Coordi');
+}
 function peutGererChambres(){
   const p=PROFILE||{};
   return !!(p.admin || p.pfo || ['Coordi','TS','Educ','Éduc'].indexOf(p.equipe)>=0);
@@ -2973,6 +2986,7 @@ async function loadChambres(){
   try{
     const { data } = await sb.from('chambres').select('*').order('cree_le',{ascending:false}).limit(60);
     CHAMBRES = data||[];
+    CH_ENCOURS = CHAMBRES.filter(function(c){ return !chambreFinie(c); }).length;
   }catch(e){}
   chambresLoaded=true;
 }
@@ -2983,15 +2997,18 @@ function openChambres(){
   loadChambres().then(function(){ if(view==='chambres') render(); });
 }
 // L'étape facultative ne conditionne pas la libération de la chambre.
+let CH_ENCOURS=0;   // pour la pastille de notification sur le bouton
 function chambreFinie(ch){ return CH_ETAPES.filter(function(e){ return !e.opt; }).every(function(e){ return ch[e.k+'_le']; }); }
 
 async function ajouterChambre(){
   const inp=document.getElementById('chNum'); if(!inp) return;
   const n=(inp.value||'').trim();
   if(!n){ inp.focus(); return; }
+  const ini=document.getElementById('chIni');
+  const i=((ini&&ini.value)||'').trim().slice(0,6);
   try{
-    await sb.from('chambres').insert({ numero:n, cree_par:(PROFILE&&PROFILE.nom)||'' });
-    inp.value='';
+    await sb.from('chambres').insert({ numero:n, initiales:i||null, cree_par:(PROFILE&&PROFILE.nom)||'' });
+    inp.value=''; if(ini) ini.value='';
     await loadChambres(); if(view==='chambres') render();
   }catch(e){ cousinToast("Ajout impossible"); }
 }
@@ -3036,6 +3053,7 @@ function chambreCard(ch){
   }).join('');
   return '<div class="ch-card'+(finie?' finie':'')+'">'+
     '<div class="ch-h"><span class="ch-num">'+esc(ch.numero)+'</span>'+
+      (ch.initiales?'<span class="ch-ini">'+esc(ch.initiales)+'</span>':'')+
       '<span class="ch-prog">'+faites+'/'+oblig.length+'</span>'+
       (finie?'<span class="ch-fin">Libérée ✓</span>':'')+
       (peut?'<button class="ch-del" title="Retirer" onclick="retirerChambre('+ch.id+',\''+esc(ch.numero)+'\')">'+icon('trash')+'</button>':'')+
@@ -3045,9 +3063,14 @@ function chambresHTML(){
   if(!sb) return '<div class="empty"><p><b>Hors ligne.</b></p></div>';
   if(!chambresLoaded) return '<div class="empty"><p>Chargement…</p></div>';
   const peut=peutGererChambres();
-  const ajout = peut
-    ? '<div class="ch-add"><input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre — ex. 214" autocomplete="off"><button class="ch-addbtn" onclick="ajouterChambre()">Ajouter</button></div>'
-    : '<div class="ch-note">Tu vois la liste ; seuls coordi, PFO, travailleurs sociaux et éducateurs peuvent cocher.</div>';
+  const ajout = peutCreerChambre()
+    ? '<div class="ch-add"><input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">' +
+      '<input id="chIni" type="text" maxlength="6" placeholder="Initiales" autocomplete="off">' +
+      '<button class="ch-addbtn" onclick="ajouterChambre()">Ajouter</button></div>' +
+      '<div class="ch-rgpd">🔒 <b>Initiales uniquement — jamais de nom.</b> Elles servent seulement à savoir quel lit débarrasser quand la chambre est à deux.</div>'
+    : '<div class="ch-note">' + (peut
+        ? 'Tu peux cocher les étapes. Seuls le PFO et la coordination ajoutent des chambres.'
+        : 'Tu vois la liste ; seuls le PFO, la coordination, les travailleurs sociaux et les éducateurs peuvent cocher.') + '</div>';
   const encours=CHAMBRES.filter(function(c){ return !chambreFinie(c); });
   const finies=CHAMBRES.filter(chambreFinie).slice(0,8);
   let corps='';
