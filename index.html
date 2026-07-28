@@ -598,6 +598,9 @@ input, textarea, select{
   .pf-list{background:var(--card); border:1px solid var(--line); border-radius:16px; margin-bottom:12px; overflow:hidden}
   .pf-list-h{display:flex; align-items:center; justify-content:space-between; padding:13px 15px 9px}
   .pf-list-t{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gold-d)}
+  .pf-reset{margin-left:8px; background:none; border:0; color:var(--faint); cursor:pointer; padding:3px; display:inline-flex}
+  .pf-reset svg,.pf-reset .pico{width:15px; height:15px}
+  .pf-reset:active{transform:scale(.9)}
   .pf-prog{font-size:11px; font-weight:800; color:var(--muted); background:var(--soft); border-radius:20px; padding:3px 9px}
   .pf-tasks{padding:0 6px 6px}
   .pf-task{display:flex; align-items:center; gap:12px; padding:11px 9px; border-radius:12px; cursor:pointer; position:relative; -webkit-user-select:none; user-select:none}
@@ -1873,7 +1876,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v115';
+const APP_VERSION = 'v116';
 const SEED_VERSION = 42;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2920,7 +2923,7 @@ function checklistsHTML(){
     const rows=g.taches.map(t=>
       `<label class="pf-task${DONE[t.id]?' done':''}"><input type="checkbox"${DONE[t.id]?' checked':''} onchange="toggleTache(${t.id}, this)"><span class="pf-box">${icon('check')}</span><span class="pf-txt">${esc(t.tache)}</span></label>`
     ).join('');
-    return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span></div><div class="pf-tasks">${rows}</div></div>`;
+    return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${done?`<button class="pf-reset" title="Tout décocher" onclick="resetListe('${g.liste.replace(/'/g,"\\'")}')">${icon('trash')}</button>`:''}</div><div class="pf-tasks">${rows}</div></div>`;
   }).join('');
 }
 
@@ -3568,6 +3571,21 @@ function quizHTML(){
   return `<div class="pf-wrap"><div class="quiz-top"><span>Question ${QUIZ.i+1}/${QUIZ.qs.length}</span><span>Score : ${QUIZ.score}</span></div><div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>${corr}${next}</div>`;
 }
 
+/* Remettre une liste à zéro : on décoche tout pour aujourd'hui, avec confirmation. */
+async function resetListe(nomListe){
+  const g=CHECKLISTS.find(function(x){ return x.liste===nomListe; }); if(!g) return;
+  const ids=g.taches.filter(function(t){ return DONE[t.id]; }).map(function(t){ return t.id; });
+  if(!ids.length){ cousinToast('Rien à décocher'); return; }
+  cousinConfirm('Tout décocher dans « '+(LISTE_LABELS[nomListe]||nomListe)+' » ?', async function(){
+    try{
+      const uid=(await sb.auth.getSession()).data.session.user.id;
+      await sb.from('checklist_faites').delete().eq('user_id',uid).eq('jour',todayStr()).in('tache_id',ids);
+      ids.forEach(function(i){ delete DONE[i]; });
+      render();
+      cousinToast('Liste remise à zéro ✓');
+    }catch(e){ cousinToast('Impossible de remettre à zéro'); }
+  }, {ok:'Tout décocher', danger:true});
+}
 async function toggleTache(id, el){
   const on=el.checked;
   const row=el.closest('.pf-task'); if(row) row.classList.toggle('done', on);
