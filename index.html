@@ -339,6 +339,8 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .tags{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:9px}
   .tag{font-size:10.5px; font-weight:750; text-transform:uppercase; letter-spacing:.4px; padding:3px 8px; border-radius:7px}
   .tag.dom{color:#141414}
+  .tag.cpas{background:rgba(27,27,27,.08); color:var(--ink)}
+  .tag.todo{background:#fbf0c4; color:#8a6a00}
   .tag.com{background:var(--soft); color:var(--iris-d)}
   .card h2{margin:0; font-size:16.5px; font-weight:750; letter-spacing:-.2px}
   .card .desc{margin:6px 0 0; font-size:14px; color:var(--muted)}
@@ -1834,7 +1836,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2270,15 +2272,23 @@ function demarcheCard(p){
   if(p.tel)  act.push(`<a class="btn map" href="tel:${esc(telClean)}">${icon('phone')}Appeler</a>`);
 
   const comTag = (p.commune && p.commune!=="Régional / Toutes communes") ? `<span class="tag com">${icon('pin')}${esc(p.commune)}</span>` : "";
+  // Titre court = le type de démarche ; le CPAS devient une étiquette. Le résumé dit ce qu'on
+  // fait (« comment »), pas l'avertissement — et si rien n'est documenté, on le dit franchement.
+  const parts=String(p.nom||'').split(' — ');
+  const titre = p.demarche || parts[0];
+  const cpas = parts.length>1 ? parts.slice(1).join(' — ') : '';
+  const vide = v => !v || /^\s*[àa] compl[ée]ter/i.test(v);
+  const aFaire = vide(p.ou) && vide(p.comment) && vide(p.delai);
+  const resume = !vide(p.comment) ? p.comment : (!vide(p.ou) ? 'Où envoyer : '+p.ou : '');
   return `<div class="card" id="c-${p.id}">
     <div class="card-top" onclick="toggle('${p.id}')">
-      <div class="tags">${domTag(p)}${comTag}</div>
-      <h2>${esc(p.nom)}</h2>
-      ${p.attention?`<p class="desc">${esc(p.attention).slice(0,90)}${p.attention.length>90?'…':''}</p>`:''}
+      <div class="tags">${domTag(p)}${cpas?`<span class="tag cpas">${esc(cpas)}</span>`:''}${comTag}${aFaire?'<span class="tag todo">à documenter</span>':''}</div>
+      <h2>${esc(titre)}</h2>
+      ${resume?`<p class="desc">${esc(resume).slice(0,110)}${resume.length>110?'…':''}</p>`:''}
     </div>
     <div class="detail"><div class="detail-inner">
       ${p.attention?`<div class="warn"><b>⚠️ Particularité de ce CPAS</b><span>${esc(p.attention)}</span></div>`:''}
-      ${rows.join('')||'<div class="row" style="color:var(--muted)">Procédure à compléter</div>'}
+      ${rows.join('')||`<div class="warn"><b>Procédure pas encore documentée</b><span>Cette fiche attend le détail de l'équipe : pièces à joindre, à qui envoyer, délai. Utilise « Proposer une fiche » pour l'envoyer.</span></div>`}
       ${act.length?`<div class="actions">${act.join('')}</div>`:''}
       ${p.maj?`<div class="maj">Mis à jour : ${esc(p.maj)}</div>`:''}
     </div></div>
