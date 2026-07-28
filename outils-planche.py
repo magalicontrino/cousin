@@ -8,8 +8,16 @@ util = set()
 s = open('index.html', encoding='utf-8').read()
 bloc = s[s.index('const PICTOS='):]; bloc = bloc[:bloc.index('};')]
 util = set(re.findall(r"'(ico-[a-z-]+\.svg)'", bloc))
+
+def lire(f):
+    p = os.path.join('picto', f)
+    return open(p, encoding='utf-8').read() if os.path.exists(p) else None
+
+# Une forme brute de Figma (ico-…) qui a déjà été recopiée sous son nom de fonction
+# (formations.svg, avis.svg…) n'est plus « libre » : on la reconnaît à son contenu.
+places = {lire(it['nom']) for it in man}
 libres = [f for f in sorted(os.listdir('picto'))
-          if f.startswith('ico-') and f not in util]
+          if f.startswith('ico-') and f not in util and lire(f) not in places]
 
 PALETTE = ['#f3c6da', '#b28b7a', '#6cb392', '#f5c542', '#fd8fd0', '#f8763f', '#5b8fd4']
 
