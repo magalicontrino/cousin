@@ -3,12 +3,12 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v29';
+const CACHE = 'cousin-v30';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
                 './font/eastman-demibold.woff2', './font/eastman-extrabold.woff2',
-                './font/eastman-bold.woff2', './font/eastman-black.woff2', './font/eastman-compressed-bold.woff2',
+                './font/eastman-bold.woff2', './font/eastman-condensed-black.woff2', './font/eastman-compressed-bold.woff2',
                 './picto/ico-reseau.png', './picto/ico-demarches.png', './picto/ico-avis.png',
                 './picto/ico-mails.png', './picto/ico-demidisques.png', './picto/ico-fleur.png',
                 './picto/ico-donut.png'];
