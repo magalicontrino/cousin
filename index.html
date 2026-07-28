@@ -293,9 +293,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   }
   .dcard{transition:transform .16s cubic-bezier(.22,1,.36,1)}
   .dcard:active{transform:scale(.96)}
+  .dcard.vide{background:rgba(27,27,27,.045); pointer-events:none}
+  .dcard.vide:active{transform:none}
 .dcard svg, .dcard .pico{width:46px; height:46px; color:#1b1b1b; align-self:flex-end}
   .dc-top{display:flex; flex-direction:column; gap:1px}
-  .dcard span{font-size:12.5px; font-weight:900; text-transform:uppercase; letter-spacing:-.01em; line-height:1.05}
+  .dcard span{font-size:clamp(9.5px,2.9vw,12.5px); font-weight:900; text-transform:uppercase;
+    letter-spacing:-.02em; line-height:1.08; overflow-wrap:normal; word-break:keep-all; hyphens:none}
   .dcard em{font-style:normal; font-size:11px; font-weight:800; color:rgba(0,0,0,.38)}
 
   /* Navigation en pavés (domaines) */
@@ -1836,7 +1839,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v102';
+const APP_VERSION = 'v103';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2251,9 +2254,13 @@ function toggleUrgCat(btn,i){
   if(acc && acc.classList.contains('urg-acc')){ acc.classList.toggle('open', willOpen); setAcc(acc, willOpen); }
 }
 function reseauHTML(){
-  const tiles=DOMAINES.filter(dm=>dm.reseau).map(dm=>
+  const doms=DOMAINES.filter(dm=>dm.reseau);
+  const tiles=doms.map(dm=>
     tileHTML(dm.ic,dm.short||dm.label,countDom(dm.key),"openDomaine('"+dm.key+"')",tileColor(dm.key),true)).join('');
-  return `<div class="dgrid">${tiles}</div>`;
+  // On complète la dernière rangée par des cases vides, pour que la grille reste droite.
+  const manque=(3-(doms.length%3))%3;
+  const vides='<div class="dcard vide"></div>'.repeat(manque);
+  return `<div class="dgrid">${tiles}${vides}</div>`;
 }
 
 function demarcheCard(p){
