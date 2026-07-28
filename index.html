@@ -3617,7 +3617,8 @@ async function initAuth(){
     if(errDesc){ showMessage("Google a refusé : "+errDesc+"\n\n(capture d'écran à envoyer)"); return; }
     if(code){
       const { error } = await sb.auth.exchangeCodeForSession(code);
-      history.replaceState({}, '', location.origin + location.pathname);
+      // On efface le code de Google de l'adresse, sans casser l'historique interne de l'app.
+      history.replaceState(history.state, '', location.origin + location.pathname + (location.hash||''));
       if(error){ showMessage("Connexion échouée : "+error.message+"\n\n(fais une capture et envoie-la)"); return; }
     }
   }catch(e){ showMessage("Connexion échouée : "+(e && e.message ? e.message : e)+"\n\n(fais une capture et envoie-la)"); return; }
@@ -3649,6 +3650,97 @@ async function initAuth(){
   hideGate();
 }
 initAuth();
+
+/* ---------- Bouton « retour » du téléphone et du navigateur ----------
+   COUSIN est une page unique : sans ça, un retour arrière ferait sortir de
+   l'app d'un coup. On donne donc une adresse à chaque écran (#reseau,
+   #ma-liste, #chambres…) et on l'enregistre dans l'historique du navigateur ;
+   le retour arrière ramène à l'écran précédent, à l'intérieur de l'app.
+   Depuis l'accueil, un dernier retour quitte l'app — c'est voulu. */
+let NAV_PILE = [];       // les écrans empilés (miroir de l'historique)
+let NAV_I    = 0;        // où on se trouve dans cette pile
+let NAV_MUET = false;    // pendant qu'on restaure un écran, on n'empile pas
+
+function navEtat(){
+  const mb=document.getElementById('modalBg'), fb=document.getElementById('fbBg');
+  return {
+    view: view, urg: !!urgOpen, urgc: (typeof urgCat==='number'?urgCat:null), q: query,
+    com: activeCommune, dem: activeDemarche, met: activeMetier, kw: activeKw,
+    quiz: (view==='quiz' && QUIZ && QUIZ.theme) ? QUIZ.theme : null,
+    modal: (mb && mb.classList.contains('show')) ? 'proposer'
+         : ((fb && fb.classList.contains('show')) ? 'idee' : null)
+  };
+}
+function navMeme(a,b){ return !!a && !!b && JSON.stringify(a)===JSON.stringify(b); }
+const NAV_NOMS={home:'accueil', reseau:'reseau', favoris:'favoris', profil:'profil',
+                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'quiz'};
+function navAdresse(s){
+  if(!s) return '#accueil';
+  if(s.modal) return s.modal==='proposer' ? '#proposer-une-fiche' : '#une-idee';
+  if(s.q) return '#recherche';
+  if(s.view==='home') return s.urg ? '#urgences' : '#accueil';
+  return '#'+(NAV_NOMS[s.view] || s.view);
+}
+function navEnregistre(){
+  if(NAV_MUET) return;
+  const s=navEtat();
+  if(navMeme(s, NAV_PILE[NAV_I])) return;                 // rien n'a bougé
+  // Si on retombe sur un écran déjà visité (bouton retour de l'app, picto Accueil…),
+  // on redescend vraiment dans l'historique au lieu d'empiler un doublon.
+  for(let k=NAV_I-1; k>=0; k--){
+    if(navMeme(s, NAV_PILE[k])){ history.go(k-NAV_I); return; }
+  }
+  NAV_I++; NAV_PILE.length=NAV_I; NAV_PILE[NAV_I]=s;
+  history.pushState({cousin:NAV_I}, '', navAdresse(s));
+}
+function navRestaure(s){
+  if(!s) return;
+  NAV_MUET=true;
+  try{
+    activeCommune=s.com||'Toutes'; activeDemarche=s.dem||'Toutes';
+    activeMetier=s.met||'Toutes';  activeKw=s.kw||'Tous';
+    query=s.q||'';
+    const ch=document.getElementById('search'); if(ch) ch.value=query;
+    document.body.classList.toggle('search-on', !!query);
+    if(s.modal!=='proposer') closeForm();
+    if(s.modal!=='idee')     closeFeedback();
+    if(s.view==='profil')        openProfil();
+    else if(s.view==='maliste')  openMaListe();
+    else if(s.view==='chambres') openChambres();
+    else if(s.view==='feed')     openFeed();
+    else if(s.view==='admin')    openAdmin();
+    else if(s.view==='quiz')     openQuiz(s.quiz||undefined);
+    else {
+      view=s.view||'home';
+      urgOpen=(view==='home' && !!s.urg); urgCat=(view==='home' ? s.urgc : null);
+      render();
+    }
+    if(s.modal==='proposer') openForm();
+    if(s.modal==='idee')     openFeedback();
+  } finally { NAV_MUET=false; }
+}
+window.addEventListener('popstate', function(e){
+  // Une demande de confirmation est ouverte ? Le retour la referme, sans quitter l'écran.
+  const cm=document.getElementById('cModal');
+  if(cm && cm.classList.contains('show')){
+    cModalClose();
+    history.pushState({cousin:NAV_I}, '', navAdresse(NAV_PILE[NAV_I]));
+    return;
+  }
+  let i=(e.state && typeof e.state.cousin==='number') ? e.state.cousin : 0;
+  if(i<0) i=0; if(i>NAV_PILE.length-1) i=NAV_PILE.length-1;
+  NAV_I=i;
+  navRestaure(NAV_PILE[i]);
+});
+// Chaque fonction qui change d'écran laisse sa trace dans l'historique.
+['goHome','openDomaine','openReseau','openFavoris','openUrgences','toggleUrg','quickSearch',
+ 'openProfil','openMaListe','openChambres','openFeed','openAdmin','openQuiz',
+ 'openForm','closeForm','openFeedback','closeFeedback'].forEach(function(n){
+  const f=window[n]; if(typeof f!=='function') return;
+  window[n]=function(){ const r=f.apply(this, arguments); navEnregistre(); return r; };
+});
+NAV_PILE=[navEtat()]; NAV_I=0;
+history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
    (manifeste présent + HTTPS), jamais depuis un fichier local ou un aperçu.
