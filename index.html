@@ -647,6 +647,41 @@ input, textarea, select{
   .m-tel em{font-style:normal; font-size:11.5px; font-weight:600; color:rgba(242,238,230,.62)}
   .m-tel:active{transform:scale(.99)}
 /* Planning du linge : une couleur par étage, la ligne du jour ressort */
+  /* Libération des chambres : circuit partagé, une couleur par étape */
+  .ch-add{display:flex; gap:8px; margin-bottom:16px}
+  .ch-add input{flex:1 1 auto; min-width:0}
+  .ch-addbtn{flex:0 0 auto; padding:0 20px; border-radius:12px; background:var(--gold); border:0;
+    font-size:14px; font-weight:800; color:#141414; cursor:pointer; font-family:inherit}
+  .ch-note{background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px; padding:12px 14px;
+    font-size:12.5px; line-height:1.5; margin-bottom:16px; color:var(--muted)}
+  .ch-sec{font-size:10.5px; font-weight:900; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--muted); margin:20px 3px 9px}
+  .ch-sec:first-child{margin-top:2px}
+  .ch-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:13px 14px; margin-bottom:11px}
+  .ch-card.finie{opacity:.62}
+  .ch-h{display:flex; align-items:center; gap:10px; margin-bottom:11px}
+  .ch-num{font-size:19px; font-weight:900; letter-spacing:-.02em}
+  .ch-prog{font-size:11px; font-weight:900; background:rgba(27,27,27,.07); border-radius:11px; padding:3px 9px; color:var(--muted)}
+  .ch-fin{font-size:10.5px; font-weight:900; letter-spacing:.04em; text-transform:uppercase;
+    background:#d8ecdf; color:#1f7a44; border-radius:10px; padding:3px 9px}
+  .ch-del{margin-left:auto; background:none; border:0; color:var(--faint); cursor:pointer; padding:3px}
+  .ch-del svg,.ch-del .pico{width:16px; height:16px}
+  .ch-ets{display:flex; flex-direction:column; gap:7px}
+  .ch-et{display:flex; align-items:center; gap:11px; width:100%; text-align:left; padding:10px 12px;
+    border-radius:12px; border:1.5px solid rgba(27,27,27,.12); background:transparent; cursor:pointer; font-family:inherit}
+  .ch-et.ok{background:color-mix(in srgb, var(--c) 17%, #fff); border-color:var(--c)}
+  .ch-et.opt{border-style:dashed}
+  .ch-et.fige{cursor:default; opacity:.85}
+  .ch-box{flex:0 0 auto; width:23px; height:23px; border-radius:7px; border:2px solid rgba(27,27,27,.18);
+    display:flex; align-items:center; justify-content:center; background:#fff}
+  .ch-et.ok .ch-box{background:var(--c); border-color:var(--c)}
+  .ch-box svg,.ch-box .pico{width:14px; height:14px; color:#1b1b1b}
+  .ch-t{display:flex; flex-direction:column; gap:1px; min-width:0}
+  .ch-t b{font-size:13.5px; font-weight:800; display:flex; align-items:center; gap:7px}
+  .ch-fac{font-style:normal; font-size:9px; font-weight:900; letter-spacing:.05em; text-transform:uppercase;
+    background:rgba(27,27,27,.08); color:var(--muted); border-radius:8px; padding:2px 6px}
+  .ch-t em{font-style:normal; font-size:11.5px; font-weight:700; color:var(--muted)}
+  .ch-qui{opacity:.7}
   /* Correction du quiz : la bonne réponse, expliquée, avec un accès à la fiche */
   .qc{border-radius:16px; padding:15px 16px; margin:14px 0 4px; border-left:5px solid}
   .qc.ok{background:#e7f5ea; border-color:#1f7a44}
@@ -1798,7 +1833,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v99';
+const APP_VERSION = 'v100';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -1970,6 +2005,11 @@ function updateHeader(){
     em.innerHTML=icon('list');
     document.getElementById('hName').textContent="Ma liste";
     back.onclick=goHome;
+  }else if(view==="chambres"){
+    em.style.color='#f8763f';
+    em.innerHTML=icon('building');
+    document.getElementById('hName').textContent="Chambres";
+    back.onclick=openMaListe;
   }else if(view==="feed"){
     em.style.color='#f3c6da';
     em.innerHTML=icon('feed');
@@ -2024,6 +2064,7 @@ function render(){
   if(view==="profil"){ el.innerHTML = profilHTML(); return; }
   if(view==="maliste"){ el.innerHTML = maListeHTML(); return; }
   if(view==="feed"){ el.innerHTML = feedHTML(); return; }
+  if(view==="chambres"){ el.innerHTML = chambresHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
 
@@ -2811,7 +2852,7 @@ function checklistsHTML(){
 }
 
 // Vue « Ma liste » : accès direct aux tâches du jour (le picto liste)
-function maListeHTML(){ const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${bar}${checklistsHTML()}</div>`; }
+function maListeHTML(){ const lien=`<button class="pf-out" style="margin-bottom:14px" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span></button>`; const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${lien}${bar}${checklistsHTML()}</div>`; }
 function openMaListe(){
   view="maliste"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
@@ -2852,6 +2893,7 @@ function profilHTML(){
   const outils=`<div class="pf-outils">
     <button class="pf-out" onclick="window.open('https://samusocial.myprotime.eu/','_blank','noopener')">
       ${icon('clock')}<span>myprotime</span>${icon('lien','class="pf-out-lien"')}</button>
+    <button class="pf-out" onclick="openChambres()">${icon('building')}<span>Libération des chambres</span></button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
   </div>`;
 
@@ -2861,7 +2903,116 @@ function profilHTML(){
   return `<div class="pf-wrap">${head}${liste}${outils}${adminBtn}${foot}${vers}</div>`;
 }
 
-/* ---------- Fil d'actu de l'équipe (feed, base privée) ---------- */
+/* ---------- Libération d'une chambre : circuit à 4 étapes, partagé par l'équipe ----------
+   Tout le monde voit la liste. Seuls coordi, PFO, travailleurs sociaux et éducateurs cochent
+   (la base l'impose aussi, pas seulement l'affichage). Chaque étape garde qui l'a faite et quand. */
+const CH_ETAPES=[
+  {k:'desencode', l:'Désencoder',                   qui:'PFO',            c:'#5b8fd4'},
+  {k:'vide',      l:'Vider la chambre',             qui:'Aide-soignant',  c:'#f5c542'},
+  {k:'affaires',  l:'Affaires mises de côté',       qui:'si la personne en a laissé', c:'#b28b7a', opt:true},
+  {k:'nettoye',   l:'Nettoyer',                     qui:'Entretien',      c:'#6cb392'},
+  {k:'libere',    l:'Libérer sur la liste étage',   qui:'PFO',            c:'#f8763f'}
+];
+let CHAMBRES=[], chambresLoaded=false;
+
+function peutGererChambres(){
+  const p=PROFILE||{};
+  return !!(p.admin || p.pfo || ['Coordi','TS','Educ','Éduc'].indexOf(p.equipe)>=0);
+}
+async function loadChambres(){
+  chambresLoaded=false; CHAMBRES=[];
+  if(!sb){ chambresLoaded=true; return; }
+  try{
+    const { data } = await sb.from('chambres').select('*').order('cree_le',{ascending:false}).limit(60);
+    CHAMBRES = data||[];
+  }catch(e){}
+  chambresLoaded=true;
+}
+function openChambres(){
+  view='chambres'; query=''; urgOpen=false;
+  const c=document.getElementById('search'); if(c) c.value='';
+  render();
+  loadChambres().then(function(){ if(view==='chambres') render(); });
+}
+// L'étape facultative ne conditionne pas la libération de la chambre.
+function chambreFinie(ch){ return CH_ETAPES.filter(function(e){ return !e.opt; }).every(function(e){ return ch[e.k+'_le']; }); }
+
+async function ajouterChambre(){
+  const inp=document.getElementById('chNum'); if(!inp) return;
+  const n=(inp.value||'').trim();
+  if(!n){ inp.focus(); return; }
+  try{
+    await sb.from('chambres').insert({ numero:n, cree_par:(PROFILE&&PROFILE.nom)||'' });
+    inp.value='';
+    await loadChambres(); if(view==='chambres') render();
+  }catch(e){ cousinToast("Ajout impossible"); }
+}
+/* Cocher ou décocher une étape — toujours avec confirmation, et on note qui l'a fait. */
+function toggleEtape(id, k){
+  const ch=CHAMBRES.find(function(x){ return x.id===id; }); if(!ch) return;
+  const et=CH_ETAPES.find(function(x){ return x.k===k; });
+  const fait=!!ch[k+'_le'];
+  const msg = fait
+    ? 'Annuler « '+et.l+' » pour la chambre '+ch.numero+' ?'
+    : 'Confirmer « '+et.l+' » pour la chambre '+ch.numero+' ?';
+  cousinConfirm(msg, async function(){
+    const maj={};
+    maj[k+'_le']  = fait ? null : new Date().toISOString();
+    maj[k+'_par'] = fait ? null : ((PROFILE&&PROFILE.nom)||(PROFILE&&PROFILE.email)||'');
+    try{
+      await sb.from('chambres').update(maj).eq('id',id);
+      await loadChambres(); if(view==='chambres') render();
+    }catch(e){ cousinToast("Modification refusée"); }
+  }, {ok: fait?'Annuler l\'étape':'Confirmer', danger:fait});
+}
+async function retirerChambre(id, numero){
+  cousinConfirm('Retirer la chambre '+numero+' de la liste ?', async function(){
+    try{ await sb.from('chambres').delete().eq('id',id); await loadChambres(); if(view==='chambres') render(); }
+    catch(e){ cousinToast("Suppression refusée"); }
+  }, {ok:'Retirer', danger:true});
+}
+
+function chambreCard(ch){
+  const peut=peutGererChambres();
+  const oblig=CH_ETAPES.filter(function(e){ return !e.opt; });
+  const faites=oblig.filter(function(e){ return ch[e.k+'_le']; }).length;
+  const finie=faites===oblig.length;
+  const etapes=CH_ETAPES.map(function(e){
+    const q=ch[e.k+'_le'], par=ch[e.k+'_par'];
+    return '<button class="ch-et'+(q?' ok':'')+(peut?'':' fige')+(e.opt?' opt':'')+'" style="--c:'+e.c+'"'+
+      (peut?' onclick="toggleEtape('+ch.id+',\''+e.k+'\')"':' disabled')+'>'+
+      '<span class="ch-box">'+(q?icon('check'):'')+'</span>'+
+      '<span class="ch-t"><b>'+esc(e.l)+(e.opt?'<i class="ch-fac">facultatif</i>':'')+'</b>'+
+        (q ? '<em>'+esc(par||'—')+' · '+feedWhen(q)+'</em>' : '<em class="ch-qui">'+esc(e.qui)+'</em>')+
+      '</span></button>';
+  }).join('');
+  return '<div class="ch-card'+(finie?' finie':'')+'">'+
+    '<div class="ch-h"><span class="ch-num">'+esc(ch.numero)+'</span>'+
+      '<span class="ch-prog">'+faites+'/'+CH_ETAPES.length+'</span>'+
+      (finie?'<span class="ch-fin">Libérée ✓</span>':'')+
+      (peut?'<button class="ch-del" title="Retirer" onclick="retirerChambre('+ch.id+',\''+esc(ch.numero)+'\')">'+icon('trash')+'</button>':'')+
+    '</div><div class="ch-ets">'+etapes+'</div></div>';
+}
+function chambresHTML(){
+  if(!sb) return '<div class="empty"><p><b>Hors ligne.</b></p></div>';
+  if(!chambresLoaded) return '<div class="empty"><p>Chargement…</p></div>';
+  const peut=peutGererChambres();
+  const ajout = peut
+    ? '<div class="ch-add"><input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre — ex. 214" autocomplete="off"><button class="ch-addbtn" onclick="ajouterChambre()">Ajouter</button></div>'
+    : '<div class="ch-note">Tu vois la liste ; seuls coordi, PFO, travailleurs sociaux et éducateurs peuvent cocher.</div>';
+  const encours=CHAMBRES.filter(function(c){ return !chambreFinie(c); });
+  const finies=CHAMBRES.filter(chambreFinie).slice(0,8);
+  let corps='';
+  if(!encours.length && !finies.length){
+    corps='<div class="pf-empty">'+icon('building','width="34" height="34"')+'<p><b>Aucune chambre en cours.</b></p><p>Ajoute un numéro quand une personne part.</p></div>';
+  }else{
+    if(encours.length) corps+='<div class="ch-sec">En cours ('+encours.length+')</div>'+encours.map(chambreCard).join('');
+    if(finies.length)  corps+='<div class="ch-sec">Terminées</div>'+finies.map(chambreCard).join('');
+  }
+  return '<div class="pf-wrap">'+ajout+corps+'</div>';
+}
+
+/* ---------- Fil d\'actu de l\'équipe (feed, base privée) ---------- */
 let FEED=[], feedLoaded=false, REACTIONS={};
 /* 1er clic : la pastille se déploie et annonce ce qu'il y a dedans.
    2e clic : on ouvre le fil. Si on ne fait rien, elle se replie seule au bout de deux minutes. */
