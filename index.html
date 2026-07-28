@@ -504,7 +504,37 @@
     overflow:hidden; transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative}
   .dock-trash svg, .dock-trash .pico{width:25px; height:25px}
   .dock-trash.open{max-width:min(330px,78vw); padding:0 16px 0 12px; gap:11px}
-  /* Distribution des produits : même pastille, autre couleur */
+  /* Linge par étage : quel étage est prévu quel jour.
+   0 = dimanche … 6 = samedi. Tableau à compléter dès que Magali envoie le planning —
+   tant qu'un jour n'est pas renseigné, le bouton n'apparaît tout simplement pas. */
+const LINGE={};
+function lingeJour(){
+  const now=new Date(), d=now.getDay();
+  return LINGE[d] || null;
+}
+function majBoutonLinge(){
+  const btn=document.querySelector('.dock-linge');
+  if(!btn) return;
+  const etages=lingeJour();
+  if(!etages || !etages.length){ btn.style.display='none'; return; }
+  btn.style.display='flex';
+  const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const txt=etages.join(' · ');
+  btn.title='Linge — '+txt;
+  btn.innerHTML='<span class="pbt-ic"><svg viewBox="0 0 24 24" fill="currentColor">' +
+    '<path d="M12 2.6c-1.9 0-3.4 1.5-3.4 3.4h2.2c0-.7.5-1.2 1.2-1.2s1.2.5 1.2 1.2c0 .5-.3.8-.9 1.2-.8.5-1.6 1.1-1.6 2.4v.6h2.2v-.6c0-.2.2-.4.6-.7 .8-.5 1.9-1.2 1.9-2.9 0-1.9-1.5-3.4-3.4-3.4z"/>' +
+    '<path d="M10.9 11.6 3.4 17.1c-.9.7-.4 2.1.7 2.1h15.8c1.1 0 1.6-1.4.7-2.1l-7.5-5.5z"/></svg></span>' +
+    '<span class="pbt-tx"><b>' + esc(JOURS[new Date().getDay()]) + '</b><em>Linge — ' + esc(txt) + '</em></span>';
+}
+function openLinge(){
+  const btn=document.querySelector('.dock-linge'); if(!btn) return;
+  clearTimeout(btn._t);
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  btn.classList.add('open');
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
+}
+
+/* Distribution des produits : même pastille, autre couleur */
   .dock-prod{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
     border:4px solid var(--bg); background:#6cb392; color:#1b1b1b; padding:0; cursor:pointer;
     align-items:center; justify-content:center; overflow:hidden;
@@ -890,6 +920,7 @@
 <div id="printHead"><img src="logo.png" alt="COUSIN" class="ph-logo"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
+  <button class="dock-linge" title="Linge par étage" onclick="openLinge()"></button>
   <button class="dock-prod" title="Distribution des produits" onclick="openProduits()"></button>
   <button class="dock-trash" title="Jour des poubelles" onclick="openPoubelles()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/><path fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/></svg></button>
   <button class="dock-plus" title="Ajouter une fiche" onclick="openForm()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.9" y="2.4" width="4.2" height="19.2" rx="2.1"></rect><rect x="2.4" y="9.9" width="19.2" height="4.2" rx="2.1"></rect></svg></button>
@@ -1982,7 +2013,7 @@ function updateHeader(){
 /* ---------- Rendu ---------- */
 function render(){
   updateHeader();
-  majBoutonPoubelles(); majBoutonProduits();
+  majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
