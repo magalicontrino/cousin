@@ -19,7 +19,9 @@
   @font-face{font-family:'Eastman'; src:url('font/eastman-regular.woff2') format('woff2');   font-weight:400; font-style:normal; font-display:swap}
   @font-face{font-family:'Eastman'; src:url('font/eastman-medium.woff2') format('woff2');    font-weight:500; font-style:normal; font-display:swap}
   @font-face{font-family:'Eastman'; src:url('font/eastman-demibold.woff2') format('woff2');  font-weight:600; font-style:normal; font-display:swap}
+  @font-face{font-family:'Eastman'; src:url('font/eastman-bold.woff2') format('woff2');      font-weight:700; font-style:normal; font-display:swap}
   @font-face{font-family:'Eastman'; src:url('font/eastman-extrabold.woff2') format('woff2'); font-weight:800; font-style:normal; font-display:swap}
+  @font-face{font-family:'Eastman Compressed'; src:url('font/eastman-compressed-bold.woff2') format('woff2'); font-weight:700; font-style:normal; font-display:swap}
   :root{
     --gold:#f5c542; --gold-d:#b8880c;
     --appw:460px;   /* largeur de l'app : téléphone par défaut, élargie sur grand écran (voir @media) */
@@ -85,7 +87,8 @@
   .back svg{width:18px; height:18px}
   .hspace{flex:1 1 auto}
   .htitle{width:var(--appw); max-width:100%; margin:8px auto 2px; padding:0 2px}
-  .htitle h1{margin:0; font-size:25px; font-weight:900; letter-spacing:-.01em; text-transform:uppercase; color:var(--ink); display:flex; align-items:center; gap:9px; line-height:1.02; text-wrap:balance}
+  .htitle h1{margin:0; font-size:32.33px; font-weight:600; letter-spacing:-.04em; text-transform:none; color:var(--ink); display:flex; align-items:center; gap:11px; line-height:38.8px; text-wrap:balance}
+  .htitle h1.hub{font-weight:700}   /* le Réseau, qui chapeaute les domaines */
   .htitle h1.logo{
     font-size:26px; font-weight:900; font-style:italic; letter-spacing:.5px; color:var(--gold);
     text-transform:uppercase; position:relative; display:inline-block;
@@ -468,6 +471,8 @@
   }
   textarea{resize:vertical; min-height:66px}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .h3-big{font-family:'Eastman Compressed','Eastman',sans-serif; font-size:50px; font-weight:700;
+    line-height:36.8px; letter-spacing:-.01em; text-align:center; margin:6px 0 22px; color:var(--ink)}
   .modal-actions{display:flex; gap:10px; margin-top:22px; position:sticky; bottom:0; background:#fff; padding-top:8px}
   .modal-actions button{flex:1; padding:14px; border-radius:12px; font-size:15px; font-weight:800; border:0; cursor:pointer}
   .save{background:var(--gold); color:#141414}
@@ -790,8 +795,7 @@
 <div class="modal-bg" id="fbBg">
   <div class="modal">
     <div id="fbForm">
-      <h3>💬 Vos idées</h3>
-      <p class="hint">Un outil collaboratif : dites ce qui manque, ce qui coince, ce qu'on pourrait ajouter pour que l'outil soit meilleur pour toute l'équipe.</p>
+      <h3 class="h3-big">Une suggestion&nbsp;?</h3>
       <label>Une idée, une recommandation ?</label>
       <textarea id="fb-idee" placeholder="Ex. Ajouter les horaires des permanences, une fiche pour telle démarche…"></textarea>
       <label>Votre équipe (facultatif)</label>
@@ -1506,6 +1510,7 @@ function updateHeader(){
   }
   back.style.display="flex"; back.innerHTML=icon('chevron');
   logoImg.style.display="none"; h1.style.display="flex"; em.style.display="none";
+  em.style.color=""; h1.classList.remove('hub');
   htitleRow.style.display="block";
   if(view==="favoris"){
     em.innerHTML=icon('star');
@@ -1532,13 +1537,13 @@ function updateHeader(){
     document.getElementById('hName').textContent="Quiz";
     back.onclick=function(){ if(QUIZ.theme){ openQuiz(); } else { goHome(); } };
   }else if(view==="reseau"){
-    em.innerHTML=icon('compass');
+    em.innerHTML=icon('compass'); em.style.display="inline-flex"; em.style.color=tileColor('reseau');
+    h1.classList.add('hub');
     document.getElementById('hName').textContent="Réseau";
     back.onclick=goHome;
   }else{
     const dm=DOM[view];
-    if(view==='urgences'){ em.innerHTML=""; em.style.display="none"; }
-    else { em.innerHTML=icon(dm.ic); em.style.display="inline-flex"; }
+    em.innerHTML=""; em.style.display="none";
     document.getElementById('hName').textContent=dm.label;
     back.onclick = dm.reseau ? openReseau : goHome;
   }
@@ -1630,8 +1635,9 @@ function match(list,q){
     p.demarche,p.ou,p.comment,p.attention].join(' ').toLowerCase().includes(q));
 }
 
-function tileHTML(ic,label,count,onclickAttr,color){
-  return `<button class="dcard" style="background:${color||'#fff'}" onclick="${onclickAttr}"><span class="dc-top"><span>${esc(label)}</span></span>${icon(ic)}</button>`;
+function tileHTML(ic,label,count,onclickAttr,color,avecCompteur){
+  const c = avecCompteur ? `<em>${count}</em>` : '';
+  return `<button class="dcard" style="background:${color||'#fff'}" onclick="${onclickAttr}"><span class="dc-top"><span>${esc(label)}</span>${c}</span>${icon(ic)}</button>`;
 }
 function homeHTML(){
   const reseauCount=data.filter(p=>DOM[p.domaine]&&DOM[p.domaine].reseau).length;
@@ -1753,7 +1759,7 @@ function toggleUrgCat(btn,i){
 }
 function reseauHTML(){
   const tiles=DOMAINES.filter(dm=>dm.reseau).map(dm=>
-    tileHTML(dm.ic,dm.short||dm.label,countDom(dm.key),"openDomaine('"+dm.key+"')",tileColor(dm.key))).join('');
+    tileHTML(dm.ic,dm.short||dm.label,countDom(dm.key),"openDomaine('"+dm.key+"')",tileColor(dm.key),true)).join('');
   return `<div class="dgrid">${tiles}</div>`;
 }
 
