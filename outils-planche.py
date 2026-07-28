@@ -29,8 +29,9 @@ corps = []
 for titre, sub, items in sections:
     cartes = []
     for it in items:
-        badge = ('<span class="b design">DESIGN</span>' if it['etat'] == 'design'
-                 else '<span class="b todo">À REDESSINER</span>')
+        badge = {'design': '<span class="b design">TON DESSIN</span>',
+                 'valide': '<span class="b valide">VALIDÉ</span>'}.get(
+                     it['etat'], '<span class="b todo">À REDESSINER</span>')
         cartes.append(f'<div class="c">{badge}<div class="sq">{inline(it["nom"])}</div>'
                       f'<div class="l">{html.escape(it["label"])}</div>'
                       f'<div class="f">{html.escape(it["nom"])}</div></div>')
@@ -42,7 +43,7 @@ if libres:
                  + ''.join(f'<div class="c"><div class="sq alt">{inline(f)}</div>'
                            f'<div class="f">{html.escape(f)}</div></div>' for f in libres) + '</div>')
 
-faits = sum(1 for it in man if it['etat'] == 'design')
+faits = sum(1 for it in man if it['etat'] in ('design', 'valide'))
 page = f'''<!doctype html><html lang="fr"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>COUSIN — planche des pictos</title>
@@ -66,13 +67,14 @@ h2 em{{font-style:normal;font-size:12.5px;font-weight:600;color:#6b675f}}
 .f{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8a857c;margin-top:3px;word-break:break-all}}
 .b{{position:absolute;top:11px;right:11px;font-size:9px;font-weight:900;letter-spacing:.05em;border-radius:9px;padding:3px 7px}}
 .b.design{{background:#d8ecdf;color:#1f7a44}} .b.todo{{background:#fbf0c4;color:#8a6a00}}
+.b.valide{{background:#e7e3f7;color:#5b3fa0}}
 .ko{{color:#e63329;font-size:10px}}
 footer{{margin-top:40px;font-size:12.5px;color:#6b675f;line-height:1.6;border-top:1px solid rgba(27,27,27,.14);padding-top:16px}}
 </style>
 <h1>Planche des pictos</h1>
-<p class="intro"><b>DESIGN</b> = tu l'as dessiné, il est branché. <b>À REDESSINER</b> = ma version provisoire, elle attend la tienne.<br>
+<p class="intro"><b>TON DESSIN</b> = tu l'as dessiné, il est branché. <b>VALIDÉ</b> = ma version, que tu as approuvée — son SVG est dans le dossier. <b>À REDESSINER</b> = provisoire, elle attend la tienne.<br>
 Pour en remplacer un : dessine-le, exporte en SVG, dépose-le dans <code>picto/</code> avec exactement le nom écrit sous le picto.</p>
-<div class="jauge"><b>{faits} sur {len(man)} pictos à toi</b><div class="bar"><i style="width:{round(faits/len(man)*100)}%"></i></div></div>
+<div class="jauge"><b>{faits} sur {len(man)} pictos réglés</b><div class="bar"><i style="width:{round(faits/len(man)*100)}%"></i></div></div>
 {''.join(corps)}
 <footer>Format : SVG, aplat plein d'une seule couleur, sans contour — l'app le recolore toute seule.<br>
 Carré d'en-tête : 31 px, picto à 18 px. Pavés d'accueil : picto à 46 px.</footer>
