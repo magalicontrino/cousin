@@ -500,8 +500,9 @@
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
   .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; gap:10px}
-  .dock-trash{flex:0 0 auto; width:58px; height:58px; border-radius:50%; display:none; color:#fff;
-    border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */ display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative}
+  .dock-trash{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
+    border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */
+    overflow:hidden; transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative}
   .dock-trash svg, .dock-trash .pico{width:25px; height:25px}
   .dock-trash:active{transform:scale(.97)}
   .dock-plus{flex:0 0 auto; width:58px; height:58px; border-radius:50%; background:#f5c542; color:#1b1b1b;
@@ -2395,22 +2396,28 @@ function majBoutonPoubelles(){
   const c=sacs.map(x=>POUB_COUL[x.c]);
   const rond=c[0], corps=c[1]||'#f2eee6', couvercle=c[2]||c[1]||'#f2eee6';
   btn.style.background=rond;
-  btn.title='Poubelles à sortir : '+sacs.map(x=>x.n+' '+x.l).join(' + ');
-  btn.innerHTML='<svg viewBox="0 0 24 24">'+
+  // Texte clair ou foncé selon la couleur du rond, pour rester lisible
+  const rgb=parseInt(rond.slice(1),16), lum=(((rgb>>16)&255)*.299+((rgb>>8)&255)*.587+(rgb&255)*.114)/255;
+  btn.style.color = lum>.6 ? '#1b1b1b' : '#f2eee6';
+  const now=new Date(), d=now.getDay(), hr=now.getHours();
+  const quand = POUBELLES[d] ? "Aujourd'hui" : (hr>=16 ? 'Ce soir · collecte demain' : 'Demain');
+  const txt=sacs.map(x=>x.n+' '+x.l).join(' + ');
+  btn.title='Poubelles à sortir : '+txt;
+  btn.innerHTML='<span class="pbt-ic"><svg viewBox="0 0 24 24">'+
     '<path fill="'+couvercle+'" d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/>'+
     '<path fill="'+corps+'" fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/>'+
-    '</svg>';
+    '</svg></span>'+
+    '<span class="pbt-tx"><b>Poubelles · '+quand+'</b><em>'+esc(txt)+'</em></span>'+
+    '<span class="pbt-dots">'+sacs.map(x=>'<i style="background:'+POUB_COUL[x.c]+'"></i>').join('')+'</span>';
 }
-/* Bouton poubelle du bas : ouvre la fiche « Jour des poubelles » déjà dépliée,
-   avec le calendrier complet (quels sacs, quel jour, combien). */
+/* Bouton poubelle du bas : un clic le déplie vers la gauche et affiche le jour et les
+   sacs à sortir. On ne change pas de page — l'info apparaît sur place. Nouveau clic : il se referme. */
 function openPoubelles(){
-  openDomaine('centre');
-  const f=data.find(x=>x.domaine==='centre' && x.nom==='Jour des poubelles');
-  if(!f) return;
-  const c=document.getElementById('c-'+f.id);
-  if(!c) return;
-  if(!c.classList.contains('open')) toggle(f.id);
-  c.scrollIntoView({behavior:'smooth', block:'center'});
+  const btn=document.querySelector('.dock-trash'); if(!btn) return;
+  clearTimeout(btn._t);
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  btn.classList.add('open');
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
 }
 function poubellesReminder(){
   const now=new Date(), d=now.getDay(), hr=now.getHours(), tm=(d+1)%7;
