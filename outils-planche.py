@@ -11,6 +11,8 @@ util = set(re.findall(r"'(ico-[a-z-]+\.svg)'", bloc))
 libres = [f for f in sorted(os.listdir('picto'))
           if f.startswith('ico-') and f not in util]
 
+PALETTE = ['#f3c6da', '#b28b7a', '#6cb392', '#f5c542', '#fd8fd0', '#f8763f', '#5b8fd4']
+
 def inline(f):
     p = os.path.join('picto', f)
     if not os.path.exists(p): return '<span class="ko">manquant</span>'
@@ -32,7 +34,9 @@ for titre, sub, items in sections:
         badge = {'design': '<span class="b design">TON DESSIN</span>',
                  'valide': '<span class="b valide">VALIDÉ</span>'}.get(
                      it['etat'], '<span class="b todo">À REDESSINER</span>')
-        cartes.append(f'<div class="c">{badge}<div class="sq">{inline(it["nom"])}</div>'
+        fond = (f' style="background:{PALETTE[len(cartes) % len(PALETTE)]}"'
+                if it['etat'] == 'valide' else '')
+        cartes.append(f'<div class="c">{badge}<div class="sq{" coul" if it["etat"]=="valide" else ""}"{fond}>{inline(it["nom"])}</div>'
                       f'<div class="l">{html.escape(it["label"])}</div>'
                       f'<div class="f">{html.escape(it["nom"])}</div></div>')
     corps.append(f'<h2>{html.escape(titre)} <em>{html.escape(sub)}</em></h2>'
@@ -62,7 +66,8 @@ h2 em{{font-style:normal;font-size:12.5px;font-weight:600;color:#6b675f}}
 .g{{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}
 .c{{position:relative;background:#fff;border-radius:14px;padding:15px 14px 13px}}
 .sq{{width:62px;height:62px;border-radius:15px;background:#1b1b1b;display:flex;align-items:center;justify-content:center;margin-bottom:11px}}
-.sq.alt{{background:#6cb392}} .sq svg{{width:32px;height:32px}} .sq svg *{{fill:#f2eee6!important}}
+.sq.alt{{background:#6cb392}} .sq svg{{width:32px;height:32px}} .sq svg *{{fill:#f2eee6!important;stroke:none!important}}
+.sq.coul svg *{{fill:#1b1b1b!important}}
 .l{{font-size:13.5px;font-weight:800;line-height:1.25}}
 .f{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8a857c;margin-top:3px;word-break:break-all}}
 .b{{position:absolute;top:11px;right:11px;font-size:9px;font-weight:900;letter-spacing:.05em;border-radius:9px;padding:3px 7px}}
