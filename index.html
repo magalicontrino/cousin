@@ -504,6 +504,15 @@
     overflow:hidden; transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative}
   .dock-trash svg, .dock-trash .pico{width:25px; height:25px}
   .dock-trash.open{max-width:min(330px,78vw); padding:0 16px 0 12px; gap:11px}
+  /* Distribution des produits : même pastille, autre couleur */
+  .dock-prod{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
+    border:4px solid var(--bg); background:#6cb392; color:#1b1b1b; padding:0; cursor:pointer;
+    align-items:center; justify-content:center; overflow:hidden;
+    transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s}
+  .dock-prod.open{max-width:min(320px,76vw); padding:0 16px 0 12px; gap:11px}
+  .dock-prod svg{width:25px; height:25px}
+  .dock-prod.open .pbt-tx{max-width:200px; opacity:1}
+  .dock-prod:active{transform:scale(.97)}
   .dock-trash .pbt-ic{flex:0 0 auto; display:flex; align-items:center; justify-content:center}
   .pbt-tx{display:flex; flex-direction:column; gap:1px; min-width:0; white-space:nowrap; text-align:left;
     max-width:0; overflow:hidden; opacity:0; transition:max-width .40s cubic-bezier(.22,1,.36,1), opacity .14s}
@@ -881,6 +890,7 @@
 <div id="printHead"><img src="logo.png" alt="COUSIN" class="ph-logo"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
+  <button class="dock-prod" title="Distribution des produits" onclick="openProduits()"></button>
   <button class="dock-trash" title="Jour des poubelles" onclick="openPoubelles()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/><path fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/></svg></button>
   <button class="dock-plus" title="Ajouter une fiche" onclick="openForm()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.9" y="2.4" width="4.2" height="19.2" rx="2.1"></rect><rect x="2.4" y="9.9" width="19.2" height="4.2" rx="2.1"></rect></svg></button>
 </div>
@@ -1270,6 +1280,7 @@ const SAMPLE = [
 
   // CENTRE — infos pratiques du quotidien
   centre("Jour des poubelles","Sortie des poubelles — jours et couleurs.","Sortie les LUNDI, MERCREDI et VENDREDI.\n\nLundi : 3 noires.\nMercredi : 3 noires + 2 jaunes + 2 bleues.\nVendredi : 3 noires.\n\n(Mise à jour : 21.03.2022)"),
+  centre("Distribution des produits","Produits distribués à l'accueil.","Tous les PREMIERS SAMEDIS du mois, à l'accueil.\n\nUn rappel apparaît dans l'app la veille au soir et le jour même."),
   centre("Jour des draps","Changement des draps et du linge.","Jour : [à compléter].\nÀ prévoir : [à compléter]."),
   centre("Ascenseurs en panne","Qui appeler si un ascenseur est en panne.","Société ELS (pour tous les ascenseurs).\nTél : 02 381 05 81."),
 
@@ -1768,7 +1779,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 36;
+const SEED_VERSION = 37;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -1971,7 +1982,7 @@ function updateHeader(){
 /* ---------- Rendu ---------- */
 function render(){
   updateHeader();
-  majBoutonPoubelles();
+  majBoutonPoubelles(); majBoutonProduits();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
@@ -2382,6 +2393,45 @@ const POUBELLES={
   3:[{n:3,c:'noire',l:'noires'},{n:2,c:'jaune',l:'jaunes'},{n:2,c:'bleue',l:'bleues'}],
   5:[{n:3,c:'noire',l:'noires'}]
 };
+/* Distribution des produits à l'accueil : tous les premiers samedis du mois. */
+function premierSamedi(annee, mois){
+  const d=new Date(annee, mois, 1);
+  d.setDate(1 + ((6 - d.getDay()) + 7) % 7);
+  return d;
+}
+/* La prochaine distribution si elle est imminente (aujourd'hui, ou demain dès 16 h). */
+function produitsJour(){
+  const now=new Date();
+  const auj=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let s=premierSamedi(now.getFullYear(), now.getMonth());
+  if(s<auj) s=premierSamedi(now.getFullYear(), now.getMonth()+1);
+  const dans=Math.round((s-auj)/86400000);
+  if(dans===0) return s;
+  if(dans===1 && now.getHours()>=16) return s;
+  return null;
+}
+function majBoutonProduits(){
+  const btn=document.querySelector('.dock-prod');
+  if(!btn) return;
+  const d=produitsJour();
+  if(!d){ btn.style.display='none'; return; }
+  btn.style.display='flex';
+  const date=d.toLocaleDateString('fr-BE',{weekday:'long', day:'numeric', month:'long'});
+  btn.title='Distribution des produits — '+date;
+  btn.innerHTML='<span class="pbt-ic"><svg viewBox="0 0 24 24" fill="currentColor">' +
+    '<path d="M3.2 7.4 12 3l8.8 4.4-8.8 4.4z"/>' +
+    '<path d="M2.6 9.2 11 13.4v7.4L2.6 16.6z"/><path d="M21.4 9.2v7.4L13 20.8v-7.4z"/></svg></span>' +
+    '<span class="pbt-tx"><b>' + esc(date.charAt(0).toUpperCase()+date.slice(1)) + '</b>' +
+    '<em>Distribution des produits</em></span>';
+}
+function openProduits(){
+  const btn=document.querySelector('.dock-prod'); if(!btn) return;
+  clearTimeout(btn._t);
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  btn.classList.add('open');
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
+}
+
 /* Les sacs à sortir maintenant : le jour même, ou la veille dès 16 h. null s'il n'y a rien. */
 const POUB_COUL={noire:'#242424', jaune:'#f5c518', bleue:'#2f6fed'};
 function poubellesJour(){
@@ -2915,7 +2965,7 @@ function adminHTML(){
   let reqs='';
   if(ADMIN.requests.length){
     reqs=`<div class="adm-sec"><div class="adm-h">Demandes d'accès (${ADMIN.requests.length})</div>`+
-      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.email)}</b>${r.mot?`<span>${esc(r.mot)}</span>`:''}</div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button></div></div>`).join('')+`</div>`;
+      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.email)}</b>${r.mot?`<span>${esc(r.mot)}</span>`:''}</div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
   const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option>${esc(r)}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   const members=ADMIN.members.map(mb=>{
@@ -2978,6 +3028,13 @@ async function approveRequest(email,id){
        await sb.from('access_requests').update({statut:'approuve'}).eq('id',id);
        await loadAdmin(); if(view==='admin') render(); }
   catch(e){ cousinToast('Erreur : '+(e.message||e)); }
+}
+/* Supprimer une demande (typiquement un doublon) : elle disparaît pour de bon. */
+async function deleteRequest(id){
+  cousinConfirm("Supprimer cette demande ?", async function(){
+    try{ await sb.from('access_requests').delete().eq('id',id); await loadAdmin(); if(view==='admin') render(); }
+    catch(e){ cousinToast("Suppression impossible"); }
+  }, {ok:'Supprimer', danger:true});
 }
 async function refuseRequest(id){ try{ await sb.from('access_requests').update({statut:'refuse'}).eq('id',id); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 
