@@ -701,6 +701,26 @@
   .m-tel em{font-style:normal; font-size:11.5px; font-weight:600; color:rgba(242,238,230,.62)}
   .m-tel:active{transform:scale(.99)}
   /* Planning du linge : une couleur par étage, la ligne du jour ressort */
+  /* Correction du quiz : la bonne réponse, expliquée, avec un accès à la fiche */
+  .qc{border-radius:16px; padding:15px 16px; margin:14px 0 4px; border-left:5px solid}
+  .qc.ok{background:#e7f5ea; border-color:#1f7a44}
+  .qc.ko{background:#fdeceb; border-color:#e63329}
+  .qc-h{font-size:13px; font-weight:900; margin-bottom:10px}
+  .qc.ok .qc-h{color:#1f7a44} .qc.ko .qc-h{color:#b32820}
+  .qc-rep{background:#fff; border-radius:12px; padding:11px 13px; margin-bottom:10px}
+  .qc-lab{display:block; font-size:9.5px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-bottom:3px}
+  .qc-rep b{font-size:15px; font-weight:900; line-height:1.3}
+  .qc-txt{font-size:13.5px; line-height:1.6; margin:0 0 10px; color:var(--ink)}
+  .qc-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:11px}
+  .qc-chip{font-size:11px; font-weight:800; background:rgba(27,27,27,.07); border-radius:11px; padding:4px 10px}
+  .qc-liens{display:flex; flex-direction:column; gap:8px}
+  .qc-btn{display:flex; align-items:center; gap:10px; width:100%; padding:12px 14px; border-radius:12px;
+    background:#1b1b1b; color:#f2eee6; border:0; font-size:13.5px; font-weight:800; cursor:pointer;
+    text-align:left; text-decoration:none; font-family:inherit}
+  .qc-btn svg,.qc-btn .pico{width:16px; height:16px; flex:0 0 auto; color:var(--gold)}
+  .qc-btn.ext{background:#fff; color:var(--ink); border:1.5px solid rgba(27,27,27,.14)}
+  .qc-btn.ext svg,.qc-btn.ext .pico{color:var(--muted)}
+  .qc-btn:active{transform:scale(.99)}
   .lin{display:flex; flex-direction:column; gap:6px; margin:12px 0 4px}
   .lin-r{display:grid; grid-template-columns:82px 1fr auto; align-items:center; gap:10px;
     padding:10px 12px; border-radius:12px; background:color-mix(in srgb, var(--c) 16%, #fff);
@@ -1844,7 +1864,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v95';
+const APP_VERSION = 'v96';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3247,35 +3267,70 @@ function quizGen(theme){
     if(p.desc && p.desc.length>15){
       const bonne=qTrim(p.desc,110);
       const l=leurres(descAll.filter(x=>x.nom!==p.nom).map(x=>qTrim(x.desc,110)),bonne);
-      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Que propose « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne)}); }
+      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Que propose « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne),src:p.id}); }
       // Dans l'autre sens : reconnaître le service à partir de ce qu'il fait —
       // seulement si cette description n'appartient qu'à lui.
       if(unique(nbDesc,p.desc)){
         const ln=leurres(descAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
-        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service correspond à : « "+qTrim(p.desc,120)+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service correspond à : « "+qTrim(p.desc,120)+" » ?",opts,correct:opts.indexOf(p.nom),src:p.id}); }
       }
     }
     // Le public visé
     if(p.public && p.public.length>4){
       const bonne=qTrim(p.public,90);
       const l=leurres(pubAll.filter(x=>x.nom!==p.nom).map(x=>qTrim(x.public,90)),bonne);
-      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"À qui s'adresse « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne)}); }
+      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"À qui s'adresse « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne),src:p.id}); }
       if(unique(nbPub,p.public)){
         const ln=leurres(pubAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
-        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service s'adresse à : « "+bonne+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service s'adresse à : « "+bonne+" » ?",opts,correct:opts.indexOf(p.nom),src:p.id}); }
       }
     }
     // Le bon domaine (seulement en « tout mélangé » : dans un thème, la réponse serait évidente)
     if(theme==='all'){
       const bonne=DOM[p.domaine].label;
       const l=leurres(DOMAINES.filter(x=>x.reseau && x.key!==p.domaine).map(x=>x.label),bonne);
-      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Dans quel domaine trouve-t-on « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne)}); }
+      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Dans quel domaine trouve-t-on « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne),src:p.id}); }
     }
   });
   return { qs:qShuffle(qs).slice(0,40), i:0, score:0, answered:false, picked:-1, theme };
 }
 function quizAnswer(i){ if(QUIZ.answered) return; QUIZ.answered=true; QUIZ.picked=i; if(i===QUIZ.qs[QUIZ.i].correct) QUIZ.score++; render(); }
 function quizNext(){ QUIZ.i++; QUIZ.answered=false; QUIZ.picked=-1; render(); }
+/* Après chaque réponse on corrige : la bonne réponse, ce que fait le service,
+   son site si on l'a, et un bouton pour aller lire la fiche complète. */
+function quizCorrection(Q){
+  const p = Q.src ? data.find(function(x){ return x.id===Q.src; }) : null;
+  const bonne = Q.opts[Q.correct];
+  const juste = QUIZ.picked===Q.correct;
+  let dedans = '<div class="qc-rep"><span class="qc-lab">La bonne réponse</span><b>'+esc(bonne)+'</b></div>';
+  if(p){
+    const dm=DOM[p.domaine];
+    if(p.desc) dedans += '<p class="qc-txt">'+esc(p.desc)+'</p>';
+    const infos=[];
+    if(p.public) infos.push('<span class="qc-chip">Pour : '+esc(p.public)+'</span>');
+    if(p.commune && p.commune!=='Régional / Toutes communes') infos.push('<span class="qc-chip">'+esc(p.commune)+'</span>');
+    if(p.tel) infos.push('<span class="qc-chip">'+esc(p.tel)+'</span>');
+    if(infos.length) dedans += '<div class="qc-chips">'+infos.join('')+'</div>';
+    const liens=[];
+    liens.push('<button class="qc-btn" onclick="quizVoirFiche(\''+p.id+'\')">'+icon('compass')+'<span>Voir la fiche dans '+esc(dm?dm.label:'le réseau')+'</span></button>');
+    if(p.site) liens.push('<a class="qc-btn ext" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+icon('lien')+'<span>'+esc(p.site)+'</span></a>');
+    dedans += '<div class="qc-liens">'+liens.join('')+'</div>';
+  }
+  return '<div class="qc '+(juste?'ok':'ko')+'">'+
+    '<div class="qc-h">'+(juste?'✅ Bonne réponse':'❌ Ce n\'était pas ça')+'</div>'+dedans+'</div>';
+}
+/* Quitter le quiz pour la fiche, en la dépliant. */
+function quizVoirFiche(id){
+  const p=data.find(function(x){ return x.id===id; }); if(!p) return;
+  openDomaine(p.domaine);
+  setTimeout(function(){
+    const c=document.getElementById('c-'+id);
+    if(!c) return;
+    if(!c.classList.contains('open')) toggle(id);
+    c.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 60);
+}
+
 function quizHTML(){
   if(!QUIZ.theme){
     const themes=[{k:'all',l:'Tout mélangé'}].concat(DOMAINES.filter(d=>d.reseau).map(d=>({k:d.key,l:d.label})));
@@ -3297,8 +3352,9 @@ function quizHTML(){
     if(QUIZ.answered){ if(idx===Q.correct) cls+=' good'; else if(idx===QUIZ.picked) cls+=' bad'; }
     return `<button class="${cls}" ${QUIZ.answered?'disabled':''} onclick="quizAnswer(${idx})">${esc(o)}</button>`;
   }).join('');
+  const corr = QUIZ.answered ? quizCorrection(Q) : '';
   const next = QUIZ.answered ? `<button class="quiz-next" onclick="quizNext()">${QUIZ.i+1<QUIZ.qs.length?'Question suivante':'Voir mon score'}</button>` : '';
-  return `<div class="pf-wrap"><div class="quiz-top"><span>Question ${QUIZ.i+1}/${QUIZ.qs.length}</span><span>Score : ${QUIZ.score}</span></div><div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>${next}</div>`;
+  return `<div class="pf-wrap"><div class="quiz-top"><span>Question ${QUIZ.i+1}/${QUIZ.qs.length}</span><span>Score : ${QUIZ.score}</span></div><div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>${corr}${next}</div>`;
 }
 
 async function toggleTache(id, el){
