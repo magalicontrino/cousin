@@ -569,6 +569,9 @@
   .adm-role{flex:1 1 auto; min-width:0; padding:8px 10px; border:1px solid var(--line); border-radius:9px; font-size:13px; font-family:inherit; background:#fff; color:var(--ink)}
   .adm-pfo{flex:0 0 auto; background:none; border:1.5px solid var(--line); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:800; cursor:pointer; color:var(--muted)}
   .adm-pfo.on{background:#f5c542; border-color:#f5c542; color:#1b1b1b}
+  .adm-use{display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; padding-top:9px; border-top:1px solid var(--line)}
+  .adm-use-p{font-size:10.5px; font-weight:700; color:var(--muted); background:rgba(27,27,27,.055); border-radius:11px; padding:3px 9px}
+  .adm-use-p.faint{opacity:.6}
   .adm-badge{flex:0 0 auto; font-size:10px; font-weight:900; letter-spacing:.05em; background:#1b1b1b; color:#f5c542; padding:5px 8px; border-radius:7px}
   .adm-del{flex:0 0 auto; background:none; border:0; color:var(--danger); cursor:pointer; padding:4px}
   .adm-del svg, .adm-del .pico{width:18px; height:18px; display:block}
@@ -2230,6 +2233,7 @@ function openProfil(){
   loadProfile().then(()=>{ if(view==="profil") render(); });
 }
 
+let _visiteComptee=false;
 async function loadProfile(){
   profileLoaded=false;
   if(!sb) return;
@@ -2243,6 +2247,8 @@ async function loadProfile(){
       if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; if(me[0].email) email=me[0].email; }
     }catch(e){}
     PROFILE={ email, nom, equipe, pfo, admin, uid };
+    // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
+    if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
     let cl=[];
     try{ const { data } = await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
     const groups={}, order=[];
@@ -2375,9 +2381,36 @@ function openAdmin(){
 async function loadAdmin(){
   adminLoaded=false; ADMIN={ members:[], requests:[] };
   if(!sb){ adminLoaded=true; return; }
-  try{ const { data } = await sb.from('allowed_emails').select('email,nom,equipe,pfo,admin,actif,listes').order('email'); ADMIN.members=data||[]; }catch(e){}
+  const champs='email,nom,equipe,pfo,admin,actif,listes';
+  try{
+    const { data, error } = await sb.from('allowed_emails').select(champs+',derniere_connexion,visites').order('email');
+    if(error) throw error;
+    ADMIN.members=data||[];
+  }catch(e){
+    // Colonnes de stats pas encore créées : on affiche l'équipe sans elles.
+    try{ const { data } = await sb.from('allowed_emails').select(champs).order('email'); ADMIN.members=data||[]; }catch(e2){}
+  }
   try{ const { data } = await sb.from('access_requests').select('id,email,mot,cree_le').eq('statut','en_attente').order('cree_le',{ascending:false}); ADMIN.requests=data||[]; }catch(e){}
   adminLoaded=true;
+}
+/* Usage : uniquement la dernière connexion et le nombre d'ouvertures. Rien de plus. */
+function depuis(iso){
+  if(!iso) return null;
+  const t=new Date(iso), min=Math.floor((Date.now()-t.getTime())/60000);
+  if(min<2) return "à l'instant";
+  if(min<60) return 'il y a '+min+' min';
+  const h=Math.floor(min/60); if(h<24) return 'il y a '+h+' h';
+  const j=Math.floor(h/24);
+  if(j===1) return 'hier';
+  if(j<30) return 'il y a '+j+' jours';
+  return 'le '+t.toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+function usageHTML(mb){
+  if(!('visites' in mb) && !('derniere_connexion' in mb)) return '';
+  const q=depuis(mb.derniere_connexion), n=mb.visites||0;
+  return `<div class="adm-use">${q
+    ? `<span class="adm-use-p">Vu&nbsp;${esc(q)}</span><span class="adm-use-p">${n} ouverture${n>1?'s':''}</span>`
+    : `<span class="adm-use-p faint">Jamais connecté·e</span>`}</div>`;
 }
 function adminHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p></div>`;
@@ -2402,7 +2435,7 @@ function adminHTML(){
     else if(hasShift){ listSection=`<div class="adm-lists-h">Quart :</div><div class="adm-shift"><button class="adm-sh ${shift==='jour'?'on':''}" onclick="setShift('${esc(mb.email)}','jour')">Jour</button><button class="adm-sh ${shift==='nuit'?'on':''}" onclick="setShift('${esc(mb.email)}','nuit')">Nuit</button></div>${shift?`<div class="adm-listnow">Voit : Polyvalent — ${shift==='nuit'?'Nuit':'Jour'}</div>`:`<div class="adm-listnow faint">Choisis Jour ou Nuit pour lui donner sa liste</div>`}`; }
     else if(hasFixed){ listSection=`<div class="adm-lists-h">Voit : Médical</div>`; }
     else { listSection=`<div class="adm-lists-h faint">Pas de check-list pour ce rôle</div>`; }
-    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div></div>`;
+    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${usageHTML(mb)}</div>`;
   }).join('');
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${members}</div>`;
   return `<div class="pf-wrap">${reqs}${add}${team}</div>`;
