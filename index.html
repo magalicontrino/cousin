@@ -464,29 +464,34 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     overflow:hidden; align-items:center; justify-content:center; cursor:pointer; position:relative;
     transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s}
 .dock-trash svg, .dock-trash .pico{width:25px; height:25px}
-  .dock-trash.open{max-width:min(330px,78vw); padding:0 16px 0 12px; gap:11px}
+  .dock-trash.open{max-width:100%; padding:0 16px 0 12px; gap:11px}
+  /* Les boutons repliés s'effacent le temps qu'une pastille est ouverte (display posé en JS,
+     d'où le !important) : celle qui s'ouvre dispose alors de toute la largeur. */
+  .dock.ouverte .dock-trash:not(.open),
+  .dock.ouverte .dock-prod:not(.open),
+  .dock.ouverte .dock-linge:not(.open){display:none !important}
 /* Linge par étage : même pastille, encore une autre couleur */
   .dock-linge{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
     border:4px solid var(--bg); background:#3567b0; color:#f2eee6; padding:0; cursor:pointer;
     align-items:center; justify-content:center; overflow:hidden;
     transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s}
-  .dock-linge.open{max-width:min(350px,82vw); padding:0 16px 0 12px; gap:11px}
+  .dock-linge.open{max-width:100%; padding:0 16px 0 12px; gap:11px}
   .dock-linge svg{width:25px; height:25px}
-  .dock-linge.open .pbt-tx{max-width:235px; opacity:1}
+  .dock-linge.open .pbt-tx{max-width:100%; opacity:1}
   .dock-linge:active{transform:scale(.97)}
 /* Distribution des produits : même pastille, autre couleur */
   .dock-prod{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
     border:4px solid var(--bg); background:#6cb392; color:#1b1b1b; padding:0; cursor:pointer;
     align-items:center; justify-content:center; overflow:hidden;
     transition:max-width .40s cubic-bezier(.22,1,.36,1), padding .40s}
-  .dock-prod.open{max-width:min(320px,76vw); padding:0 16px 0 12px; gap:11px}
+  .dock-prod.open{max-width:100%; padding:0 16px 0 12px; gap:11px}
   .dock-prod svg{width:25px; height:25px}
-  .dock-prod.open .pbt-tx{max-width:200px; opacity:1}
+  .dock-prod.open .pbt-tx{max-width:100%; opacity:1}
   .dock-prod:active{transform:scale(.97)}
   .dock-trash .pbt-ic{flex:0 0 auto; display:flex; align-items:center; justify-content:center}
   .pbt-tx{display:flex; flex-direction:column; gap:1px; min-width:0; white-space:nowrap; text-align:left;
     max-width:0; overflow:hidden; opacity:0; transition:max-width .40s cubic-bezier(.22,1,.36,1), opacity .14s}
-  .dock-trash.open .pbt-tx{max-width:215px; opacity:1; transition:max-width .40s cubic-bezier(.22,1,.36,1), opacity .3s .12s}
+  .dock-trash.open .pbt-tx{max-width:100%; opacity:1; transition:max-width .40s cubic-bezier(.22,1,.36,1), opacity .3s .12s}
   .pbt-tx b{font-size:13.5px; font-weight:900; letter-spacing:-.01em; line-height:1.2}
   .pbt-tx em{font-style:normal; font-size:11.5px; font-weight:700; opacity:.9; line-height:1.25}
   .pbt-dots{display:flex; gap:4px; flex:0 0 auto; max-width:0; overflow:hidden; opacity:0;
@@ -1839,7 +1844,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v103';
+const APP_VERSION = 'v104';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2475,6 +2480,16 @@ const POUBELLES={
   3:[{n:3,c:'noire',l:'noires'},{n:2,c:'jaune',l:'jaunes'},{n:2,c:'bleue',l:'bleues'}],
   5:[{n:3,c:'noire',l:'noires'}]
 };
+/* Une seule pastille ouverte à la fois : les autres se referment et s'effacent,
+   pour que le texte de celle qui s'ouvre tienne toujours en entier. */
+function fermerPastilles(sauf){
+  ['.dock-trash','.dock-prod','.dock-linge'].forEach(function(sel){
+    const b=document.querySelector(sel);
+    if(b && b!==sauf){ clearTimeout(b._t); b.classList.remove('open'); }
+  });
+  const dock=document.querySelector('.dock');
+  if(dock) dock.classList.toggle('ouverte', !!(sauf && sauf.classList.contains('open')));
+}
 /* Linge par étage : quel étage est prévu quel jour.
    0 = dimanche … 6 = samedi. Tableau à compléter dès que Magali envoie le planning —
    tant qu'un jour n'est pas renseigné, le bouton n'apparaît tout simplement pas. */
@@ -2506,9 +2521,11 @@ function majBoutonLinge(){
 function openLinge(){
   const btn=document.querySelector('.dock-linge'); if(!btn) return;
   clearTimeout(btn._t);
-  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); fermerPastilles(null); return; }
+  fermerPastilles(btn);
   btn.classList.add('open');
-  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
+  fermerPastilles(btn);
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); fermerPastilles(null); }, 15000);
 }
 
 /* Distribution des produits à l'accueil : tous les premiers samedis du mois. */
@@ -2545,9 +2562,11 @@ function majBoutonProduits(){
 function openProduits(){
   const btn=document.querySelector('.dock-prod'); if(!btn) return;
   clearTimeout(btn._t);
-  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); fermerPastilles(null); return; }
+  fermerPastilles(btn);
   btn.classList.add('open');
-  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
+  fermerPastilles(btn);
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); fermerPastilles(null); }, 15000);
 }
 
 /* Les sacs à sortir aujourd'hui — on les descend le matin même. null s'il n'y a rien. */
@@ -2590,9 +2609,11 @@ function majBoutonPoubelles(){
 function openPoubelles(){
   const btn=document.querySelector('.dock-trash'); if(!btn) return;
   clearTimeout(btn._t);
-  if(btn.classList.contains('open')){ btn.classList.remove('open'); return; }
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); fermerPastilles(null); return; }
+  fermerPastilles(btn);
   btn.classList.add('open');
-  btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
+  fermerPastilles(btn);
+  btn._t=setTimeout(function(){ btn.classList.remove('open'); fermerPastilles(null); }, 15000);
 }
 /* Le planning du linge en tableau coloré — une couleur par étage, la ligne du jour ressort.
    Construit depuis LINGE : la fiche et le bouton du bas ne peuvent pas diverger. */
