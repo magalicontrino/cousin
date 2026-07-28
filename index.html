@@ -1280,7 +1280,7 @@ const SAMPLE = [
     "Ne pas donner de conseil juridique soi-même.\n• Questions de séjour / regroupement familial → ADDE, CIRÉ, Myria\n• Demande d'asile → Fedasil, avocat spécialisé (BAJ)\n• Toujours vérifier les délais : ils sont souvent courts et impératifs."),
 
   // CENTRE — infos pratiques du quotidien
-  centre("Jour des poubelles","Sortie des poubelles — jours et couleurs.","Sortie les LUNDI, MERCREDI et VENDREDI.\n\nLundi : 3 noires.\nMercredi : 3 noires + 2 jaunes + 2 bleues.\nVendredi : 3 noires.\n\n(Mise à jour : 21.03.2022)"),
+  centre("Jour des poubelles","Sortie des poubelles — jours, couleurs et où les déposer.","QUAND : le MATIN du jour de collecte (pas la veille au soir).\nOÙ : déposées devant la porte.\n\nCE QU'ON SORT\nLundi — 3 noires\nMercredi — 3 noires + 2 jaunes + 2 bleues\nVendredi — 3 noires\n\nLe bouton en bas de l'app apparaît les jours de sortie, aux couleurs des sacs concernés."),
   centre("Distribution des produits","Produits distribués à l'accueil.","Tous les PREMIERS SAMEDIS du mois, à l'accueil.\n\nUn rappel apparaît dans l'app la veille au soir et le jour même."),
   centre("Draps et linge","Jour de lessive par étage — et changement à la demande.","À LA DEMANDE : les draps se changent tous les jours, il suffit de le demander.\n\nJOUR DE LESSIVE PAR ÉTAGE\nLundi — 1er étage, chambres 101 à 108\nMardi — 1er étage, chambres 113 à 122\nMercredi — 2e étage, chambres 201 à 222\nJeudi — 4e et 5e étage\nVendredi — 5e étage, chambres 501 à 512\nSamedi — 3e étage, chambres 301 à 310\nDimanche — 3e étage, chambres 312 à 322\n\nLe bouton bleu en bas de l'app affiche l'étage du jour."),
   centre("Ascenseurs en panne","Qui appeler si un ascenseur est en panne.","Société ELS (pour tous les ascenseurs).\nTél : 02 381 05 81."),
@@ -1780,7 +1780,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const SEED_VERSION = 39;
+const SEED_VERSION = 40;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -2470,13 +2470,10 @@ function openProduits(){
   btn._t=setTimeout(function(){ btn.classList.remove('open'); }, 15000);
 }
 
-/* Les sacs à sortir maintenant : le jour même, ou la veille dès 16 h. null s'il n'y a rien. */
+/* Les sacs à sortir aujourd'hui — on les descend le matin même. null s'il n'y a rien. */
 const POUB_COUL={noire:'#242424', jaune:'#f5c518', bleue:'#2f6fed'};
 function poubellesJour(){
-  const now=new Date(), d=now.getDay(), hr=now.getHours(), tm=(d+1)%7;
-  if(POUBELLES[d]) return POUBELLES[d];
-  if(POUBELLES[tm] && hr>=16) return POUBELLES[tm];
-  return null;
+  return POUBELLES[new Date().getDay()] || null;
 }
 /* Le bouton prend les couleurs des sacs du jour : un seul type → le rond dans cette couleur ;
    plusieurs types → une couleur par élément (le rond, le corps, le couvercle). */
@@ -2492,10 +2489,9 @@ function majBoutonPoubelles(){
   // Texte clair ou foncé selon la couleur du rond, pour rester lisible
   const rgb=parseInt(rond.slice(1),16), lum=(((rgb>>16)&255)*.299+((rgb>>8)&255)*.587+(rgb&255)*.114)/255;
   btn.style.color = lum>.6 ? '#1b1b1b' : '#f2eee6';
-  const now=new Date(), d=now.getDay(), hr=now.getHours();
-  // Juste le jour de la collecte : le reste ne rentre pas dans la pastille.
+  // Juste le jour : le reste ne rentre pas dans la pastille, le détail est dans la fiche Centre.
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-  const quand = JOURS[POUBELLES[d] ? d : (d+1)%7];
+  const quand = JOURS[new Date().getDay()];
   const txt=sacs.map(x=>x.n+' '+x.l).join(' + ');
   btn.title='Poubelles à sortir : '+txt;
   btn.innerHTML='<span class="pbt-ic"><svg viewBox="0 0 24 24">'+
