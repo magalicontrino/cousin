@@ -498,7 +498,7 @@
   .fab:active{ transform:scale(.94); }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; gap:10px}
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; gap:3px}   /* faible : les anneaux crème des boutons ajoutent déjà de l'écart */
   .dock-trash{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px;
     display:none;   /* le code l'affiche uniquement les jours de sortie */
     border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */
@@ -1844,7 +1844,7 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v95';
 const SEED_VERSION = 41;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2786,7 +2786,7 @@ async function requestAccess(){
   try{
     await sb.from('access_requests').insert({ email });
     if(rq){ rq.textContent="Demande envoyée ✓"; rq.disabled=true; rq.style.opacity=.7; }
-    _g('authMsg').textContent="Ta demande a bien été envoyée à Mag. Tu recevras l'accès dès qu'elle valide.";
+    _g('authMsg').textContent="Demande envoyée ✓\n\nMag la voit dans son espace et la valide. Tu n'as rien d'autre à faire : reviens sur cette page plus tard, et si c'est validé tu entres directement.\n\nPense à la prévenir si c'est urgent.";
   }catch(e){ if(rq) rq.textContent="Réessayer"; }
 }
 async function checkAllowed(){
@@ -3343,7 +3343,19 @@ async function initAuth(){
   if(!session){ showLogin(); return; }
   const ok = await checkAllowed();
   if(!ok){
-    showMessage("Ton compte "+(session.user.email||'')+" n'est pas encore autorisé.");
+    // Une demande déjà envoyée ? On rassure plutôt que de reproposer le bouton.
+    let dejaDemande=false;
+    try{
+      const { data:dq } = await sb.from('access_requests').select('statut')
+        .ilike('email', session.user.email||'').eq('statut','en_attente').limit(1);
+      dejaDemande = Array.isArray(dq) && dq.length>0;
+    }catch(e){}
+    if(dejaDemande){
+      showMessage("Ta demande est en cours.\n\nMag la validera bientôt. Reviens sur cette page dans quelques heures : dès qu'elle a validé, tu entres directement, sans rien faire de plus.");
+      const rq=_g('authReq'); if(rq) rq.style.display='none';
+      return;
+    }
+    showMessage("Ton compte "+(session.user.email||'')+" n'est pas encore autorisé.\n\nDemande l'accès ci-dessous : Mag reçoit ta demande et te débloque.");
     window._reqEmail = session.user.email||'';
     const rq=_g('authReq'); if(rq){ rq.style.display='inline-flex'; }
     return;
