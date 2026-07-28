@@ -125,7 +125,7 @@
   }
   .back svg, .back .pico{width:18px; height:18px}
   .hspace{flex:1 1 auto}
-  .htitle{width:var(--appw); max-width:100%; margin:2px auto; padding:0 2px; display:flex; align-items:center; gap:14px}
+  .htitle{width:var(--appw); max-width:100%; margin:16px auto 2px; padding:0 2px; display:flex; align-items:center; gap:14px}
   .htitle h1 svg,.htitle h1 .pico{width:27px; height:27px; flex:0 0 auto}
   .htitle h1{margin:0; font-size:32.33px; font-weight:600; letter-spacing:-.04em; text-transform:none; color:var(--ink); display:flex; align-items:center; gap:11px; line-height:38.8px; text-wrap:balance}
   .htitle h1.hub{font-weight:700}   /* le Réseau, qui chapeaute les domaines */
@@ -2720,6 +2720,14 @@ function quizGen(theme){
   const pool = (theme==='all') ? allReseau : allReseau.filter(p=>p.domaine===theme);
   const descAll=allReseau.filter(p=>p.desc && p.desc.length>15);
   const pubAll =allReseau.filter(p=>p.public && p.public.length>4);
+  // Un même texte peut décrire plusieurs services (« Habitants de la commune » vaut pour
+  // tous les CPAS) : dans ce cas la question « quel service ? » n'a pas UNE bonne réponse,
+  // on ne la pose donc pas.
+  const compte=(liste,champ)=>{
+    const c={}; liste.forEach(x=>{ const k=String(x[champ]||'').trim().toLowerCase(); c[k]=(c[k]||0)+1; }); return c;
+  };
+  const nbDesc=compte(descAll,'desc'), nbPub=compte(pubAll,'public');
+  const unique=(c,v)=> c[String(v||'').trim().toLowerCase()]===1;
   const pick=(arr,n)=>qShuffle(arr).slice(0,n);
   // 3 mauvaises réponses distinctes entre elles ET différentes de la bonne
   const leurres=(arr,bonne)=>{
@@ -2734,17 +2742,22 @@ function quizGen(theme){
       const bonne=qTrim(p.desc,110);
       const l=leurres(descAll.filter(x=>x.nom!==p.nom).map(x=>qTrim(x.desc,110)),bonne);
       if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Que propose « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne)}); }
-      // Dans l'autre sens : reconnaître le service à partir de ce qu'il fait
-      const ln=leurres(descAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
-      if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service correspond à : « "+qTrim(p.desc,120)+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+      // Dans l'autre sens : reconnaître le service à partir de ce qu'il fait —
+      // seulement si cette description n'appartient qu'à lui.
+      if(unique(nbDesc,p.desc)){
+        const ln=leurres(descAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
+        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service correspond à : « "+qTrim(p.desc,120)+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+      }
     }
     // Le public visé
     if(p.public && p.public.length>4){
       const bonne=qTrim(p.public,90);
       const l=leurres(pubAll.filter(x=>x.nom!==p.nom).map(x=>qTrim(x.public,90)),bonne);
       if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"À qui s'adresse « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne)}); }
-      const ln=leurres(pubAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
-      if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service s'adresse à : « "+bonne+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+      if(unique(nbPub,p.public)){
+        const ln=leurres(pubAll.filter(x=>x.nom!==p.nom).map(x=>x.nom),p.nom);
+        if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service s'adresse à : « "+bonne+" » ?",opts,correct:opts.indexOf(p.nom)}); }
+      }
     }
     // Le bon domaine (seulement en « tout mélangé » : dans un thème, la réponse serait évidente)
     if(theme==='all'){
