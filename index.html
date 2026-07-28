@@ -500,12 +500,10 @@
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
   .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; gap:10px}
-  .dock-trash{flex:0 0 auto; width:58px; height:58px; border-radius:50%; background:#e63329; color:#fff;
+  .dock-trash{flex:0 0 auto; width:58px; height:58px; border-radius:50%; display:none; color:#fff;
     border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */ display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative}
   .dock-trash svg, .dock-trash .pico{width:25px; height:25px}
   .dock-trash:active{transform:scale(.97)}
-  /* Pastille dorée les jours de sortie des poubelles */
-  .dock-trash.jour::after{content:''; position:absolute; top:4px; right:4px; width:13px; height:13px; border-radius:50%; background:#f5c542; border:2.5px solid var(--bg)}
   .dock-plus{flex:0 0 auto; width:58px; height:58px; border-radius:50%; background:#f5c542; color:#1b1b1b;
     border:4px solid var(--bg); display:flex; align-items:center; justify-content:center; cursor:pointer}
   .dock-plus svg, .dock-plus .pico{width:25px; height:25px}
@@ -1941,7 +1939,7 @@ function updateHeader(){
 /* ---------- Rendu ---------- */
 function render(){
   updateHeader();
-  const dt=document.querySelector('.dock-trash'); if(dt) dt.classList.toggle('jour', poubellesJour());
+  majBoutonPoubelles();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
@@ -2353,10 +2351,30 @@ const POUBELLES={
   3:[{n:3,c:'noire',l:'noires'},{n:2,c:'jaune',l:'jaunes'},{n:2,c:'bleue',l:'bleues'}],
   5:[{n:3,c:'noire',l:'noires'}]
 };
-/* Y a-t-il une sortie de poubelles maintenant ? (le jour même, ou la veille dès 16 h) */
+/* Les sacs à sortir maintenant : le jour même, ou la veille dès 16 h. null s'il n'y a rien. */
+const POUB_COUL={noire:'#242424', jaune:'#f5c518', bleue:'#2f6fed'};
 function poubellesJour(){
   const now=new Date(), d=now.getDay(), hr=now.getHours(), tm=(d+1)%7;
-  return !!(POUBELLES[d] || (POUBELLES[tm] && hr>=16));
+  if(POUBELLES[d]) return POUBELLES[d];
+  if(POUBELLES[tm] && hr>=16) return POUBELLES[tm];
+  return null;
+}
+/* Le bouton prend les couleurs des sacs du jour : un seul type → le rond dans cette couleur ;
+   plusieurs types → une couleur par élément (le rond, le corps, le couvercle). */
+function majBoutonPoubelles(){
+  const btn=document.querySelector('.dock-trash');
+  if(!btn) return;
+  const sacs=poubellesJour();
+  if(!sacs){ btn.style.display='none'; return; }
+  btn.style.display='flex';
+  const c=sacs.map(x=>POUB_COUL[x.c]);
+  const rond=c[0], corps=c[1]||'#f2eee6', couvercle=c[2]||c[1]||'#f2eee6';
+  btn.style.background=rond;
+  btn.title='Poubelles à sortir : '+sacs.map(x=>x.n+' '+x.l).join(' + ');
+  btn.innerHTML='<svg viewBox="0 0 24 24">'+
+    '<path fill="'+couvercle+'" d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/>'+
+    '<path fill="'+corps+'" fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/>'+
+    '</svg>';
 }
 /* Bouton poubelle du bas : ouvre la fiche « Jour des poubelles » déjà dépliée,
    avec le calendrier complet (quels sacs, quel jour, combien). */
