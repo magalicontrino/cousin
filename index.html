@@ -662,6 +662,10 @@ input, textarea, select{
   .pf-id{min-width:0}
   .pf-name{font-size:15px; font-weight:800; color:var(--ink)}
   .pf-mail{font-size:12px; color:var(--muted); font-weight:600; margin-top:1px; overflow-wrap:anywhere}
+  .pf-autres{font-size:11px; font-weight:900; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--muted); margin:22px 2px 10px; display:flex; align-items:baseline; gap:8px}
+  .pf-autres em{font-style:normal; font-size:10.5px; font-weight:700; text-transform:none; letter-spacing:0}
+  .pf-list-autre{opacity:.72}
   .pf-list{background:var(--card); border:1px solid var(--line); border-radius:16px; margin-bottom:12px; overflow:hidden}
   .pf-list-h{display:flex; align-items:center; justify-content:space-between; padding:13px 15px 9px}
   .pf-list-t{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gold-d)}
@@ -2057,7 +2061,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v161';
+const APP_VERSION = 'v162';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3239,6 +3243,7 @@ async function markSeen(user){
 
 /* ---------- Mon profil & check-lists (base privée, réservé à l'équipe connectée) ---------- */
 let PROFILE=null, CHECKLISTS=[], DONE={}, profileLoaded=false;
+let MES_LISTES=[];       // les listes de la personne (le décompte du jour ne compte que celles-là)
 let ADMIN_RESUME=null;   // { membres, actifs, demandes } — pour le bouton « Gestion de l'équipe »
 let ACCES_ROLES=null;    // { rôle: [pavés] } — réglé depuis l'Admin, null tant que la base n'a pas répondu
 let APERCU_ROLE=null;    // aperçu : voir l'app comme un rôle donné (l'admin garde ses droits réels)
@@ -3287,10 +3292,12 @@ async function loadProfile(){
     // « Ma liste du jour » = MA liste, pas celle de tout le monde. La base laisse les PFO et
     // l'administratrice voir toutes les listes (c'est utile ailleurs), mais ici on ne garde que
     // celles de la personne : ses listes attribuées, sinon celles que son rôle implique.
-    const miennes = (listes && listes.length) ? listes.slice()
-                  : (pfo ? ['pfo-jour','pfo-nuit'] : deriveListes(equipe, ''));
-    const gardees = miennes.length ? order.filter(k=>miennes.indexOf(k)>=0) : order;
-    CHECKLISTS = gardees.map(k=>({liste:k, taches:groups[k]})).sort((a,b)=>listeRank(a.liste)-listeRank(b.liste));
+    MES_LISTES = (listes && listes.length) ? listes.slice()
+               : (pfo ? ['pfo-jour','pfo-nuit'] : deriveListes(equipe, ''));
+    // On voit toutes les listes auxquelles la base donne accès, mais le décompte du jour
+    // ne compte que la sienne : le reste, c'est pour jeter un œil.
+    CHECKLISTS = order.map(k=>({liste:k, taches:groups[k], mienne: MES_LISTES.indexOf(k)>=0}))
+                      .sort((a,b)=>(b.mienne-a.mienne) || (listeRank(a.liste)-listeRank(b.liste)));
     DONE={};
     try{
       const { data:done } = await sb.from('checklist_faites').select('tache_id').eq('jour', todayStr());
@@ -3323,15 +3330,21 @@ async function loadProfile(){
 
 // Rendu partagé des check-lists (utilisé par « Ma liste » et le profil)
 function checklistsHTML(){
+  // (les listes des autres passent sous un intertitre, voir plus bas)
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
   if(!profileLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   if(!CHECKLISTS.length) return `<div class="pf-empty">${icon('list','width="34" height="34"')}<p><b>Aucune check-list pour ton rôle.</b></p><p>Si tu penses que c'est une erreur, préviens Mag.</p></div>`;
+  let separateur=false;
   return CHECKLISTS.map(g=>{
     const done=g.taches.filter(t=>DONE[t.id]).length;
     const rows=g.taches.map(t=>
       `<label class="pf-task${DONE[t.id]?' done':''}"><input type="checkbox"${DONE[t.id]?' checked':''} onchange="toggleTache(${t.id}, this)"><span class="pf-box">${icon('check')}</span><span class="pf-txt">${esc(t.tache)}</span></label>`
     ).join('');
-    return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${done?`<button class="pf-reset" title="Tout décocher" onclick="resetListe('${g.liste.replace(/'/g,"\\'")}')">${icon('trash')}</button>`:''}</div><div class="pf-tasks">${rows}</div></div>`;
+    // Un trait avant les listes qui ne sont pas les siennes : elles sont là pour consulter.
+    let tete='';
+    if(!g.mienne && MES_LISTES.length && !separateur){ separateur=true;
+      tete=`<div class="pf-autres">Les autres listes <em>pour information</em></div>`; }
+    return tete+`<div class="pf-list${g.mienne?'':' pf-list-autre'}"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${(done&&g.mienne)?`<button class="pf-reset" title="Tout décocher" onclick="resetListe('${g.liste.replace(/'/g,"\\'")}')">${icon('trash')}</button>`:''}</div><div class="pf-tasks">${rows}</div></div>`;
   }).join('');
 }
 
@@ -3362,7 +3375,8 @@ function profilHTML(){
 
   // Ma liste du jour : on montre l'avancement, pas seulement un bouton
   let total=0, faites=0;
-  CHECKLISTS.forEach(g=>{ total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
+  CHECKLISTS.filter(g=>g.mienne || !MES_LISTES.length).forEach(g=>{
+    total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
   const pct = total ? Math.round(faites/total*100) : 0;
   const liste = total
     ? `<button class="pf-jour" onclick="openMaListe()">
