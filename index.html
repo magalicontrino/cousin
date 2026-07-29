@@ -350,6 +350,16 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .detail{max-height:0; overflow:hidden; transition:max-height .3s ease; background:#fbfbfe}
   .card.open .detail{max-height:3000px}
   .memo{white-space:pre-line; font-size:13.5px; line-height:1.55; color:var(--ink); padding:4px 0 6px}
+  /* Dans un mail ou une note, chaque [choix] devient une série de pastilles à toucher :
+     on affine le texte au fur et à mesure, et c'est le texte affiné qui est copié. */
+  .nchoix{display:inline; vertical-align:baseline}
+  .nopt{display:inline-block; border:1px solid var(--line); background:var(--card); color:var(--muted);
+    padding:1px 9px; border-radius:14px; font:inherit; font-size:12.5px; font-weight:700; line-height:1.5;
+    cursor:pointer; margin:0 2px 3px 0}
+  .nopt.on{background:var(--gold); color:#1b1b1b; border-color:transparent}
+  .nfill{border:0; border-bottom:1.5px dashed var(--line); background:transparent; font:inherit;
+    font-size:13px; color:var(--ink); min-width:52px; width:auto; max-width:100%; padding:0 3px; border-radius:0; display:inline-block; vertical-align:baseline}
+  .nfill:focus{outline:none; border-bottom-color:var(--gold)}
 /* Page « formation » : schéma à cartes, facile à retenir */
   .f-page{padding:2px 0 4px}
   .f-lead{font-size:13.5px; line-height:1.55; color:var(--ink); background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px; padding:11px 13px; margin-bottom:6px}
@@ -1394,7 +1404,7 @@ const SAMPLE = [
   notetpl("Soin de plaie — ulcère de jambe",
     "Brouillon inventé — à corriger par l'équipe.",
     ["Plaie","Pansement","Médical"],
-    "Localisation : jambe [gauche/droite], [face externe/interne], [tiers inférieur/moyen].\nType : ulcère veineux, présent depuis [durée].\nAspect : [taille] cm environ, fond [fibrineux/bourgeonnant/nécrotique], exsudat [faible/modéré/abondant], odeur [absente/présente].\nPourtour : peau [sèche/rouge/macérée], [pas de] chaleur, [pas d']œdème.\nDouleur : [absente/à la réfection/permanente], cotée [légère/modérée/forte].\nSoin fait : nettoyage [sérum physiologique/eau et savon], séchage, pansement [type], bande de maintien [avec/sans compression].\nSuite : réfection dans [délai]. Si l'exsudat augmente ou apparition d'une rougeur chaude : avis médical.",
+    "Localisation : jambe [gauche/droite], [face externe/interne], [tiers inférieur/moyen].\nType : ulcère veineux, présent depuis [durée].\nAspect : [taille] cm environ, fond [fibrineux/bourgeonnant/nécrotique], exsudat [faible/modéré/abondant], odeur [absente/présente].\nPourtour : peau [sèche/rouge/macérée], [pas de chaleur/chaleur], [pas d'œdème/œdème].\nDouleur : [absente/à la réfection/permanente], cotée [légère/modérée/forte].\nSoin fait : nettoyage [sérum physiologique/eau et savon], séchage, pansement [type], bande de maintien [avec/sans compression].\nSuite : réfection dans [délai]. Si l'exsudat augmente ou apparition d'une rougeur chaude : avis médical.",
     "Médical"),
   notetpl("Diabète — contrôle et traitement",
     "Brouillon inventé — à corriger par l'équipe.",
@@ -1409,7 +1419,7 @@ const SAMPLE = [
   notetpl("Amputation d'orteils — surveillance",
     "Brouillon inventé — à corriger par l'équipe.",
     ["Plaie","Pied","Médical"],
-    "Localisation : pied [gauche/droit], orteils amputés — cicatrice [fermée/en cours].\nAspect : [pas d']écoulement, [pas de] rougeur, extrémités [tièdes/froides].\nChaussage : chaussure adaptée [portée/non portée].\nSoin fait : lavage doux, séchage soigneux entre les orteils restants, pansement sec.\nSuite : surveillance quotidienne. Toute rougeur, chaleur, odeur ou plaie nouvelle = avis médical le jour même.",
+    "Localisation : pied [gauche/droit], orteils amputés — cicatrice [fermée/en cours].\nAspect : [pas d'écoulement/écoulement], [pas de rougeur/rougeur], extrémités [tièdes/froides].\nChaussage : chaussure adaptée [portée/non portée].\nSoin fait : lavage doux, séchage soigneux entre les orteils restants, pansement sec.\nSuite : surveillance quotidienne. Toute rougeur, chaleur, odeur ou plaie nouvelle = avis médical le jour même.",
     "Médical"),
 
   urgent(d("addictions","M.A.S.S. de Bruxelles","Bruxelles-Ville",
@@ -1917,8 +1927,8 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v134';
-const SEED_VERSION = 45;
+const APP_VERSION = 'v135';
+const SEED_VERSION = 46;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -2432,6 +2442,48 @@ function toggleFav(ev,id){
   updateFavBadge();
 }
 
+/* Chaque [a/b/c] du texte devient des pastilles ; chaque [autre chose] devient un champ à écrire.
+   Rien n'est enregistré : c'est un brouillon qu'on affine puis qu'on copie. */
+const NOTE_CHOIX={};
+function corpsInteractif(p){
+  const ch=NOTE_CHOIX[p.id]||{};
+  let i=-1;
+  return esc(p.corps).replace(/\[([^\]]+)\]/g, function(m, contenu){
+    i++; const idx=i;
+    const val = ch[idx];
+    if(contenu.indexOf('/')>=0){
+      const opts=contenu.split('/').map(function(o){return o.trim();});
+      // Une fois le choix fait, les autres possibilités s'effacent : la note se resserre
+      // au fur et à mesure. Un nouvel appui sur le mot choisi les fait revenir.
+      const montres = (val===undefined) ? opts : [val];
+      return '<span class="nchoix">'+montres.map(function(o){
+        const sur = o.replace(/'/g,"\\'");
+        return '<button class="nopt'+(val===o?' on':'')+'" onclick="choixNote(event,\''+p.id+'\','+idx+',\''+sur+'\')">'+o+'</button>';
+      }).join('')+'</span>';
+    }
+    return '<input class="nfill" value="'+(val||'')+'" placeholder="'+contenu+'" '+
+           'onclick="event.stopPropagation()" oninput="saisieNote(\''+p.id+'\','+idx+',this.value)">';
+  });
+}
+function choixNote(ev,id,idx,valeur){
+  ev.stopPropagation();
+  const c=NOTE_CHOIX[id]||(NOTE_CHOIX[id]={});
+  c[idx] = (c[idx]===valeur) ? undefined : valeur;   // re-toucher = revenir en arrière
+  const p=data.find(x=>String(x.id)===String(id)); if(!p) return;
+  const zone=document.querySelector('#c-'+id+' .memo'); if(zone) zone.innerHTML=corpsInteractif(p);
+}
+function saisieNote(id,idx,valeur){
+  const c=NOTE_CHOIX[id]||(NOTE_CHOIX[id]={});
+  c[idx]=valeur;
+}
+/* Texte final : les choix faits remplacent les crochets, le reste est laissé tel quel. */
+function texteNote(p){
+  const ch=NOTE_CHOIX[p.id]||{}; let i=-1;
+  return String(p.corps||'').replace(/\[([^\]]+)\]/g, function(m){
+    i++; const v=ch[i];
+    return (v===undefined || v==='') ? m : v;
+  });
+}
 function mailCard(p){
   const kw = (p.keywords&&p.keywords.length) ? p.keywords.map(k=>`<span class="tag com">${esc(k)}</span>`).join('') : '';
   return `<div class="card" id="c-${p.id}">
@@ -2442,7 +2494,7 @@ function mailCard(p){
     </div>
     <div class="detail"><div class="detail-inner">
       ${p.objet?`<div class="mailfield"><span class="mlab">Objet</span> ${esc(p.objet)}</div>`:''}
-      ${p.corps?`<div class="memo">${esc(p.corps)}</div>`:'<div class="row" style="color:var(--muted)">Texte à ajouter</div>'}
+      ${p.corps?`<div class="memo">${corpsInteractif(p)}</div>`:'<div class="row" style="color:var(--muted)">Texte à ajouter</div>'}
       <div class="actions">
         ${p.objet?`<button class="btn map" onclick="copyMail(event,'${p.id}','objet')">${icon('note')}Copier l'objet</button>`:''}
         <button class="btn call" onclick="copyMail(event,'${p.id}','corps')">${icon('mail')}Copier ${p.genre==='Note'?'la note':'le message'}</button>
@@ -2458,13 +2510,13 @@ function ecrireMail(ev,id){
   const p=data.find(x=>String(x.id)===String(id)); if(!p) return;
   const url='mailto:'+encodeURIComponent(p.dest||'')
           +'?subject='+encodeURIComponent(p.objet||'')
-          +'&body='+encodeURIComponent(p.corps||'');
+          +'&body='+encodeURIComponent(texteNote(p));
   location.href=url;
 }
 function copyMail(ev,id,field){
   ev.stopPropagation();
   const p=data.find(x=>x.id===id); if(!p) return;
-  const txt=(field==='objet'?p.objet:p.corps)||'';
+  const txt=(field==='objet'? (p.objet||'') : texteNote(p));
   const btn=ev.currentTarget, orig=btn.innerHTML;
   const ok=function(){ btn.textContent='✓ Copié'; setTimeout(function(){btn.innerHTML=orig;},1500); };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){prompt('Copiez :',txt);}); }
