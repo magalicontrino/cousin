@@ -1917,7 +1917,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v133';
+const APP_VERSION = 'v134';
 const SEED_VERSION = 45;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -1954,7 +1954,7 @@ function normalize(p){
     demarche:p.demarche||"", ou:p.ou||"", comment:p.comment||"", attention:p.attention||"",
     delai:p.delai||"", maj:p.maj||"", memo:p.memo||"", page:p.page||"", metiers:Array.isArray(p.metiers)?p.metiers:[],
     objet:p.objet||"", corps:p.corps||"", keywords:Array.isArray(p.keywords)?p.keywords:[],
-    famille:p.famille||"", genre:p.genre||"",
+    famille:p.famille||"", genre:p.genre||"", dest:p.dest||"",
     isGuide:!!p.isGuide, guideKey:p.guideKey||"", asMethod:!!p.asMethod, urgent:!!p.urgent};
 }
 function load(){
@@ -2446,9 +2446,20 @@ function mailCard(p){
       <div class="actions">
         ${p.objet?`<button class="btn map" onclick="copyMail(event,'${p.id}','objet')">${icon('note')}Copier l'objet</button>`:''}
         <button class="btn call" onclick="copyMail(event,'${p.id}','corps')">${icon('mail')}Copier ${p.genre==='Note'?'la note':'le message'}</button>
+        ${p.genre!=='Note'?`<button class="btn map" onclick="ecrireMail(event,'${p.id}')">${icon('send')}Ouvrir dans ma boîte mail</button>`:''}
       </div>
     </div></div>
   </div>`;
+}
+/* Ouvre l'application mail du téléphone avec l'objet et le message déjà écrits.
+   Le destinataire est prérempli quand on le connaît, sinon il reste à compléter. */
+function ecrireMail(ev,id){
+  ev.stopPropagation();
+  const p=data.find(x=>String(x.id)===String(id)); if(!p) return;
+  const url='mailto:'+encodeURIComponent(p.dest||'')
+          +'?subject='+encodeURIComponent(p.objet||'')
+          +'&body='+encodeURIComponent(p.corps||'');
+  location.href=url;
 }
 function copyMail(ev,id,field){
   ev.stopPropagation();
