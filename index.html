@@ -1128,7 +1128,20 @@ const FEEDBACK = {
   equipe: "entry.545984953"     // « Votre équipe »
 };
 // Doit correspondre EXACTEMENT aux options du formulaire, sinon Google écarte la réponse.
-const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Polyvalent"];
+const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Polyvalent","Article 60"];
+/* Deux versions de l'accueil. La version complète ouvre tout ; la version simple ne garde
+   que Réseau, Formations et Gestion du centre. Le rôle décide, rien à régler au cas par cas :
+   il suffit de changer le rôle de la personne dans l'Admin. */
+const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi"];
+const PAVES_SIMPLE = ["reseau","formations","centre"];
+function versionPro(){
+  try{
+    if(!PROFILE) return true;          // profil pas encore connu : on n'ampute rien
+    if(PROFILE.admin || PROFILE.pfo) return true;
+    if(!PROFILE.equipe) return true;   // rôle non renseigné : on n'ampute rien non plus
+    return ROLES_PRO.indexOf(PROFILE.equipe) >= 0;
+  }catch(e){ return true; }
+}
 
 /* Guides de questions (arbres) : orientation, PAS conseil juridique.
    Chaque nœud a soit une question `q` + options `opts` [{t,go}], soit un résultat `r`. */
@@ -1981,7 +1994,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v147';
+const APP_VERSION = 'v148';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2290,14 +2303,16 @@ function tileHTML(ic,label,count,onclickAttr,color,avecCompteur){
 }
 function homeHTML(){
   const reseauCount=data.filter(p=>DOM[p.domaine]&&DOM[p.domaine].reseau).length;
-  const tiles=[
-    tileHTML('compass',"Réseau",reseauCount,"openReseau()",'var(--c-reseau)'),
-    tileHTML('demarche',"Démarches",countDom('demarches'),"openDomaine('demarches')",'var(--c-demarches)'),
-    tileHTML('book',"Formations",countDom('formations'),"openDomaine('formations')",'var(--c-formations)'),
-    tileHTML('mail',"Mail et note type",countDom('mails'),"openDomaine('mails')",'var(--c-mails)'),
-    tileHTML('clipboard',"Conduite à adopter",countDom('methodes'),"openDomaine('methodes')",'var(--c-pratiques)'),
-    tileHTML('building',"Gestion du centre",countDom('centre'),"openDomaine('centre')",'var(--c-centre)')
-  ].join('');
+  const pro=versionPro();
+  const paves=[
+    {k:'reseau',     h:tileHTML('compass',"Réseau",reseauCount,"openReseau()",'var(--c-reseau)')},
+    {k:'demarches',  h:tileHTML('demarche',"Démarches",countDom('demarches'),"openDomaine('demarches')",'var(--c-demarches)')},
+    {k:'formations', h:tileHTML('book',"Formations",countDom('formations'),"openDomaine('formations')",'var(--c-formations)')},
+    {k:'mails',      h:tileHTML('mail',"Mail et note type",countDom('mails'),"openDomaine('mails')",'var(--c-mails)')},
+    {k:'methodes',   h:tileHTML('clipboard',"Conduite à adopter",countDom('methodes'),"openDomaine('methodes')",'var(--c-pratiques)')},
+    {k:'centre',     h:tileHTML('building',"Gestion du centre",countDom('centre'),"openDomaine('centre')",'var(--c-centre)')}
+  ];
+  const tiles=paves.filter(p=>pro || PAVES_SIMPLE.indexOf(p.k)>=0).map(p=>p.h).join('');
   const fleur='<ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(0 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(40 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(80 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(120 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(160 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(200 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(240 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(280 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(320 12 12) rotate(24 12 6.6)"></ellipse>';
   const titre=`<div class="home-title">`+
     `<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url('picto/ico-demidisques.svg');mask-image:url('picto/ico-demidisques.svg')"></span><svg class="deco deco-arc" viewBox="0 0 60 31" fill="none"><path d="M2 30 A28 28 0 0 1 58 30" stroke="#e63329" stroke-width="4.6"/><path d="M6.6 30 A23.4 23.4 0 0 1 53.4 30" stroke="#f8763f" stroke-width="4.6"/><path d="M11.2 30 A18.8 18.8 0 0 1 48.8 30" stroke="#f5c542" stroke-width="4.6"/><path d="M15.8 30 A14.2 14.2 0 0 1 44.2 30" stroke="#6cb392" stroke-width="4.6"/><path d="M20.4 30 A9.6 9.6 0 0 1 39.6 30" stroke="#2f6fd0" stroke-width="4.6"/><path d="M25 30 A5 5 0 0 1 35 30" stroke="#a05fd0" stroke-width="4.6"/></svg></span>`+
@@ -3926,6 +3941,8 @@ async function initAuth(){
   localStorage.setItem('cousin_auth_ok', session.user.email||'1');
   markSeen(session.user);
   hideGate();
+  // On connaît le rôle avant d'afficher l'accueil : les pavés s'adaptent sans clignoter.
+  loadProfile().then(function(){ render(); });
 }
 initAuth();
 
