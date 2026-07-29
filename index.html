@@ -317,7 +317,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   }
   .pave:active{transform:scale(.96)}
 .pave svg, .pave .pico{width:35px; height:35px}
-  .pave span{font-size:12.5px; font-weight:750; line-height:1.1; max-width:100%; overflow-wrap:anywhere; hyphens:auto}
+  .pave span{font-size:12.5px; font-weight:750; line-height:1.1}
   .pave.active{border-color:var(--ink)}
 /* Urgences : fond rouge → texte clair, comme partout ailleurs dans l'app. */
   .pave[data-k="urgences"]{color:#f2eee6}
@@ -325,10 +325,18 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* Commune chips */
   .chips{display:flex; gap:8px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
-  /* Sur ordinateur (souris), on ne peut pas glisser du doigt : les filtres passent
-     simplement à la ligne au lieu de défiler. Sur téléphone, rien ne change. */
+  /* À la souris, on ne peut pas glisser du doigt : on montre alors une petite barre
+     de défilement sous la rangée, et on peut aussi l'attraper pour la faire glisser.
+     Sur téléphone (tactile), rien ne change : la barre reste invisible. */
   @media (hover:hover) and (pointer:fine){
-    .chips, .domnav{flex-wrap:wrap; overflow-x:visible}
+    .chips, .domnav{scrollbar-width:thin; scrollbar-color:rgba(27,27,27,.22) transparent; cursor:grab}
+    .chips{padding-bottom:12px}
+    .domnav{padding-bottom:16px}
+    .chips.glisse, .domnav.glisse{cursor:grabbing}
+    .chips::-webkit-scrollbar, .domnav::-webkit-scrollbar{display:block; height:6px}
+    .chips::-webkit-scrollbar-track, .domnav::-webkit-scrollbar-track{background:transparent}
+    .chips::-webkit-scrollbar-thumb, .domnav::-webkit-scrollbar-thumb{background:rgba(27,27,27,.22); border-radius:3px}
+    .chips::-webkit-scrollbar-thumb:hover, .domnav::-webkit-scrollbar-thumb:hover{background:rgba(27,27,27,.38)}
   }
   .chip{
     flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
@@ -2093,7 +2101,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v178';
+const APP_VERSION = 'v179';
 const SEED_VERSION = 51;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3222,6 +3230,37 @@ document.addEventListener('pointerdown', e=>{
     document.querySelectorAll('.newsbtn.voix').forEach(b=>b.classList.remove('voix'));
   });
 });
+
+/* À la souris : on attrape la rangée et on la fait glisser. Un simple clic reste un clic
+   (on ne bloque le bouton que si la souris a vraiment bougé). */
+(function(){
+  const SEL='.chips, .domnav, .acc-paves, .fc-chips, .adm-shift';
+  let zone=null, departX=0, departScroll=0, bouge=false;
+  document.addEventListener('pointerdown', function(e){
+    if(e.pointerType!=='mouse' || e.button!==0) return;
+    const z=(e.target && e.target.closest) ? e.target.closest(SEL) : null;
+    if(!z || z.scrollWidth <= z.clientWidth+2) return;
+    zone=z; departX=e.clientX; departScroll=z.scrollLeft; bouge=false;
+  });
+  document.addEventListener('pointermove', function(e){
+    if(!zone) return;
+    const d=e.clientX-departX;
+    if(!bouge && Math.abs(d)<5) return;
+    bouge=true; zone.classList.add('glisse');
+    zone.scrollLeft = departScroll - d;
+    e.preventDefault();
+  });
+  document.addEventListener('pointerup', function(e){
+    if(!zone) return;
+    if(bouge){ const z=zone; z.classList.remove('glisse');
+      // on avale le clic qui suit le glissement
+      const avale=function(ev){ ev.stopPropagation(); ev.preventDefault(); };
+      z.addEventListener('click', avale, {capture:true, once:true});
+      setTimeout(function(){ z.removeEventListener('click', avale, true); }, 0);
+    }
+    zone=null; bouge=false;
+  });
+})();
 
 /* Filet de sécurité pour les écrans tactiles-et-souris : la molette fait défiler
    les rangées de filtres horizontalement au lieu de ne rien faire. */
