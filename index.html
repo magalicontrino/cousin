@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#f2eee6">
 <title>COUSIN — Outil d'équipe · Bruxelles</title>
-<meta name="description" content="Réseau · Démarches · Formations · Mails et notes types · Conduite à adopter · Gestion du centre">
+<meta name="description" content="Réseau · Démarches · Formations · Mails et notes types · Protocole · Gestion du centre">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="COUSIN">
 <meta property="og:title" content="COUSIN — Outil d'équipe · Bruxelles">
-<meta property="og:description" content="Réseau · Démarches · Formations · Mails et notes types · Conduite à adopter · Gestion du centre">
+<meta property="og:description" content="Réseau · Démarches · Formations · Mails et notes types · Protocole · Gestion du centre">
 <meta property="og:url" content="https://cousin.magalicontrino.com/">
 <meta property="og:image" content="https://cousin.magalicontrino.com/og-cousin.png">
 <meta property="og:image:width" content="1200">
@@ -86,6 +86,9 @@ button, input, select, textarea{font-family:inherit}
     cursor:pointer; font-family:inherit; transition:transform .16s cubic-bezier(.22,1,.36,1)}
   .auth-google:active{transform:scale(.97)}
   .auth-msg{margin-top:26px; color:#4a4a4a; font-size:14px; line-height:1.55; max-width:320px; white-space:pre-line}
+  .auth-mot{width:100%; margin-top:16px; border:1.5px solid var(--line); border-radius:14px; padding:12px 14px;
+    font:inherit; font-size:14px; background:var(--card); color:var(--ink); resize:none}
+  .auth-mot:focus{outline:none; border-color:var(--gold)}
   .auth-switch{margin-top:18px; background:none; border:0; color:#b8880c; font-size:14px; font-weight:700; cursor:pointer; text-decoration:underline}
 /* L'app garde une largeur de téléphone et reste centrée, même sur grand écran. */
   .wrap{width:var(--appw); max-width:100%; margin:0 auto; container-type:inline-size}
@@ -865,6 +868,7 @@ input, textarea, select{
   .adm-req{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin-bottom:9px}
   .adm-req-i{display:flex; flex-direction:column; gap:2px; margin-bottom:9px}
   .adm-req-i b{font-size:14px; font-weight:800; overflow-wrap:anywhere}
+  .adm-req-i em{font-style:normal; font-size:11px; font-weight:700; color:var(--gold-d); margin-top:2px}
   .adm-req-i span{font-size:12.5px; color:var(--muted)}
   .adm-req-a{display:flex; gap:8px}
   .adm-ok{flex:1; background:var(--gold); border:0; border-radius:10px; padding:10px; font-weight:800; font-size:13px; cursor:pointer; color:#1b1b1b}
@@ -1024,7 +1028,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
       Connecte toi avec google
     </button>
     <div id="authMsg" class="auth-msg"></div>
-    <button id="authReq" class="auth-google" onclick="requestAccess()" style="display:none;margin-top:16px">Demander l'accès</button>
+    <textarea id="authMot" class="auth-mot" rows="2" placeholder="Ton prénom, ta fonction… un mot pour Mag" style="display:none"></textarea>
+    <button id="authReq" class="auth-google" onclick="requestAccess()" style="display:none;margin-top:10px">Demander l'accès</button>
     <button id="authSwitch" class="auth-switch" onclick="signOutCousin()" style="display:none">Changer de compte</button>
   </div>
 </div>
@@ -1128,7 +1133,7 @@ const DOMAINES = [
   {key:"lgbt",        label:"LGBTQI+",            short:"LGBTQI+",   ic:"rainbow",     color:GOLD, soft:GOLD_SOFT, reseau:true},
   {key:"addictions",  label:"Drogues & addictions",short:"Addictions",ic:"medical",    color:GOLD, soft:GOLD_SOFT, reseau:true},
   {key:"urgences",    label:"Urgences",           short:"Urgences",  ic:"alert",       color:GOLD, soft:GOLD_SOFT},   /* pas de pavé : déjà dans l'en-tête et sur le bandeau rouge */
-  {key:"methodes",    label:"Conduite à adopter", short:"Conduite",  ic:"clipboard",   color:GOLD, soft:GOLD_SOFT, method:true},
+  {key:"methodes",    label:"Protocole",          short:"Protocole", ic:"clipboard",   color:GOLD, soft:GOLD_SOFT, method:true},
   {key:"formations",  label:"Formations",         short:"Formations",ic:"book",        color:GOLD, soft:GOLD_SOFT, isFormation:true},
   {key:"mails",       label:"Mail et note type",  short:"Mails",     ic:"mail",        color:GOLD, soft:GOLD_SOFT, isMail:true},
   {key:"centre",      label:"Gestion du centre",  short:"Centre",    ic:"building",    color:GOLD, soft:GOLD_SOFT, method:true}
@@ -2023,7 +2028,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v150';
+const APP_VERSION = 'v151';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2150,7 +2155,15 @@ function navPictos(){
          `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
          `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
-         `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}</button>`;
+         `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}${alertesProfil()}</button>`;
+}
+/* Pastille rouge sur le profil : Mag doit voir qu'une demande d'accès l'attend,
+   sans avoir à ouvrir sa page. */
+function alertesProfil(){
+  try{
+    const n = (ADMIN_RESUME && ADMIN_RESUME.demandes) ? ADMIN_RESUME.demandes : 0;
+    return n ? `<em class="hbadge">${n>9?'9+':n}</em>` : '';
+  }catch(e){ return ''; }
 }
 function updateFavBadge(){
   const has=data.some(p=>p.fav);
@@ -2344,7 +2357,7 @@ function homeHTML(){
     {k:'demarches',  h:tileHTML('demarche',"Démarches",countDom('demarches'),"openDomaine('demarches')",'var(--c-demarches)')},
     {k:'formations', h:tileHTML('book',"Formations",countDom('formations'),"openDomaine('formations')",'var(--c-formations)')},
     {k:'mails',      h:tileHTML('mail',"Mail et note type",countDom('mails'),"openDomaine('mails')",'var(--c-mails)')},
-    {k:'methodes',   h:tileHTML('clipboard',"Conduite à adopter",countDom('methodes'),"openDomaine('methodes')",'var(--c-pratiques)')},
+    {k:'methodes',   h:tileHTML('clipboard',"Protocole",countDom('methodes'),"openDomaine('methodes')",'var(--c-pratiques)')},
     {k:'centre',     h:tileHTML('building',"Gestion du centre",countDom('centre'),"openDomaine('centre')",'var(--c-centre)')}
   ];
   const tiles=paves.filter(p=>permis.indexOf(p.k)>=0).map(p=>p.h).join('');
@@ -3156,9 +3169,14 @@ async function requestAccess(){
   if(!sb) return;
   const rq=_g('authReq'), email=(window._reqEmail||'').toLowerCase();
   if(!email) return;
+  // On joint le nom du compte Google et le mot laissé : Mag doit savoir qui demande.
+  const champ=_g('authMot');
+  const mot=[ (window._reqNom||'').trim(), champ ? (champ.value||'').trim() : '' ]
+            .filter(Boolean).join(' — ');
   try{
-    await sb.from('access_requests').insert({ email });
+    await sb.from('access_requests').insert({ email, mot: mot || null });
     if(rq){ rq.textContent="Demande envoyée ✓"; rq.disabled=true; rq.style.opacity=.7; }
+    if(champ) champ.style.display='none';
     _g('authMsg').textContent="Demande envoyée ✓\n\nMag la voit dans son espace et la valide. Tu n'as rien d'autre à faire : reviens sur cette page plus tard, et si c'est validé tu entres directement.\n\nPense à la prévenir si c'est urgent.";
   }catch(e){ if(rq) rq.textContent="Réessayer"; }
 }
@@ -3177,6 +3195,15 @@ let ADMIN_RESUME=null;   // { membres, actifs, demandes } — pour le bouton « 
 let ACCES_ROLES=null;    // { rôle: [pavés] } — réglé depuis l'Admin, null tant que la base n'a pas répondu
 const LISTE_LABELS={ 'pfo-jour':'PFO — Jour', 'pfo-nuit':'PFO — Nuit', 'médical':'Médical', 'polyvalent-jour':'Polyvalent — Jour', 'polyvalent-nuit':'Polyvalent — Nuit' };
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','polyvalent-jour','polyvalent-nuit'];
+/* « le 29 juillet à 9 h 12 » — pour savoir quand la demande est arrivée. */
+function quandFr(iso){
+  if(!iso) return '';
+  const d=new Date(iso); if(isNaN(d)) return '';
+  const M=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const h=String(d.getHours()), mn=String(d.getMinutes()).padStart(2,'0');
+  const auj=new Date(); const memeJour = d.toDateString()===auj.toDateString();
+  return (memeJour ? "aujourd'hui" : 'le '+d.getDate()+' '+M[d.getMonth()])+' à '+h+' h '+mn;
+}
 function listeRank(k){ const i=LISTE_ORDER.indexOf(k); return i<0?99:i; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -3731,7 +3758,7 @@ function adminHTML(){
   let reqs='';
   if(ADMIN.requests.length){
     reqs=`<div class="adm-sec"><div class="adm-h">Demandes d'accès (${ADMIN.requests.length})</div>`+
-      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.email)}</b>${r.mot?`<span>${esc(r.mot)}</span>`:''}</div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
+      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}<span>${esc(r.email)}</span><em>${esc(quandFr(r.cree_le))}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
   const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option>${esc(r)}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   const members=ADMIN.members.map(mb=>{
@@ -3755,7 +3782,7 @@ function adminHTML(){
 /* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
    l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
 const PAVES_NOMS={reseau:'Réseau', demarches:'Démarches', formations:'Formations',
-                  mails:'Mails & notes', methodes:'Conduite', centre:'Centre'};
+                  mails:'Mails & notes', methodes:'Protocole', centre:'Centre'};
 function pavesDuRole(role){
   if(ACCES_ROLES && ACCES_ROLES[role]) return ACCES_ROLES[role];
   return ROLES_PRO.indexOf(role)>=0 ? PAVES_TOUS.slice() : PAVES_SIMPLE.slice();
@@ -4036,7 +4063,9 @@ async function initAuth(){
     }
     showMessage("Ton compte "+(session.user.email||'')+" n'est pas encore autorisé.\n\nDemande l'accès ci-dessous : Mag reçoit ta demande et te débloque.");
     window._reqEmail = session.user.email||'';
+    try{ const mt=session.user.user_metadata||{}; window._reqNom = mt.full_name||mt.name||''; }catch(e){}
     const rq=_g('authReq'); if(rq){ rq.style.display='inline-flex'; }
+    const ch=_g('authMot'); if(ch){ ch.style.display='block'; }
     return;
   }
   localStorage.setItem('cousin_auth_ok', session.user.email||'1');
