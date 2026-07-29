@@ -854,6 +854,13 @@ input, textarea, select{
   .pf-admin-badge{flex:0 0 auto; font-style:normal; font-size:11px; font-weight:900; background:#e63329;
     color:#f2eee6; border-radius:20px; padding:4px 9px; line-height:1}
   .adm-sec{margin-bottom:16px}
+  /* Qui voit quoi : une ligne par rôle, un bouton par pavé */
+  .acc-row{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; margin-bottom:9px}
+  .acc-role{font-size:13.5px; font-weight:900; margin-bottom:8px}
+  .acc-paves{display:flex; flex-wrap:wrap; gap:6px}
+  .acc-p{border:1px solid var(--line); background:var(--soft); color:var(--muted); border-radius:20px;
+    padding:6px 11px; font-size:12px; font-weight:800; cursor:pointer}
+  .acc-p.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
   .adm-h{font-size:11px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; color:var(--gold-d); margin:0 2px 9px}
   .adm-req{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin-bottom:9px}
   .adm-req-i{display:flex; flex-direction:column; gap:2px; margin-bottom:9px}
@@ -1148,15 +1155,21 @@ const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Polyvale
 /* Deux versions de l'accueil. La version complète ouvre tout ; la version simple ne garde
    que Réseau, Formations et Gestion du centre. Le rôle décide, rien à régler au cas par cas :
    il suffit de changer le rôle de la personne dans l'Admin. */
-const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi"];
+const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi","Coordi"];
 const PAVES_SIMPLE = ["reseau","formations","centre"];
-function versionPro(){
+const PAVES_TOUS = ["reseau","demarches","formations","mails","methodes","centre"];
+/* Réglage vivant : ce que chaque rôle voit est enregistré dans la base (table roles_acces)
+   et se change depuis l'Admin. Tant que la base ne répond pas, on retombe sur les règles
+   ci-dessus — et dans le doute on n'ampute jamais l'accueil. */
+function pavesVisibles(){
   try{
-    if(!PROFILE) return true;          // profil pas encore connu : on n'ampute rien
-    if(PROFILE.admin || PROFILE.pfo) return true;
-    if(!PROFILE.equipe) return true;   // rôle non renseigné : on n'ampute rien non plus
-    return ROLES_PRO.indexOf(PROFILE.equipe) >= 0;
-  }catch(e){ return true; }
+    if(!PROFILE) return PAVES_TOUS;
+    if(PROFILE.admin || PROFILE.pfo) return PAVES_TOUS;
+    const role=PROFILE.equipe;
+    if(!role) return PAVES_TOUS;
+    if(ACCES_ROLES && ACCES_ROLES[role]) return ACCES_ROLES[role];
+    return ROLES_PRO.indexOf(role)>=0 ? PAVES_TOUS : PAVES_SIMPLE;
+  }catch(e){ return PAVES_TOUS; }
 }
 
 /* Guides de questions (arbres) : orientation, PAS conseil juridique.
@@ -2010,7 +2023,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v149';
+const APP_VERSION = 'v150';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2325,7 +2338,7 @@ function tileHTML(ic,label,count,onclickAttr,color,avecCompteur){
 }
 function homeHTML(){
   const reseauCount=data.filter(p=>DOM[p.domaine]&&DOM[p.domaine].reseau).length;
-  const pro=versionPro();
+  const permis=pavesVisibles();
   const paves=[
     {k:'reseau',     h:tileHTML('compass',"Réseau",reseauCount,"openReseau()",'var(--c-reseau)')},
     {k:'demarches',  h:tileHTML('demarche',"Démarches",countDom('demarches'),"openDomaine('demarches')",'var(--c-demarches)')},
@@ -2334,7 +2347,7 @@ function homeHTML(){
     {k:'methodes',   h:tileHTML('clipboard',"Conduite à adopter",countDom('methodes'),"openDomaine('methodes')",'var(--c-pratiques)')},
     {k:'centre',     h:tileHTML('building',"Gestion du centre",countDom('centre'),"openDomaine('centre')",'var(--c-centre)')}
   ];
-  const tiles=paves.filter(p=>pro || PAVES_SIMPLE.indexOf(p.k)>=0).map(p=>p.h).join('');
+  const tiles=paves.filter(p=>permis.indexOf(p.k)>=0).map(p=>p.h).join('');
   const fleur='<ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(0 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(40 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(80 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(120 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(160 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(200 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(240 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(280 12 12) rotate(24 12 6.6)"></ellipse><ellipse cx="12" cy="6.6" rx="2.5" ry="5.4" transform="rotate(320 12 12) rotate(24 12 6.6)"></ellipse>';
   const titre=`<div class="home-title">`+
     `<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url('picto/ico-demidisques.svg');mask-image:url('picto/ico-demidisques.svg')"></span><svg class="deco deco-arc" viewBox="0 0 60 31" fill="none"><path d="M2 30 A28 28 0 0 1 58 30" stroke="#e63329" stroke-width="4.6"/><path d="M6.6 30 A23.4 23.4 0 0 1 53.4 30" stroke="#f8763f" stroke-width="4.6"/><path d="M11.2 30 A18.8 18.8 0 0 1 48.8 30" stroke="#f5c542" stroke-width="4.6"/><path d="M15.8 30 A14.2 14.2 0 0 1 44.2 30" stroke="#6cb392" stroke-width="4.6"/><path d="M20.4 30 A9.6 9.6 0 0 1 39.6 30" stroke="#2f6fd0" stroke-width="4.6"/><path d="M25 30 A5 5 0 0 1 35 30" stroke="#a05fd0" stroke-width="4.6"/></svg></span>`+
@@ -3161,6 +3174,7 @@ async function markSeen(user){
 /* ---------- Mon profil & check-lists (base privée, réservé à l'équipe connectée) ---------- */
 let PROFILE=null, CHECKLISTS=[], DONE={}, profileLoaded=false;
 let ADMIN_RESUME=null;   // { membres, actifs, demandes } — pour le bouton « Gestion de l'équipe »
+let ACCES_ROLES=null;    // { rôle: [pavés] } — réglé depuis l'Admin, null tant que la base n'a pas répondu
 const LISTE_LABELS={ 'pfo-jour':'PFO — Jour', 'pfo-nuit':'PFO — Nuit', 'médical':'Médical', 'polyvalent-jour':'Polyvalent — Jour', 'polyvalent-nuit':'Polyvalent — Nuit' };
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','polyvalent-jour','polyvalent-nuit'];
 function listeRank(k){ const i=LISTE_ORDER.indexOf(k); return i<0?99:i; }
@@ -3198,6 +3212,11 @@ async function loadProfile(){
     try{
       const { data:done } = await sb.from('checklist_faites').select('tache_id').eq('jour', todayStr());
       (done||[]).forEach(d=>DONE[d.tache_id]=true);
+    }catch(e){}
+    // Ce que chaque rôle voit : réglé par Magali dans l'Admin.
+    try{
+      const { data:acc } = await sb.from('roles_acces').select('role,paves');
+      if(acc && acc.length){ ACCES_ROLES={}; acc.forEach(function(r){ ACCES_ROLES[r.role]=Array.isArray(r.paves)?r.paves:[]; }); }
     }catch(e){}
     // Chambres en attente : le compteur est chargé ici pour s'afficher sur le bouton,
     // sans avoir à ouvrir la page.
@@ -3731,7 +3750,39 @@ function adminHTML(){
     return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${usageHTML(mb)}</div>`;
   }).join('');
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${members}</div>`;
-  return `<div class="pf-wrap">${reqs}${add}${team}</div>`;
+  return `<div class="pf-wrap">${reqs}${add}${team}${accesHTML()}</div>`;
+}
+/* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
+   l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
+const PAVES_NOMS={reseau:'Réseau', demarches:'Démarches', formations:'Formations',
+                  mails:'Mails & notes', methodes:'Conduite', centre:'Centre'};
+function pavesDuRole(role){
+  if(ACCES_ROLES && ACCES_ROLES[role]) return ACCES_ROLES[role];
+  return ROLES_PRO.indexOf(role)>=0 ? PAVES_TOUS.slice() : PAVES_SIMPLE.slice();
+}
+function accesHTML(){
+  const lignes=ROLE_OPTS.map(function(role){
+    const on=pavesDuRole(role);
+    const chips=PAVES_TOUS.map(function(k){
+      return `<button class="acc-p ${on.indexOf(k)>=0?'on':''}" onclick="toggleAcces('${esc(role)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
+    }).join('');
+    return `<div class="acc-row"><div class="acc-role">${esc(role)}</div><div class="acc-paves">${chips}</div></div>`;
+  }).join('');
+  return `<div class="adm-sec"><div class="adm-h">Qui voit quoi</div>
+    <div class="adm-hint" style="margin-bottom:10px">Touche un pavé pour l'ouvrir ou le fermer à ce rôle. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
+    ${lignes}</div>`;
+}
+async function toggleAcces(role, pave){
+  const cur=pavesDuRole(role).slice();
+  const i=cur.indexOf(pave);
+  if(i>=0) cur.splice(i,1); else cur.push(pave);
+  if(!ACCES_ROLES) ACCES_ROLES={};
+  ACCES_ROLES[role]=cur;
+  if(view==='admin') render();
+  try{
+    const { error } = await sb.from('roles_acces').upsert({ role:role, paves:cur }, { onConflict:'role' });
+    if(error) throw error;
+  }catch(e){ cousinToast("Réglage non enregistré : "+((e&&e.message)||'erreur')); }
 }
 async function addMember(){
   const em=document.getElementById('admEmail'), ro=document.getElementById('admRole');
