@@ -536,6 +536,22 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     border:4px solid var(--bg); display:flex; align-items:center; justify-content:center; cursor:pointer}
 .dock-plus svg, .dock-plus .pico{width:25px; height:25px}
   .dock-plus:active{transform:scale(.97)}
+  /* Pétitions */
+  .pet-card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 17px; margin-bottom:14px}
+  .pet-card.off{opacity:.62}
+  .pet-top{display:flex; align-items:flex-start; gap:12px}
+.pet-top svg, .pet-top .pico{width:26px; height:26px; flex:0 0 auto; color:#e63329}
+  .pet-id{display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 auto}
+  .pet-id b{font-size:16px; font-weight:900; line-height:1.3}
+  .pet-id span{font-size:12.5px; font-weight:700; color:var(--muted)}
+  .pet-off{flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:900; letter-spacing:.05em;
+    text-transform:uppercase; background:var(--soft); color:var(--muted); border-radius:20px; padding:5px 10px}
+  .pet-desc{font-size:13.5px; line-height:1.55; color:var(--ink); margin:11px 0 0}
+  .pet-date{font-size:12px; font-weight:700; color:var(--muted); margin:7px 0 0}
+  .pet-go{display:flex; align-items:center; justify-content:center; gap:4px; margin-top:14px; padding:14px;
+    border-radius:14px; background:#1b1b1b; color:var(--bg); font-size:14.5px; font-weight:800; text-decoration:none}
+  .pet-go .pet-fleche{width:14px; height:14px; opacity:.8}
+  .pet-go:active{transform:scale(.99)}
   /* Fil d'actu */
   .feed-compose{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--fc); border-radius:16px; padding:12px; margin-bottom:16px; }
   /* Choix de la catégorie avant de publier */
@@ -1994,7 +2010,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v148';
+const APP_VERSION = 'v149';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2173,6 +2189,11 @@ function updateHeader(){
     em.innerHTML=icon('building');
     document.getElementById('hName').textContent="Chambres";
     back.onclick=navRetour(openMaListe);
+  }else if(view==="petition"){
+    em.style.color='#e63329';
+    em.innerHTML=icon('petition');
+    document.getElementById('hName').textContent="Pétitions";
+    back.onclick=navRetour(goHome);
   }else if(view==="feed"){
     em.style.color='#f3c6da';
     em.innerHTML=icon('feed');
@@ -2230,6 +2251,7 @@ function render(){
   if(view==="chambres"){ el.innerHTML = chambresHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
+  if(view==="petition"){ el.innerHTML = petitionHTML(); return; }
 
   // Vue domaine
   const dm=DOM[view];
@@ -3441,8 +3463,36 @@ function chambresHTML(){
 let FEED=[], feedLoaded=false, REACTIONS={};
 /* 1er clic : la pastille se déploie et annonce ce qu'il y a dedans.
    2e clic : on ouvre le fil. Si on ne fait rien, elle se replie seule au bout de deux minutes. */
-/* Bouton pétition : en attente de ce qu'il doit ouvrir (Magali doit préciser). */
-function openPetition(){ cousinToast("La pétition arrive bientôt"); }
+/* Pétitions à signer et à faire circuler. `fin` = dernier jour (AAAA-MM-JJ) ; passée cette
+   date la pétition reste affichée mais marquée terminée. Laisser vide si pas de date. */
+const PETITIONS=[
+  { titre:"Uccle plus grande que la peur",
+    sous:"#NotInMyName — pétition citoyenne",
+    desc:"À signer et à faire circuler autour de vous.",
+    url:"https://www.change.org/p/notinmyname-uccle-plus-grande-que-la-peur",
+    fin:"" }
+];
+function petitionFinie(p){ return !!(p.fin && todayStr() > p.fin); }
+function dateFr(iso){
+  if(!iso) return '';
+  const M=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const d=String(iso).split('-'); if(d.length<3) return iso;
+  return parseInt(d[2],10)+' '+M[parseInt(d[1],10)-1]+' '+d[0];
+}
+function petitionHTML(){
+  if(!PETITIONS.length) return `<div class="empty">${icon('petition','width="40" height="40"')}<p><b>Aucune pétition en cours.</b></p></div>`;
+  return '<div class="pf-wrap">'+PETITIONS.map(function(p){
+    const finie=petitionFinie(p);
+    return `<div class="pet-card ${finie?'off':''}">
+      <div class="pet-top">${icon('petition')}<div class="pet-id"><b>${esc(p.titre)}</b>${p.sous?`<span>${esc(p.sous)}</span>`:''}</div>
+        ${finie?'<em class="pet-off">Terminée</em>':''}</div>
+      ${p.desc?`<p class="pet-desc">${esc(p.desc)}</p>`:''}
+      ${p.fin?`<p class="pet-date">${finie?'Clôturée le':'Jusqu\'au'} ${esc(dateFr(p.fin))}</p>`:''}
+      ${finie?'' : `<a class="pet-go" href="${esc(p.url)}" target="_blank" rel="noopener">Signer la pétition${icon('lienfin','class="pet-fleche"')}</a>`}
+    </div>`;
+  }).join('')+'</div>';
+}
+function openPetition(){ view='petition'; query=''; urgOpen=false; const s=document.getElementById('search'); if(s) s.value=''; render(); }
 function openFeed(){
   view="feed"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
@@ -3968,7 +4018,7 @@ function navEtat(){
 }
 function navMeme(a,b){ return !!a && !!b && JSON.stringify(a)===JSON.stringify(b); }
 const NAV_NOMS={home:'accueil', reseau:'reseau', favoris:'favoris', profil:'profil',
-                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'quiz'};
+                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'quiz', petition:'petitions'};
 function navAdresse(s){
   if(!s) return '#accueil';
   if(s.modal) return s.modal==='proposer' ? '#proposer-une-fiche' : '#une-idee';
@@ -4009,6 +4059,7 @@ function navRestaure(s){
     else if(s.view==='maliste')  openMaListe();
     else if(s.view==='chambres') openChambres();
     else if(s.view==='feed')     openFeed();
+    else if(s.view==='petition') openPetition();
     else if(s.view==='admin')    openAdmin();
     else if(s.view==='quiz')     openQuiz(s.quiz||undefined);
     else {
@@ -4035,7 +4086,7 @@ window.addEventListener('popstate', function(e){
 });
 // Chaque fonction qui change d'écran laisse sa trace dans l'historique.
 ['goHome','openDomaine','openReseau','openFavoris','openUrgences','toggleUrg','quickSearch',
- 'openProfil','openMaListe','openChambres','openFeed','openAdmin','openQuiz',
+ 'openProfil','openMaListe','openChambres','openFeed','openAdmin','openQuiz','openPetition',
  'openForm','closeForm','openFeedback','closeFeedback'].forEach(function(n){
   const f=window[n]; if(typeof f!=='function') return;
   window[n]=function(){ const r=f.apply(this, arguments); navEnregistre(); return r; };
