@@ -687,7 +687,18 @@ input, textarea, select{
 .pf-empty svg, .pf-empty .pico{color:var(--faint); margin-bottom:8px}
   .pf-empty p{margin:4px 0; font-size:14px}
 /* Carte du jour : l'action principale, avec l'avancement visible */
-  .pf-jour{display:block; width:100%; text-align:left; margin-bottom:12px; padding:16px 17px; border-radius:16px;
+  .pf-jour{display:flex; align-items:center; gap:14px; width:100%; background:var(--card);
+    border:1px solid var(--line); border-radius:18px; padding:15px 16px; cursor:pointer; text-align:left;
+    margin-bottom:14px; color:var(--ink)}
+  .pf-jour:active{transform:scale(.99)}
+  .pf-anneau{position:relative; flex:0 0 auto; width:52px; height:52px}
+  .pf-anneau svg{width:52px; height:52px; transform:rotate(-90deg)}
+  .pf-anneau em{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-style:normal; font-size:12.5px; font-weight:900}
+  .pf-jour-tx{display:flex; flex-direction:column; gap:2px; min-width:0}
+  .pf-jour-tx b{font-size:15.5px; font-weight:900}
+  .pf-jour-tx i{font-style:normal; font-size:12.5px; font-weight:700; color:var(--muted)}
+  .pf-jour-ancien{display:block; width:100%; text-align:left; margin-bottom:12px; padding:16px 17px; border-radius:16px;
     background:var(--gold); border:0; color:#141414; cursor:pointer}
   .pf-jour:active{transform:scale(.99)}
   .pf-jour-h{display:flex; align-items:center; justify-content:space-between; gap:10px}
@@ -832,6 +843,8 @@ input, textarea, select{
   .qc-txt{font-size:13.5px; line-height:1.6; margin:0 0 10px; color:var(--ink)}
   .qc-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:11px}
   .qc-chip{font-size:11px; font-weight:800; background:rgba(27,27,27,.07); border-radius:11px; padding:4px 10px}
+  .qc-fiche:not(:empty){margin-top:12px}
+  .qc-fiche .card{margin-bottom:0}
   .qc-liens{display:flex; flex-direction:column; gap:8px}
   .qc-btn{display:flex; align-items:center; gap:10px; width:100%; padding:12px 14px; border-radius:12px;
     background:#1b1b1b; color:#f2eee6; border:0; font-size:13.5px; font-weight:800; cursor:pointer;
@@ -2068,7 +2081,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v163';
+const APP_VERSION = 'v165';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3385,12 +3398,21 @@ function profilHTML(){
   CHECKLISTS.filter(g=>g.mienne || !MES_LISTES.length).forEach(g=>{
     total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
   const pct = total ? Math.round(faites/total*100) : 0;
+  // Carte blanche + anneau de progression (choix de Mag) : le chiffre est dans l'anneau,
+  // le jaune reste réservé aux vrais boutons d'action.
+  const C=100.5;   // circonférence du cercle r=16
   const liste = total
     ? `<button class="pf-jour" onclick="openMaListe()">
-         <div class="pf-jour-h"><span class="pf-jour-t">${icon('list')}Ma liste du jour</span>
-           <span class="pf-jour-n">${faites}/${total}</span></div>
-         <div class="pf-bar"><i style="width:${pct}%"></i></div>
-         <div class="pf-jour-s">${faites===total?'Tout est fait, bravo 🎉':(faites?`Il reste ${total-faites} tâche${total-faites>1?'s':''}`:'À commencer')}</div>
+         <span class="pf-anneau">
+           <svg viewBox="0 0 40 40" aria-hidden="true">
+             <circle cx="20" cy="20" r="16" fill="none" stroke="var(--soft)" stroke-width="6"/>
+             <circle cx="20" cy="20" r="16" fill="none" stroke="${faites===total?'#6cb392':'var(--gold)'}" stroke-width="6"
+                     stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${(C*(1-pct/100)).toFixed(1)}"/>
+           </svg>
+           <em>${faites}/${total}</em>
+         </span>
+         <span class="pf-jour-tx"><b>Ma liste du jour</b>
+           <i>${faites===total?'Tout est fait, bravo 🎉':(faites?`Il reste ${total-faites} tâche${total-faites>1?'s':''}`:'À commencer')}</i></span>
        </button>`
     : `<div class="pf-empty pf-empty-s">${icon('list')}<p>Aucune check-list pour ton rôle.</p></div>`;
 
@@ -4080,15 +4102,26 @@ function quizCorrection(Q){
     if(p.tel) infos.push('<span class="qc-chip">'+esc(p.tel)+'</span>');
     if(infos.length) dedans += '<div class="qc-chips">'+infos.join('')+'</div>';
     const liens=[];
-    liens.push('<button class="qc-btn" onclick="quizVoirFiche(\''+p.id+'\')">'+icon('compass')+'<span>Voir la fiche dans '+esc(dm?dm.label:'le réseau')+'</span></button>');
+    liens.push('<button class="qc-btn" onclick="quizVoirFiche(\''+p.id+'\')">'+icon('compass')+'<span>Voir la fiche</span></button>');
     if(p.site) liens.push('<a class="qc-btn ext" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+icon('lien')+'<span>'+esc(p.site)+'</span></a>');
     dedans += '<div class="qc-liens">'+liens.join('')+'</div>';
   }
   return '<div class="qc '+(juste?'ok':'ko')+'">'+
-    '<div class="qc-h">'+(juste?'✅ Bonne réponse':'❌ Ce n\'était pas ça')+'</div>'+dedans+'</div>';
+    '<div class="qc-h">'+(juste?'✅ Bonne réponse':'❌ Ce n\'était pas ça')+'</div>'+dedans+
+    '<div class="qc-fiche" id="qcFiche"></div></div>';
 }
-/* Quitter le quiz pour la fiche, en la dépliant. */
+/* La fiche s'ouvre SOUS la réponse : on ne quitte pas le quiz. Un second appui la referme. */
 function quizVoirFiche(id){
+  const p=data.find(function(x){ return x.id===id; }); if(!p) return;
+  const zone=document.getElementById('qcFiche'); if(!zone) return;
+  if(zone.dataset.pour===String(id)){ zone.innerHTML=''; zone.dataset.pour=''; return; }
+  zone.dataset.pour=String(id);
+  zone.innerHTML = cardsHTML([p]);
+  const c=zone.querySelector('.card');
+  if(c && !c.classList.contains('open')) c.classList.add('open');
+  setTimeout(function(){ if(c) c.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
+}
+function quizVoirFicheAilleurs(id){
   const p=data.find(function(x){ return x.id===id; }); if(!p) return;
   openDomaine(p.domaine);
   setTimeout(function(){
