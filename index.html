@@ -299,9 +299,23 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .dgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
   /* Grand écran, page Réseau : on ne grossit pas les pavés, on en met plus par rangée.
      Ils gardent leur taille (150 px de côté) et la grille se centre. */
+  /* Écran d'ordinateur (souvent plus haut que large au bureau) : sans plafond, les
+     pavés de l'accueil s'étirent en longues bandes. On les garde compacts, alignés
+     en haut. Le téléphone (moins de 600 px) n'est pas concerné. */
+  @media (min-width:600px){
+    body.is-home .dgrid{grid-template-rows:repeat(2,auto); align-content:start}
+    body.is-home .dcard{aspect-ratio:1/1; height:auto; max-height:min(32vh,230px)}
+  }
   @media (min-width:1040px){
-    body.is-reseau{--appw:min(1180px, calc(100vw - 80px))}
-    body.is-reseau .dgrid{grid-template-columns:repeat(auto-fill, 150px); justify-content:center; gap:12px}
+    /* Grand écran : 7 pavés par rangée (les 14 domaines tiennent en deux rangées pleines).
+       La taille du pavé suit l'écran — de 150 px à 230 px — au lieu de rester figée,
+       et les deux rangées se placent au milieu de la place libre. */
+    body.is-reseau{--tuile:clamp(150px, calc((100vw - 100px) / 7 - 14px), 230px);
+                   --appw:min(calc(100vw - 72px), calc(7 * 230px + 6 * 14px))}
+    body.is-reseau .dgrid{grid-template-columns:repeat(auto-fill, var(--tuile)); justify-content:center; gap:14px}
+    body.is-reseau main{min-height:calc(100svh - 236px); display:flex; flex-direction:column}
+    body.is-reseau #view{flex:1 1 auto; display:flex; flex-direction:column}
+    body.is-reseau #view .dgrid{margin-top:auto; margin-bottom:auto}
     /* les cases vides ne servent qu'à compléter la rangée de 3 du téléphone */
     body.is-reseau .dcard.vide{display:none}
   }
@@ -314,6 +328,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .dcard.vide{background:rgba(27,27,27,.045); pointer-events:none}
   .dcard.vide:active{transform:none}
 .dcard svg, .dcard .pico{width:46px; height:46px; color:#1b1b1b; align-self:flex-end}
+/* Un mot très long (ACCOMPAGNEMENT, HÉBERGEMENT) ne doit jamais sortir du pavé :
+   il se coupe avec un trait d'union plutôt que de déborder. */
+.dcard span{hyphens:auto; -webkit-hyphens:auto; overflow-wrap:break-word}
   .dc-top{display:flex; flex-direction:column; gap:1px}
   .dcard span{font-size:clamp(9.5px,2.9vw,12.5px); font-weight:900; text-transform:uppercase;
     letter-spacing:-.02em; line-height:1.08; overflow-wrap:normal; word-break:keep-all; hyphens:none}
@@ -2117,7 +2134,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v185';
+const APP_VERSION = 'v186';
 const SEED_VERSION = 52;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
