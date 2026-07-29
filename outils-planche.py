@@ -21,20 +21,18 @@ libres = [f for f in sorted(os.listdir('picto'))
 
 PALETTE = ['#f3c6da', '#b28b7a', '#6cb392', '#f5c542', '#fd8fd0', '#f8763f', '#5b8fd4']
 
-def inline(f, coul='#f2eee6'):
-    """Le picto tel qu'il est vraiment : on ne retire la taille que sur la balise <svg>
-    (avant, on rognait celle de la première forme et le dessin disparaissait), et on
-    remplace seulement l'encre par la couleur d'affichage — les pictos multicolores
-    (arc-en-ciel, fleur, anneau) gardent donc leurs couleurs."""
+def inline(f, coul='#1b1b1b'):
+    """Le picto tel qu'il est vraiment. On ne retire la taille que sur la balise <svg>,
+    et on ne remplace que `currentColor` : les dessins de Magali arrivent avec des encres
+    variées (black, #1D1C1D, #1D1D1D…) et certains sont multicolores — on ne touche donc
+    à aucune couleur écrite dans le fichier, et on les affiche sur un carré clair."""
     p = os.path.join('picto', f)
     if not os.path.exists(p): return '<span class="ko">manquant</span>'
     c = re.sub(r'<\?xml[^>]*\?>', '', open(p, encoding='utf-8').read())
     def _svg(m):
         return re.sub(r'\s(width|height)="[^"]*"', '', m.group(0))
     c = re.sub(r'<svg[^>]*>', _svg, c, count=1)
-    for encre in ('#1D1C1D', '#1C1C1D', '#1C1C1C', '#1d1c1d', '#1b1b1b', 'currentColor'):
-        c = c.replace(encre, coul)
-    return c
+    return c.replace('currentColor', coul)
 
 sections, cur, sub, buf = [], None, None, []
 for it in man:
@@ -53,7 +51,7 @@ for titre, sub, items in sections:
                      it['etat'], '<span class="b todo">À REDESSINER</span>')
         fond = (f' style="background:{PALETTE[len(cartes) % len(PALETTE)]}"'
                 if it['etat'] == 'valide' else '')
-        cartes.append(f'<div class="c">{badge}<div class="sq{" coul" if it["etat"]=="valide" else ""}"{fond}>{inline(it["nom"], "#1b1b1b" if it["etat"]=="valide" else "#f2eee6")}</div>'
+        cartes.append(f'<div class="c">{badge}<div class="sq{" coul" if it["etat"]=="valide" else ""}"{fond}>{inline(it["nom"])}</div>'
                       f'<div class="l">{html.escape(it["label"])}</div>'
                       f'<div class="f">{html.escape(it["nom"])}</div></div>')
     corps.append(f'<h2>{html.escape(titre)} <em>{html.escape(sub)}</em></h2>'
@@ -61,7 +59,7 @@ for titre, sub, items in sections:
 
 if libres:
     corps.append('<h2>7 · TES FORMES PAS ENCORE AFFECTÉES <em>dis-moi à quoi elles servent</em></h2><div class="g">'
-                 + ''.join(f'<div class="c"><div class="sq alt">{inline(f, "#f2eee6")}</div>'
+                 + ''.join(f'<div class="c"><div class="sq alt">{inline(f)}</div>'
                            f'<div class="f">{html.escape(f)}</div></div>' for f in libres) + '</div>')
 
 faits = sum(1 for it in man if it['etat'] in ('design', 'valide'))
@@ -83,8 +81,8 @@ h2{{font-size:17px;font-weight:900;letter-spacing:-.01em;margin:34px 0 12px;padd
 h2 em{{font-style:normal;font-size:12.5px;font-weight:600;color:#6b675f}}
 .g{{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}
 .c{{position:relative;background:#fff;border-radius:14px;padding:15px 14px 13px}}
-.sq{{width:62px;height:62px;border-radius:15px;background:#1b1b1b;display:flex;align-items:center;justify-content:center;margin-bottom:11px}}
-.sq.alt{{background:#6cb392}} .sq svg{{width:32px;height:32px}}
+.sq{{width:62px;height:62px;border-radius:15px;background:#f0eee9;display:flex;align-items:center;justify-content:center;margin-bottom:11px}}
+.sq.alt{{background:#dff0e5}} .sq svg{{width:32px;height:32px}}
 .l{{font-size:13.5px;font-weight:800;line-height:1.25}}
 .f{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8a857c;margin-top:3px;word-break:break-all}}
 .b{{position:absolute;top:11px;right:11px;font-size:9px;font-weight:900;letter-spacing:.05em;border-radius:9px;padding:3px 7px}}
