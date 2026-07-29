@@ -2081,7 +2081,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v170';
+const APP_VERSION = 'v171';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2934,10 +2934,10 @@ function majBoutonChambres(){
   if(!btn) return;
   // Au tout premier rendu, le profil n'existe pas encore : on n'affiche rien plutôt que de planter.
   let autorise=false;
-  try{ autorise = !enApercu() && peutGererChambres(); }catch(e){ autorise=false; }
+  try{ autorise = !enApercu() && (peutGererChambres() || mesEtapesChambres().length>0); }catch(e){ autorise=false; }
   if(!autorise){ btn.style.display='none'; return; }
   btn.style.display='flex';
-  btn.innerHTML = icon('cle') + (CH_ENCOURS?`<em class="ch-badge">${CH_ENCOURS}</em>`:'');
+  btn.innerHTML = icon('cle') + (CH_MES?`<em class="ch-badge">${CH_MES}</em>`:'');
 }
 function majBoutonPoubelles(){
   const btn=document.querySelector('.dock-trash');
@@ -3333,6 +3333,12 @@ async function loadProfile(){
     try{
       const { count:nbCh } = await sb.from('chambres').select('id',{count:'exact',head:true}).is('libere_le', null);
       if(typeof nbCh==='number') CH_ENCOURS=nbCh;
+      const mes=mesEtapesChambres();
+      if(mes.length){
+        const conds=mes.map(function(e){ return e.k+'_le.is.null'; }).join(',');
+        const { count:nbMoi } = await sb.from('chambres').select('id',{count:'exact',head:true}).or(conds);
+        if(typeof nbMoi==='number') CH_MES=nbMoi;
+      } else CH_MES=0;
     }catch(e){}
     // Résumé pour le bouton « Gestion de l'équipe » : on veut savoir s'il y a des demandes
     // en attente sans avoir à ouvrir la page.
@@ -3369,7 +3375,7 @@ function checklistsHTML(){
 }
 
 // Vue « Ma liste » : accès direct aux tâches du jour (le picto liste)
-function maListeHTML(){ const lien=`<button class="pf-out" style="margin-bottom:14px" onclick="openChambres()">${icon('cle')}<span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_ENCOURS?`${CH_ENCOURS} chambre${CH_ENCOURS>1?'s':''} à libérer`:'Vider, nettoyer, libérer'}</i></span>${CH_ENCOURS?`<em class="ch-badge">${CH_ENCOURS}</em>`:''}</button>`; const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${lien}${bar}${checklistsHTML()}</div>`; }
+function maListeHTML(){ const lien=`<button class="pf-out" style="margin-bottom:14px" onclick="openChambres()">${icon('cle')}<span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_MES?texteMesChambres():(CH_ENCOURS?`${CH_ENCOURS} en cours dans le centre`:'Vider, nettoyer, libérer')}</i></span>${CH_MES?`<em class="ch-badge">${CH_MES}</em>`:''}</button>`; const bar=(profileLoaded&&CHECKLISTS.length)?`<div class="listbar"><div class="count">Tâches du jour</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`:''; return `<div class="pf-wrap">${lien}${bar}${checklistsHTML()}</div>`; }
 function openMaListe(){
   view="maliste"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
@@ -3421,8 +3427,8 @@ function profilHTML(){
     <button class="pf-out" onclick="window.open('https://samusocial.myprotime.eu/','_blank','noopener')">
       ${icon('clock')}<span>myprotime</span>${icon('lien','class="pf-out-lien"')}</button>
     <button class="pf-out" onclick="openChambres()">${icon('cle')}
-      <span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_ENCOURS?`${CH_ENCOURS} chambre${CH_ENCOURS>1?'s':''} à libérer`:'Vider, nettoyer, libérer'}</i></span>
-      ${CH_ENCOURS?`<em class="ch-badge">${CH_ENCOURS}</em>`:''}</button>
+      <span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_MES?texteMesChambres():(CH_ENCOURS?`${CH_ENCOURS} en cours dans le centre`:'Vider, nettoyer, libérer')}</i></span>
+      ${CH_MES?`<em class="ch-badge">${CH_MES}</em>`:''}</button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
   </div>`;
 
@@ -3446,12 +3452,28 @@ function profilHTML(){
    Tout le monde voit la liste. Seuls coordi, PFO, travailleurs sociaux et éducateurs cochent
    (la base l'impose aussi, pas seulement l'affichage). Chaque étape garde qui l'a faite et quand. */
 const CH_ETAPES=[
-  {k:'desencode', l:'Désencoder',                   qui:'PFO',            c:'#5b8fd4'},
-  {k:'vide',      l:'Vider la chambre',             qui:'Aide-soignant',  c:'#f5c542', roles:['Aide-soignante'], note:true},
+  {k:'desencode', l:'Désencoder',                   qui:'PFO',            c:'#5b8fd4', verbe:'à désencoder'},
+  {k:'vide',      l:'Vider la chambre',             qui:'Aide-soignant',  c:'#f5c542', roles:['Aide-soignante'], note:true, verbe:'à vider'},
   {k:'affaires',  l:'Affaires mises de côté',       qui:'si la personne en a laissé', c:'#b28b7a', opt:true},
-  {k:'nettoye',   l:'Nettoyer',                     qui:'Entretien',      c:'#6cb392', roles:['Agent entretien'], note:true},
-  {k:'libere',    l:'Libérer sur la liste étage',   qui:'PFO',            c:'#f8763f'}
+  {k:'nettoye',   l:'Nettoyer',                     qui:'Entretien',      c:'#6cb392', roles:['Agent entretien'], note:true, verbe:'à nettoyer'},
+  {k:'libere',    l:'Libérer sur la liste étage',   qui:'PFO',            c:'#f8763f', verbe:'à libérer'}
 ];
+/* Tout le monde voit toutes les chambres et toutes les étapes ; la pastille rouge, elle,
+   ne compte que ce qui attend VOTRE geste. */
+function mesEtapesChambres(){
+  const p=PROFILE||{};
+  return CH_ETAPES.filter(function(e){
+    if(e.opt) return false;
+    if(e.roles) return e.roles.indexOf(p.equipe)>=0;
+    return !!(p.pfo || p.admin || /coordi/i.test(p.equipe||''));   // désencoder et libérer : PFO / coordination
+  });
+}
+function texteMesChambres(){
+  const mes=mesEtapesChambres();
+  if(!CH_MES) return '';
+  const quoi = (mes.length===1 && mes[0].verbe) ? mes[0].verbe : 'qui t\'attendent';
+  return CH_MES+' chambre'+(CH_MES>1?'s ':' ')+quoi;
+}
 let CHAMBRES=[], chambresLoaded=false;
 
 /* Créer une chambre : PFO, coordination, admin. Cocher : eux + TS et éducateurs. */
@@ -3478,6 +3500,10 @@ async function loadChambres(){
     const { data } = await sb.from('chambres').select('*').order('cree_le',{ascending:false}).limit(60);
     CHAMBRES = data||[];
     CH_ENCOURS = CHAMBRES.filter(function(c){ return !chambreFinie(c); }).length;
+    const mes=mesEtapesChambres();
+    CH_MES = mes.length ? CHAMBRES.filter(function(c){
+      return mes.some(function(e){ return !c[e.k+'_le']; });
+    }).length : 0;
   }catch(e){}
   chambresLoaded=true;
 }
@@ -3488,7 +3514,8 @@ function openChambres(){
   loadChambres().then(function(){ if(view==='chambres') render(); });
 }
 // L'étape facultative ne conditionne pas la libération de la chambre.
-let CH_ENCOURS=0;   // pour la pastille de notification sur le bouton
+let CH_ENCOURS=0;   // chambres encore en cours, tous rôles confondus
+let CH_MES=0;       // celles qui attendent MON geste — c'est ce chiffre qui fait la pastille
 function chambreFinie(ch){ return CH_ETAPES.filter(function(e){ return !e.opt; }).every(function(e){ return ch[e.k+'_le']; }); }
 
 async function ajouterChambre(){
