@@ -2057,7 +2057,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v160';
+const APP_VERSION = 'v161';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3847,7 +3847,7 @@ function adminHTML(){
   let reqs='';
   if(ADMIN.requests.length){
     reqs=`<div class="adm-sec"><div class="adm-h">Demandes d'accès (${ADMIN.requests.length})</div>`+
-      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}<span>${esc(r.email)}</span><em>${esc(quandFr(r.cree_le))}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
+      ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}${r.mot?`<span>${esc(r.email)}</span>`:''}<em>${esc(quandFr(r.cree_le))}${/@samusocial\.be$/i.test(r.email||'')?'':' · adresse perso'}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
   const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option>${esc(r)}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   const membresVus = (admFiltre==='Tous') ? ADMIN.members
@@ -4168,7 +4168,10 @@ async function initAuth(){
       const rq=_g('authReq'); if(rq) rq.style.display='none';
       return;
     }
-    showMessage("Ton compte "+(session.user.email||'')+" n'est pas encore autorisé.\n\nDemande l'accès ci-dessous : Mag reçoit ta demande et te débloque.");
+    const emailDem=(session.user.email||'');
+    const pro = /@samusocial\.be$/i.test(emailDem);
+    showMessage("Ton compte "+emailDem+" n'est pas encore autorisé.\n\nDemande l'accès ci-dessous : Mag reçoit ta demande et te débloque."
+      + (pro ? "" : "\n\n⚠️ C'est une adresse personnelle. Si tu as une adresse @samusocial.be, déconnecte-toi et reviens avec celle-là : c'est celle qu'on utilise dans l'équipe. Sinon, dis-nous qui tu es dans le mot ci-dessous."));
     window._reqEmail = session.user.email||'';
     try{ const mt=session.user.user_metadata||{}; window._reqNom = mt.full_name||mt.name||''; }catch(e){}
     const rq=_g('authReq'); if(rq){ rq.style.display='inline-flex'; }
