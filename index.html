@@ -848,7 +848,6 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     main{ padding:0 !important; }
     .wrap{ width:100% !important; max-width:100% !important; }
     #printHead{ display:flex !important; align-items:center; gap:14px; border-bottom:2px solid #000; padding:6px 0 12px; margin-bottom:16px; }
-    #printHead .ph-logo{ height:32px; width:auto; }
     #printHead .ph-title{ font-size:19px; font-weight:800; text-transform:uppercase; flex:1 }
     #printHead .ph-date{ font-size:11px; color:#444 }
 .card, .urg-catbtn, .pf-list, .feed-item, .urg-vital, .adm-mb, .adm-req{ border:1px solid #bbb !important; background:#fff !important; break-inside:avoid; box-shadow:none !important; margin-bottom:8px !important }
@@ -987,7 +986,7 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
 
 <main><div class="wrap" id="view"></div></main>
 
-<div id="printHead"><img src="logo.png" alt="COUSIN" class="ph-logo"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
+<div id="printHead"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
   <button class="dock-linge" title="Linge par étage" onclick="openLinge()"></button>
@@ -1927,7 +1926,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v135';
+const APP_VERSION = 'v136';
 const SEED_VERSION = 46;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2302,6 +2301,8 @@ const URG_CATC={"Violences · femmes":"#fd8fd0","Médical":"#6cb392","Hôpitaux"
 const URG_CATI={"Violences · femmes":'<path fill-rule="evenodd" d="M12 2.4a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zm0 2.7a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"/><rect x="10.7" y="13.2" width="2.6" height="8.4" rx="1.3"/><rect x="8" y="16.5" width="8" height="2.6" rx="1.3"/>',"Médical":'<path d="M9.4 2.4h5.2v7h7v5.2h-7v7H9.4v-7h-7V9.4h7z"/>',"Urgences hôpitaux":'<path fill-rule="evenodd" d="M4 3.6h16a1 1 0 0 1 1 1v15.8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4.6a1 1 0 0 1 1-1zm6.6 3.9v3.1H7.5v2.8h3.1v3.1h2.8v-3.1h3.1v-2.8h-3.1V7.5z"/>',"Hébergement d'urgence":'<rect x="2.2" y="5.8" width="2.8" height="13.4" rx="1.4"/><path d="M5 11.6h13.4a3.4 3.4 0 0 1 3.4 3.4v4.2H19v-2.4H5z"/><rect x="6" y="7.6" width="5.8" height="3.4" rx="1.7"/>',"Drogue & alcool":'<rect x="1.6" y="4.2" width="10.6" height="5.4" rx="2.7" transform="rotate(38 6.9 6.9)"/><path d="M13.4 12.6h8.8l-.9 4.6a2.8 2.8 0 0 1-1.9 2.1v1.5h1.5v1.9h-5.5v-1.9h1.5v-1.5a2.8 2.8 0 0 1-1.9-2.1z"/>',"Écoute & aide":'<path d="M12 2.4c5.7 0 10.2 3.5 10.2 8.1 0 4.5-4.5 8.1-10.2 8.1-.9 0-1.7-.1-2.5-.2-.9 1.4-2.4 2.6-4.4 3.2.8-1.6 1.1-3 1-4.1-2.6-1.5-4.1-3.9-4.1-6.9 0-4.6 4.5-8.2 10-8.2z"/>',"Autres":'<path d="M5.6 2.6h3.6l2 4.9-2.7 1.7a9.6 9.6 0 0 0 4.3 4.3l1.7-2.7 4.9 2v3.6a2.7 2.7 0 0 1-2.7 2.7C8.9 19.1 4.9 15.1 2.9 5.3a2.7 2.7 0 0 1 2.7-2.7z"/>'};
 /* Certaines catégories utilisent un picto du jeu commun (donc le dessin de Magali). */
 const URG_CATK={"Écoute & aide":"chat"};
+/* Libellé au pluriel dès qu'il y a plus d'une fiche dans la catégorie. */
+const URG_PLURIEL={"Hébergement d'urgence":"Hébergements d'urgence"};
 function urgCatIcon(l){
   if(URG_CATK[l]) return icon(URG_CATK[l]);
   return '<svg viewBox="0 0 24 24" fill="#f2eee6">'+(URG_CATI[l]||URG_CATI["Autres"])+'</svg>';
@@ -2332,7 +2333,7 @@ function urgencesListHTML(){
     const sqs = `<div class="urg-slider">${b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(urgSq).join('')}</div>`;
     const cc = URG_CATC[b.label] || '#f5c542';
     return `<button class="urg-catbtn ${open?'open':''}" style="background:${cc}" onclick="toggleUrgCat(this,${idx})">`+
-             `<span class="urg-cbleft"><span class="urg-cbic">${urgCatIcon(b.label)}</span><span class="urg-cblab">${esc(b.label)}</span></span>`+
+             `<span class="urg-cbleft"><span class="urg-cbic">${urgCatIcon(b.label)}</span><span class="urg-cblab">${esc(b.list.length>1 && URG_PLURIEL[b.label] ? URG_PLURIEL[b.label] : b.label)}</span></span>`+
              `<span class="urg-cbright"><span class="urg-cbn">${b.list.length}</span><span class="urg-cbsign"></span></span>`+
            `</button><div class="urg-acc ${open?'open':''}"><div class="urg-acc-inner">${sqs}</div></div>`;
   }).join('');
