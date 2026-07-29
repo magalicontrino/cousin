@@ -93,7 +93,48 @@ button, input, select, textarea{font-family:inherit}
 /* L'app garde une largeur de téléphone et reste centrée, même sur grand écran. */
   .wrap{width:var(--appw); max-width:100%; margin:0 auto; container-type:inline-size}
 /* Sur ordinateur / grand écran : l'app garde la largeur téléphone (460 px) et reste centrée. */
+  /* ═══ ESSAI « plein écran » (branche essai-ordinateur, adresse ?ordi=1) ═══
+     À partir de 1040 px : l'app quitte sa colonne de téléphone et occupe l'écran.
+     En dessous, et sur téléphone, absolument rien ne change. */
+  @media (min-width:1040px){
+    /* la largeur de l'app laisse toujours la place à la colonne de gauche */
+    html.essai-ordi{--appw:max(460px, min(1080px, calc(100vw - 520px)))}
+    /* l'en-tête s'étale, le titre respire */
+    html.essai-ordi .htitle{margin-top:22px}
+    html.essai-ordi .htitle h1{font-size:38px}
+    html.essai-ordi .htitle h1.long{font-size:34px}
+    html.essai-ordi .htitle h1.treslong{font-size:30px}
 
+    /* ACCUEIL : le bandeau urgences pleine largeur, les six pavés sur trois colonnes larges */
+    html.essai-ordi body.is-home{height:auto; min-height:100dvh; overflow:visible}
+    html.essai-ordi .home-title{font-size:min(7.4cqw,64px)}
+    html.essai-ordi .dgrid{grid-template-columns:repeat(3,1fr); gap:16px}
+    html.essai-ordi .dcard{min-height:186px}
+    html.essai-ordi body.is-home .dcard svg, html.essai-ordi body.is-home .dcard .pico{height:56px}
+
+    /* RÉSEAU / DOMAINES : les domaines en colonne fixe à gauche, les fiches sur deux colonnes */
+    html.essai-ordi .domnav{
+      position:fixed; top:150px; width:206px; max-height:calc(100dvh - 190px);
+      left:max(16px, calc(50% - (var(--appw)/2) - 226px));
+      flex-direction:column; flex-wrap:nowrap; gap:7px; overflow-y:auto; overflow-x:visible;
+      padding:0 4px 10px 0; scrollbar-width:thin;
+    }
+    html.essai-ordi .domnav .pave{width:100%; flex-direction:row; justify-content:flex-start;
+      align-items:center; gap:11px; padding:10px 13px; border-radius:14px; text-align:left}
+    html.essai-ordi .domnav .pave svg, html.essai-ordi .domnav .pave .pico{width:22px; height:22px}
+    html.essai-ordi .domnav .pave span{font-size:13px; line-height:1.2}
+    html.essai-ordi .cards{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; align-items:start}
+    html.essai-ordi .cards .card{margin-bottom:0}
+    /* les filtres tiennent sur une ligne, sans défilement */
+    html.essai-ordi .chips{flex-wrap:wrap; overflow-x:visible; padding-bottom:6px}
+
+    /* LES PAGES QUI SE LISENT (profil, fil, chambres, admin, quiz, pétitions) restent
+       en colonne lisible, centrées : un texte plein écran est illisible. */
+    html.essai-ordi .pf-wrap{max-width:720px; margin:0 auto}
+
+    /* les boutons du bas se calent au bord de la zone de l'app */
+    html.essai-ordi .dock{left:auto; right:max(24px, calc(50% - var(--appw)/2)); width:auto; justify-content:flex-end}
+  }
   /* ACCUEIL : tout tient sur un seul écran (pas de scroll vertical), sur tous les écrans. */
   body.is-home{height:100dvh; min-height:0; overflow:hidden; display:flex; flex-direction:column;
     padding-bottom:calc(env(safe-area-inset-bottom) + 88px)}
@@ -2110,7 +2151,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v181';
+const APP_VERSION = 'v181-essai';
 const SEED_VERSION = 52;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2356,14 +2397,14 @@ function render(){
 
   // Recherche globale (depuis l'accueil ou le Réseau)
   if((view==="home"||view==="reseau") && q){
-    el.innerHTML = cardsHTML(match(data,q).filter(p=>!DOM[p.domaine].hidden)) || emptyHTML();
+    el.innerHTML = enveloppeCartes(cardsHTML(match(data,q).filter(p=>!DOM[p.domaine].hidden))) || emptyHTML();
     return;
   }
   if(view==="home"){ el.innerHTML = homeHTML(); return; }
   if(view==="reseau"){ el.innerHTML = reseauHTML(); return; }
   if(view==="favoris"){
     const favs=data.filter(p=>p.fav);
-    el.innerHTML = favs.length ? (`<div class="listbar"><div class="count">${favs.length} favori${favs.length>1?'s':''}</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer / PDF</span></button></div>` + cardsHTML(favs))
+    el.innerHTML = favs.length ? (`<div class="listbar"><div class="count">${favs.length} favori${favs.length>1?'s':''}</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer / PDF</span></button></div>` + enveloppeCartes(cardsHTML(favs)))
       : `<div class="empty">${icon('star','width="40" height="40"')}<p><b>Aucun favori pour l'instant.</b></p><p>Touchez l'étoile sur une fiche pour la retrouver ici.</p></div>`;
     return;
   }
@@ -2427,7 +2468,7 @@ function render(){
   }
   items.sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
   html+=`<div class="listbar"><div class="count">${items.length} ${items.length>1?'ressources':'ressource'}</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer / PDF</span></button></div>`;
-  html+= cardsHTML(items) || emptyHTML();
+  html+= enveloppeCartes(cardsHTML(items)) || emptyHTML();
   el.innerHTML=html;
 }
 function setCommune(c){activeCommune=c; render()}
@@ -2650,6 +2691,8 @@ function cardsHTML(items){
     return html.replace('id="c-'+p.id+'">', 'id="c-'+p.id+'">'+starBtn(p));
   }).join('');
 }
+/* Les fiches sont enveloppées : sur grand écran, l'enveloppe les met sur deux colonnes. */
+function enveloppeCartes(html){ return html ? '<div class="cards">'+html+'</div>' : html; }
 function starBtn(p){
   return `<button class="star ${p.fav?'on':''}" title="${p.fav?'Retirer des favoris':'Ajouter aux favoris'}" onclick="toggleFav(event,'${p.id}')">${icon('star')}</button>`;
 }
@@ -4450,6 +4493,10 @@ window.addEventListener('popstate', function(e){
 });
 NAV_PILE=[navEtat()]; NAV_I=0;
 history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+
+/* Essai de la mise en page ordinateur : uniquement si l'adresse contient ?ordi=1.
+   Rien ne change pour l'équipe tant que le réglage n'est pas activé. */
+if(/[?&]ordi=1/.test(location.search)) document.documentElement.classList.add('essai-ordi');
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
    (manifeste présent + HTTPS), jamais depuis un fichier local ou un aperçu.
