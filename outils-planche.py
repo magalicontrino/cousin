@@ -42,18 +42,52 @@ for it in man:
     buf.append(it)
 sections.append((cur, sub, buf))
 
+BADGES = {'design': '<span class="b design">TON DESSIN</span>',
+          'valide': '<span class="b valide">VALIDÉ</span>',
+          'a-definir': '<span class="b vide">À DÉFINIR</span>'}
+
+def carte(it, i=0):
+    """Une carte de la planche. « À définir » = aucun dessin encore choisi : carré vide
+    en pointillés, sinon on affiche le fichier tel qu'il est."""
+    badge = BADGES.get(it['etat'], '<span class="b todo">À REDESSINER</span>')
+    if it['etat'] == 'a-definir':
+        dedans, classe, fond = '<span class="tiret">?</span>', ' vide', ''
+    else:
+        dedans = inline(it['nom'])
+        classe = ' coul' if it['etat'] == 'valide' else ''
+        fond = (f' style="background:{PALETTE[i % len(PALETTE)]}"'
+                if it['etat'] == 'valide' else '')
+    return (f'<div class="c">{badge}<div class="sq{classe}"{fond}>{dedans}</div>'
+            f'<div class="l">{html.escape(it["label"])}</div>'
+            f'<div class="f">{html.escape(it["nom"])}</div></div>')
+
+# ═══ En haut de la page : ce qui reste à faire, pour ne pas devoir le chercher ═══
+adef = [it for it in man if it['etat'] == 'a-definir']
+ared = [it for it in man if it['etat'] == 'a-redessiner']
+tete = []
+if adef or ared:
+    lignes = []
+    if adef:
+        lignes.append('<h3>À définir — aucun dessin encore choisi</h3><div class="g">'
+                      + ''.join(carte(it) for it in adef) + '</div>')
+        # Certains ont déjà une page de pistes : on le dit, sinon on cherche pour rien.
+        pages = sorted({it['piste'] for it in adef if it.get('piste')})
+        for pg in pages:
+            qui = ', '.join(it['label'] for it in adef if it.get('piste') == pg)
+            lignes.append(f'<p class="renvoi">Des pistes t\'attendent pour <b>{html.escape(qui)}</b> : '
+                          f'<a href="{html.escape(pg)}">{html.escape(pg)}</a> — donne-moi un numéro.</p>')
+    if ared:
+        lignes.append('<h3>À redessiner — ma version provisoire attend la tienne</h3><div class="g">'
+                      + ''.join(carte(it) for it in ared) + '</div>')
+    if libres:
+        lignes.append(f'<p class="renvoi">Et <b>{len(libres)} de tes formes</b> ne sont affectées à '
+                      'aucune fonction : elles sont tout en bas de la page.</p>')
+    tete.append('<div class="reste"><h2 class="plat">Ce qui reste à faire '
+                f'<em>{len(adef) + len(ared)} pictos</em></h2>' + ''.join(lignes) + '</div>')
+
 corps = []
 for titre, sub, items in sections:
-    cartes = []
-    for it in items:
-        badge = {'design': '<span class="b design">TON DESSIN</span>',
-                 'valide': '<span class="b valide">VALIDÉ</span>'}.get(
-                     it['etat'], '<span class="b todo">À REDESSINER</span>')
-        fond = (f' style="background:{PALETTE[len(cartes) % len(PALETTE)]}"'
-                if it['etat'] == 'valide' else '')
-        cartes.append(f'<div class="c">{badge}<div class="sq{" coul" if it["etat"]=="valide" else ""}"{fond}>{inline(it["nom"])}</div>'
-                      f'<div class="l">{html.escape(it["label"])}</div>'
-                      f'<div class="f">{html.escape(it["nom"])}</div></div>')
+    cartes = [carte(it, i) for i, it in enumerate(items)]
     corps.append(f'<h2>{html.escape(titre)} <em>{html.escape(sub)}</em></h2>'
                  f'<div class="g">{"".join(cartes)}</div>')
 
@@ -88,13 +122,23 @@ h2 em{{font-style:normal;font-size:12.5px;font-weight:600;color:#6b675f}}
 .b{{position:absolute;top:11px;right:11px;font-size:9px;font-weight:900;letter-spacing:.05em;border-radius:9px;padding:3px 7px}}
 .b.design{{background:#d8ecdf;color:#1f7a44}} .b.todo{{background:#fbf0c4;color:#8a6a00}}
 .b.valide{{background:#e7e3f7;color:#5b3fa0}}
+.b.vide{{background:#f7dcd6;color:#b8442f}}
+/* Ce qui reste à faire, en tête de page : le même dessin de cartes, sur fond crème foncé. */
+.reste{{background:#e9e3d7;border-radius:18px;padding:16px 16px 18px;margin-bottom:30px}}
+h2.plat{{margin:2px 0 4px;border-bottom:0;padding-bottom:0}}
+.reste h3{{font-size:12.5px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:#6b675f;margin:16px 0 9px}}
+.sq.vide{{background:transparent;border:2px dashed rgba(27,27,27,.28)}}
+.sq .tiret{{font-size:26px;font-weight:900;color:rgba(27,27,27,.3)}}
+.renvoi{{font-size:12.5px;color:#6b675f;margin:16px 0 0;line-height:1.5}}
+.renvoi b{{color:#1b1b1b}}
 .ko{{color:#e63329;font-size:10px}}
 footer{{margin-top:40px;font-size:12.5px;color:#6b675f;line-height:1.6;border-top:1px solid rgba(27,27,27,.14);padding-top:16px}}
 </style>
 <h1>Planche des pictos</h1>
-<p class="intro"><b>TON DESSIN</b> = tu l'as dessiné, il est branché. <b>VALIDÉ</b> = ma version, que tu as approuvée — son SVG est dans le dossier. <b>À REDESSINER</b> = provisoire, elle attend la tienne.<br>
+<p class="intro"><b>TON DESSIN</b> = tu l'as dessiné, il est branché. <b>VALIDÉ</b> = ma version, que tu as approuvée — son SVG est dans le dossier. <b>À REDESSINER</b> = provisoire, elle attend la tienne. <b>À DÉFINIR</b> = rien de choisi encore, même pas une piste.<br>
 Pour en remplacer un : dessine-le, exporte en SVG, dépose-le dans <code>picto/</code> avec exactement le nom écrit sous le picto.</p>
 <div class="jauge"><b>{faits} sur {len(man)} pictos réglés</b><div class="bar"><i style="width:{round(faits/len(man)*100)}%"></i></div></div>
+{''.join(tete)}
 {''.join(corps)}
 <footer>Format : SVG, aplat plein d'une seule couleur, sans contour — l'app le recolore toute seule.<br>
 Carré d'en-tête : 31 px, picto à 18 px. Pavés d'accueil : picto à 46 px.</footer>
