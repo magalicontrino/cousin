@@ -205,7 +205,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
 /* Le porte-voix est un dessin large et fin, la pétition un dessin dense et haut :
    à taille égale la seconde écrase la première, on les règle donc séparément. */
 .newsbtn svg, .newsbtn .pico{width:.52em; height:.52em; flex:0 0 auto}
-  .newsbtn.petbtn .pico{width:.46em; height:.46em}
+  .newsbtn.petbtn .pico{width:.42em; height:.42em}
   /* Effet « voix » : c'est le bouton entier qui grossit quand on passe dessus ou qu'on le touche. */
   .newsbtn:hover, .newsbtn.voix{transform:scale(1.18)}
   .newsbtn.petbtn{margin-left:.14em}
@@ -878,6 +878,13 @@ input, textarea, select{
     color:#f2eee6; border-radius:20px; padding:4px 9px; line-height:1}
   .adm-sec{margin-bottom:16px}
   /* Qui voit quoi : une ligne par rôle, un bouton par pavé */
+  .acc-vues{display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#1b1b1b; color:var(--bg);
+    border-radius:14px; padding:11px 13px; margin-bottom:12px}
+  .acc-vues span{width:100%; font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(242,238,230,.6); margin-bottom:3px}
+  .acc-vue{border:0; background:rgba(242,238,230,.14); color:var(--bg); border-radius:20px; padding:7px 13px;
+    font:inherit; font-size:12.5px; font-weight:800; cursor:pointer}
+  .acc-vue.on{background:var(--gold); color:#1b1b1b}
   .acc-row{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; margin-bottom:9px}
   .acc-tete{display:flex; align-items:center; gap:10px; margin-bottom:8px}
   .acc-role{font-size:13.5px; font-weight:900; flex:1 1 auto}
@@ -2061,7 +2068,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v162';
+const APP_VERSION = 'v163';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3916,9 +3923,15 @@ function accesHTML(){
       <button class="acc-voir" onclick="voirComme('${esc(role)}')">Voir comme</button></div>
       <div class="acc-paves">${chips}</div></div>`;
   }).join('');
+  // Quatre vues à essayer d'un doigt : la tienne, la coordination, un métier « pro », un rôle simple.
+  const vues=[['Ma vue (admin)',''],['Coordi','Coordi'],['Pro','TS'],['Simple','Aide-soignante']];
+  const essais=`<div class="acc-vues"><span>Voir l'app comme</span>`+vues.map(function(v){
+      const actif = v[1] ? (APERCU_ROLE===v[1]) : !APERCU_ROLE;
+      return `<button class="acc-vue ${actif?'on':''}" onclick="${v[1]?`voirComme('${esc(v[1])}')`:'quitterApercu()'}">${esc(v[0])}</button>`;
+    }).join('')+`</div>`;
   return `<div class="adm-sec"><div class="adm-h">Qui voit quoi</div>
     <div class="adm-hint" style="margin-bottom:10px">Touche un pavé pour l'ouvrir ou le fermer à ce rôle. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
-    ${lignes}</div>`;
+    ${essais}${lignes}</div>`;
 }
 async function toggleAcces(role, pave){
   const cur=pavesDuRole(role).slice();
