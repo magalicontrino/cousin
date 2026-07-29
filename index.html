@@ -2081,7 +2081,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v169';
+const APP_VERSION = 'v170';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3128,7 +3128,7 @@ function doPrint(){
 /* ---------- Formulaire ---------- */
 function remplirEquipes(id){
   document.getElementById(id).innerHTML =
-    '<option value="">—</option>' + EQUIPES.map(e=>`<option value="${esc(e)}">${esc(e)}</option>`).join('');
+    '<option value="">—</option>' + EQUIPES.map(e=>`<option value="${esc(e)}">${esc(roleLabel(e))}</option>`).join('');
 }
 function openForm(){
   document.getElementById('p-texte').value='';
@@ -3385,7 +3385,7 @@ function profilHTML(){
 
   // Carte d'identité : nom, rôle, quart (jour/nuit) et adresse
   const quart=shiftOf(p.listes);
-  const badges=[p.pfo?'PFO':null, p.equipe||null, quart?(quart==='nuit'?'Nuit':'Jour'):null, p.admin?'Admin':null]
+  const badges=[p.pfo?'PFO':null, p.equipe?roleLabel(p.equipe):null, quart?(quart==='nuit'?'Nuit':'Jour'):null, p.admin?'Admin':null]
     .filter(Boolean).map(b=>`<span class="pf-tag">${esc(b)}</span>`).join('');
   const head=`<div class="pf-card">
     <div class="pf-ic" style="background:${userColor(p.nom||p.email)}">${icon('user')}</div>
@@ -3816,6 +3816,9 @@ async function deleteFeedItem(id){
 
 /* ---------- Page Admin (réservée à Magali super-admin) : gérer l'équipe + demandes ---------- */
 let ADMIN={ members:[], requests:[] }, adminLoaded=false;
+/* « TS » reste la valeur enregistrée dans la base ; à l'écran on écrit le métier en entier. */
+const ROLE_LABELS={'TS':"Travailleur(euse)s social(e)s"};
+function roleLabel(r){ return ROLE_LABELS[r] || r; }
 const ROLE_OPTS=["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référent·e infis & aide-soignant·es","Polyvalent","Coordi",
                 "Agent entretien","Travaux / Maintenance","Logistique","Responsable punaise","Article 60"];
 const LISTE_KEYS=["pfo-jour","pfo-nuit","médical","polyvalent-jour","polyvalent-nuit"];
@@ -3892,7 +3895,7 @@ function adminHTML(){
     reqs=`<div class="adm-sec"><div class="adm-h">Demandes d'accès (${ADMIN.requests.length})</div>`+
       ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}${r.mot?`<span>${esc(r.email)}</span>`:''}<em>${esc(quandFr(r.cree_le))}${/@samusocial\.be$/i.test(r.email||'')?'':' · adresse perso'}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
-  const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option>${esc(r)}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
+  const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   const membresVus = (admFiltre==='Tous') ? ADMIN.members
       : ADMIN.members.filter(function(m){ return (m.equipe||'Sans rôle')===admFiltre; });
   const members=membresVus.map(mb=>{
@@ -3903,7 +3906,7 @@ function adminHTML(){
     const estInfi=e.indexOf('infi')>=0;
     const hasFixed=e.indexOf('médical')>=0||e.indexOf('medical')>=0;
     const shift=shiftOf(mb.listes);
-    const roleSel=`<select class="adm-role" onchange="setRole('${esc(mb.email)}',this.value)">${ROLE_OPTS.map(r=>`<option${r===mb.equipe?' selected':''}>${esc(r)}</option>`).join('')}</select>`;
+    const roleSel=`<select class="adm-role" onchange="setRole('${esc(mb.email)}',this.value)">${ROLE_OPTS.map(r=>`<option value="${esc(r)}"${r===mb.equipe?' selected':''}>${esc(roleLabel(r))}</option>`).join('')}</select>`;
     let listSection;
     if(seesAll){ listSection=`<div class="adm-lists-h">Voit toutes les listes (PFO/admin)</div>`; }
     else if(hasShift){ listSection=`<div class="adm-lists-h">Quart :</div><div class="adm-shift"><button class="adm-sh ${shift==='jour'?'on':''}" onclick="setShift('${esc(mb.email)}','jour')">Jour</button><button class="adm-sh ${shift==='nuit'?'on':''}" onclick="setShift('${esc(mb.email)}','nuit')">Nuit</button></div>${shift?`<div class="adm-listnow">Voit : Polyvalent — ${shift==='nuit'?'Nuit':'Jour'}</div>`:`<div class="adm-listnow faint">Choisis Jour ou Nuit pour lui donner sa liste</div>`}`; }
@@ -3922,7 +3925,7 @@ function adminHTML(){
   const metiers=[]; ADMIN.members.forEach(function(m){ const r=m.equipe||'Sans rôle'; if(metiers.indexOf(r)<0) metiers.push(r); });
   metiers.sort(function(a,b){ return ROLE_OPTS.indexOf(a)-ROLE_OPTS.indexOf(b); });
   const filtres=`<div class="chips">`+['Tous'].concat(metiers).map(function(r){
-      return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(r)}</div>`;
+      return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(roleLabel(r))}</div>`;
     }).join('')+`</div>`;
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${filtres}${members}</div>`;
   return `<div class="pf-wrap">${reqs}${add}${team}${accesHTML()}</div>`;
@@ -3941,7 +3944,7 @@ function accesHTML(){
     const chips=PAVES_TOUS.map(function(k){
       return `<button class="acc-p ${on.indexOf(k)>=0?'on':''}" onclick="toggleAcces('${esc(role)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
     }).join('');
-    return `<div class="acc-row"><div class="acc-tete"><div class="acc-role">${esc(role)}</div>
+    return `<div class="acc-row"><div class="acc-tete"><div class="acc-role">${esc(roleLabel(role))}</div>
       <button class="acc-voir" onclick="voirComme('${esc(role)}')">Voir comme</button></div>
       <div class="acc-paves">${chips}</div></div>`;
   }).join('');
