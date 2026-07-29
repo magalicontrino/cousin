@@ -131,7 +131,13 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .hspace{flex:1 1 auto}
   .htitle{width:var(--appw); max-width:100%; margin:26px auto 2px; padding:0 2px; display:flex; align-items:center; gap:14px}
 .htitle h1 svg, .htitle h1 .pico{width:27px; height:27px; flex:0 0 auto}
-  .htitle h1{margin:0; font-size:32.33px; font-weight:600; letter-spacing:-.04em; text-transform:none; color:var(--ink); display:flex; align-items:center; gap:11px; line-height:38.8px; text-wrap:balance}
+  /* Un titre long (« Accompagnement ») rétrécit un peu plutôt que de sortir de l'écran. */
+  .htitle h1{margin:0; font-size:32.33px; font-weight:600; letter-spacing:-.04em; text-transform:none;
+    color:var(--ink); display:flex; align-items:center; gap:11px; line-height:1.18; text-wrap:balance;
+    min-width:0; flex:1 1 auto}
+  /* Un nom long tient sur une ligne en rétrécissant un peu, plutôt que de se couper. */
+  .htitle h1.long{font-size:25px; gap:9px}
+  .htitle h1.treslong{font-size:21px; gap:8px}
   .htitle h1.hub{font-weight:700}/* le Réseau, qui chapeaute les domaines */
   .htitle h1.logo{
     font-size:26px; font-weight:900; font-style:italic; letter-spacing:.5px; color:var(--gold);
@@ -317,7 +323,10 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   }
   .pave:active{transform:scale(.96)}
 .pave svg, .pave .pico{width:35px; height:35px}
-  .pave span{font-size:12.5px; font-weight:750; line-height:1.1}
+  /* Un nom long comme « Accompagnement » ne tient pas sur une ligne : il se coupe
+     proprement (césure française) au lieu de déborder du pavé. */
+  .pave span{font-size:12.5px; font-weight:750; line-height:1.12; max-width:100%;
+    overflow-wrap:break-word; hyphens:auto; -webkit-hyphens:auto}
   .pave.active{border-color:var(--ink)}
 /* Urgences : fond rouge → texte clair, comme partout ailleurs dans l'app. */
   .pave[data-k="urgences"]{color:#f2eee6}
@@ -2101,7 +2110,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v180';
+const APP_VERSION = 'v181';
 const SEED_VERSION = 52;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2277,7 +2286,7 @@ function updateHeader(){
   hnav.style.display="flex"; hnav.innerHTML = navPictos();
   back.style.display="flex"; back.innerHTML=icon('chevron');
   logoImg.style.display="block"; h1.style.display="flex"; em.style.display="inline-flex";
-  em.style.color=""; h1.classList.remove('hub');
+  em.style.color=""; h1.classList.remove('hub','long','treslong');
   htitleRow.style.display="flex";
   if(view==="favoris"){
     em.style.color='#f5c542';
@@ -2328,6 +2337,8 @@ function updateHeader(){
     const dm=DOM[view];
     em.innerHTML=icon(dm.ic); em.style.display="inline-flex"; em.style.color=tileColor(view);
     document.getElementById('hName').textContent=dm.label;
+    h1.classList.toggle('long', dm.label.length>12);
+    h1.classList.toggle('treslong', dm.label.length>18);
     back.onclick = navRetour(dm.reseau ? openReseau : goHome);
   }
   updateFavBadge();
