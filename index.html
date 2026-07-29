@@ -195,7 +195,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* Pas d'anneau bleu du navigateur au toucher ; on le garde au clavier (accessibilité). */
   .newsbtn:focus{outline:none}
   .newsbtn:focus-visible{outline:2px solid var(--gold-d); outline-offset:3px}
-.newsbtn svg, .newsbtn .pico{width:.44em; height:.44em; flex:0 0 auto}
+.newsbtn svg, .newsbtn .pico{width:.44em; height:.44em; flex:0 0 auto;
+    transition:transform .22s cubic-bezier(.22,1,.36,1)}
+  /* Le porte-voix grossit quand on passe dessus ou qu'on le touche : petit effet « voix ». */
+  .newsbtn:hover svg, .newsbtn:hover .pico,
+  .newsbtn:active svg, .newsbtn:active .pico,
+  .newsbtn.voix svg, .newsbtn.voix .pico{transform:scale(1.24)}
   .newsbtn:active{transform:scale(.96)}
   .hero{
     width:100%; display:flex; align-items:center; gap:13px; text-align:left; border:0;
@@ -463,7 +468,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
      le rang passe à la ligne : rien n'est masqué et aucun texte n'est coupé. */
 /* Linge par étage : même pastille, encore une autre couleur */
   .dock-linge{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px; display:none;
-    border:4px solid var(--bg); background:#7aa6e0; color:#1b1b1b; padding:0; cursor:pointer;
+    border:4px solid var(--bg); background:#1b1b1b; color:var(--bg); padding:0; cursor:pointer;
     align-items:center; justify-content:center; overflow:hidden;
     transition:max-width .52s cubic-bezier(.22,1,.36,1), padding .52s cubic-bezier(.22,1,.36,1), margin-left .52s cubic-bezier(.22,1,.36,1)}
   .dock-linge.open{max-width:100%; padding:0 16px 0 12px}
@@ -1883,7 +1888,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v129';
+const APP_VERSION = 'v130';
 const SEED_VERSION = 42;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2553,7 +2558,9 @@ function majBoutonLinge(){
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const txt=l.etage + (l.chambres ? ' · ' + l.chambres : '');
   btn.title='Jour de lessive — '+l.etage+(l.chambres?' · '+l.chambres:'');
-  btn.innerHTML='<span class="pbt-ic">'+icon('linge')+'</span>' +
+  // Pastille noire, t-shirt à la couleur de l'étage du jour.
+  const coul=LINGE_COUL[l.etage] || '#f2eee6';
+  btn.innerHTML='<span class="pbt-ic" style="color:'+coul+'">'+icon('linge')+'</span>' +
     '<span class="pbt-tx"><b>' + esc(JOURS[new Date().getDay()]) + '</b><em>' + esc(txt) + '</em></span>';
 }
 function openLinge(){
@@ -2828,6 +2835,18 @@ function importData(ev){
   };
   r.readAsText(f);
 }
+
+/* Effet « voix » du porte-voix : sur téléphone, :hover n'existe pas et :active n'est pas
+   fiable — on pose donc la classe au doigt, et on l'enlève dès qu'on relâche. */
+document.addEventListener('pointerdown', e=>{
+  const b = e.target && e.target.closest ? e.target.closest('.newsbtn') : null;
+  if(b) b.classList.add('voix');
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>{
+  document.addEventListener(ev, ()=>{
+    document.querySelectorAll('.newsbtn.voix').forEach(b=>b.classList.remove('voix'));
+  });
+});
 
 document.getElementById('search').addEventListener('input', e=>{query=e.target.value; render()});
 document.getElementById('modalBg').addEventListener('click', e=>{if(e.target.id==='modalBg') closeForm()});
