@@ -317,7 +317,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   }
   .pave:active{transform:scale(.96)}
 .pave svg, .pave .pico{width:35px; height:35px}
-  .pave span{font-size:12.5px; font-weight:750; line-height:1.1}
+  .pave span{font-size:12.5px; font-weight:750; line-height:1.1; max-width:100%; overflow-wrap:anywhere; hyphens:auto}
   .pave.active{border-color:var(--ink)}
 /* Urgences : fond rouge → texte clair, comme partout ailleurs dans l'app. */
   .pave[data-k="urgences"]{color:#f2eee6}
@@ -325,6 +325,11 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* Commune chips */
   .chips{display:flex; gap:8px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
+  /* Sur ordinateur (souris), on ne peut pas glisser du doigt : les filtres passent
+     simplement à la ligne au lieu de défiler. Sur téléphone, rien ne change. */
+  @media (hover:hover) and (pointer:fine){
+    .chips, .domnav{flex-wrap:wrap; overflow-x:visible}
+  }
   .chip{
     flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
     padding:7px 13px; border-radius:20px; font-size:13px; font-weight:650; cursor:pointer; white-space:nowrap;
@@ -2088,7 +2093,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v176';
+const APP_VERSION = 'v178';
 const SEED_VERSION = 51;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3217,6 +3222,16 @@ document.addEventListener('pointerdown', e=>{
     document.querySelectorAll('.newsbtn.voix').forEach(b=>b.classList.remove('voix'));
   });
 });
+
+/* Filet de sécurité pour les écrans tactiles-et-souris : la molette fait défiler
+   les rangées de filtres horizontalement au lieu de ne rien faire. */
+document.addEventListener('wheel', function(e){
+  const z = (e.target && e.target.closest) ? e.target.closest('.chips, .domnav, .acc-paves, .fc-chips, .adm-shift') : null;
+  if(!z || z.scrollWidth <= z.clientWidth + 2) return;
+  if(Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  z.scrollLeft += e.deltaY;
+  e.preventDefault();
+}, {passive:false});
 
 document.getElementById('search').addEventListener('input', e=>{query=e.target.value; render()});
 document.getElementById('modalBg').addEventListener('click', e=>{if(e.target.id==='modalBg') closeForm()});
