@@ -560,6 +560,18 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .pet-go .pet-fleche{width:14px; height:14px; opacity:.8}
   .pet-go:active{transform:scale(.99)}
   /* Fil d'actu */
+  /* Ligne repliée : « Quoi de neuf ? » + un rond par catégorie */
+  .feed-bar{ display:flex; align-items:center; gap:8px; background:var(--soft); border-radius:26px;
+    padding:8px 9px 8px 16px; margin-bottom:16px; cursor:pointer; }
+  .fb-q{ flex:1 1 auto; font-size:13.5px; font-weight:700; color:var(--muted); }
+  .fb-em{ flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:0; background:var(--card);
+    font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    box-shadow:inset 0 0 0 2px transparent; transition:box-shadow .15s ease, transform .15s ease; }
+  .fb-em:hover, .fb-em:active{ box-shadow:inset 0 0 0 2px var(--fc); transform:scale(1.06); }
+  .fc-bas{ display:flex; align-items:center; gap:9px; margin-top:10px; }
+  .fc-annuler{ flex:0 0 auto; border:1.5px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:12px; padding:11px 15px; font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; }
+  .fc-bas .feed-send{ flex:1 1 auto; margin-top:0; }
   .feed-compose{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--fc); border-radius:16px; padding:12px; margin-bottom:16px; }
   /* Choix de la catégorie avant de publier */
   .fc-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
@@ -1241,7 +1253,7 @@ const ICONS = {
   compass:  '<circle cx="6.6" cy="6.6" r="5.2"/><circle cx="17.4" cy="6.6" r="5.2"/><circle cx="6.6" cy="17.4" r="5.2"/><circle cx="17.4" cy="17.4" r="5.2"/>',
   user:     '<circle cx="12" cy="7.4" r="4.8"/><path d="M12 13.6c4.6 0 8.4 3 8.4 6.8v1.2H3.6v-1.2c0-3.8 3.8-6.8 8.4-6.8z"/>',
   phone:    '<path d="M5.6 2.6h3.6l2 4.9-2.7 1.7a9.6 9.6 0 0 0 4.3 4.3l1.7-2.7 4.9 2v3.6a2.7 2.7 0 0 1-2.7 2.7C8.9 19.1 4.9 15.1 2.9 5.3a2.7 2.7 0 0 1 2.7-2.7z"/>',
-  clock:    '<path fill-rule="evenodd" d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2zM11 7.6h2V12l3.2 1.9-1 1.7-4.2-2.5z"/>',
+  clock:    '<path fill-rule="evenodd" d="M12 2.2a9.8 9.8 0 1 0 0 19.6 9.8 9.8 0 0 0 0-19.6zM10.9 6.9h2.2v5l3.6 2.2-1.1 1.9-4.7-2.8z"/>',
   mail:     '<path d="M6.2 3.4h12.1a1.9 1.9 0 0 1 1.9 1.9v12.1h-4V10.6L6.9 20.4 4 17.5l9.8-9.8H6.2z"/>',
   pin:      '<path fill-rule="evenodd" d="M12 2.2a7.2 7.2 0 0 0-7.2 7.2c0 5.4 7.2 12.4 7.2 12.4s7.2-7 7.2-12.4A7.2 7.2 0 0 0 12 2.2zm0 4.6a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>',
   note:     '<path fill-rule="evenodd" d="M6 2.8h7.2L18 7.6V21.2H6zM13 3.6V8h4.4zM8.6 11.6h6.8v1.5H8.6zM8.6 14.8h6.8v1.5H8.6z"/>',
@@ -2045,7 +2057,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v156';
+const APP_VERSION = 'v159';
 const SEED_VERSION = 47;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2066,6 +2078,7 @@ let urgCat = null;          // index de la catégorie d'urgence déployée (ou n
 let query = "";
 let activeCommune = "Toutes";
 let activeDemarche = "Toutes";
+let activeDemGenre = "Tout";   // mode d'emploi ou guichet
 let activeMetier = "Toutes";
 let activeKw = "Tous";
 let activeFam = "Toutes";      // Médical / Social
@@ -2153,13 +2166,13 @@ function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
 /* ---------- Navigation ---------- */
-function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
+function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
 // Accueil : bouton loupe → révèle et focalise la recherche ; pastilles → recherche rapide
 function toggleHomeSearch(){ document.body.classList.add('search-on'); const s=document.getElementById('search'); if(s){ s.focus(); } }
 function quickSearch(q){ const s=document.getElementById('search'); if(s) s.value=q; query=q; document.body.classList.add('search-on'); render(); }
-function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 /* Accordéon Urgences (sur l'accueil, comme une FAQ — pas de page séparée). */
 function toggleUrg(){ urgOpen=!urgOpen; if(!urgOpen) urgCat=null; render(); if(!urgOpen) window.scrollTo(0,0); }
@@ -2314,6 +2327,12 @@ function render(){
 
   let html=domNavHTML(view);
   if(dm.isDem){
+    // Deux choses différentes vivent ici : le mode d'emploi d'une démarche, et le guichet
+    // à qui l'adresser. On les sépare avant de proposer les types.
+    html+=`<div class="chips">`+["Tout","Mode d'emploi","Par CPAS"].map(g=>
+      `<div class="chip ${g===activeDemGenre?'active':''}" onclick="setDemGenre('${g.replace(/'/g,"\\'")}')">${esc(g)}</div>`).join('')+`</div>`;
+    if(activeDemGenre==="Mode d'emploi") items=items.filter(p=>p.asMethod);
+    else if(activeDemGenre==="Par CPAS") items=items.filter(p=>!p.asMethod);
     const types=["Toutes",...DEMARCHES.filter(t=>items.some(p=>p.demarche===t))];
     html+=`<div class="chips">`+types.map(t=>
       `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
@@ -2355,6 +2374,7 @@ function render(){
 }
 function setCommune(c){activeCommune=c; render()}
 function setDemarche(t){activeDemarche=t; render()}
+function setDemGenre(g){activeDemGenre=g; activeDemarche='Toutes'; render()}
 function setMetier(m){activeMetier=m; render()}
 function setKw(k){activeKw=k; render()}
 function setFam(f){activeFam=f; activeKw="Tous"; render()}
@@ -3542,6 +3562,7 @@ function chambresHTML(){
 }
 
 /* ---------- Fil d\'actu de l\'équipe (feed, base privée) ---------- */
+let FEED_OUVERT=false;   // la zone d'écriture est repliée par défaut
 let FEED=[], feedLoaded=false, REACTIONS={};
 /* 1er clic : la pastille se déploie et annonce ce qu'il y a dedans.
    2e clic : on ouvre le fil. Si on ne fait rien, elle se replie seule au bout de deux minutes. */
@@ -3633,6 +3654,12 @@ const FTYPE=Object.fromEntries(FEED_TYPES.map(t=>[t.k,t]));
 let FEED_TYPE='info';
 const FEED_EMOJIS=['👍','❤️','👏','💡'];
 
+function ouvrirCompose(type){
+  if(type) FEED_TYPE=type;
+  FEED_OUVERT=true; render();
+  const t=document.getElementById('feedText'); if(t) t.focus();
+}
+function fermerCompose(){ FEED_OUVERT=false; render(); }
 function setFeedType(k){ FEED_TYPE=k; if(view==='feed') render(); }
 
 /* Séparateurs de jour, pour se repérer d'un coup d'œil. */
@@ -3656,10 +3683,20 @@ function feedHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir le fil.</p></div>`;
   const chips=FEED_TYPES.map(t=>
     `<button class="fc-chip ${t.k===FEED_TYPE?'on':''}" style="--fc:${t.c}" onclick="setFeedType('${t.k}')"><span>${t.e}</span>${esc(t.l)}</button>`).join('');
-  const compose=`<div class="feed-compose" style="--fc:${FTYPE[FEED_TYPE].c}">
-    <div class="fc-chips">${chips}</div>
-    <textarea id="feedText" rows="2" placeholder="Partager une info à l'équipe…"></textarea>
-    <button class="feed-send" onclick="publishFeed()">${icon('send')}<span>Publier</span></button></div>`;
+  // Repliée, la zone d'écriture n'est qu'une ligne : le fil commence tout de suite.
+  // Toucher la ligne (ou directement un emoji) l'ouvre, déjà dans la bonne catégorie.
+  const compose = FEED_OUVERT
+    ? `<div class="feed-compose" style="--fc:${FTYPE[FEED_TYPE].c}">
+        <div class="fc-chips">${chips}</div>
+        <textarea id="feedText" rows="2" placeholder="Partager une info à l'équipe…"></textarea>
+        <div class="fc-bas">
+          <button class="fc-annuler" onclick="fermerCompose()">Annuler</button>
+          <button class="feed-send" onclick="publishFeed()">${icon('send')}<span>Publier</span></button>
+        </div></div>`
+    : `<div class="feed-bar" onclick="ouvrirCompose()">
+        <span class="fb-q">Quoi de neuf&nbsp;?</span>
+        ${FEED_TYPES.map(t=>`<button class="fb-em" style="--fc:${t.c}" title="${esc(t.l)}" onclick="event.stopPropagation();ouvrirCompose('${t.k}')">${t.e}</button>`).join('')}
+      </div>`;
 
   let list;
   if(!feedLoaded) list=`<div class="empty"><p>Chargement…</p></div>`;
@@ -3723,6 +3760,7 @@ async function publishFeed(){
     try{ await sb.from('feed').insert(Object.assign({type:FEED_TYPE}, ligne)); }
     catch(e){ await sb.from('feed').insert(ligne); }   // base pas encore à jour : on publie quand même
     ta.value='';
+    FEED_OUVERT=false;   // publié : la ligne se replie, le fil reprend toute la place
     await loadFeed(); if(view==="feed") render();
   }catch(e){}
 }
