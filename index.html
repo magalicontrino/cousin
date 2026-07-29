@@ -1390,6 +1390,28 @@ const SAMPLE = [
     "Demande de consultation — droit des étrangers",
     "Maître,\n\nDans le cadre de notre accompagnement, nous vous sollicitons pour une personne dont la situation de séjour nécessite un avis juridique.\n\nSituation en bref : [statut actuel / procédure en cours / échéance éventuelle]\nDocuments disponibles : [lister]\n\nSeriez-vous disponible pour une consultation ? Merci de nous indiquer vos disponibilités et modalités.\n\nBien à vous,"),
 
+  // ---- NOTES TYPES (brouillons inventés, à corriger par l'équipe soignante) ----
+  notetpl("Soin de plaie — ulcère de jambe",
+    "Brouillon inventé — à corriger par l'équipe.",
+    ["Plaie","Pansement","Médical"],
+    "Localisation : jambe [gauche/droite], [face externe/interne], [tiers inférieur/moyen].\nType : ulcère veineux, présent depuis [durée].\nAspect : [taille] cm environ, fond [fibrineux/bourgeonnant/nécrotique], exsudat [faible/modéré/abondant], odeur [absente/présente].\nPourtour : peau [sèche/rouge/macérée], [pas de] chaleur, [pas d']œdème.\nDouleur : [absente/à la réfection/permanente], cotée [légère/modérée/forte].\nSoin fait : nettoyage [sérum physiologique/eau et savon], séchage, pansement [type], bande de maintien [avec/sans compression].\nSuite : réfection dans [délai]. Si l'exsudat augmente ou apparition d'une rougeur chaude : avis médical.",
+    "Médical"),
+  notetpl("Diabète — contrôle et traitement",
+    "Brouillon inventé — à corriger par l'équipe.",
+    ["Diabète","Glycémie","Médical"],
+    "Glycémie [avant/après] le repas : valeur notée au dossier.\nTraitement : [injection/comprimé] selon la prescription, site d'injection changé.\nRepas pris : [oui/non]. Collation donnée : [oui/non].\nSignes observés : sueurs, tremblements, somnolence, soif importante — [aucun / préciser].\nPieds : contrôle visuel fait — [peau intacte / rougeur / plaie / ongles à surveiller].\nSuite : prochain contrôle [quand]. En cas de malaise : resucrage et appel médical.",
+    "Médical"),
+  notetpl("Mobilité — chaise roulante ou rollator",
+    "Brouillon inventé — à corriger par l'équipe.",
+    ["Mobilité","Escarres","Médical"],
+    "Aide utilisée : [chaise roulante/rollator], état du matériel vérifié.\nTransferts : [autonome / partiellement / avec une personne en soutien].\nPoints d'appui (sacrum, talons, ischions) : [peau intacte / rougeur qui blanchit / rougeur persistante].\nInstallation : changement de position proposé, coussin de décharge [en place/absent].\nSuite : recontrôle des points d'appui au prochain passage.",
+    "Médical"),
+  notetpl("Amputation d'orteils — surveillance",
+    "Brouillon inventé — à corriger par l'équipe.",
+    ["Plaie","Pied","Médical"],
+    "Localisation : pied [gauche/droit], orteils amputés — cicatrice [fermée/en cours].\nAspect : [pas d']écoulement, [pas de] rougeur, extrémités [tièdes/froides].\nChaussage : chaussure adaptée [portée/non portée].\nSoin fait : lavage doux, séchage soigneux entre les orteils restants, pansement sec.\nSuite : surveillance quotidienne. Toute rougeur, chaleur, odeur ou plaie nouvelle = avis médical le jour même.",
+    "Médical"),
+
   urgent(d("addictions","M.A.S.S. de Bruxelles","Bruxelles-Ville",
     "Maison d'Accueil Socio-Sanitaire : accueil bas seuil, soins et accompagnement social pour les usagers de drogues. Dispositif « TREMPLIN ».",
     "Usagers de drogues les plus marginalisés, éloignés des réseaux d'aide classiques","02 505 32 90","contact@mass-bxl.be","mass-bxl.be",
@@ -1865,8 +1887,16 @@ function formation(nom,desc,metiers,page){
 function centre(nom,desc,notes){
   return {id:uid(),fav:false,domaine:"centre",nom,commune:"",desc,public:"",referent:"",tel:"",mail:"",site:"",adr:"",horaires:"",notes};
 }
-function mailtpl(nom,desc,keywords,objet,corps){
-  const o=d("mails",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.objet=objet; o.corps=corps; o.keywords=keywords||[]; return o;
+function mailtpl(nom,desc,keywords,objet,corps,famille,genre){
+  const o=d("mails",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.objet=objet; o.corps=corps; o.keywords=keywords||[];
+  // Deux tris demandés par l'équipe : mail ou note, et médical ou social.
+  o.famille = famille || ((keywords||[]).indexOf('Médical')>=0 ? 'Médical' : 'Social');
+  o.genre   = genre || 'Mail';
+  return o;
+}
+/* Note type : même fiche, mais rangée dans « Notes » (le corps sert de canevas à recopier). */
+function notetpl(nom,desc,keywords,corps,famille){
+  const o=mailtpl(nom,desc,keywords,'',corps,famille,'Note'); return o;
 }
 /* Guide de questions (arbre interactif) : `guideKey` renvoie vers GUIDES. */
 function guide(nom,desc,metiers,guideKey){
@@ -1887,8 +1917,8 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
-const APP_VERSION = 'v132';
-const SEED_VERSION = 44;
+const APP_VERSION = 'v133';
+const SEED_VERSION = 45;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -1910,6 +1940,8 @@ let activeCommune = "Toutes";
 let activeDemarche = "Toutes";
 let activeMetier = "Toutes";
 let activeKw = "Tous";
+let activeFam = "Toutes";      // Médical / Social
+let activeGenre = "Tous";      // Mails / Notes
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function normalize(p){
@@ -1922,6 +1954,7 @@ function normalize(p){
     demarche:p.demarche||"", ou:p.ou||"", comment:p.comment||"", attention:p.attention||"",
     delai:p.delai||"", maj:p.maj||"", memo:p.memo||"", page:p.page||"", metiers:Array.isArray(p.metiers)?p.metiers:[],
     objet:p.objet||"", corps:p.corps||"", keywords:Array.isArray(p.keywords)?p.keywords:[],
+    famille:p.famille||"", genre:p.genre||"",
     isGuide:!!p.isGuide, guideKey:p.guideKey||"", asMethod:!!p.asMethod, urgent:!!p.urgent};
 }
 function load(){
@@ -1992,13 +2025,13 @@ function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
 /* ---------- Navigation ---------- */
-function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
+function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
 // Accueil : bouton loupe → révèle et focalise la recherche ; pastilles → recherche rapide
 function toggleHomeSearch(){ document.body.classList.add('search-on'); const s=document.getElementById('search'); if(s){ s.focus(); } }
 function quickSearch(q){ const s=document.getElementById('search'); if(s) s.value=q; query=q; document.body.classList.add('search-on'); render(); }
-function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 /* Accordéon Urgences (sur l'accueil, comme une FAQ — pas de page séparée). */
 function toggleUrg(){ urgOpen=!urgOpen; if(!urgOpen) urgCat=null; render(); if(!urgOpen) window.scrollTo(0,0); }
@@ -2148,6 +2181,13 @@ function render(){
     if(activeMetier!=="Toutes") items=items.filter(p=>!p.metiers||!p.metiers.length||p.metiers.includes(activeMetier));
   }
   if(dm.isMail){
+    // Deux tris d'abord : mail ou note, puis médical ou social. Les mots-clés affinent ensuite.
+    html+=`<div class="chips">`+["Tous","Mails","Notes"].map(g=>
+      `<div class="chip ${g===activeGenre?'active':''}" onclick="setGenre('${g}')">${esc(g)}</div>`).join('')+`</div>`;
+    if(activeGenre!=="Tous") items=items.filter(p=>(p.genre==='Note')===(activeGenre==='Notes'));
+    html+=`<div class="chips">`+["Toutes","Médical","Social"].map(f=>
+      `<div class="chip ${f===activeFam?'active':''}" onclick="setFam('${f}')">${esc(f)}</div>`).join('')+`</div>`;
+    if(activeFam!=="Toutes") items=items.filter(p=>p.famille===activeFam);
     const kws=[]; items.forEach(p=>(p.keywords||[]).forEach(k=>{ if(kws.indexOf(k)<0) kws.push(k); }));
     kws.sort((a,b)=>a.localeCompare(b,'fr'));
     const all=["Tous",...kws];
@@ -2164,6 +2204,8 @@ function setCommune(c){activeCommune=c; render()}
 function setDemarche(t){activeDemarche=t; render()}
 function setMetier(m){activeMetier=m; render()}
 function setKw(k){activeKw=k; render()}
+function setFam(f){activeFam=f; activeKw="Tous"; render()}
+function setGenre(g){activeGenre=g; activeKw="Tous"; render()}
 
 function domNavHTML(active){
   // Pavés uniquement dans le Réseau (pour sauter d'un domaine à l'autre).
@@ -2403,7 +2445,7 @@ function mailCard(p){
       ${p.corps?`<div class="memo">${esc(p.corps)}</div>`:'<div class="row" style="color:var(--muted)">Texte à ajouter</div>'}
       <div class="actions">
         ${p.objet?`<button class="btn map" onclick="copyMail(event,'${p.id}','objet')">${icon('note')}Copier l'objet</button>`:''}
-        <button class="btn call" onclick="copyMail(event,'${p.id}','corps')">${icon('mail')}Copier le message</button>
+        <button class="btn call" onclick="copyMail(event,'${p.id}','corps')">${icon('mail')}Copier ${p.genre==='Note'?'la note':'le message'}</button>
       </div>
     </div></div>
   </div>`;
