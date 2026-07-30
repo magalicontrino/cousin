@@ -1257,6 +1257,16 @@ input, textarea, select{
     border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
   .acc-apart.on{background:var(--gold); color:#1b1b1b; border-color:transparent}
   .acc-m .acc-paves{flex:1 1 100%; margin-top:4px}
+  /* L'équipe rangée par métier : une ligne par métier, repliée. */
+  .adm-g{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:9px; overflow:hidden}
+  .adm-g.ouverte{border-color:#1b1b1b}
+  .adm-gt{display:flex; align-items:center; gap:9px; width:100%; border:0; background:transparent;
+    font:inherit; color:inherit; text-align:left; padding:12px 13px; cursor:pointer}
+  .adm-gch{flex:0 0 auto; width:15px; height:15px; color:var(--faint); transition:transform .2s}
+  .adm-g.ouverte .adm-gch{transform:rotate(90deg)}
+  .adm-gn{flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:900}
+  .adm-gc{flex:0 0 auto; font-size:11.5px; font-weight:700; color:var(--muted)}
+  .adm-gd{padding:0 10px 10px; display:flex; flex-direction:column; gap:9px}
   .adm-acc{margin-top:9px; padding-top:9px; border-top:1px solid var(--line)}
   .adm-main{font-style:normal; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.04em;
     background:var(--gold); color:#1b1b1b; border-radius:20px; padding:2px 7px; margin-left:5px}
@@ -3121,7 +3131,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v348';
+const APP_VERSION = 'v349';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3325,7 +3335,9 @@ function majApercu(){
       + "</span> <button onclick=\"quitterApercu()\">Revenir à ma vue</button>";
   }
 }
-function setAdmFiltre(r){ admFiltre=r; if(view==='admin') render(); }
+/* Quels métiers sont dépliés dans « L'équipe ». */
+var ADM_OUV={};
+function admOuvrir(r){ ADM_OUV[r]=!ADM_OUV[r]; if(view==='admin') render(); }
 /* On RESTE sur la page qu'on regarde : changer de groupe ne doit pas renvoyer à
    l'accueil, sinon on ne peut vérifier aucun autre écran. */
 function voirComme(role){ APERCU_ROLE=role; APERCU_QUI=null; render(); }
@@ -4777,7 +4789,6 @@ let ACCES_ROLES=null;    // { rôle: [pavés] } — réglé depuis l'Admin, null
 let APERCU_ROLE=null;    // aperçu : voir l'app comme un rôle donné (l'admin garde ses droits réels)
 let APERCU_QUI=null;     // aperçu : voir l'app comme UNE PERSONNE (avec ses exceptions à elle)
 let APERCU_TEL=false;    // aperçu : sur un téléphone plutôt que sur l'écran d'ordinateur
-let admFiltre='Tous';    // filtre par métier dans la liste de l'équipe
 const LISTE_LABELS={ 'pfo-jour':'PFO — Jour', 'pfo-nuit':'PFO — Nuit', 'médical':'Médical', 'polyvalent-jour':'Polyvalent — Jour', 'polyvalent-nuit':'Polyvalent — Nuit' };
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','polyvalent-jour','polyvalent-nuit'];
 /* « le 29 juillet à 9 h 12 » — pour savoir quand la demande est arrivée. */
@@ -5783,9 +5794,9 @@ function adminHTML(){
       ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}${r.mot?`<span>${esc(r.email)}</span>`:''}<em>${esc(quandFr(r.cree_le))}${/@samusocial\.be$/i.test(r.email||'')?'':' · adresse perso'}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
   const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
-  const membresVus = (admFiltre==='Tous') ? ADMIN.members
-      : ADMIN.members.filter(function(m){ return (m.equipe||'Sans rôle')===admFiltre; });
-  const members=membresVus.map(mb=>{
+  /* La fiche d'une personne. Elle n'est fabriquée que si son métier est déplié : sinon
+     l'écran affichait la trentaine de fiches à la suite, et on ne trouvait plus personne. */
+  const carteMembre=function(mb){
     const isMe=PROFILE&&mb.email&&PROFILE.email&&mb.email.toLowerCase()===PROFILE.email.toLowerCase();
     const seesAll=mb.pfo||mb.admin;
     const e=String(mb.equipe||'').toLowerCase();
@@ -5817,13 +5828,31 @@ function adminHTML(){
           return `<button class="acc-p ${sesPaves.indexOf(k)>=0?'on':''}" onclick="togglePaveMembre('${esc(mb.email)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
         }).join('')}</div></div>`;
     return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
-  }).join('');
+  };
+  /* L'ÉQUIPE, RANGÉE PAR MÉTIER. Une trentaine de fiches à la suite, ça ne se lit pas :
+     on ne voit d'abord que les métiers, avec le nombre de personnes, et on ouvre celui
+     qu'on cherche. Ça remplace la rangée de filtres, qui obligeait à choisir avant de voir. */
   const metiers=[]; ADMIN.members.forEach(function(m){ const r=m.equipe||'Sans rôle'; if(metiers.indexOf(r)<0) metiers.push(r); });
-  metiers.sort(function(a,b){ return ROLE_OPTS.indexOf(a)-ROLE_OPTS.indexOf(b); });
-  const filtres=`<div class="chips">`+['Tous'].concat(metiers).map(function(r){
-      return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(roleLabel(r))}</div>`;
-    }).join('')+`</div>`;
-  const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${filtres}${members}</div>`;
+  metiers.sort(function(a,b){
+    const ia=ROLE_OPTS.indexOf(a), ib=ROLE_OPTS.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib);   // « Sans rôle » et les métiers inconnus à la fin
+  });
+  const groupes=metiers.map(function(r){
+    const gens=ADMIN.members.filter(function(m){ return (m.equipe||'Sans rôle')===r; });
+    const ouv=!!ADM_OUV[r];
+    const combien = gens.length===1 ? '1 personne' : gens.length+' personnes';
+    const suspendus = gens.filter(function(m){ return !m.actif; }).length;
+    return '<div class="adm-g'+(ouv?' ouverte':'')+'">'
+      + '<button class="adm-gt" onclick="admOuvrir(\''+esc(r)+'\')">'
+      +   icon('chevron','class="adm-gch"')
+      +   '<span class="adm-gn">'+esc(roleLabel(r))+'</span>'
+      +   '<span class="adm-gc">'+combien+(suspendus?' · '+suspendus+' suspendue'+(suspendus>1?'s':''):'')+'</span>'
+      + '</button>'
+      + (ouv ? '<div class="adm-gd">'+gens.map(carteMembre).join('')+'</div>' : '')
+      + '</div>';
+  }).join('');
+  const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>
+    <div class="adm-hint" style="margin-bottom:10px">Ouvre un métier pour voir les personnes qui y sont.</div>${groupes}</div>`;
   const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('alert')}
     <span class="pf-out-tx"><b>Le chantier</b><i>${chantierSous()}</i></span>
     ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
