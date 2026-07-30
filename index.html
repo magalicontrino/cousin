@@ -2586,7 +2586,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v281';
+const APP_VERSION = 'v282';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5041,7 +5041,7 @@ var MUSEES_1ER_MERCREDI = [
   {n:"Musée BELvue", c:"Bruxelles-Ville · dès 14 h", u:"musee-belvue", s:""},
 ];
 function museeRegle(m, jourFn, couleur, quandTexte){
-  return { titre:m.n, sous:(m.s||quandTexte), prix:"Gratuit", lieu:m.c, c:couleur,
+  return { titre:m.n, sous:(m.s||quandTexte), prix:"Gratuit", lieu:m.c, c:couleur, kids:true,
            src:"https://www.brusselsmuseums.be/fr/"+m.u, srct:"Sa page : horaires et adresse", quand:jourFn };
 }
 var REGLES_MUSEES = MUSEES_1ER_DIMANCHE.map(function(m){
@@ -5067,13 +5067,25 @@ var AGENDA_REGLES = [
 ].concat(REGLES_MUSEES);
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 var MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-function agendaProchains(jours, avecEnfants){   /* 31 jours sur la page, 1 pour la pastille */
+/* Ce que chaque interrupteur montre :
+   — Gratuit seul  : toutes les sorties gratuites, sauf celles qui visent les enfants.
+   — Enfants seul  : ce qui se fait AVEC des enfants — les lieux pour enfants ET les musées.
+   — Les deux      : tout.
+   Un interrupteur allumé doit toujours montrer quelque chose ; il ne vide jamais la page. */
+function agVisible(r){
+  if(AG_GRATUIT && AG_ENFANTS) return true;
+  if(AG_GRATUIT) return !r.enfants;
+  if(AG_ENFANTS) return !!(r.enfants || r.kids);
+  return false;
+}
+function agendaProchains(jours, filtre){   /* 31 jours sur la page, 1 pour la pastille */
   if(!AGENDA_REGLES) return [];   // render() peut passer ici avant que la table soit remplie
+  const garde = filtre || function(r){ return !r.enfants; };
   const out=[], base=new Date(); base.setHours(0,0,0,0);
   for(let i=0;i<(jours||15);i++){
     const d=new Date(base); d.setDate(base.getDate()+i);
     AGENDA_REGLES.forEach(function(r){
-      if(r.enfants && !avecEnfants) return;   // ce qui vise les enfants vit derrière son propre lien
+      if(!garde(r)) return;
       if(r.quand(d)) out.push({d:new Date(d), i:i, r:r});
     });
   }
@@ -5219,9 +5231,8 @@ function agendaHTML(){
   /* Ce qui revient CHAQUE SEMAINE est écrit une seule fois — sinon le BELvue s'affichait
      quatre fois de suite et on se demandait pourquoi. Les dates ne servent qu'à ce qui
      n'arrive qu'une fois dans le mois. */
-  const avecEnfants = AG_ENFANTS;
-  const list=agendaProchains(31, avecEnfants).filter(function(e){ return !e.r.hebdo; });
-  const hebdos=AGENDA_REGLES.filter(function(r){ return r.hebdo && (avecEnfants || !r.enfants); });
+  const list=agendaProchains(31, agVisible).filter(function(e){ return !e.r.hebdo; });
+  const hebdos=AGENDA_REGLES.filter(function(r){ return r.hebdo && agVisible(r); });
   let html='';
   if(hebdos.length){
     html+='<div class="ag-jour proche">Chaque semaine</div>';
@@ -5267,9 +5278,9 @@ function agendaHTML(){
       + '<button class="ag-discret'+(AG_ART27?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Art 27</span></button>'
       + '</div>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer</span></button>'
-    + (AG_GRATUIT ? html : '')
+    + ((AG_GRATUIT || AG_ENFANTS) ? html : '')
     + (AG_ART27 ? agArt27HTML() : '')
-    + ((!AG_GRATUIT && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume <b>Gratuit</b> ou <b>Art 27</b> pour voir des sorties.</p></div>' : '')
+    + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
 }
