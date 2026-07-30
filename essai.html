@@ -676,7 +676,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* L'ORDRE DES COUCHES, de dessous à dessus : le plus, la clé, la culture, le linge,
      la poubelle. Celui de gauche passe toujours par-dessus celui de sa droite — et la
      pastille ouverte passe au-dessus de tout le monde. */
-  .dock-plus{z-index:3}
+  /* ⚠ `position:relative` OBLIGATOIRE : sans lui, un z-index ne sert à rien et le bouton
+     jaune se dessinait PAR-DESSUS tout le monde — y compris par-dessus le texte d'une
+     pastille ouverte (le rappel des poubelles). Tous les autres boutons du rang l'ont
+     déjà ; celui-ci avait été oublié, ce qui inversait exactement l'ordre des couches
+     décrit juste au-dessus. Repéré par Mag le 30/07/2026 sur son téléphone. */
+  .dock-plus{position:relative; z-index:3}
   .dock-cle{z-index:4}
   .dock-agenda{z-index:5}
   .dock-linge{z-index:6}
@@ -1761,17 +1766,26 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
     /* Elle se pose SOUS le bandeau noir d'aperçu quand il est là (--apercu-h vaut 0 sinon) :
        fixée à 0, elle passait dessous et le logo était coupé en deux. */
-    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
+    /* ⚠ RÈGLE PERMANENTE (Mag, 30/07/2026 — « à chaque fois que je te le demande ») :
+       SUR GRAND ÉCRAN, LE CORPS DE LA PAGE DOIT ÊTRE UN PEU PLUS HAUT.
+       En passant du téléphone à l'écran, la même barre laissait un grand vide au-dessus
+       de la première carte et la page semblait mal posée. On resserre donc l'en-tête
+       (au-dessus du logo et en dessous du titre) uniquement ici : sur téléphone, rien
+       ne change. Il reste de l'air au-dessus du logo — il ne doit jamais toucher le
+       bord — juste moins. Toute nouvelle page hérite du réglage automatiquement,
+       parce que --barre est mesurée en direct. */
+    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:16px 0 6px}
     /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
        elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
        de pavés. --barre est mesurée en direct (voir majBarre). */
-    body{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
+    body{padding-top:calc(var(--barre,138px) + 2px + var(--apercu-h))}
     /* ⚠ RÈGLE JUMELLE OBLIGATOIRE. La règle plus haut « body.apercu-on{padding-top:var(--apercu-h)} »
        porte une classe : elle bat celle-ci, qui n'en a pas, même en étant écrite après. Résultat
        sans cette ligne : en aperçu, la page ne réservait QUE la hauteur du bandeau noir et
        oubliait celle de la barre du haut — les pavés remontaient sous le titre. */
-    body.apercu-on{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
-    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px - var(--apercu-h))}
+    body.apercu-on{padding-top:calc(var(--barre,138px) + 2px + var(--apercu-h))}
+    /* Même valeur que le padding ci-dessus, sinon l'accueil dépasse d'un cheveu. */
+    body.is-home{height:calc(100dvh - var(--barre,138px) - 2px - var(--apercu-h))}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* ═══ LES TRIS PASSENT SUR LE CÔTÉ ═══
        Une colonne à gauche de la liste, avec le titre de chaque tri et, en retrait, les
@@ -3171,7 +3185,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v353-essai';
+const APP_VERSION = 'v354-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){

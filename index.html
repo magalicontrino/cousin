@@ -676,7 +676,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* L'ORDRE DES COUCHES, de dessous à dessus : le plus, la clé, la culture, le linge,
      la poubelle. Celui de gauche passe toujours par-dessus celui de sa droite — et la
      pastille ouverte passe au-dessus de tout le monde. */
-  .dock-plus{z-index:3}
+  /* ⚠ `position:relative` OBLIGATOIRE : sans lui, un z-index ne sert à rien et le bouton
+     jaune se dessinait PAR-DESSUS tout le monde — y compris par-dessus le texte d'une
+     pastille ouverte (le rappel des poubelles). Tous les autres boutons du rang l'ont
+     déjà ; celui-ci avait été oublié, ce qui inversait exactement l'ordre des couches
+     décrit juste au-dessus. Repéré par Mag le 30/07/2026 sur son téléphone. */
+  .dock-plus{position:relative; z-index:3}
   .dock-cle{z-index:4}
   .dock-agenda{z-index:5}
   .dock-linge{z-index:6}
@@ -1232,6 +1237,30 @@ input, textarea, select{
      Quinze cartes qui répétaient six fois la même chose, ça ne se lit pas. Les métiers qui
      voient la même chose sont réunis dans une carte repliée : on voit d'abord COMBIEN de
      groupes il y a, et les exceptions sautent aux yeux au lieu d'être noyées. */
+  /* ── L'accordéon de la page Admin ─────────────────────────────────────────
+     Les grandes portes de la page : Qui voit quoi, Le plan des accès, L'équipe,
+     Ajouter quelqu'un, Les gens en attente. Une seule ouverte à la fois.
+     Volontairement le MÊME dessin que les accordéons déjà présents dessous
+     (.acc-g) : c'est la même idée, ça doit se ressembler — juste un cran plus
+     grand, parce que ce sont les portes principales. */
+  .adm-acc{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    margin-bottom:10px; overflow:hidden}
+  .adm-acc.ouverte{border-color:#1b1b1b}
+  .adm-acc-t{display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent;
+    font:inherit; color:inherit; text-align:left; padding:14px 14px; cursor:pointer}
+  .adm-acc-n{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px}
+  .adm-acc-n b{font-size:14.5px; font-weight:900}
+  .adm-acc-n em{font-style:normal; font-size:11.5px; font-weight:600; color:var(--muted)}
+  .adm-acc-ch{flex:0 0 auto; width:17px; height:17px; color:var(--muted); transition:transform .2s}
+  .adm-acc.ouverte .adm-acc-ch{transform:rotate(90deg)}
+  .adm-acc-d{padding:0 12px 13px; border-top:1px solid var(--line); padding-top:12px}
+  /* Quelqu'un attend de pouvoir entrer : le bouton se signale, sans crier. */
+  .adm-acc.urgent{border-color:var(--gold-d)}
+  .adm-acc.urgent .adm-acc-n b{color:var(--gold-d)}
+  /* Un bloc rangé dans l'accordéon n'a plus besoin de son propre titre ni de sa marge :
+     le bouton au-dessus les porte déjà. */
+  .adm-sec.nu{margin-bottom:0}
+
   .acc-g{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:9px; overflow:hidden}
   .acc-g.ouverte{border-color:#1b1b1b}
   .acc-gt{display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent;
@@ -1737,17 +1766,26 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
     /* Elle se pose SOUS le bandeau noir d'aperçu quand il est là (--apercu-h vaut 0 sinon) :
        fixée à 0, elle passait dessous et le logo était coupé en deux. */
-    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
+    /* ⚠ RÈGLE PERMANENTE (Mag, 30/07/2026 — « à chaque fois que je te le demande ») :
+       SUR GRAND ÉCRAN, LE CORPS DE LA PAGE DOIT ÊTRE UN PEU PLUS HAUT.
+       En passant du téléphone à l'écran, la même barre laissait un grand vide au-dessus
+       de la première carte et la page semblait mal posée. On resserre donc l'en-tête
+       (au-dessus du logo et en dessous du titre) uniquement ici : sur téléphone, rien
+       ne change. Il reste de l'air au-dessus du logo — il ne doit jamais toucher le
+       bord — juste moins. Toute nouvelle page hérite du réglage automatiquement,
+       parce que --barre est mesurée en direct. */
+    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:16px 0 6px}
     /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
        elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
        de pavés. --barre est mesurée en direct (voir majBarre). */
-    body{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
+    body{padding-top:calc(var(--barre,138px) + 2px + var(--apercu-h))}
     /* ⚠ RÈGLE JUMELLE OBLIGATOIRE. La règle plus haut « body.apercu-on{padding-top:var(--apercu-h)} »
        porte une classe : elle bat celle-ci, qui n'en a pas, même en étant écrite après. Résultat
        sans cette ligne : en aperçu, la page ne réservait QUE la hauteur du bandeau noir et
        oubliait celle de la barre du haut — les pavés remontaient sous le titre. */
-    body.apercu-on{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
-    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px - var(--apercu-h))}
+    body.apercu-on{padding-top:calc(var(--barre,138px) + 2px + var(--apercu-h))}
+    /* Même valeur que le padding ci-dessus, sinon l'accueil dépasse d'un cheveu. */
+    body.is-home{height:calc(100dvh - var(--barre,138px) - 2px - var(--apercu-h))}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* ═══ LES TRIS PASSENT SUR LE CÔTÉ ═══
        Une colonne à gauche de la liste, avec le titre de chaque tri et, en retrait, les
@@ -3147,7 +3185,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v353';
+const APP_VERSION = 'v354';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3303,7 +3341,13 @@ function navPictos(){
          `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
          `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}${alertesProfil()}</button>`;
 }
-function estAdmin(){ try{ return !!(PROFILE && PROFILE.admin); }catch(e){ return false; } }
+/* La roue dentée de l'en-tête n'existe que pour l'administratrice — ET elle doit
+   disparaître pendant un aperçu. Sinon l'aperçu ment : Mag se met « dans la peau »
+   d'une coordi et voit quand même le bouton Gestion, donc elle ne peut pas vérifier
+   ce qu'un·e collègue a vraiment sous les yeux. Le reste de l'app testait déjà
+   `!enApercu()` (le bouton du profil, le bureau, le chantier) ; l'en-tête avait été
+   oublié. Repéré par Mag le 30/07/2026. */
+function estAdmin(){ try{ return !!(PROFILE && PROFILE.admin) && !enApercu(); }catch(e){ return false; } }
 /* Pastille rouge sur le profil : Mag doit voir qu'une demande d'accès l'attend,
    sans avoir à ouvrir sa page. */
 function alertesProfil(){
@@ -3984,6 +4028,7 @@ function toggleFav(ev,id){
   const p=data.find(x=>x.id===id); if(!p) return;
   p.fav=!p.fav;
   persist(data);
+  favEcrire(p.sid, p.fav);          // et on prévient la base (sans faire attendre le doigt)
   const btn=ev.currentTarget;
   btn.classList.toggle('on', p.fav);
   btn.title = p.fav?'Retirer des favoris':'Ajouter aux favoris';
@@ -3994,6 +4039,155 @@ function toggleFav(ev,id){
     if(!data.some(x=>x.fav)) render();
   }
   updateFavBadge();
+}
+
+/* ── Les favoris suivent la personne, pas le téléphone ──────────────────────
+   Avant, l'étoile ne vivait que dans le téléphone : nouveau téléphone, app
+   désinstallée ou navigateur nettoyé = tout perdu. Elle vit maintenant dans la
+   table `favoris` (chacun ne voit que les siens).
+
+   Le téléphone garde quand même sa copie : c'est elle qui s'affiche hors ligne
+   et pendant la seconde où la base répond. La base n'écrase le téléphone que si
+   la lecture a VRAIMENT réussi — sinon on ne touche à rien, on préfère un favori
+   en trop qu'un favori perdu. */
+const FAV_MIGRE = 'cousin_fav_en_base';   // « les favoris déjà sur ce téléphone ont été remontés »
+
+function favEcrire(sid, actif){
+  if(!sb || !sid || !PROFILE || !PROFILE.uid) return;   // pas connecté : le téléphone suffit
+  try{
+    if(actif) sb.from('favoris').insert({ user_id:PROFILE.uid, sid }).then(function(){}, function(){});
+    else      sb.from('favoris').delete().eq('user_id',PROFILE.uid).eq('sid',sid).then(function(){}, function(){});
+  }catch(e){}
+}
+
+async function loadFavoris(){
+  if(!sb || !PROFILE || !PROFILE.uid) return false;
+  let enBase;
+  try{
+    const { data:rows, error } = await sb.from('favoris').select('sid');
+    if(error) return false;                     // table absente ou hors ligne : on garde le téléphone
+    enBase = new Set((rows||[]).map(r=>r.sid));
+  }catch(e){ return false; }
+
+  // Première fois sur cet appareil : on REMONTE ce qui était déjà en favori ici,
+  // au lieu de l'effacer. Une seule fois — ensuite c'est la base qui fait foi,
+  // sinon un favori retiré sur le téléphone A reviendrait depuis le téléphone B.
+  let premiere=false;
+  try{ premiere = !localStorage.getItem(FAV_MIGRE); }catch(e){}
+  if(premiere){
+    const aRemonter = data.filter(p=>p.fav && p.sid && !enBase.has(p.sid));
+    if(aRemonter.length){
+      try{
+        await sb.from('favoris').insert(aRemonter.map(p=>({ user_id:PROFILE.uid, sid:p.sid })));
+        aRemonter.forEach(p=>enBase.add(p.sid));
+      }catch(e){}
+    }
+    try{ localStorage.setItem(FAV_MIGRE,'1'); }catch(e){}
+  }
+
+  // La base fait foi : on aligne le téléphone dessus.
+  let change=false;
+  data.forEach(function(p){
+    const doitEtre = enBase.has(p.sid);
+    if(p.fav !== doitEtre){ p.fav = doitEtre; change=true; }
+  });
+  if(change) persist(data);
+  updateFavBadge();
+  return change;
+}
+
+/* ── Ce qui ne doit plus se perdre : formations lues, avancement des jeux ────
+   Règle posée par Mag le 30/07/2026 : « tout ce qui se perd et qui est
+   intéressant de garder, tu le mets en base ». Ces deux-là ne vivaient que
+   dans le téléphone.
+
+   ⚠️ MÊME PROMESSE QUE POUR LES JEUX EN ÉQUIPE : la table `reglages_perso`
+   n'est lisible QUE par la personne elle-même — l'administratrice comprise.
+   On garde le détail pour qu'elle le retrouve, pas pour que quelqu'un le
+   regarde. Personne ne peut savoir qui s'est trompé sur quoi.
+
+   Le téléphone reste la copie de travail (hors ligne, et pendant que la base
+   répond). Comme pour les favoris : on n'écrase le téléphone que si la lecture
+   a VRAIMENT réussi. */
+const REG_MIGRE = 'cousin_reglages_en_base';
+var _regEnAttente = {}, _regMinuteur = null;
+
+function reglagePousser(cle, valeur){
+  if(!sb || !PROFILE || !PROFILE.uid) return;        // pas connectée : le téléphone suffit
+  _regEnAttente[cle] = valeur;
+  /* On attend une seconde avant d'écrire : cocher cinq chapitres à la suite ne
+     doit pas déclencher cinq allers-retours vers la base. */
+  clearTimeout(_regMinuteur);
+  _regMinuteur = setTimeout(function(){
+    const lot = _regEnAttente; _regEnAttente = {};
+    Object.keys(lot).forEach(function(k){
+      try{
+        sb.from('reglages_perso').upsert(
+          { user_id:PROFILE.uid, cle:k, valeur:lot[k], maj_le:new Date().toISOString() },
+          { onConflict:'user_id,cle' }
+        ).then(function(){}, function(){});
+      }catch(e){}
+    });
+  }, 1000);
+}
+
+/* Un record ne redescend jamais : si un appareil en connaît un meilleur, il gagne. */
+function fusionnerRecords(a, b){
+  const out = Object.assign({}, b||{});
+  Object.keys(a||{}).forEach(function(k){
+    if(typeof a[k]==='number' && (typeof out[k]!=='number' || a[k]>out[k])) out[k]=a[k];
+  });
+  return out;
+}
+
+async function chargerReglages(){
+  if(!sb || !PROFILE || !PROFILE.uid) return false;
+  let lignes;
+  try{
+    const { data:rows, error } = await sb.from('reglages_perso').select('cle,valeur');
+    if(error) return false;                  // table absente ou hors ligne : on garde le téléphone
+    lignes = {}; (rows||[]).forEach(function(r){ lignes[r.cle]=r.valeur; });
+  }catch(e){ return false; }
+
+  let premiere=false;
+  try{ premiere = !localStorage.getItem(REG_MIGRE); }catch(e){}
+
+  /* FORMATIONS — la première fois, on fait l'UNION : un chapitre lu ici ou là
+     reste lu, on ne redemande à personne de relire ce qu'il a déjà lu.
+     Ensuite la base fait foi, sinon décocher sur un téléphone ne servirait à rien. */
+  const fBase = lignes.formations;
+  if(fBase && typeof fBase==='object'){
+    if(premiere){
+      Object.keys(fBase).forEach(function(sid){
+        const ici=FLU[sid]||[], la=Array.isArray(fBase[sid])?fBase[sid]:[];
+        const u=ici.slice(); la.forEach(function(i){ if(u.indexOf(i)<0) u.push(i); });
+        FLU[sid]=u;
+      });
+    } else {
+      Object.keys(FLU).forEach(function(k){ delete FLU[k]; });
+      Object.keys(fBase).forEach(function(sid){ FLU[sid]=fBase[sid]; });
+    }
+  }
+  try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){}
+
+  // JEUX — la base fait foi, sauf les records : on garde toujours le meilleur des deux.
+  const jBase = lignes.jeux;
+  if(jBase && typeof jBase==='object'){
+    const recs = fusionnerRecords(JXS.rec, jBase.rec);
+    JXS.dom  = jBase.dom  || JXS.dom  || {};
+    JXS.jour = jBase.jour || JXS.jour || {};
+    if(jBase.sem) JXS.sem = jBase.sem;
+    JXS.rec  = recs;
+  }
+  try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){}
+
+  // Premier passage sur cet appareil : ce qui n'existait QUE là monte en base.
+  if(premiere){
+    try{ localStorage.setItem(REG_MIGRE,'1'); }catch(e){}
+    reglagePousser('formations', FLU);
+    reglagePousser('jeux', JXS);
+  }
+  return true;
 }
 
 /* Chaque [a/b/c] du texte devient des pastilles ; chaque [autre chose] devient un champ à écrire.
@@ -4139,9 +4333,13 @@ const THEME_DOM = {'Droit des étrangers':'etrangers', 'Article 27':'culture'};
 function themeTerrain(t){ const k=THEME_DOM[t||'']; return k ? {t:'dom',k} : {t:'tout'}; }
 function seTester(theme){ jxJouer('quiz', themeTerrain(theme)); }
 function themeCoul(t){ return THEME_COUL[t||''] || '#b28b7a'; }
-/* Ce qu'on a lu, gardé sur le téléphone. */
+/* Ce qu'on a lu. Gardé sur le téléphone POUR LE HORS LIGNE, et en base pour que
+   ça suive la personne (voir reglagePousser / chargerReglages plus bas). */
 var FLU = (function(){ try{ return JSON.parse(localStorage.getItem('cousin_formations')||'{}'); }catch(e){ return {}; } })();
-function fluSave(){ try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){} }
+function fluSave(){
+  try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){}
+  reglagePousser('formations', FLU);
+}
 function fluLus(sid){ return FLU[sid]||[]; }
 function fluToggle(ev, sid, i){
   ev.stopPropagation();
@@ -4777,6 +4975,21 @@ function signInGoogle(){
 }
 async function signOutCousin(){
   localStorage.removeItem('cousin_auth_ok');
+  /* On efface les étoiles DU TÉLÉPHONE, pas celles de la base : elles sont en
+     sécurité et reviendront à la prochaine connexion. Sinon le collègue qui se
+     connecte ensuite sur le même appareil verrait — et pire, s'approprierait —
+     les favoris de la personne d'avant.
+     Le repère FAV_MIGRE, lui, RESTE posé : c'est ce qui empêche cette reprise. */
+  try{ data.forEach(function(p){ p.fav=false; }); persist(data); }catch(e){}
+  /* Pareil pour les formations lues et l'avancement des jeux : ils restent en
+     base, on ne les efface que DE CET APPAREIL. Le collègue qui se connecte
+     ensuite repart de sa propre ligne, pas de celle d'avant. */
+  try{
+    localStorage.removeItem('cousin_formations');
+    localStorage.removeItem('cousin_jeux');
+    Object.keys(FLU).forEach(function(k){ delete FLU[k]; });
+    JXS.rec={}; JXS.dom={}; JXS.jour={}; delete JXS.sem;
+  }catch(e){}
   if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
   location.reload();
 }
@@ -4866,6 +5079,10 @@ async function loadProfile(){
     PROFILE={ email, nom, equipe, pfo, admin, uid, listes, paves:pavesPerso };
     // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
     if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
+    // Ses favoris : ils vivent en base, ils la suivent d'un téléphone à l'autre.
+    try{ if(await loadFavoris()){ if(view==='favoris'||view==='home') render(); } }catch(e){}
+    // Idem pour ce qu'elle a lu et où elle en est dans les jeux.
+    try{ await chargerReglages(); }catch(e){}
     let cl=[];
     try{ const { data } = await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
     const groups={}, order=[];
@@ -5813,10 +6030,10 @@ function adminHTML(){
   if(!adminLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   let reqs='';
   if(ADMIN.requests.length){
-    reqs=`<div class="adm-sec"><div class="adm-h">Demandes d'accès (${ADMIN.requests.length})</div>`+
+    reqs=`<div class="adm-sec nu">`+
       ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}${r.mot?`<span>${esc(r.email)}</span>`:''}<em>${esc(quandFr(r.cree_le))}${/@samusocial\.be$/i.test(r.email||'')?'':' · adresse perso'}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
-  const add=`<div class="adm-sec"><div class="adm-h">Ajouter quelqu'un</div><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
+  const add=`<div class="adm-sec nu"><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   /* La fiche d'une personne. Elle n'est fabriquée que si son métier est déplié : sinon
      l'écran affichait la trentaine de fiches à la suite, et on ne trouvait plus personne. */
   const carteMembre=function(mb){
@@ -5874,22 +6091,54 @@ function adminHTML(){
       + (ouv ? '<div class="adm-gd">'+gens.map(carteMembre).join('')+'</div>' : '')
       + '</div>';
   }).join('');
-  const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>
+  const team=`<div class="adm-sec nu">
     <div class="adm-hint" style="margin-bottom:10px">Ouvre un métier pour voir les personnes qui y sont.</div>${groupes}</div>`;
   const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('alert')}
     <span class="pf-out-tx"><b>Le chantier</b><i>${chantierSous()}</i></span>
     ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
-  /* L'ORDRE DE LA PAGE : ce qui presse, puis ce qu'on fait, puis ce qu'on lit.
-     Avant, « Ajouter quelqu'un » arrivait en quatrième position, derrière deux gros blocs
-     de lecture — alors que c'est un geste courant. Et la page mélangeait trois choses :
-     ce qui attend une action, ce qu'on gère tous les jours, ce qu'on consulte. */
-  const etage=function(t){ return '<div class="adm-etage">'+t+'</div>'; };
+  /* L'ADMIN EN ACCORDÉON — demandé par Mag le 30/07/2026 : « des boutons qui se
+     déploient, et quand l'un s'ouvre ça referme les autres, comme dans une FAQ ».
+     Avant, les quatre blocs étaient dépliés en même temps : la page faisait plusieurs
+     écrans de haut et il fallait faire défiler longtemps pour atteindre le dernier.
+     Maintenant on voit d'abord la liste des portes, et on n'en ouvre qu'une. */
+  const nb=ADMIN.requests.length;
+  /* « Les gens en attente » vit en bas de la liste tant qu'il n'y a personne. Dès qu'une
+     demande arrive, elle remonte en tête ET s'ouvre d'elle-même : quelqu'un attend de
+     pouvoir entrer, ça ne doit pas se découvrir en fouillant. */
+  if(_admPremierRendu){ _admPremierRendu=false; if(nb) ADM_SECTION='attente'; }
+  const attente = nb
+    ? admBloc('attente', 'Les gens en attente', nb+' demande'+(nb>1?'s':'')+' à traiter', reqs, true)
+    : admBloc('attente', 'Les gens en attente', 'personne pour l\'instant',
+              '<div class="adm-hint">Quand quelqu\'un demandera à se connecter, ça apparaîtra ici — et ce bouton remontera tout en haut.</div>');
   return `<div class="pf-wrap">`
-    + (ADMIN.requests.length ? etage('Ça attend ton feu vert')+reqs : '')
-    + etage('Le quotidien') + add + team
-    + etage('Les réglages') + accesHTML() + planAccesHTML()
+    + (nb ? attente : '')
     + versChantier
+    /* « Ajouter quelqu'un » en haut, remonté à sa demande le 30/07/2026 : c'est un
+       geste courant (un stagiaire arrive, un collègue est engagé), pas un réglage
+       qu'on va chercher en fin de page. Les trois blocs de lecture suivent. */
+    + admBloc('ajouter', 'Ajouter quelqu\'un', 'une adresse, un métier', add)
+    + admBloc('equipe', "L'équipe", ADMIN.members.length+' personne'+(ADMIN.members.length>1?'s':''), team)
+    + admBloc('quivoit', 'Qui voit quoi', 'les pavés, métier par métier', accesHTML())
+    + admBloc('plan', 'Le plan des accès', 'ce qui est fermé à chacun', planAccesHTML())
+    + (nb ? '' : attente)
     + `</div>`;
+}
+/* Une seule section ouverte à la fois — c'est ça, le « comme dans une FAQ ». */
+var ADM_SECTION = null;      // la section ouverte (null = tout est fermé)
+var _admPremierRendu = true;
+function admSection(cle){
+  ADM_SECTION = (ADM_SECTION===cle) ? null : cle;   // retoucher le même bouton le referme
+  if(view==='admin') render();
+}
+function admBloc(cle, titre, sous, corps, urgent){
+  const ouv = ADM_SECTION===cle;
+  return '<div class="adm-acc'+(ouv?' ouverte':'')+(urgent?' urgent':'')+'">'
+    + '<button class="adm-acc-t" onclick="admSection(\''+cle+'\')">'
+    +   '<span class="adm-acc-n"><b>'+esc(titre)+'</b><em>'+esc(sous)+'</em></span>'
+    +   icon('chevron','class="adm-acc-ch"')
+    + '</button>'
+    + (ouv ? '<div class="adm-acc-d">'+corps+'</div>' : '')
+    + '</div>';
 }
 /* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
    l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
@@ -5985,7 +6234,8 @@ function planAccesHTML(){
     return h+'</div>';
   };
 
-  let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — ce qui est fermé à chacun</div>'+alerte;
+  /* Plus de titre ici : c'est le bouton de l'accordéon qui le porte. */
+  let html='<div class="adm-sec nu">'+alerte;
   G.forEach(function(g,i){
     const nb = g.admin ? 0 : (g.fermes.length + 3);
     const ouv=!!PLAN_OUV[i];
@@ -6108,7 +6358,8 @@ function accesHTML(){
       + '</div>';
   }).join('');
   const essais=apercuBarreHTML();   // la même barre que sur le chantier
-  return `<div class="adm-sec"><div class="adm-h">Qui voit quoi</div>
+  /* Plus de titre ici non plus : le bouton de l'accordéon le porte. */
+  return `<div class="adm-sec nu">
     <div class="adm-hint" style="margin-bottom:10px">Un groupe = des métiers qui voient exactement la même chose. Touche un groupe pour l'ouvrir. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
     ${essais}${cartes}</div>`;
 }
@@ -6754,7 +7005,10 @@ var JXS = (function(){
   try{ return Object.assign({rec:{}, dom:{}, jour:{}}, JSON.parse(localStorage.getItem('cousin_jeux')||'{}')); }
   catch(e){ return {rec:{}, dom:{}, jour:{}}; }
 })();
-function jxSave(){ try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){} }
+function jxSave(){
+  try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){}
+  reglagePousser('jeux', JXS);
+}
 function jxNote(src, juste){
   jxNoteSemaine(juste);            // le compteur de l'équipe, toutes parties confondues
   const p = src ? data.find(x=>x.id===src) : null;
