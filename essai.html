@@ -324,7 +324,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     body.is-reseau{--tuile:clamp(150px, calc((100vw - 100px) / 7 - 14px), 230px);
                    --appw:min(calc(100vw - 72px), calc(7 * 230px + 6 * 14px))}
     body.is-reseau .dgrid{grid-template-columns:repeat(auto-fill, var(--tuile)); justify-content:center; gap:14px}
-    body.is-reseau main{min-height:calc(100svh - 236px); display:flex; flex-direction:column}
+    body.is-reseau main{min-height:calc(100svh - var(--barre,138px) - 118px); display:flex; flex-direction:column}
     body.is-reseau #view{flex:1 1 auto; display:flex; flex-direction:column}
     body.is-reseau #view .dgrid{margin-top:auto; margin-bottom:auto}
     /* les cases vides ne servent qu'à compléter la rangée de 3 du téléphone */
@@ -1622,10 +1622,21 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     /* LE LOGO ET LES BOUTONS NE BOUGENT JAMAIS : barre vraiment fixe, fond plein, sans
        effet ni ombre. Le contenu défile dessous et disparaît proprement derrière elle ;
        la page démarre plus bas pour que rien ne soit jamais masqué. */
-    header{position:fixed; top:0; left:0; right:0; z-index:40; background:var(--bg); padding:14px 0 10px}
-    body{padding-top:82px}
-    body.is-home{height:calc(100dvh - 82px)}
+    /* IL Y A TOUJOURS DE L'AIR AU-DESSUS DU LOGO : il touchait le haut de l'écran, ça
+       donnait une page mal posée. 24 px, même en mode téléphone. */
+    /* La barre est TRANSPARENTE (choix de Mag) : pas de bandeau plein qui coupe les cartes
+       en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
+    header{position:fixed; top:0; left:0; right:0; z-index:40; background:transparent; padding:24px 0 10px}
+    /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
+       elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
+       de pavés. --barre est mesurée en direct (voir majBarre). */
+    body{padding-top:calc(var(--barre,138px) + 8px)}
+    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px)}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
+    /* LES PAVÉS DU RÉSEAU SONT CENTRÉS EN HAUTEUR. Les 96 px réservés en bas aux boutons
+       flottants n'ont plus lieu d'être sur grand écran (ils sont hors de la colonne) :
+       ils tiraient toute la grille 48 px trop haut. */
+    body.is-reseau #view{padding-bottom:0}
     /* Le titre de la page s'aligne sur le logo, tout à gauche : il restait indenté au
        milieu, décalé du reste de la barre, et ça se voyait tout de suite. */
     .htitle{width:min(1440px, calc(100vw - 48px))}
@@ -1654,9 +1665,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        la page avec sa flèche retour. Le titre restait au réglage grand écran, tout à
        gauche, hors du cadre — on regardait un téléphone avec un bout d'ordinateur autour. */
     body.apercu-tel .hrow, body.apercu-tel .htitle{width:var(--appw); gap:12px}
-    body.apercu-tel header{position:static; background:var(--bg); padding:0}
-    body.apercu-tel{padding-top:0}
-    body.apercu-tel.is-home{height:100dvh}
+    /* TOUT RESTE FIXE, mode téléphone compris (choix de Mag) : la barre ne bouge pas, et
+       l'air au-dessus du logo revient — il était tombé à zéro, le logo touchait le bord. */
   }
 </style>
 </head>
@@ -4077,20 +4087,21 @@ function lingeJour(){
    « Jeudi · 4e et 5e étage » se retrouvait coupé dans 58 px de large. Maintenant un clic
    ouvre la pastille (elle POUSSE les autres, le rang passe à la ligne s'il le faut), un
    clic referme, et un clic sur le texte ouvre la page. */
+/* UNE SEULE PASTILLE OUVERTE À LA FOIS. Deux pouvaient s'ouvrir ensemble (la poubelle ET
+   le linge) : le rang débordait, passait à la ligne, et la clé se retrouvait sous le
+   ticket. En ouvrir une referme donc toujours l'autre. */
 function pastilleToggle(btn, ev){
   if(ev) ev.stopPropagation();
-  const etait=btn.classList.contains('open');
-  fermerPastilles();
-  if(!etait) btn.classList.add('open');
-}
-function fermerPastilles(){
-  document.querySelectorAll('.dock-linge.open, .dock-prod.open').forEach(function(x){ x.classList.remove('open'); });
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); fermerPastilles(null); return; }
+  fermerPastilles(btn);
+  btn.classList.add('open');
+  fermerPastilles(btn);
 }
 /* Un clic n'importe où ailleurs referme la bulle : sinon elle reste ouverte pendant
    qu'on lit la page derrière, et on ne comprend plus ce qui recouvre quoi. */
 document.addEventListener('click', function(e){
-  if(e.target && e.target.closest && e.target.closest('.dock-linge, .dock-prod')) return;
-  fermerPastilles();
+  if(e.target && e.target.closest && e.target.closest('.dock-linge, .dock-prod, .dock-trash')) return;
+  fermerPastilles(null);
 });
 function majBoutonLinge(){
   const btn=document.querySelector('.dock-linge');
@@ -4099,7 +4110,9 @@ function majBoutonLinge(){
   if(!l){ btn.style.display='none'; return; }
   btn.style.display='flex';
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-  const txt=l.etage + (l.chambres ? ' · ' + l.chambres : '');
+  // « étage » va de soi sur la pastille (le t-shirt et le chiffre suffisent) : on l'enlève,
+  // chaque pixel gagné ici est un pixel de moins qui pousse la clé à la ligne.
+  const txt=l.etage.replace(/\s*étages?\b/,'') + (l.chambres ? ' · ' + l.chambres : '');
   btn.title='Jour de lessive — '+l.etage+(l.chambres?' · '+l.chambres:'');
   // Pastille noire, t-shirt à la couleur de l'étage du jour.
   const coul=LINGE_COUL[l.etage] || '#f2eee6';
@@ -4205,7 +4218,8 @@ function majBoutonPoubelles(){
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const d=new Date().getDay();
   const jour = JOURS[POUBELLES[d] ? d : (d+1)%7];
-  const quand = jour.slice(0,3);
+  // Deux lettres suffisent (« Ve », « Me ») : le jour et les sacs tiennent au plus juste.
+  const quand = jour.slice(0,2);
   const txt=sacs.map(x=>x.n+' '+x.l).join(' + ');
   btn.title=jour+' — poubelles à sortir : '+txt;
   // Pas de liste écrite : une pastille par type de sac, avec son nombre dessus.
@@ -7270,6 +7284,19 @@ window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); }
 (function(){
   const demande=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
   if(!demande || demande==='accueil') history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+})();
+
+/* HAUTEUR RÉELLE DE LA BARRE DU HAUT, mesurée en direct. Sur l'accueil il n'y a que le
+   logo ; sur une page il y a en plus le titre et la flèche retour — la barre grandit.
+   Une hauteur écrite en dur coupait la première rangée de pavés du Réseau. */
+(function majBarre(){
+  const h=document.querySelector('header'); if(!h) return;
+  const maj=function(){
+    document.documentElement.style.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
+  };
+  if(window.ResizeObserver) new ResizeObserver(maj).observe(h);
+  window.addEventListener('resize', maj);
+  maj();
 })();
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
