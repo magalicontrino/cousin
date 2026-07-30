@@ -52,6 +52,7 @@
   :root{
     --gold:#f5c542; --gold-d:#b8880c;
     --appw:460px;   /* largeur de l'app : téléphone par défaut, élargie sur grand écran (voir @media) */
+    --apercu-h:0px; /* hauteur du bandeau noir d'aperçu : 0 quand il n'est pas là (mesuré en direct) */
     --iris:#1b1b1b; --iris-d:#1b1b1b; --ink:#1b1b1b; --ink2:#0e0e0e; --muted:#6b6b6b; --faint:#b3aea3;
     --bg:#f2eee6; --card:#ffffff; --line:#e7e2d8; --soft:#f0eee9;   /* refonte : fond crème, cartes blanches */
     --danger:#e63329; --star:#f5c542;
@@ -128,7 +129,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   header{
     position:relative; z-index:20;
     background:var(--bg);
-    color:var(--ink); padding:calc(env(safe-area-inset-top) + 14px) 20px 16px;
+    /* DE L'AIR AU-DESSUS DU LOGO, partout et d'avance : collé au bord, ça fait une page
+       mal posée, et ça se voyait sur chaque écran l'un après l'autre. */
+    color:var(--ink); padding:calc(env(safe-area-inset-top) + 22px) 20px 16px;
   }
   .hrow{display:flex; align-items:center; gap:12px; width:var(--appw); max-width:100%; margin:0 auto; container-type:inline-size}
   .back{
@@ -324,7 +327,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     body.is-reseau{--tuile:clamp(150px, calc((100vw - 100px) / 7 - 14px), 230px);
                    --appw:min(calc(100vw - 72px), calc(7 * 230px + 6 * 14px))}
     body.is-reseau .dgrid{grid-template-columns:repeat(auto-fill, var(--tuile)); justify-content:center; gap:14px}
-    body.is-reseau main{min-height:calc(100svh - 236px); display:flex; flex-direction:column}
+    body.is-reseau main{min-height:calc(100svh - var(--barre,138px) - 133px - var(--apercu-h)); display:flex; flex-direction:column}
     body.is-reseau #view{flex:1 1 auto; display:flex; flex-direction:column}
     body.is-reseau #view .dgrid{margin-top:auto; margin-bottom:auto}
     /* les cases vides ne servent qu'à compléter la rangée de 3 du téléphone */
@@ -386,6 +389,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
     padding:7px 13px; border-radius:20px; font-size:13px; font-weight:650; cursor:pointer; white-space:nowrap;
   }
+  /* Le titre d'un tri (« Commune », « Mot-clé ») ne sert que dans la colonne de gauche,
+     sur grand écran. Sur téléphone, la rangée reste nue, comme avant. */
+  .tri-h{display:none}
   /* Dans un domaine, les filtres actifs prennent SA couleur (celle de son pavé d'accueil) ;
      ailleurs (recherche, favoris) on retombe sur l'or. */
   .chip.active{background:var(--dom,var(--gold)); border-color:var(--dom,var(--gold)); color:var(--dom-ink,#141414)}
@@ -573,11 +579,17 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .method .body{white-space:pre-line; font-size:14px; color:var(--ink); padding:2px 15px 6px}
   .method .body.collapsed{max-height:0; overflow:hidden; padding-top:0; padding-bottom:0}
 
-  /* Fiche démarche : la particularité locale doit sauter aux yeux */
+  /* Fiche démarche : la particularité locale se remarque, mais DISCRÈTEMENT. Le triangle
+     n'avait aucune taille imposée : il remplissait toute la largeur de la fiche. Petit
+     encadré : le picto à gauche, le texte à droite. */
   .warn{
-    display:block; background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
-    padding:11px 13px; margin:10px 0 4px; font-size:13.5px; line-height:1.5; color:#141414;
+    display:flex; align-items:flex-start; gap:9px;
+    background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
+    padding:10px 12px; margin:10px 0 4px; font-size:13.5px; line-height:1.5; color:#141414;
   }
+  .warn-ic{flex:0 0 auto; display:flex; margin-top:1px}
+  .warn-ic svg, .warn-ic .pico{width:16px; height:16px; display:block}
+  .warn-tx{min-width:0; display:block}
   .warn b{display:block; font-size:12px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px}
   .maj{padding:8px 15px 0; font-size:11.5px; color:var(--muted); font-style:italic}
   .form-note{
@@ -586,12 +598,95 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   }
   .stars button.on{color:var(--gold)}
   .empty{text-align:center; color:var(--ondark-muted); padding:46px 20px; font-size:15px; line-height:1.6}
+  /* GRAND ÉCRAN : l'app ne change pas, seul l'en-tête devient un vrai menu — le logo
+     à gauche, les pictos à droite, et LES BOUTONS DU BAS REMONTENT avec eux. Sur un
+     téléphone, des boutons flottants devant le contenu, ça passe ; sur un écran, non :
+     ils masquaient ce qu'on venait de dérouler (les Urgences, par exemple).
+     Largeur maximum 1440 px — au-delà, l'œil se perd. */
+  /* MODE TÉLÉPHONE sur grand écran : on remet exactement les conditions du téléphone —
+     colonne étroite, pas de cartes, boutons en bas — et on encadre pour qu'on voie
+     tout de suite qu'on regarde un téléphone et pas l'app en petit. */
+  body.apercu-tel{--appw:430px}
+  body.apercu-tel .bureau{display:none !important}
+  body.apercu-tel .cadre-tel{display:block}
+  /* EN COLONNE, contre le bord gauche : une petite règle verticale qu'on oublie tant
+     qu'on ne s'en sert pas. Ancrée en bas, elle monte — elle ne rencontre jamais les
+     onglets, qui vivent plus haut. */
+  .bascule{display:none; position:fixed; left:20px; bottom:26px; z-index:40;
+    flex-direction:row; align-items:center; gap:7px; opacity:.9}
+  .bascule:hover{opacity:1}
+  @media (max-width:1279px){ .bascule{display:none !important} }
+  /* Des ronds DISCRETS : c'est un outil de vérification, il ne doit pas peser à l'écran
+     autant que les vrais boutons de l'app. Un simple contour, une lettre au milieu. */
+  .basc{width:32px; height:32px; border-radius:50%; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; background:transparent;
+    border:1.5px solid var(--faint); color:var(--muted); font:inherit; font-size:12.5px; font-weight:800;
+    transition:border-color .16s, color .16s, background .16s}
+  .basc:hover{border-color:var(--muted); color:var(--ink)}
+  .basc.on{border-color:var(--ink); color:var(--ink); background:rgba(27,27,27,.09)}
+  .basc svg, .basc .pico{width:15px; height:15px}
+  .basc-sep{width:1px; height:20px; background:var(--faint); align-self:center; margin:0 3px}
+  /* Les deux écrans : PAS de rond, juste le dessin. C'est le réglage le plus discret
+     de la barre — on le voit quand on le cherche, pas avant. */
+  .basc-ec{border:0; background:none; padding:0 4px; cursor:pointer; color:var(--muted);
+    display:flex; align-items:center; justify-content:center; transition:color .16s}
+  .basc-ec:hover{color:var(--ink)}
+  .basc-ec.on{color:#1b1b1b}
+  .basc-ec svg, .basc-ec .pico{width:19px; height:19px}
+  @media print{ .bascule{display:none !important} }
+  .cadre-tel{display:none; position:fixed; top:0; bottom:0; left:50%; transform:translateX(-50%);
+    width:474px; border-left:2px dashed var(--line); border-right:2px dashed var(--line);
+    pointer-events:none; z-index:1}
+  .acc-qui{flex:1 1 100%; margin-top:6px; border:0; border-radius:20px; padding:8px 12px;
+    font:inherit; font-size:12.5px; font-weight:700; background:rgba(242,238,230,.14); color:var(--bg)}
+  .acc-qui option{color:#1b1b1b}
+  .acc-sep{width:100%; font-size:10px; font-weight:900; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(242,238,230,.6); margin:8px 0 2px}
+  .ap-ecran{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    background:rgba(0,0,0,.18); border-radius:20px; padding:2px 8px; margin-left:6px}
+  .bureau{display:none}
+  .bu-c{display:flex; align-items:stretch; width:100%; text-align:left; border:1px solid var(--line);
+    border-left:0; background:var(--card); border-radius:0 16px 16px 0; padding:0; font:inherit;
+    cursor:pointer; color:var(--ink); overflow:hidden;
+    transform:translateX(calc(-100% + 66px)); transition:transform .22s cubic-bezier(.22,1,.36,1)}
+  .bu-c.ouvert{transform:translateX(0)}
+  .bu-c.chaud{box-shadow:inset -3px 0 0 var(--gold)}
+  .bu-bord{flex:0 0 66px; order:2; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:2px; padding:12px 0; background:var(--soft)}
+  .bu-bord svg, .bu-bord .pico{width:17px; height:17px; color:var(--gold-d)}
+  .bu-bord b{font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1}
+  .bu-txt{flex:1 1 auto; order:1; min-width:0; padding:12px 14px; display:flex; flex-direction:column; gap:3px}
+  .bu-h{font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .bu-s{font-size:12.5px; color:var(--muted); line-height:1.35}
+  @media print{ .bureau{display:none !important} }
   .fab.feed{ right:max(88px, calc(50% - var(--appw)/2 + 88px)); background:#141414; color:var(--gold);
     display:flex; align-items:center; justify-content:center; }
 .fab.feed svg, .fab.feed .pico{ width:26px; height:26px; }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 26px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  /* UNE PASTILLE OUVERTE NE FAIT PLUS REMONTER LE RANG (choix de Mag, 30/07). Quand la
+     place manque — mercredi, trois poubelles à sortir — les boutons ronds se reculent et
+     se chevauchent : la clé passe par-dessus le bouton jaune, le ticket par-dessus la clé.
+     On referme, tout revient à sa place. Un rang qui passe à la ligne, c'était pire :
+     on cherchait où la clé était partie. */
+  /* L'ORDRE DES COUCHES, de dessous à dessus : le plus, la clé, la culture, le linge,
+     la poubelle. Celui de gauche passe toujours par-dessus celui de sa droite — et la
+     pastille ouverte passe au-dessus de tout le monde. */
+  .dock-plus{z-index:3}
+  .dock-cle{z-index:4}
+  .dock-agenda{z-index:5}
+  .dock-linge{z-index:6}
+  .dock-prod{z-index:6}
+  .dock-trash{z-index:7}
+  .dock > *{transition:margin-left .3s cubic-bezier(.22,1,.36,1)}
+  /* Seuls les boutons SITUÉS APRÈS la pastille ouverte se reculent : elle-même, et ce qui
+     est à sa gauche, ne bougent pas d'un pixel. */
+  .dock.ouverte > .open ~ *{margin-left:-22px}
+  .dock > .open{z-index:8}
+  /* Sur grand écran les boutons ne sont plus dans la colonne : la place ne manque jamais,
+     donc rien ne se chevauche. */
+  @media (min-width:1280px){ body:not(.apercu-tel) .dock.ouverte > .open ~ *{margin-left:0} }
   .dock-trash{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px;
     display:none;   /* le code l'affiche uniquement les jours de sortie */
     border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */
@@ -1037,7 +1132,7 @@ input, textarea, select{
   .cha-l .pf-task{flex:1 1 auto; min-width:0; align-items:flex-start}
   /* La liste hérite sinon des majuscules et des lettres espacées des chambres :
      ici on écrit des phrases, et parfois des adresses web à rallonge. */
-  .cha-sec, .cha-l, .cha-l .pf-txt, .cha-d{text-transform:none; letter-spacing:normal}
+  .cha-sec, .cha-l, .cha-l .pf-txt, .cha-d{text-transform:none !important; letter-spacing:normal !important}
   .cha-l .pf-txt{display:block; font-size:14px; font-weight:700; overflow-wrap:anywhere}
   .cha-sec .pf-list-t{text-transform:uppercase; letter-spacing:.06em}
   .cha-l.done .pf-txt{text-decoration:line-through; opacity:.55}
@@ -1049,6 +1144,14 @@ input, textarea, select{
   .cha-x:active{background:var(--soft); color:var(--ink)}
   .cha-x[title^="Retirer"]:active{color:var(--danger)}
   .cha-x svg, .cha-x .pico{width:17px; height:17px}
+  .cha-ed{background:var(--soft); border-radius:14px; padding:11px 12px; margin-bottom:8px}
+  .cha-ed input, .cha-ed textarea{width:100%; box-sizing:border-box; border:1.5px solid var(--line);
+    background:var(--card); border-radius:11px; padding:10px 12px; font:inherit; font-size:14px;
+    color:var(--ink); margin-bottom:7px; text-transform:none; resize:vertical}
+  .cha-ed textarea{font-size:12.5px; color:var(--muted); line-height:1.45}
+  .cha-ed-b{display:flex; align-items:center; gap:10px}
+  .cha-annul{border:0; background:none; font:inherit; font-size:12.5px; font-weight:700;
+    color:var(--muted); text-decoration:underline; cursor:pointer; padding:0}
   .ch-tete-print{display:none}
   /* Le plan des accès : un étage par groupe, du plus large au plus restreint */
   .plan-e{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:4px 13px 11px; margin-bottom:7px}
@@ -1176,7 +1279,12 @@ input, textarea, select{
     font-size:12.5px; font-weight:800}
   .apercu button{border:0; background:var(--gold); color:#1b1b1b; border-radius:20px; padding:5px 12px;
     font:inherit; font-size:12px; font-weight:900; cursor:pointer}
-  body.apercu-on{padding-top:38px}
+  /* LE BANDEAU D'APERÇU POUSSE LA PAGE VERS LE BAS, il ne se pose pas dessus : il
+     recouvrait le logo et les pictos. Sa hauteur est mesurée en direct (il passe sur deux
+     lignes quand la fenêtre est étroite) et vaut 0 quand il n'est pas là. */
+  /* + 12 px : sans ça, le contenu vient se coller au bandeau noir alors qu'ailleurs il y a
+     toujours de l'air en haut — l'écart n'était pas le même avec et sans bandeau. */
+  body.apercu-on{padding-top:calc(var(--apercu-h) + 12px)}
   @media print{
     @page{ margin:14mm; }
     /* Sur papier, aucune liste n'est pliée : on imprime tout ce qu'on a le droit de voir. */
@@ -1348,7 +1456,10 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
      par-dessus la dernière ligne — une carte, un pavé, un bouton — et on ne les voit plus.
      L'accueil a sa propre réserve (voir body.is-home), il n'est pas concerné ici. */
   .pf-wrap{padding-bottom:96px}
-  body:not(.is-home) #view{padding-bottom:96px}
+  /* LA RÉSERVE SOUS LE CONTENU. Les boutons flottent en bas (choix de Mag) : il faut donc
+     qu'ils aient toujours de l'air au-dessus d'eux, sinon la dernière ligne de la page vient
+     se coller dessous. Ils occupent 84 px avec leur marge — on réserve 140. */
+  body:not(.is-home) #view{padding-bottom:140px}
   @media print{ .pf-wrap, #view{padding-bottom:0 !important} }
   @media print{ .ag-fixe{position:static; box-shadow:none} }
   .ag-discrets{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:14px 0 4px}
@@ -1548,6 +1659,107 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .quiz-theme{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:15px 16px; border-radius:14px; background:var(--card); border:1.5px solid var(--line); font-size:15px; font-weight:600; color:var(--ink); cursor:pointer; font-family:inherit; text-align:left}
   .quiz-theme em{font-style:normal; font-size:11.5px; font-weight:500; color:var(--muted); flex:0 0 auto}
   .quiz-theme:active{transform:scale(.99)}
+  @media (min-width:1280px){
+    /* L'en-tête et les boutons du bas RESTENT FIXES : ils ne bougent pas au défilement. */
+    /* LE LOGO ET LES BOUTONS NE BOUGENT JAMAIS : barre vraiment fixe, fond plein, sans
+       effet ni ombre. Le contenu défile dessous et disparaît proprement derrière elle ;
+       la page démarre plus bas pour que rien ne soit jamais masqué. */
+    /* IL Y A TOUJOURS DE L'AIR AU-DESSUS DU LOGO : il touchait le haut de l'écran, ça
+       donnait une page mal posée. 24 px, même en mode téléphone. */
+    /* La barre est TRANSPARENTE (choix de Mag) : pas de bandeau plein qui coupe les cartes
+       en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
+    /* Elle se pose SOUS le bandeau noir d'aperçu quand il est là (--apercu-h vaut 0 sinon) :
+       fixée à 0, elle passait dessous et le logo était coupé en deux. */
+    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
+    /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
+       elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
+       de pavés. --barre est mesurée en direct (voir majBarre). */
+    body{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
+    /* ⚠ RÈGLE JUMELLE OBLIGATOIRE. La règle plus haut « body.apercu-on{padding-top:var(--apercu-h)} »
+       porte une classe : elle bat celle-ci, qui n'en a pas, même en étant écrite après. Résultat
+       sans cette ligne : en aperçu, la page ne réservait QUE la hauteur du bandeau noir et
+       oubliait celle de la barre du haut — les pavés remontaient sous le titre. */
+    body.apercu-on{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
+    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px - var(--apercu-h))}
+    .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
+    /* ═══ LES TRIS PASSENT SUR LE CÔTÉ ═══
+       Une colonne à gauche de la liste, avec le titre de chaque tri et, en retrait, les
+       tris qui dépendent d'un autre (mail ou note → médical ou social → mot-clé). Elle
+       reste sous les yeux pendant qu'on fait défiler la liste. Sur téléphone et en mode
+       téléphone, rien ne change : les rangées restent en haut de la liste. */
+    /* La liste ne bouge PAS : elle reste au milieu, exactement où elle a toujours été.
+       La colonne de tris se pose dans la marge de gauche, restée vide. */
+    .tris{position:fixed; z-index:6; top:calc(var(--barre,138px) + 14px + var(--apercu-h)); width:266px;
+      left:max(20px, calc(50vw - var(--appw)/2 - 30px - 266px));
+      display:flex; flex-direction:column;
+      gap:18px; max-height:calc(100svh - var(--barre,138px) - 120px); overflow-y:auto; padding-right:4px}
+    .tris::-webkit-scrollbar{width:6px}
+    .tris::-webkit-scrollbar-thumb{background:rgba(27,27,27,.18); border-radius:3px}
+    .tris .tri-h{display:block; font-size:11px; font-weight:900; letter-spacing:.06em;
+      text-transform:uppercase; color:var(--muted); margin:0 0 8px 2px}
+    /* Dans la colonne, les étiquettes se rangent en paquet et vont à la ligne : on les lit
+       toutes d'un coup au lieu de les faire défiler à la souris. */
+    .tris .chips{display:flex; flex-wrap:wrap; overflow:visible; gap:6px; padding:0}
+    .tris .chips::-webkit-scrollbar{display:none}
+    /* Un tri qui dépend du précédent est décalé, avec un trait qui le rattache au-dessus. */
+    .tris .tri-n2{padding-left:14px; border-left:2px solid var(--line)}
+    .tris .tri-n3{padding-left:28px; border-left:2px solid var(--line)}
+    /* LA SALLE DE JEUX AUSSI EST CENTRÉE EN HAUTEUR : le bandeau « Surprends-moi » et les
+       neuf pavés tiennent dans un écran, ils étaient collés en haut avec un grand vide
+       dessous. Sur téléphone, rien ne change. */
+    /* 118 px réservés en bas pour les boutons flottants + 56 : le bloc remonte donc de
+       28 px. Un bloc centré au millimètre paraît trop bas — le calage optique demande un
+       peu de vide en plus SOUS lui. */
+    body.is-jeux main{min-height:calc(100svh - var(--barre,138px) - 133px - var(--apercu-h));
+      display:flex; flex-direction:column}
+    body.is-jeux #view{flex:1 1 auto; display:flex; flex-direction:column; padding-bottom:0}
+    body.is-jeux #view > :first-child{margin-top:auto}
+    body.is-jeux #view > :last-child{margin-bottom:auto}
+    /* LES PAVÉS DU RÉSEAU SONT CENTRÉS EN HAUTEUR. Les 96 px réservés en bas aux boutons
+       flottants n'ont plus lieu d'être sur grand écran (ils sont hors de la colonne) :
+       ils tiraient toute la grille 48 px trop haut. */
+    body.is-reseau #view{padding-bottom:0}
+    /* Le titre de la page s'aligne sur le logo, tout à gauche : il restait indenté au
+       milieu, décalé du reste de la barre, et ça se voyait tout de suite. */
+    .htitle{width:min(1440px, calc(100vw - 48px))}
+    /* Les cartes de l'administratrice : UNE colonne, à gauche, il y a la place. */
+    .bureau{display:flex; flex-direction:column; gap:8px; position:fixed; top:150px; width:286px; z-index:6;
+      left:0; max-height:calc(100vh - 260px)}
+    body.is-reseau .bureau{display:none}
+    /* Les boutons du bas restent EN BAS À DROITE — un pied de page, pas un bandeau.
+       Fixes, hors de la colonne : ils ne recouvrent plus rien de ce qu'on déroule. */
+    .dock{position:fixed; top:auto; left:auto; bottom:26px; width:auto; justify-content:flex-end;
+      right:max(24px, calc(50vw - 720px + 24px))}
+    .fab{top:auto; bottom:26px}
+    .fab.feed{right:max(88px, calc(50vw - 720px + 88px))}
+    .fab.plus{right:max(24px, calc(50vw - 720px + 24px))}
+    body{padding-bottom:28px}
+    /* En mode téléphone, les boutons RENTRENT dans la colonne, comme sur un vrai
+       téléphone : sinon on teste un écran qui n'existe pour personne. */
+    body.apercu-tel .dock{left:max(20px, calc(50% - var(--appw)/2 + 20px));
+      right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:26px; width:auto}
+    body.apercu-tel .fab.plus{right:max(20px, calc(50% - var(--appw)/2 + 20px))}
+    body.apercu-tel .fab.feed{right:max(88px, calc(50% - var(--appw)/2 + 88px))}
+    /* En mode téléphone, l'EN-TÊTE rentre dans la colonne lui aussi : le logo et les cinq
+       pictos restaient étalés sur 1440 px pendant que la colonne en faisait 430 — on ne
+       regardait donc pas du tout ce que voit un téléphone. */
+    /* En mode téléphone, TOUT rentre dans la colonne : la barre du menu ET le titre de
+       la page avec sa flèche retour. Le titre restait au réglage grand écran, tout à
+       gauche, hors du cadre — on regardait un téléphone avec un bout d'ordinateur autour. */
+    body.apercu-tel .hrow, body.apercu-tel .htitle{width:var(--appw); gap:12px}
+    /* ═══ DEUX RÉGLAGES DIFFÉRENTS, C'EST VOULU ═══
+       Sur grand écran, la barre est FIXE (elle ne bouge pas au défilement).
+       Dans l'appli — donc aussi en aperçu téléphone — elle NE L'EST PAS : elle est collée
+       en haut de la page, et elle s'en va avec le contenu quand on descend. Fixe ET
+       transparente sur un téléphone, ça faisait passer les boutons de tri par-dessus le
+       logo : illisible. */
+    body.apercu-tel header{position:static; background:var(--bg);
+      padding:calc(env(safe-area-inset-top) + 22px) 20px 16px}
+    body.apercu-tel{padding-top:var(--apercu-h)}
+    /* Même air sous le bandeau qu'en vrai téléphone (règle jumelle, sinon celle-ci gagne). */
+    body.apercu-tel.apercu-on{padding-top:calc(var(--apercu-h) + 12px)}
+    body.apercu-tel.is-home{height:calc(100dvh - var(--apercu-h))}
+  }
 </style>
 </head>
 <body>
@@ -1601,6 +1813,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
 <main><div class="wrap" id="view"></div></main>
 
 <div id="apercuBar" class="apercu" style="display:none"></div>
+<div class="cadre-tel" aria-hidden="true"></div>
+<div class="bascule" id="bascule" style="display:none"></div>
 <div id="printHead"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
@@ -1718,9 +1932,11 @@ const PAVES_TOUS = ["reseau","demarches","formations","mails","methodes","centre
 /* Réglage vivant : ce que chaque rôle voit est enregistré dans la base (table roles_acces)
    et se change depuis l'Admin. Tant que la base ne répond pas, on retombe sur les règles
    ci-dessus — et dans le doute on n'ampute jamais l'accueil. */
-function enApercu(){ try{ return !!APERCU_ROLE; }catch(e){ return false; } }
+function enApercu(){ try{ return !!(APERCU_ROLE || APERCU_QUI); }catch(e){ return false; } }
 function pavesVisibles(){
   try{
+    if(APERCU_QUI) return (Array.isArray(APERCU_QUI.paves)&&APERCU_QUI.paves.length)
+                          ? APERCU_QUI.paves : pavesDuRole(APERCU_QUI.equipe||'');
     if(APERCU_ROLE) return pavesDuRole(APERCU_ROLE);   // aperçu d'un rôle
     if(!PROFILE) return PAVES_TOUS;
     if(PROFILE.admin || PROFILE.pfo) return PAVES_TOUS;
@@ -1837,7 +2053,9 @@ const ICONS = {
   cog:      '<path fill-rule="evenodd" d="M10.6 2.6h2.8l.5 2.3a6.8 6.8 0 0 1 1.7 1l2.2-.8 1.4 2.4-1.7 1.6c.1.6.1 1.2 0 1.8l1.7 1.6-1.4 2.4-2.2-.8a6.8 6.8 0 0 1-1.7 1l-.5 2.3h-2.8l-.5-2.3a6.8 6.8 0 0 1-1.7-1l-2.2.8-1.4-2.4 1.7-1.6a6.8 6.8 0 0 1 0-1.8L4.3 7.5l1.4-2.4 2.2.8a6.8 6.8 0 0 1 1.7-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
   search:   '<path d="M10.4 2a8.4 8.4 0 1 0 4.9 15.2l4.4 4.4 2.2-2.2-4.4-4.4A8.4 8.4 0 0 0 10.4 2zm0 3.2a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4z"/>',
   lien:     '<path d="M6.2 3.4h12.1a1.9 1.9 0 0 1 1.9 1.9v12.1h-4V10.6L6.9 20.4 4 17.5l9.8-9.8H6.2z"/>',
-  copy:     '<rect x="3" y="2.6" width="11.4" height="14.4" rx="2.4"/><rect x="9.6" y="7" width="11.4" height="14.4" rx="2.4"/>'
+  copy:     '<rect x="3" y="2.6" width="11.4" height="14.4" rx="2.4"/><rect x="9.6" y="7" width="11.4" height="14.4" rx="2.4"/>',
+  ecran:    '<rect x="2.4" y="4" width="19.2" height="12.6" rx="2"/><rect x="8.4" y="18.2" width="7.2" height="1.8" rx=".9"/>',
+  mobile:   '<rect x="6.6" y="2.4" width="10.8" height="19.2" rx="2.6"/><rect x="10.4" y="18.4" width="3.2" height="1.4" rx=".7" fill="#f2eee6"/>'
 };
 /* Pictos dessinés par Magali : ils remplacent le tracé SVG quand ils existent. */
 const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
@@ -2851,7 +3069,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v333';
+const APP_VERSION = 'v342';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3009,16 +3227,63 @@ function alertesProfil(){
     return n ? `<em class="hbadge">${n>9?'9+':n}</em>` : '';
   }catch(e){ return ''; }
 }
+/* Les deux pictos en bas à gauche : écran / téléphone. Réservés à l'administratrice —
+   c'est un outil de vérification, pas une préférence d'affichage. */
+function majBascule(){
+  const b=document.getElementById('bascule'); if(!b) return;
+  let admin=false; try{ admin=!!(PROFILE && PROFILE.admin); }catch(e){}
+  b.style.display = admin ? 'flex' : 'none';
+  if(!admin) return;
+  /* Les quatre groupes, puis l'écran. Toujours là, en bas à gauche : c'est l'outil de
+     débogage — on change de peau et d'écran sans quitter la page qu'on regarde. */
+  const groupes=[['A',''],['B','Coordi'],['C','TS'],['D','Polyvalent']];
+  b.innerHTML = groupes.map(function(g){
+      const actif = g[1] ? (APERCU_ROLE===g[1] && !APERCU_QUI) : !enApercu();
+      return '<button class="basc lettre'+(actif?' on':'')+'" title="'+esc(nomGroupe(g[0]))+'" onclick="'
+        + (g[1] ? "voirComme('"+g[1]+"')" : 'quitterApercu()') + '">'+g[0]+'</button>';
+    }).join('')
+    + '<span class="basc-sep"></span>'
+    + '<button class="basc-ec'+(APERCU_TEL?'':' on')+'" title="Voir en grand écran" onclick="apercuEcran(false)">'+icon('ecran')+'</button>'
+    + '<button class="basc-ec'+(APERCU_TEL?' on':'')+'" title="Voir comme sur un téléphone" onclick="apercuEcran(true)">'+icon('mobile')+'</button>';
+}
+function nomGroupe(l){
+  const g=(typeof GROUPES_PLAN!=='undefined') ? GROUPES_PLAN.filter(function(x){ return x.l===l; })[0] : null;
+  return g ? (l+' · '+g.nom) : l;
+}
 function majApercu(){
   const bar=document.getElementById('apercuBar'); if(!bar) return;
   const on=enApercu();
   document.body.classList.toggle('apercu-on', on);
+  majBascule();
   bar.style.display = on ? 'flex' : 'none';
-  if(on) bar.innerHTML = `Tu vois l'app comme&nbsp;: <b>${esc(APERCU_ROLE)}</b> <button onclick="quitterApercu()">Revenir à ma vue</button>`;
+  /* Le bandeau doit dire EXACTEMENT ce qu'on regarde : qui, et sur quel écran.
+     Sans ça on finit par croire qu'on teste un éduc alors qu'on teste Elisa. */
+  if(on){
+    let qui;
+    if(APERCU_QUI){
+      const m=APERCU_QUI;
+      let nom=m.nom;
+      if(!nom){ const av=(m.email||'').split('@')[0].replace(/[._-]+/g,' ').trim();
+                nom=av.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || m.email; }
+      qui=esc(nom)+' <i>('+esc(roleLabel(m.equipe||'sans rôle'))+')</i>'
+        + ((Array.isArray(m.paves)&&m.paves.length) ? ' <em>accès réglé à la main</em>' : '');
+    } else qui=esc(roleLabel(APERCU_ROLE));
+    bar.innerHTML = "Tu vois l'app comme&nbsp;: <b>"+qui+"</b> <span class=\"ap-ecran\">"
+      + (APERCU_TEL ? 'sur téléphone' : 'sur ordinateur')
+      + "</span> <button onclick=\"quitterApercu()\">Revenir à ma vue</button>";
+  }
 }
 function setAdmFiltre(r){ admFiltre=r; if(view==='admin') render(); }
-function voirComme(role){ APERCU_ROLE=role; goHome(); }
-function quitterApercu(){ APERCU_ROLE=null; openAdmin(); }
+/* On RESTE sur la page qu'on regarde : changer de groupe ne doit pas renvoyer à
+   l'accueil, sinon on ne peut vérifier aucun autre écran. */
+function voirComme(role){ APERCU_ROLE=role; APERCU_QUI=null; render(); }
+/* Revenir à ma vue : on reste aussi sur place. L'écran d'ordinateur est rendu, mais
+   on ne quitte pas la page qu'on était en train de vérifier. */
+function quitterApercu(){
+  APERCU_ROLE=null; APERCU_QUI=null; APERCU_TEL=false;
+  document.body.classList.remove('apercu-tel');
+  render();
+}
 function updateFavBadge(){
   const has=data.some(p=>p.fav);
   document.querySelectorAll('.hicon.fav').forEach(b=>b.classList.toggle('on',has));
@@ -3135,8 +3400,12 @@ function render(){
   majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge(); majBoutonChambres(); majBoutonAgenda();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('is-reseau', view==="reseau");
+  /* La salle de jeux tient dans un écran : sur ordinateur on la centre en hauteur (voir CSS). */
+  try{ document.body.classList.toggle('is-jeux', view==="quiz" && !JEU && !QUIZ.theme && !QUIZ.qs.length); }
+  catch(e){ document.body.classList.remove('is-jeux'); }
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
+  try{ rangerTris(); }catch(e){}   // on quitte un domaine : la colonne de tris s'en va avec lui
   const q=query.trim().toLowerCase();
 
   // Recherche globale (depuis l'accueil ou le Réseau)
@@ -3178,8 +3447,8 @@ function render(){
        suivre sont parties dans Formations (« Premiers pas dans le réseau bruxellois »),
        parce qu'on les lit une fois et qu'elles encombraient l'outil du quotidien. */
     const types=["Toutes",...DEMARCHES.filter(t=>items.some(p=>p.demarche===t))];
-    html+=`<div class="chips">`+types.map(t=>
-      `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+    html+=triBloc('Démarche', `<div class="chips">`+types.map(t=>
+      `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
     if(activeDemarche!=="Toutes") items=items.filter(p=>p.demarche===activeDemarche);
   }
   /* Le tri propre au domaine : les étiquettes portées par ses fiches (Culture : théâtre,
@@ -3215,15 +3484,15 @@ function render(){
       if(ib>=0) return 1;
       return a.localeCompare(b,'fr');
     });
-    html+=`<div class="chips">`+["Tout",...dispoTags].map(t=>
-      `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+    html+=triBloc('Ce que je cherche', `<div class="chips">`+["Tout",...dispoTags].map(t=>
+      `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
   }
   if(dm.byCommune){
     const communes=["Toutes",...COMMUNES.filter(c=>items.filter(passeTag).some(p=>p.commune===c))];
     if(communes.indexOf(activeCommune)<0) activeCommune="Toutes";
     if(communes.length>2){
-      html+=`<div class="chips">`+communes.map(c=>
-        `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`;
+      html+=triBloc('Commune', `<div class="chips">`+communes.map(c=>
+        `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`);
     }
   }
   items=items.filter(p=>passeTag(p) && passeCommune(p));
@@ -3239,24 +3508,24 @@ function render(){
     const themes=[]; items.forEach(p=>{ if(p.theme && themes.indexOf(p.theme)<0) themes.push(p.theme); });
     themes.sort((a,b)=>a.localeCompare(b,'fr'));
     if(themes.length){
-      html+=`<div class="chips">`+["Toutes",...themes].map(t=>
-        `<div class="chip ${t===activeMetier?'active':''}" onclick="setMetier('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+      html+=triBloc('Sujet', `<div class="chips">`+["Toutes",...themes].map(t=>
+        `<div class="chip ${t===activeMetier?'active':''}" onclick="setMetier('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
       if(activeMetier!=="Toutes") items=items.filter(p=>p.theme===activeMetier);
     }
   }
   if(dm.isMail){
     // Deux tris d'abord : mail ou note, puis médical ou social. Les mots-clés affinent ensuite.
-    html+=`<div class="chips">`+["Tous","Mails","Notes"].map(g=>
-      `<div class="chip ${g===activeGenre?'active':''}" onclick="setGenre('${g}')">${esc(g)}</div>`).join('')+`</div>`;
+    html+=triBloc('Mail ou note', `<div class="chips">`+["Tous","Mails","Notes"].map(g=>
+      `<div class="chip ${g===activeGenre?'active':''}" onclick="setGenre('${g}')">${esc(g)}</div>`).join('')+`</div>`);
     if(activeGenre!=="Tous") items=items.filter(p=>(p.genre==='Note')===(activeGenre==='Notes'));
-    html+=`<div class="chips">`+["Toutes","Médical","Social"].map(f=>
-      `<div class="chip ${f===activeFam?'active':''}" onclick="setFam('${f}')">${esc(f)}</div>`).join('')+`</div>`;
+    html+=triBloc('Médical ou social', `<div class="chips">`+["Toutes","Médical","Social"].map(f=>
+      `<div class="chip ${f===activeFam?'active':''}" onclick="setFam('${f}')">${esc(f)}</div>`).join('')+`</div>`, 2);
     if(activeFam!=="Toutes") items=items.filter(p=>p.famille===activeFam);
     const kws=[]; items.forEach(p=>(p.keywords||[]).forEach(k=>{ if(kws.indexOf(k)<0) kws.push(k); }));
     kws.sort((a,b)=>a.localeCompare(b,'fr'));
     const all=["Tous",...kws];
-    html+=`<div class="chips">`+all.map(k=>
-      `<div class="chip ${k===activeKw?'active':''}" onclick="setKw('${k.replace(/'/g,"\\'")}')">${esc(k)}</div>`).join('')+`</div>`;
+    html+=triBloc('Mot-clé', `<div class="chips">`+all.map(k=>
+      `<div class="chip ${k===activeKw?'active':''}" onclick="setKw('${k.replace(/'/g,"\\'")}')">${esc(k)}</div>`).join('')+`</div>`, 3);
     if(activeKw!=="Tous") items=items.filter(p=>(p.keywords||[]).includes(activeKw));
   }
   /* Règle de Mag : à choix égal, ce qui est le plus PRÈS DU CENTRE passe devant.
@@ -3290,7 +3559,38 @@ function render(){
   if(grouper) html+= groupeCpasHTML(groupables);
   html+= enveloppeCartes(cardsHTML(restants)) || (grouper?'':emptyHTML());
   el.innerHTML=html;
+  rangerTris();
 }
+/* ═══════════ LES TRIS ═══════════
+   Sur téléphone, ils restent exactement où ils sont : des rangées qui glissent, en haut
+   de la liste. Sur grand écran, ils partent DANS UNE COLONNE À GAUCHE — la place est là,
+   et une rangée qu'on fait défiler à la souris, ce n'est pas un tri, c'est une corvée.
+   Chaque tri porte son titre (« Commune », « Mot-clé »…) et les tris qui dépendent d'un
+   autre sont décalés dessous : on voit la structure, pas une bouillie de boutons. */
+function triBloc(titre, chips, niveau){
+  return '<div class="tri-bloc'+(niveau>1?' tri-n'+niveau:'')+'" data-tri="'+esc(titre)+'">'
+       + '<span class="tri-h">'+esc(titre)+'</span>'+chips+'</div>';
+}
+function enColonne(){
+  return window.matchMedia('(min-width:1280px)').matches && !document.body.classList.contains('apercu-tel');
+}
+function rangerTris(){
+  const zone=document.querySelector('main'), vue=document.getElementById('view');
+  if(!zone || !vue) return;
+  let col=zone.querySelector('.tris');
+  const blocs=vue.querySelectorAll('.tri-bloc');
+  if(!enColonne() || !blocs.length){
+    if(col) col.remove();
+    document.body.classList.remove('a-tris');
+    return;
+  }
+  if(!col){ col=document.createElement('aside'); col.className='tris'; zone.insertBefore(col, vue); }
+  col.innerHTML='';
+  blocs.forEach(function(b){ col.appendChild(b); });
+  document.body.classList.add('a-tris');
+}
+/* Passer de l'ordinateur au mode téléphone (et inversement) remet les tris à leur place. */
+window.addEventListener('resize', function(){ try{ rangerTris(); }catch(e){} });
 /* ── Le paquet des CPAS ──────────────────────────────────────────────────────
    Un CPAS par commune, mêmes missions partout : on les montre en un seul bouton
    qui se déplie. L'équipe les connaît ; ce qu'elle vient vérifier, c'est l'adresse. */
@@ -3366,7 +3666,62 @@ function homeHTML(){
     </button>
     <div class="urg-panel ${urgOpen?'open':''}" id="urgPanel">${urgOpen?urgencesListHTML():''}</div>
     <div class="dgrid">${tiles}</div>
-    <button class="home-quiz" onclick="openQuiz()">${icon('bulb')}<span>Quiz — teste tes connaissances</span></button>`;
+    <button class="home-quiz" onclick="openQuiz()">${icon('bulb')}<span>Quiz — teste tes connaissances</span></button>
+    ${bureauHTML()}`;
+}
+
+/* ═══════════ LES CARTES DE L'ADMIN — grand écran seulement ═══════════
+   Décision de Mag : ces cartes n'intéressent QUE l'administratrice, et elles tiennent
+   toutes dans UNE colonne à gauche — il y a la place. Personne d'autre ne les voit.
+   ⚠ Ce premier affichage a lieu AVANT que PROFILE et les compteurs existent : y toucher
+   directement tue le script et bloque l'app au chargement. On lit donc prudemment. */
+/* DES ONGLETS QUI DÉPASSENT DU BORD GAUCHE. Repliés, on ne voit que le picto et le
+   chiffre — « 4 » suffit à savoir qu'il y a 4 lignes à faire. Un clic déplie et montre
+   TOUT ce qui est écrit ; un second clic ouvre l'écran. */
+var BU_OUV={};
+function bureauOuvrir(cle){ BU_OUV[cle]=!BU_OUV[cle]; render(); }
+function carteBureau(cle, ic, titre, gros, sous, action, urgent){
+  const ouvert=!!BU_OUV[cle];
+  return '<button class="bu-c'+(urgent?' chaud':'')+(ouvert?' ouvert':'')+'" onclick="'
+    + (ouvert ? action : "bureauOuvrir('"+cle+"')") + '" title="'+esc(titre)+'">'
+    + '<span class="bu-bord">'+icon(ic)
+    +   (gros!==null && gros!==undefined ? '<b>'+esc(String(gros))+'</b>' : '')
+    + '</span>'
+    + '<span class="bu-txt"><span class="bu-h">'+esc(titre)+'</span>'
+    +   '<span class="bu-s">'+esc(sous)+'</span></span></button>';
+}
+function bureauHTML(){
+  let P=null, CL=[], DN={}, chM=0, chE=0, adm=null, chant=[], boite=[];
+  try{ P=PROFILE; CL=CHECKLISTS||[]; DN=DONE||{}; chM=CH_MES||0; chE=CH_ENCOURS||0;
+       adm=ADMIN_RESUME; chant=CHANTIER||[]; boite=BOITE||[]; }
+  catch(e){ return ''; }
+  let apercu=false; try{ apercu=enApercu(); }catch(e){}
+  if(!P || !P.admin || apercu) return '';
+  const c=[];
+
+  /* Un onglet n'apparaît QUE s'il reste quelque chose à faire : une languette qui dit
+     « tout est fait » ne sert à rien et occupe le bord de l'écran pour rien. */
+  const mesTaches=CL.filter(function(x){ return x.mienne; });
+  if(mesTaches.length){
+    let tot=0, faits=0;
+    mesTaches.forEach(function(x){ tot+=x.taches.length; x.taches.forEach(function(t){ if(DN[t.id]) faits++; }); });
+    if(faits<tot) c.push(carteBureau('liste','list','Ma liste du jour', faits+'/'+tot,
+      (tot-faits)+' tâche'+((tot-faits)>1?'s':'')+' à cocher', 'openMaListe()', true));
+  }
+  if(adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
+  const reste=chant.filter(function(l){ return !l.fait; }).length;
+  if(reste) c.push(carteBureau('chantier','alert','Le chantier', reste,
+    'lignes à faire'+(boite.length? ' · '+boite.length+' suggestion'+(boite.length>1?'s':''):''), 'openChantier()'));
+  if(chM) c.push(carteBureau('chambres','cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
+  else if(chE) c.push(carteBureau('chambres','cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
+  try{
+    const auj=agendaProchains(1, function(r){ return true; });
+    if(auj.length) c.push(carteBureau('agenda','ticket','Aujourd\'hui', auj.length,
+      auj.length>1?'sorties gratuites':'sortie gratuite', 'openAgenda()', true));
+  }catch(e){}
+
+  if(!c.length) return '';
+  return '<aside class="bureau">'+c.join('')+'</aside>';
 }
 // Tri intelligent des urgences par situation, pour trouver vite en cas de besoin.
 const URG_CATS=[
@@ -3509,7 +3864,7 @@ function demarcheCard(p){
       ${resume?`<p class="desc">${esc(resume).slice(0,110)}${resume.length>110?'…':''}</p>`:''}
     </div>
     <div class="detail"><div class="detail-inner">
-      ${p.attention?`<div class="warn"><b>${icon('alert')} Particularité de ce CPAS</b><span>${esc(p.attention)}</span></div>`:''}
+      ${p.attention?`<div class="warn"><span class="warn-ic">${icon('alert')}</span><span class="warn-tx"><b>Particularité de ce CPAS</b><span>${esc(p.attention)}</span></span></div>`:''}
       ${rows.join('')||`<div class="warn"><b>Procédure pas encore documentée</b><span>Cette fiche attend le détail de l'équipe : pièces à joindre, à qui envoyer, délai. Utilise « Proposer une fiche » pour l'envoyer.</span></div>`}
       ${act.length?`<div class="actions">${act.join('')}</div>`:''}
       ${p.maj?`<div class="maj">Mis à jour : ${esc(p.maj)}</div>`:''}
@@ -3859,20 +4214,21 @@ function lingeJour(){
    « Jeudi · 4e et 5e étage » se retrouvait coupé dans 58 px de large. Maintenant un clic
    ouvre la pastille (elle POUSSE les autres, le rang passe à la ligne s'il le faut), un
    clic referme, et un clic sur le texte ouvre la page. */
+/* UNE SEULE PASTILLE OUVERTE À LA FOIS. Deux pouvaient s'ouvrir ensemble (la poubelle ET
+   le linge) : le rang débordait, passait à la ligne, et la clé se retrouvait sous le
+   ticket. En ouvrir une referme donc toujours l'autre. */
 function pastilleToggle(btn, ev){
   if(ev) ev.stopPropagation();
-  const etait=btn.classList.contains('open');
-  fermerPastilles();
-  if(!etait) btn.classList.add('open');
-}
-function fermerPastilles(){
-  document.querySelectorAll('.dock-linge.open, .dock-prod.open').forEach(function(x){ x.classList.remove('open'); });
+  if(btn.classList.contains('open')){ btn.classList.remove('open'); fermerPastilles(null); return; }
+  fermerPastilles(btn);
+  btn.classList.add('open');
+  fermerPastilles(btn);
 }
 /* Un clic n'importe où ailleurs referme la bulle : sinon elle reste ouverte pendant
    qu'on lit la page derrière, et on ne comprend plus ce qui recouvre quoi. */
 document.addEventListener('click', function(e){
-  if(e.target && e.target.closest && e.target.closest('.dock-linge, .dock-prod')) return;
-  fermerPastilles();
+  if(e.target && e.target.closest && e.target.closest('.dock-linge, .dock-prod, .dock-trash')) return;
+  fermerPastilles(null);
 });
 function majBoutonLinge(){
   const btn=document.querySelector('.dock-linge');
@@ -3881,7 +4237,9 @@ function majBoutonLinge(){
   if(!l){ btn.style.display='none'; return; }
   btn.style.display='flex';
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-  const txt=l.etage + (l.chambres ? ' · ' + l.chambres : '');
+  // « étage » va de soi sur la pastille (le t-shirt et le chiffre suffisent) : on l'enlève,
+  // chaque pixel gagné ici est un pixel de moins qui pousse la clé à la ligne.
+  const txt=l.etage.replace(/\s*étages?\b/,'') + (l.chambres ? ' · ' + l.chambres : '');
   btn.title='Jour de lessive — '+l.etage+(l.chambres?' · '+l.chambres:'');
   // Pastille noire, t-shirt à la couleur de l'étage du jour.
   const coul=LINGE_COUL[l.etage] || '#f2eee6';
@@ -3987,7 +4345,8 @@ function majBoutonPoubelles(){
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const d=new Date().getDay();
   const jour = JOURS[POUBELLES[d] ? d : (d+1)%7];
-  const quand = jour.slice(0,3);
+  // Deux lettres suffisent (« Ve », « Me ») : le jour et les sacs tiennent au plus juste.
+  const quand = jour.slice(0,2);
   const txt=sacs.map(x=>x.n+' '+x.l).join(' + ');
   btn.title=jour+' — poubelles à sortir : '+txt;
   // Pas de liste écrite : une pastille par type de sac, avec son nombre dessus.
@@ -4364,6 +4723,8 @@ let MES_LISTES=[];       // les listes de la personne (le décompte du jour ne c
 let ADMIN_RESUME=null;   // { membres, actifs, demandes } — pour le bouton « Gestion de l'équipe »
 let ACCES_ROLES=null;    // { rôle: [pavés] } — réglé depuis l'Admin, null tant que la base n'a pas répondu
 let APERCU_ROLE=null;    // aperçu : voir l'app comme un rôle donné (l'admin garde ses droits réels)
+let APERCU_QUI=null;     // aperçu : voir l'app comme UNE PERSONNE (avec ses exceptions à elle)
+let APERCU_TEL=false;    // aperçu : sur un téléphone plutôt que sur l'écran d'ordinateur
 let admFiltre='Tous';    // filtre par métier dans la liste de l'équipe
 const LISTE_LABELS={ 'pfo-jour':'PFO — Jour', 'pfo-nuit':'PFO — Nuit', 'médical':'Médical', 'polyvalent-jour':'Polyvalent — Jour', 'polyvalent-nuit':'Polyvalent — Nuit' };
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','polyvalent-jour','polyvalent-nuit'];
@@ -4478,6 +4839,11 @@ function plierListe(nom){ CH_OUV[nom]=!CH_OUV[nom]; render(); }
    Sinon on ne voit jamais ce qu'une aide-soignante a réellement sous les yeux. */
 function listesVues(){
   if(!enApercu()) return MES_LISTES;
+  if(APERCU_QUI){
+    if(Array.isArray(APERCU_QUI.listes) && APERCU_QUI.listes.length) return APERCU_QUI.listes;
+    if(APERCU_QUI.pfo) return ['pfo-jour','pfo-nuit'];
+    return deriveListes(APERCU_QUI.equipe||'', 'jour');
+  }
   const r=APERCU_ROLE, e=String(r||'').toLowerCase();
   if(e.indexOf('pfo')>=0) return ['pfo-jour','pfo-nuit'];
   const d=deriveListes(r,'jour');
@@ -5018,6 +5384,7 @@ let ADMIN={ members:[], requests:[] }, adminLoaded=false;
 let CHANTIER=[], BOITE=[], chantierCanal=null;
 const CH_BLOCS=['Bugs à corriger','Ça attend une phrase de toi','Ça attend tes collègues','À construire','Gardé pour plus tard'];
 let chBloc='Bugs à corriger';         // le bloc choisi dans le champ d'ajout
+let chEdit=null;                      // la ligne en cours de correction
 let chFinis=false;                    // afficher ou non ce qui est déjà coché
 
 async function loadChantier(){
@@ -5073,12 +5440,18 @@ function chantierHTML(){
     const reste=VUES.filter(function(l){ return l.bloc===b && !l.fait; }).length;
     return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(b)}</span><span class="pf-prog">${reste}</span></div>
       <div class="pf-tasks">`+lignes.map(function(l){
+        if(chEdit===l.id) return `<div class="cha-ed">
+          <input id="edT" type="text" value="${esc(l.titre)}" placeholder="Le titre">
+          <textarea id="edD" rows="3" placeholder="L'explication (facultatif)">${esc(l.detail||'')}</textarea>
+          <div class="cha-ed-b"><button class="adm-addbtn" onclick="enregistrerLigne(${l.id})">Enregistrer</button>
+          <button class="cha-annul" onclick="chEdit=null; render()">Annuler</button></div></div>`;
         return `<div class="cha-l${l.fait?' done':''}">
           <label class="pf-task${l.fait?' done':''}">
             <input type="checkbox"${l.fait?' checked':''} onchange="toggleChantier(${l.id}, this)">
             <span class="pf-box">${icon('check')}</span>
             <span class="pf-txt">${esc(l.titre)}${l.detail?`<em class="cha-d">${esc(l.detail)}</em>`:''}</span>
           </label>
+          <button class="cha-x" title="Modifier le texte" onclick="chEdit=${l.id}; render()">${icon('note')}</button>
           <button class="cha-x" title="Copier cette ligne" onclick="copierLigne(${l.id})">${icon('copy')}</button>
           <button class="cha-x" title="Retirer de la liste" onclick="delChantier(${l.id})">${icon('trash')}</button>
         </div>`;
@@ -5123,9 +5496,55 @@ function openChantier(){
   render();
   Promise.all([loadProfile(), loadChantier()]).then(function(){ abonnerChantier(); if(view==='chantier') render(); });
 }
+/* VOIR COMME : la même barre à deux endroits — dans l'Admin, et en haut du chantier.
+   C'est depuis le chantier qu'on débogue, on ne devrait pas avoir à repasser par l'Admin
+   pour vérifier ce qu'une aide-soignante voit vraiment. */
+const APERCU_VUES=[['Ma vue',''],['B · Coordination','Coordi'],['C · Auprès des personnes','TS'],['D · Autour du centre','Polyvalent']];
+function apercuBarreHTML(){
+  const gens=(ADMIN.members||[]).filter(function(m){ return m.actif!==false; })
+    .sort(function(a,b){ return (a.nom||a.email||'').localeCompare(b.nom||b.email||'','fr'); });
+  const nomDe=function(m){
+    if(m.nom) return m.nom;
+    const av=(m.email||'').split('@')[0].replace(/[._-]+/g,' ').trim();
+    return av.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || m.email;
+  };
+  const liste = gens.length
+    ? '<select class="acc-qui" onchange="voirCommePersonne(this.value)">'
+      + '<option value="">— ou quelqu\'un en particulier —</option>'
+      + gens.map(function(m){
+          const sel=(APERCU_QUI && APERCU_QUI.email===m.email)?' selected':'';
+          const ex=(Array.isArray(m.paves)&&m.paves.length)?' ⚙':'';
+          return '<option value="'+esc(m.email)+'"'+sel+'>'+esc(nomDe(m))+' · '+esc(roleLabel(m.equipe||'sans rôle'))+ex+'</option>';
+        }).join('')
+      + '</select>'
+    : '';
+  return '<div class="acc-vues"><span>Voir l\'app comme</span>'
+    + APERCU_VUES.map(function(v){
+        const actif = v[1] ? (APERCU_ROLE===v[1] && !APERCU_QUI) : !enApercu();
+        return '<button class="acc-vue '+(actif?'on':'')+'" onclick="'
+          + (v[1] ? "voirComme('"+v[1]+"')" : 'quitterApercu()') + '">'+esc(v[0])+'</button>';
+      }).join('')
+    + liste
+    + '<span class="acc-sep">Sur quel écran</span>'
+    + '<button class="acc-vue '+(APERCU_TEL?'':'on')+'" onclick="apercuEcran(false)">Ordinateur</button>'
+    + '<button class="acc-vue '+(APERCU_TEL?'on':'')+'" onclick="apercuEcran(true)">Téléphone</button>'
+    + '</div>';
+}
+/* Voir l'app comme UNE personne : c'est elle qui compte, pas son métier — depuis ce matin
+   quelqu'un peut avoir un accès réglé à la main qui ne suit plus son métier. */
+function voirCommePersonne(email){
+  if(!email){ quitterApercu(); return; }
+  const m=(ADMIN.members||[]).filter(function(x){ return x.email===email; })[0];
+  if(!m) return;
+  APERCU_QUI=m; APERCU_ROLE=null; render();
+}
+function apercuEcran(tel){ APERCU_TEL=!!tel; document.body.classList.toggle('apercu-tel', APERCU_TEL); render(); }
 function chantierPageHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
   if(!(PROFILE&&PROFILE.admin)) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
+  /* Plus de gros bandeau noir en haut du chantier : il mordait sur le titre et écrasait
+     la page. Le changement de vue se fait par la petite règle verticale à gauche (sur
+     ordinateur) ou depuis l'Admin. Ici, on retrouve la page telle qu'elle est dans l'app. */
   return `<div class="pf-wrap">${boiteHTML()}${chantierHTML()}</div>`;
 }
 /* Copier UNE ligne : le titre et son explication, pour me la recoller telle quelle. */
@@ -5161,6 +5580,23 @@ function copierChantier(){
     navigator.clipboard.writeText(txt).then(function(){ cousinToast('Liste copiée ✓ — colle-la dans la conversation'); })
       .catch(function(){ prompt('Copie :', txt); });
   } else prompt('Copie :', txt);
+}
+/* Corriger le texte d'une ligne. Elle en a besoin quand une suggestion arrive mal
+   formulée : elle la réécrit clairement AVANT de me la demander. */
+async function enregistrerLigne(id){
+  const t=document.getElementById('edT'), d=document.getElementById('edD');
+  if(!t) return;
+  const titre=(t.value||'').trim(); if(!titre){ t.focus(); return; }
+  const detail=(d && (d.value||'').trim()) || null;
+  const l=CHANTIER.filter(function(x){ return x.id===id; })[0];
+  if(l){ l.titre=titre; l.detail=detail; }
+  chEdit=null; render();
+  try{
+    const { error } = await sb.from('chantier').update({ titre, detail }).eq('id',id);
+    if(error) throw error;
+    cousinToast('Texte corrigé ✓');
+    await loadChantier(); render();
+  }catch(e){ cousinToast('Pas enregistré : '+((e&&e.message)||'erreur')); }
 }
 async function addChantier(){
   const el=document.getElementById('chTexte'); if(!el) return;
@@ -5471,12 +5907,7 @@ function accesHTML(){
       <button class="acc-voir" onclick="voirComme('${esc(role)}')">Voir comme</button></div>
       <div class="acc-paves">${chips}</div></div>`;
   }).join('');
-  // Quatre vues à essayer d'un doigt : la tienne, la coordination, un métier « pro », un rôle simple.
-  const vues=[['Ma vue (admin)',''],['Coordi','Coordi'],['Pro','TS'],['Simple','Aide-soignante']];
-  const essais=`<div class="acc-vues"><span>Voir l'app comme</span>`+vues.map(function(v){
-      const actif = v[1] ? (APERCU_ROLE===v[1]) : !APERCU_ROLE;
-      return `<button class="acc-vue ${actif?'on':''}" onclick="${v[1]?`voirComme('${esc(v[1])}')`:'quitterApercu()'}">${esc(v[0])}</button>`;
-    }).join('')+`</div>`;
+  const essais=apercuBarreHTML();   // la même barre que sur le chantier
   return `<div class="adm-sec"><div class="adm-h">Qui voit quoi</div>
     <div class="adm-hint" style="margin-bottom:10px">Touche un pavé pour l'ouvrir ou le fermer à ce rôle. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
     ${essais}${lignes}</div>`;
@@ -6980,6 +7411,26 @@ window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); }
 (function(){
   const demande=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
   if(!demande || demande==='accueil') history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+})();
+
+/* HAUTEUR RÉELLE DE LA BARRE DU HAUT, mesurée en direct. Sur l'accueil il n'y a que le
+   logo ; sur une page il y a en plus le titre et la flèche retour — la barre grandit.
+   Une hauteur écrite en dur coupait la première rangée de pavés du Réseau. */
+(function majBarre(){
+  const h=document.querySelector('header'), ap=document.getElementById('apercuBar');
+  if(!h) return;
+  const maj=function(){
+    const r=document.documentElement.style;
+    r.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
+    /* Le bandeau noir d'aperçu, quand il est affiché : la page démarre en dessous.
+       Caché, il mesure 0 — les calculs marchent alors tout seuls. */
+    if(ap) r.setProperty('--apercu-h', Math.round(ap.getBoundingClientRect().height)+'px');
+  };
+  if(window.ResizeObserver){
+    const o=new ResizeObserver(maj); o.observe(h); if(ap) o.observe(ap);
+  }
+  window.addEventListener('resize', maj);
+  maj();
 })();
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
