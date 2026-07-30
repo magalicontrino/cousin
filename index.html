@@ -613,6 +613,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     transform:translateY(-50%) scaleX(.06); transform-origin:right center; opacity:0;
     background:#1b1b1b; color:var(--bg); border-radius:29px; padding:11px 44px 11px 20px;
     white-space:nowrap; text-align:left; pointer-events:none;
+    max-width:calc(100vw - 96px); overflow:hidden;
     transition:transform .34s cubic-bezier(.22,1,.36,1), opacity .22s}
   .dock-linge.open .pbt-tx, .dock-prod.open .pbt-tx{transform:translateY(-50%) scaleX(1); opacity:1; pointer-events:auto}
   .dock-prod .pbt-tx{background:#6cb392; color:#0e3a28}
@@ -2846,7 +2847,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v329';
+const APP_VERSION = 'v330';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3857,9 +3858,18 @@ function lingeJour(){
 function pastilleToggle(btn, ev){
   if(ev) ev.stopPropagation();
   const etait=btn.classList.contains('open');
-  document.querySelectorAll('.dock-linge.open, .dock-prod.open').forEach(function(x){ x.classList.remove('open'); });
+  fermerPastilles();
   if(!etait) btn.classList.add('open');
 }
+function fermerPastilles(){
+  document.querySelectorAll('.dock-linge.open, .dock-prod.open').forEach(function(x){ x.classList.remove('open'); });
+}
+/* Un clic n'importe où ailleurs referme la bulle : sinon elle reste ouverte pendant
+   qu'on lit la page derrière, et on ne comprend plus ce qui recouvre quoi. */
+document.addEventListener('click', function(e){
+  if(e.target && e.target.closest && e.target.closest('.dock-linge, .dock-prod')) return;
+  fermerPastilles();
+});
 function majBoutonLinge(){
   const btn=document.querySelector('.dock-linge');
   if(!btn) return;
