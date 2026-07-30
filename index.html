@@ -1271,6 +1271,28 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-src svg, .ag-src .pico{width:13px; height:13px}
   /* Les liens remontent sous le titre : ils ne portent plus la marge de gauche du bas de carte. */
   .ag-liens{display:flex; flex-wrap:wrap; gap:4px 10px; margin:6px 0 2px}
+  /* Les lieux du ticket Article 27 : une ligne par lieu, groupés par commune */
+  .a27-h{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--gold);
+    border-radius:14px; padding:12px 14px; margin:14px 0 10px}
+  .a27-h b{display:block; font-size:14px; font-weight:800; margin-bottom:4px}
+  .a27-h span{display:block; font-size:12px; font-weight:400; color:var(--muted); line-height:1.45}
+  .a27-h .ag-src{margin:8px 0 0}
+  .a27-c{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:4px 13px 8px; margin-bottom:9px}
+  .a27-com{font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--gold-d);
+    padding:10px 0 6px; border-bottom:1px solid var(--line); margin-bottom:4px}
+  .a27-l{display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 8px; padding:6px 0; border-bottom:1px solid var(--soft)}
+  .a27-l:last-child{border-bottom:0}
+  .a27-l b{font-size:13px; font-weight:700; flex:1 1 auto; min-width:0; line-height:1.25}
+  .a27-t{font-style:normal; font-size:10px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; background:var(--soft); color:var(--muted); flex:0 0 auto}
+  .a27-t.musee{background:#f9dce8; color:#8a3a5c}
+  .a27-t.theatre{background:#fbeec2; color:#8a6a08}
+  .a27-t.musique{background:#cdefea; color:#1d6b60}
+  .a27-t.cinema{background:#d9e2f7; color:#2f4c8f}
+  .a27-t.jeunesse{background:#fbd9cc; color:#a2451f}
+  .a27-t.pluri{background:#d8ecdf; color:#2f6b46}
+  .a27-tel{flex:0 0 auto; font-size:12.5px; font-weight:700; color:var(--ink); text-decoration:none;
+    border-bottom:1.5px solid var(--gold)}
   /* Les lieux d'une gratuité collective, écrits un par un */
   .ag-liste{list-style:none; margin:7px 0 0; padding:0; display:flex; flex-direction:column; gap:2px}
   .ag-liste li{font-size:12px; color:var(--muted); line-height:1.35; padding-left:11px; position:relative}
@@ -1333,6 +1355,15 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     .ag-qr{display:block !important; float:right; width:52px; height:52px; margin:0 0 4px 6px}
     .ag-qr svg{width:52px; height:52px; display:block}
     .ag-pied{display:block !important; break-before:column; font-size:9px; color:#333; margin-top:8px}
+    .a27-c{break-inside:avoid; border:1px solid #e7e2d8 !important; padding:2px 8px 5px !important; margin-bottom:5px !important}
+    .a27-com{font-size:9px !important; padding:6px 0 3px !important}
+    .a27-l{padding:2px 0 !important}
+    .a27-l b{font-size:9.5px !important}
+    .a27-t{font-size:7.5px !important; padding:1px 5px !important}
+    .a27-tel{font-size:9px !important}
+    .a27-h{break-inside:avoid; border:1px solid #e7e2d8 !important; padding:7px 9px !important; margin:8px 0 6px !important}
+    .a27-h b{font-size:11px !important}
+    .a27-h span{font-size:8.5px !important}
   }
   .jx-cap{border-radius:18px; padding:20px 18px 18px; text-align:center; margin-bottom:12px}
   .jx-cap-ic{display:block; line-height:0; margin-bottom:12px}
@@ -2589,7 +2620,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v284';
+const APP_VERSION = 'v285';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5047,6 +5078,197 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    Rien n'est saisi à la main : chaque ligne vient d'une RÈGLE qui se calcule. L'agenda ne
    peut donc être ni vide, ni périmé, et personne n'a à le remplir.
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
+/* LES LIEUX QUI ACCEPTENT LE TICKET ARTICLE 27 — dépliant officiel 2025-2026
+   (bruxelles.article27.be/IMG/pdf/depliant_pc_2025.pdf), recopié le 30/07/2026.
+   Anderlecht en tête : c'est la commune du centre. Les compagnies et festivals
+   « dans tout Bruxelles » ne sont pas ici : ce ne sont pas des lieux où aller. */
+var ART27_TYPES={pluri:'Un peu de tout', musique:'Musique', theatre:'Théâtre',
+                 musee:'Musée · expo', jeunesse:'Jeunesse', cinema:'Cinéma'};
+var ART27_LIEUX=[
+  {commune:"1070 · Anderlecht — à côté du centre", lieux:[
+    {n:"Au B'izou", t:"theatre", tel:"0474/10 75 76"},
+    {n:"Centre culturel Escale du Nord", t:"pluri", tel:"0496/94 43 18"},
+    {n:"COOP", t:"pluri", tel:"02/899 93 00"},
+    {n:"Zinnema", t:"pluri", tel:"02/555 06 00"},
+  ]},
+  {commune:"1000 · Bruxelles", lieux:[
+    {n:"AB – Ancienne Belgique", t:"musique", tel:"02/548 24 84"},
+    {n:"Argos", t:"musee", tel:"02/229 00 03"},
+    {n:"Art et marges musée", t:"musee", tel:"02/533 94 90"},
+    {n:"Artcade – Beyond", t:"jeunesse", tel:""},
+    {n:"Autoworld", t:"musee", tel:"02/736 41 65"},
+    {n:"Baixu (Le)", t:"musique", tel:"0475/36 18 36"},
+    {n:"Belgian Beer World", t:"musee", tel:"02/880 47 00"},
+    {n:"Bellone (La)", t:"pluri", tel:"02/513 33 33"},
+    {n:"Beursschouwburg", t:"pluri", tel:"02/550 03 50"},
+    {n:"Bozar", t:"pluri", tel:"02/507 82 00"},
+    {n:"Brigittines (Les)", t:"pluri", tel:"02/213 86 10"},
+    {n:"BRONKS", t:"jeunesse", tel:"02/229 53 00"},
+    {n:"Brussels by Water", t:"musee", tel:"02/203 64 06"},
+    {n:"Bubble Planet – Exhibition Hub", t:"jeunesse", tel:""},
+    {n:"CENTRALE for contemporary art", t:"musee", tel:"02/279 64 44"},
+    {n:"Centre culturel Bruegel", t:"pluri", tel:"02/503 42 68"},
+    {n:"Cinéma Aventure", t:"cinema", tel:""},
+    {n:"Cinéma Galeries", t:"cinema", tel:""},
+    {n:"Cinéma Nova", t:"cinema", tel:""},
+    {n:"Cinéma Palace", t:"cinema", tel:""},
+    {n:"École du Cirque de Bruxelles", t:"pluri", tel:"02/640 15 71"},
+    {n:"Espace Magh", t:"pluri", tel:"02/274 05 10"},
+    {n:"GardeRobe MannekenPis", t:"musee", tel:"02/514 53 97"},
+    {n:"Géopolis", t:"pluri", tel:"0485/32 85 90"},
+    {n:"Globe Aroma", t:"pluri", tel:"02/511 21 10"},
+    {n:"Hôtel de Ville – Brussels Major Event", t:"musee", tel:"02/318 64 70"},
+    {n:"Institut des Sciences naturelles", t:"musee", tel:"02/627 42 11"},
+    {n:"ISELP", t:"pluri", tel:"02/504 80 70"},
+    {n:"Jardin de ma Sœur (Le)", t:"pluri", tel:"02/217 65 82"},
+    {n:"Kaaitheater", t:"pluri", tel:"02/201 59 59"},
+    {n:"Kanal – Centre Pompidou", t:"musee", tel:"02/435 13 68"},
+    {n:"KVS", t:"pluri", tel:"02/210 11 12"},
+    {n:"Maison du Roi – Musée de la Ville", t:"musee", tel:"02/279 43 50"},
+    {n:"Musée belge de la Franc-Maçonnerie", t:"musee", tel:"02/223 06 04"},
+    {n:"Musée BELvue", t:"musee", tel:"02/500 45 54"},
+    {n:"Musée de la Bande Dessinée", t:"musee", tel:"02/219 19 80"},
+    {n:"Musée des Égouts", t:"musee", tel:"02/279 43 83"},
+    {n:"Musée des Instruments de Musique", t:"musee", tel:"02/545 01 30"},
+    {n:"Musée juif de Belgique", t:"musee", tel:"02/512 19 63"},
+    {n:"Musée Mode & Dentelle", t:"musee", tel:"02/213 44 50"},
+    {n:"Musée royal de l'Armée", t:"musee", tel:"02/737 78 33"},
+    {n:"Musées royaux d'Art et d'Histoire — Cinquantenaire", t:"musee", tel:"02/741 73 31"},
+    {n:"Musées royaux d'Art et d'Histoire — Porte de Hal", t:"musee", tel:"02/534 15 18"},
+    {n:"Musées royaux des Beaux-Arts — Magritte, Old Masters", t:"musee", tel:"02/508 32 32"},
+    {n:"Palais du Coudenberg", t:"musee", tel:"02/500 45 54"},
+    {n:"Passa Porta", t:"pluri", tel:"02/226 04 54"},
+    {n:"Super Concert", t:"musique", tel:"02/267 13 01"},
+    {n:"Théâtre de Poche", t:"theatre", tel:"02/649 17 27"},
+    {n:"Théâtre des Martyrs", t:"theatre", tel:"02/223 32 08"},
+    {n:"Théâtre des Riches-Claires", t:"theatre", tel:"02/548 25 80"},
+    {n:"Théâtre la Montagne Magique", t:"jeunesse", tel:"02/210 15 90"},
+    {n:"Théâtre les Tanneurs", t:"theatre", tel:"02/512 17 84"},
+    {n:"Théâtre National Wallonie-Bruxelles", t:"theatre", tel:"02/203 53 03"},
+    {n:"Théâtre Royal de Toone", t:"theatre", tel:"02/513 54 86"},
+    {n:"Théâtre Royal des Galeries", t:"theatre", tel:"02/512 04 07"},
+    {n:"Théâtre Royal du Parc", t:"theatre", tel:"02/505 30 30"},
+    {n:"Wolf (Le)", t:"jeunesse", tel:"02/512 12 30"},
+    {n:"World Of Mind – Tempora", t:"jeunesse", tel:"0484/24 44 33"},
+  ]},
+  {commune:"1020 · Laeken", lieux:[
+    {n:"Design Museum Brussels", t:"musee", tel:"02/669 49 29"},
+    {n:"Théâtre Royal Les Cœurs de Bois", t:"jeunesse", tel:"02/478 23 21"},
+  ]},
+  {commune:"1030 · Schaerbeek", lieux:[
+    {n:"140 (Le)", t:"theatre", tel:"02/733 97 08"},
+    {n:"Balsamine (La)", t:"theatre", tel:"02/735 64 68"},
+    {n:"Halles de Schaerbeek (Les)", t:"pluri", tel:"02/218 21 07"},
+    {n:"Magic Land Théâtre", t:"theatre", tel:"0495/26 18 71"},
+    {n:"Maison Autrique", t:"musee", tel:"02/215 66 00"},
+    {n:"Maison des Arts (La) – Service culture", t:"pluri", tel:"02/240 34 99"},
+    {n:"Musée schaerbeekois de la Bière", t:"musee", tel:"0470/81 43 00"},
+    {n:"Théâtre Océan Nord", t:"theatre", tel:"02/242 96 89"},
+    {n:"Train World", t:"musee", tel:"02/224 74 37"},
+  ]},
+  {commune:"1040 · Etterbeek", lieux:[
+    {n:"Atelier 210", t:"pluri", tel:"02/732 25 98"},
+    {n:"Centre culturel Le Senghor", t:"pluri", tel:"02/230 31 40"},
+    {n:"Petit Chapeau Rond Rouge (Le)", t:"pluri", tel:"0498/51 35 63"},
+  ]},
+  {commune:"1050 · Ixelles", lieux:[
+    {n:"Boson (Le)", t:"theatre", tel:"0471/32 86 87"},
+    {n:"CinéFlagey", t:"cinema", tel:""},
+    {n:"Cinéma Vendôme", t:"cinema", tel:""},
+    {n:"Flagey", t:"pluri", tel:"02/641 10 20"},
+    {n:"Fondation CIVA", t:"musee", tel:"02/642 24 50"},
+    {n:"Hangar Photo Art Center", t:"musee", tel:"02/538 00 85"},
+    {n:"Maison Qui Chante (La)", t:"jeunesse", tel:"0492/86 68 98"},
+    {n:"Marni (Le)", t:"pluri", tel:"02/639 09 80"},
+    {n:"Musée des Enfants", t:"jeunesse", tel:"02/640 01 07"},
+    {n:"Muziekpublique", t:"musique", tel:"02/217 26 00"},
+    {n:"Rideau (Le)", t:"theatre", tel:"02/737 16 01"},
+    {n:"Service culture de la commune", t:"pluri", tel:"02/515 64 63"},
+    {n:"Théâtre de la Clarencière", t:"theatre", tel:"02/640 46 76"},
+    {n:"Théâtre de la Toison d'Or", t:"theatre", tel:"02/510 05 10"},
+    {n:"Théâtre Varia", t:"theatre", tel:"02/640 35 50"},
+    {n:"Villa Empain – Fondation Boghossian", t:"musee", tel:"02/627 52 30"},
+  ]},
+  {commune:"1060 · Saint-Gilles", lieux:[
+    {n:"Centre culturel Le Jacques Franck", t:"pluri", tel:"02/538 90 20"},
+    {n:"Festival Les Équinoxes", t:"pluri", tel:"02/538 36 66"},
+    {n:"Lézarts Urbains", t:"pluri", tel:"02/538 15 12"},
+    {n:"Maison du Livre (La)", t:"pluri", tel:"02/543 12 20"},
+    {n:"Maison poème", t:"pluri", tel:"02/503 02 18"},
+    {n:"Midis de la Poésie (Les)", t:"pluri", tel:"02/503 02 18"},
+    {n:"Musée d'Art fantastique", t:"musee", tel:"0475/41 29 18"},
+    {n:"Musée Horta", t:"musee", tel:"02/543 04 90"},
+    {n:"P'tit Ciné (Le)", t:"cinema", tel:""},
+    {n:"Tricoterie (La)", t:"pluri", tel:"02/537 96 69"},
+  ]},
+  {commune:"1080 · Molenbeek", lieux:[
+    {n:"Café de la Rue", t:"theatre", tel:"0473/50 58 75"},
+    {n:"Fonderie (La)", t:"musee", tel:"02/410 99 50"},
+    {n:"Maison des Cultures et de la Cohésion Sociale", t:"pluri", tel:"02/415 86 03"},
+    {n:"Musée des Migrations", t:"musee", tel:"02/609 55 61"},
+    {n:"Ras El Hanout", t:"pluri", tel:"02/256 76 80"},
+  ]},
+  {commune:"1081 · Koekelberg", lieux:[
+    {n:"Belgian Chocolate Village", t:"musee", tel:"02/420 70 76"},
+    {n:"Centre culturel Archipel 19", t:"pluri", tel:"02/469 26 75"},
+  ]},
+  {commune:"1082 · Berchem-Sainte-Agathe", lieux:[
+    {n:"Centre culturel Archipel 19", t:"pluri", tel:"02/469 26 75"},
+  ]},
+  {commune:"1090 · Jette", lieux:[
+    {n:"Centre culturel", t:"pluri", tel:"02/426 64 39"},
+    {n:"Musée René Magritte de Jette", t:"musee", tel:"02/428 26 26"},
+    {n:"Rayon Vert (Le)", t:"pluri", tel:"0498/63 75 97"},
+    {n:"Service culture de la commune", t:"pluri", tel:"02/423 12 65"},
+  ]},
+  {commune:"1120 · Neder-Over-Heembeek", lieux:[
+    {n:"Sortilège", t:"jeunesse", tel:"0477/62 40 00"},
+  ]},
+  {commune:"1140 · Evere", lieux:[
+    {n:"Centre culturel L'Entrela", t:"pluri", tel:"02/241 15 83"},
+    {n:"Musée du Moulin et de l'Alimentation", t:"musee", tel:"02/245 37 79"},
+  ]},
+  {commune:"1150 · Woluwe-Saint-Pierre", lieux:[
+    {n:"Bibliotheca Wittockiana", t:"musee", tel:"02/770 53 33"},
+    {n:"Centre culturel W:Halll", t:"pluri", tel:"02/435 59 99"},
+    {n:"Comédie Royale Claude Volter", t:"theatre", tel:"02/762 09 63"},
+    {n:"Theater 1150", t:"theatre", tel:"02/773 05 92"},
+  ]},
+  {commune:"1160 · Auderghem", lieux:[
+    {n:"Centre culturel", t:"pluri", tel:"02/660 03 03"},
+    {n:"Théâtre de la Parole", t:"theatre", tel:"02/736 69 50"},
+  ]},
+  {commune:"1170 · Watermael-Boitsfort", lieux:[
+    {n:"Centre culturel La Vénerie", t:"pluri", tel:"02/663 85 50"},
+  ]},
+  {commune:"1180 · Uccle", lieux:[
+    {n:"Centre culturel", t:"pluri", tel:"02/374 64 84"},
+    {n:"Fondation Van Buuren", t:"musee", tel:"02/343 48 51"},
+    {n:"Roseraie (La)", t:"pluri", tel:"02/376 46 45"},
+    {n:"Théâtre du Ratinet", t:"jeunesse", tel:"02/375 15 63"},
+  ]},
+  {commune:"1190 · Forest", lieux:[
+    {n:"Au Dé à Coudre", t:"jeunesse", tel:"02/332 63 20"},
+    {n:"Centre culturel Le Brass", t:"pluri", tel:"02/332 40 24"},
+    {n:"Wiels", t:"musee", tel:"02/340 00 53"},
+  ]},
+  {commune:"1200 · Woluwe-Saint-Lambert", lieux:[
+    {n:"Art Brussels", t:"musee", tel:"02/740 10 43"},
+    {n:"Centre culturel Wolubilis", t:"pluri", tel:"02/761 60 30"},
+    {n:"Kapelleveld", t:"theatre", tel:"02/770 22 35"},
+  ]},
+  {commune:"1210 · Saint-Josse-ten-Noode", lieux:[
+    {n:"Centre culturel Arabe", t:"pluri", tel:"02/218 64 74"},
+    {n:"Jazz Station", t:"musique", tel:"02/733 13 78"},
+    {n:"Lundis d'Hortense (Les)", t:"musique", tel:"02/219 58 51"},
+    {n:"Musée Charlier", t:"musee", tel:"02/217 81 61"},
+    {n:"Théâtre de la Vie", t:"theatre", tel:"02/219 11 86"},
+    {n:"Théâtre le Public", t:"theatre", tel:"02/724 24 44"},
+  ]},
+  {commune:"3080 · Tervuren", lieux:[
+    {n:"AfricaMuseum", t:"musee", tel:"02/769 52 00"},
+  ]},
+];
 /* UN MUSÉE = UNE CARTE. Chacun porte le lien de sa page (horaires, adresse, ce qu'on y voit),
    et se range tout seul à sa prochaine date. Relevé le 30/07/2026 sur brusselsmuseums.be. */
 var MUSEES_1ER_DIMANCHE = [
@@ -5255,6 +5477,27 @@ function agArt27HTML(){
           +(liens?'<div class="ag-liens">'+liens+'</div>':'')
           +(p.adr?'<span class="ag-adr">'+esc(p.adr)+'</span>':'')
           +'<p>'+esc(p.desc)+'</p>'+iti+'</div>';
+      }).join('')
+    + art27LieuxHTML();
+}
+/* Les 141 lieux du dépliant, commune par commune, Anderlecht en tête. */
+function art27LieuxHTML(){
+  if(typeof ART27_LIEUX==='undefined') return '';
+  const total=ART27_LIEUX.reduce(function(n,g){ return n+g.lieux.length; },0);
+  return '<div class="a27-h"><b>Où sortir avec le ticket</b>'
+    + '<span>'+total+' lieux acceptent le ticket à 1,25 €. Réservez à l\'avance (sauf au cinéma), '
+    + 'et échangez le ticket à l\'accueil avec 1,25 €. Dépliant officiel 2025-2026.</span>'
+    + '<a class="ag-src" href="https://bruxelles.article27.be/-Liste-des-lieux-culturels-" target="_blank" rel="noopener">'
+    + icon('lien')+' La liste officielle</a></div>'
+    + ART27_LIEUX.map(function(g){
+        return '<div class="a27-c"><div class="a27-com">'+esc(g.commune)+'</div>'
+          + g.lieux.map(function(l){
+              return '<div class="a27-l"><b>'+esc(l.n)+'</b>'
+                + '<em class="a27-t '+esc(l.t)+'">'+esc(ART27_TYPES[l.t]||'')+'</em>'
+                + (l.tel? '<a class="a27-tel" href="tel:'+esc(l.tel.replace(/[^0-9+]/g,''))+'">'+esc(l.tel)+'</a>' : '')
+                + '</div>';
+            }).join('')
+          + '</div>';
       }).join('');
 }
 /* Quand une ligne couvre PLUSIEURS lieux (les musées du 1er dimanche, ceux du 1er
