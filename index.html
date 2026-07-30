@@ -2678,7 +2678,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v297';
+const APP_VERSION = 'v298';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5111,87 +5111,95 @@ function pavesDuRole(role){
 /* LE PLAN DES ACCÈS, calculé sur les vrais réglages — pas un dessin figé.
    Du plus large au plus restreint, avec la ligne où l'Admin s'arrête. C'est l'écran
    qui permet de VÉRIFIER d'un coup d'œil que personne ne voit ce qu'il ne doit pas. */
+/* LES QUATRE GROUPES, tels que Mag les a définis le 2026-07-30 :
+   A = elle, l'admin · B = la coordination · C = les métiers · D = les polyvalents et les autres.
+   Le plan est HIÉRARCHIQUE : un groupe plus bas ne peut jamais voir plus qu'un groupe plus haut.
+   Si ça arrive, c'est une erreur de réglage, et l'écran la signale en rouge. */
+const GROUPES_PLAN=[
+  {l:'A', nom:'Admin',                 admin:true, roles:[]},
+  {l:'B', nom:'Coordination',          roles:['Coordi']},
+  {l:'C', nom:'Les métiers',           roles:['TS','Médical','Éduc','Psy','Infi','Aide-soignante',
+                                              'Référent·e infis & aide-soignant·es','Travaux / Maintenance','Logistique']},
+  {l:'D', nom:'Polyvalents et autres', roles:['Polyvalent','Agent entretien','Responsable punaise','Article 60']}
+];
 function planAccesHTML(){
-  const admins=(ADMIN.members||[]).filter(function(m){ return m.admin; });
-  const pfos=(ADMIN.members||[]).filter(function(m){ return m.pfo && !m.admin; });
+  const mem=ADMIN.members||[];
   const joliNom=function(m){
     if(m.nom) return m.nom;
     const av=(m.email||'').split('@')[0].replace(/[._-]+/g,' ').trim();
     return av.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || m.email;
   };
-  const noms=function(l){ return l.length? l.map(joliNom).join(' · ') : 'personne'; };
-  // Les gens réglés à la main : leur accès ne suit plus leur métier.
-  const perso=(ADMIN.members||[]).filter(function(m){ return Array.isArray(m.paves) && m.paves.length && !m.admin; });
-
-  const paquets=[];
-  ROLE_OPTS.forEach(function(r){
-    const pv=pavesDuRole(r).slice().sort();
-    const cle=pv.join('|');
-    let q=paquets.filter(function(x){ return x.cle===cle; })[0];
-    if(!q){ q={cle:cle, pv:pv, n:pv.length, roles:[], gens:[]}; paquets.push(q); }
-    q.roles.push(roleLabel(r));
-    (ADMIN.members||[]).forEach(function(m){
-      if(m.admin || (Array.isArray(m.paves)&&m.paves.length)) return;
-      if((m.equipe||'')===r) q.gens.push(m);
-    });
-  });
-  paquets.sort(function(a,b){ return b.n-a.n; });
-  paquets.forEach(function(q){ q.fermes=PAVES_TOUS.filter(function(k){ return q.pv.indexOf(k)<0; }); });
-
-  // RÈGLE : un groupe plus bas ne peut jamais voir PLUS qu'un groupe plus haut.
-  let alerte='';
-  for(let i=1;i<paquets.length;i++){
-    const enTrop=paquets[i].pv.filter(function(k){ return paquets[i-1].pv.indexOf(k)<0; });
-    if(enTrop.length){
-      alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Incohérence : '
-        + esc(paquets[i].roles.join(', '))+'</b> voit '
-        + esc(enTrop.map(function(k){ return PAVES_NOMS[k]||k; }).join(', '))
-        + ' alors que le groupe au-dessus ne l\'a pas. Le plan doit descendre, jamais remonter.</span></div>';
-    }
-  }
-
-  const chips=function(fermes, extras){
-    let h='<div class="plan-f">';
-    (extras||[]).forEach(function(x){ h+='<em class="plan-c">'+icon(x[0])+esc(x[1])+'</em>'; });
-    (fermes||[]).forEach(function(k){ h+='<em class="plan-c">'+icon(PAVES_ICON[k]||'cle')+esc(PAVES_NOMS[k]||k)+'</em>'; });
-    if(!h.length) return '';
-    return h+'</div>';
+  const gensTxt=function(l){
+    if(!l.length) return 'personne pour l\'instant';
+    return l.map(function(m){ return joliNom(m)+(m.pfo?' (PFO)':'')+(Array.isArray(m.paves)&&m.paves.length?' ⚙':''); }).join(' · ');
   };
-  let lettre=0;
-  const etage=function(i, titre, corps, badge, fort, gens){
-    const ouv=!!PLAN_OUV[i];
-    const L='ABCDEFGH'.charAt(lettre++);
-    return '<div class="plan-e'+(fort?' fort':'')+'">'
-      + '<button class="plan-top" onclick="plierPlan('+i+')">'
-      +   '<span class="plan-l">'+L+'</span>'
-      +   '<span class="plan-t"><b>'+esc(titre)+'</b></span>'
-      +   '<em class="plan-b">'+esc(badge)+'</em>'
-      +   icon('chevron','class="plan-ch'+(ouv?' ouvert':'')+'"')
-      + '</button>'
-      + corps
-      + (ouv? '<div class="plan-n"><span>Qui est dedans</span>'+esc(gens)+'</div>' : '')
-      + '</div>';
+  const G=GROUPES_PLAN.map(function(g){
+    const o={l:g.l, nom:g.nom, admin:!!g.admin, roles:g.roles.slice()};
+    o.gens = g.admin ? mem.filter(function(m){ return m.admin; })
+                     : mem.filter(function(m){ return !m.admin && g.roles.indexOf(m.equipe||'')>=0; });
+    if(g.admin){ o.pv=PAVES_TOUS.slice(); o.melange=[]; }
+    else {
+      // Ce que TOUT LE MONDE dans le groupe voit à coup sûr, et ce qui dépasse.
+      let inter=null; const union=[];
+      g.roles.forEach(function(r){
+        const pv=pavesDuRole(r);
+        pv.forEach(function(k){ if(union.indexOf(k)<0) union.push(k); });
+        inter = (inter===null) ? pv.slice() : inter.filter(function(k){ return pv.indexOf(k)>=0; });
+      });
+      o.pv = inter||[];
+      o.melange = union.filter(function(k){ return o.pv.indexOf(k)<0; });
+    }
+    o.fermes = PAVES_TOUS.filter(function(k){ return o.pv.indexOf(k)<0; });
+    return o;
+  });
+
+  let alerte='';
+  for(let i=1;i<G.length;i++){
+    const enTrop=G[i].pv.filter(function(k){ return G[i-1].pv.indexOf(k)<0; });
+    if(enTrop.length) alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Erreur : le groupe '+G[i].l
+      +' voit '+esc(enTrop.map(function(k){ return PAVES_NOMS[k]||k; }).join(', '))
+      +'</b> alors que le groupe '+G[i-1].l+', au-dessus, ne l\'a pas. Le plan doit descendre, jamais remonter.</span></div>';
+    if(G[i].melange.length) alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Le groupe '+G[i].l
+      +' n\'est pas homogène :</b> tous ses métiers n\'ont pas les mêmes accès ('
+      +esc(G[i].melange.map(function(k){ return PAVES_NOMS[k]||k; }).join(', '))+'). À aligner dans « Qui voit quoi ».</span></div>';
+  }
+  const connus=[]; GROUPES_PLAN.forEach(function(g){ g.roles.forEach(function(r){ connus.push(r); }); });
+  const orphelins=ROLE_OPTS.filter(function(r){ return connus.indexOf(r)<0; });
+  if(orphelins.length) alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Hors plan : '
+    +esc(orphelins.map(roleLabel).join(', '))+'</b> — ce métier n\'est dans aucun groupe.</span></div>';
+
+  const chips=function(g){
+    let h='<div class="plan-f">';
+    if(g.admin) return h+'<em class="plan-c ok">'+icon('check')+'Rien de fermé</em></div>';
+    h+='<em class="plan-c">'+icon('cog')+'Admin</em><em class="plan-c">'+icon('list')+'Liste debug</em>';
+    if(g.l!=='B') h+='<em class="plan-c">'+icon('check')+'Les listes des autres</em>';
+    g.fermes.forEach(function(k){ h+='<em class="plan-c">'+icon(PAVES_ICON[k]||'cle')+esc(PAVES_NOMS[k]||k)+'</em>'; });
+    return h+'</div>';
   };
 
   let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — ce qui est fermé à chacun</div>'+alerte;
-  html+=etage(0, 'Admin', '<div class="plan-f"><em class="plan-c ok">'+icon('check')+'Rien de fermé</em></div>',
-              'tout ouvert', true, noms(admins));
-  html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni la Liste debug</span></div>';
-  if(pfos.length) html+=etage(1, 'PFO',
-      chips([], [['cog','Admin'],['list','Liste debug'],['check','Les listes des autres']]),
-      '3 fermés', false, noms(pfos));
-  paquets.forEach(function(q,i){
-    const extras=[['cog','Admin'],['list','Liste debug']];
-    if(!q.coordi) extras.push(['check','Les listes des autres']);
-    html+=etage(10+i, q.roles.join(' · '), chips(q.fermes, extras),
-                (q.fermes.length+extras.length)+' fermés', false, noms(q.gens));
+  G.forEach(function(g,i){
+    const nb = g.admin ? 0 : (g.fermes.length + (g.l==='B'?2:3));
+    const ouv=!!PLAN_OUV[i];
+    html+='<div class="plan-e'+(g.admin?' fort':'')+'">'
+      + '<button class="plan-top" onclick="plierPlan('+i+')">'
+      +   '<span class="plan-l">'+g.l+'</span>'
+      +   '<span class="plan-t"><b>'+esc(g.nom)+'</b></span>'
+      +   '<em class="plan-b">'+(nb? nb+' fermé'+(nb>1?'s':'') : 'tout ouvert')+'</em>'
+      +   icon('chevron','class="plan-ch'+(ouv?' ouvert':'')+'"')
+      + '</button>'
+      + chips(g)
+      + (ouv? '<div class="plan-n"><span>Qui est dedans</span>'+esc(gensTxt(g.gens))
+              + (g.roles.length? '<br><span style="margin-top:7px">Métiers</span>'+esc(g.roles.map(roleLabel).join(' · ')) : '')
+              + '</div>' : '')
+      + '</div>';
+    if(i===0) html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni la Liste debug</span></div>';
   });
-  if(perso.length){
-    html+='<div class="plan-perso">'+icon('user')+'<span><b>'+perso.length+' personne'+(perso.length>1?'s':'')
-      +' réglée'+(perso.length>1?'s':'')+' à la main</b> — leur accès ne suit plus leur métier : '
-      +esc(perso.map(joliNom).join(' · '))+'</span></div>';
-  }
-  html+='<div class="adm-hint" style="margin-top:8px">Touche un étage pour voir qui est dedans. Pour ouvrir ou fermer un pavé à UNE personne sans changer son métier, va sur sa fiche dans l\'équipe.</div></div>';
+  const perso=mem.filter(function(m){ return Array.isArray(m.paves) && m.paves.length && !m.admin; });
+  if(perso.length) html+='<div class="plan-perso">'+icon('user')+'<span><b>'+perso.length+' personne'
+    +(perso.length>1?'s':'')+' réglée'+(perso.length>1?'s':'')+' à la main</b> (⚙) — leur accès ne suit plus leur métier : '
+    +esc(perso.map(joliNom).join(' · '))+'</span></div>';
+  html+='<div class="adm-hint" style="margin-top:8px">Touche un groupe pour voir qui est dedans. Pour ouvrir un pavé à UNE personne sans changer son métier, va sur sa fiche dans l\'équipe.</div></div>';
   return html;
 }
 function accesHTML(){
