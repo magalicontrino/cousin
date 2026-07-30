@@ -22,11 +22,19 @@ insert into public.roles_acces(role, paves) values
   ('Psy',                   array['reseau','demarches','formations','mails','methodes','centre']),
   ('Infi',                  array['reseau','demarches','formations','mails','methodes','centre']),
   ('Coordi',                array['reseau','demarches','formations','mails','methodes','centre']),
-  ('Aide-soignante',        array['reseau','formations','centre']),
+  ('Aide-soignante',        array['reseau','demarches','formations','mails','methodes','centre']),
   ('Polyvalent',            array['reseau','formations','centre']),
   ('Agent entretien',       array['reseau','formations','centre']),
-  ('Travaux / Maintenance', array['reseau','formations','centre']),
-  ('Logistique',            array['reseau','formations','centre']),
+  ('Travaux / Maintenance', array['reseau','demarches','formations','mails','methodes','centre']),
+  ('Logistique',            array['reseau','demarches','formations','mails','methodes','centre']),
   ('Responsable punaise',   array['reseau','formations','centre']),
   ('Article 60',            array['reseau','formations','centre'])
 on conflict (role) do nothing;
+
+-- 2026-07-30 : aide-soignantes, maintenance et logistique passent au même plan que
+-- les TS, le médical, les éducs, les psys et les infis — ils participent aux réunions.
+insert into public.roles_acces(role, paves, maj_le) values
+  ('Aide-soignante',        array['reseau','demarches','formations','mails','methodes','centre'], now()),
+  ('Travaux / Maintenance', array['reseau','demarches','formations','mails','methodes','centre'], now()),
+  ('Logistique',            array['reseau','demarches','formations','mails','methodes','centre'], now())
+on conflict (role) do update set paves = excluded.paves, maj_le = now();
