@@ -774,6 +774,10 @@ input, textarea, select{
   .pf-id{min-width:0}
   .pf-name{font-size:15px; font-weight:800; color:var(--ink)}
   .pf-mail{font-size:12px; color:var(--muted); font-weight:600; margin-top:1px; overflow-wrap:anywhere}
+  .pf-pli{width:100%; border:0; background:none; font:inherit; cursor:pointer; text-align:left; padding:0}
+  .pf-ch{flex:0 0 auto; transform:rotate(-90deg); transition:transform .18s; color:var(--faint)}
+  .pf-pli.ouvert .pf-ch{transform:rotate(90deg)}
+  .pf-pli .pf-ch{width:15px; height:15px}
   .pf-autres{font-size:11px; font-weight:900; letter-spacing:.07em; text-transform:uppercase;
     color:var(--muted); margin:22px 2px 10px; display:flex; align-items:baseline; gap:8px}
   .pf-autres em{font-style:normal; font-size:10.5px; font-weight:700; text-transform:none; letter-spacing:0}
@@ -1119,6 +1123,9 @@ input, textarea, select{
   body.apercu-on{padding-top:38px}
   @media print{
     @page{ margin:14mm; }
+    /* Sur papier, aucune liste n'est pliée : on imprime tout ce qu'on a le droit de voir. */
+    .pf-tasks{display:block !important}
+    .pf-ch{display:none !important}
     /* Sans ça, le navigateur enlève tous les aplats à l'impression : on les garde,
        Mag préfère des feuilles en couleur, plus agréables et plus claires à lire. */
     *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
@@ -2674,7 +2681,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v295';
+const APP_VERSION = 'v296';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4249,6 +4256,9 @@ async function loadProfile(){
   profileLoaded=true;
 }
 
+/* Les listes des autres sont pliées par défaut : on les déplie en touchant leur titre. */
+var CH_OUV={};
+function plierListe(nom){ CH_OUV[nom]=!CH_OUV[nom]; render(); }
 // Rendu partagé des check-lists (utilisé par « Ma liste » et le profil)
 /* Pendant un aperçu, les check-lists affichées sont celles DU RÔLE REGARDÉ.
    Sinon on ne voit jamais ce qu'une aide-soignante a réellement sous les yeux. */
@@ -4286,7 +4296,13 @@ function checklistsHTML(){
     let tete='';
     if(!g.mienne && MES_LISTES.length && !separateur){ separateur=true;
       tete=`<div class="pf-autres">Les autres listes <em>pour information</em></div>`; }
-    return tete+`<div class="pf-list${g.mienne?'':' pf-list-autre'}"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${(done&&g.mienne)?`<button class="pf-reset" title="Tout décocher" onclick="resetListe('${g.liste.replace(/'/g,"\\'")}')">${icon('trash')}</button>`:''}</div><div class="pf-tasks">${rows}</div></div>`;
+    // SA liste s'ouvre toute seule ; celles des autres restent pliées sous leur titre,
+    // sinon l'écran fait cinq listes de long et on ne trouve plus la sienne.
+    const ouverte = g.mienne || !!CH_OUV[g.liste];
+    const entete = g.mienne
+      ? `<div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${done?`<button class="pf-reset" title="Tout décocher" onclick="resetListe('${g.liste.replace(/'/g,"\\'")}')">${icon('trash')}</button>`:''}</div>`
+      : `<button class="pf-list-h pf-pli${ouverte?' ouvert':''}" onclick="plierListe('${g.liste.replace(/'/g,"\\'")}')"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span>${icon('chevron','class="pf-ch"')}</button>`;
+    return tete+`<div class="pf-list${g.mienne?'':' pf-list-autre'}">${entete}${ouverte?`<div class="pf-tasks">${rows}</div>`:''}</div>`;
   }).join('');
 }
 
