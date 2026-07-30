@@ -52,6 +52,7 @@
   :root{
     --gold:#f5c542; --gold-d:#b8880c;
     --appw:460px;   /* largeur de l'app : téléphone par défaut, élargie sur grand écran (voir @media) */
+    --apercu-h:0px; /* hauteur du bandeau noir d'aperçu : 0 quand il n'est pas là (mesuré en direct) */
     --iris:#1b1b1b; --iris-d:#1b1b1b; --ink:#1b1b1b; --ink2:#0e0e0e; --muted:#6b6b6b; --faint:#b3aea3;
     --bg:#f2eee6; --card:#ffffff; --line:#e7e2d8; --soft:#f0eee9;   /* refonte : fond crème, cartes blanches */
     --danger:#e63329; --star:#f5c542;
@@ -326,7 +327,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     body.is-reseau{--tuile:clamp(150px, calc((100vw - 100px) / 7 - 14px), 230px);
                    --appw:min(calc(100vw - 72px), calc(7 * 230px + 6 * 14px))}
     body.is-reseau .dgrid{grid-template-columns:repeat(auto-fill, var(--tuile)); justify-content:center; gap:14px}
-    body.is-reseau main{min-height:calc(100svh - var(--barre,138px) - 118px); display:flex; flex-direction:column}
+    body.is-reseau main{min-height:calc(100svh - var(--barre,138px) - 118px - var(--apercu-h)); display:flex; flex-direction:column}
     body.is-reseau #view{flex:1 1 auto; display:flex; flex-direction:column}
     body.is-reseau #view .dgrid{margin-top:auto; margin-bottom:auto}
     /* les cases vides ne servent qu'à compléter la rangée de 3 du téléphone */
@@ -663,7 +664,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
 .fab.feed svg, .fab.feed .pico{ width:26px; height:26px; }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 26px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
   /* UNE PASTILLE OUVERTE NE FAIT PLUS REMONTER LE RANG (choix de Mag, 30/07). Quand la
      place manque — mercredi, trois poubelles à sortir — les boutons ronds se reculent et
      se chevauchent : la clé passe par-dessus le bouton jaune, le ticket par-dessus la clé.
@@ -1278,7 +1279,10 @@ input, textarea, select{
     font-size:12.5px; font-weight:800}
   .apercu button{border:0; background:var(--gold); color:#1b1b1b; border-radius:20px; padding:5px 12px;
     font:inherit; font-size:12px; font-weight:900; cursor:pointer}
-  body.apercu-on{padding-top:38px}
+  /* LE BANDEAU D'APERÇU POUSSE LA PAGE VERS LE BAS, il ne se pose pas dessus : il
+     recouvrait le logo et les pictos. Sa hauteur est mesurée en direct (il passe sur deux
+     lignes quand la fenêtre est étroite) et vaut 0 quand il n'est pas là. */
+  body.apercu-on{padding-top:var(--apercu-h)}
   @media print{
     @page{ margin:14mm; }
     /* Sur papier, aucune liste n'est pliée : on imprime tout ce qu'on a le droit de voir. */
@@ -1659,12 +1663,14 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        donnait une page mal posée. 24 px, même en mode téléphone. */
     /* La barre est TRANSPARENTE (choix de Mag) : pas de bandeau plein qui coupe les cartes
        en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
-    header{position:fixed; top:0; left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
+    /* Elle se pose SOUS le bandeau noir d'aperçu quand il est là (--apercu-h vaut 0 sinon) :
+       fixée à 0, elle passait dessous et le logo était coupé en deux. */
+    header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
     /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
        elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
        de pavés. --barre est mesurée en direct (voir majBarre). */
-    body{padding-top:calc(var(--barre,138px) + 8px)}
-    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px)}
+    body{padding-top:calc(var(--barre,138px) + 8px + var(--apercu-h))}
+    body.is-home{height:calc(100dvh - var(--barre,138px) - 8px - var(--apercu-h))}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* ═══ LES TRIS PASSENT SUR LE CÔTÉ ═══
        Une colonne à gauche de la liste, avec le titre de chaque tri et, en retrait, les
@@ -1673,7 +1679,7 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        téléphone, rien ne change : les rangées restent en haut de la liste. */
     /* La liste ne bouge PAS : elle reste au milieu, exactement où elle a toujours été.
        La colonne de tris se pose dans la marge de gauche, restée vide. */
-    .tris{position:fixed; z-index:6; top:calc(var(--barre,138px) + 14px); width:266px;
+    .tris{position:fixed; z-index:6; top:calc(var(--barre,138px) + 14px + var(--apercu-h)); width:266px;
       left:max(20px, calc(50vw - var(--appw)/2 - 30px - 266px));
       display:flex; flex-direction:column;
       gap:18px; max-height:calc(100svh - var(--barre,138px) - 120px); overflow-y:auto; padding-right:4px}
@@ -1728,8 +1734,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        logo : illisible. */
     body.apercu-tel header{position:static; background:var(--bg);
       padding:calc(env(safe-area-inset-top) + 22px) 20px 16px}
-    body.apercu-tel{padding-top:0}
-    body.apercu-tel.is-home{height:100dvh}
+    body.apercu-tel{padding-top:var(--apercu-h)}
+    body.apercu-tel.is-home{height:calc(100dvh - var(--apercu-h))}
   }
 </style>
 </head>
@@ -3040,7 +3046,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v337-essai';
+const APP_VERSION = 'v338-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -7385,11 +7391,18 @@ window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); }
    logo ; sur une page il y a en plus le titre et la flèche retour — la barre grandit.
    Une hauteur écrite en dur coupait la première rangée de pavés du Réseau. */
 (function majBarre(){
-  const h=document.querySelector('header'); if(!h) return;
+  const h=document.querySelector('header'), ap=document.getElementById('apercuBar');
+  if(!h) return;
   const maj=function(){
-    document.documentElement.style.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
+    const r=document.documentElement.style;
+    r.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
+    /* Le bandeau noir d'aperçu, quand il est affiché : la page démarre en dessous.
+       Caché, il mesure 0 — les calculs marchent alors tout seuls. */
+    if(ap) r.setProperty('--apercu-h', Math.round(ap.getBoundingClientRect().height)+'px');
   };
-  if(window.ResizeObserver) new ResizeObserver(maj).observe(h);
+  if(window.ResizeObserver){
+    const o=new ResizeObserver(maj); o.observe(h); if(ap) o.observe(ap);
+  }
   window.addEventListener('resize', maj);
   maj();
 })();
