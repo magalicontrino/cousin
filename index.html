@@ -453,6 +453,28 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .f-chip.no{background:#f7ebeb; color:#a33}
   .f-chip.mid{background:#fbf0c4; color:#8a6a00}
   /* Sommaire affiché sur la fiche formation (avant même de l'ouvrir) */
+  /* ── Formations en « carte de cours » ── */
+  .fc-tete{display:flex; align-items:center; gap:12px; padding:14px 44px 10px 15px; cursor:pointer}
+  .fc-num{width:42px; height:42px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center}
+  .fc-num svg, .fc-num .pico{width:21px; height:21px}
+  .fc-tx{min-width:0}
+  .fc-tx b{display:block; font-size:15.5px; font-weight:800; line-height:1.2}
+  .fc-tx em{font-style:normal; font-size:11.5px; color:var(--muted); font-weight:500}
+  .fc-coche{margin-left:auto; font-size:17px; flex:0 0 auto}
+  .fc-desc{font-size:12.5px; color:var(--muted); font-weight:400; margin:0; padding:0 15px 10px; cursor:pointer; line-height:1.45}
+  .fc-etapes{border-top:1px solid var(--line); padding:9px 12px 12px; display:flex; flex-direction:column; gap:6px}
+  .fc-et{display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:transparent; border:0;
+    font-family:inherit; font-size:12.5px; font-weight:500; color:var(--ink); cursor:pointer; padding:5px 3px; border-radius:9px}
+  .fc-et:active{background:rgba(27,27,27,.04)}
+  .fc-et i{font-style:normal; width:20px; height:20px; border-radius:50%; background:#efece5; color:#6b675f;
+    font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+  .fc-et.faite{color:#9a948a; text-decoration:line-through}
+  .fc-et.faite i{background:#d8ecdf; color:#1f7a44}
+  .fc-jauge{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:13px 15px; margin-bottom:12px}
+  .fc-jauge b{font-size:13.5px; font-weight:800}
+  .fc-jauge em{font-style:normal; font-size:11.5px; color:var(--muted); font-weight:500}
+  .fc-jauge .b{height:9px; border-radius:5px; background:rgba(27,27,27,.08); margin-top:8px; overflow:hidden}
+  .fc-jauge .b i{display:block; height:100%; background:#6cb392; border-radius:5px; transition:width .3s ease}
   .f-plan{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
   .f-pl{display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; color:var(--muted);
     background:rgba(27,27,27,.055); border-radius:13px; padding:4px 10px 4px 5px; line-height:1.2}
@@ -2023,8 +2045,8 @@ const SAMPLE = [
   // Séjour accompagné (≠ hébergement d'urgence). Coordonnées relevées telles quelles.
   d("maisons","Plateforme Informative de la Strada (PILS)","Régional / Toutes communes",
     "Outil réservé aux travailleurs sociaux : suit en temps réel les places disponibles dans les centres d'hébergement bruxellois. Inscription nécessaire.",
-    "Travailleurs sociaux","","","lstb.be","","",
-    "À faire une fois, puis on gagne un temps fou : plus besoin d'appeler chaque maison pour savoir s'il reste de la place."),
+    "Travailleurs sociaux","02 880 86 89","info@brusshelp.org","lastradapils.brussels","","",
+    "Lien corrigé le 30/07/2026 : l'ancienne adresse lstb.be ne répond plus, la plateforme est passée sur lastradapils.brussels.\nÀ faire une fois, puis on gagne un temps fou : plus besoin d'appeler chaque maison pour savoir s'il reste de la place.\nSi la plateforme ne répond pas : la Cellule d'orientation de Bruss'help (02 880 86 89) tient les places à jour pour la grande majorité des maisons d'accueil agréées."),
 
   // --- Pour tous ---
   d("maisons","Les Trois Pommiers","Etterbeek",
@@ -2334,8 +2356,8 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v203';
-const SEED_VERSION = 56;
+const APP_VERSION = 'v205';
+const SEED_VERSION = 57;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -2639,6 +2661,7 @@ function render(){
   }
   if(dm.isFormation){
     html+=`<button class="quiz-launch" onclick="openJeux()">${icon('bulb')}<span>Jouer pour retenir — 8 jeux</span></button>`;
+    html+=formationsProgHTML(items);
     // On cherche une formation par son SUJET (droit des étrangers, violences…), pas par métier.
     const themes=[]; items.forEach(p=>{ if(p.theme && themes.indexOf(p.theme)<0) themes.push(p.theme); });
     themes.sort((a,b)=>a.localeCompare(b,'fr'));
@@ -3066,19 +3089,62 @@ function formationPlan(page){
   if(titres.length<2) return '';
   return `<div class="f-plan">`+titres.map((t,i)=>`<span class="f-pl"><em>${i+1}</em>${esc(t)}</span>`).join('')+`</div>`;
 }
+/* ═══ Les formations, en « carte de cours » (choix de Mag, 30/07/2026) ═══
+   Une vignette colorée par sujet, le plan déplié chapitre par chapitre, et une
+   coche par chapitre lu. On voit où on en est sans avoir à ouvrir la fiche. */
+const THEME_COUL = {'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8fd4','Violences':'#fd8fd0',
+                    'Premiers pas':'#6cb392','':'#b28b7a'};
+function themeCoul(t){ return THEME_COUL[t||''] || '#b28b7a'; }
+/* Ce qu'on a lu, gardé sur le téléphone. */
+var FLU = (function(){ try{ return JSON.parse(localStorage.getItem('cousin_formations')||'{}'); }catch(e){ return {}; } })();
+function fluSave(){ try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){} }
+function fluLus(sid){ return FLU[sid]||[]; }
+function fluToggle(ev, sid, i){
+  ev.stopPropagation();
+  const l=fluLus(sid), k=l.indexOf(i);
+  if(k<0) l.push(i); else l.splice(k,1);
+  FLU[sid]=l; fluSave(); render();
+}
+function formationChapitres(page){
+  const titres=[], re=/<div class="f-h">([\s\S]*?)<\/div>/g; let m;
+  while((m=re.exec(page||''))) titres.push(m[1].replace(/<[^>]*>/g,'').trim());
+  return titres;
+}
+/* Durée de lecture : ~200 mots par minute, arrondie à la minute, minimum 2. */
+function formationDuree(page){
+  const mots=String(page||'').replace(/<[^>]*>/g,' ').split(/\s+/).filter(Boolean).length;
+  return Math.max(2, Math.round(mots/200));
+}
 function formationCard(p){
-  const met = (p.metiers&&p.metiers.length) ? p.metiers.map(m=>`<span class="tag com">${esc(m)}</span>`).join('') : '';
-  return `<div class="card" id="c-${p.id}">
-    <div class="card-top" onclick="toggle('${p.id}')">
-      <div class="tags">${domTag(p)}${met}</div>
-      <h2>${esc(p.nom)}</h2>
-      ${p.desc?`<p class="desc">${esc(p.desc)}</p>`:''}
-      ${formationPlan(p.page)}
+  const sid=p.sid||p.id, ch=formationChapitres(p.page), lus=fluLus(sid);
+  const coul=themeCoul(p.theme), fini=ch.length>0 && lus.length>=ch.length;
+  const etapes = ch.length ? `<div class="fc-etapes">`+ch.map((t,i)=>{
+      const fait=lus.indexOf(i)>=0;
+      return `<button class="fc-et${fait?' faite':''}" onclick="fluToggle(event,'${sid}',${i})">
+        <i>${fait?'✓':(i+1)}</i><span>${esc(t)}</span></button>`;
+    }).join('')+`</div>` : '';
+  const met = (p.metiers&&p.metiers.length) ? ' · '+p.metiers.join(' · ') : '';
+  return `<div class="card fc" id="c-${p.id}">
+    <div class="fc-tete" onclick="toggle('${p.id}')">
+      <span class="fc-num" style="background:${coul};color:${encreSur(coul)}">${icon('book')}</span>
+      <span class="fc-tx"><b>${esc(p.nom)}</b><em>${esc(p.theme||'Formation')}${esc(met)} · ${formationDuree(p.page)} min</em></span>
+      <span class="fc-coche">${fini?'✅':(lus.length?'🟠':'')}</span>
     </div>
+    ${p.desc?`<p class="fc-desc" onclick="toggle('${p.id}')">${esc(p.desc)}</p>`:''}
+    ${etapes}
     <div class="detail"><div class="detail-inner">
       ${p.page||'<div class="row" style="color:var(--muted)">Contenu à venir</div>'}
     </div></div>
   </div>`;
+}
+/* La jauge en tête de la page Formations : combien de formations terminées. */
+function formationsProgHTML(items){
+  const avecPlan=items.filter(p=>formationChapitres(p.page).length>0);
+  if(!avecPlan.length) return '';
+  const finies=avecPlan.filter(p=>fluLus(p.sid||p.id).length>=formationChapitres(p.page).length).length;
+  const pc=Math.round(finies/avecPlan.length*100);
+  return `<div class="fc-jauge"><b>Ma progression</b> <em>— ${finies} formation${finies>1?'s':''} sur ${avecPlan.length} terminée${finies>1?'s':''}</em>
+    <div class="b"><i style="width:${pc}%"></i></div></div>`;
 }
 
 /* Encre lisible sur un fond donné : sombre sur les teintes claires, claire sur les foncées. */
