@@ -3241,7 +3241,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v362-essai';
+const APP_VERSION = 'v363-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3591,6 +3591,7 @@ function render(){
   majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge(); majBoutonChambres(); majBoutonAgenda();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('is-reseau', view==="reseau");
+  noterEcran();   // statistiques d'usage : quel écran vient d'être ouvert
   /* La salle de jeux tient dans un écran : sur ordinateur on la centre en hauteur (voir CSS). */
   try{ document.body.classList.toggle('is-jeux', view==="quiz" && !JEU && !QUIZ.theme && !QUIZ.qs.length); }
   catch(e){ document.body.classList.remove('is-jeux'); }
@@ -5109,6 +5110,24 @@ function openProfil(){
 }
 
 let _visiteComptee=false;
+/* ─────────── OÙ L'ÉQUIPE PASSE SON TEMPS (statistiques d'usage, 31/07/2026) ───────────
+   Une ligne par écran RÉELLEMENT ouvert — pas à chaque clic de filtre, sinon les chiffres
+   ne voudraient plus rien dire. Jamais en aperçu : quand Mag regarde l'app comme un autre
+   rôle, elle fausserait ses propres statistiques. Et jamais bloquant : si la base ne répond
+   pas, l'app continue comme si de rien n'était.
+   ⚠ Ce journal ne se lit JAMAIS ligne à ligne (aucune politique de lecture sur la table) :
+   seules les fonctions stats_ecrans() et stats_jours() en sortent des totaux. Voir
+   sql/stats-ecrans.sql. */
+let _dernierEcranNote=null;
+function noterEcran(){
+  try{
+    if(!sb || !PROFILE || !view) return;
+    if(typeof enApercu==='function' && enApercu()) return;
+    if(view===_dernierEcranNote) return;
+    _dernierEcranNote=view;
+    sb.rpc('noter_ecran', { nom:view });
+  }catch(e){}
+}
 async function loadProfile(){
   profileLoaded=false;
   if(!sb) return;
