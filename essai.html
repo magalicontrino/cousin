@@ -4082,6 +4082,100 @@ async function loadFavoris(){
   return change;
 }
 
+/* ── Ce qui ne doit plus se perdre : formations lues, avancement des jeux ────
+   Règle posée par Mag le 30/07/2026 : « tout ce qui se perd et qui est
+   intéressant de garder, tu le mets en base ». Ces deux-là ne vivaient que
+   dans le téléphone.
+
+   ⚠️ MÊME PROMESSE QUE POUR LES JEUX EN ÉQUIPE : la table `reglages_perso`
+   n'est lisible QUE par la personne elle-même — l'administratrice comprise.
+   On garde le détail pour qu'elle le retrouve, pas pour que quelqu'un le
+   regarde. Personne ne peut savoir qui s'est trompé sur quoi.
+
+   Le téléphone reste la copie de travail (hors ligne, et pendant que la base
+   répond). Comme pour les favoris : on n'écrase le téléphone que si la lecture
+   a VRAIMENT réussi. */
+const REG_MIGRE = 'cousin_reglages_en_base';
+var _regEnAttente = {}, _regMinuteur = null;
+
+function reglagePousser(cle, valeur){
+  if(!sb || !PROFILE || !PROFILE.uid) return;        // pas connectée : le téléphone suffit
+  _regEnAttente[cle] = valeur;
+  /* On attend une seconde avant d'écrire : cocher cinq chapitres à la suite ne
+     doit pas déclencher cinq allers-retours vers la base. */
+  clearTimeout(_regMinuteur);
+  _regMinuteur = setTimeout(function(){
+    const lot = _regEnAttente; _regEnAttente = {};
+    Object.keys(lot).forEach(function(k){
+      try{
+        sb.from('reglages_perso').upsert(
+          { user_id:PROFILE.uid, cle:k, valeur:lot[k], maj_le:new Date().toISOString() },
+          { onConflict:'user_id,cle' }
+        ).then(function(){}, function(){});
+      }catch(e){}
+    });
+  }, 1000);
+}
+
+/* Un record ne redescend jamais : si un appareil en connaît un meilleur, il gagne. */
+function fusionnerRecords(a, b){
+  const out = Object.assign({}, b||{});
+  Object.keys(a||{}).forEach(function(k){
+    if(typeof a[k]==='number' && (typeof out[k]!=='number' || a[k]>out[k])) out[k]=a[k];
+  });
+  return out;
+}
+
+async function chargerReglages(){
+  if(!sb || !PROFILE || !PROFILE.uid) return false;
+  let lignes;
+  try{
+    const { data:rows, error } = await sb.from('reglages_perso').select('cle,valeur');
+    if(error) return false;                  // table absente ou hors ligne : on garde le téléphone
+    lignes = {}; (rows||[]).forEach(function(r){ lignes[r.cle]=r.valeur; });
+  }catch(e){ return false; }
+
+  let premiere=false;
+  try{ premiere = !localStorage.getItem(REG_MIGRE); }catch(e){}
+
+  /* FORMATIONS — la première fois, on fait l'UNION : un chapitre lu ici ou là
+     reste lu, on ne redemande à personne de relire ce qu'il a déjà lu.
+     Ensuite la base fait foi, sinon décocher sur un téléphone ne servirait à rien. */
+  const fBase = lignes.formations;
+  if(fBase && typeof fBase==='object'){
+    if(premiere){
+      Object.keys(fBase).forEach(function(sid){
+        const ici=FLU[sid]||[], la=Array.isArray(fBase[sid])?fBase[sid]:[];
+        const u=ici.slice(); la.forEach(function(i){ if(u.indexOf(i)<0) u.push(i); });
+        FLU[sid]=u;
+      });
+    } else {
+      Object.keys(FLU).forEach(function(k){ delete FLU[k]; });
+      Object.keys(fBase).forEach(function(sid){ FLU[sid]=fBase[sid]; });
+    }
+  }
+  try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){}
+
+  // JEUX — la base fait foi, sauf les records : on garde toujours le meilleur des deux.
+  const jBase = lignes.jeux;
+  if(jBase && typeof jBase==='object'){
+    const recs = fusionnerRecords(JXS.rec, jBase.rec);
+    JXS.dom  = jBase.dom  || JXS.dom  || {};
+    JXS.jour = jBase.jour || JXS.jour || {};
+    if(jBase.sem) JXS.sem = jBase.sem;
+    JXS.rec  = recs;
+  }
+  try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){}
+
+  // Premier passage sur cet appareil : ce qui n'existait QUE là monte en base.
+  if(premiere){
+    try{ localStorage.setItem(REG_MIGRE,'1'); }catch(e){}
+    reglagePousser('formations', FLU);
+    reglagePousser('jeux', JXS);
+  }
+  return true;
+}
+
 /* Chaque [a/b/c] du texte devient des pastilles ; chaque [autre chose] devient un champ à écrire.
    Rien n'est enregistré : c'est un brouillon qu'on affine puis qu'on copie. */
 const NOTE_CHOIX={};
@@ -4225,9 +4319,13 @@ const THEME_DOM = {'Droit des étrangers':'etrangers', 'Article 27':'culture'};
 function themeTerrain(t){ const k=THEME_DOM[t||'']; return k ? {t:'dom',k} : {t:'tout'}; }
 function seTester(theme){ jxJouer('quiz', themeTerrain(theme)); }
 function themeCoul(t){ return THEME_COUL[t||''] || '#b28b7a'; }
-/* Ce qu'on a lu, gardé sur le téléphone. */
+/* Ce qu'on a lu. Gardé sur le téléphone POUR LE HORS LIGNE, et en base pour que
+   ça suive la personne (voir reglagePousser / chargerReglages plus bas). */
 var FLU = (function(){ try{ return JSON.parse(localStorage.getItem('cousin_formations')||'{}'); }catch(e){ return {}; } })();
-function fluSave(){ try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){} }
+function fluSave(){
+  try{ localStorage.setItem('cousin_formations', JSON.stringify(FLU)); }catch(e){}
+  reglagePousser('formations', FLU);
+}
 function fluLus(sid){ return FLU[sid]||[]; }
 function fluToggle(ev, sid, i){
   ev.stopPropagation();
@@ -4869,6 +4967,15 @@ async function signOutCousin(){
      les favoris de la personne d'avant.
      Le repère FAV_MIGRE, lui, RESTE posé : c'est ce qui empêche cette reprise. */
   try{ data.forEach(function(p){ p.fav=false; }); persist(data); }catch(e){}
+  /* Pareil pour les formations lues et l'avancement des jeux : ils restent en
+     base, on ne les efface que DE CET APPAREIL. Le collègue qui se connecte
+     ensuite repart de sa propre ligne, pas de celle d'avant. */
+  try{
+    localStorage.removeItem('cousin_formations');
+    localStorage.removeItem('cousin_jeux');
+    Object.keys(FLU).forEach(function(k){ delete FLU[k]; });
+    JXS.rec={}; JXS.dom={}; JXS.jour={}; delete JXS.sem;
+  }catch(e){}
   if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
   location.reload();
 }
@@ -4960,6 +5067,8 @@ async function loadProfile(){
     if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
     // Ses favoris : ils vivent en base, ils la suivent d'un téléphone à l'autre.
     try{ if(await loadFavoris()){ if(view==='favoris'||view==='home') render(); } }catch(e){}
+    // Idem pour ce qu'elle a lu et où elle en est dans les jeux.
+    try{ await chargerReglages(); }catch(e){}
     let cl=[];
     try{ const { data } = await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
     const groups={}, order=[];
@@ -5990,10 +6099,13 @@ function adminHTML(){
   return `<div class="pf-wrap">`
     + (nb ? attente : '')
     + versChantier
+    /* « Ajouter quelqu'un » en haut, remonté à sa demande le 30/07/2026 : c'est un
+       geste courant (un stagiaire arrive, un collègue est engagé), pas un réglage
+       qu'on va chercher en fin de page. Les trois blocs de lecture suivent. */
+    + admBloc('ajouter', 'Ajouter quelqu\'un', 'une adresse, un métier', add)
+    + admBloc('equipe', "L'équipe", ADMIN.members.length+' personne'+(ADMIN.members.length>1?'s':''), team)
     + admBloc('quivoit', 'Qui voit quoi', 'les pavés, métier par métier', accesHTML())
     + admBloc('plan', 'Le plan des accès', 'ce qui est fermé à chacun', planAccesHTML())
-    + admBloc('equipe', "L'équipe", ADMIN.members.length+' personne'+(ADMIN.members.length>1?'s':''), team)
-    + admBloc('ajouter', 'Ajouter quelqu\'un', 'une adresse, un métier', add)
     + (nb ? '' : attente)
     + `</div>`;
 }
@@ -6879,7 +6991,10 @@ var JXS = (function(){
   try{ return Object.assign({rec:{}, dom:{}, jour:{}}, JSON.parse(localStorage.getItem('cousin_jeux')||'{}')); }
   catch(e){ return {rec:{}, dom:{}, jour:{}}; }
 })();
-function jxSave(){ try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){} }
+function jxSave(){
+  try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){}
+  reglagePousser('jeux', JXS);
+}
 function jxNote(src, juste){
   jxNoteSemaine(juste);            // le compteur de l'équipe, toutes parties confondues
   const p = src ? data.find(x=>x.id===src) : null;
