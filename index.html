@@ -426,6 +426,10 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   /* « à documenter » : un rappel pour nous, pas une information pour l'équipe — il reste discret
      pour que la couleur du domaine soit la seule à parler. */
   .tag.todo{background:#f1ede3; color:#8a7a56}
+  .tag.genre{font-weight:800}
+  .tag.genre.f{background:#fde4f2; color:#a4276f}
+  .tag.genre.h{background:#e2ecfb; color:#1f4f8f}
+  .tag.genre.m{background:#eae6f7; color:#4b3f8f}
   .tag.com{background:var(--soft); color:var(--iris-d)}
   .card h2{margin:0; font-size:16.5px; font-weight:750; letter-spacing:-.2px}
   .card .desc{margin:6px 0 0; font-size:14px; color:var(--muted)}
@@ -2500,7 +2504,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v247';
+const APP_VERSION = 'v251';
 const SEED_VERSION = 61;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2659,6 +2663,8 @@ function updateFavBadge(){
    dans une partie → la salle de jeux ; dans la salle de jeux → les Formations
    (l'endroit d'où on y entre) ; partout ailleurs → l'accueil. */
 function retour(){
+  if(view==='quartier'){ openAgenda(); return; }
+  if(view==='agenda'){ openDomaine('culture'); return; }
   if(view==='quiz' && JEU){ openJeux(); return; }
   if(view==='quiz' && JXCHOIX.jeu){ jxChoisirJeu(null); return; }
   if(view==='quiz'){ openDomaine('formations'); return; }
@@ -3383,9 +3389,15 @@ function contactCard(p){
   const map = p.adr ? `<a class="btn map" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(ITI_DEPART)}&destination=${encodeURIComponent(p.adr)}&travelmode=transit" target="_blank" rel="noopener">${icon('pin')}Itinéraire</a>` : '';
 
   const comTag = (p.commune && p.commune!=="Régional / Toutes communes") ? `<span class="tag com">${icon('pin')}${esc(p.commune)}</span>` : "";
+  /* Femmes ou hommes seuls : on le voit d'un coup d'œil sur la fiche, sans lire le texte.
+     C'est le premier tri qu'on fait quand on cherche une place pour quelqu'un. */
+  const tg=(p.tags||[]);
+  const genre = (tg.indexOf('Femmes')>=0 ? '<span class="tag genre f">♀ Femmes</span>' : '')
+              + (tg.indexOf('Hommes')>=0 ? '<span class="tag genre h">♂ Hommes</span>' : '')
+              + (tg.indexOf('Couples')>=0 ? '<span class="tag genre m">Couples</span>' : '');
   return `<div class="card" id="c-${p.id}">
     <div class="card-top" onclick="toggle('${p.id}')">
-      <div class="tags">${domTag(p)}${(p.urgent && p.domaine!=='urgences' && p.domaine!=='hebergement')?'<span class="tag urg">URGENT</span>':''}${comTag}</div>
+      <div class="tags">${domTag(p)}${genre}${(p.urgent && p.domaine!=='urgences' && p.domaine!=='hebergement')?'<span class="tag urg">URGENT</span>':''}${comTag}</div>
       <h2>${esc(p.nom)}</h2>
       ${p.desc?`<p class="desc">${esc(p.desc)}</p>`:''}
     </div>
@@ -4711,10 +4723,10 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
 var AGENDA_REGLES = [
   { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut. Entrée libre, à tout âge.",
-    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true,
+    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true, hebdo:"Tous les mercredis",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
-    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles",
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles", hebdo:"Tous les mercredis",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
     prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht",
@@ -4723,10 +4735,10 @@ var AGENDA_REGLES = [
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4',
     quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer, seul ou à plusieurs. Accessible en chaise roulante.",
-    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true,
+    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les mercredis",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Ludobox — jeux sur place", sous:"Le samedi matin, la ludothèque est ouverte à tous — on peut jouer sur place sans rien emprunter.",
-    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true,
+    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les samedis",
     quand:function(d){ return d.getDay()===6; } }
 ];
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
@@ -4818,8 +4830,26 @@ function qrSVG(texte, taille){
   }catch(e){ return ''; }
 }
 function agendaHTML(){
-  const list=agendaProchains(31);
-  let jour=-1, html='';
+  /* Ce qui revient CHAQUE SEMAINE est écrit une seule fois — sinon le BELvue s'affichait
+     quatre fois de suite et on se demandait pourquoi. Les dates ne servent qu'à ce qui
+     n'arrive qu'une fois dans le mois. */
+  const list=agendaProchains(31).filter(function(e){ return !e.r.hebdo; });
+  const hebdos=AGENDA_REGLES.filter(function(r){ return r.hebdo && !r.enfants; });
+  let html='';
+  if(hebdos.length){
+    html+='<div class="ag-jour proche">Chaque semaine</div>';
+    hebdos.forEach(function(r){
+      const qr = r.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(r.adr),2)+'</div>' : '';
+      const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
+      html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
+        +'<div class="ag-h"><b>'+esc(r.titre)+'</b><span class="ag-prix">'+esc(r.prix)+'</span></div>'
+        +'<em>'+esc(r.hebdo)+' · '+esc(r.lieu)+'</em>'
+        +(r.adr?'<span class="ag-adr">'+esc(r.adr)+'</span>':'')
+        +'<p>'+esc(r.sous)+'</p>'+iti+'</div>';
+    });
+    if(list.length) html+='<div class="ag-jour proche" style="margin-top:18px">Les dates à retenir</div>';
+  }
+  let jour=-1;
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
     const qr = e.r.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(e.r.adr),2)+'</div>' : '';
@@ -5627,7 +5657,8 @@ function navEtat(){
 }
 function navMeme(a,b){ return !!a && !!b && JSON.stringify(a)===JSON.stringify(b); }
 const NAV_NOMS={home:'accueil', reseau:'reseau', favoris:'favoris', profil:'profil',
-                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'quiz', petition:'petitions'};
+                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'jeux', petition:'petitions',
+                agenda:'ce-qui-arrive', quartier:'autour-du-centre'};
 function navAdresse(s){
   if(!s) return '#accueil';
   if(s.modal) return s.modal==='proposer' ? '#proposer-une-fiche' : '#une-idee';
@@ -5671,6 +5702,8 @@ function navRestaure(s){
     else if(s.view==='petition') openPetition();
     else if(s.view==='admin')    openAdmin();
     else if(s.view==='quiz')     openQuiz(s.quiz||undefined);
+    else if(s.view==='agenda')   openAgenda();
+    else if(s.view==='quartier') openQuartier();
     else {
       view=s.view||'home';
       urgOpen=(view==='home' && !!s.urg); urgCat=(view==='home' ? s.urgc : null);
@@ -5696,6 +5729,7 @@ window.addEventListener('popstate', function(e){
 // Chaque fonction qui change d'écran laisse sa trace dans l'historique.
 ['goHome','openDomaine','openReseau','openFavoris','openUrgences','toggleUrg','quickSearch',
  'openProfil','openMaListe','openChambres','openFeed','openAdmin','openQuiz','openPetition',
+ 'openJeux','openAgenda','openQuartier',
  'openForm','closeForm','openFeedback','closeFeedback'].forEach(function(n){
   const f=window[n]; if(typeof f!=='function') return;
   window[n]=function(){ const r=f.apply(this, arguments); navEnregistre(); return r; };
