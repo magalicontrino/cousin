@@ -2586,7 +2586,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v282';
+const APP_VERSION = 'v283';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4710,6 +4710,7 @@ function chantierHTML(){
   }).join('');
   const barre=`<div class="listbar"><div class="count">${total-faits} à faire${faits?` · ${faits} fait${faits>1?'s':''}`:''}</div>
       <button class="print-btn" onclick="chFinis=!chFinis; render()">${icon('check')}<span>${chFinis?'Cacher les faits':'Voir les faits'}</span></button>
+      <button class="print-btn" onclick="copierChantier()" title="Copier la liste pour me la coller">${icon('mail')}<span>Copier</span></button>
       <button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`;
   return `<div class="adm-sec ch-sec"><div class="adm-h">Le chantier — ta liste de travail</div>
     <div class="ch-tete-print"><b>Le chantier COUSIN</b><span>${esc(new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'}))}</span></div>
@@ -4748,6 +4749,31 @@ function chantierPageHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
   if(!(PROFILE&&PROFILE.admin)) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
   return `<div class="pf-wrap">${boiteHTML()}${chantierHTML()}</div>`;
+}
+/* Copier toute la liste en texte : c'est ce qu'elle me recolle dans la conversation
+   pour qu'on reprenne le travail là où il en est. */
+function copierChantier(){
+  const VUES=CHANTIER.filter(function(l){ return !chVieille(l); });
+  let txt='LE CHANTIER COUSIN — '+new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'})+'\n';
+  const blocs=CH_BLOCS.concat(VUES.map(function(l){ return l.bloc; })
+      .filter(function(b){ return CH_BLOCS.indexOf(b)<0; }))
+      .filter(function(b,i,t){ return t.indexOf(b)===i; });
+  blocs.forEach(function(b){
+    const lignes=VUES.filter(function(l){ return l.bloc===b; });
+    if(!lignes.length) return;
+    txt+='\n== '+b+' ==\n';
+    lignes.forEach(function(l){
+      txt+=(l.fait?'[x] ':'[ ] ')+l.titre+(l.detail?'\n      ('+l.detail+')':'')+'\n';
+    });
+  });
+  if(BOITE.length){
+    txt+='\n== Boîte à idées (pas encore rangées) ==\n';
+    BOITE.forEach(function(s){ txt+='- '+s.texte+' ['+((s.auteur_nom||s.equipe||'anonyme'))+']\n'; });
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ cousinToast('Liste copiée ✓ — colle-la dans la conversation'); })
+      .catch(function(){ prompt('Copie :', txt); });
+  } else prompt('Copie :', txt);
 }
 async function addChantier(){
   const el=document.getElementById('chTexte'); if(!el) return;
