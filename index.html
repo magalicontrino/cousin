@@ -1349,6 +1349,18 @@ input, textarea, select{
   .adm-etage{font-size:10.5px; font-weight:900; letter-spacing:.09em; text-transform:uppercase;
     color:var(--faint); margin:20px 2px 10px; padding-top:12px; border-top:1px solid var(--line)}
   .adm-etage:first-child{margin-top:2px; padding-top:0; border-top:0}
+  /* Statistiques d'usage : un classement en barres, puis la courbe des 30 jours. */
+  .st-tot{font-size:13px; font-weight:600; color:var(--muted); margin-bottom:12px}
+  .st-tot b{color:var(--ink); font-weight:900}
+  .st-l{margin-bottom:9px}
+  .st-h{display:flex; align-items:baseline; gap:8px; margin-bottom:4px}
+  .st-n{flex:1 1 auto; min-width:0; font-size:12.5px; font-weight:800}
+  .st-c{flex:0 0 auto; font-size:11px; font-weight:700; color:var(--muted)}
+  .st-b{height:8px; border-radius:5px; background:rgba(27,27,27,.07); overflow:hidden}
+  .st-b i{display:block; height:100%; border-radius:5px; background:var(--gold)}
+  .st-j{margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
+  .st-jb{display:flex; align-items:flex-end; gap:2px; height:56px}
+  .st-jb i{flex:1 1 auto; min-width:2px; background:#1b1b1b; border-radius:2px 2px 0 0; opacity:.75}
   /* L'équipe rangée par métier : une ligne par métier, repliée. */
   .adm-g{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:9px; overflow:hidden}
   .adm-g.ouverte{border-color:#1b1b1b}
@@ -3241,7 +3253,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v363';
+const APP_VERSION = 'v364';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -6203,6 +6215,9 @@ function adminHTML(){
     + admBloc('equipe', "L'équipe", ADMIN.members.length+' personne'+(ADMIN.members.length>1?'s':''), team)
     + admBloc('quivoit', 'Qui voit quoi', 'les pavés, métier par métier', accesHTML())
     + admBloc('plan', 'Le plan des accès', 'ce qui est fermé à chacun', planAccesHTML())
+    /* En dernier, à la suite du reste (sa demande) : ça se consulte, ça ne se règle pas. */
+    + admBloc('stats', 'Statistiques', 'où l\'équipe passe son temps',
+              ADM_SECTION==='stats' ? statsHTML() : '')
     + `</div>`;
 }
 /* Une seule section ouverte à la fois — c'est ça, le « comme dans une FAQ ». */
@@ -6211,6 +6226,62 @@ var _admPremierRendu = true;
 function admSection(cle){
   ADM_SECTION = (ADM_SECTION===cle) ? null : cle;   // retoucher le même bouton le referme
   if(view==='admin') render();
+}
+/* ═══════════ STATISTIQUES D'USAGE ═══════════
+   Où l'équipe passe son temps, et si elle revient. On ne lit jamais le journal ligne à
+   ligne (la table n'a aucune politique de lecture) : les deux fonctions de la base ne
+   renvoient que des totaux. Voir sql/stats-ecrans.sql. */
+var STATS=null, _statsEnCours=false;
+async function chargerStats(){
+  if(_statsEnCours || STATS) return;
+  _statsEnCours=true;
+  try{
+    const a = await sb.rpc('stats_ecrans', { jours:30 });
+    const b = await sb.rpc('stats_jours',  { jours:30 });
+    STATS={ ecrans:(a && a.data)||[], jours:(b && b.data)||[] };
+  }catch(e){ STATS={ ecrans:[], jours:[], erreur:(e&&e.message)||'lecture impossible' }; }
+  _statsEnCours=false;
+  if(view==='admin') render();
+}
+/* Le nom lisible d'un écran : les domaines portent déjà le leur, le reste est nommé ici. */
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', favoris:'Favoris', maliste:'Ma liste',
+  profil:'Mon profil', admin:'Gestion', chantier:'Le chantier', feed:'Les news', quiz:'Jeux et quiz',
+  agenda:'Ce qui arrive', quartier:'Autour d’ici', chambres:'Chambres', petition:'Pétitions',
+  urgences:'Urgences', recherche:'Recherche' };
+function nomEcran(k){
+  if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
+  try{ if(DOM[k]) return DOM[k].label; }catch(e){}
+  return k;
+}
+function statsHTML(){
+  if(!STATS){ chargerStats(); return '<div class="adm-hint">Lecture des statistiques…</div>'; }
+  if(STATS.erreur) return '<div class="adm-hint">Impossible de lire les statistiques : '+esc(STATS.erreur)+'</div>';
+  const ec=STATS.ecrans||[], jr=STATS.jours||[];
+  if(!ec.length) return '<div class="adm-hint">Rien à montrer pour l’instant. Les statistiques se remplissent au fur et à mesure que l’équipe ouvre l’app — reviens dans quelques jours.</div>';
+  const totalVues=ec.reduce(function(n,x){ return n+Number(x.vues||0); },0);
+  const gens=jr.reduce(function(n,x){ return Math.max(n, Number(x.personnes||0)); },0);
+  const max=Math.max.apply(null, ec.map(function(x){ return Number(x.vues||0); }));
+  const lignes=ec.map(function(x){
+    const v=Number(x.vues||0), p=Number(x.personnes||0);
+    return '<div class="st-l"><div class="st-h"><span class="st-n">'+esc(nomEcran(x.ecran))+'</span>'
+      + '<span class="st-c">'+v+' ouverture'+(v>1?'s':'')+' · '+p+' personne'+(p>1?'s':'')+'</span></div>'
+      + '<div class="st-b"><i style="width:'+Math.max(3, Math.round(v/max*100))+'%"></i></div></div>';
+  }).join('');
+  // La courbe des 30 jours : une colonne par jour, la hauteur = le nombre d'ouvertures.
+  let courbe='';
+  if(jr.length){
+    const mx=Math.max.apply(null, jr.map(function(x){ return Number(x.vues||0); }));
+    courbe='<div class="st-j"><div class="adm-hint" style="margin-bottom:6px">Les 30 derniers jours</div><div class="st-jb">'
+      + jr.map(function(x){
+          const v=Number(x.vues||0);
+          return '<i title="'+esc(String(x.jour))+' — '+v+' ouverture'+(v>1?'s':'')+'" style="height:'+Math.max(4, Math.round(v/mx*100))+'%"></i>';
+        }).join('')
+      + '</div></div>';
+  }
+  return '<div class="st-tot"><b>'+totalVues+'</b> ouverture'+(totalVues>1?'s':'')+' sur 30 jours'
+       + (gens?' · <b>'+gens+'</b> personne'+(gens>1?'s':'')+' le même jour au plus':'')+'</div>'
+       + lignes + courbe
+       + '<div class="adm-hint" style="margin-top:10px">On ne peut pas savoir qui a ouvert quoi : le journal ne se lit qu’en totaux, et tout ce qui a plus de 90 jours s’efface.</div>';
 }
 function admBloc(cle, titre, sous, corps, urgent, couleur){
   const ouv = ADM_SECTION===cle;
