@@ -593,6 +593,15 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   body.apercu-tel{--appw:430px}
   body.apercu-tel .bureau{display:none !important}
   body.apercu-tel .cadre-tel{display:block}
+  .bascule{display:none; position:fixed; left:24px; bottom:26px; z-index:40; gap:8px}
+  @media (max-width:1279px){ .bascule{display:none !important} }
+  .basc{width:44px; height:44px; border-radius:50%; border:0; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; background:#1b1b1b; color:rgba(242,238,230,.55)}
+  .basc.on{background:var(--gold); color:#1b1b1b}
+  .basc svg, .basc .pico{width:20px; height:20px}
+  .basc.lettre{font:inherit; font-size:15px; font-weight:900; width:38px; height:38px}
+  .basc-sep{width:1px; height:26px; background:var(--line); align-self:center; margin:0 3px}
+  @media print{ .bascule{display:none !important} }
   .cadre-tel{display:none; position:fixed; top:0; bottom:0; left:50%; transform:translateX(-50%);
     width:474px; border-left:2px dashed var(--line); border-right:2px dashed var(--line);
     pointer-events:none; z-index:1}
@@ -1574,7 +1583,9 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .quiz-theme:active{transform:scale(.99)}
   @media (min-width:1280px){
     /* L'en-tête et les boutons du bas RESTENT FIXES : ils ne bougent pas au défilement. */
-    header{position:sticky; top:0; z-index:40; background:var(--bg)}
+    /* Barre TRANSPARENTE : le titre passait dessous et disparaissait derrière un bandeau
+       opaque. Le logo et les pictos restent lisibles, ils sont sur les bords. */
+    header{position:sticky; top:0; z-index:40; background:transparent}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* Les cartes de l'administratrice : UNE colonne, à gauche, il y a la place. */
     .bureau{display:flex; flex-direction:column; gap:10px; position:fixed; top:150px; width:270px; z-index:6;
@@ -1649,6 +1660,7 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
 
 <div id="apercuBar" class="apercu" style="display:none"></div>
 <div class="cadre-tel" aria-hidden="true"></div>
+<div class="bascule" id="bascule" style="display:none"></div>
 <div id="printHead"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
@@ -1887,7 +1899,9 @@ const ICONS = {
   cog:      '<path fill-rule="evenodd" d="M10.6 2.6h2.8l.5 2.3a6.8 6.8 0 0 1 1.7 1l2.2-.8 1.4 2.4-1.7 1.6c.1.6.1 1.2 0 1.8l1.7 1.6-1.4 2.4-2.2-.8a6.8 6.8 0 0 1-1.7 1l-.5 2.3h-2.8l-.5-2.3a6.8 6.8 0 0 1-1.7-1l-2.2.8-1.4-2.4 1.7-1.6a6.8 6.8 0 0 1 0-1.8L4.3 7.5l1.4-2.4 2.2.8a6.8 6.8 0 0 1 1.7-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
   search:   '<path d="M10.4 2a8.4 8.4 0 1 0 4.9 15.2l4.4 4.4 2.2-2.2-4.4-4.4A8.4 8.4 0 0 0 10.4 2zm0 3.2a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4z"/>',
   lien:     '<path d="M6.2 3.4h12.1a1.9 1.9 0 0 1 1.9 1.9v12.1h-4V10.6L6.9 20.4 4 17.5l9.8-9.8H6.2z"/>',
-  copy:     '<rect x="3" y="2.6" width="11.4" height="14.4" rx="2.4"/><rect x="9.6" y="7" width="11.4" height="14.4" rx="2.4"/>'
+  copy:     '<rect x="3" y="2.6" width="11.4" height="14.4" rx="2.4"/><rect x="9.6" y="7" width="11.4" height="14.4" rx="2.4"/>',
+  ecran:    '<rect x="2.4" y="4" width="19.2" height="12.6" rx="2"/><rect x="8.4" y="18.2" width="7.2" height="1.8" rx=".9"/>',
+  mobile:   '<rect x="6.6" y="2.4" width="10.8" height="19.2" rx="2.6"/><rect x="10.4" y="18.4" width="3.2" height="1.4" rx=".7" fill="#f2eee6"/>'
 };
 /* Pictos dessinés par Magali : ils remplacent le tracé SVG quand ils existent. */
 const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
@@ -3059,10 +3073,34 @@ function alertesProfil(){
     return n ? `<em class="hbadge">${n>9?'9+':n}</em>` : '';
   }catch(e){ return ''; }
 }
+/* Les deux pictos en bas à gauche : écran / téléphone. Réservés à l'administratrice —
+   c'est un outil de vérification, pas une préférence d'affichage. */
+function majBascule(){
+  const b=document.getElementById('bascule'); if(!b) return;
+  let admin=false; try{ admin=!!(PROFILE && PROFILE.admin); }catch(e){}
+  b.style.display = admin ? 'flex' : 'none';
+  if(!admin) return;
+  /* Les quatre groupes, puis l'écran. Toujours là, en bas à gauche : c'est l'outil de
+     débogage — on change de peau et d'écran sans quitter la page qu'on regarde. */
+  const groupes=[['A',''],['B','Coordi'],['C','TS'],['D','Polyvalent']];
+  b.innerHTML = groupes.map(function(g){
+      const actif = g[1] ? (APERCU_ROLE===g[1] && !APERCU_QUI) : !enApercu();
+      return '<button class="basc lettre'+(actif?' on':'')+'" title="'+esc(nomGroupe(g[0]))+'" onclick="'
+        + (g[1] ? "voirComme('"+g[1]+"')" : 'quitterApercu()') + '">'+g[0]+'</button>';
+    }).join('')
+    + '<span class="basc-sep"></span>'
+    + '<button class="basc'+(APERCU_TEL?'':' on')+'" title="Voir en grand écran" onclick="apercuEcran(false)">'+icon('ecran')+'</button>'
+    + '<button class="basc'+(APERCU_TEL?' on':'')+'" title="Voir comme sur un téléphone" onclick="apercuEcran(true)">'+icon('mobile')+'</button>';
+}
+function nomGroupe(l){
+  const g=(typeof GROUPES_PLAN!=='undefined') ? GROUPES_PLAN.filter(function(x){ return x.l===l; })[0] : null;
+  return g ? (l+' · '+g.nom) : l;
+}
 function majApercu(){
   const bar=document.getElementById('apercuBar'); if(!bar) return;
   const on=enApercu();
   document.body.classList.toggle('apercu-on', on);
+  majBascule();
   bar.style.display = on ? 'flex' : 'none';
   /* Le bandeau doit dire EXACTEMENT ce qu'on regarde : qui, et sur quel écran.
      Sans ça on finit par croire qu'on teste un éduc alors qu'on teste Elisa. */
