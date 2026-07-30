@@ -176,6 +176,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
 .hicon svg, .hicon .pico{width:18px; height:18px}
   .hicon.urg{background:#e63329; color:#f2eee6}
   .hicon.fav{color:#f5c542}
+  /* La gestion prend la couleur de sa page (le brun des Démarches), pour qu'on voie d'un
+     coup d'œil que c'est un autre endroit. Picto provisoire — Mag dessine le sien. */
+  .hicon.gest{color:#b28b7a}
   .hicon.fav.on{color:#f5c542}
   .hicon.notif::after{content:''; position:absolute; top:7%; right:7%; width:29%; height:29%;
     border-radius:50%; background:#fd8fd0; border:1.5px solid var(--bg); box-sizing:border-box}
@@ -3144,7 +3147,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v351-essai';
+const APP_VERSION = 'v352-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3292,8 +3295,14 @@ function navPictos(){
          `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
          `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
-         `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}${alertesProfil()}</button>`;
+         `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}${alertesProfil()}</button>`+
+         /* LA GESTION A SON PROPRE BOUTON, mais RIEN QUE POUR L'ADMINISTRATRICE : l'équipe
+            continue de voir cinq boutons, exactement comme avant. On y entrait par le
+            profil, ce qui en faisait une annexe au lieu d'un endroit. Le picto est
+            provisoire — Mag dessine le sien. */
+         (estAdmin() ? `<button class="hicon gest" title="Gestion" onclick="openAdmin()">${icon('cog')}</button>` : '');
 }
+function estAdmin(){ try{ return !!(PROFILE && PROFILE.admin); }catch(e){ return false; } }
 /* Pastille rouge sur le profil : Mag doit voir qu'une demande d'accès l'attend,
    sans avoir à ouvrir sa page. */
 function alertesProfil(){
@@ -3436,7 +3445,7 @@ function updateHeader(){
   }else if(view==="admin"){
     em.style.color='#b28b7a';
     em.innerHTML=icon('cog');
-    document.getElementById('hName').textContent="Admin";
+    document.getElementById('hName').textContent="Gestion";
     back.onclick=navRetour(openProfil);
   }else if(view==="chantier"){
     em.style.color='#e63329';
@@ -5969,7 +5978,7 @@ function planAccesHTML(){
     if(g.admin) return '<div class="plan-f"><em class="plan-sauf ok">Tout, sans exception</em></div>';
     let h='<div class="plan-f"><em class="plan-sauf">Tout, sauf&nbsp;:</em>';
     // Les listes sont personnelles pour TOUT LE MONDE, coordination comprise.
-    h+='<em class="plan-c">'+icon('cog')+'Admin</em><em class="plan-c">'+icon('alert')+'Le chantier</em>'
+    h+='<em class="plan-c">'+icon('cog')+'La gestion</em><em class="plan-c">'+icon('alert')+'Le chantier</em>'
      + '<em class="plan-c">'+icon('check')+'Les listes des autres</em>';
     g.fermes.forEach(function(k){ h+='<em class="plan-c">'+icon(PAVES_ICON[k]||'cle')+esc(PAVES_NOMS[k]||k)+'</em>'; });
     return h+'</div>';
