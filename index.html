@@ -1012,6 +1012,8 @@ input, textarea, select{
   .plan-t{flex:1 1 auto; min-width:0}
   .plan-t b{display:block; font-size:13px; font-weight:800; line-height:1.3}
   .plan-t span{display:block; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; line-height:1.35}
+  .plan-n{display:block; font-style:normal; font-size:11px; font-weight:400; color:var(--faint); margin-top:4px; line-height:1.35}
+  .plan-e.fort .plan-n{color:rgba(242,238,230,.45)}
   .plan-e.fort .plan-t b{color:var(--bg)}
   .plan-e.fort .plan-t span{color:rgba(242,238,230,.62)}
   .plan-b{flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:900; text-transform:uppercase;
@@ -2672,7 +2674,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v294';
+const APP_VERSION = 'v295';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5095,9 +5097,15 @@ function pavesDuRole(role){
 function planAccesHTML(){
   const admins=(ADMIN.members||[]).filter(function(m){ return m.admin; });
   const pfos=(ADMIN.members||[]).filter(function(m){ return m.pfo && !m.admin; });
+  // Un nom lisible : son nom s'il est connu, sinon l'adresse remise en forme.
+  const joliNom=function(m){
+    if(m.nom) return m.nom;
+    const av=(m.email||'').split('@')[0].replace(/[._-]+/g,' ').trim();
+    return av.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || m.email;
+  };
   const nomsCourts=function(l){
     if(!l.length) return 'personne';
-    return l.map(function(m){ return (m.nom||m.email||'').split(' ')[0] || m.email; }).join(', ');
+    return l.map(joliNom).join(' · ');
   };
   // On regroupe les rôles qui voient exactement la même chose.
   const paquets=[];
@@ -5114,18 +5122,21 @@ function planAccesHTML(){
     q.fermes = PAVES_TOUS.filter(function(k){ return q.cle.split('|').indexOf(k)<0; })
                          .map(function(k){ return PAVES_NOMS[k]||k; });
   });
-  const etage=function(titre, sous, badge, fort){
-    return '<div class="plan-e'+(fort?' fort':'')+'"><div class="plan-t"><b>'+esc(titre)+'</b><span>'+esc(sous)+'</span></div>'
-         + '<em class="plan-b">'+esc(badge)+'</em></div>';
+  const etage=function(titre, sous, badge, fort, noms){
+    return '<div class="plan-e'+(fort?' fort':'')+'"><div class="plan-t"><b>'+esc(titre)+'</b>'
+         + '<span>'+esc(sous)+'</span>'
+         + (noms? '<i class="plan-n">'+esc(noms)+'</i>' : '')
+         + '</div><em class="plan-b">'+esc(badge)+'</em></div>';
   };
   let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — ce qui est FERMÉ à chacun</div>';
-  html+=etage('Toi — admin'+(admins.length>1? ' ('+nomsCourts(admins)+')':''), 'Aucune restriction', 'rien de fermé', true);
+  html+=etage('Admin', 'Aucune restriction', 'rien de fermé', true, nomsCourts(admins));
   html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni la Liste debug</span></div>';
-  if(pfos.length) html+=etage('PFO — '+nomsCourts(pfos), 'Ne voit pas : l\'Admin, la Liste debug', '1 fermé');
+  if(pfos.length) html+=etage('PFO', 'Ne voit pas : l\'Admin, la Liste debug', '1 fermé', false, nomsCourts(pfos));
   paquets.forEach(function(q){
     const sous = q.fermes.length ? 'Ne voit pas : l\'Admin, '+q.fermes.join(', ')
                                  : 'Ne voit pas : l\'Admin. Rien d\'autre ne lui est fermé';
-    html+=etage(q.roles.join(' · '), sous, (q.fermes.length+1)+' fermés');
+    const n=q.fermes.length+1;
+    html+=etage(q.roles.join(' · '), sous, n+' fermé'+(n>1?'s':''));
   });
   html+='<div class="adm-hint" style="margin-top:8px">Ce qui est écrit ici, c\'est ce que le rôle NE voit PAS. Calculé sur les réglages du moment : si tu ouvres ou fermes un pavé plus bas, le plan bouge avec.</div></div>';
   return html;
