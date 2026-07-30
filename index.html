@@ -2558,7 +2558,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v269';
+const APP_VERSION = 'v270';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2785,6 +2785,11 @@ function updateHeader(){
     em.innerHTML=icon('cog');
     document.getElementById('hName').textContent="Admin";
     back.onclick=navRetour(openProfil);
+  }else if(view==="chantier"){
+    em.style.color='#f5c542';
+    em.innerHTML=icon('list');
+    document.getElementById('hName').textContent="Liste debug";
+    back.onclick=navRetour(openProfil);
   }else if(view==="agenda" || view==="quartier"){
     em.style.color='#6cb392';
     em.innerHTML=icon('ticket');
@@ -2841,6 +2846,7 @@ function render(){
   if(view==="feed"){ el.innerHTML = feedHTML(); return; }
   if(view==="chambres"){ el.innerHTML = chambresHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
+  if(view==="chantier"){ el.innerHTML = chantierPageHTML(); return; }
   if(view==="agenda"){ el.innerHTML = agendaHTML(); return; }
   if(view==="quartier"){ el.innerHTML = quartierHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
@@ -3805,6 +3811,7 @@ function doPrint(){
   let t='COUSIN';
   try{
     if(view==='maliste') t='Ma liste du jour';
+    else if(view==='chantier') t='Liste debug';
     else if(view==='favoris') t='Mes favoris';
     else if(view==='agenda') t='Sorties gratuites';
     else if(view==='quartier') t='Autour d’ici';
@@ -4080,6 +4087,8 @@ async function loadProfile(){
     }catch(e){}
     // Résumé pour le bouton « Gestion de l'équipe » : on veut savoir s'il y a des demandes
     // en attente sans avoir à ouvrir la page.
+    // Le bouton « Liste debug » du profil doit savoir quoi afficher : on charge le chantier.
+    if(admin){ try{ await loadChantier(); }catch(e){} }
     if(admin){
       try{
         const { count:nbM } = await sb.from('allowed_emails').select('email',{count:'exact',head:true});
@@ -4168,6 +4177,9 @@ function profilHTML(){
       <span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_MES?texteMesChambres():(CH_ENCOURS?`${CH_ENCOURS} en cours dans le centre`:'Vider, nettoyer, libérer')}</i></span>
       ${CH_MES?`<em class="ch-badge">${CH_MES}</em>`:''}</button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
+    ${p.admin?`<button class="pf-out" onclick="openChantier()">${icon('list')}
+      <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
+      ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`:''}
   </div>`;
 
   let adminBtn='';
@@ -4669,6 +4681,26 @@ function boiteHTML(){
     }).join('')+`</div>`;
 }
 
+/* La ligne sous le bouton « Liste debug » : ce qui reste, et ce qui attend dans la boîte. */
+function chantierSous(){
+  const reste=CHANTIER.filter(function(l){ return !l.fait; }).length;
+  const b=BOITE.length;
+  if(!CHANTIER.length && !b) return 'Bugs, idées, ce qui reste à faire';
+  return (reste? reste+' à faire' : 'Tout est fait')
+       + (b? ' · '+b+' suggestion'+(b>1?'s':'')+' à ranger' : '');
+}
+/* La page à elle : on y entre depuis le profil (« Liste debug ») ou depuis l'Admin. */
+function openChantier(){
+  view='chantier'; query=''; urgOpen=false;
+  const s=document.getElementById('search'); if(s) s.value='';
+  render();
+  Promise.all([loadProfile(), loadChantier()]).then(function(){ abonnerChantier(); if(view==='chantier') render(); });
+}
+function chantierPageHTML(){
+  if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
+  if(!(PROFILE&&PROFILE.admin)) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
+  return `<div class="pf-wrap">${boiteHTML()}${chantierHTML()}</div>`;
+}
 async function addChantier(){
   const el=document.getElementById('chTexte'); if(!el) return;
   const titre=(el.value||'').trim(); if(!titre){ el.focus(); return; }
@@ -4826,7 +4858,10 @@ function adminHTML(){
       return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(roleLabel(r))}</div>`;
     }).join('')+`</div>`;
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${filtres}${members}</div>`;
-  return `<div class="pf-wrap">${reqs}${boiteHTML()}${chantierHTML()}${add}${team}${accesHTML()}</div>`;
+  const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('list')}
+    <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
+    ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
+  return `<div class="pf-wrap">${reqs}${versChantier}${add}${team}${accesHTML()}</div>`;
 }
 /* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
    l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
@@ -5898,7 +5933,7 @@ async function initAuth(){
   markSeen(session.user);
   hideGate();
   // On connaît le rôle avant d'afficher l'accueil : les pavés s'adaptent sans clignoter.
-  loadProfile().then(function(){ render(); });
+  loadProfile().then(function(){ render(); navDepuisAdresse(); });
 }
 initAuth();
 
@@ -5924,7 +5959,7 @@ function navEtat(){
 }
 function navMeme(a,b){ return !!a && !!b && JSON.stringify(a)===JSON.stringify(b); }
 const NAV_NOMS={home:'accueil', reseau:'reseau', favoris:'favoris', profil:'profil',
-                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', quiz:'jeux', petition:'petitions',
+                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', chantier:'liste-debug', quiz:'jeux', petition:'petitions',
                 agenda:'ce-qui-arrive', quartier:'autour-du-centre'};
 function navAdresse(s){
   if(!s) return '#accueil';
@@ -5968,6 +6003,7 @@ function navRestaure(s){
     else if(s.view==='feed')     openFeed();
     else if(s.view==='petition') openPetition();
     else if(s.view==='admin')    openAdmin();
+    else if(s.view==='chantier') openChantier();
     else if(s.view==='quiz')     openQuiz(s.quiz||undefined);
     else if(s.view==='agenda')   openAgenda();
     else if(s.view==='quartier') openQuartier();
@@ -5995,13 +6031,50 @@ window.addEventListener('popstate', function(e){
 });
 // Chaque fonction qui change d'écran laisse sa trace dans l'historique.
 ['goHome','openDomaine','openReseau','openFavoris','openUrgences','toggleUrg','quickSearch',
- 'openProfil','openMaListe','openChambres','openFeed','openAdmin','openQuiz','openPetition',
+ 'openProfil','openMaListe','openChambres','openFeed','openAdmin','openChantier','openQuiz','openPetition',
  'openJeux','openAgenda','openQuartier',
  'openForm','closeForm','openFeedback','closeFeedback'].forEach(function(n){
   const f=window[n]; if(typeof f!=='function') return;
   window[n]=function(){ const r=f.apply(this, arguments); navEnregistre(); return r; };
 });
 NAV_PILE=[navEtat()]; NAV_I=0;
+
+/* PARTAGER UN ÉCRAN : l'app écrivait bien #ce-qui-arrive dans la barre d'adresse,
+   mais ne la relisait jamais au démarrage — donc une adresse partagée retombait
+   sur l'accueil. On lit l'adresse une fois, à l'ouverture, et on ouvre l'écran
+   demandé. Le retour ramène à l'accueil, comme si on y était passé. */
+function navDepuisAdresse(){
+  let slug=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
+  if(!slug || slug==='accueil' || slug==='recherche') return false;
+  let vue=null;
+  for(const k in NAV_NOMS){ if(NAV_NOMS[k]===slug){ vue=k; break; } }
+  if(!vue && typeof DOM==='object' && DOM[slug]) vue=slug;      // un domaine du Réseau
+  if(slug==='urgences'){ NAV_MUET=true; try{ openUrgences(); } finally { NAV_MUET=false; }
+                         NAV_PILE=[navEtat()]; NAV_I=0; return true; }
+  if(!vue || vue==='home') return false;
+  NAV_MUET=true;
+  try{
+    if(vue==='profil')        openProfil();
+    else if(vue==='maliste')  openMaListe();
+    else if(vue==='chambres') openChambres();
+    else if(vue==='feed')     openFeed();
+    else if(vue==='petition') openPetition();
+    else if(vue==='admin')    openAdmin();
+    else if(vue==='chantier') openChantier();
+    else if(vue==='quiz')     openJeux();
+    else if(vue==='agenda')   openAgenda();
+    else if(vue==='quartier') openQuartier();
+    else if(vue==='reseau')   openReseau();
+    else if(vue==='favoris')  openFavoris();
+    else                      openDomaine(vue);
+  } catch(e){ NAV_MUET=false; return false; }
+  finally { NAV_MUET=false; }
+  NAV_PILE=[navEtat()]; NAV_I=0;
+  history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+  return true;
+}
+// Hors ligne (déjà connectée), l'app s'ouvre sans repasser par initAuth : on relit quand même l'adresse.
+if(localStorage.getItem('cousin_auth_ok') && !sb) navDepuisAdresse();
 history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
