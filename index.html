@@ -1260,6 +1260,11 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-src svg, .ag-src .pico{width:13px; height:13px}
   /* Les liens remontent sous le titre : ils ne portent plus la marge de gauche du bas de carte. */
   .ag-liens{display:flex; flex-wrap:wrap; gap:4px 10px; margin:6px 0 2px}
+  /* Les annuaires de gratuités : une seule fois, en haut de page, pas sur chaque carte */
+  .ag-annuaires{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; margin-bottom:14px}
+  .ag-annuaires b{display:block; font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:7px}
+  .ag-annuaires a{display:inline-flex; align-items:center; gap:6px; margin-right:12px; font-size:12.5px; font-weight:700; color:var(--ink); text-decoration:none}
+  .ag-annuaires svg, .ag-annuaires .pico{width:13px; height:13px}
   .ag-liens .ag-src{margin:0}
   .ag-iti{display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#1b1b1b;
     background:#f3efe6; border-radius:9px; padding:7px 11px; text-decoration:none}
@@ -2558,7 +2563,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v270';
+const APP_VERSION = 'v271';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4971,11 +4976,11 @@ var AGENDA_REGLES = [
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
     prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht", src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
-    src2:"https://artsetpublics.be/programmes/musees-gratuits/", src2t:"La liste complète (Arts&Publics)",
+    annuaire:true,
     quand:function(d){ return d.getDay()===0 && d.getDate()<=7; } },
   { titre:"Musées fédéraux gratuits — 1er mercredi", sous:"Sciences naturelles, Magritte, Old Masters, Cinquantenaire, Musée de l'Armée.",
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4', src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
-    src2:"https://artsetpublics.be/programmes/musees-gratuits/", src2t:"La liste complète (Arts&Publics)",
+    annuaire:true,
     quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer, seul ou à plusieurs. Accessible en chaise roulante.",
     prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les mercredis", src:"https://biblio.brussels/bxl-ludobox",
@@ -5069,6 +5074,10 @@ function quartierHTML(){
     + '<div class="ag-tete-print"><b>Autour d’ici</b><span>Les adresses utiles du quartier</span></div>'
     + '<p class="ag-intro">Le nécessaire à côté du centre : courses, douches et linge, parcs, transports. À imprimer et à donner.</p>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer</span></button>'
+    + '<div class="ag-annuaires"><b>Où vérifier les musées gratuits</b>'
+      + '<a href="https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles" target="_blank" rel="noopener">'+icon('lien')+' Brussels Museums</a>'
+      + '<a href="https://artsetpublics.be/programmes/musees-gratuits/" target="_blank" rel="noopener">'+icon('lien')+' Le guide Arts&amp;Publics</a>'
+      + '</div>'
     + html
     + (AG_ART27 ? agArt27HTML() : '')
     + '</div>';
@@ -5133,7 +5142,9 @@ function agendaHTML(){
     hebdos.forEach(function(r){
       const qr = r.src ? '<div class="ag-qr">'+qrSVG(r.src)+'</div>' : '';
       // Le lien remonte JUSTE SOUS LE TITRE : c'est ce qu'on cherche en premier.
-      const liens = (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+      // Un annuaire de gratuités n'est pas le site du lieu : il vit en haut de page, pas sur la carte.
+      const liens = r.annuaire ? '' :
+                    (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Le site du lieu</a>' : '')
                   + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
       const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
       html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
@@ -5149,7 +5160,8 @@ function agendaHTML(){
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
     const qr = e.r.src ? '<div class="ag-qr">'+qrSVG(e.r.src)+'</div>' : '';
-    const liens = (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+    const liens = e.r.annuaire ? '' :
+                  (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Le site du lieu</a>' : '')
                 + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
     const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
