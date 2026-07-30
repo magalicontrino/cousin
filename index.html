@@ -107,8 +107,13 @@ button, input, select, textarea{font-family:inherit}
   body.is-home .home-title{margin:8px 0 14px; flex:0 0 auto}
   body.is-home .hero{margin-bottom:12px; flex:0 0 auto}
   /* Les 6 pavés occupent exactement la hauteur qui reste : jamais de défilement. */
+  /* ⚠ AUTANT DE RANGÉES QU'IL EN FAUT, PAS DEUX D'OFFICE. Avant : `repeat(2, …)`.
+     Un rôle qui n'a que trois pavés (le groupe D — Polyvalent, entretien, Article 60)
+     gardait une deuxième rangée vide, et le bouton Quiz se retrouvait tout en bas
+     après un grand trou. Repéré par Mag le 30/07/2026. Avec `grid-auto-rows`, trois
+     pavés font une rangée, six en font deux, et rien ne change pour les autres. */
   body.is-home .dgrid{flex:0 0 auto; min-height:0; grid-template-columns:repeat(3,minmax(0,1fr));
-    grid-template-rows:repeat(2,minmax(96px,1fr)); gap:10px}
+    grid-auto-rows:minmax(96px,1fr); gap:10px}
 /* Sur l'accueil, le pavé remplit sa case (pas de carré imposé, sinon il déborde
      sur la rangée du dessous) et son picto suit la hauteur disponible. */
   body.is-home .dcard{aspect-ratio:auto; height:100%; min-height:0; overflow:hidden; padding:12px 13px}
@@ -320,7 +325,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
      pavés de l'accueil s'étirent en longues bandes. On les garde compacts, alignés
      en haut. Le téléphone (moins de 600 px) n'est pas concerné. */
   @media (min-width:600px){
-    body.is-home .dgrid{grid-template-rows:repeat(2,auto); align-content:start}
+    body.is-home .dgrid{grid-auto-rows:auto; align-content:start}
     body.is-home .dcard{aspect-ratio:1/1; height:auto; max-height:min(32vh,230px)}
   }
   @media (min-width:1040px){
@@ -1381,6 +1386,13 @@ input, textarea, select{
   /* + 12 px : sans ça, le contenu vient se coller au bandeau noir alors qu'ailleurs il y a
      toujours de l'air en haut — l'écart n'était pas le même avec et sans bandeau. */
   body.apercu-on{padding-top:calc(var(--apercu-h) + 12px)}
+  /* ⚠ RÈGLE JUMELLE OBLIGATOIRE, SUR TÉLÉPHONE AUSSI. L'accueil est calé sur la hauteur
+     de l'écran (`height:100dvh`). En aperçu, on lui AJOUTE le padding du bandeau noir
+     ci-dessus : la page dépassait donc de toute la hauteur du bandeau, et le bouton Quiz
+     descendait pile sous le rang de pastilles flottantes, à moitié caché. La règle
+     existait pour l'aperçu sur ordinateur (`body.apercu-tel.is-home`) mais avait été
+     oubliée pour un vrai téléphone. Repéré par Mag le 30/07/2026. */
+  body.apercu-on.is-home{height:calc(100dvh - var(--apercu-h) - 12px)}
   @media print{
     @page{ margin:14mm; }
     /* Sur papier, aucune liste n'est pliée : on imprime tout ce qu'on a le droit de voir. */
@@ -3185,7 +3197,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v354';
+const APP_VERSION = 'v355';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3397,7 +3409,11 @@ function majApercu(){
       qui=esc(nom)+' <i>('+esc(roleLabel(m.equipe||'sans rôle'))+')</i>'
         + ((Array.isArray(m.paves)&&m.paves.length) ? ' <em>accès réglé à la main</em>' : '');
     } else qui=esc(roleLabel(APERCU_ROLE));
-    bar.innerHTML = "Tu vois l'app comme&nbsp;: <b>"+qui+"</b> <span class=\"ap-ecran\">"
+    /* Plus de « Tu vois l'app comme : » — retiré à sa demande le 30/07/2026. Sur un
+       téléphone, cette phrase se cassait en trois lignes, le bandeau devenait haut
+       comme un tiers de l'écran et il recouvrait le logo. Le nom du rôle en gras et
+       le bouton pour sortir suffisent : on sait très bien qu'on est en aperçu. */
+    bar.innerHTML = "<b>"+qui+"</b> <span class=\"ap-ecran\">"
       + (APERCU_TEL ? 'sur téléphone' : 'sur ordinateur')
       + "</span> <button onclick=\"quitterApercu()\">Revenir à ma vue</button>";
   }
