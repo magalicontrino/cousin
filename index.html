@@ -1245,8 +1245,8 @@ input, textarea, select{
   .acc-mch{flex:0 0 auto; width:14px; height:14px; color:var(--faint); transition:transform .2s}
   .acc-m.ouvert .acc-mch{transform:rotate(90deg)}
   .acc-mn{flex:1 1 auto; min-width:0; font-size:12.5px; font-weight:800}
-  .acc-mc{flex:0 0 auto; background:var(--card); border-radius:20px; padding:2px 8px;
-    font-size:11px; font-weight:900; color:var(--muted)}
+  .acc-mc{flex:0 0 auto; font-size:11.5px; font-weight:700; color:var(--muted)}
+  .acc-actions{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px}
   .acc-gens{flex:1 1 100%; margin-top:8px; padding-top:8px; border-top:1px solid var(--line);
     display:flex; flex-direction:column; gap:6px}
   .acc-q{display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px}
@@ -1976,7 +1976,9 @@ const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référe
 /* Deux versions de l'accueil. La version complète ouvre tout ; la version simple ne garde
    que Réseau, Formations et Gestion du centre. Le rôle décide, rien à régler au cas par cas :
    il suffit de changer le rôle de la personne dans l'Admin. */
-const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi","Coordi","Référent·e infis & aide-soignant·es"];
+/* Les aides-soignantes travaillent aux côtés des travailleuses sociales : même accès
+   qu'elles (décision de Mag, 2026-07-30). */
+const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi","Coordi","Référent·e infis & aide-soignant·es","Aide-soignante"];
 const PAVES_SIMPLE = ["reseau","formations","centre"];
 const PAVES_TOUS = ["reseau","demarches","formations","mails","methodes","centre"];
 /* Réglage vivant : ce que chaque rôle voit est enregistré dans la base (table roles_acces)
@@ -3119,7 +3121,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v346';
+const APP_VERSION = 'v347';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5995,27 +5997,37 @@ function accesHTML(){
     }).join('');
     const metiers=g.roles.map(function(r){
       const apart=(ACC_APART===r), gens=gensDuRole(r), ouvR=!!ACC_ROLE_OUV[r];
+      /* La ligne repliée ne dit que DEUX choses : le métier, et combien de personnes.
+         Les boutons descendent à l'intérieur — six lignes avec chacune un chevron, un
+         chiffre nu et deux boutons qui passaient à la ligne, ça ne se lisait plus. */
+      const combien = gens.length===0 ? 'personne'
+                    : gens.length===1 ? '1 personne' : gens.length+' personnes';
       return '<div class="acc-m'+(ouvR?' ouvert':'')+'">'
         + '<button class="acc-mt" onclick="accRoleOuvrir(\''+esc(r)+'\')">'
         +   icon('chevron','class="acc-mch"')
         +   '<span class="acc-mn">'+esc(roleLabel(r))+'</span>'
-        +   '<span class="acc-mc">'+gens.length+'</span>'
+        +   '<span class="acc-mc">'+combien+'</span>'
         + '</button>'
-        + '<button class="acc-voir" onclick="voirComme(\''+esc(r)+'\')">Voir comme</button>'
-        + '<button class="acc-apart'+(apart?' on':'')+'" onclick="accApart(\''+esc(r)+'\')">'+(apart?'Fermer':'Régler à part')+'</button>'
-        + (apart ? '<div class="acc-paves">'+PAVES_TOUS.map(function(k){
-              return '<button class="acc-p '+(pavesDuRole(r).indexOf(k)>=0?'on':'')+'" onclick="toggleAcces(\''+esc(r)+'\',\''+k+'\')">'+esc(PAVES_NOMS[k])+'</button>';
-            }).join('')+'</div>' : '')
-        + (ouvR ? '<div class="acc-gens">' + (gens.length
-              ? gens.map(function(m){
-                  return '<div class="acc-q"><span class="acc-qn">'+esc(joliMembre(m))+'</span>'
-                       + '<span class="acc-qm">'+esc(m.email||'')+'</span>'
-                       + (m.pfo?'<b class="plan-tag">PFO</b>':'')
-                       + (Array.isArray(m.paves)&&m.paves.length?'<b class="plan-tag main">réglé à la main</b>':'')
-                       + (m.actif===false?'<b class="plan-tag">suspendu</b>':'')
-                       + '</div>';
-                }).join('')
-              : '<div class="acc-q vide">personne pour l\'instant</div>') + '</div>' : '')
+        + (ouvR ? '<div class="acc-gens">'
+              + (gens.length
+                  ? gens.map(function(m){
+                      return '<div class="acc-q"><span class="acc-qn">'+esc(joliMembre(m))+'</span>'
+                           + '<span class="acc-qm">'+esc(m.email||'')+'</span>'
+                           + (m.pfo?'<b class="plan-tag">PFO</b>':'')
+                           + (Array.isArray(m.paves)&&m.paves.length?'<b class="plan-tag main">réglé à la main</b>':'')
+                           + (m.actif===false?'<b class="plan-tag">suspendu</b>':'')
+                           + '</div>';
+                    }).join('')
+                  : '<div class="acc-q vide">personne pour l\'instant</div>')
+              + '<div class="acc-actions">'
+              +   '<button class="acc-voir" onclick="voirComme(\''+esc(r)+'\')">Voir l\'app comme ce métier</button>'
+              +   '<button class="acc-apart'+(apart?' on':'')+'" onclick="accApart(\''+esc(r)+'\')">'
+              +     (apart?'Fermer les pavés':'Changer ses pavés à lui')+'</button>'
+              + '</div>'
+              + (apart ? '<div class="acc-paves">'+PAVES_TOUS.map(function(k){
+                    return '<button class="acc-p '+(pavesDuRole(r).indexOf(k)>=0?'on':'')+'" onclick="toggleAcces(\''+esc(r)+'\',\''+k+'\')">'+esc(PAVES_NOMS[k])+'</button>';
+                  }).join('')+'</div>' : '')
+            + '</div>' : '')
         + '</div>';
     }).join('');
     const nbGens=g.roles.reduce(function(n,r){ return n+gensDuRole(r).length; },0);
