@@ -3,7 +3,7 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v199';
+const CACHE = 'cousin-v207';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './favicon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
@@ -13,7 +13,7 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './picto/ico-guillemets.svg', './picto/ico-etoile.svg', './picto/site.svg', './picto/ico-demidisques.svg', './picto/ico-fleur.svg',
                 './picto/ico-donut.svg', './picto/astuce.svg',
                 './picto/formations.svg', './picto/avis.svg', './picto/urgences.svg',
-                './picto/petition.svg', './picto/roue.svg', './picto/cle.svg', './picto/juridique.svg', './picto/addictions.svg', './picto/planning.svg', './picto/accompagnement.svg', './picto/social.svg', './picto/lgbtqi.svg'];
+                './picto/petition.svg', './picto/roue.svg', './picto/cle.svg', './picto/juridique.svg', './picto/addictions.svg', './picto/planning.svg', './picto/accompagnement.svg', './picto/social.svg', './picto/lgbtqi.svg', './picto/jeu-roue.svg', './picto/jeu-cartes.svg', './picto/jeu-serie.svg', './picto/jeu-chrono.svg', './picto/jeu-enquete.svg', './picto/jeu-cible.svg', './picto/jeu-jour.svg', './picto/jeu-duel.svg', './picto/de.svg', './picto/palette.svg'];
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // la nouvelle version prend la main immédiatement
