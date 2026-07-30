@@ -1486,7 +1486,7 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     <p class="hint">Elle est envoyée à l'équipe : une fois vérifiée, elle est ajoutée pour tout le monde.</p>
     <label>Le service ou la démarche à ajouter</label>
     <textarea id="p-texte" rows="5" placeholder="Ex. CPAS d'Ixelles — aide sociale et revenu d'intégration. Chaussée d'Ixelles 124, 02 123 45 67, du lundi au vendredi de 9h à 12h."></textarea>
-    <label>Votre équipe (facultatif)</label>
+    <label>Votre équipe</label>
     <select id="p-equipe"></select>
     <div class="form-note">${icon('cadenas')} Merci de ne pas mentionner le nom d'une personne suivie.</div>
     <div class="modal-actions">
@@ -1503,7 +1503,7 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
       <h3 class="h3-big">Une suggestion&nbsp;?</h3>
       <label>Une idée, une recommandation ?</label>
       <textarea id="fb-idee" placeholder="Ex. Ajouter les horaires des permanences, une fiche pour telle démarche…"></textarea>
-      <label>Votre équipe (facultatif)</label>
+      <label>Votre équipe</label>
       <select id="fb-equipe"></select>
       <div class="form-note" style="margin-top:14px">${icon('cadenas')} Merci de ne pas mentionner le nom d'une personne suivie.</div>
       <div class="modal-actions">
@@ -1569,7 +1569,11 @@ const FEEDBACK = {
   equipe: "entry.545984953"     // « Votre équipe »
 };
 // Doit correspondre EXACTEMENT aux options du formulaire, sinon Google écarte la réponse.
-const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référent·e infis & aide-soignant·es","Polyvalent","Article 60"];
+/* Tous les métiers du centre — la même liste que dans l'Admin, plus Admin.
+   Il en manquait la moitié : entretien, maintenance, logistique, coordination… */
+const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référent·e infis & aide-soignant·es",
+                 "Polyvalent","Coordi","Agent entretien","Travaux / Maintenance","Logistique",
+                 "Responsable punaise","Article 60","Admin"];
 /* Deux versions de l'accueil. La version complète ouvre tout ; la version simple ne garde
    que Réseau, Formations et Gestion du centre. Le rôle décide, rien à régler au cas par cas :
    il suffit de changer le rôle de la personne dans l'Admin. */
@@ -2579,7 +2583,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v279';
+const APP_VERSION = 'v280';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3853,7 +3857,7 @@ function doPrint(){
 /* ---------- Formulaire ---------- */
 function remplirEquipes(id){
   document.getElementById(id).innerHTML =
-    '<option value="">—</option>' + EQUIPES.map(e=>`<option value="${esc(e)}">${esc(roleLabel(e))}</option>`).join('');
+    '<option value="">— Choisis ton équipe —</option>' + EQUIPES.map(e=>`<option value="${esc(e)}">${esc(roleLabel(e))}</option>`).join('');
 }
 function openForm(){
   document.getElementById('p-texte').value='';
@@ -3875,6 +3879,7 @@ function submitFeedback(){
   const idee=document.getElementById('fb-idee').value.trim();
   if(!idee){ cousinToast("Écris ton idée avant d'envoyer"); document.getElementById('fb-idee').focus(); return; }
   const equipe=document.getElementById('fb-equipe').value;
+  if(!equipe){ cousinToast("Choisis ton équipe avant d'envoyer"); document.getElementById('fb-equipe').focus(); return; }
   const fd=new FormData();
   fd.append(FEEDBACK.idee, idee);
   if(equipe) fd.append(FEEDBACK.equipe, equipe);
@@ -3897,10 +3902,16 @@ function submitProposal(){
   const txt=document.getElementById('p-texte').value.trim();
   if(!txt){ cousinToast("Écris ta proposition avant d'envoyer"); document.getElementById('p-texte').focus(); return; }
   const equipe=document.getElementById('p-equipe').value;
+  if(!equipe){ cousinToast("Choisis ton équipe avant d'envoyer"); document.getElementById('p-equipe').focus(); return; }
   const fd=new FormData();
   fd.append(FEEDBACK.idee, "PROPOSITION DE FICHE\n"+txt);
   if(equipe) fd.append(FEEDBACK.equipe, equipe);
   fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
+  // Comme les suggestions : ça atterrit aussi dans la boîte de l'Admin.
+  try{
+    if(sb) sb.from('suggestions').insert({ texte:"PROPOSITION DE FICHE — "+txt, equipe:equipe||null,
+      auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null });
+  }catch(e){}
   closeForm();
   cousinToast("Merci ! Ta proposition part à l'équipe ✓");
 }
@@ -4660,8 +4671,15 @@ function abonnerChantier(){
   }catch(e){}
 }
 
+/* Une ligne cochée reste visible 24 h — le temps de la voir barrée — puis elle
+   quitte la liste toute seule. Elle n'est pas supprimée de la base pour autant. */
+function chVieille(l){
+  if(!l.fait || !l.fait_le) return false;
+  return (Date.now() - new Date(l.fait_le).getTime()) > 86400000;
+}
 function chantierHTML(){
-  const total=CHANTIER.length, faits=CHANTIER.filter(function(l){ return l.fait; }).length;
+  const VUES=CHANTIER.filter(function(l){ return !chVieille(l); });
+  const total=VUES.length, faits=VUES.filter(function(l){ return l.fait; }).length;
   const champ=`<div class="ch-add">
       <input id="chTexte" type="text" placeholder="Un bug, une idée… et Entrée" autocomplete="off" onkeydown="if(event.key==='Enter')addChantier()">
       <select id="chBloc" onchange="chBloc=this.value">${CH_BLOCS.map(function(b){
@@ -4669,12 +4687,12 @@ function chantierHTML(){
       <button class="adm-addbtn" onclick="addChantier()">Ajouter</button>
     </div>`;
   const blocs=CH_BLOCS.concat(
-      CHANTIER.map(function(l){ return l.bloc; }).filter(function(b){ return CH_BLOCS.indexOf(b)<0; })
+      VUES.map(function(l){ return l.bloc; }).filter(function(b){ return CH_BLOCS.indexOf(b)<0; })
     ).filter(function(b,i,t){ return t.indexOf(b)===i; });
   const corps=blocs.map(function(b){
-    const lignes=CHANTIER.filter(function(l){ return l.bloc===b && (chFinis || !l.fait); });
+    const lignes=VUES.filter(function(l){ return l.bloc===b && (chFinis || !l.fait); });
     if(!lignes.length) return '';
-    const reste=CHANTIER.filter(function(l){ return l.bloc===b && !l.fait; }).length;
+    const reste=VUES.filter(function(l){ return l.bloc===b && !l.fait; }).length;
     return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(b)}</span><span class="pf-prog">${reste}</span></div>
       <div class="pf-tasks">`+lignes.map(function(l){
         return `<div class="ch-l${l.fait?' done':''}">
@@ -4710,7 +4728,7 @@ function boiteHTML(){
 
 /* La ligne sous le bouton « Liste debug » : ce qui reste, et ce qui attend dans la boîte. */
 function chantierSous(){
-  const reste=CHANTIER.filter(function(l){ return !l.fait; }).length;
+  const reste=CHANTIER.filter(function(l){ return !l.fait; }).length;   // le compte, lui, ignore les cochées
   const b=BOITE.length;
   if(!CHANTIER.length && !b) return 'Bugs, idées, ce qui reste à faire';
   return (reste? reste+' à faire' : 'Tout est fait')
