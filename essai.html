@@ -1619,9 +1619,12 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .quiz-theme:active{transform:scale(.99)}
   @media (min-width:1280px){
     /* L'en-tête et les boutons du bas RESTENT FIXES : ils ne bougent pas au défilement. */
-    /* Barre TRANSPARENTE : le titre passait dessous et disparaissait derrière un bandeau
-       opaque. Le logo et les pictos restent lisibles, ils sont sur les bords. */
-    header{position:sticky; top:0; z-index:40; background:transparent}
+    /* LE LOGO ET LES BOUTONS NE BOUGENT JAMAIS : barre vraiment fixe, fond plein, sans
+       effet ni ombre. Le contenu défile dessous et disparaît proprement derrière elle ;
+       la page démarre plus bas pour que rien ne soit jamais masqué. */
+    header{position:fixed; top:0; left:0; right:0; z-index:40; background:var(--bg); padding:14px 0 10px}
+    body{padding-top:82px}
+    body.is-home{height:calc(100dvh - 82px)}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* Le titre de la page s'aligne sur le logo, tout à gauche : il restait indenté au
        milieu, décalé du reste de la barre, et ça se voyait tout de suite. */
@@ -1647,8 +1650,13 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     /* En mode téléphone, l'EN-TÊTE rentre dans la colonne lui aussi : le logo et les cinq
        pictos restaient étalés sur 1440 px pendant que la colonne en faisait 430 — on ne
        regardait donc pas du tout ce que voit un téléphone. */
-    body.apercu-tel .hrow{width:var(--appw); gap:12px}
-    body.apercu-tel header{position:static; background:var(--bg)}
+    /* En mode téléphone, TOUT rentre dans la colonne : la barre du menu ET le titre de
+       la page avec sa flèche retour. Le titre restait au réglage grand écran, tout à
+       gauche, hors du cadre — on regardait un téléphone avec un bout d'ordinateur autour. */
+    body.apercu-tel .hrow, body.apercu-tel .htitle{width:var(--appw); gap:12px}
+    body.apercu-tel header{position:static; background:var(--bg); padding:0}
+    body.apercu-tel{padding-top:0}
+    body.apercu-tel.is-home{height:100dvh}
   }
 </style>
 </head>
@@ -2959,7 +2967,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v332-essai';
+const APP_VERSION = 'v333-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4762,9 +4770,14 @@ function profilHTML(){
       <div class="pf-tags">${badges}</div>
       ${(p.nom&&p.email)?`<div class="pf-mail">${esc(p.email)}</div>`:''}</div></div>`;
 
-  // Ma liste du jour : on montre l'avancement, pas seulement un bouton
+  /* Ma liste du jour : on montre l'avancement. ⚠ EN APERÇU, on compte la liste DU RÔLE
+     REGARDÉ, pas la sienne — sinon l'écran annonçait « 0/8 » à un rôle qui n'a aucune
+     liste, et l'aperçu mentait sur ce que la personne voit vraiment. */
   let total=0, faites=0;
-  CHECKLISTS.filter(g=>g.mienne || !MES_LISTES.length).forEach(g=>{
+  const LV=listesVues();
+  CHECKLISTS.filter(function(g){
+      return enApercu() ? (LV.indexOf(g.liste)>=0) : (g.mienne || !MES_LISTES.length);
+    }).forEach(g=>{
     total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
   const pct = total ? Math.round(faites/total*100) : 0;
   // Carte blanche + anneau de progression (choix de Mag) : le chiffre est dans l'anneau,
@@ -4783,7 +4796,7 @@ function profilHTML(){
          <span class="pf-jour-tx"><b>Ma liste du jour</b>
            <i>${faites===total?'Tout est fait, bravo':(faites?`Il reste ${total-faites} tâche${total-faites>1?'s':''}`:'À commencer')}</i></span>
        </button>`
-    : `<div class="pf-empty pf-empty-s">${icon('list')}<p>Aucune check-list pour ton rôle.</p></div>`;
+    : `<div class="pf-empty pf-empty-s">${icon('list')}<p>${enApercu()?'Ce rôle n\'a aucune check-list.':'Aucune check-list pour ton rôle.'}</p></div>`;
 
   // Raccourcis, moins appuyés que l'action du jour
   const outils=`<div class="pf-outils">
