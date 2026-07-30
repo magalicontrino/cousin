@@ -474,6 +474,11 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 auto}
   .fc-et.faite{color:#9a948a; text-decoration:line-through}
   .fc-et.faite i{background:#d8ecdf; color:#1f7a44}
+  .fc-tester{display:flex; align-items:center; justify-content:center; gap:8px; width:calc(100% - 24px); margin:0 12px 12px;
+    padding:11px; border:0; border-radius:12px; background:#f3efe6; color:#54514b; font-family:inherit;
+    font-size:12.5px; font-weight:700; cursor:pointer}
+  .fc-tester svg, .fc-tester .pico{width:16px; height:16px}
+  .fc-tester:active{transform:scale(.99)}
   .fc-jauge{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:13px 15px; margin-bottom:12px}
   .fc-jauge b{font-size:13.5px; font-weight:800}
   .fc-jauge em{font-style:normal; font-size:11.5px; color:var(--muted); font-weight:500}
@@ -1265,7 +1270,11 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .pourq{font-size:12.5px; color:var(--muted); font-weight:400; line-height:1.5; margin:12px 2px 0}
   .jx-prog{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px 15px; margin-top:12px}
   .jx-prog h4{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:0 0 11px}
-  .jx-l{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+  .jx-l{display:flex; align-items:center; gap:10px; margin-bottom:9px; width:100%; background:transparent;
+    border:0; padding:4px 2px; border-radius:9px; font-family:inherit; color:inherit; cursor:pointer; text-align:left}
+  .jx-l:active{background:rgba(27,27,27,.05)}
+  .jx-l em{font-style:normal; font-size:10.5px; font-weight:700; color:var(--muted); flex:0 0 auto}
+  .jx-l.parfait em{color:#1f7a44}
   .jx-l span{font-size:12.5px; font-weight:600; width:112px; flex:0 0 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .jx-l .b{flex:1; height:9px; border-radius:5px; background:rgba(27,27,27,.08); overflow:hidden}
   .jx-l .b i{display:block; height:100%; border-radius:5px}
@@ -2404,7 +2413,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v223';
+const APP_VERSION = 'v225';
 const SEED_VERSION = 58;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3126,6 +3135,20 @@ function guideAnswer(ev,id,go){
   const box=document.querySelector('#c-'+id+' .g-box'); if(box) box.innerHTML=guideBody(id);
 }
 function guideCard(p){
+  /* Dans les Formations, un guide s'habille comme une carte de cours (vignette + sujet) :
+     c'est le même geste pour la personne qui lit, ça doit se ressembler. Ailleurs, il
+     garde son ancienne carte. */
+  if(DOM[p.domaine] && DOM[p.domaine].isFormation){
+    const coul=themeCoul(p.theme);
+    return `<div class="card fc" id="c-${p.id}">
+      <div class="fc-tete" onclick="toggle('${p.id}')">
+        <span class="fc-num" style="background:${coul};color:${encreSur(coul)}">${icon('compass')}</span>
+        <span class="fc-tx"><b>${esc(p.nom)}</b><em>Outil · on répond aux questions ensemble, devant la personne</em></span>
+      </div>
+      ${p.desc?`<p class="fc-desc" onclick="toggle('${p.id}')">${esc(p.desc)}</p>`:''}
+      <div class="detail"><div class="detail-inner"><div class="g-box">${guideBody(p.id)}</div></div></div>
+    </div>`;
+  }
   return `<div class="card" id="c-${p.id}">
     <div class="card-top" onclick="toggle('${p.id}')">
       <div class="tags">${domTag(p)}<span class="tag com">Guide</span></div>
@@ -3148,8 +3171,14 @@ function formationPlan(page){
 /* ═══ Les formations, en « carte de cours » (choix de Mag, 30/07/2026) ═══
    Une vignette colorée par sujet, le plan déplié chapitre par chapitre, et une
    coche par chapitre lu. On voit où on en est sans avoir à ouvrir la fiche. */
-const THEME_COUL = {'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8fd4','Violences':'#fd8fd0',
+const THEME_COUL = {'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8fd4','Entretien & écoute':'#5b8fd4','Violences':'#fd8fd0',
                     'Premiers pas':'#6cb392','':'#b28b7a'};
+/* Sur quel terrain se tester après avoir lu une formation. Quand le sujet correspond à un
+   domaine du Réseau, on joue dessus ; sinon on joue sur tout. À compléter quand il y aura
+   plus de formations. */
+const THEME_DOM = {'Droit des étrangers':'etrangers'};
+function themeTerrain(t){ const k=THEME_DOM[t||'']; return k ? {t:'dom',k} : {t:'tout'}; }
+function seTester(theme){ jxJouer('quiz', themeTerrain(theme)); }
 function themeCoul(t){ return THEME_COUL[t||''] || '#b28b7a'; }
 /* Ce qu'on a lu, gardé sur le téléphone. */
 var FLU = (function(){ try{ return JSON.parse(localStorage.getItem('cousin_formations')||'{}'); }catch(e){ return {}; } })();
@@ -3173,12 +3202,13 @@ function formationDuree(page){
 }
 function formationCard(p){
   const sid=p.sid||p.id, ch=formationChapitres(p.page), lus=fluLus(sid);
-  const coul=themeCoul(p.theme), fini=ch.length>0 && lus.length>=ch.length;
-  const etapes = ch.length ? `<div class="fc-etapes">`+ch.map((t,i)=>{
+  const coul=themeCoul(p.theme), fini=lus.length>=Math.max(1,ch.length);
+  const lignes = ch.length ? ch : ['Marquer comme lue'];   // sans chapitres, une seule ligne
+  const etapes = `<div class="fc-etapes">`+lignes.map((t,i)=>{
       const fait=lus.indexOf(i)>=0;
       return `<button class="fc-et${fait?' faite':''}" onclick="fluToggle(event,'${sid}',${i})">
-        <i>${fait?'✓':(i+1)}</i><span>${esc(t)}</span></button>`;
-    }).join('')+`</div>` : '';
+        <i>${fait?'✓':(ch.length?i+1:'·')}</i><span>${esc(t)}</span></button>`;
+    }).join('')+`</div>`;
   const met = (p.metiers&&p.metiers.length) ? ' · '+p.metiers.join(' · ') : '';
   return `<div class="card fc" id="c-${p.id}">
     <div class="fc-tete" onclick="toggle('${p.id}')">
@@ -3188,6 +3218,8 @@ function formationCard(p){
     </div>
     ${p.desc?`<p class="fc-desc" onclick="toggle('${p.id}')">${esc(p.desc)}</p>`:''}
     ${etapes}
+    <button class="fc-tester" onclick="event.stopPropagation();seTester('${(p.theme||'').replace(/'/g,"\\'")}')">
+      ${icon('bulb')}<span>Se tester sur ce sujet</span></button>
     <div class="detail"><div class="detail-inner">
       ${p.page||'<div class="row" style="color:var(--muted)">Contenu à venir</div>'}
     </div></div>
@@ -3195,9 +3227,9 @@ function formationCard(p){
 }
 /* La jauge en tête de la page Formations : combien de formations terminées. */
 function formationsProgHTML(items){
-  const avecPlan=items.filter(p=>formationChapitres(p.page).length>0);
+  const avecPlan=items.filter(p=>!p.isGuide);       // toutes les formations, plan ou pas
   if(!avecPlan.length) return '';
-  const finies=avecPlan.filter(p=>fluLus(p.sid||p.id).length>=formationChapitres(p.page).length).length;
+  const finies=avecPlan.filter(p=>fluLus(p.sid||p.id).length>=Math.max(1,formationChapitres(p.page).length)).length;
   const pc=Math.round(finies/avecPlan.length*100);
   return `<div class="fc-jauge"><b>Ma progression</b> <em>— ${finies} formation${finies>1?'s':''} sur ${avecPlan.length} terminée${finies>1?'s':''}</em>
     <div class="b"><i style="width:${pc}%"></i></div></div>`;
@@ -4688,7 +4720,7 @@ function jxJouer(k, ter){
     return;
   }
   // par défaut : les questions classiques
-  JEU={type:'quiz',terrain,qs:jxQuestions(terrain,20),i:0,score:0,answered:false,picked:-1};
+  JEU={type:'quiz',terrain,qs:jxQuestions(terrain,60),i:0,score:0,answered:false,picked:-1};
   view="quiz"; render();
 }
 function jxDe(){
@@ -4951,10 +4983,17 @@ function jxHubHTML(){
 }
 /* Ce qu'on maîtrise, domaine par domaine — nourri par toutes les parties. */
 function jxProgHTML(){
+  /* Chaque ligne est jouable : on appuie, on rejoue ce domaine. À 100 %, on remet le
+     compteur à zéro avant de rejouer — sinon on ne saurait jamais si c'était de la chance. */
   const lignes=DOMAINES.filter(d=>d.reseau).map(d=>{
     const s=JXS.dom[d.key]; if(!s||!s.v) return '';
     const pc=Math.round(s.j/s.v*100);
-    return `<div class="jx-l"><span>${esc(d.short||d.label)}</span><div class="b"><i style="width:${pc}%;background:${tileColor(d.key)}"></i></div><div class="n">${pc}%</div></div>`;
+    const parfait = pc>=100;
+    return `<button class="jx-l${parfait?' parfait':''}" onclick="rejouerDomaine('${d.key}',${parfait})">
+      <span>${esc(d.short||d.label)}</span>
+      <div class="b"><i style="width:${pc}%;background:${tileColor(d.key)}"></i></div>
+      <div class="n">${pc}%</div>
+      <em>${parfait?'Refaire à zéro':'Rejouer'}</em></button>`;
   }).filter(Boolean).join('');
   const rec = [];
   if(JXS.rec.serie) rec.push(icon('jserie')+' série record : <b>'+JXS.rec.serie+'</b>');
@@ -4962,6 +5001,12 @@ function jxProgHTML(){
   return `<div class="jx-prog"><h4>Ce que je maîtrise</h4>
     ${lignes || '<div class="jx-vide">Rien encore : joue une partie et la barre se remplit, domaine par domaine.</div>'}
     ${rec.length?`<div class="jx-vide" style="margin-top:10px">${rec.join(' · ')}</div>`:''}</div>`;
+}
+/* Rejouer un domaine depuis « Ce que je maîtrise ». Si on y était à 100 %, on efface son
+   compteur d'abord : le nouveau pourcentage mesure alors vraiment la connaissance, pas la chance. */
+function rejouerDomaine(k, remiseAZero){
+  if(remiseAZero){ delete JXS.dom[k]; jxSave(); }
+  jxJouer('quiz', {t:'dom', k});
 }
 function jxRetourHub(){ return `<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openJeux()">← Retour aux jeux</button>`; }
 function jxEnTete(nom, ic){
