@@ -2851,7 +2851,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v332';
+const APP_VERSION = 'v333';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4545,9 +4545,14 @@ function profilHTML(){
       <div class="pf-tags">${badges}</div>
       ${(p.nom&&p.email)?`<div class="pf-mail">${esc(p.email)}</div>`:''}</div></div>`;
 
-  // Ma liste du jour : on montre l'avancement, pas seulement un bouton
+  /* Ma liste du jour : on montre l'avancement. ⚠ EN APERÇU, on compte la liste DU RÔLE
+     REGARDÉ, pas la sienne — sinon l'écran annonçait « 0/8 » à un rôle qui n'a aucune
+     liste, et l'aperçu mentait sur ce que la personne voit vraiment. */
   let total=0, faites=0;
-  CHECKLISTS.filter(g=>g.mienne || !MES_LISTES.length).forEach(g=>{
+  const LV=listesVues();
+  CHECKLISTS.filter(function(g){
+      return enApercu() ? (LV.indexOf(g.liste)>=0) : (g.mienne || !MES_LISTES.length);
+    }).forEach(g=>{
     total+=g.taches.length; faites+=g.taches.filter(t=>DONE[t.id]).length; });
   const pct = total ? Math.round(faites/total*100) : 0;
   // Carte blanche + anneau de progression (choix de Mag) : le chiffre est dans l'anneau,
@@ -4566,7 +4571,7 @@ function profilHTML(){
          <span class="pf-jour-tx"><b>Ma liste du jour</b>
            <i>${faites===total?'Tout est fait, bravo':(faites?`Il reste ${total-faites} tâche${total-faites>1?'s':''}`:'À commencer')}</i></span>
        </button>`
-    : `<div class="pf-empty pf-empty-s">${icon('list')}<p>Aucune check-list pour ton rôle.</p></div>`;
+    : `<div class="pf-empty pf-empty-s">${icon('list')}<p>${enApercu()?'Ce rôle n\'a aucune check-list.':'Aucune check-list pour ton rôle.'}</p></div>`;
 
   // Raccourcis, moins appuyés que l'action du jour
   const outils=`<div class="pf-outils">
