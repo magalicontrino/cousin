@@ -1000,6 +1000,20 @@ input, textarea, select{
   .pf-admin-badge{flex:0 0 auto; font-style:normal; font-size:11px; font-weight:900; background:#e63329;
     color:#f2eee6; border-radius:20px; padding:4px 9px; line-height:1}
   .adm-sec{margin-bottom:16px}
+  /* Le chantier : la liste de travail de Mag (cases à cocher + champ d'ajout) */
+  .ch-add{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px}
+  .ch-add input{flex:1 1 100%; min-width:0; border:1.5px solid var(--line); background:var(--card); border-radius:13px;
+    padding:11px 13px; font:inherit; font-size:14px; color:var(--ink)}
+  .ch-add input::placeholder{color:var(--faint)}
+  .ch-add select{flex:1 1 auto; border:1.5px solid var(--line); background:var(--card); border-radius:13px;
+    padding:10px 11px; font:inherit; font-size:12.5px; font-weight:700; color:var(--ink)}
+  .ch-l{display:flex; align-items:flex-start; gap:4px}
+  .ch-l .pf-task{flex:1 1 auto; min-width:0}
+  .ch-l.done .pf-txt{text-decoration:line-through; opacity:.55}
+  .ch-d{display:block; font-style:normal; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; line-height:1.35}
+  .ch-x{flex:0 0 auto; border:0; background:none; padding:9px 4px 0; cursor:pointer; color:var(--faint); line-height:0}
+  .ch-x svg, .ch-x .pico{width:15px; height:15px}
+  .ch-tete-print{display:none}
   /* Qui voit quoi : une ligne par rôle, un bouton par pavé */
   .acc-vues{display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#1b1b1b; color:var(--bg);
     border-radius:14px; padding:11px 13px; margin-bottom:12px}
@@ -1244,6 +1258,9 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-src{display:inline-flex; align-items:center; gap:6px; margin:8px 0 0 8px; font-size:12px; font-weight:700;
     color:#54514b; text-decoration:none; border-bottom:1.5px solid rgba(27,27,27,.15)}
   .ag-src svg, .ag-src .pico{width:13px; height:13px}
+  /* Les liens remontent sous le titre : ils ne portent plus la marge de gauche du bas de carte. */
+  .ag-liens{display:flex; flex-wrap:wrap; gap:4px 10px; margin:6px 0 2px}
+  .ag-liens .ag-src{margin:0}
   .ag-iti{display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#1b1b1b;
     background:#f3efe6; border-radius:9px; padding:7px 11px; text-decoration:none}
   .ag-doux{font-weight:600 !important; font-size:13.5px !important}
@@ -1257,6 +1274,21 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
      QR par sortie : le résident scanne et son itinéraire s'ouvre depuis le centre.
      Tout le reste de l'app disparaît. */
   @media print{
+    /* Le chantier sur papier : une colonne de cases vides, sans les boutons ni le champ d'ajout. */
+    .ch-add, .ch-x, .ch-sec .listbar{display:none !important}
+    .ch-tete-print{display:block !important; margin-bottom:12px; border-bottom:2px solid #000; padding-bottom:6px}
+    .ch-tete-print b{font-size:19px; font-weight:900; display:block; text-transform:uppercase}
+    .ch-tete-print span{font-size:10px; color:#444}
+    .ch-sec .adm-h{display:none !important}
+    .ch-sec .pf-list{break-inside:avoid; border:0 !important; padding:0 !important; margin-bottom:10px !important}
+    .ch-sec .pf-list-h{border-bottom:1px solid #000 !important; padding-bottom:2px !important; margin-bottom:5px !important}
+    .ch-sec .pf-list-t{font-size:11px !important; font-weight:900 !important; text-transform:uppercase}
+    .ch-sec .pf-task{break-inside:avoid; padding:3px 0 !important; border:0 !important}
+    .ch-sec .pf-txt{font-size:11px !important; line-height:1.3 !important}
+    .ch-sec .ch-d{font-size:9px !important; color:#444 !important}
+    .ch-sec .pf-box{border:1px solid #000 !important; border-radius:2px !important; background:none !important}
+    .ch-sec .pf-box svg, .ch-sec .pf-box .pico{display:none !important}
+    .ch-l.done .pf-txt{text-decoration:line-through !important}
     .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti, .ag-page .ag-discrets{display:none !important}
     .ag-page .ag-src{display:block !important; margin:3px 0 0 !important; font-size:8.5px !important; border:0 !important; color:#555 !important}
     .ag-tete-print{display:block !important; margin-bottom:10px; border-bottom:2px solid #1b1b1b; padding-bottom:6px}
@@ -2512,7 +2544,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v267';
+const APP_VERSION = 'v268';
 const SEED_VERSION = 63;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3803,6 +3835,12 @@ function submitFeedback(){
   document.getElementById('fbForm').style.display='none';
   document.getElementById('fbThanks').style.display='block';
   fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
+  // La même idée arrive AUSSI dans la boîte de l'Admin, d'où Mag la range dans le chantier.
+  // Le formulaire Google reste branché : rien ne se perd si la base ne répond pas.
+  try{
+    if(sb) sb.from('suggestions').insert({ texte:idee, equipe:equipe||null,
+      auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null });
+  }catch(e){}
 }
 
 /* La proposition n'est pas enregistrée sur l'appareil : elle part à l'équipe,
@@ -4532,6 +4570,136 @@ async function deleteFeedItem(id){
 
 /* ---------- Page Admin (réservée à Magali super-admin) : gérer l'équipe + demandes ---------- */
 let ADMIN={ members:[], requests:[] }, adminLoaded=false;
+/* LE CHANTIER : la liste de travail de Mag sur COUSIN (bugs, idées, ce qui reste à faire).
+   Elle seule la voit (RLS is_admin). Les suggestions de l'équipe arrivent dans la BOÎTE,
+   et se rangent d'un bouton dans le chantier. Table `chantier` + table `suggestions`. */
+let CHANTIER=[], BOITE=[], chantierCanal=null;
+const CH_BLOCS=['Bugs à corriger','Ça attend une phrase de toi','Ça attend tes collègues','À construire','Gardé pour plus tard'];
+let chBloc='Bugs à corriger';         // le bloc choisi dans le champ d'ajout
+let chFinis=false;                    // afficher ou non ce qui est déjà coché
+
+async function loadChantier(){
+  if(!sb) return;
+  try{
+    const { data } = await sb.from('chantier').select('id,bloc,titre,detail,ordre,fait,fait_le').order('ordre');
+    CHANTIER = data || [];
+  }catch(e){ CHANTIER=[]; }
+  try{
+    const { data } = await sb.from('suggestions').select('id,texte,equipe,auteur_nom,auteur_email,cree_le')
+                             .eq('traite',false).order('cree_le',{ascending:false});
+    BOITE = data || [];
+  }catch(e){ BOITE=[]; }
+}
+
+/* Temps réel : si je coche une ligne d'ici pendant qu'elle regarde sa page, ça bouge
+   chez elle sans recharger — et pareil entre son téléphone et son ordinateur. */
+function abonnerChantier(){
+  if(!sb || chantierCanal) return;
+  try{
+    chantierCanal = sb.channel('chantier-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'chantier' }, function(){
+        loadChantier().then(function(){ if(view==='admin') render(); });
+      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'suggestions' }, function(){
+        loadChantier().then(function(){ if(view==='admin') render(); });
+      })
+      .subscribe();
+  }catch(e){}
+}
+
+function chantierHTML(){
+  const total=CHANTIER.length, faits=CHANTIER.filter(function(l){ return l.fait; }).length;
+  const champ=`<div class="ch-add">
+      <input id="chTexte" type="text" placeholder="Un bug, une idée… et Entrée" autocomplete="off" onkeydown="if(event.key==='Enter')addChantier()">
+      <select id="chBloc" onchange="chBloc=this.value">${CH_BLOCS.map(function(b){
+        return `<option value="${esc(b)}"${b===chBloc?' selected':''}>${esc(b)}</option>`; }).join('')}</select>
+      <button class="adm-addbtn" onclick="addChantier()">Ajouter</button>
+    </div>`;
+  const blocs=CH_BLOCS.concat(
+      CHANTIER.map(function(l){ return l.bloc; }).filter(function(b){ return CH_BLOCS.indexOf(b)<0; })
+    ).filter(function(b,i,t){ return t.indexOf(b)===i; });
+  const corps=blocs.map(function(b){
+    const lignes=CHANTIER.filter(function(l){ return l.bloc===b && (chFinis || !l.fait); });
+    if(!lignes.length) return '';
+    const reste=CHANTIER.filter(function(l){ return l.bloc===b && !l.fait; }).length;
+    return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(b)}</span><span class="pf-prog">${reste}</span></div>
+      <div class="pf-tasks">`+lignes.map(function(l){
+        return `<div class="ch-l${l.fait?' done':''}">
+          <label class="pf-task${l.fait?' done':''}">
+            <input type="checkbox"${l.fait?' checked':''} onchange="toggleChantier(${l.id}, this)">
+            <span class="pf-box">${icon('check')}</span>
+            <span class="pf-txt">${esc(l.titre)}${l.detail?`<em class="ch-d">${esc(l.detail)}</em>`:''}</span>
+          </label>
+          <button class="ch-x" title="Retirer de la liste" onclick="delChantier(${l.id})">${icon('trash')}</button>
+        </div>`;
+      }).join('')+`</div></div>`;
+  }).join('');
+  const barre=`<div class="listbar"><div class="count">${total-faits} à faire${faits?` · ${faits} fait${faits>1?'s':''}`:''}</div>
+      <button class="print-btn" onclick="chFinis=!chFinis; render()">${icon('check')}<span>${chFinis?'Cacher les faits':'Voir les faits'}</span></button>
+      <button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`;
+  return `<div class="adm-sec ch-sec"><div class="adm-h">Le chantier — ta liste de travail</div>
+    <div class="ch-tete-print"><b>Le chantier COUSIN</b><span>${esc(new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'}))}</span></div>
+    ${champ}${barre}${corps||'<div class="adm-hint">Rien dans la liste pour l\'instant.</div>'}</div>`;
+}
+
+/* La boîte : ce que l'équipe envoie par « Une suggestion ? ». Un bouton la range dans le chantier. */
+function boiteHTML(){
+  if(!BOITE.length) return '';
+  return `<div class="adm-sec"><div class="adm-h">Boîte à idées (${BOITE.length})</div>`+
+    BOITE.map(function(s){
+      const qui=[s.auteur_nom||'', s.equipe||''].filter(Boolean).join(' · ') || s.auteur_email || 'Anonyme';
+      return `<div class="adm-req"><div class="adm-req-i"><b>${esc(qui)}</b><span>${esc(s.texte)}</span><em>${esc(quandFr(s.cree_le))}</em></div>
+        <div class="adm-req-a"><button class="adm-ok" onclick="boiteVersChantier(${s.id})">Mettre dans le chantier</button>
+        <button class="adm-no" onclick="rangerBoite(${s.id})">Ranger</button>
+        <button class="adm-del" title="Supprimer" onclick="supprimerBoite(${s.id})">${icon('trash')}</button></div></div>`;
+    }).join('')+`</div>`;
+}
+
+async function addChantier(){
+  const el=document.getElementById('chTexte'); if(!el) return;
+  const titre=(el.value||'').trim(); if(!titre){ el.focus(); return; }
+  const sel=document.getElementById('chBloc'); const bloc=sel? sel.value : chBloc;
+  el.value='';
+  try{
+    const { error } = await sb.from('chantier').insert({ titre, bloc, ordre:Date.now()%100000 });
+    if(error) throw error;
+    await loadChantier(); if(view==='admin') render();
+    cousinToast('Noté ✓');
+  }catch(e){ cousinToast("Pas enregistré : "+((e&&e.message)||'erreur')); }
+}
+async function toggleChantier(id, el){
+  const on=el.checked;
+  const l=CHANTIER.filter(function(x){ return x.id===id; })[0]; if(l){ l.fait=on; l.fait_le=on?new Date().toISOString():null; }
+  const row=el.closest('.ch-l'); if(row) row.classList.toggle('done', on);
+  try{ await sb.from('chantier').update({ fait:on, fait_le:on?new Date().toISOString():null }).eq('id',id); }
+  catch(e){ cousinToast('Pas enregistré'); }
+}
+async function delChantier(id){
+  const l=CHANTIER.filter(function(x){ return x.id===id; })[0];
+  cousinConfirm('Retirer « '+((l&&l.titre)||'cette ligne')+' » de la liste ?', async function(){
+    try{ await sb.from('chantier').delete().eq('id',id); await loadChantier(); if(view==='admin') render(); }
+    catch(e){ cousinToast('Impossible de retirer'); }
+  }, {ok:'Retirer', danger:true});
+}
+async function boiteVersChantier(id){
+  const s=BOITE.filter(function(x){ return x.id===id; })[0]; if(!s) return;
+  const qui=[s.auteur_nom||'', s.equipe||''].filter(Boolean).join(' · ');
+  try{
+    await sb.from('chantier').insert({ titre:s.texte, bloc:'À construire',
+      detail:'Suggestion'+(qui?' de '+qui:'')+' — '+quandFr(s.cree_le), ordre:Date.now()%100000 });
+    await sb.from('suggestions').update({ traite:true }).eq('id',id);
+    await loadChantier(); if(view==='admin') render();
+    cousinToast('Dans le chantier ✓');
+  }catch(e){ cousinToast("Pas enregistré : "+((e&&e.message)||'erreur')); }
+}
+async function rangerBoite(id){
+  try{ await sb.from('suggestions').update({ traite:true }).eq('id',id); await loadChantier(); if(view==='admin') render(); }catch(e){}
+}
+async function supprimerBoite(id){
+  cousinConfirm('Supprimer cette suggestion ?', async function(){
+    try{ await sb.from('suggestions').delete().eq('id',id); await loadChantier(); if(view==='admin') render(); }catch(e){}
+  }, {ok:'Supprimer', danger:true});
+}
 /* « TS » reste la valeur enregistrée dans la base ; à l'écran on écrit le métier en entier. */
 const ROLE_LABELS={'TS':"Travailleur(euse)s social(e)s"};
 function roleLabel(r){ return ROLE_LABELS[r] || r; }
@@ -4566,7 +4734,7 @@ function openAdmin(){
   view="admin"; query=""; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value="";
   render();
-  Promise.all([loadProfile(), loadAdmin()]).then(()=>{ if(view==="admin") render(); });
+  Promise.all([loadProfile(), loadAdmin(), loadChantier()]).then(()=>{ abonnerChantier(); if(view==="admin") render(); });
 }
 async function loadAdmin(){
   adminLoaded=false; ADMIN={ members:[], requests:[] };
@@ -4644,7 +4812,7 @@ function adminHTML(){
       return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(roleLabel(r))}</div>`;
     }).join('')+`</div>`;
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${filtres}${members}</div>`;
-  return `<div class="pf-wrap">${reqs}${add}${team}${accesHTML()}</div>`;
+  return `<div class="pf-wrap">${reqs}${boiteHTML()}${chantierHTML()}${add}${team}${accesHTML()}</div>`;
 }
 /* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
    l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
@@ -4893,11 +5061,12 @@ function agArt27HTML(){
     + f.map(function(p){
         const qr = p.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(p.adr),2)+'</div>' : '';
         // Comme sur la fiche : à qui ça s'adresse, et le lien vers le site du lieu.
-        const iti = (p.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(p.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '')
-                  + (p.site ? '<a class="ag-src" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(p.site)+'</a>' : '');
+        const liens = p.site ? '<a class="ag-src" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(p.site)+'</a>' : '';
+        const iti = p.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(p.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
         return '<div class="ag-e" style="border-left-color:#f5c542">'+qr
           +'<div class="ag-h"><b>'+esc(p.nom)+'</b><span class="ag-prix">Art. 27</span></div>'
           +(p.public?'<em>'+esc(p.public)+'</em>':'')
+          +(liens?'<div class="ag-liens">'+liens+'</div>':'')
           +(p.adr?'<span class="ag-adr">'+esc(p.adr)+'</span>':'')
           +'<p>'+esc(p.desc)+'</p>'+iti+'</div>';
       }).join('');
@@ -4914,12 +5083,14 @@ function agendaHTML(){
     html+='<div class="ag-jour proche">Chaque semaine</div>';
     hebdos.forEach(function(r){
       const qr = r.src ? '<div class="ag-qr">'+qrSVG(r.src)+'</div>' : '';
-      const iti = (r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '')
-                + (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
-              + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
+      // Le lien remonte JUSTE SOUS LE TITRE : c'est ce qu'on cherche en premier.
+      const liens = (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+                  + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
+      const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
       html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
         +'<div class="ag-h"><b>'+esc(r.titre)+'</b><span class="ag-prix">'+esc(r.prix)+'</span></div>'
         +'<em>'+esc(r.hebdo)+' · '+esc(r.lieu)+'</em>'
+        +(liens?'<div class="ag-liens">'+liens+'</div>':'')
         +(r.adr?'<span class="ag-adr">'+esc(r.adr)+'</span>':'')
         +'<p>'+esc(r.sous)+'</p>'+iti+'</div>';
     });
@@ -4929,13 +5100,14 @@ function agendaHTML(){
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
     const qr = e.r.src ? '<div class="ag-qr">'+qrSVG(e.r.src)+'</div>' : '';
-    const iti = (e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '')
-              + (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
-              + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
+    const liens = (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+                + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
+    const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
       +qr
       +'<div class="ag-h"><b>'+esc(e.r.titre)+'</b><span class="ag-prix">'+esc(e.r.prix)+'</span></div>'
       +'<em>'+esc(e.r.lieu)+'</em>'
+      +(liens?'<div class="ag-liens">'+liens+'</div>':'')
       +(e.r.adr?'<span class="ag-adr">'+esc(e.r.adr)+'</span>':'')
       +'<p>'+esc(e.r.sous)+'</p>'+iti+'</div>';
   });
