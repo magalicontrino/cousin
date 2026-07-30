@@ -1005,6 +1005,22 @@ input, textarea, select{
   .pf-admin-badge{flex:0 0 auto; font-style:normal; font-size:11px; font-weight:900; background:#e63329;
     color:#f2eee6; border-radius:20px; padding:4px 9px; line-height:1}
   .adm-sec{margin-bottom:16px}
+  /* Le plan des accès : un étage par niveau, du plus large au plus restreint */
+  .plan-e{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:11px 13px; margin-bottom:7px}
+  .plan-e.fort{background:#1b1b1b; border-color:transparent}
+  .plan-t{flex:1 1 auto; min-width:0}
+  .plan-t b{display:block; font-size:13px; font-weight:800; line-height:1.3}
+  .plan-t span{display:block; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; line-height:1.35}
+  .plan-e.fort .plan-t b{color:var(--bg)}
+  .plan-e.fort .plan-t span{color:rgba(242,238,230,.62)}
+  .plan-b{flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:900; text-transform:uppercase;
+    letter-spacing:.03em; background:var(--soft); color:var(--muted); border-radius:20px; padding:4px 9px}
+  .plan-e.fort .plan-b{background:var(--gold); color:#1b1b1b}
+  .plan-stop{display:flex; align-items:center; gap:8px; margin:9px 2px 11px; padding-bottom:9px;
+    border-bottom:2px dashed var(--danger)}
+  .plan-stop span{font-size:11.5px; font-weight:700; color:var(--danger); line-height:1.3}
+  .plan-stop svg, .plan-stop .pico{width:15px; height:15px; color:var(--danger); flex:0 0 auto}
   /* Le chantier : la liste de travail de Mag (cases à cocher + champ d'ajout) */
   .ch-add{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px}
   .ch-add input{flex:1 1 100%; min-width:0; border:1.5px solid var(--line); background:var(--card); border-radius:13px;
@@ -2656,7 +2672,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v291';
+const APP_VERSION = 'v292';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5063,7 +5079,7 @@ function adminHTML(){
   const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('list')}
     <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
     ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
-  return `<div class="pf-wrap">${reqs}${versChantier}${add}${team}${accesHTML()}</div>`;
+  return `<div class="pf-wrap">${reqs}${versChantier}${planAccesHTML()}${add}${team}${accesHTML()}</div>`;
 }
 /* Les six pavés de l'accueil, réglables rôle par rôle. Les PFO, la coordination et
    l'administratrice voient tout, quoi qu'il arrive : ce n'est pas réglable ici. */
@@ -5072,6 +5088,40 @@ const PAVES_NOMS={reseau:'Réseau', demarches:'Démarches', formations:'Formatio
 function pavesDuRole(role){
   if(ACCES_ROLES && ACCES_ROLES[role]) return ACCES_ROLES[role];
   return ROLES_PRO.indexOf(role)>=0 ? PAVES_TOUS.slice() : PAVES_SIMPLE.slice();
+}
+/* LE PLAN DES ACCÈS, calculé sur les vrais réglages — pas un dessin figé.
+   Du plus large au plus restreint, avec la ligne où l'Admin s'arrête. C'est l'écran
+   qui permet de VÉRIFIER d'un coup d'œil que personne ne voit ce qu'il ne doit pas. */
+function planAccesHTML(){
+  const admins=(ADMIN.members||[]).filter(function(m){ return m.admin; });
+  const pfos=(ADMIN.members||[]).filter(function(m){ return m.pfo && !m.admin; });
+  const nomsCourts=function(l){
+    if(!l.length) return 'personne';
+    return l.map(function(m){ return (m.nom||m.email||'').split(' ')[0] || m.email; }).join(', ');
+  };
+  // On regroupe les rôles qui voient exactement la même chose.
+  const paquets=[];
+  ROLE_OPTS.forEach(function(r){
+    const pv=pavesDuRole(r).slice().sort();
+    const cle=pv.join('|');
+    let q=paquets.filter(function(x){ return x.cle===cle; })[0];
+    if(!q){ q={cle:cle, n:pv.length, roles:[], noms:pv.map(function(k){ return PAVES_NOMS[k]||k; })}; paquets.push(q); }
+    q.roles.push(roleLabel(r));
+  });
+  paquets.sort(function(a,b){ return b.n-a.n; });
+  const etage=function(titre, sous, badge, fort){
+    return '<div class="plan-e'+(fort?' fort':'')+'"><div class="plan-t"><b>'+esc(titre)+'</b><span>'+esc(sous)+'</span></div>'
+         + '<em class="plan-b">'+esc(badge)+'</em></div>';
+  };
+  let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — du plus large au plus restreint</div>';
+  html+=etage('Toi — admin'+(admins.length>1? ' ('+nomsCourts(admins)+')':''), 'Tout, sans exception', '6 pavés + admin', true);
+  html+='<div class="plan-stop">'+icon('cle')+'<span>L\'accès à l\'Admin s\'arrête ici — personne d\'autre ne l\'ouvre</span></div>';
+  if(pfos.length) html+=etage('PFO — '+nomsCourts(pfos), 'Toutes les check-lists', '6 pavés');
+  paquets.forEach(function(q){
+    html+=etage(q.roles.join(' · '), q.noms.join(', ')||'aucun pavé', q.n+' pavé'+(q.n>1?'s':''));
+  });
+  html+='<div class="adm-hint" style="margin-top:8px">Calculé sur les réglages du moment : si tu ouvres ou fermes un pavé plus bas, ce plan bouge avec.</div></div>';
+  return html;
 }
 function accesHTML(){
   const lignes=ROLE_OPTS.map(function(role){
