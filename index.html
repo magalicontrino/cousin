@@ -1240,6 +1240,10 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .jx-vrai{background:#c9e7d5; color:#1f5c38}
   .jx-faux{background:#f3b4ad; color:#8a2318}
   /* Progression */
+  .eq-carte{background:#1b1b1b; color:#f2eee6; border-radius:20px; padding:26px 18px; text-align:center; margin-bottom:12px}
+  .eq-gros{font-size:64px; font-weight:900; line-height:1; color:var(--gold); letter-spacing:-.03em}
+  .eq-sous{font-size:13.5px; font-weight:500; color:#c3bcae; margin-top:8px}
+  .pourq{font-size:12.5px; color:var(--muted); font-weight:400; line-height:1.5; margin:12px 2px 0}
   .jx-prog{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px 15px; margin-top:12px}
   .jx-prog h4{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:0 0 11px}
   .jx-l{display:flex; align-items:center; gap:10px; margin-bottom:9px}
@@ -2381,7 +2385,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v209';
+const APP_VERSION = 'v210';
 const SEED_VERSION = 58;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4545,7 +4549,8 @@ const JEUX = [
   {k:'qui',    ic:'jenquete', nom:'Qui suis-je ?',       c:'#fd8fd0', p:'Trois indices, à toi de trouver', regle:"Les indices tombent un par un. Plus tu trouves tôt, plus tu marques."},
   {k:'vf',     ic:'jcible', nom:'Vrai ou faux',        c:'#f3c6da', p:"Deux boutons, c'est tout",        regle:"Une affirmation, deux boutons. La correction arrive avec la fiche."},
   {k:'jour',   ic:'jjour', nom:'La question du jour', c:'#b28b7a', p:"Une par jour, pour tout le monde", regle:"Une seule question, la même pour toute l'équipe, qui change à minuit."},
-  {k:'duel',   ic:'jduel', nom:'Le duel',             c:'#1b1b1b', p:'Jour contre Nuit', sombre:true,    regle:"Deux camps, les scores s'additionnent sur la semaine. Il me faut la base partagée pour compter les points : c'est le prochain que je construis."}
+  {k:'equipe', ic:'social', nom:'L\'équipe cette semaine', c:'#1b1b1b', p:'Un score commun, personne contre personne', sombre:true,
+   regle:"Chaque bonne réponse de chacun s'ajoute au compteur de l'équipe. Il n'y a pas d'adversaire et pas de classement : on regarde ensemble ce que l'équipe a appris cette semaine."}
 ];
 
 /* Ce qu'on garde d'une partie à l'autre : les records et ce qu'on maîtrise par domaine. */
@@ -4555,10 +4560,46 @@ var JXS = (function(){
 })();
 function jxSave(){ try{ localStorage.setItem('cousin_jeux', JSON.stringify(JXS)); }catch(e){} }
 function jxNote(src, juste){
+  jxNoteSemaine(juste);            // le compteur de l'équipe, toutes parties confondues
   const p = src ? data.find(x=>x.id===src) : null;
   if(!p) return;
   const d = JXS.dom[p.domaine] || (JXS.dom[p.domaine]={v:0,j:0});
   d.v++; if(juste) d.j++; jxSave();
+}
+/* Le lundi de la semaine en cours : c'est la borne du compteur d'équipe. */
+function semaineLundi(){
+  const d=new Date(); const j=(d.getDay()+6)%7; d.setDate(d.getDate()-j);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* Chaque réponse nourrit le compteur de la semaine : le mien sur le téléphone, et
+   celui de l'équipe dans la base partagée (si la table existe — sinon on n'affiche
+   que le mien, sans rien casser). */
+function jxNoteSemaine(juste){
+  const l=semaineLundi();
+  if(!JXS.sem || JXS.sem.lundi!==l) JXS.sem={lundi:l, justes:0, total:0};
+  JXS.sem.total++; if(juste) JXS.sem.justes++;
+  jxSave(); jxPousserScore();
+}
+let _pousseEnCours=false;
+async function jxPousserScore(){
+  if(!sb || !PROFILE || _pousseEnCours) return;
+  _pousseEnCours=true;
+  try{
+    await sb.from('jeux_semaine').upsert(
+      { user_id:PROFILE.uid, lundi:JXS.sem.lundi, justes:JXS.sem.justes, total:JXS.sem.total },
+      { onConflict:'user_id,lundi' });
+  }catch(e){ /* table pas encore créée : on reste en local */ }
+  _pousseEnCours=false;
+}
+async function jxLireEquipe(){
+  if(!JEU || JEU.type!=='equipe') return;
+  if(!sb){ JEU.equipe='hors-ligne'; render(); return; }
+  try{
+    const { data, error } = await sb.from('jeux_semaine').select('justes,total,user_id').eq('lundi',semaineLundi());
+    if(error) throw error;
+    JEU.equipe = { justes:data.reduce((n,r)=>n+(r.justes||0),0), total:data.reduce((n,r)=>n+(r.total||0),0), gens:data.length };
+  }catch(e){ JEU.equipe='absente'; }
+  render();
 }
 function jxRecord(cle, valeur){
   if((JXS.rec[cle]||0) < valeur){ JXS.rec[cle]=valeur; jxSave(); return true; }
@@ -4604,7 +4645,7 @@ function jxQuestions(ter, n){
 function jxJouer(k, ter){
   const type = k || JXCHOIX.jeu, terrain = ter || JXCHOIX.terrain;
   jxStop();
-  if(type==='duel'){ cousinToast('Le duel arrive — il me faut la base partagée pour compter les points'); return; }
+  if(type==='equipe'){ JEU={type:'equipe',terrain:terrain||{t:'tout'},equipe:null}; view="quiz"; render(); jxLireEquipe(); return; }
   if(type==='roue'){ JEU={type,terrain,phase:'roue',angle:0,tourne:false}; view="quiz"; render(); return; }
   if(type==='qui'){ JEU={type,terrain,items:jxQuiItems(terrain,12),i:0,niveau:1,score:0,answered:false,picked:-1}; view="quiz"; render(); return; }
   if(type==='vf'){ JEU={type,terrain,items:jxVfItems(terrain,14),i:0,score:0,answered:false,picked:null}; view="quiz"; render(); return; }
@@ -4624,7 +4665,7 @@ function jxJouer(k, ter){
   view="quiz"; render();
 }
 function jxDe(){
-  const j=JEUX.filter(x=>x.k!=='duel'), tous=DOMAINES.filter(d=>d.reseau);
+  const j=JEUX.filter(x=>x.k!=='equipe'), tous=DOMAINES.filter(d=>d.reseau);
   const jeu=j[Math.floor(Math.random()*j.length)];
   const d=tous[Math.floor(Math.random()*tous.length)];
   cousinToast(jeu.nom+' · '+d.label);
@@ -4906,6 +4947,24 @@ function jxOptsHTML(Q, fn){
 }
 function jxJeuHTML(){
   const T=JEU.type;
+
+  if(T==='equipe'){
+    const moi=(JXS.sem && JXS.sem.lundi===semaineLundi()) ? JXS.sem : {justes:0,total:0};
+    const e=JEU.equipe;
+    let bloc;
+    if(e===null) bloc = `<div class="jx-vide">Je compte…</div>`;
+    else if(e==='hors-ligne') bloc = `<div class="jx-vide">Hors ligne — je ne peux pas lire le compteur de l'équipe. Le tien est juste en dessous.</div>`;
+    else if(e==='absente') bloc = `<div class="jx-vide">Le compteur partagé n'est pas encore branché : il attend une table dans la base. En attendant, voilà le tien.</div>`;
+    else bloc = `<div class="eq-gros">${e.justes}</div>
+      <div class="eq-sous">bonne${e.justes>1?'s':''} réponse${e.justes>1?'s':''} cette semaine, à ${e.gens>1?e.gens+' ':''}${e.gens>1?'':'une personne'}${e.gens>1?'personnes':''}</div>`;
+    return `<div class="pf-wrap">
+      <div class="quiz-top"><span>L'équipe cette semaine</span><span>depuis lundi</span></div>
+      <div class="eq-carte">${bloc}</div>
+      <div class="jx-bar"><span class="gros">${icon('check')}</span><span><b>Toi : ${moi.justes} bonne${moi.justes>1?'s':''}</b><em>sur ${moi.total} question${moi.total>1?'s':''} jouées cette semaine</em></span></div>
+      <div class="pourq">Pas de classement, pas de comparaison entre collègues : un seul chiffre, celui de l'équipe. Il repart à zéro chaque lundi.</div>
+      <button class="quiz-next" onclick="jxJouer('quiz',{t:'tout'})">Ajouter des points — jouer maintenant</button>
+      ${jxRetourHub()}</div>`;
+  }
 
   if(T==='roue'){
     const tous=DOMAINES.filter(d=>d.reseau).slice(0,8);
