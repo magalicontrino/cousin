@@ -174,6 +174,8 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .pico{display:inline-block; flex:0 0 auto; width:24px; height:24px; background-color:currentColor;
     -webkit-mask-position:center; mask-position:center; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
     -webkit-mask-size:contain; mask-size:contain}
+  /* Variante en image : mêmes tailles que .pico, mais on ne masque ni ne recolore rien. */
+  .picoc{background-color:transparent; -webkit-mask-image:none; mask-image:none; object-fit:contain}
   /* Le « O » du titre : anneau orange (picto de Magali) + point sombre au centre */
   /* Le O est décalé vers la droite : le « I » qui suit a une marge propre dans la police,
      donc à écart égal le rond paraissait collé au « U ». */
@@ -1362,13 +1364,18 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
               juridique:'juridique.svg', addictions:'addictions.svg',
               planning:'planning.svg', accomp:'accompagnement.svg',
               social:'social.svg'};
+/* Pictos MULTICOLORES : le masque CSS ne sait porter qu'une seule couleur, donc ceux-là
+   sont posés en image et gardent leurs vraies teintes (l'arc-en-ciel a 7 couleurs). */
+const PICTOS_COUL={rainbow:'lgbtqi.svg'};
 function icon(name,extra){
+  const t=/width="(\d+)"/.exec(extra||''), h=/height="(\d+)"/.exec(extra||'');
+  const taille = t ? `width:${t[1]}px;height:${(h?h[1]:t[1])}px;` : '';
+  // On garde la classe demandée (ex. .pf-out-lien) : c'est elle qui règle la taille au cas par cas.
+  const cl=/class="([^"]*)"/.exec(extra||'');
+  const c=PICTOS_COUL[name];
+  if(c) return `<img class="pico picoc${cl?' '+cl[1]:''}" src="picto/${c}" alt="" style="${taille}">`;
   const f=PICTOS[name];
   if(f){
-    const t=/width="(\d+)"/.exec(extra||''), h=/height="(\d+)"/.exec(extra||'');
-    const taille = t ? `width:${t[1]}px;height:${(h?h[1]:t[1])}px;` : '';
-    // On garde la classe demandée (ex. .pf-out-lien) : c'est elle qui règle la taille au cas par cas.
-    const cl=/class="([^"]*)"/.exec(extra||'');
     return `<span class="pico${cl?' '+cl[1]:''}" style="${taille}-webkit-mask-image:url('picto/${f}');mask-image:url('picto/${f}')"></span>`;
   }
   return `<svg viewBox="0 0 24 24" fill="currentColor"${extra?' '+extra:''}>${ICONS[name]||''}</svg>`;
@@ -2137,7 +2144,7 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v192';
+const APP_VERSION = 'v193';
 const SEED_VERSION = 53;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
