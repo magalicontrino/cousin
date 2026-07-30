@@ -1343,7 +1343,9 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     padding:10px 0 6px; border-bottom:1px solid var(--line); margin-bottom:4px}
   .a27-l{display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 8px; padding:6px 0; border-bottom:1px solid var(--soft)}
   .a27-l:last-child{border-bottom:0}
-  .a27-l b{font-size:13px; font-weight:700; flex:1 1 auto; min-width:0; line-height:1.25}
+  .a27-l b, .a27-n{font-size:13px; font-weight:700; flex:1 1 auto; min-width:0; line-height:1.25}
+  .a27-n{color:var(--ink); text-decoration:none; display:inline-flex; align-items:baseline; gap:5px}
+  .a27-fl{width:11px; height:11px; color:var(--faint); flex:0 0 auto}
   .a27-t{font-style:normal; font-size:10px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
     padding:2px 7px; border-radius:20px; background:var(--soft); color:var(--muted); flex:0 0 auto}
   .a27-t.musee{background:#f9dce8; color:#8a3a5c}
@@ -1398,6 +1400,9 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     .ch-sec .pf-box svg, .ch-sec .pf-box .pico{display:none !important}
     .cha-l.done .pf-txt{text-decoration:line-through !important}
     .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti, .ag-page .ag-discrets{display:none !important}
+    .a27-fl{display:none !important}
+    .a27-n{color:#000 !important}
+    .ag-adr, .a27-tel{color:#000 !important}
     .ag-page .ag-src{display:block !important; margin:3px 0 0 !important; font-size:8.5px !important; border:0 !important; color:#555 !important}
     .ag-tete-print{display:block !important; margin-bottom:10px; border-bottom:2px solid #1b1b1b; padding-bottom:6px}
     .ag-tete-print b{font-size:19px; font-weight:900; display:block}
@@ -2718,7 +2723,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v304';
+const APP_VERSION = 'v305';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5810,7 +5815,9 @@ function art27LieuxHTML(){
     + ART27_LIEUX.map(function(g){
         return '<div class="a27-c"><div class="a27-com">'+esc(g.commune)+'</div>'
           + g.lieux.map(function(l){
-              return '<div class="a27-l"><b>'+esc(l.n)+'</b>'
+              const dest = l.n+', '+g.commune.replace(/^[0-9]+ · /,'')+', Bruxelles';
+              return '<div class="a27-l"><a class="a27-n" href="'+esc(itineraireURL(dest))+'" target="_blank" rel="noopener">'
+                   + esc(l.n)+icon('lien','class="a27-fl"')+'</a>'
                 + '<em class="a27-t '+esc(l.t)+'">'+esc(ART27_TYPES[l.t]||'')+'</em>'
                 + (l.tel? '<a class="a27-tel" href="tel:'+esc(l.tel.replace(/[^0-9+]/g,''))+'">'+esc(l.tel)+'</a>' : '')
                 + '</div>';
@@ -5841,7 +5848,7 @@ function agendaHTML(){
       const liens = r.annuaire ? '' :
                     (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.srct||'Le site du lieu')+'</a>' : '')
                   + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
-      const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
+      const iti = '<a class="ag-iti" href="'+esc(itineraireURL(r.adr || (r.titre+', Bruxelles')))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>';
       html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
         +'<div class="ag-h"><b>'+esc(r.titre)+'</b><span class="ag-prix">'+esc(r.prix)+'</span></div>'
         +'<em>'+esc(r.hebdo)+' · '+esc(r.lieu)+'</em>'
@@ -5858,7 +5865,7 @@ function agendaHTML(){
     const liens = e.r.annuaire ? '' :
                   (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.srct||'Le site du lieu')+'</a>' : '')
                 + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
-    const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
+    const iti = '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr || (e.r.titre+', '+(e.r.lieu||'Bruxelles'))))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>';
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
       +qr
       +'<div class="ag-h"><b>'+esc(e.r.titre)+'</b><span class="ag-prix">'+esc(e.r.prix)+'</span></div>'
