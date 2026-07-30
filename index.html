@@ -1205,6 +1205,11 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .jx-t:active{transform:scale(.985)}
   .jx-t.on{outline:3px solid #1b1b1b; outline-offset:2px}
   /* Le terrain, déplié sous l'étagère */
+  .jx-cap{border-radius:18px; padding:20px 18px 18px; text-align:center; margin-bottom:12px}
+  .jx-cap-ic{display:block; line-height:0; margin-bottom:12px}
+  .jx-cap-ic svg, .jx-cap-ic .pico{width:64px; height:64px; display:inline-block}
+  .jx-cap b{display:block; font-size:21px; font-weight:800; letter-spacing:-.02em}
+  .jx-cap em{font-style:normal; font-size:13px; font-weight:500; opacity:.8}
   .jx-ter{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px 15px; margin-top:11px}
   .jx-ter .rg{font-size:12.5px; color:var(--muted); font-weight:400; margin:0 0 13px; line-height:1.45}
   .jx-ter h4{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:0 0 8px}
@@ -2413,7 +2418,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v226';
+const APP_VERSION = 'v227';
 const SEED_VERSION = 58;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2573,6 +2578,7 @@ function updateFavBadge(){
    (l'endroit d'où on y entre) ; partout ailleurs → l'accueil. */
 function retour(){
   if(view==='quiz' && JEU){ openJeux(); return; }
+  if(view==='quiz' && JXCHOIX.jeu){ jxChoisirJeu(null); return; }
   if(view==='quiz'){ openDomaine('formations'); return; }
   goHome();
 }
@@ -4671,7 +4677,7 @@ var JXTIMER = null;
 
 function openJeux(){ view="quiz"; JEU=null; JXCHOIX={jeu:null,terrain:{t:'tout'}}; jxStop(); render(); }
 function jxStop(){ if(JXTIMER){ clearInterval(JXTIMER); JXTIMER=null; } }
-function jxChoisirJeu(k){ JXCHOIX.jeu = (JXCHOIX.jeu===k?null:k); JXCHOIX.terrain={t:'tout'}; render(); }
+function jxChoisirJeu(k){ JXCHOIX.jeu = k || null; JXCHOIX.terrain={t:'tout'}; render(); }
 function jxTerrain(t,k){ JXCHOIX.terrain={t,k}; render(); }
 
 /* Le terrain devient une liste de domaines (ou rien = tout le réseau). */
@@ -4955,15 +4961,31 @@ function quizVoirFicheAilleurs(id){
 
 /* ═══ L'affichage de la salle de jeux ═══ */
 function jxHubHTML(){
-  const shelf = JEUX.map(j=>`<button class="jx-t${j.sombre?' sombre':''}${JXCHOIX.jeu===j.k?' on':''}" style="background:${j.c}" onclick="jxChoisirJeu('${j.k}')">
+  /* Un jeu choisi = on ENTRE dans sa page : son dessin en grand, sa règle, puis le
+     terrain. Avant, le panneau se dépliait sous l'étagère et on ne voyait pas où on était. */
+  if(JXCHOIX.jeu) return jxPresentationHTML();
+  const shelf = JEUX.map(j=>`<button class="jx-t${j.sombre?' sombre':''}" style="background:${j.c}" onclick="jxChoisirJeu('${j.k}')">
       <b>${esc(j.nom)}</b><span class="ic">${icon(j.ic)}</span></button>`).join('');
-  let ter='';
-  if(JXCHOIX.jeu){
+  return `<div class="pf-wrap">
+    <button class="jx-de" id="jxDe" onclick="this.classList.add('roule');jxDe()">
+      <span class="d">${icon('de')}</span><span><b>Surprends-moi</b><em>Un jeu au hasard, un terrain au hasard. Zéro décision.</em></span></button>
+    <div class="jx-shelf">${shelf}</div>
+    ${jxProgHTML()}
+  </div>`;
+}
+function jxPresentationHTML(){
+  {
     const j=JEUX.find(x=>x.k===JXCHOIX.jeu), T=JXCHOIX.terrain;
     const o=(t,k,ic,titre,sous)=>`<button class="jx-o${(T.t===t&&T.k===k)?' on':''}" onclick="jxTerrain('${t}'${k?",'"+k.replace(/'/g,"\\'")+"'":''})"><i>${ic}</i><span>${esc(titre)}<em>${esc(sous)}</em></span></button>`;
     const mets = METIERS_JEU.map(m=>`<button class="jx-p${(T.t==='met'&&T.k===m.k)?' on':''}" style="background:${m.c}" onclick="jxTerrain('met','${m.k}')">${esc(m.k)}</button>`).join('');
     const doms = DOMAINES.filter(d=>d.reseau).map(d=>`<button class="jx-p${(T.t==='dom'&&T.k===d.key)?' on':''}" style="background:${tileColor(d.key)}" onclick="jxTerrain('dom','${d.key}')">${esc(d.short||d.label)}</button>`).join('');
-    ter=`<div class="jx-ter">
+    return `<div class="pf-wrap">
+      <div class="jx-cap" style="background:${j.c};color:${j.sombre?'#f2eee6':'#1b1b1b'}">
+        <span class="jx-cap-ic">${icon(j.ic)}</span>
+        <b>${esc(j.nom)}</b>
+        <em>${esc(j.p)}</em>
+      </div>
+      <div class="jx-ter">
       <p class="rg">${esc(j.regle)}</p>
       <h4>Sur quoi tu joues ?</h4>
       <div class="jx-opts">
@@ -4975,15 +4997,10 @@ function jxHubHTML(){
       ${T.t==='met'?`<div class="jx-puces">${mets}</div>`:''}
       ${T.t==='dom'?`<div class="jx-puces">${doms}</div>`:''}
       <button class="jx-go" onclick="jxJouer()" ${((T.t==='met'||T.t==='dom')&&!T.k)?'disabled':''}>C'est parti — ${esc(jxNomTerrain(T))}</button>
+      </div>
+      <button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="jxChoisirJeu(null)">← Tous les jeux</button>
     </div>`;
   }
-  return `<div class="pf-wrap">
-    <button class="jx-de" id="jxDe" onclick="this.classList.add('roule');jxDe()">
-      <span class="d">${icon('de')}</span><span><b>Surprends-moi</b><em>Un jeu au hasard, un terrain au hasard. Zéro décision.</em></span></button>
-    <div class="jx-shelf">${shelf}</div>
-    ${ter}
-    ${jxProgHTML()}
-  </div>`;
 }
 /* Ce qu'on maîtrise, domaine par domaine — nourri par toutes les parties. */
 function jxProgHTML(){
