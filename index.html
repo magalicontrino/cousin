@@ -1016,8 +1016,11 @@ input, textarea, select{
   .ch-l .pf-task{flex:1 1 auto; min-width:0}
   .ch-l.done .pf-txt{text-decoration:line-through; opacity:.55}
   .ch-d{display:block; font-style:normal; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; line-height:1.35}
-  .ch-x{flex:0 0 auto; border:0; background:none; padding:9px 4px 0; cursor:pointer; color:var(--faint); line-height:0}
-  .ch-x svg, .ch-x .pico{width:15px; height:15px}
+  .ch-x{flex:0 0 auto; border:0; background:none; cursor:pointer; color:var(--faint);
+    display:flex; align-items:center; justify-content:center; width:46px; height:46px; margin-top:2px;
+    border-radius:12px; -webkit-tap-highlight-color:transparent}
+  .ch-x:active{background:var(--soft); color:var(--danger)}
+  .ch-x svg, .ch-x .pico{width:18px; height:18px}
   .ch-tete-print{display:none}
   /* Qui voit quoi : une ligne par rôle, un bouton par pavé */
   .acc-vues{display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#1b1b1b; color:var(--bg);
@@ -2586,7 +2589,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v283';
+const APP_VERSION = 'v284';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4794,12 +4797,20 @@ async function toggleChantier(id, el){
   try{ await sb.from('chantier').update({ fait:on, fait_le:on?new Date().toISOString():null }).eq('id',id); }
   catch(e){ cousinToast('Pas enregistré'); }
 }
+/* Pas de fenêtre de confirmation ici : c'est sa liste de travail à elle, et sur téléphone
+   la fenêtre passait inaperçue — on avait l'impression que la corbeille ne marchait pas.
+   La ligne part tout de suite, et le message dit ce qui a été retiré. */
 async function delChantier(id){
   const l=CHANTIER.filter(function(x){ return x.id===id; })[0];
-  cousinConfirm('Retirer « '+((l&&l.titre)||'cette ligne')+' » de la liste ?', async function(){
-    try{ await sb.from('chantier').delete().eq('id',id); await loadChantier(); if(view==='admin') render(); }
-    catch(e){ cousinToast('Impossible de retirer'); }
-  }, {ok:'Retirer', danger:true});
+  const nom=(l&&l.titre)||'la ligne';
+  try{
+    const { error } = await sb.from('chantier').delete().eq('id',id);
+    if(error) throw error;
+    CHANTIER=CHANTIER.filter(function(x){ return x.id!==id; });
+    render();
+    cousinToast('Retiré : '+(nom.length>34? nom.slice(0,34)+'…' : nom));
+    await loadChantier(); render();
+  }catch(e){ cousinToast('Impossible de retirer : '+((e&&e.message)||'erreur')); }
 }
 async function boiteVersChantier(id){
   const s=BOITE.filter(function(x){ return x.id===id; })[0]; if(!s) return;
