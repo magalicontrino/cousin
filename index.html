@@ -1241,8 +1241,12 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-discret.on{background:#1b1b1b; color:#f2eee6; border-radius:999px; opacity:1}
   .ag-discret.on svg, .ag-discret.on .pico{color:var(--gold)}
   .ag-adr{display:block; font-size:11.5px; color:var(--muted); font-weight:500; margin-top:2px}
+  .ag-src{display:inline-flex; align-items:center; gap:6px; margin:8px 0 0 8px; font-size:12px; font-weight:700;
+    color:#54514b; text-decoration:none; border-bottom:1.5px solid rgba(27,27,27,.15)}
+  .ag-src svg, .ag-src .pico{width:13px; height:13px}
   .ag-iti{display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#1b1b1b;
     background:#f3efe6; border-radius:9px; padding:7px 11px; text-decoration:none}
+  .ag-doux{font-weight:600 !important; font-size:13.5px !important}
   .ag-print{width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 16px;
     padding:13px; border:0; border-radius:13px; background:#1b1b1b; color:#f2eee6; font-family:inherit;
     font-size:14px; font-weight:700; cursor:pointer}
@@ -1253,7 +1257,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
      QR par sortie : le résident scanne et son itinéraire s'ouvre depuis le centre.
      Tout le reste de l'app disparaît. */
   @media print{
-    .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti{display:none !important}
+    .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti, .ag-page .ag-discrets{display:none !important}
+    .ag-page .ag-src{display:block !important; margin:3px 0 0 !important; font-size:8.5px !important; border:0 !important; color:#555 !important}
     .ag-tete-print{display:block !important; margin-bottom:10px; border-bottom:2px solid #1b1b1b; padding-bottom:6px}
     .ag-tete-print b{font-size:19px; font-weight:900; display:block}
     .ag-tete-print span{font-size:10px; color:#444}
@@ -1723,7 +1728,7 @@ const SAMPLE = [
   tags(d("culture","Musées gratuits — le 1er dimanche du mois","Régional / Toutes communes",
     "Une vingtaine de musées bruxellois ouvrent gratuitement, sans ticket ni réservation, le premier dimanche de chaque mois.",
     "Tout public, sans condition","","","brusselsmuseums.be","","Le 1er dimanche du mois, aux heures d'ouverture de chaque musée",
-    "À BRUXELLES-VILLE : Art & marges, BELEXPO, Cinematek, Design Museum Brussels, GardeRobe MannekenPis, Maison du Roi (Musée de la Ville), Musée belge de la Franc-Maçonnerie, Musée BELvue, Musée des Égouts, Musée juif de Belgique, Musée Mode & Dentelle.\nAILLEURS : Maison d'Érasme et Béguinage (ANDERLECHT — le plus proche du centre), Musée Horta (Saint-Gilles), Musée d'Art spontané (Schaerbeek), La Fonderie · Momuse · Musée de la médecine ULB (Molenbeek), Wittockiana (Woluwe-Saint-Pierre).\n\nLa liste bouge d'une année à l'autre : vérifier sur brusselsmuseums.be avant de partir."),
+    "À BRUXELLES-VILLE : Art & marges, BELEXPO, Cinematek, Design Museum Brussels, GardeRobe MannekenPis, Maison du Roi (Musée de la Ville), Musée belge de la Franc-Maçonnerie, Musée BELvue, Musée des Égouts, Musée juif de Belgique, Musée Mode & Dentelle.\nAILLEURS : Maison d'Érasme et Béguinage (ANDERLECHT — le plus proche du centre), Musée Horta (Saint-Gilles), Musée d'Art spontané (Schaerbeek), La Fonderie · Momuse · Musée de la médecine ULB (Molenbeek), Wittockiana (Woluwe-Saint-Pierre).\n\nLa liste bouge d'une année à l'autre : vérifier avant de partir.\nDEUX SOURCES : brusselsmuseums.be, et le guide Arts&Publics (artsetpublics.be/programmes/musees-gratuits) qui couvre près de 190 musées en Belgique francophone et republie son guide chaque saison.\nDernière vérification : 30/07/2026 — à revoir chaque mois."),
     ["Gratuit"]),
 
   tags(d("culture","Musées gratuits — le 1er mercredi après-midi","Régional / Toutes communes",
@@ -2507,8 +2512,8 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v260';
-const SEED_VERSION = 62;
+const APP_VERSION = 'v264';
+const SEED_VERSION = 63;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -2857,6 +2862,11 @@ function render(){
     }
   }
   items=items.filter(p=>passeTag(p) && passeCommune(p));
+  /* La feuille du quartier sert aussi côté centre : on la retrouve donc dans
+     Gestion du centre, pas seulement depuis Ce qui arrive. */
+  if(view==='centre'){
+    html+=`<button class="quiz-next ag-doux" style="margin-bottom:14px" onclick="openQuartier()">${icon('ticket')} Autour d’ici — la feuille à donner</button>`;
+  }
   if(dm.isFormation){
     html+=`<button class="quiz-launch" onclick="openJeux()">${icon('bulb')}<span>Jouer pour retenir — 8 jeux</span></button>`;
     html+=formationsProgHTML(items);
@@ -3750,8 +3760,8 @@ function doPrint(){
   try{
     if(view==='maliste') t='Ma liste du jour';
     else if(view==='favoris') t='Mes favoris';
-    else if(view==='agenda') t='Sorties gratuites — au départ du centre';
-    else if(view==='quartier') t='Autour du centre';
+    else if(view==='agenda') t='Sorties gratuites';
+    else if(view==='quartier') t='Autour d’ici';
     else if(view==='feed') t="Les news de l'équipe";
     else if(DOM[view]) t=DOM[view].label;
   }catch(e){}
@@ -4737,22 +4747,24 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
 var AGENDA_REGLES = [
   { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut. Entrée libre, à tout âge.",
-    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true, hebdo:"Tous les mercredis",
+    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true, hebdo:"Tous les mercredis", src:"https://cultureghem.be/fr/ketmet/",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
-    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles", hebdo:"Tous les mercredis",
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles", hebdo:"Tous les mercredis", src:"https://www.belvue.be/fr",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
-    prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht",
+    prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht", src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
+    src2:"https://artsetpublics.be/programmes/musees-gratuits/", src2t:"La liste complète (Arts&Publics)",
     quand:function(d){ return d.getDay()===0 && d.getDate()<=7; } },
   { titre:"Musées fédéraux gratuits — 1er mercredi", sous:"Sciences naturelles, Magritte, Old Masters, Cinquantenaire, Musée de l'Armée.",
-    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4',
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4', src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
+    src2:"https://artsetpublics.be/programmes/musees-gratuits/", src2t:"La liste complète (Arts&Publics)",
     quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer, seul ou à plusieurs. Accessible en chaise roulante.",
-    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les mercredis",
+    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les mercredis", src:"https://biblio.brussels/bxl-ludobox",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Ludobox — jeux sur place", sous:"Le samedi matin, la ludothèque est ouverte à tous — on peut jouer sur place sans rien emprunter.",
-    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les samedis",
+    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les samedis", src:"https://biblio.brussels/bxl-ludobox",
     quand:function(d){ return d.getDay()===6; } }
 ];
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
@@ -4842,7 +4854,7 @@ function quartierHTML(){
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
     + html
     + (AG_ART27 ? agArt27HTML() : '')
-    + '<p class="ag-pied">Scannez le carré noir : l\'itinéraire s\'ouvre depuis là où vous êtes.</p></div>';
+    + '<p class="ag-pied">Scannez le carré : la page officielle du lieu s\'ouvre, avec ses horaires à jour.</p></div>';
 }
 /* L'itinéraire part TOUJOURS du centre : Bd Prince de Liège 38, 1070 Anderlecht. */
 function itineraireURL(adr){
@@ -4851,10 +4863,26 @@ function itineraireURL(adr){
 }
 /* Le QR de la feuille imprimée : le résident scanne, l'itinéraire s'ouvre chez lui.
    Généré sur le téléphone, sans internet — la bibliothèque est dans le dépôt. */
-function qrSVG(texte, taille){
+/* QR en POINTS : les modules de données sont des pastilles — plus léger à l'œil et à
+   l'encre. Les trois repères d'angle restent carrés : c'est eux que la caméra cherche
+   d'abord, les arrondir rend la lecture capricieuse. Correction d'erreur en M au lieu de L,
+   pour compenser la surface perdue par les points. */
+function qrSVG(texte){
   try{
-    const qr=qrcode(0,'L'); qr.addData(texte); qr.make();
-    return qr.createSvgTag({cellSize:(taille||2), margin:0, scalable:true});
+    const qr=qrcode(0,'M'); qr.addData(texte); qr.make();
+    const n=qr.getModuleCount();
+    const repere=function(r,c){ return (r<7&&c<7) || (r<7&&c>=n-7) || (r>=n-7&&c<7); };
+    let d='';
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+      if(!qr.isDark(r,c) || repere(r,c)) continue;
+      d+='<circle cx="'+(c+0.5)+'" cy="'+(r+0.5)+'" r="0.42"/>';
+    }
+    [[0,0],[0,n-7],[n-7,0]].forEach(function(o){
+      const y=o[0], x=o[1];
+      d+='<path fill-rule="evenodd" d="M'+x+' '+y+'h7v7h-7z M'+(x+1)+' '+(y+1)+'v5h5v-5z"/>';
+      d+='<rect x="'+(x+2)+'" y="'+(y+2)+'" width="3" height="3" rx="0.5"/>';
+    });
+    return '<svg viewBox="0 0 '+n+' '+n+'" xmlns="http://www.w3.org/2000/svg" fill="#000">'+d+'</svg>';
   }catch(e){ return ''; }
 }
 /* Ce que le ticket Article 27 ouvre : les fiches qui le portent, dépliées ici même. */
@@ -4882,8 +4910,10 @@ function agendaHTML(){
   if(hebdos.length){
     html+='<div class="ag-jour proche">Chaque semaine</div>';
     hebdos.forEach(function(r){
-      const qr = r.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(r.adr),2)+'</div>' : '';
-      const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
+      const qr = r.src ? '<div class="ag-qr">'+qrSVG(r.src)+'</div>' : '';
+      const iti = (r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '')
+                + (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+              + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
       html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
         +'<div class="ag-h"><b>'+esc(r.titre)+'</b><span class="ag-prix">'+esc(r.prix)+'</span></div>'
         +'<em>'+esc(r.hebdo)+' · '+esc(r.lieu)+'</em>'
@@ -4895,8 +4925,10 @@ function agendaHTML(){
   let jour=-1;
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
-    const qr = e.r.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(e.r.adr),2)+'</div>' : '';
-    const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
+    const qr = e.r.src ? '<div class="ag-qr">'+qrSVG(e.r.src)+'</div>' : '';
+    const iti = (e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '')
+              + (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Voir la source</a>' : '')
+              + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
       +qr
       +'<div class="ag-h"><b>'+esc(e.r.titre)+'</b><span class="ag-prix">'+esc(e.r.prix)+'</span></div>'
@@ -4914,8 +4946,8 @@ function agendaHTML(){
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
     + html
     + (AG_ART27 ? agArt27HTML() : '')
-    + '<p class="ag-pied">Scannez le carré noir : l\'itinéraire s\'ouvre depuis là où vous êtes.</p>'
-    + '<button class="quiz-next" style="margin-top:14px" onclick="openQuartier()">Autour du centre — la feuille à donner</button>'
+    + '<p class="ag-pied">Scannez le carré : la page officielle du lieu s\'ouvre, avec ses horaires à jour.</p>'
+    + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici — la feuille à donner</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
 }
 /* Le bouton du bas porte le ticket de Culture, et une pastille quand c'est aujourd'hui. */
