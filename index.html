@@ -2579,7 +2579,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v274';
+const APP_VERSION = 'v275';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4989,6 +4989,47 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    Rien n'est saisi à la main : chaque ligne vient d'une RÈGLE qui se calcule. L'agenda ne
    peut donc être ni vide, ni périmé, et personne n'a à le remplir.
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
+/* UN MUSÉE = UNE CARTE. Chacun porte le lien de sa page (horaires, adresse, ce qu'on y voit),
+   et se range tout seul à sa prochaine date. Relevé le 30/07/2026 sur brusselsmuseums.be. */
+var MUSEES_1ER_DIMANCHE = [
+  {n:"Art & marges musée", c:"Bruxelles-Ville", u:"art-et-marges-musee"},
+  {n:"BELEXPO", c:"Bruxelles-Ville", u:"belexpo"},
+  {n:"Cinematek", c:"Bruxelles-Ville", u:"cinematek"},
+  {n:"Design Museum Brussels", c:"Bruxelles-Ville", u:"design-museum-brussels"},
+  {n:"GardeRobe MannekenPis", c:"Bruxelles-Ville", u:"garderobe-mannekenpis"},
+  {n:"Maison du Roi — Musée de la Ville", c:"Bruxelles-Ville", u:"maison-du-roi-musee-de-la-ville-de-bruxelles"},
+  {n:"Musée belge de la Franc-Maçonnerie", c:"Bruxelles-Ville", u:"musee-belge-de-la-franc-maconnerie"},
+  {n:"Musée BELvue", c:"Bruxelles-Ville", u:"musee-belvue"},
+  {n:"Musée des Égouts", c:"Bruxelles-Ville", u:"musee-des-egouts"},
+  {n:"Musée juif de Belgique", c:"Bruxelles-Ville", u:"musee-juif-de-belgique"},
+  {n:"Musée Mode & Dentelle", c:"Bruxelles-Ville", u:"musee-mode-and-dentelle"},
+  {n:"Musée d'Art spontané", c:"Schaerbeek", u:"musee-dart-spontane"},
+  {n:"Musée Horta", c:"Saint-Gilles", u:"musee-horta"},
+  {n:"Maison d'Érasme et Béguinage", c:"Anderlecht — à dix minutes du centre", u:"maison-derasme-and-beguinage-danderlecht"},
+  {n:"La Fonderie", c:"Molenbeek", u:"la-fonderie-musee-bruxellois-des-industries-et-du-travail"},
+  {n:"Momuse", c:"Molenbeek", u:"momuse-musee-communal-de-molenbeek-saint-jean"},
+  {n:"ULB — Musée de la médecine", c:"Molenbeek", u:"ulb-musee-de-la-medecine"},
+  {n:"Wittockiana", c:"Woluwe-Saint-Pierre", u:"wittockiana-musee-de-la-reliure-et-des-arts-du-livre"},
+];
+var MUSEES_1ER_MERCREDI = [
+  {n:"Institut des Sciences naturelles", c:"Bruxelles-Ville · dès 13 h", u:"institut-des-sciences-naturelles", s:"Les dinosaures : ça marche à tous les âges."},
+  {n:"Musée Magritte", c:"Bruxelles-Ville · dès 13 h", u:"musee-magritte", s:""},
+  {n:"Musée Old Masters", c:"Bruxelles-Ville · dès 13 h", u:"musee-old-masters", s:""},
+  {n:"Musées royaux d'Art et Histoire — Cinquantenaire", c:"Bruxelles-Ville · dès 13 h", u:"musee-art-en-histoire", s:""},
+  {n:"Musée royal de l'Armée et d'Histoire militaire", c:"Bruxelles-Ville", u:"war-heritage-institute-musee-royal-de-larmee-et-dhistoire-militaire", s:""},
+  {n:"Musée BELvue", c:"Bruxelles-Ville · dès 14 h", u:"musee-belvue", s:""},
+];
+function museeRegle(m, jourFn, couleur, quandTexte){
+  return { titre:m.n, sous:(m.s||quandTexte), prix:"Gratuit", lieu:m.c, c:couleur,
+           src:"https://www.brusselsmuseums.be/fr/"+m.u, srct:"Sa page : horaires et adresse", quand:jourFn };
+}
+var REGLES_MUSEES = MUSEES_1ER_DIMANCHE.map(function(m){
+    return museeRegle(m, function(d){ return d.getDay()===0 && d.getDate()<=7; }, '#f8763f',
+                      "Gratuit le 1er dimanche du mois, sans ticket ni réservation.");
+  }).concat(MUSEES_1ER_MERCREDI.map(function(m){
+    return museeRegle(m, function(d){ return d.getDay()===3 && d.getDate()<=7; }, '#5b8fd4',
+                      "Gratuit le 1er mercredi du mois.");
+  }));
 var AGENDA_REGLES = [
   { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut. Entrée libre, à tout âge.",
     prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true, hebdo:"Tous les mercredis", src:"https://cultureghem.be/fr/ketmet/",
@@ -4996,30 +5037,13 @@ var AGENDA_REGLES = [
   { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles", hebdo:"Tous les mercredis", src:"https://www.belvue.be/fr",
     quand:function(d){ return d.getDay()===3; } },
-  { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
-    prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht", src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
-    annuaire:true,
-    liste:["Art & marges musée · 1000","BELEXPO · 1000","Cinematek · 1000","Design Museum Brussels · 1000",
-           "GardeRobe MannekenPis · 1000","Maison du Roi — Musée de la Ville · 1000","Musée belge de la Franc-Maçonnerie · 1000",
-           "Musée BELvue · 1000","Musée des Égouts · 1000","Musée juif de Belgique · 1000","Musée Mode & Dentelle · 1000",
-           "Musée d'Art spontané · Schaerbeek","Musée Horta · Saint-Gilles",
-           "Maison d'Érasme et Béguinage · ANDERLECHT — le plus proche","La Fonderie · Molenbeek",
-           "Momuse · Molenbeek","ULB — Musée de la médecine · Molenbeek","Wittockiana · Woluwe-Saint-Pierre"],
-    quand:function(d){ return d.getDay()===0 && d.getDate()<=7; } },
-  { titre:"Musées fédéraux gratuits — 1er mercredi", sous:"Sciences naturelles, Magritte, Old Masters, Cinquantenaire, Musée de l'Armée.",
-    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4', src:"https://www.brusselsmuseums.be/fr/actu-conseils/les-musees-gratuits-a-bruxelles",
-    annuaire:true,
-    liste:["Institut des Sciences naturelles — dès 13 h","Musée Magritte — dès 13 h","Musée Old Masters — dès 13 h",
-           "Musées royaux d'Art et Histoire (Cinquantenaire) — dès 13 h","Musée royal de l'Armée et d'Histoire militaire",
-           "Musée BELvue — dès 14 h"],
-    quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer, seul ou à plusieurs. Accessible en chaise roulante.",
     prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les mercredis", src:"https://biblio.brussels/bxl-ludobox",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Ludobox — jeux sur place", sous:"Le samedi matin, la ludothèque est ouverte à tous — on peut jouer sur place sans rien emprunter.",
     prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true, hebdo:"Tous les samedis", src:"https://biblio.brussels/bxl-ludobox",
     quand:function(d){ return d.getDay()===6; } }
-];
+].concat(REGLES_MUSEES);
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 var MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 function agendaProchains(jours, avecEnfants){   /* 31 jours sur la page, 1 pour la pastille */
@@ -5184,7 +5208,7 @@ function agendaHTML(){
       // Le lien remonte JUSTE SOUS LE TITRE : c'est ce qu'on cherche en premier.
       // Un annuaire de gratuités n'est pas le site du lieu : il vit en haut de page, pas sur la carte.
       const liens = r.annuaire ? '' :
-                    (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Le site du lieu</a>' : '')
+                    (r.src ? '<a class="ag-src" href="'+esc(r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.srct||'Le site du lieu')+'</a>' : '')
                   + (r.src2 ? '<a class="ag-src" href="'+esc(r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(r.src2t||'Autre source')+'</a>' : '');
       const iti = r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
       html+='<div class="ag-e" style="border-left-color:'+r.c+'">'+qr
@@ -5201,7 +5225,7 @@ function agendaHTML(){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
     const qr = e.r.src ? '<div class="ag-qr">'+qrSVG(e.r.src)+'</div>' : '';
     const liens = e.r.annuaire ? '' :
-                  (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' Le site du lieu</a>' : '')
+                  (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.srct||'Le site du lieu')+'</a>' : '')
                 + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
     const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
@@ -6095,15 +6119,18 @@ NAV_PILE=[navEtat()]; NAV_I=0;
    mais ne la relisait jamais au démarrage — donc une adresse partagée retombait
    sur l'accueil. On lit l'adresse une fois, à l'ouverture, et on ouvre l'écran
    demandé. Le retour ramène à l'accueil, comme si on y était passé. */
+let _adresseLue=false;   // une seule fois : ensuite c'est la navigation normale qui commande
 function navDepuisAdresse(){
+  if(_adresseLue) return false;
   let slug=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
   if(!slug || slug==='accueil' || slug==='recherche') return false;
   let vue=null;
   for(const k in NAV_NOMS){ if(NAV_NOMS[k]===slug){ vue=k; break; } }
   if(!vue && typeof DOM==='object' && DOM[slug]) vue=slug;      // un domaine du Réseau
-  if(slug==='urgences'){ NAV_MUET=true; try{ openUrgences(); } finally { NAV_MUET=false; }
+  if(slug==='urgences'){ _adresseLue=true; NAV_MUET=true; try{ openUrgences(); } finally { NAV_MUET=false; }
                          NAV_PILE=[navEtat()]; NAV_I=0; return true; }
   if(!vue || vue==='home') return false;
+  _adresseLue=true;
   NAV_MUET=true;
   try{
     if(vue==='profil')        openProfil();
@@ -6125,8 +6152,11 @@ function navDepuisAdresse(){
   history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
   return true;
 }
-// Hors ligne (déjà connectée), l'app s'ouvre sans repasser par initAuth : on relit quand même l'adresse.
-if(localStorage.getItem('cousin_auth_ok') && !sb) navDepuisAdresse();
+/* On relit l'adresse à plusieurs moments : selon la vitesse du réseau, l'app peut être
+   prête avant ou après la connexion. Le verrou _adresseLue garantit qu'on n'ouvre l'écran
+   qu'UNE fois, et jamais après que la personne a commencé à naviguer. */
+setTimeout(navDepuisAdresse, 0);
+window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); });
 history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
