@@ -2507,7 +2507,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v258';
+const APP_VERSION = 'v259';
 const SEED_VERSION = 62;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4776,8 +4776,14 @@ function agendaLibelleJour(i,d){
 }
 /* Le tri de « Ce qui arrive » se fait SUR LA PAGE, dans la petite ligne du haut :
    on ne quitte jamais l'écran. */
-var AG_FILTRE=null;   // null · 'enfants' · 'art27'
-function agFiltre(k){ AG_FILTRE = (AG_FILTRE===k ? null : k); render(); }
+/* Deux interrupteurs INDÉPENDANTS : on peut vouloir les deux à la fois — une sortie
+   avec des enfants ET payée par un ticket Article 27, ça existe. */
+var AG_ENFANTS=false, AG_ART27=false;
+function agFiltre(k){
+  if(k==='enfants') AG_ENFANTS=!AG_ENFANTS;
+  if(k==='art27')   AG_ART27=!AG_ART27;
+  render();
+}
 function openAgenda(){ view="agenda"; render(); }
 function openQuartier(){ view="quartier"; render(); }
 /* Les activités pour enfants sont des ACTIVITÉS : on ouvre Culture, filtré sur Enfants.
@@ -4834,7 +4840,8 @@ function quartierHTML(){
     + '<div class="ag-tete-print"><b>Autour du centre</b><span>Au départ du centre — Bd Prince de Liège 38, 1070 Anderlecht</span></div>'
     + '<p class="ag-intro">Le nécessaire à côté du centre : courses, douches et linge, parcs, transports. À imprimer et à donner.</p>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
-    + (AG_FILTRE==='art27' ? agArt27HTML() : html)
+    + html
+    + (AG_ART27 ? agArt27HTML() : '')
     + '<p class="ag-pied">Scannez le carré noir pour l\'itinéraire, au départ du centre. Horaires à vérifier avant de partir.</p></div>';
 }
 /* L'itinéraire part TOUJOURS du centre : Bd Prince de Liège 38, 1070 Anderlecht. */
@@ -4868,7 +4875,7 @@ function agendaHTML(){
   /* Ce qui revient CHAQUE SEMAINE est écrit une seule fois — sinon le BELvue s'affichait
      quatre fois de suite et on se demandait pourquoi. Les dates ne servent qu'à ce qui
      n'arrive qu'une fois dans le mois. */
-  const avecEnfants = (AG_FILTRE==='enfants');
+  const avecEnfants = AG_ENFANTS;
   const list=agendaProchains(31, avecEnfants).filter(function(e){ return !e.r.hebdo; });
   const hebdos=AGENDA_REGLES.filter(function(r){ return r.hebdo && (avecEnfants || !r.enfants); });
   let html='';
@@ -4901,11 +4908,12 @@ function agendaHTML(){
     + '<div class="ag-tete-print"><b>Sorties gratuites</b><span>Au départ du centre — Bd Prince de Liège 38, 1070 Anderlecht</span></div>'
     + '<p class="ag-intro">Les sorties gratuites du mois qui vient. Un horaire peut changer : vérifiez avant d’y aller.</p>'
     + '<div class="ag-discrets">'
-      + '<button class="ag-discret'+(AG_FILTRE==='enfants'?' on':'')+'" onclick="agFiltre(\'enfants\')">'+icon('educatif')+'<span>Avec des enfants</span></button>'
-      + '<button class="ag-discret'+(AG_FILTRE==='art27'?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Avec un ticket Article 27</span></button>'
+      + '<button class="ag-discret'+(AG_ENFANTS?' on':'')+'" onclick="agFiltre(\'enfants\')">'+icon('educatif')+'<span>Avec des enfants</span></button>'
+      + '<button class="ag-discret'+(AG_ART27?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Avec un ticket Article 27</span></button>'
       + '</div>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
-    + (AG_FILTRE==='art27' ? agArt27HTML() : html)
+    + html
+    + (AG_ART27 ? agArt27HTML() : '')
     + '<p class="ag-pied">Scannez le carré noir pour l\'itinéraire en transports, au départ du centre. Vérifiez les horaires avant de partir.</p>'
     + '<button class="quiz-next" style="margin-top:14px" onclick="openQuartier()">Autour du centre — la feuille à donner</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
