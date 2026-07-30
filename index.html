@@ -2723,7 +2723,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v308';
+const APP_VERSION = 'v309';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2969,9 +2969,9 @@ function updateHeader(){
     document.getElementById('hName').textContent="Admin";
     back.onclick=navRetour(openProfil);
   }else if(view==="chantier"){
-    em.style.color='#f5c542';
-    em.innerHTML=icon('list');
-    document.getElementById('hName').textContent="Liste debug";
+    em.style.color='#e63329';
+    em.innerHTML=icon('alert');
+    document.getElementById('hName').textContent="Le chantier";
     back.onclick=navRetour(openProfil);
   }else if(view==="agenda" || view==="quartier"){
     em.style.color='#6cb392';
@@ -4004,7 +4004,7 @@ function doPrint(){
   let t='COUSIN';
   try{
     if(view==='maliste') t='Ma liste du jour';
-    else if(view==='chantier') t='Liste debug';
+    else if(view==='chantier') t='Le chantier';
     else if(view==='favoris') t='Mes favoris';
     else if(view==='agenda') t='Sorties gratuites';
     else if(view==='quartier') t='Autour d’ici';
@@ -4424,8 +4424,8 @@ function profilHTML(){
       <span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_MES?texteMesChambres():(CH_ENCOURS?`${CH_ENCOURS} en cours dans le centre`:'Vider, nettoyer, libérer')}</i></span>
       ${CH_MES?`<em class="ch-badge">${CH_MES}</em>`:''}</button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
-    ${(p.admin && !enApercu())?`<button class="pf-out" onclick="openChantier()">${icon('list')}
-      <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
+    ${(p.admin && !enApercu())?`<button class="pf-out" onclick="openChantier()">${icon('alert')}
+      <span class="pf-out-tx"><b>Le chantier</b><i>${chantierSous()}</i></span>
       ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`:''}
   </div>`;
 
@@ -4919,7 +4919,7 @@ function chantierHTML(){
       <button class="print-btn" onclick="chFinis=!chFinis; render()">${icon('check')}<span>${chFinis?'Cacher les faits':'Voir les faits'}</span></button>
       <button class="print-btn" onclick="copierChantier()" title="Copier la liste pour me la coller">${icon('copy')}<span>Copier</span></button>
       <button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer</span></button></div>`;
-  return `<div class="adm-sec ch-sec"><div class="adm-h">Le chantier — ta liste de travail</div>
+  return `<div class="adm-sec ch-sec"><div class="adm-h">Le chantier — ce qui reste à faire sur COUSIN</div>
     <div class="ch-tete-print"><b>Le chantier COUSIN</b><span>${esc(new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'}))}</span></div>
     ${champ}${barre}${corps||'<div class="adm-hint">Rien dans la liste pour l\'instant.</div>'}</div>`;
 }
@@ -4945,7 +4945,9 @@ function chantierSous(){
   return (reste? reste+' à faire' : 'Tout est fait')
        + (b? ' · '+b+' suggestion'+(b>1?'s':'')+' à ranger' : '');
 }
-/* La page à elle : on y entre depuis le profil (« Liste debug ») ou depuis l'Admin. */
+/* La page à elle : on y entre depuis le profil (« Le chantier ») ou depuis l'Admin.
+   ⚠ Ne JAMAIS l'appeler « liste » ni lui donner le picto des listes : Mag est admin ET PFO,
+   elle confondait ce chantier avec ses vraies listes de travail. D'où le triangle. */
 function openChantier(){
   view='chantier'; query=''; urgOpen=false;
   const s=document.getElementById('search'); if(s) s.value='';
@@ -5165,8 +5167,8 @@ function adminHTML(){
       return `<div class="chip ${r===admFiltre?'active':''}" onclick="setAdmFiltre('${esc(r)}')">${esc(roleLabel(r))}</div>`;
     }).join('')+`</div>`;
   const team=`<div class="adm-sec"><div class="adm-h">L'équipe (${ADMIN.members.length})</div>${filtres}${members}</div>`;
-  const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('list')}
-    <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
+  const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('alert')}
+    <span class="pf-out-tx"><b>Le chantier</b><i>${chantierSous()}</i></span>
     ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
   return `<div class="pf-wrap">${reqs}${versChantier}${planAccesHTML()}${add}${team}${accesHTML()}</div>`;
 }
@@ -5258,7 +5260,7 @@ function planAccesHTML(){
     if(g.admin) return '<div class="plan-f"><em class="plan-sauf ok">Tout, sans exception</em></div>';
     let h='<div class="plan-f"><em class="plan-sauf">Tout, sauf&nbsp;:</em>';
     // Les listes sont personnelles pour TOUT LE MONDE, coordination comprise.
-    h+='<em class="plan-c">'+icon('cog')+'Admin</em><em class="plan-c">'+icon('list')+'Liste debug</em>'
+    h+='<em class="plan-c">'+icon('cog')+'Admin</em><em class="plan-c">'+icon('alert')+'Le chantier</em>'
      + '<em class="plan-c">'+icon('check')+'Les listes des autres</em>';
     g.fermes.forEach(function(k){ h+='<em class="plan-c">'+icon(PAVES_ICON[k]||'cle')+esc(PAVES_NOMS[k]||k)+'</em>'; });
     return h+'</div>';
@@ -5281,7 +5283,7 @@ function planAccesHTML(){
                   + listeHTML(g.roles.map(function(r){ return esc(roleLabel(r)); })) : '')
               + '</div>' : '')
       + '</div>';
-    if(i===0) html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni la Liste debug</span></div>';
+    if(i===0) html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni le chantier</span></div>';
   });
   const perso=mem.filter(function(m){ return Array.isArray(m.paves) && m.paves.length && !m.admin; });
   if(perso.length) html+='<div class="plan-perso">'+icon('user')+'<span><b>'+perso.length+' personne'
@@ -6680,7 +6682,7 @@ function navEtat(){
 }
 function navMeme(a,b){ return !!a && !!b && JSON.stringify(a)===JSON.stringify(b); }
 const NAV_NOMS={home:'accueil', reseau:'reseau', favoris:'favoris', profil:'profil',
-                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', chantier:'liste-debug', quiz:'jeux', petition:'petitions',
+                maliste:'ma-liste', chambres:'chambres', feed:'les-news', admin:'admin', chantier:'chantier', quiz:'jeux', petition:'petitions',
                 agenda:'ce-qui-arrive', quartier:'autour-du-centre'};
 function navAdresse(s){
   if(!s) return '#accueil';
@@ -6771,6 +6773,7 @@ function navDepuisAdresse(){
   if(!slug || slug==='accueil' || slug==='recherche') return false;
   let vue=null;
   for(const k in NAV_NOMS){ if(NAV_NOMS[k]===slug){ vue=k; break; } }
+  if(!vue && slug==='liste-debug') vue='chantier';              // ancien nom : les liens partagés marchent encore
   if(!vue && typeof DOM==='object' && DOM[slug]) vue=slug;      // un domaine du Réseau
   if(slug==='urgences'){ _adresseLue=true; NAV_MUET=true; try{ openUrgences(); } finally { NAV_MUET=false; }
                          NAV_PILE=[navEtat()]; NAV_I=0; return true; }
