@@ -2579,7 +2579,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v276';
+const APP_VERSION = 'v277';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5174,7 +5174,7 @@ function agArt27HTML(){
   if(!f.length) return '<div class="ag-jour proche">Article 27</div><div class="ag-e" style="border-left-color:#f5c542"><p>Aucun lieu encore renseigné. Le ticket coûte 1,25 € et s\'obtient via l\'association qui accompagne la personne.</p></div>';
   return '<div class="ag-jour proche">Avec un ticket Article 27</div>'
     + f.map(function(p){
-        const qr = p.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(p.adr),2)+'</div>' : '';
+        const qr = '';   // QR retirés à sa demande le 30/07/2026
         // Comme sur la fiche : à qui ça s'adresse, et le lien vers le site du lieu.
         const liens = p.site ? '<a class="ag-src" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(p.site)+'</a>' : '';
         const iti = p.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(p.adr,true))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
@@ -5204,7 +5204,7 @@ function agendaHTML(){
   if(hebdos.length){
     html+='<div class="ag-jour proche">Chaque semaine</div>';
     hebdos.forEach(function(r){
-      const qr = r.src ? '<div class="ag-qr">'+qrSVG(r.src)+'</div>' : '';
+      const qr = '';   // QR retirés à sa demande le 30/07/2026 — le code reste, il suffira de remettre : r.src ? '<div class="ag-qr">'+qrSVG(r.src)+'</div>' : ''
       // Le lien remonte JUSTE SOUS LE TITRE : c'est ce qu'on cherche en premier.
       // Un annuaire de gratuités n'est pas le site du lieu : il vit en haut de page, pas sur la carte.
       const liens = r.annuaire ? '' :
@@ -5223,7 +5223,7 @@ function agendaHTML(){
   let jour=-1;
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
-    const qr = e.r.src ? '<div class="ag-qr">'+qrSVG(e.r.src)+'</div>' : '';
+    const qr = '';   // QR retirés à sa demande le 30/07/2026
     const liens = e.r.annuaire ? '' :
                   (e.r.src ? '<a class="ag-src" href="'+esc(e.r.src)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.srct||'Le site du lieu')+'</a>' : '')
                 + (e.r.src2 ? '<a class="ag-src" href="'+esc(e.r.src2)+'" target="_blank" rel="noopener">'+icon('lien')+' '+esc(e.r.src2t||'Autre source')+'</a>' : '');
@@ -6157,7 +6157,14 @@ function navDepuisAdresse(){
    qu'UNE fois, et jamais après que la personne a commencé à naviguer. */
 setTimeout(navDepuisAdresse, 0);
 window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); });
-history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+/* ⚠ NE JAMAIS ÉCRASER UNE ADRESSE PARTAGÉE. Cette ligne remet l'historique à plat au
+   démarrage. Jouée telle quelle, elle remplaçait l'adresse par #accueil AVANT qu'on ait
+   pu lire l'écran demandé — c'est ce qui faisait retomber TOUS les liens partagés sur
+   l'accueil. On ne la joue donc que si aucun écran n'est demandé. */
+(function(){
+  const demande=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
+  if(!demande || demande==='accueil') history.replaceState({cousin:0}, '', navAdresse(NAV_PILE[0]));
+})();
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
    (manifeste présent + HTTPS), jamais depuis un fichier local ou un aperçu.
