@@ -2397,7 +2397,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v221';
+const APP_VERSION = 'v222';
 const SEED_VERSION = 58;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5053,7 +5053,9 @@ function jxJeuHTML(){
   if(T==='qui'){
     const it=JEU.items[JEU.i];
     if(!it) return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.score}</div><div class="quiz-msg">points</div>${jxRetourHub()}</div></div>`;
-    const inds=it.ind.map((x,idx)=>`<div class="jx-ind${idx+1>JEU.niveau?' floue':''}"><i>${x.i}</i><span>${idx+1>JEU.niveau?'Indice caché — appuie sur « Un indice de plus »':esc(x.t)}</span></div>`).join('');
+    // Après la réponse, tous les indices se découvrent — sinon on ne retient rien.
+    const cache = idx => !JEU.answered && idx+1>JEU.niveau;
+    const inds=it.ind.map((x,idx)=>`<div class="jx-ind${cache(idx)?' floue':''}"><i>${x.i}</i><span>${cache(idx)?'Indice caché — appuie sur « Un indice de plus »':esc(x.t)}</span></div>`).join('');
     const LETTRES=['A','B','C','D','E'];
     const opts=it.opts.map((o,idx)=>{
       let cls='quiz-opt lettre';
@@ -5067,7 +5069,8 @@ function jxJeuHTML(){
       ${(!JEU.answered && JEU.niveau<3)?`<button class="quiz-next" style="margin:4px 0 16px" onclick="jxIndice()">Un indice de plus (−1 point)</button>`:''}
       <div class="jx-titre" style="margin-top:18px">Alors, qui suis-je ?</div>
       <div class="quiz-opts">${opts}</div>
-      ${JEU.answered?`<div class="quiz-corr"><b>${esc(it.nom)}</b></div><button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`:''}</div>`;
+      ${JEU.answered?`<div class="quiz-corr">${JEU.picked===it.correct?'Bien vu — c\u2019était ':'C\u2019était '}<b>${esc(it.nom)}</b>. Les trois indices sont dépliés au-dessus.</div>
+      <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`:''}</div>`;
   }
 
   if(T==='vf'){
