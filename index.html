@@ -25,6 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="COUSIN">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="qrcode.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Poppins:wght@800;900&display=swap" rel="stylesheet">
 <link rel="preload" as="font" type="font/woff2" href="font/eastman-extrabold.woff2" crossorigin>
@@ -863,7 +864,10 @@ input, textarea, select{
   .m-si b{font-size:13.5px; font-weight:900; line-height:1.4}
   .m-si span{font-size:13.5px; line-height:1.55; color:var(--muted)}
   .m-warn{background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px; padding:12px 14px;
-    font-size:13.5px; line-height:1.6; margin:6px 0 13px}
+    font-size:13.5px; line-height:1.6; margin:6px 0 13px; display:flex; align-items:flex-start; gap:9px}
+  /* Le dessin qui remplace l'ancien emoji : il doit rester petit et aligné sur le texte,
+     sinon il occupe toute la carte (c'est ce qui s'est passé le 30/07). */
+  .m-warn > svg, .m-warn > .pico{width:17px; height:17px; flex:0 0 auto; margin-top:2px}
   .m-tel{display:flex; align-items:center; gap:12px; background:#1b1b1b; color:#f2eee6; border-radius:14px;
     padding:14px 16px; margin:8px 0 13px; text-decoration:none}
 .m-tel svg, .m-tel .pico{width:19px; height:19px; flex:0 0 auto; color:var(--gold)}
@@ -1217,6 +1221,36 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-e em{display:block; font-style:normal; font-size:11.5px; font-weight:700; color:var(--muted); margin-top:3px}
   .ag-e p{font-size:12.5px; color:#54514b; font-weight:400; margin:5px 0 0; line-height:1.45}
   .dock-agenda{background:#6cb392; color:#1b1b1b}
+  .ag-adr{display:block; font-size:11.5px; color:var(--muted); font-weight:500; margin-top:2px}
+  .ag-iti{display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#1b1b1b;
+    background:#f3efe6; border-radius:9px; padding:7px 11px; text-decoration:none}
+  .ag-print{width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 16px;
+    padding:13px; border:0; border-radius:13px; background:#1b1b1b; color:#f2eee6; font-family:inherit;
+    font-size:14px; font-weight:700; cursor:pointer}
+  .ag-print svg, .ag-print .pico{width:17px; height:17px}
+  .ag-qr, .ag-tete-print, .ag-pied{display:none}
+  /* ── LA FEUILLE À DONNER ──────────────────────────────────────────────────
+     Deux colonnes serrées, une seule couleur d'encre (le filet de gauche), et un
+     QR par sortie : le résident scanne et son itinéraire s'ouvre depuis le centre.
+     Tout le reste de l'app disparaît. */
+  @media print{
+    .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti{display:none !important}
+    .ag-tete-print{display:block !important; margin-bottom:10px; border-bottom:2px solid #1b1b1b; padding-bottom:6px}
+    .ag-tete-print b{font-size:19px; font-weight:900; display:block}
+    .ag-tete-print span{font-size:10px; color:#444}
+    .ag-page{columns:2; column-gap:12px}
+    .ag-jour{break-after:avoid; margin:8px 0 4px !important; font-size:9.5px !important; color:#000 !important}
+    .ag-e{break-inside:avoid; position:relative; padding:7px 9px 7px 10px !important; margin-bottom:6px !important;
+      border:1px solid #ddd !important; border-left-width:4px !important; box-shadow:none !important}
+    .ag-e b{font-size:11.5px !important; line-height:1.15}
+    .ag-e em{font-size:9.5px !important; color:#333 !important}
+    .ag-adr{font-size:9.5px !important; color:#000 !important}
+    .ag-e p{font-size:9.5px !important; color:#333 !important; margin-top:3px !important}
+    .ag-prix{background:none !important; color:#000 !important; border:1px solid #000; padding:1px 5px !important; font-size:8.5px !important}
+    .ag-qr{display:block !important; float:right; width:52px; height:52px; margin:0 0 4px 6px}
+    .ag-qr svg{width:52px; height:52px; display:block}
+    .ag-pied{display:block !important; break-before:column; font-size:9px; color:#333; margin-top:8px}
+  }
   .jx-cap{border-radius:18px; padding:20px 18px 18px; text-align:center; margin-bottom:12px}
   .jx-cap-ic{display:block; line-height:0; margin-bottom:12px}
   .jx-cap-ic svg, .jx-cap-ic .pico{width:64px; height:64px; display:inline-block}
@@ -2449,7 +2483,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v231';
+const APP_VERSION = 'v233';
 const SEED_VERSION = 61;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3672,6 +3706,7 @@ function doPrint(){
   try{
     if(view==='maliste') t='Ma liste du jour';
     else if(view==='favoris') t='Mes favoris';
+    else if(view==='agenda') t='Sorties gratuites — au départ du centre';
     else if(view==='feed') t="Les news de l'équipe";
     else if(DOM[view]) t=DOM[view].label;
   }catch(e){}
@@ -4657,22 +4692,22 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
 const AGENDA_REGLES = [
   { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut.",
-    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392',
+    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
-    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542',
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
-    prix:"Gratuit", lieu:"Toute la Région", c:'#f8763f',
+    prix:"Gratuit", lieu:"Le plus proche : Maison d'Érasme, Anderlecht", c:'#f8763f', adr:"Rue du Chapitre 31, 1070 Anderlecht",
     quand:function(d){ return d.getDay()===0 && d.getDate()<=7; } },
   { titre:"Musées fédéraux gratuits — 1er mercredi", sous:"Sciences naturelles, Magritte, Old Masters, Cinquantenaire, Musée de l'Armée.",
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4',
     quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer. Accessible en chaise roulante.",
-    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da',
+    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles",
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Ludobox — jeux sur place", sous:"Le samedi matin, c'est le créneau famille de la ludothèque.",
-    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da',
+    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles",
     quand:function(d){ return d.getDay()===6; } }
 ];
 const JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
@@ -4691,17 +4726,40 @@ function agendaLibelleJour(i,d){
   return JOURS_L[d.getDay()]+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
 }
 function openAgenda(){ view="agenda"; render(); }
+/* L'itinéraire part TOUJOURS du centre : Bd Prince de Liège 38, 1070 Anderlecht. */
+function itineraireURL(adr){
+  return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(ITI_DEPART)
+       + '&destination='+encodeURIComponent(adr)+'&travelmode=transit';
+}
+/* Le QR de la feuille imprimée : le résident scanne, l'itinéraire s'ouvre chez lui.
+   Généré sur le téléphone, sans internet — la bibliothèque est dans le dépôt. */
+function qrSVG(texte, taille){
+  try{
+    const qr=qrcode(0,'L'); qr.addData(texte); qr.make();
+    return qr.createSvgTag({cellSize:(taille||2), margin:0, scalable:true});
+  }catch(e){ return ''; }
+}
 function agendaHTML(){
   const list=agendaProchains(15);
   let jour=-1, html='';
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
+    const qr = e.r.adr ? '<div class="ag-qr">'+qrSVG(itineraireURL(e.r.adr),2)+'</div>' : '';
+    const iti = e.r.adr ? '<a class="ag-iti" href="'+esc(itineraireURL(e.r.adr))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>' : '';
     html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
+      +qr
       +'<div class="ag-h"><b>'+esc(e.r.titre)+'</b><span class="ag-prix">'+esc(e.r.prix)+'</span></div>'
-      +'<em>'+esc(e.r.lieu)+'</em><p>'+esc(e.r.sous)+'</p></div>';
+      +'<em>'+esc(e.r.lieu)+'</em>'
+      +(e.r.adr?'<span class="ag-adr">'+esc(e.r.adr)+'</span>':'')
+      +'<p>'+esc(e.r.sous)+'</p>'+iti+'</div>';
   });
-  return '<div class="pf-wrap"><p class="ag-intro">Les sorties gratuites des quinze prochains jours — culture, activités, jeux. Cette page se calcule toute seule — personne n\'a à la remplir, elle ne peut pas être périmée.</p>'
-    + html + '<button class="quiz-next" style="margin-top:14px" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
+  return '<div class="pf-wrap ag-page">'
+    + '<div class="ag-tete-print"><b>Sorties gratuites</b><span>Au départ du centre — Bd Prince de Liège 38, 1070 Anderlecht</span></div>'
+    + '<p class="ag-intro">Les sorties gratuites des quinze prochains jours — culture, activités, jeux. Cette page se calcule toute seule : elle ne peut pas être périmée.</p>'
+    + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
+    + html
+    + '<p class="ag-pied">Scannez le carré noir pour l\'itinéraire en transports, au départ du centre. Vérifiez les horaires avant de partir.</p>'
+    + '<button class="quiz-next" style="margin-top:14px" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
 }
 /* Le bouton du bas porte le ticket de Culture, et une pastille quand c'est aujourd'hui. */
 function majBoutonAgenda(){
