@@ -2656,7 +2656,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v290';
+const APP_VERSION = 'v291';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2771,6 +2771,24 @@ function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes
 // Accueil : bouton loupe → révèle et focalise la recherche ; pastilles → recherche rapide
 function toggleHomeSearch(){ document.body.classList.add('search-on'); const s=document.getElementById('search'); if(s){ s.focus(); } }
 function quickSearch(q){ const s=document.getElementById('search'); if(s) s.value=q; query=q; document.body.classList.add('search-on'); render(); }
+/* Un domaine fermé à ce rôle : pendant un aperçu, on montre le mur au lieu de passer
+   à travers — c'est exactement le bug qu'on cherche à voir avant les collègues. */
+function domaineFerme(k){
+  if(!enApercu()) return false;
+  const ouverts=pavesDuRole(APERCU_ROLE);
+  if(!ouverts || !ouverts.length) return false;
+  // Les 14 domaines du Réseau vivent tous derrière le pavé « Réseau ».
+  const pave = (PAVES_TOUS.indexOf(k)>=0) ? k : (DOM[k] ? 'reseau' : null);
+  if(!pave) return false;
+  return ouverts.indexOf(pave)<0;
+}
+function murHTML(k){
+  const nom = (DOM[k] && DOM[k].label) || k;
+  return `<div class="pf-empty">${icon('cle','width="34" height="34"')}
+    <p><b>Fermé pour ${esc(roleLabel(APERCU_ROLE))}.</b></p>
+    <p>« ${esc(nom)} » n'apparaît pas chez ce rôle : il ne peut pas ouvrir cette page.</p>
+    <p class="faint">Tu le vois parce que tu es en aperçu. Pour l'ouvrir à ce rôle : Admin → Qui voit quoi.</p></div>`;
+}
 function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeTag="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeTag="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeTag="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
@@ -2945,6 +2963,7 @@ function render(){
   if(view==="chambres"){ el.innerHTML = chambresHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
   if(view==="chantier"){ el.innerHTML = chantierPageHTML(); return; }
+  if(domaineFerme(view)){ el.innerHTML = murHTML(view); return; }
   if(view==="agenda"){ el.innerHTML = agendaHTML(); return; }
   if(view==="quartier"){ el.innerHTML = quartierHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
@@ -4213,11 +4232,32 @@ async function loadProfile(){
 }
 
 // Rendu partagé des check-lists (utilisé par « Ma liste » et le profil)
+/* Pendant un aperçu, les check-lists affichées sont celles DU RÔLE REGARDÉ.
+   Sinon on ne voit jamais ce qu'une aide-soignante a réellement sous les yeux. */
+function listesVues(){
+  if(!enApercu()) return MES_LISTES;
+  const r=APERCU_ROLE, e=String(r||'').toLowerCase();
+  if(e.indexOf('pfo')>=0) return ['pfo-jour','pfo-nuit'];
+  const d=deriveListes(r,'jour');
+  if(d.length) return d;
+  if(e.indexOf('infi')>=0) return ['médical-rez'];
+  return [];
+}
 function checklistsHTML(){
   // (les listes des autres passent sous un intertitre, voir plus bas)
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
   if(!profileLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   if(!CHECKLISTS.length) return `<div class="pf-empty">${icon('list','width="34" height="34"')}<p><b>Aucune check-list pour ton rôle.</b></p><p>Si tu penses que c'est une erreur, préviens Mag.</p></div>`;
+  const MIENNES=listesVues();
+  if(enApercu()){
+    const aLui=CHECKLISTS.filter(g=>MIENNES.indexOf(g.liste)>=0);
+    if(!aLui.length) return `<div class="pf-empty">${icon('list','width="34" height="34"')}<p><b>Aucune check-list pour ce rôle.</b></p><p>C'est ce que ${esc(roleLabel(APERCU_ROLE))} voit ici.</p></div>`;
+    return aLui.map(g=>{
+      const done=g.taches.filter(t=>DONE[t.id]).length;
+      const rows=g.taches.map(t=>`<label class="pf-task${DONE[t.id]?' done':''}"><input type="checkbox" disabled${DONE[t.id]?' checked':''}><span class="pf-box">${icon('check')}</span><span class="pf-txt">${esc(t.tache)}</span></label>`).join('');
+      return `<div class="pf-list"><div class="pf-list-h"><span class="pf-list-t">${esc(LISTE_LABELS[g.liste]||g.liste)}</span><span class="pf-prog">${done}/${g.taches.length}</span></div><div class="pf-tasks">${rows}</div></div>`;
+    }).join('');
+  }
   let separateur=false;
   return CHECKLISTS.map(g=>{
     const done=g.taches.filter(t=>DONE[t.id]).length;
@@ -4288,13 +4328,13 @@ function profilHTML(){
       <span class="pf-out-tx"><b>Gestion des chambres</b><i>${CH_MES?texteMesChambres():(CH_ENCOURS?`${CH_ENCOURS} en cours dans le centre`:'Vider, nettoyer, libérer')}</i></span>
       ${CH_MES?`<em class="ch-badge">${CH_MES}</em>`:''}</button>
     <button class="pf-out" onclick="openFeedback()">${icon('bulb')}<span>Une suggestion pour l'app&nbsp;?</span></button>
-    ${p.admin?`<button class="pf-out" onclick="openChantier()">${icon('list')}
+    ${(p.admin && !enApercu())?`<button class="pf-out" onclick="openChantier()">${icon('list')}
       <span class="pf-out-tx"><b>Liste debug</b><i>${chantierSous()}</i></span>
       ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`:''}
   </div>`;
 
   let adminBtn='';
-  if(p.admin){
+  if(p.admin && !enApercu()){
     const r=ADMIN_RESUME;
     const sous = r ? `${r.actifs} personne${r.actifs>1?'s':''} active${r.actifs>1?'s':''}`
                      + (r.membres>r.actifs?` · ${r.membres-r.actifs} suspendue${(r.membres-r.actifs)>1?'s':''}`:'')
