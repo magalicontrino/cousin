@@ -1216,6 +1216,31 @@ input, textarea, select{
   .acc-p{border:1px solid var(--line); background:var(--soft); color:var(--muted); border-radius:20px;
     padding:6px 11px; font-size:12px; font-weight:800; cursor:pointer}
   .acc-p.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
+  /* ═══ QUI VOIT QUOI — UNE CARTE PAR ACCÈS, PAS PAR MÉTIER ═══
+     Quinze cartes qui répétaient six fois la même chose, ça ne se lit pas. Les métiers qui
+     voient la même chose sont réunis dans une carte repliée : on voit d'abord COMBIEN de
+     groupes il y a, et les exceptions sautent aux yeux au lieu d'être noyées. */
+  .acc-g{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:9px; overflow:hidden}
+  .acc-g.ouverte{border-color:#1b1b1b}
+  .acc-gt{display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent;
+    font:inherit; color:inherit; text-align:left; padding:12px 13px; cursor:pointer}
+  .acc-gn{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px}
+  .acc-gn b{font-size:13.5px; font-weight:900}
+  .acc-gn em{font-style:normal; font-size:11.5px; font-weight:600; color:var(--muted)}
+  .acc-gc{flex:0 0 auto; background:var(--soft); border-radius:20px; padding:3px 9px;
+    font-size:11.5px; font-weight:900; color:var(--muted)}
+  .acc-ch{flex:0 0 auto; width:16px; height:16px; color:var(--muted); transition:transform .2s}
+  .acc-g.ouverte .acc-ch{transform:rotate(90deg)}
+  .acc-gs{padding:0 13px 12px; font-size:12px; font-weight:600; color:var(--muted); line-height:1.45}
+  .acc-gd{padding:0 13px 13px; border-top:1px solid var(--line); padding-top:11px}
+  .acc-ms{margin-top:11px; display:flex; flex-direction:column; gap:7px}
+  .acc-m{display:flex; align-items:center; flex-wrap:wrap; gap:7px; background:var(--soft);
+    border-radius:12px; padding:8px 10px}
+  .acc-mn{flex:1 1 auto; min-width:0; font-size:12.5px; font-weight:800}
+  .acc-apart{flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
+    border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
+  .acc-apart.on{background:var(--gold); color:#1b1b1b; border-color:transparent}
+  .acc-m .acc-paves{flex:1 1 100%; margin-top:4px}
   .adm-acc{margin-top:9px; padding-top:9px; border-top:1px solid var(--line)}
   .adm-main{font-style:normal; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.04em;
     background:var(--gold); color:#1b1b1b; border-radius:20px; padding:2px 7px; margin-left:5px}
@@ -3078,7 +3103,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v343-essai';
+const APP_VERSION = 'v344-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5906,20 +5931,85 @@ function planAccesHTML(){
   html+='<div class="adm-hint" style="margin-top:8px">Touche un groupe pour voir qui est dedans. Pour ouvrir un pavé à UNE personne sans changer son métier, va sur sa fiche dans l\'équipe.</div></div>';
   return html;
 }
+/* ═══ QUI VOIT QUOI ═══
+   On regroupe les métiers qui ont EXACTEMENT le même accès : une carte par accès, repliée.
+   Avant, c'était une carte par métier — quinze cartes, six pavés chacune, qui répétaient la
+   même chose. On ne voyait plus les exceptions, et c'est pourtant tout ce qui compte ici. */
+let ACC_OUV={};      // quelles cartes sont dépliées (clé = la liste des pavés)
+let ACC_APART=null;  // le métier qu'on est en train de régler à part
+function accOuvrir(cle){ ACC_OUV[cle]=!ACC_OUV[cle]; if(view==='admin') render(); }
+function accApart(role){ ACC_APART = (ACC_APART===role ? null : role); if(view==='admin') render(); }
+function accCle(paves){ return paves.slice().sort().join('|'); }
+function nomAcces(paves){
+  const c=accCle(paves);
+  if(c===accCle(PAVES_TOUS)) return 'Accès complet';
+  if(c===accCle(PAVES_SIMPLE)) return 'Accès simple';
+  if(!paves.length) return 'Aucun accès';
+  return 'Accès sur mesure';
+}
 function accesHTML(){
-  const lignes=ROLE_OPTS.map(function(role){
-    const on=pavesDuRole(role);
+  const groupes=[];
+  ROLE_OPTS.forEach(function(role){
+    const on=pavesDuRole(role), cle=accCle(on);
+    let g=null;
+    groupes.forEach(function(x){ if(x.cle===cle) g=x; });
+    if(!g){ g={cle:cle, paves:PAVES_TOUS.filter(function(k){ return on.indexOf(k)>=0; }), roles:[]}; groupes.push(g); }
+    g.roles.push(role);
+  });
+  // Le plus ouvert d'abord : on lit « qui voit tout », puis les accès réduits.
+  groupes.sort(function(a,b){ return (b.paves.length-a.paves.length) || (b.roles.length-a.roles.length); });
+  const cartes=groupes.map(function(g){
+    const ouv=!!ACC_OUV[g.cle];
+    const quoi = g.paves.length ? g.paves.map(function(k){ return PAVES_NOMS[k]; }).join(' · ') : 'aucun pavé';
+    const qui  = g.roles.map(function(r){ return roleLabel(r); }).join(', ');
     const chips=PAVES_TOUS.map(function(k){
-      return `<button class="acc-p ${on.indexOf(k)>=0?'on':''}" onclick="toggleAcces('${esc(role)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
+      return '<button class="acc-p '+(g.paves.indexOf(k)>=0?'on':'')+'" onclick="toggleAccesGroupe(\''+g.cle+'\',\''+k+'\')">'+esc(PAVES_NOMS[k])+'</button>';
     }).join('');
-    return `<div class="acc-row"><div class="acc-tete"><div class="acc-role">${esc(roleLabel(role))}</div>
-      <button class="acc-voir" onclick="voirComme('${esc(role)}')">Voir comme</button></div>
-      <div class="acc-paves">${chips}</div></div>`;
+    const metiers=g.roles.map(function(r){
+      const apart=(ACC_APART===r);
+      return '<div class="acc-m"><span class="acc-mn">'+esc(roleLabel(r))+'</span>'
+        + '<button class="acc-voir" onclick="voirComme(\''+esc(r)+'\')">Voir comme</button>'
+        + '<button class="acc-apart'+(apart?' on':'')+'" onclick="accApart(\''+esc(r)+'\')">'+(apart?'Fermer':'Régler à part')+'</button>'
+        + (apart ? '<div class="acc-paves">'+PAVES_TOUS.map(function(k){
+              return '<button class="acc-p '+(pavesDuRole(r).indexOf(k)>=0?'on':'')+'" onclick="toggleAcces(\''+esc(r)+'\',\''+k+'\')">'+esc(PAVES_NOMS[k])+'</button>';
+            }).join('')+'</div>' : '')
+        + '</div>';
+    }).join('');
+    return '<div class="acc-g'+(ouv?' ouverte':'')+'">'
+      + '<button class="acc-gt" onclick="accOuvrir(\''+g.cle+'\')">'
+      +   '<span class="acc-gn"><b>'+esc(nomAcces(g.paves))+'</b><em>'+esc(quoi)+'</em></span>'
+      +   '<span class="acc-gc">'+g.roles.length+' métier'+(g.roles.length>1?'s':'')+'</span>'
+      +   icon('chevron','class="acc-ch"')
+      + '</button>'
+      + (ouv
+          ? '<div class="acc-gd"><div class="adm-hint">Touche un pavé : il s\'ouvre ou se ferme pour les '
+            + g.roles.length + ' métier' + (g.roles.length>1?'s':'') + ' de ce groupe d\'un coup. Pour un seul métier, utilise « Régler à part » — il partira alors dans son propre groupe.</div>'
+            + '<div class="acc-paves">'+chips+'</div><div class="acc-ms">'+metiers+'</div></div>'
+          : '<div class="acc-gs">'+esc(qui)+'</div>')
+      + '</div>';
   }).join('');
   const essais=apercuBarreHTML();   // la même barre que sur le chantier
   return `<div class="adm-sec"><div class="adm-h">Qui voit quoi</div>
-    <div class="adm-hint" style="margin-bottom:10px">Touche un pavé pour l'ouvrir ou le fermer à ce rôle. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
-    ${essais}${lignes}</div>`;
+    <div class="adm-hint" style="margin-bottom:10px">Un groupe = des métiers qui voient exactement la même chose. Touche un groupe pour l'ouvrir. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
+    ${essais}${cartes}</div>`;
+}
+/* Régler tout un groupe d'un coup : c'est le geste normal ici — ces métiers ont le même
+   accès, on veut qu'ils continuent à l'avoir. La carte reste ouverte sous sa nouvelle clé. */
+async function toggleAccesGroupe(cle, pave){
+  const roles=ROLE_OPTS.filter(function(r){ return accCle(pavesDuRole(r))===cle; });
+  if(!roles.length) return;
+  const nouv=pavesDuRole(roles[0]).slice();
+  const i=nouv.indexOf(pave);
+  if(i>=0) nouv.splice(i,1); else nouv.push(pave);
+  if(!ACCES_ROLES) ACCES_ROLES={};
+  roles.forEach(function(r){ ACCES_ROLES[r]=nouv.slice(); });
+  delete ACC_OUV[cle]; ACC_OUV[accCle(nouv)]=true;
+  if(view==='admin') render();
+  try{
+    const { error } = await sb.from('roles_acces')
+      .upsert(roles.map(function(r){ return { role:r, paves:nouv }; }), { onConflict:'role' });
+    if(error) throw error;
+  }catch(e){ cousinToast("Réglage non enregistré : "+((e&&e.message)||'erreur')); }
 }
 async function toggleAcces(role, pave){
   const cur=pavesDuRole(role).slice();
@@ -5927,6 +6017,9 @@ async function toggleAcces(role, pave){
   if(i>=0) cur.splice(i,1); else cur.push(pave);
   if(!ACCES_ROLES) ACCES_ROLES={};
   ACCES_ROLES[role]=cur;
+  // Le métier change d'accès : il part dans un autre groupe — on ouvre celui-là, sinon on
+  // le perdrait de vue au milieu d'une carte repliée.
+  ACC_OUV[accCle(cur)]=true;
   if(view==='admin') render();
   try{
     const { error } = await sb.from('roles_acces').upsert({ role:role, paves:cur }, { onConflict:'role' });
