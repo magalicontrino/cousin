@@ -2500,7 +2500,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v246';
+const APP_VERSION = 'v247';
 const SEED_VERSION = 61;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4711,7 +4711,7 @@ function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.f
    ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
 var AGENDA_REGLES = [
   { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut. Entrée libre, à tout âge.",
-    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht",
+    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392', adr:"Rue Ropsy Chaudron 24, 1070 Anderlecht", enfants:true,
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542', adr:"Place des Palais 7, 1000 Bruxelles",
@@ -4723,20 +4723,23 @@ var AGENDA_REGLES = [
     prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4',
     quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
   { titre:"Ludobox — jeux sur place", sous:"La ludothèque de la Ville : on joue sur place sans rien payer, seul ou à plusieurs. Accessible en chaise roulante.",
-    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles",
+    prix:"Gratuit", lieu:"Laeken · 12 h → 18 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true,
     quand:function(d){ return d.getDay()===3; } },
   { titre:"Ludobox — jeux sur place", sous:"Le samedi matin, la ludothèque est ouverte à tous — on peut jouer sur place sans rien emprunter.",
-    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles",
+    prix:"Gratuit", lieu:"Laeken · 9 h → 16 h", c:'#f3c6da', adr:"Boulevard Émile Bockstael 122, 1020 Bruxelles", enfants:true,
     quand:function(d){ return d.getDay()===6; } }
 ];
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 var MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-function agendaProchains(jours){   /* 31 jours par défaut sur la page, 1 pour la pastille */
+function agendaProchains(jours, avecEnfants){   /* 31 jours sur la page, 1 pour la pastille */
   if(!AGENDA_REGLES) return [];   // render() peut passer ici avant que la table soit remplie
   const out=[], base=new Date(); base.setHours(0,0,0,0);
   for(let i=0;i<(jours||15);i++){
     const d=new Date(base); d.setDate(base.getDate()+i);
-    AGENDA_REGLES.forEach(function(r){ if(r.quand(d)) out.push({d:new Date(d), i:i, r:r}); });
+    AGENDA_REGLES.forEach(function(r){
+      if(r.enfants && !avecEnfants) return;   // ce qui vise les enfants vit derrière son propre lien
+      if(r.quand(d)) out.push({d:new Date(d), i:i, r:r});
+    });
   }
   return out;
 }
@@ -4831,9 +4834,9 @@ function agendaHTML(){
   return '<div class="pf-wrap ag-page">'
     + '<div class="ag-tete-print"><b>Sorties gratuites</b><span>Au départ du centre — Bd Prince de Liège 38, 1070 Anderlecht</span></div>'
     + '<p class="ag-intro">Les sorties gratuites du mois qui vient. Un horaire peut changer : vérifiez avant d’y aller.</p>'
+    + '<button class="ag-discret" onclick="activitesEnfants()">'+icon('educatif')+'<span>Avec des enfants ?</span></button>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
     + html
-    + '<button class="ag-discret" onclick="activitesEnfants()">'+icon('educatif')+'<span>Avec des enfants ?</span></button>'
     + '<p class="ag-pied">Scannez le carré noir pour l\'itinéraire en transports, au départ du centre. Vérifiez les horaires avant de partir.</p>'
     + '<button class="quiz-next" style="margin-top:14px" onclick="openQuartier()">Autour du centre — la feuille à donner</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
