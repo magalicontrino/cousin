@@ -128,7 +128,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   header{
     position:relative; z-index:20;
     background:var(--bg);
-    color:var(--ink); padding:calc(env(safe-area-inset-top) + 14px) 20px 16px;
+    /* DE L'AIR AU-DESSUS DU LOGO, partout et d'avance : collé au bord, ça fait une page
+       mal posée, et ça se voyait sur chaque écran l'un après l'autre. */
+    color:var(--ink); padding:calc(env(safe-area-inset-top) + 22px) 20px 16px;
   }
   .hrow{display:flex; align-items:center; gap:12px; width:var(--appw); max-width:100%; margin:0 auto; container-type:inline-size}
   .back{
@@ -386,6 +388,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
     padding:7px 13px; border-radius:20px; font-size:13px; font-weight:650; cursor:pointer; white-space:nowrap;
   }
+  /* Le titre d'un tri (« Commune », « Mot-clé ») ne sert que dans la colonne de gauche,
+     sur grand écran. Sur téléphone, la rangée reste nue, comme avant. */
+  .tri-h{display:none}
   /* Dans un domaine, les filtres actifs prennent SA couleur (celle de son pavé d'accueil) ;
      ailleurs (recherche, favoris) on retombe sur l'or. */
   .chip.active{background:var(--dom,var(--gold)); border-color:var(--dom,var(--gold)); color:var(--dom-ink,#141414)}
@@ -573,11 +578,17 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .method .body{white-space:pre-line; font-size:14px; color:var(--ink); padding:2px 15px 6px}
   .method .body.collapsed{max-height:0; overflow:hidden; padding-top:0; padding-bottom:0}
 
-  /* Fiche démarche : la particularité locale doit sauter aux yeux */
+  /* Fiche démarche : la particularité locale se remarque, mais DISCRÈTEMENT. Le triangle
+     n'avait aucune taille imposée : il remplissait toute la largeur de la fiche. Petit
+     encadré : le picto à gauche, le texte à droite. */
   .warn{
-    display:block; background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
-    padding:11px 13px; margin:10px 0 4px; font-size:13.5px; line-height:1.5; color:#141414;
+    display:flex; align-items:flex-start; gap:9px;
+    background:#fff8e1; border-left:4px solid var(--gold); border-radius:10px;
+    padding:10px 12px; margin:10px 0 4px; font-size:13.5px; line-height:1.5; color:#141414;
   }
+  .warn-ic{flex:0 0 auto; display:flex; margin-top:1px}
+  .warn-ic svg, .warn-ic .pico{width:16px; height:16px; display:block}
+  .warn-tx{min-width:0; display:block}
   .warn b{display:block; font-size:12px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px}
   .maj{padding:8px 15px 0; font-size:11.5px; color:var(--muted); font-style:italic}
   .form-note{
@@ -652,7 +663,23 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
 .fab.feed svg, .fab.feed .pico{ width:26px; height:26px; }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 16px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  /* UNE PASTILLE OUVERTE NE FAIT PLUS REMONTER LE RANG (choix de Mag, 30/07). Quand la
+     place manque — mercredi, trois poubelles à sortir — les boutons ronds se reculent et
+     se chevauchent : la clé passe par-dessus le bouton jaune, le ticket par-dessus la clé.
+     On referme, tout revient à sa place. Un rang qui passe à la ligne, c'était pire :
+     on cherchait où la clé était partie. */
+  .dock-agenda{z-index:5}
+  .dock-cle{z-index:4}
+  .dock-plus{z-index:3}
+  .dock > *{transition:margin-left .3s cubic-bezier(.22,1,.36,1)}
+  /* Seuls les boutons SITUÉS APRÈS la pastille ouverte se reculent : elle-même, et ce qui
+     est à sa gauche, ne bougent pas d'un pixel. */
+  .dock.ouverte > .open ~ *{margin-left:-22px}
+  .dock > .open{z-index:7}
+  /* Sur grand écran les boutons ne sont plus dans la colonne : la place ne manque jamais,
+     donc rien ne se chevauche. */
+  @media (min-width:1280px){ body:not(.apercu-tel) .dock.ouverte > .open ~ *{margin-left:0} }
   .dock-trash{flex:0 1 auto; min-width:58px; max-width:58px; height:58px; border-radius:29px;
     display:none;   /* le code l'affiche uniquement les jours de sortie */
     border:4px solid var(--bg);   /* anneau couleur du fond : le bouton se détache du contenu */
@@ -1626,13 +1653,35 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        donnait une page mal posée. 24 px, même en mode téléphone. */
     /* La barre est TRANSPARENTE (choix de Mag) : pas de bandeau plein qui coupe les cartes
        en deux au défilement. Seuls le logo, les pictos et le titre restent posés dessus. */
-    header{position:fixed; top:0; left:0; right:0; z-index:40; background:transparent; padding:24px 0 10px}
+    header{position:fixed; top:0; left:0; right:0; z-index:40; background:transparent; padding:28px 0 10px}
     /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
        elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
        de pavés. --barre est mesurée en direct (voir majBarre). */
     body{padding-top:calc(var(--barre,138px) + 8px)}
     body.is-home{height:calc(100dvh - var(--barre,138px) - 8px)}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
+    /* ═══ LES TRIS PASSENT SUR LE CÔTÉ ═══
+       Une colonne à gauche de la liste, avec le titre de chaque tri et, en retrait, les
+       tris qui dépendent d'un autre (mail ou note → médical ou social → mot-clé). Elle
+       reste sous les yeux pendant qu'on fait défiler la liste. Sur téléphone et en mode
+       téléphone, rien ne change : les rangées restent en haut de la liste. */
+    /* La liste ne bouge PAS : elle reste au milieu, exactement où elle a toujours été.
+       La colonne de tris se pose dans la marge de gauche, restée vide. */
+    .tris{position:fixed; z-index:6; top:calc(var(--barre,138px) + 14px); width:266px;
+      left:max(20px, calc(50vw - var(--appw)/2 - 30px - 266px));
+      display:flex; flex-direction:column;
+      gap:18px; max-height:calc(100svh - var(--barre,138px) - 120px); overflow-y:auto; padding-right:4px}
+    .tris::-webkit-scrollbar{width:6px}
+    .tris::-webkit-scrollbar-thumb{background:rgba(27,27,27,.18); border-radius:3px}
+    .tris .tri-h{display:block; font-size:11px; font-weight:900; letter-spacing:.06em;
+      text-transform:uppercase; color:var(--muted); margin:0 0 8px 2px}
+    /* Dans la colonne, les étiquettes se rangent en paquet et vont à la ligne : on les lit
+       toutes d'un coup au lieu de les faire défiler à la souris. */
+    .tris .chips{display:flex; flex-wrap:wrap; overflow:visible; gap:6px; padding:0}
+    .tris .chips::-webkit-scrollbar{display:none}
+    /* Un tri qui dépend du précédent est décalé, avec un trait qui le rattache au-dessus. */
+    .tris .tri-n2{padding-left:14px; border-left:2px solid var(--line)}
+    .tris .tri-n3{padding-left:28px; border-left:2px solid var(--line)}
     /* LES PAVÉS DU RÉSEAU SONT CENTRÉS EN HAUTEUR. Les 96 px réservés en bas aux boutons
        flottants n'ont plus lieu d'être sur grand écran (ils sont hors de la colonne) :
        ils tiraient toute la grille 48 px trop haut. */
@@ -2977,7 +3026,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v334-essai';
+const APP_VERSION = 'v335-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3310,6 +3359,7 @@ function render(){
   document.body.classList.toggle('is-reseau', view==="reseau");
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
+  try{ rangerTris(); }catch(e){}   // on quitte un domaine : la colonne de tris s'en va avec lui
   const q=query.trim().toLowerCase();
 
   // Recherche globale (depuis l'accueil ou le Réseau)
@@ -3351,8 +3401,8 @@ function render(){
        suivre sont parties dans Formations (« Premiers pas dans le réseau bruxellois »),
        parce qu'on les lit une fois et qu'elles encombraient l'outil du quotidien. */
     const types=["Toutes",...DEMARCHES.filter(t=>items.some(p=>p.demarche===t))];
-    html+=`<div class="chips">`+types.map(t=>
-      `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+    html+=triBloc('Démarche', `<div class="chips">`+types.map(t=>
+      `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
     if(activeDemarche!=="Toutes") items=items.filter(p=>p.demarche===activeDemarche);
   }
   /* Le tri propre au domaine : les étiquettes portées par ses fiches (Culture : théâtre,
@@ -3388,15 +3438,15 @@ function render(){
       if(ib>=0) return 1;
       return a.localeCompare(b,'fr');
     });
-    html+=`<div class="chips">`+["Tout",...dispoTags].map(t=>
-      `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+    html+=triBloc('Ce que je cherche', `<div class="chips">`+["Tout",...dispoTags].map(t=>
+      `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
   }
   if(dm.byCommune){
     const communes=["Toutes",...COMMUNES.filter(c=>items.filter(passeTag).some(p=>p.commune===c))];
     if(communes.indexOf(activeCommune)<0) activeCommune="Toutes";
     if(communes.length>2){
-      html+=`<div class="chips">`+communes.map(c=>
-        `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`;
+      html+=triBloc('Commune', `<div class="chips">`+communes.map(c=>
+        `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`);
     }
   }
   items=items.filter(p=>passeTag(p) && passeCommune(p));
@@ -3412,24 +3462,24 @@ function render(){
     const themes=[]; items.forEach(p=>{ if(p.theme && themes.indexOf(p.theme)<0) themes.push(p.theme); });
     themes.sort((a,b)=>a.localeCompare(b,'fr'));
     if(themes.length){
-      html+=`<div class="chips">`+["Toutes",...themes].map(t=>
-        `<div class="chip ${t===activeMetier?'active':''}" onclick="setMetier('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
+      html+=triBloc('Sujet', `<div class="chips">`+["Toutes",...themes].map(t=>
+        `<div class="chip ${t===activeMetier?'active':''}" onclick="setMetier('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
       if(activeMetier!=="Toutes") items=items.filter(p=>p.theme===activeMetier);
     }
   }
   if(dm.isMail){
     // Deux tris d'abord : mail ou note, puis médical ou social. Les mots-clés affinent ensuite.
-    html+=`<div class="chips">`+["Tous","Mails","Notes"].map(g=>
-      `<div class="chip ${g===activeGenre?'active':''}" onclick="setGenre('${g}')">${esc(g)}</div>`).join('')+`</div>`;
+    html+=triBloc('Mail ou note', `<div class="chips">`+["Tous","Mails","Notes"].map(g=>
+      `<div class="chip ${g===activeGenre?'active':''}" onclick="setGenre('${g}')">${esc(g)}</div>`).join('')+`</div>`);
     if(activeGenre!=="Tous") items=items.filter(p=>(p.genre==='Note')===(activeGenre==='Notes'));
-    html+=`<div class="chips">`+["Toutes","Médical","Social"].map(f=>
-      `<div class="chip ${f===activeFam?'active':''}" onclick="setFam('${f}')">${esc(f)}</div>`).join('')+`</div>`;
+    html+=triBloc('Médical ou social', `<div class="chips">`+["Toutes","Médical","Social"].map(f=>
+      `<div class="chip ${f===activeFam?'active':''}" onclick="setFam('${f}')">${esc(f)}</div>`).join('')+`</div>`, 2);
     if(activeFam!=="Toutes") items=items.filter(p=>p.famille===activeFam);
     const kws=[]; items.forEach(p=>(p.keywords||[]).forEach(k=>{ if(kws.indexOf(k)<0) kws.push(k); }));
     kws.sort((a,b)=>a.localeCompare(b,'fr'));
     const all=["Tous",...kws];
-    html+=`<div class="chips">`+all.map(k=>
-      `<div class="chip ${k===activeKw?'active':''}" onclick="setKw('${k.replace(/'/g,"\\'")}')">${esc(k)}</div>`).join('')+`</div>`;
+    html+=triBloc('Mot-clé', `<div class="chips">`+all.map(k=>
+      `<div class="chip ${k===activeKw?'active':''}" onclick="setKw('${k.replace(/'/g,"\\'")}')">${esc(k)}</div>`).join('')+`</div>`, 3);
     if(activeKw!=="Tous") items=items.filter(p=>(p.keywords||[]).includes(activeKw));
   }
   /* Règle de Mag : à choix égal, ce qui est le plus PRÈS DU CENTRE passe devant.
@@ -3463,7 +3513,38 @@ function render(){
   if(grouper) html+= groupeCpasHTML(groupables);
   html+= enveloppeCartes(cardsHTML(restants)) || (grouper?'':emptyHTML());
   el.innerHTML=html;
+  rangerTris();
 }
+/* ═══════════ LES TRIS ═══════════
+   Sur téléphone, ils restent exactement où ils sont : des rangées qui glissent, en haut
+   de la liste. Sur grand écran, ils partent DANS UNE COLONNE À GAUCHE — la place est là,
+   et une rangée qu'on fait défiler à la souris, ce n'est pas un tri, c'est une corvée.
+   Chaque tri porte son titre (« Commune », « Mot-clé »…) et les tris qui dépendent d'un
+   autre sont décalés dessous : on voit la structure, pas une bouillie de boutons. */
+function triBloc(titre, chips, niveau){
+  return '<div class="tri-bloc'+(niveau>1?' tri-n'+niveau:'')+'" data-tri="'+esc(titre)+'">'
+       + '<span class="tri-h">'+esc(titre)+'</span>'+chips+'</div>';
+}
+function enColonne(){
+  return window.matchMedia('(min-width:1280px)').matches && !document.body.classList.contains('apercu-tel');
+}
+function rangerTris(){
+  const zone=document.querySelector('main'), vue=document.getElementById('view');
+  if(!zone || !vue) return;
+  let col=zone.querySelector('.tris');
+  const blocs=vue.querySelectorAll('.tri-bloc');
+  if(!enColonne() || !blocs.length){
+    if(col) col.remove();
+    document.body.classList.remove('a-tris');
+    return;
+  }
+  if(!col){ col=document.createElement('aside'); col.className='tris'; zone.insertBefore(col, vue); }
+  col.innerHTML='';
+  blocs.forEach(function(b){ col.appendChild(b); });
+  document.body.classList.add('a-tris');
+}
+/* Passer de l'ordinateur au mode téléphone (et inversement) remet les tris à leur place. */
+window.addEventListener('resize', function(){ try{ rangerTris(); }catch(e){} });
 /* ── Le paquet des CPAS ──────────────────────────────────────────────────────
    Un CPAS par commune, mêmes missions partout : on les montre en un seul bouton
    qui se déplie. L'équipe les connaît ; ce qu'elle vient vérifier, c'est l'adresse. */
@@ -3737,7 +3818,7 @@ function demarcheCard(p){
       ${resume?`<p class="desc">${esc(resume).slice(0,110)}${resume.length>110?'…':''}</p>`:''}
     </div>
     <div class="detail"><div class="detail-inner">
-      ${p.attention?`<div class="warn"><b>${icon('alert')} Particularité de ce CPAS</b><span>${esc(p.attention)}</span></div>`:''}
+      ${p.attention?`<div class="warn"><span class="warn-ic">${icon('alert')}</span><span class="warn-tx"><b>Particularité de ce CPAS</b><span>${esc(p.attention)}</span></span></div>`:''}
       ${rows.join('')||`<div class="warn"><b>Procédure pas encore documentée</b><span>Cette fiche attend le détail de l'équipe : pièces à joindre, à qui envoyer, délai. Utilise « Proposer une fiche » pour l'envoyer.</span></div>`}
       ${act.length?`<div class="actions">${act.join('')}</div>`:''}
       ${p.maj?`<div class="maj">Mis à jour : ${esc(p.maj)}</div>`:''}
