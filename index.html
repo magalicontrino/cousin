@@ -1205,6 +1205,18 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .jx-t:active{transform:scale(.985)}
   .jx-t.on{outline:3px solid #1b1b1b; outline-offset:2px}
   /* Le terrain, déplié sous l'étagère */
+  /* Ce qui arrive */
+  .ag-intro{font-size:12.5px; color:var(--muted); font-weight:400; line-height:1.5; margin:0 2px 16px}
+  .ag-jour{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:16px 2px 8px}
+  .ag-jour.proche{color:#1b1b1b}
+  .ag-e{background:var(--card); border:1px solid var(--line); border-left:4px solid #ccc; border-radius:12px; padding:11px 13px; margin-bottom:8px}
+  .ag-h{display:flex; align-items:baseline; gap:8px}
+  .ag-e b{font-size:14px; font-weight:800; line-height:1.2}
+  .ag-prix{margin-left:auto; flex:0 0 auto; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    background:#e9f3ec; color:#1f7a44; border-radius:7px; padding:3px 7px}
+  .ag-e em{display:block; font-style:normal; font-size:11.5px; font-weight:700; color:var(--muted); margin-top:3px}
+  .ag-e p{font-size:12.5px; color:#54514b; font-weight:400; margin:5px 0 0; line-height:1.45}
+  .dock-agenda{background:#6cb392; color:#1b1b1b}
   .jx-cap{border-radius:18px; padding:20px 18px 18px; text-align:center; margin-bottom:12px}
   .jx-cap-ic{display:block; line-height:0; margin-bottom:12px}
   .jx-cap-ic svg, .jx-cap-ic .pico{width:64px; height:64px; display:inline-block}
@@ -2429,7 +2441,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v229';
+const APP_VERSION = 'v230';
 const SEED_VERSION = 60;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -2653,6 +2665,10 @@ function updateHeader(){
     em.innerHTML=icon('cog');
     document.getElementById('hName').textContent="Admin";
     back.onclick=navRetour(openProfil);
+  }else if(view==="agenda"){
+    em.style.color='#6cb392';
+    em.innerHTML=icon('ticket');
+    document.getElementById('hName').textContent = "Ce qui arrive";
   }else if(view==="quiz"){
     em.style.color='#f5c542';
     em.innerHTML=icon('bulb');
@@ -2680,7 +2696,7 @@ function render(){
   majApercu();
   updateHeader();
   majCouleurDomaine(view);
-  majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge(); majBoutonChambres();
+  majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge(); majBoutonChambres(); majBoutonAgenda();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('is-reseau', view==="reseau");
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
@@ -2705,6 +2721,7 @@ function render(){
   if(view==="feed"){ el.innerHTML = feedHTML(); return; }
   if(view==="chambres"){ el.innerHTML = chambresHTML(); return; }
   if(view==="admin"){ el.innerHTML = adminHTML(); return; }
+  if(view==="agenda"){ el.innerHTML = agendaHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
   if(view==="petition"){ el.innerHTML = petitionHTML(); return; }
 
@@ -2728,32 +2745,41 @@ function render(){
   }
   /* Le tri propre au domaine : les étiquettes portées par ses fiches (Culture : théâtre,
      extérieur, gratuit…). On ne l'affiche que s'il y a vraiment de quoi trier. */
-  const tags=[]; items.forEach(p=>(p.tags||[]).forEach(t=>{ if(tags.indexOf(t)<0) tags.push(t); }));
-  if(activeTag!=="Tout" && tags.indexOf(activeTag)<0) activeTag="Tout";   // filtre orphelin : on le lâche
-  if(tags.length>1){
-    /* L'ordre compte : d'abord COMBIEN ÇA COÛTE (c'est la première question qu'on se pose
-       devant quelqu'un), ensuite ce que c'est, ensuite pour qui. Le reste par ordre alpha. */
+  /* ── Les deux rangées de tri se parlent ──────────────────────────────────
+     RÈGLE : aucun bouton ne doit mener à une page vide. Chaque rangée ne propose
+     donc que ce qui donnera un résultat COMPTE TENU de l'autre rangée. Si tu as
+     choisi une commune, les étiquettes qui n'existent pas dans cette commune ne
+     s'affichent même pas. */
+  const passeTag     = p => activeTag==="Tout" || (p.tags||[]).includes(activeTag);
+  const passeCommune = p => !dm.byCommune || activeCommune==="Toutes" || p.commune===activeCommune;
+
+  const dispoTags=[]; items.filter(passeCommune).forEach(p=>(p.tags||[]).forEach(t=>{ if(dispoTags.indexOf(t)<0) dispoTags.push(t); }));
+  if(activeTag!=="Tout" && dispoTags.indexOf(activeTag)<0) activeTag="Tout";
+  if(dispoTags.length>1){
+    /* L'ordre compte : d'abord COMBIEN ÇA COÛTE (la première question devant quelqu'un),
+       ensuite ce que c'est, ensuite pour qui. Le reste par ordre alphabétique. */
     const ORDRE=['Gratuit','1,25 € (Art. 27)','Petit prix',
                  'Musée','Cinéma','Théâtre','Concert','Jeux','Sport','Balade',
                  'Enfants','Ados','Familles','Femmes','Tout public','Intérieur','Extérieur'];
-    tags.sort((a,b)=>{
+    dispoTags.sort((a,b)=>{
       const ia=ORDRE.indexOf(a), ib=ORDRE.indexOf(b);
       if(ia>=0 && ib>=0) return ia-ib;
       if(ia>=0) return -1;
       if(ib>=0) return 1;
       return a.localeCompare(b,'fr');
     });
-    html+=`<div class="chips">`+["Tout",...tags].map(t=>
+    html+=`<div class="chips">`+["Tout",...dispoTags].map(t=>
       `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
-    if(activeTag!=="Tout") items=items.filter(p=>(p.tags||[]).includes(activeTag));
   }
   if(dm.byCommune){
-    const communes=["Toutes",...COMMUNES.filter(c=>items.some(p=>p.commune===c))];
-    if(communes.indexOf(activeCommune)<0) activeCommune="Toutes";   // même règle pour la commune
-    html+=`<div class="chips">`+communes.map(c=>
-      `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`;
-    if(activeCommune!=="Toutes") items=items.filter(p=>p.commune===activeCommune);
+    const communes=["Toutes",...COMMUNES.filter(c=>items.filter(passeTag).some(p=>p.commune===c))];
+    if(communes.indexOf(activeCommune)<0) activeCommune="Toutes";
+    if(communes.length>2){
+      html+=`<div class="chips">`+communes.map(c=>
+        `<div class="chip ${c===activeCommune?'active':''}" onclick="setCommune('${c.replace(/'/g,"\\'")}')">${esc(c)}</div>`).join('')+`</div>`;
+    }
   }
+  items=items.filter(p=>passeTag(p) && passeCommune(p));
   if(dm.isFormation){
     html+=`<button class="quiz-launch" onclick="openJeux()">${icon('bulb')}<span>Jouer pour retenir — 8 jeux</span></button>`;
     html+=formationsProgHTML(items);
@@ -4617,6 +4643,63 @@ async function refuseRequest(id){ try{ await sb.from('access_requests').update({
 /* ---------- Quiz de connaissances (questions générées depuis le catalogue → toujours à jour) ---------- */
 let QUIZ={ qs:[], i:0, score:0, answered:false, picked:-1, theme:null };
 function qShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+/* ═══════════ CE QUI ARRIVE — les sorties gratuites des 15 prochains jours ═══════════
+   Rien n'est saisi à la main : chaque ligne vient d'une RÈGLE qui se calcule. L'agenda ne
+   peut donc être ni vide, ni périmé, et personne n'a à le remplir.
+   ⚠️ Les gratuités bougent : à revérifier une fois par an (sources dans les fiches). */
+const AGENDA_REGLES = [
+  { titre:"Cultureghem — jeux libres aux Abattoirs", sous:"Le plus grand terrain de jeu couvert de Bruxelles. Sous halle : ça marche aussi quand il pleut.",
+    prix:"Gratuit", lieu:"Anderlecht · 12 h → 16 h", c:'#6cb392',
+    quand:function(d){ return d.getDay()===3; } },
+  { titre:"Musée BELvue — entrée gratuite", sous:"Tous les mercredis à partir de 14 h.",
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 14 h", c:'#f5c542',
+    quand:function(d){ return d.getDay()===3; } },
+  { titre:"Musées gratuits — 1er dimanche du mois", sous:"Une vingtaine de musées bruxellois, sans ticket ni réservation. La Maison d'Érasme est la plus proche du centre.",
+    prix:"Gratuit", lieu:"Toute la Région", c:'#f8763f',
+    quand:function(d){ return d.getDay()===0 && d.getDate()<=7; } },
+  { titre:"Musées fédéraux gratuits — 1er mercredi", sous:"Sciences naturelles, Magritte, Old Masters, Cinquantenaire, Musée de l'Armée.",
+    prix:"Gratuit", lieu:"Bruxelles-Ville · dès 13 h", c:'#5b8fd4',
+    quand:function(d){ return d.getDay()===3 && d.getDate()<=7; } },
+  { titre:"Distribution des produits", sous:"Au centre, à l'accueil.",
+    prix:"Au centre", lieu:"Ici · 1er samedi du mois", c:'#fd8fd0',
+    quand:function(d){ return d.getDay()===6 && d.getDate()<=7; } }
+];
+const JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function agendaProchains(jours){
+  const out=[], base=new Date(); base.setHours(0,0,0,0);
+  for(let i=0;i<(jours||15);i++){
+    const d=new Date(base); d.setDate(base.getDate()+i);
+    AGENDA_REGLES.forEach(function(r){ if(r.quand(d)) out.push({d:new Date(d), i:i, r:r}); });
+  }
+  return out;
+}
+function agendaLibelleJour(i,d){
+  if(i===0) return "Aujourd'hui";
+  if(i===1) return "Demain";
+  return JOURS_L[d.getDay()]+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
+}
+function openAgenda(){ view="agenda"; render(); }
+function agendaHTML(){
+  const list=agendaProchains(15);
+  let jour=-1, html='';
+  list.forEach(function(e){
+    if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
+    html+='<div class="ag-e" style="border-left-color:'+e.r.c+'">'
+      +'<div class="ag-h"><b>'+esc(e.r.titre)+'</b><span class="ag-prix">'+esc(e.r.prix)+'</span></div>'
+      +'<em>'+esc(e.r.lieu)+'</em><p>'+esc(e.r.sous)+'</p></div>';
+  });
+  return '<div class="pf-wrap"><p class="ag-intro">Les sorties gratuites des quinze prochains jours. Cette page se calcule toute seule — personne n\'a à la remplir, elle ne peut pas être périmée.</p>'
+    + html + '<button class="quiz-next" style="margin-top:14px" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
+}
+/* Le bouton du bas porte le ticket de Culture, et une pastille quand c'est aujourd'hui. */
+function majBoutonAgenda(){
+  const btn=document.querySelector('.dock-agenda'); if(!btn) return;
+  const aujourdhui=agendaProchains(1).length;
+  btn.style.display='flex';
+  btn.innerHTML = icon('ticket') + (aujourdhui? '<em class="ch-badge">'+aujourdhui+'</em>' : '');
+}
+
 /* ═══════════════════ LA SALLE DE JEUX ═══════════════════
    Une même matière — les fiches du réseau — et huit façons de la retenir.
    On sépare deux questions qui étaient mélangées : À QUOI on joue (le jeu),
