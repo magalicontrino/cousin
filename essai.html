@@ -613,15 +613,19 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .ap-ecran{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
     background:rgba(0,0,0,.18); border-radius:20px; padding:2px 8px; margin-left:6px}
   .bureau{display:none}
-  .bu-c{display:block; width:100%; text-align:left; border:1px solid var(--line); background:var(--card);
-    border-radius:16px; padding:13px 15px; font:inherit; cursor:pointer; color:var(--ink)}
-  .bu-c:active{transform:scale(.99)}
-  .bu-c.chaud{border-color:var(--gold); box-shadow:inset 3px 0 0 var(--gold)}
-  .bu-h{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:900; letter-spacing:.06em;
-    text-transform:uppercase; color:var(--muted)}
-  .bu-h svg, .bu-h .pico{width:14px; height:14px; color:var(--gold-d); flex:0 0 auto}
-  .bu-n{display:block; font-size:28px; font-weight:800; line-height:1.1; margin:6px 0 2px; letter-spacing:-.02em}
-  .bu-s{display:block; font-size:12.5px; color:var(--muted); line-height:1.4}
+  .bu-c{display:flex; align-items:stretch; width:100%; text-align:left; border:1px solid var(--line);
+    border-left:0; background:var(--card); border-radius:0 16px 16px 0; padding:0; font:inherit;
+    cursor:pointer; color:var(--ink); overflow:hidden;
+    transform:translateX(calc(-100% + 66px)); transition:transform .22s cubic-bezier(.22,1,.36,1)}
+  .bu-c.ouvert{transform:translateX(0)}
+  .bu-c.chaud{box-shadow:inset -3px 0 0 var(--gold)}
+  .bu-bord{flex:0 0 66px; order:2; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:2px; padding:12px 0; background:var(--soft)}
+  .bu-bord svg, .bu-bord .pico{width:17px; height:17px; color:var(--gold-d)}
+  .bu-bord b{font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1}
+  .bu-txt{flex:1 1 auto; order:1; min-width:0; padding:12px 14px; display:flex; flex-direction:column; gap:3px}
+  .bu-h{font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .bu-s{font-size:12.5px; color:var(--muted); line-height:1.35}
   @media print{ .bureau{display:none !important} }
   .fab.feed{ right:max(88px, calc(50% - var(--appw)/2 + 88px)); background:#141414; color:var(--gold);
     display:flex; align-items:center; justify-content:center; }
@@ -1588,8 +1592,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     header{position:sticky; top:0; z-index:40; background:transparent}
     .hrow{width:min(1440px, calc(100vw - 48px)); gap:18px}
     /* Les cartes de l'administratrice : UNE colonne, à gauche, il y a la place. */
-    .bureau{display:flex; flex-direction:column; gap:10px; position:fixed; top:150px; width:270px; z-index:6;
-      left:max(24px, calc(50% - var(--appw)/2 - 296px)); max-height:calc(100vh - 190px); overflow-y:auto}
+    .bureau{display:flex; flex-direction:column; gap:8px; position:fixed; top:150px; width:286px; z-index:6;
+      left:0; max-height:calc(100vh - 260px)}
     body.is-reseau .bureau{display:none}
     /* Les boutons du bas restent EN BAS À DROITE — un pied de page, pas un bandeau.
        Fixes, hors de la colonne : ils ne recouvrent plus rien de ce qu'on déroule. */
@@ -3483,11 +3487,20 @@ function homeHTML(){
    toutes dans UNE colonne à gauche — il y a la place. Personne d'autre ne les voit.
    ⚠ Ce premier affichage a lieu AVANT que PROFILE et les compteurs existent : y toucher
    directement tue le script et bloque l'app au chargement. On lit donc prudemment. */
-function carteBureau(ic, titre, gros, sous, action, urgent){
-  return '<button class="bu-c'+(urgent?' chaud':'')+'" onclick="'+action+'">'
-    + '<span class="bu-h">'+icon(ic)+esc(titre)+'</span>'
-    + (gros!==null && gros!==undefined ? '<b class="bu-n">'+esc(String(gros))+'</b>' : '')
-    + '<span class="bu-s">'+esc(sous)+'</span></button>';
+/* DES ONGLETS QUI DÉPASSENT DU BORD GAUCHE. Repliés, on ne voit que le picto et le
+   chiffre — « 4 » suffit à savoir qu'il y a 4 lignes à faire. Un clic déplie et montre
+   TOUT ce qui est écrit ; un second clic ouvre l'écran. */
+var BU_OUV={};
+function bureauOuvrir(cle){ BU_OUV[cle]=!BU_OUV[cle]; render(); }
+function carteBureau(cle, ic, titre, gros, sous, action, urgent){
+  const ouvert=!!BU_OUV[cle];
+  return '<button class="bu-c'+(urgent?' chaud':'')+(ouvert?' ouvert':'')+'" onclick="'
+    + (ouvert ? action : "bureauOuvrir('"+cle+"')") + '" title="'+esc(titre)+'">'
+    + '<span class="bu-bord">'+icon(ic)
+    +   (gros!==null && gros!==undefined ? '<b>'+esc(String(gros))+'</b>' : '')
+    + '</span>'
+    + '<span class="bu-txt"><span class="bu-h">'+esc(titre)+'</span>'
+    +   '<span class="bu-s">'+esc(sous)+'</span></span></button>';
 }
 function bureauHTML(){
   let P=null, CL=[], DN={}, chM=0, chE=0, adm=null, chant=[], boite=[];
@@ -3502,19 +3515,19 @@ function bureauHTML(){
   if(mesTaches.length){
     let tot=0, faits=0;
     mesTaches.forEach(function(x){ tot+=x.taches.length; x.taches.forEach(function(t){ if(DN[t.id]) faits++; }); });
-    c.push(carteBureau('list','Ma liste du jour', faits+'/'+tot,
+    c.push(carteBureau('liste','list','Ma liste du jour', faits+'/'+tot,
       faits>=tot ? 'Tout est fait' : (tot-faits)+' tâche'+((tot-faits)>1?'s':'')+' à cocher',
       'openMaListe()', faits<tot));
   }
-  if(adm && adm.demandes) c.push(carteBureau('user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
+  if(adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
   const reste=chant.filter(function(l){ return !l.fait; }).length;
-  if(reste) c.push(carteBureau('alert','Le chantier', reste,
+  if(reste) c.push(carteBureau('chantier','alert','Le chantier', reste,
     'lignes à faire'+(boite.length? ' · '+boite.length+' suggestion'+(boite.length>1?'s':''):''), 'openChantier()'));
-  if(chM) c.push(carteBureau('cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
-  else if(chE) c.push(carteBureau('cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
+  if(chM) c.push(carteBureau('chambres','cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
+  else if(chE) c.push(carteBureau('chambres','cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
   try{
     const auj=agendaProchains(1, function(r){ return true; });
-    if(auj.length) c.push(carteBureau('ticket','Aujourd\'hui', auj.length,
+    if(auj.length) c.push(carteBureau('agenda','ticket','Aujourd\'hui', auj.length,
       auj.length>1?'sorties gratuites':'sortie gratuite', 'openAgenda()', true));
   }catch(e){}
 
