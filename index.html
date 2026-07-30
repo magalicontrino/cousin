@@ -1276,7 +1276,8 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     font-size:13.5px; font-weight:600; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; color:var(--ink)}
   .jx-o i{font-style:normal; font-size:17px; flex:0 0 auto}
   .jx-o em{font-style:normal; font-size:11px; font-weight:400; color:var(--muted); display:block; margin-top:1px}
-  .jx-o.on{background:#1b1b1b; color:#f2eee6; border-color:#1b1b1b}
+  .jx-o.on{background:#1b1b1b; color:#f2eee6; border-color:#1b1b1b; box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+  .jx-o.on i svg, .jx-o.on i .pico{color:var(--gold)}
   .jx-o.on em{color:#c3bcae}
   .jx-puces{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
   .jx-p{border:0; border-radius:999px; padding:7px 12px; font-family:inherit; font-size:11.5px; font-weight:600; cursor:pointer; color:#1b1b1b}
@@ -1403,11 +1404,14 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
 <div id="printHead"><div class="ph-title"></div><div class="ph-date" id="printDate"></div></div>
 <div class="dock-fade"></div>
 <div class="dock">
-  <button class="dock-linge" title="Linge par étage" onclick="openLinge()"></button>
+  <!-- Ordre fixé par Mag (30/07) — en partant de la DROITE : le +, la clé, la culture,
+       le linge, les poubelles. Les boutons conditionnels gardent leur règle
+       d'apparition, mais leur place ne bouge jamais. -->
   <button class="dock-prod" title="Distribution des produits" onclick="openProduits()"></button>
+  <button class="dock-trash" title="Jour des poubelles" onclick="openPoubelles()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/><path fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/></svg></button>
+  <button class="dock-linge" title="Linge par étage" onclick="openLinge()"></button>
   <button class="dock-agenda" title="Ce qui arrive — sorties gratuites" onclick="openAgenda()"></button>
   <button class="dock-cle" title="Gestion des chambres" onclick="openChambres()"></button>
-  <button class="dock-trash" title="Jour des poubelles" onclick="openPoubelles()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/><path fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/></svg></button>
   <button class="dock-plus" title="Ajouter une fiche" onclick="openForm()"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.9" y="2.4" width="4.2" height="19.2" rx="2.1"></rect><rect x="2.4" y="9.9" width="19.2" height="4.2" rx="2.1"></rect></svg></button>
 </div>
 
@@ -2496,7 +2500,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v241';
+const APP_VERSION = 'v246';
 const SEED_VERSION = 61;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4727,7 +4731,7 @@ var AGENDA_REGLES = [
 ];
 var JOURS_L=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 var MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-function agendaProchains(jours){
+function agendaProchains(jours){   /* 31 jours par défaut sur la page, 1 pour la pastille */
   if(!AGENDA_REGLES) return [];   // render() peut passer ici avant que la table soit remplie
   const out=[], base=new Date(); base.setHours(0,0,0,0);
   for(let i=0;i<(jours||15);i++){
@@ -4743,6 +4747,9 @@ function agendaLibelleJour(i,d){
 }
 function openAgenda(){ view="agenda"; render(); }
 function openQuartier(){ view="quartier"; render(); }
+/* Les activités pour enfants sont des ACTIVITÉS : on ouvre Culture, filtré sur Enfants.
+   Le domaine Enfants & familles, lui, contient des services (ONE, AMO, écoles de devoirs). */
+function activitesEnfants(){ openDomaine('culture'); activeTag='Enfants'; render(); }
 
 /* ═══════════ AUTOUR DU CENTRE — la feuille à donner ═══════════
    Tout part du centre, Bd Prince de Liège 38. Chaque adresse porte un QR : le résident
@@ -4808,7 +4815,7 @@ function qrSVG(texte, taille){
   }catch(e){ return ''; }
 }
 function agendaHTML(){
-  const list=agendaProchains(15);
+  const list=agendaProchains(31);
   let jour=-1, html='';
   list.forEach(function(e){
     if(e.i!==jour){ jour=e.i; html+='<div class="ag-jour'+(e.i<=1?' proche':'')+'">'+esc(agendaLibelleJour(e.i,e.d))+'</div>'; }
@@ -4823,10 +4830,10 @@ function agendaHTML(){
   });
   return '<div class="pf-wrap ag-page">'
     + '<div class="ag-tete-print"><b>Sorties gratuites</b><span>Au départ du centre — Bd Prince de Liège 38, 1070 Anderlecht</span></div>'
-    + '<p class="ag-intro">Les sorties gratuites des quinze prochains jours — culture, activités, jeux. Cette page se calcule toute seule : elle ne peut pas être périmée.</p>'
+    + '<p class="ag-intro">Les sorties gratuites du mois qui vient. Un horaire peut changer : vérifiez avant d’y aller.</p>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer pour la donner</span></button>'
     + html
-    + '<button class="ag-discret" onclick="openDomaine(\'educatif\')">'+icon('educatif')+'<span>Avec des enfants ?</span></button>'
+    + '<button class="ag-discret" onclick="activitesEnfants()">'+icon('educatif')+'<span>Avec des enfants ?</span></button>'
     + '<p class="ag-pied">Scannez le carré noir pour l\'itinéraire en transports, au départ du centre. Vérifiez les horaires avant de partir.</p>'
     + '<button class="quiz-next" style="margin-top:14px" onclick="openQuartier()">Autour du centre — la feuille à donner</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
@@ -5254,7 +5261,8 @@ function jxHubHTML(){
 function jxPresentationHTML(){
   {
     const j=JEUX.find(x=>x.k===JXCHOIX.jeu), T=JXCHOIX.terrain;
-    const o=(t,k,ic,titre,sous)=>`<button class="jx-o${(T.t===t&&T.k===k)?' on':''}" onclick="jxTerrain('${t}'${k?",'"+k.replace(/'/g,"\\'")+"'":''})"><i>${ic}</i><span>${esc(titre)}<em>${esc(sous)}</em></span></button>`;
+    /* Le choix actif doit se VOIR : la comparaison ratait quand la clé est vide. */
+    const o=(t,k,ic,titre,sous)=>`<button class="jx-o${(T.t===t && (T.k||'')===(k||''))?' on':''}" onclick="jxTerrain('${t}'${k?",'"+k.replace(/'/g,"\\'")+"'":''})"><i>${ic}</i><span>${esc(titre)}<em>${esc(sous)}</em></span></button>`;
     const mets = METIERS_JEU.map(m=>`<button class="jx-p${(T.t==='met'&&T.k===m.k)?' on':''}" style="background:${m.c}" onclick="jxTerrain('met','${m.k}')">${esc(m.k)}</button>`).join('');
     const doms = DOMAINES.filter(d=>d.reseau).map(d=>`<button class="jx-p${(T.t==='dom'&&T.k===d.key)?' on':''}" style="background:${tileColor(d.key)}" onclick="jxTerrain('dom','${d.key}')">${esc(d.short||d.label)}</button>`).join('');
     return `<div class="pf-wrap">
@@ -5374,16 +5382,21 @@ function jxJeuHTML(){
   if(T==='serie'){
     if(JEU.fini){
       const r=JXS.rec.serie||0;
+      // La question ratée reste à l'écran, avec sa correction : c'est là qu'on apprend.
+      const ratee = JEU.qs[JEU.i];
+      const corr = ratee ? `<div class="jx-titre" style="margin-top:18px">La question qui t'a arrêtée</div>
+        <div class="quiz-q" style="font-size:16px">${esc(ratee.q)}</div>${quizCorrection(ratee)}` : '';
       return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.serie}</div>
         <div class="quiz-msg">${JEU.serie>=r&&JEU.serie>0?'Nouveau record !':'Série terminée'}</div>
         <div class="jx-vide" style="margin-bottom:14px">Ton record : ${r}</div>
-        <button class="pf-golist" onclick="jxJouer('serie',JEU.terrain)">${icon('jserie')} <span>Rejouer</span></button>${jxRetourHub()}</div></div>`;
+        <button class="pf-golist" onclick="jxJouer('serie',JEU.terrain)">${icon('jserie')} <span>Rejouer</span></button>${jxRetourHub()}</div>${corr}</div>`;
     }
     const Q=JEU.qs[JEU.i];
     const flamme = icon('jserie');
     return `<div class="pf-wrap">
       <div class="jx-bar"><span class="gros">${flamme}</span><span><b>Série de ${JEU.serie}</b><em>Record : ${JXS.rec.serie||0} · ${esc(jxNomTerrain(JEU.terrain))}</em></span><span class="chiffre">${JEU.serie}</span></div>
       <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div>
+      ${JEU.answered?quizCorrection(Q):''}
       ${JEU.answered?(JEU.picked===Q.correct?`<button class="quiz-next" onclick="jxSuivante()">Continuer la série</button>`:''):''}
       ${JEU.answered?jxRetourHub():''}</div>`;
   }
@@ -5421,6 +5434,7 @@ function jxJeuHTML(){
       <div class="jx-titre" style="margin-top:18px">Alors, qui suis-je ?</div>
       <div class="quiz-opts">${opts}</div>
       ${JEU.answered?`<div class="quiz-corr">${JEU.picked===it.correct?'Bien vu — c\u2019était ':'C\u2019était '}<b>${esc(it.nom)}</b>. Les trois indices sont dépliés au-dessus.</div>
+      ${quizCorrection({src:it.p, opts:it.opts, correct:it.correct})}
       <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`:''}</div>`;
   }
 
@@ -5433,6 +5447,7 @@ function jxJeuHTML(){
       <div class="quiz-q">${esc(it.phrase)}</div>
       ${JEU.answered
         ? `<div class="quiz-corr" style="border-left:4px solid ${juste?'#6cb392':'#e63329'}"><b>${juste?'Bien vu !':'Raté'}</b><br>${it.vrai?'C’était vrai.':'C’était faux — en réalité : '+esc(it.vraie)}</div>
+           ${quizCorrection({src:it.src, opts:[it.vraie], correct:0})}
            <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`
         : `<div class="jx-vf"><button class="jx-vrai" onclick="jxRepVf(true)">✓ Vrai</button><button class="jx-faux" onclick="jxRepVf(false)">✕ Faux</button></div>`}
     </div>`;
@@ -5451,6 +5466,7 @@ function jxJeuHTML(){
     return `<div class="pf-wrap">
       <div class="quiz-top"><span>La question du jour</span><span>${esc(todayStr())}</span></div>
       <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>
+      ${(JEU.answered||fait)?quizCorrection(Q):''}
       ${(JEU.answered||fait)?`<div class="quiz-corr">${(fait&&fait.juste)||(JEU.answered&&JEU.picked===Q.correct)?'Bravo — c’est la bonne.':'C’était : <b>'+esc(Q.opts[Q.correct])+'</b>'}<br><span style="color:var(--muted)">Une nouvelle question demain, la même pour toute l’équipe.</span></div>${jxRetourHub()}`:''}
     </div>`;
   }
