@@ -1059,6 +1059,11 @@ input, textarea, select{
   .acc-p{border:1px solid var(--line); background:var(--soft); color:var(--muted); border-radius:20px;
     padding:6px 11px; font-size:12px; font-weight:800; cursor:pointer}
   .acc-p.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
+  .adm-acc{margin-top:9px; padding-top:9px; border-top:1px solid var(--line)}
+  .adm-main{font-style:normal; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.04em;
+    background:var(--gold); color:#1b1b1b; border-radius:20px; padding:2px 7px; margin-left:5px}
+  .adm-reset{border:0; background:none; font:inherit; font-size:11px; font-weight:700; color:var(--muted);
+    text-decoration:underline; cursor:pointer; margin-left:6px; padding:0}
   .adm-h{font-size:11px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; color:var(--gold-d); margin:0 2px 9px}
   .adm-req{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin-bottom:9px}
   .adm-req-i{display:flex; flex-direction:column; gap:2px; margin-bottom:9px}
@@ -1649,6 +1654,8 @@ function pavesVisibles(){
     if(APERCU_ROLE) return pavesDuRole(APERCU_ROLE);   // aperçu d'un rôle
     if(!PROFILE) return PAVES_TOUS;
     if(PROFILE.admin || PROFILE.pfo) return PAVES_TOUS;
+    // Réglée à la main dans l'Admin : sa liste passe avant celle de son métier.
+    if(Array.isArray(PROFILE.paves) && PROFILE.paves.length) return PROFILE.paves;
     const role=PROFILE.equipe;
     if(!role) return PAVES_TOUS;
     if(ACCES_ROLES && ACCES_ROLES[role]) return ACCES_ROLES[role];
@@ -2678,7 +2685,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v298';
+const APP_VERSION = 'v299';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4192,14 +4199,14 @@ async function loadProfile(){
   if(!sb) return;
   try{
     let email='', nom='', uid=''; try{ const ss=(await sb.auth.getSession()).data.session; if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||''; const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; } }catch(e){}
-    let equipe='', pfo=false, admin=false, listes=[];
+    let equipe='', pfo=false, admin=false, listes=[], pavesPerso=null;
     try{
-      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin,listes');
+      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin,listes,paves');
       if(email) qy = qy.ilike('email', email);   // cible SA ligne (l'admin voit tout le monde via RLS → on filtre sur son email)
       const { data:me } = await qy.limit(1);
-      if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; listes=Array.isArray(me[0].listes)?me[0].listes:[]; if(me[0].email) email=me[0].email; }
+      if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; listes=Array.isArray(me[0].listes)?me[0].listes:[]; pavesPerso=Array.isArray(me[0].paves)?me[0].paves:null; if(me[0].email) email=me[0].email; }
     }catch(e){}
-    PROFILE={ email, nom, equipe, pfo, admin, uid, listes };
+    PROFILE={ email, nom, equipe, pfo, admin, uid, listes, paves:pavesPerso };
     // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
     if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
     let cl=[];
@@ -5018,7 +5025,7 @@ function openAdmin(){
 async function loadAdmin(){
   adminLoaded=false; ADMIN={ members:[], requests:[] };
   if(!sb){ adminLoaded=true; return; }
-  const champs='email,nom,equipe,pfo,admin,actif,listes';
+  const champs='email,nom,equipe,pfo,admin,actif,listes,paves';
   try{
     const { data, error } = await sb.from('allowed_emails').select(champs+',derniere_connexion,visites').order('email');
     if(error) throw error;
@@ -5083,7 +5090,16 @@ function adminHTML(){
     }
     else if(hasFixed){ listSection=`<div class="adm-lists-h">Voit : Médical</div>`; }
     else { listSection=`<div class="adm-lists-h faint">Pas de check-list pour ce rôle</div>`; }
-    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${usageHTML(mb)}</div>`;
+    const sesPaves = (Array.isArray(mb.paves)&&mb.paves.length) ? mb.paves : pavesDuRole(mb.equipe);
+    const aLaMain = Array.isArray(mb.paves)&&mb.paves.length;
+    const accesPerso = (mb.admin||mb.pfo) ? '' :
+      `<div class="adm-acc"><div class="adm-lists-h">Ce qu'il ou elle voit ${aLaMain
+          ? `<b class="adm-main">réglé à la main</b><button class="adm-reset" onclick="rendreAuRole('${esc(mb.email)}')">revenir à son métier</button>`
+          : `<span class="faint">— suit son métier</span>`}</div>
+        <div class="acc-paves">${PAVES_TOUS.map(function(k){
+          return `<button class="acc-p ${sesPaves.indexOf(k)>=0?'on':''}" onclick="togglePaveMembre('${esc(mb.email)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
+        }).join('')}</div></div>`;
+    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
   }).join('');
   const metiers=[]; ADMIN.members.forEach(function(m){ const r=m.equipe||'Sans rôle'; if(metiers.indexOf(r)<0) metiers.push(r); });
   metiers.sort(function(a,b){ return ROLE_OPTS.indexOf(a)-ROLE_OPTS.indexOf(b); });
@@ -5265,6 +5281,27 @@ async function toggleList(email,k){
   let lst=(mb.listes||[]).slice();
   if(lst.includes(k)) lst=lst.filter(x=>x!==k); else lst.push(k);
   try{ await sb.from('allowed_emails').update({listes:lst}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+}
+/* Ouvrir ou fermer un pavé à UNE personne, sans toucher à son métier. On enregistre
+   sa liste complète : à partir de là, elle ne suit plus son rôle. */
+async function togglePaveMembre(email, k){
+  const mb=(ADMIN.members||[]).filter(function(m){ return m.email===email; })[0]; if(!mb) return;
+  const cur=((Array.isArray(mb.paves)&&mb.paves.length)? mb.paves : pavesDuRole(mb.equipe)).slice();
+  const i=cur.indexOf(k);
+  if(i>=0) cur.splice(i,1); else cur.push(k);
+  mb.paves=cur; if(view==='admin') render();
+  try{
+    const { error } = await sb.from('allowed_emails').update({paves:cur}).eq('email',email);
+    if(error) throw error;
+    await loadAdmin(); if(view==='admin') render();
+  }catch(e){ cousinToast('Pas enregistré : '+((e&&e.message)||'erreur')); }
+}
+async function rendreAuRole(email){
+  try{
+    await sb.from('allowed_emails').update({paves:null}).eq('email',email);
+    await loadAdmin(); if(view==='admin') render();
+    cousinToast('Elle suit de nouveau son métier ✓');
+  }catch(e){ cousinToast('Impossible'); }
 }
 async function removeMember(email){
   cousinConfirm("Retirer "+email+" de l'application ?", async function(){
