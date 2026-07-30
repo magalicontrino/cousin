@@ -1017,9 +1017,10 @@ input, textarea, select{
   .ch-l.done .pf-txt{text-decoration:line-through; opacity:.55}
   .ch-d{display:block; font-style:normal; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:2px; line-height:1.35}
   .ch-x{flex:0 0 auto; border:0; background:none; cursor:pointer; color:var(--faint);
-    display:flex; align-items:center; justify-content:center; width:46px; height:46px; margin-top:2px;
+    display:flex; align-items:center; justify-content:center; width:40px; height:44px; margin-top:2px;
     border-radius:12px; -webkit-tap-highlight-color:transparent}
-  .ch-x:active{background:var(--soft); color:var(--danger)}
+  .ch-x:active{background:var(--soft); color:var(--ink)}
+  .ch-x[title^="Retirer"]:active{color:var(--danger)}
   .ch-x svg, .ch-x .pico{width:18px; height:18px}
   .ch-tete-print{display:none}
   /* Qui voit quoi : une ligne par rôle, un bouton par pavé */
@@ -2620,7 +2621,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v285';
+const APP_VERSION = 'v286';
 const SEED_VERSION = 64;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4738,6 +4739,7 @@ function chantierHTML(){
             <span class="pf-box">${icon('check')}</span>
             <span class="pf-txt">${esc(l.titre)}${l.detail?`<em class="ch-d">${esc(l.detail)}</em>`:''}</span>
           </label>
+          <button class="ch-x" title="Copier cette ligne" onclick="copierLigne(${l.id})">${icon('mail')}</button>
           <button class="ch-x" title="Retirer de la liste" onclick="delChantier(${l.id})">${icon('trash')}</button>
         </div>`;
       }).join('')+`</div></div>`;
@@ -4783,6 +4785,15 @@ function chantierPageHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p><p>Reconnecte-toi à internet pour voir ta liste.</p></div>`;
   if(!(PROFILE&&PROFILE.admin)) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
   return `<div class="pf-wrap">${boiteHTML()}${chantierHTML()}</div>`;
+}
+/* Copier UNE ligne : le titre et son explication, pour me la recoller telle quelle. */
+function copierLigne(id){
+  const l=CHANTIER.filter(function(x){ return x.id===id; })[0]; if(!l) return;
+  const txt=l.titre+(l.detail? '\n'+l.detail : '');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ cousinToast('Ligne copiée ✓'); })
+      .catch(function(){ prompt('Copie :', txt); });
+  } else prompt('Copie :', txt);
 }
 /* Copier toute la liste en texte : c'est ce qu'elle me recolle dans la conversation
    pour qu'on reprenne le travail là où il en est. */
