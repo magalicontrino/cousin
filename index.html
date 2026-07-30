@@ -2688,7 +2688,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v300';
+const APP_VERSION = 'v301';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4203,12 +4203,29 @@ async function loadProfile(){
   try{
     let email='', nom='', uid=''; try{ const ss=(await sb.auth.getSession()).data.session; if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||''; const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; } }catch(e){}
     let equipe='', pfo=false, admin=false, listes=[], pavesPerso=null;
-    try{
-      let qy = sb.from('allowed_emails').select('email,equipe,pfo,admin,listes,paves');
-      if(email) qy = qy.ilike('email', email);   // cible SA ligne (l'admin voit tout le monde via RLS → on filtre sur son email)
-      const { data:me } = await qy.limit(1);
-      if(me&&me[0]){ equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin; listes=Array.isArray(me[0].listes)?me[0].listes:[]; pavesPerso=Array.isArray(me[0].paves)?me[0].paves:null; if(me[0].email) email=me[0].email; }
-    }catch(e){}
+    /* ⚠ NE JAMAIS PERDRE SON RÔLE À CAUSE D'UNE COLONNE MANQUANTE. Une seule colonne
+       absente faisait échouer toute la requête : Mag se retrouvait sans badge, sans Admin
+       et sans Liste debug, comme si elle n'était plus administratrice. On redemande donc
+       le strict nécessaire si la version enrichie échoue. */
+    const lire = async function(champs){
+      let qy = sb.from('allowed_emails').select(champs);
+      if(email) qy = qy.ilike('email', email);   // sa ligne à elle (l'admin voit tout le monde via RLS)
+      const r = await qy.limit(1);
+      if(r.error) throw r.error;
+      return r.data;
+    };
+    let me=null;
+    try{ me = await lire('email,equipe,pfo,admin,listes,paves'); }
+    catch(e){
+      try{ me = await lire('email,equipe,pfo,admin,listes'); }
+      catch(e2){ try{ me = await lire('email,equipe,pfo,admin'); }catch(e3){} }
+    }
+    if(me&&me[0]){
+      equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin;
+      listes=Array.isArray(me[0].listes)?me[0].listes:[];
+      pavesPerso=Array.isArray(me[0].paves)?me[0].paves:null;
+      if(me[0].email) email=me[0].email;
+    }
     PROFILE={ email, nom, equipe, pfo, admin, uid, listes, paves:pavesPerso };
     // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
     if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
