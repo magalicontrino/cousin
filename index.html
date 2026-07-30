@@ -1704,24 +1704,55 @@ function pavesVisibles(){
 /* Guides de questions (arbres) : orientation, PAS conseil juridique.
    Chaque nœud a soit une question `q` + options `opts` [{t,go}], soit un résultat `r`. */
 const GUIDES = {
+  /* ARBRE D'ORIENTATION — pas un conseil juridique. Chaque réponse ne dit QUE ce que
+     la formation CIRÉ de l'app dit déjà : rien n'est ajouté ici. Toute réponse renvoie
+     vers une permanence spécialisée, parce que le droit des étrangers change souvent. */
   cartes: {
     start: "q1",
     nodes: {
-      q1: {q:"La personne a-t-elle un titre de séjour ?", opts:[
-        {t:"Oui, elle a une carte", go:"q2"},
-        {t:"Non / sans-papiers", go:"sp"},
-        {t:"En attente d'une décision (carte orange)", go:"orange"}
+      q1: {q:"Qu'est-ce que la personne a comme document de séjour ?", opts:[
+        {t:"Une carte de séjour", go:"q2"},
+        {t:"Une carte orange (en attente d'une décision)", go:"qo"},
+        {t:"Rien — séjour irrégulier", go:"sp"},
+        {t:"Je ne sais pas encore", go:"flou"}
       ]},
+
       q2: {q:"Quelle carte ?", opts:[
-        {t:"Carte A (temporaire)", go:"a"},
-        {t:"Carte B / K / L (illimité, établissement)", go:"illim"},
-        {t:"Carte EU / EU+ ou F / F+ (UE ou famille UE)", go:"ue"}
+        {t:"A — séjour temporaire", go:"a"},
+        {t:"B — séjour illimité", go:"illim"},
+        {t:"K ou L — établissement, résident longue durée", go:"illim"},
+        {t:"EU ou EU+ — citoyen de l'Union", go:"ue"},
+        {t:"F ou F+ — famille d'un·e Belge ou d'un·e Européen·ne", go:"f"}
       ]},
-      sp:    {r:"Sans-papiers : droits très limités → aide médicale urgente, école (6–18 ans), ester en justice, se marier. Pas de travail, pas de CPAS. Piste possible : régularisation 9bis/9ter si circonstances exceptionnelles."},
-      orange:{r:"Carte orange (séjour provisoire) : les droits dépendent de la situation — demandeur d'asile (travail après 4 mois, aide Fedasil), RF avec un·e Belge (travail immédiat), régularisation médicale (aide sociale). Vérifier le statut précis."},
-      a:     {r:"Carte A (séjour temporaire) : en général travail ✓ et CPAS ✓. Les droits exacts dépendent du statut (réfugié, protection, RF, régularisé, étudiant, permis unique)."},
-      illim: {r:"Carte B / K / L (illimité, établissement, résident longue durée) : travail ✓ et CPAS ✓."},
-      ue:    {r:"Citoyen UE (EU/EU+) ou membre de famille d'un·e Belge/UE (F/F+) : travail ✓ ; CPAS selon les conditions (ressources, durée). Attention au risque pour le séjour si aide sociale en regroupement familial."}
+
+      qo: {q:"La carte orange, c'est en attente de quoi ?", opts:[
+        {t:"Une demande d'asile", go:"o_asile"},
+        {t:"Un regroupement familial avec un·e Belge", go:"o_rf"},
+        {t:"Une régularisation médicale (9 ter)", go:"o_9ter"},
+        {t:"On ne sait pas", go:"o_flou"}
+      ]},
+
+      sp: {q:"Séjour irrégulier. Y a-t-il une piste de régularisation ?", opts:[
+        {t:"Une maladie grave, et les soins n'existent pas au pays", go:"r9ter"},
+        {t:"Une longue présence en Belgique et des attaches ici", go:"r9bis"},
+        {t:"Aucune pour l'instant — juste les droits de base", go:"sp_base"}
+      ]},
+
+      a:     {r:"Carte A — séjour temporaire (1 à 5 ans) : réfugié, protection, regroupement familial, régularisé, étudiant, permis unique.\n\nTRAVAIL : oui. CPAS : oui.\n\nLes droits exacts dépendent du statut qui a donné la carte — c'est écrit sur la carte ou dans la décision."},
+      illim: {r:"Carte B (illimité, après 5 ans de séjour ou régularisation illimitée), K (établissement) ou L (résident longue durée UE).\n\nTRAVAIL : oui. CPAS : oui.\n\nC'est le séjour le plus stable : les droits sont les plus larges."},
+      ue:    {r:"Carte EU / EU+ — citoyen·ne de l'Union, séjour de plus de 3 mois ou permanent après 5 ans.\n\nTRAVAIL : oui. CPAS : sous conditions (ressources, durée du séjour).\n\nÀ vérifier avant de demander l'aide sociale."},
+      f:     {r:"Carte F / F+ — membre de la famille d'un·e Belge ou d'un·e Européen·ne (regroupement familial).\n\nTRAVAIL : oui. CPAS : ATTENTION, demander l'aide sociale peut mettre le séjour en danger en regroupement familial.\n\nÀ ne jamais faire sans avis spécialisé."},
+
+      o_asile:{r:"Demande d'asile en cours.\n\nTRAVAIL : possible après 4 mois. AIDE : Fedasil (accueil), pas le CPAS.\n\nLa carte orange dit que la procédure est en cours, pas qu'elle est gagnée."},
+      o_rf:   {r:"Regroupement familial avec un·e Belge, en cours.\n\nTRAVAIL : immédiat.\n\nAttention : l'aide sociale peut peser sur la décision de séjour."},
+      o_9ter: {r:"Régularisation médicale (9 ter) en cours.\n\nAIDE SOCIALE : oui pendant la procédure.\n\nLa procédure peut être longue : garder toutes les preuves médicales."},
+      o_flou: {r:"Carte orange, motif inconnu : les droits dépendent entièrement de la procédure qui est derrière.\n\nÀ faire : regarder la décision ou l'annexe remise avec la carte, ou appeler la permanence. Sans ça, on ne peut rien affirmer."},
+
+      r9ter:  {r:"Piste 9 TER — régularisation médicale : maladie grave ET soins inaccessibles dans le pays d'origine.\n\nÇa se prépare avec un médecin et une permanence juridique — jamais seul·e."},
+      r9bis:  {r:"Piste 9 BIS — humanitaire : séjour irrégulier avec circonstances exceptionnelles et ancrage en Belgique.\n\nDécision discrétionnaire de l'Office des étrangers : rien n'est automatique. À monter avec une permanence."},
+      sp_base:{r:"Séjour irrégulier — les droits qui restent, quoi qu'il arrive :\n\n• l'aide médicale urgente (AMU)\n• l'école, de 6 à 18 ans\n• aller en justice\n• se marier\n\nPas de travail, pas de CPAS."},
+
+      flou:   {r:"Sans savoir quel document la personne a, on ne peut rien dire de ses droits — et se tromper ici peut lui coûter cher.\n\nÀ faire : lui demander de montrer sa carte ou son annexe, puis revenir ici."}
     }
   }
 };
@@ -2724,7 +2755,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v310';
+const APP_VERSION = 'v311';
 const SEED_VERSION = 67;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
