@@ -377,7 +377,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
     padding:7px 13px; border-radius:20px; font-size:13px; font-weight:650; cursor:pointer; white-space:nowrap;
   }
-  .chip.active{background:var(--gold); border-color:var(--gold); color:#141414}
+  /* Dans un domaine, les filtres actifs prennent SA couleur (celle de son pavé d'accueil) ;
+     ailleurs (recherche, favoris) on retombe sur l'or. */
+  .chip.active{background:var(--dom,var(--gold)); border-color:var(--dom,var(--gold)); color:var(--dom-ink,#141414)}
   .count{font-size:12px; color:var(--ondark-muted); font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:2px 2px 12px}
 
   /* Cards */
@@ -385,6 +387,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
     background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
     margin-bottom:12px; overflow:hidden; position:relative;
   }
+  /* Renvoi des Démarches vers la formation « Premiers pas » : discret, une seule ligne. */
+  .renvoi-f{width:100%; display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer;
+    background:color-mix(in srgb, var(--dom,var(--gold)) 16%, #fff); border:1px solid color-mix(in srgb, var(--dom,var(--gold)) 34%, #fff);
+    border-radius:13px; padding:11px 13px; margin-bottom:12px; font-family:inherit; font-size:12.5px; color:#4a463f; line-height:1.4}
+  .renvoi-f b{font-weight:900; color:#1b1b1b}
+  .rf-ch{flex:0 0 auto; width:16px; height:16px; color:var(--muted); transform:rotate(180deg)}
   /* Le paquet des CPAS : une seule carte qui se déplie sur les 19 fiches. */
   .grp{margin-bottom:12px}
   .grp-top{width:100%; display:flex; align-items:center; gap:12px; text-align:left; cursor:pointer;
@@ -410,7 +418,9 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .tag.dom{color:#141414}
   .tag.urg{background:#e63329; color:#fff}
   .tag.cpas{background:rgba(27,27,27,.08); color:var(--ink)}
-  .tag.todo{background:#fbf0c4; color:#8a6a00}
+  /* « à documenter » : un rappel pour nous, pas une information pour l'équipe — il reste discret
+     pour que la couleur du domaine soit la seule à parler. */
+  .tag.todo{background:#f1ede3; color:#8a7a56}
   .tag.com{background:var(--soft); color:var(--iris-d)}
   .card h2{margin:0; font-size:16.5px; font-weight:750; letter-spacing:-.2px}
   .card .desc{margin:6px 0 0; font-size:14px; color:var(--muted)}
@@ -1601,12 +1611,41 @@ const SAMPLE = [
     "1. Identité et situation familiale\n2. Besoins prioritaires : logement, santé, revenus, séjour, sécurité\n3. Droits déjà ouverts : mutuelle, CPAS, allocations\n4. Information sur la confidentialité (RGPD) et recueil du consentement\n5. Première orientation et prochain rendez-vous\n\n👉 À compléter avec vos propres points de vigilance."),
   m("Sanction","Conduite à tenir face aux infractions (résumé).",
     "Avertir → recadrer → sanctionner, par paliers.\nDécidé à deux (travailleur social + infirmier) ou par la coordination.\n\n1. Vie commune (bruit, hygiène, horaires…) → rappel, puis sanction courte.\n2. Alcool / drogue → recadrage puis sanction ; refus de confier son traitement = fin d'hébergement.\n3. Agression / vol → verbale : avertissement ; physique, sexuelle ou vol : exclusion immédiate.\n4. Refus de soin → à voir en réunion."),
-  dproc("Ouverture d'un dossier CPAS","Étapes types — vérifier selon la commune de résidence.",
-    "• Déterminer la commune de résidence (= CPAS compétent)\n• Pièces : composition de ménage, revenus, bail, identité\n• Prise de rendez-vous / permanence\n• Délais légaux d'instruction\n• Suivi : RIS, aide médicale, aide sociale complémentaire\n\n👉 Adapter aux pratiques de chaque CPAS."),
-  dproc("Aide Médicale Urgente (AMU)","Repère pour les personnes sans séjour légal — information générale, non juridique.",
-    "L'AMU permet des soins pour les personnes en séjour irrégulier, via le CPAS.\n• Orienter la personne vers le CPAS de sa commune\n• Un médecin atteste le caractère « urgent » des soins\n• En parallèle : Médecins du Monde (CASO) pour l'accès aux soins\n\n⚠️ Confirmer la procédure avec le CPAS concerné."),
-  dproc("Orientation « droit des étrangers »","Quand et vers qui rediriger.",
-    "Ne pas donner de conseil juridique soi-même.\n• Questions de séjour / regroupement familial → ADDE, CIRÉ, Myria\n• Demande d'asile → Fedasil, avocat spécialisé (BAJ)\n• Toujours vérifier les délais : ils sont souvent courts et impératifs."),
+
+  /* Les trois marches à suivre qui vivaient dans Démarches sont réunies ici (30/07/2026) :
+     on les lit une fois, en arrivant. Démarches ne garde plus que les guichets. */
+  formation("Premiers pas dans le réseau bruxellois",
+    "Les trois marches à suivre de base : ouvrir un dossier CPAS, l'aide médicale urgente, et quand passer la main sur le séjour.",[],
+    `<div class="f-page">
+  <div class="f-lead">🧭 <b>Pour qui arrive dans le réseau bruxellois.</b> Trois marches à suivre qu'on lit une fois, puis qu'on oublie — les guichets, eux, restent dans <b>Démarches</b>.</div>
+
+  <div class="f-h">Ouvrir un dossier CPAS</div>
+  <div class="f-steps">
+    <div class="f-step"><div class="sn">1</div><div class="st"><b>Déterminer la commune de résidence</b><span>C'est elle qui désigne le CPAS compétent.</span></div></div>
+    <div class="f-step"><div class="sn">2</div><div class="st"><b>Réunir les pièces</b><span>Composition de ménage, revenus, bail, identité.</span></div></div>
+    <div class="f-step"><div class="sn">3</div><div class="st"><b>Rendez-vous ou permanence</b><span>Selon les pratiques du CPAS concerné.</span></div></div>
+    <div class="f-step"><div class="sn">4</div><div class="st"><b>Délais légaux d'instruction</b><span>À vérifier au cas par cas.</span></div></div>
+    <div class="f-step"><div class="sn">5</div><div class="st"><b>Suivi</b><span>RIS, aide médicale, aide sociale complémentaire.</span></div></div>
+  </div>
+  <div class="f-note">👉 <b>Adapter aux pratiques de chaque CPAS.</b></div>
+
+  <div class="f-h">Aide Médicale Urgente (AMU)</div>
+  <div class="f-lead">Information générale, non juridique. L'AMU permet des soins aux personnes <b>en séjour irrégulier</b>, via le CPAS.</div>
+  <div class="f-steps">
+    <div class="f-step"><div class="sn">1</div><div class="st"><b>Orienter vers le CPAS de la commune</b><span>C'est lui qui ouvre le droit.</span></div></div>
+    <div class="f-step"><div class="sn">2</div><div class="st"><b>Un médecin atteste le caractère « urgent »</b><span>L'attestation médicale est la pièce centrale.</span></div></div>
+    <div class="f-step"><div class="sn">3</div><div class="st"><b>En parallèle : Médecins du Monde (CASO)</b><span>Pour l'accès aux soins sans attendre.</span></div></div>
+  </div>
+  <div class="f-note">⚠️ <b>Confirmer la procédure avec le CPAS concerné.</b></div>
+
+  <div class="f-h">Quand passer la main — droit des étrangers</div>
+  <div class="f-lead">🚫 <b>Ne pas donner de conseil juridique soi-même.</b></div>
+  <div class="f-steps">
+    <div class="f-step"><div class="sn">→</div><div class="st"><b>Séjour, regroupement familial</b><span>ADDE, CIRÉ, Myria.</span></div></div>
+    <div class="f-step"><div class="sn">→</div><div class="st"><b>Demande d'asile</b><span>Fedasil, avocat spécialisé (BAJ).</span></div></div>
+  </div>
+  <div class="f-note">⏱️ <b>Toujours vérifier les délais</b> : ils sont souvent courts et impératifs.</div>
+</div>`, "Premiers pas"),
 
   // CENTRE — infos pratiques du quotidien
   centre("Jour des poubelles","Sortie des poubelles — jours, couleurs et où les déposer.","QUAND : le MATIN du jour de collecte (pas la veille au soir).\nOÙ : déposées devant la porte.\n\nCE QU'ON SORT\nLundi — 3 noires\nMercredi — 3 noires + 2 jaunes + 2 bleues\nVendredi — 3 noires\n\nLe bouton en bas de l'app s'allume la veille dès 16 h et le matin de la collecte, aux couleurs des sacs concernés. Il s'éteint à midi : les sacs sont dehors, le rappel ne sert plus."),
@@ -2108,10 +2147,6 @@ function cpas(nom,commune,tel,site,adr){
   return d("social",nom,commune,"Revenu d'intégration (RIS), aide sociale, guidance budgétaire, aide médicale urgente.","Habitants de la commune",tel,"",site,adr,"","");
 }
 /* Fiche-mémo (lecture/formation) : `memo` = texte long affiché en pleine page dans la fiche. */
-/* Fiche « marche à suivre » rangée dans Démarches (même présentation qu'une conduite à adopter). */
-function dproc(nom,desc,notes){
-  const o=m(nom,desc,notes); o.domaine="demarches"; o.asMethod=true; return o;
-}
 function memo(dom,nom,desc,site,memoTxt){
   const o=d(dom,nom,"Régional / Toutes communes",desc,"Professionnels","","",site,"","",""); o.memo=memoTxt; return o;
 }
@@ -2157,8 +2192,8 @@ function urgent(fiche){ fiche.urgent=true; return fiche; }
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v194';
-const SEED_VERSION = 53;
+const APP_VERSION = 'v195';
+const SEED_VERSION = 54;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -2178,7 +2213,6 @@ let urgCat = null;          // index de la catégorie d'urgence déployée (ou n
 let query = "";
 let activeCommune = "Toutes";
 let activeDemarche = "Toutes";
-let activeDemGenre = "Tout";   // mode d'emploi ou guichet
 let activeMetier = "Toutes";
 let activeKw = "Tous";
 let activeFam = "Toutes";      // Médical / Social
@@ -2266,13 +2300,13 @@ function urlHref(u){return /^https?:\/\//i.test(u)?u:'https://'+u}
 function countDom(k){return data.filter(p=>p.domaine===k).length}
 
 /* ---------- Navigation ---------- */
-function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
+function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
 // Accueil : bouton loupe → révèle et focalise la recherche ; pastilles → recherche rapide
 function toggleHomeSearch(){ document.body.classList.add('search-on'); const s=document.getElementById('search'); if(s){ s.focus(); } }
 function quickSearch(q){ const s=document.getElementById('search'); if(s) s.value=q; query=q; document.body.classList.add('search-on'); render(); }
-function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
-function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeDemGenre="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openDomaine(k){view=k; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
+function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 /* Accordéon Urgences (sur l'accueil, comme une FAQ — pas de page séparée). */
 function toggleUrg(){ urgOpen=!urgOpen; if(!urgOpen) urgCat=null; render(); if(!urgOpen) window.scrollTo(0,0); }
@@ -2395,6 +2429,7 @@ function updateHeader(){
 function render(){
   majApercu();
   updateHeader();
+  majCouleurDomaine(view);
   majBoutonPoubelles(); majBoutonProduits(); majBoutonLinge(); majBoutonChambres();
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('is-reseau', view==="reseau");
@@ -2430,12 +2465,9 @@ function render(){
 
   let html=domNavHTML(view);
   if(dm.isDem){
-    // Deux choses différentes vivent ici : le mode d'emploi d'une démarche, et le guichet
-    // à qui l'adresser. On les sépare avant de proposer les types.
-    html+=`<div class="chips">`+["Tout","Mode d'emploi","Par CPAS"].map(g=>
-      `<div class="chip ${g===activeDemGenre?'active':''}" onclick="setDemGenre('${g.replace(/'/g,"\\'")}')">${esc(g)}</div>`).join('')+`</div>`;
-    if(activeDemGenre==="Mode d'emploi") items=items.filter(p=>p.asMethod);
-    else if(activeDemGenre==="Par CPAS") items=items.filter(p=>!p.asMethod);
+    /* Démarches ne contient plus que des guichets : « où s'adresser ». Les marches à
+       suivre sont parties dans Formations (« Premiers pas dans le réseau bruxellois »),
+       parce qu'on les lit une fois et qu'elles encombraient l'outil du quotidien. */
     const types=["Toutes",...DEMARCHES.filter(t=>items.some(p=>p.demarche===t))];
     html+=`<div class="chips">`+types.map(t=>
       `<div class="chip ${t===activeDemarche?'active':''}" onclick="setDemarche('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`;
@@ -2488,6 +2520,10 @@ function render(){
     ? `${restants.length} ${restants.length>1?'ressources':'ressource'} · ${groupables.length} CPAS regroupés`
     : `${items.length} ${items.length>1?'ressources':'ressource'}`;
   html+=`<div class="listbar"><div class="count">${compte}</div><button class="print-btn" onclick="doPrint()" title="Imprimer ou enregistrer en PDF">${icon('note')}<span>Imprimer / PDF</span></button></div>`;
+  // Démarches : le renvoi vers la marche à suivre, qui vit maintenant dans Formations.
+  if(view==='demarches' && !q) html+= `<button class="renvoi-f" onclick="allerPremiersPas()">
+    <span>Jamais fait ? <b>La marche à suivre est dans Formations</b> — « Premiers pas dans le réseau bruxellois ».</span>
+    ${icon('chevron','class="rf-ch"')}</button>`;
   if(grouper) html+= groupeCpasHTML(groupables);
   html+= enveloppeCartes(cardsHTML(restants)) || (grouper?'':emptyHTML());
   el.innerHTML=html;
@@ -2509,9 +2545,19 @@ function groupeCpasHTML(list){
     ${cpasOuvert ? `<div class="grp-in">${enveloppeCartes(cardsHTML(list))}</div>` : ''}
   </div>`;
 }
+/* Le renvoi des Démarches vers la formation « Premiers pas » : on ouvre Formations
+   et on déplie directement la bonne fiche, pour ne pas avoir à la chercher. */
+function allerPremiersPas(){
+  openDomaine('formations');
+  const f=data.find(p=>p.domaine==='formations' && /Premiers pas/i.test(p.nom||''));
+  if(!f) return;
+  setTimeout(()=>{
+    const el=document.getElementById('c-'+f.id);
+    if(el){ toggle(f.id); el.scrollIntoView({block:'start',behavior:'smooth'}); }
+  },40);
+}
 function setCommune(c){activeCommune=c; render()}
 function setDemarche(t){activeDemarche=t; render()}
-function setDemGenre(g){activeDemGenre=g; activeDemarche='Toutes'; render()}
 function setMetier(m){activeMetier=m; render()}
 function setKw(k){activeKw=k; render()}
 function setFam(f){activeFam=f; activeKw="Tous"; render()}
@@ -2883,9 +2929,21 @@ function formationCard(p){
   </div>`;
 }
 
+/* Encre lisible sur un fond donné : sombre sur les teintes claires, claire sur les foncées. */
+function encreSur(hex){
+  const n=parseInt(String(hex).slice(1),16);
+  const lum=(((n>>16)&255)*.299+((n>>8)&255)*.587+(n&255)*.114)/255;
+  return lum>.6 ? '#141414' : '#fff';
+}
+/* Chaque domaine porte SA couleur (la même que son pavé d'accueil) au lieu de l'or partout. */
+function majCouleurDomaine(v){
+  const st=document.documentElement.style;
+  if(DOM[v]){ const c=tileColor(v); st.setProperty('--dom',c); st.setProperty('--dom-ink',encreSur(c)); }
+  else { st.removeProperty('--dom'); st.removeProperty('--dom-ink'); }
+}
 function domTag(p){
-  const dm=DOM[p.domaine];
-  return `<span class="tag dom" style="background:${dm.color}">${icon(dm.ic)}${esc(dm.label)}</span>`;
+  const dm=DOM[p.domaine], c=tileColor(p.domaine);
+  return `<span class="tag dom" style="background:${c};color:${encreSur(c)}">${icon(dm.ic)}${esc(dm.label)}</span>`;
 }
 
 function contactCard(p){
