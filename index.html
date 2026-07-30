@@ -103,7 +103,15 @@ button, input, select, textarea{font-family:inherit}
   body.is-home{height:100dvh; min-height:0; overflow-y:auto; display:flex; flex-direction:column;
     padding-bottom:calc(env(safe-area-inset-bottom) + 88px)}
   body.is-home main{flex:1 1 auto; min-height:0; min-width:0; display:flex; flex-direction:column}
-  body.is-home .wrap{flex:1 1 auto; min-height:0; min-width:0; display:flex; flex-direction:column}
+  /* L'ACCUEIL EST CENTRÉ VERTICALEMENT (choix de Mag, 30/07/2026). Un rôle qui n'a que
+     trois pavés laissait tout le bas de l'écran vide, le contenu semblait tomber vers
+     le haut. Il se pose maintenant au milieu de la place disponible, quel que soit le
+     nombre de pavés. C'était déjà la règle sur grand écran ; elle vaut partout.
+     ⚠ `safe center` : si jamais le contenu dépasse (Urgences déplié sur un petit
+     écran), on retombe sur un alignement en haut — sinon le centrage rognerait le
+     haut de la page, qu'aucun défilement ne pourrait rattraper. */
+  body.is-home .wrap{flex:1 1 auto; min-height:0; min-width:0; display:flex; flex-direction:column;
+    justify-content:center; justify-content:safe center}
   body.is-home .home-title{margin:8px 0 14px; flex:0 0 auto}
   body.is-home .hero{margin-bottom:12px; flex:0 0 auto}
   /* Les 6 pavés occupent exactement la hauteur qui reste : jamais de défilement. */
@@ -672,7 +680,7 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
 .fab.feed svg, .fab.feed .pico{ width:26px; height:26px; }
   /* Dock bas : LE FIL + bouton + (refonte v6) */
   .dock-fade{display:none}
-  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 26px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
+  .dock{position:fixed; left:max(20px, calc(50% - var(--appw)/2 + 20px)); right:max(20px, calc(50% - var(--appw)/2 + 20px)); bottom:calc(env(safe-area-inset-bottom) + 12px); z-index:30; display:flex; align-items:center; justify-content:flex-end; flex-wrap:nowrap; row-gap:8px; gap:3px}   /* écart faible : les anneaux crème en ajoutent déjà */
   /* UNE PASTILLE OUVERTE NE FAIT PLUS REMONTER LE RANG (choix de Mag, 30/07). Quand la
      place manque — mercredi, trois poubelles à sortir — les boutons ronds se reculent et
      se chevauchent : la clé passe par-dessus le bouton jaune, le ticket par-dessus la clé.
@@ -1386,13 +1394,15 @@ input, textarea, select{
   /* + 12 px : sans ça, le contenu vient se coller au bandeau noir alors qu'ailleurs il y a
      toujours de l'air en haut — l'écart n'était pas le même avec et sans bandeau. */
   body.apercu-on{padding-top:calc(var(--apercu-h) + 12px)}
-  /* ⚠ RÈGLE JUMELLE OBLIGATOIRE, SUR TÉLÉPHONE AUSSI. L'accueil est calé sur la hauteur
-     de l'écran (`height:100dvh`). En aperçu, on lui AJOUTE le padding du bandeau noir
-     ci-dessus : la page dépassait donc de toute la hauteur du bandeau, et le bouton Quiz
-     descendait pile sous le rang de pastilles flottantes, à moitié caché. La règle
-     existait pour l'aperçu sur ordinateur (`body.apercu-tel.is-home`) mais avait été
-     oubliée pour un vrai téléphone. Repéré par Mag le 30/07/2026. */
-  body.apercu-on.is-home{height:calc(100dvh - var(--apercu-h) - 12px)}
+  /* ⚠ NE PAS « CORRIGER » LA HAUTEUR DE L'ACCUEIL EN APERÇU — piège vérifié le 30/07/2026.
+     On serait tenté d'écrire `body.apercu-on.is-home{height:calc(100dvh - var(--apercu-h))}`
+     pour faire de la place au bandeau noir. C'est FAUX : le `box-sizing` est en `border-box`,
+     donc le `padding-top` ci-dessus est DÉJÀ compris dans `height:100dvh`. On soustrairait
+     la hauteur du bandeau deux fois, la page s'arrêterait trop tôt et le contenu centré
+     remonterait tout en haut au lieu de rester au milieu.
+     Le vrai problème d'origine (le bouton Quiz caché derrière les pastilles) venait de la
+     hauteur du bandeau lui-même — la phrase « Tu vois l'app comme : » sur trois lignes —
+     et de la rangée de pavés vide. Les deux sont réglés à la source. */
   @media print{
     @page{ margin:14mm; }
     /* Sur papier, aucune liste n'est pliée : on imprime tout ce qu'on a le droit de voir. */
@@ -3197,7 +3207,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v355';
+const APP_VERSION = 'v356';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4646,8 +4656,10 @@ function majBoutonPoubelles(){
   const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const d=new Date().getDay();
   const jour = JOURS[POUBELLES[d] ? d : (d+1)%7];
-  // Deux lettres suffisent (« Ve », « Me ») : le jour et les sacs tiennent au plus juste.
-  const quand = jour.slice(0,2);
+  /* TROIS lettres (« Ven », « Mer »), pas deux : à sa demande le 30/07/2026 — « deux,
+     c'est pas assez ». « Ma » et « Me » se confondaient au premier coup d'œil, et c'est
+     précisément ce jour-là qu'il faut sortir les sacs. */
+  const quand = jour.slice(0,3);
   const txt=sacs.map(x=>x.n+' '+x.l).join(' + ');
   btn.title=jour+' — poubelles à sortir : '+txt;
   // Pas de liste écrite : une pastille par type de sac, avec son nombre dessus.
