@@ -2826,7 +2826,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v320';
+const APP_VERSION = 'v321';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -4592,11 +4592,11 @@ function peutGererChambres(){
 }
 /* Première case = celui qui fait le travail (son métier), ou l'encadrement.
    Deuxième case « liste étage » = le PFO et la coordination uniquement. */
-function peutCocherEtape(e){
-  if(peutGererChambres()) return true;
-  const p=PROFILE||{};
-  return !!(e.roles && e.roles.indexOf(p.equipe)>=0);
-}
+/* TOUT LE MONDE PEUT COCHER (décision de Mag, 30/07/2026) : ce sont les agents
+   d'entretien et les polyvalents qui font le geste, les enfermer dehors n'avait aucun
+   sens. La sécurité, ce n'est pas d'empêcher : c'est de SAVOIR QUI a coché — le nom et
+   l'heure s'affichent sous chaque étape, et un clic de plus annule. */
+function peutCocherEtape(e){ return true; }
 function peutCocherNote(){ return peutCreerChambre(); }
 async function loadChambres(){
   chambresLoaded=false; CHAMBRES=[];
@@ -4722,13 +4722,14 @@ function chambresHTML(){
       '<button class="ch-addbtn" onclick="ajouterChambre()">Ajouter</button></div>' +
       '<div class="ch-rgpd">'+icon('cadenas')+' <b>Les initiales</b>, ou le <b>prénom et la première lettre du nom</b>. <b>Jamais le nom complet.</b> C\'est seulement pour savoir quel lit débarrasser quand la chambre est à deux — retire la chambre de la liste une fois qu\'elle est libérée.</div>'
     : (function(){ const t=(function(){
-        if(peut) return 'Tu peux cocher les étapes. Le PFO, la coordination et les travailleurs sociaux ajoutent des chambres.';
+        if(peut) return 'Tout le monde coche les étapes qu\'il fait — le nom et l\'heure restent affichés. Le PFO, la coordination et les travailleurs sociaux ajoutent des chambres.';
         /* Une aide-soignante coche « vider », l'entretien coche « nettoyer » : leur dire
            qu'elles ne peuvent pas cocher était faux, et décourageant. On nomme leur étape. */
         const mes=mesEtapesChambres();
-        if(mes.length) return 'Tu peux cocher '+(mes.length>1?'tes étapes':'ton étape')+' : '
+        if(mes.length) return 'Coche '+(mes.length>1?'tes étapes':'ton étape')+' : '
           + mes.map(function(e){ return e.l.toLowerCase(); }).join(', ')
-          + '. Le reste de la liste est là pour que tu voies où en sont les chambres.';
+          + '. Ton nom et l\'heure s\'affichent — en cas d\'erreur, un clic annule.';
+        return 'Coche l\'étape que tu as faite. Ton nom et l\'heure s\'affichent — en cas d\'erreur, un clic annule.';
         /* Qui n'a aucun geste à faire ne lit RIEN : lui expliquer ce qu'il n'a pas le
            droit de faire, c'est le renvoyer à ce qu'il n'est pas. Il voit la liste, point. */
         return '';
