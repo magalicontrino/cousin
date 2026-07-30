@@ -1015,8 +1015,8 @@ input, textarea, select{
   .plan-e.fort .plan-t b{color:var(--bg)}
   .plan-e.fort .plan-t span{color:rgba(242,238,230,.62)}
   .plan-b{flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:900; text-transform:uppercase;
-    letter-spacing:.03em; background:var(--soft); color:var(--muted); border-radius:20px; padding:4px 9px}
-  .plan-e.fort .plan-b{background:var(--gold); color:#1b1b1b}
+    letter-spacing:.03em; background:#fbe3e1; color:var(--danger); border-radius:20px; padding:4px 9px; text-align:center}
+  .plan-e.fort .plan-b{background:#6cb392; color:#0e3a28}
   .plan-stop{display:flex; align-items:center; gap:8px; margin:9px 2px 11px; padding-bottom:9px;
     border-bottom:2px dashed var(--danger)}
   .plan-stop span{font-size:11.5px; font-weight:700; color:var(--danger); line-height:1.3}
@@ -2672,7 +2672,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v293';
+const APP_VERSION = 'v294';
 const SEED_VERSION = 66;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -5109,18 +5109,25 @@ function planAccesHTML(){
     q.roles.push(roleLabel(r));
   });
   paquets.sort(function(a,b){ return b.n-a.n; });
+  // Ce qui compte pour vérifier, ce n'est pas ce qu'on voit : c'est ce qu'on NE voit PAS.
+  paquets.forEach(function(q){
+    q.fermes = PAVES_TOUS.filter(function(k){ return q.cle.split('|').indexOf(k)<0; })
+                         .map(function(k){ return PAVES_NOMS[k]||k; });
+  });
   const etage=function(titre, sous, badge, fort){
     return '<div class="plan-e'+(fort?' fort':'')+'"><div class="plan-t"><b>'+esc(titre)+'</b><span>'+esc(sous)+'</span></div>'
          + '<em class="plan-b">'+esc(badge)+'</em></div>';
   };
-  let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — du plus large au plus restreint</div>';
-  html+=etage('Toi — admin'+(admins.length>1? ' ('+nomsCourts(admins)+')':''), 'Tout, sans exception', '6 pavés + admin', true);
-  html+='<div class="plan-stop">'+icon('cle')+'<span>L\'accès à l\'Admin s\'arrête ici — personne d\'autre ne l\'ouvre</span></div>';
-  if(pfos.length) html+=etage('PFO — '+nomsCourts(pfos), 'Toutes les check-lists', '6 pavés');
+  let html='<div class="adm-sec"><div class="adm-h">Le plan des accès — ce qui est FERMÉ à chacun</div>';
+  html+=etage('Toi — admin'+(admins.length>1? ' ('+nomsCourts(admins)+')':''), 'Aucune restriction', 'rien de fermé', true);
+  html+='<div class="plan-stop">'+icon('cle')+'<span>Sous cette ligne, plus personne n\'ouvre l\'Admin ni la Liste debug</span></div>';
+  if(pfos.length) html+=etage('PFO — '+nomsCourts(pfos), 'Ne voit pas : l\'Admin, la Liste debug', '1 fermé');
   paquets.forEach(function(q){
-    html+=etage(q.roles.join(' · '), q.noms.join(', ')||'aucun pavé', q.n+' pavé'+(q.n>1?'s':''));
+    const sous = q.fermes.length ? 'Ne voit pas : l\'Admin, '+q.fermes.join(', ')
+                                 : 'Ne voit pas : l\'Admin. Rien d\'autre ne lui est fermé';
+    html+=etage(q.roles.join(' · '), sous, (q.fermes.length+1)+' fermés');
   });
-  html+='<div class="adm-hint" style="margin-top:8px">Calculé sur les réglages du moment : si tu ouvres ou fermes un pavé plus bas, ce plan bouge avec.</div></div>';
+  html+='<div class="adm-hint" style="margin-top:8px">Ce qui est écrit ici, c\'est ce que le rôle NE voit PAS. Calculé sur les réglages du moment : si tu ouvres ou fermes un pavé plus bas, le plan bouge avec.</div></div>';
   return html;
 }
 function accesHTML(){
