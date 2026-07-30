@@ -3253,7 +3253,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v364-essai';
+const APP_VERSION = 'v365-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -6317,9 +6317,17 @@ function pavesDuRole(role){
 const GROUPES_PLAN=[
   {l:'A', nom:'Administration',        admin:true, roles:[]},
   {l:'B', nom:'Coordination',          roles:['Coordi']},
+  /* Travaux / Maintenance et Logistique sont passés de C à D le 31/07/2026. Ils n'ont que
+     trois pavés, comme tout le groupe D. Tant qu'ils étaient dans C, la carte du groupe C
+     affichait le plus petit dénominateur commun de ses métiers et annonçait donc que C
+     n'avait ni Démarches, ni Mails, ni Protocole — faux pour les TS, le médical, les
+     éducs, les psys et les infis, qui les ont. Repéré par Mag.
+     ⚠ Ce tableau ne fait que DESSINER le plan : l'accès réel de chacun vit dans la table
+     roles_acces. Déplacer un métier ici ne change ce que voit personne. */
   {l:'C', nom:'Auprès des personnes',  roles:['TS','Médical','Éduc','Psy','Infi','Aide-soignante',
-                                              'Référent·e infis & aide-soignant·es','Travaux / Maintenance','Logistique']},
-  {l:'D', nom:'Autour du centre',      roles:['Polyvalent','Agent entretien','Responsable punaise','Article 60']}
+                                              'Référent·e infis & aide-soignant·es']},
+  {l:'D', nom:'Autour du centre',      roles:['Polyvalent','Travaux / Maintenance','Logistique',
+                                              'Agent entretien','Responsable punaise','Article 60']}
 ];
 function planAccesHTML(){
   const mem=ADMIN.members||[];
@@ -6366,9 +6374,14 @@ function planAccesHTML(){
     if(enTrop.length) alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Erreur : le groupe '+G[i].l
       +' voit '+esc(enTrop.map(function(k){ return PAVES_NOMS[k]||k; }).join(', '))
       +'</b> alors que le groupe '+G[i-1].l+', au-dessus, ne l\'a pas. Le plan doit descendre, jamais remonter.</span></div>';
-    /* L'alerte « le groupe n'est pas homogène » est retirée (demande de Mag, 30/07) : un
-       groupe peut très bien rassembler des métiers qui n'ont pas exactement le même accès,
-       ça se voit déjà dans « Qui voit quoi ». Ce message n'apprenait rien et inquiétait. */
+    /* LE FILET, remis le 31/07 à sa demande (« au cas où ») et réécrit en clair : le mot
+       « homogène » ne disait rien, et le message n'expliquait pas ce qu'on voyait à
+       l'écran. Il ne s'affiche que quand le groupe mélange vraiment des accès différents —
+       c'est exactement ce qui rendait la carte du groupe C fausse. */
+    if(G[i].melange.length) alerte+='<div class="plan-err">'+icon('alert')+'<span><b>Dans le groupe '+G[i].l
+      +', tout le monde ne voit pas la même chose.</b> '
+      +esc(G[i].melange.map(function(k){ return PAVES_NOMS[k]||k; }).join(', '))
+      +' : ouvert à certains de ses métiers, fermé à d\'autres. La carte ci-dessous ne montre donc que ce que voient TOUS ses métiers — elle paraît plus fermée qu\'elle ne l\'est. À régler dans « Qui voit quoi », ou en déplaçant le métier dans un autre groupe.</span></div>';
   }
   const connus=[]; GROUPES_PLAN.forEach(function(g){ g.roles.forEach(function(r){ connus.push(r); }); });
   const orphelins=ROLE_OPTS.filter(function(r){ return connus.indexOf(r)<0; });
