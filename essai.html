@@ -1271,9 +1271,6 @@ input, textarea, select{
   .acc-vue{border:0; background:rgba(242,238,230,.14); color:var(--bg); border-radius:20px; padding:7px 13px;
     font:inherit; font-size:12.5px; font-weight:800; cursor:pointer}
   .acc-vue.on{background:var(--gold); color:#1b1b1b}
-  .acc-row{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; margin-bottom:9px}
-  .acc-tete{display:flex; align-items:center; gap:10px; margin-bottom:8px}
-  .acc-role{font-size:13.5px; font-weight:900; flex:1 1 auto}
   .acc-voir{flex:0 0 auto; border:0; background:#1b1b1b; color:var(--bg); border-radius:20px;
     padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
   .acc-paves{display:flex; flex-wrap:wrap; gap:6px}
@@ -1345,10 +1342,6 @@ input, textarea, select{
     border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
   .acc-apart.on{background:var(--gold); color:#1b1b1b; border-color:transparent}
   .acc-m .acc-paves{flex:1 1 100%; margin-top:4px}
-  /* Les trois étages de la page : ce qui presse, le quotidien, les réglages. */
-  .adm-etage{font-size:10.5px; font-weight:900; letter-spacing:.09em; text-transform:uppercase;
-    color:var(--faint); margin:20px 2px 10px; padding-top:12px; border-top:1px solid var(--line)}
-  .adm-etage:first-child{margin-top:2px; padding-top:0; border-top:0}
   /* Statistiques d'usage : qui est venu, puis le classement en barres, puis la courbe. */
   .st-sec{font-size:10.5px; font-weight:900; letter-spacing:.07em; text-transform:uppercase;
     color:var(--faint); margin:16px 0 9px}
@@ -1372,7 +1365,6 @@ input, textarea, select{
   /* La casquette « référent·e » : même forme que PFO, autre couleur — ce n'est pas le même
      genre d'information (PFO ouvre les listes, référent·e ne fait que dire qui c'est). */
   .adm-pfo.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
-  .adm-sh.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
   /* La ligne d'explication, et à sa droite le bouton qui referme tout d'un coup. */
   .adm-tete{display:flex; align-items:flex-start; gap:10px; margin-bottom:10px}
   .adm-tete .adm-hint{flex:1 1 auto; min-width:0; margin:0}
@@ -3271,7 +3263,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v369-essai';
+const APP_VERSION = 'v370-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3384,7 +3376,6 @@ function countDom(k){return data.filter(p=>p.domaine===k).length}
 /* ---------- Navigation ---------- */
 function goHome(){view="home"; urgOpen=false; urgCat=null; activeCommune="Toutes"; activeDemarche="Toutes"; activeTag="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.body.classList.remove('search-on'); const s=document.getElementById('search'); if(s) s.value=''; query=''; render()}
 // Accueil : bouton loupe → révèle et focalise la recherche ; pastilles → recherche rapide
-function toggleHomeSearch(){ document.body.classList.add('search-on'); const s=document.getElementById('search'); if(s){ s.focus(); } }
 function quickSearch(q){ const s=document.getElementById('search'); if(s) s.value=q; query=q; document.body.classList.add('search-on'); render(); }
 /* Un domaine fermé à ce rôle : pendant un aperçu, on montre le mur au lieu de passer
    à travers — c'est exactement le bug qu'on cherche à voir avant les collègues. */
@@ -4406,13 +4397,6 @@ function guideCard(p){
 
 /* Sommaire d'une formation : on relit les titres de sections de la page elle-même,
    donc il suit automatiquement le contenu — impossible qu'il soit périmé. */
-function formationPlan(page){
-  if(!page) return '';
-  const titres=[], re=/<div class="f-h">([\s\S]*?)<\/div>/g; let m;
-  while((m=re.exec(page))) titres.push(m[1].replace(/<[^>]*>/g,'').trim());
-  if(titres.length<2) return '';
-  return `<div class="f-plan">`+titres.map((t,i)=>`<span class="f-pl"><em>${i+1}</em>${esc(t)}</span>`).join('')+`</div>`;
-}
 /* ═══ Les formations, en « carte de cours » (choix de Mag, 30/07/2026) ═══
    Une vignette colorée par sujet, le plan déplié chapitre par chapitre, et une
    coche par chapitre lu. On voit où on en est sans avoir à ouvrir la fiche. */
@@ -6162,15 +6146,13 @@ function adminHTML(){
     else if(hasShift){ listSection=`<div class="adm-lists-h">Quart :</div><div class="adm-shift"><button class="adm-sh ${shift==='jour'?'on':''}" onclick="setShift('${esc(mb.email)}','jour')">Jour</button><button class="adm-sh ${shift==='nuit'?'on':''}" onclick="setShift('${esc(mb.email)}','nuit')">Nuit</button></div>${shift?`<div class="adm-listnow">Voit : Polyvalent — ${shift==='nuit'?'Nuit':'Jour'}</div>`:`<div class="adm-listnow faint">Choisis Jour ou Nuit pour lui donner sa liste</div>`}`; }
     else if(estInfi){
       const et=etageDeInfi(mb.listes);
-      /* Trois postes possibles pour une infirmière : le rez, le 2e étage, ou référente.
-         Le troisième bouton pose la même casquette que celui d'à côté de PFO (c'est le
-         même réglage, à deux endroits) : une référente n'a pas de liste d'étage. */
+      /* Deux postes, et rien d'autre : la casquette « référente » se règle plus haut, à côté
+         de PFO. Elle avait été ajoutée ici aussi — deux boutons pour le même réglage, ça
+         faisait douter qu'il s'agisse bien de la même chose. */
       listSection=`<div class="adm-lists-h">Poste :</div><div class="adm-shift">`+
         `<button class="adm-sh ${et==='rez'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','rez')">Rez-de-chaussée</button>`+
-        `<button class="adm-sh ${et==='etage'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','etage')">2e étage</button>`+
-        `<button class="adm-sh ref ${mb.referent?'on':''}" onclick="toggleReferent('${esc(mb.email)}',${mb.referent?'false':'true'})">Référente</button></div>`+
-        (mb.referent?`<div class="adm-listnow">Référente — pas de liste d'étage${et?(et==='rez'?', et voit Médical — rez':', et voit Médical — 2e étage'):''}</div>`
-         :et?`<div class="adm-listnow">Voit : ${et==='rez'?'Médical — rez':'Médical — 2e étage'}</div>`
+        `<button class="adm-sh ${et==='etage'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','etage')">2e étage</button></div>`+
+        (et?`<div class="adm-listnow">Voit : ${et==='rez'?'Médical — rez':'Médical — 2e étage'}</div>`
            :`<div class="adm-listnow faint">Choisis son poste pour lui donner sa liste</div>`);
     }
     else if(hasFixed){ listSection=`<div class="adm-lists-h">Voit : Médical</div>`; }
@@ -6665,12 +6647,6 @@ async function setShift(email, shift){
   const listes = deriveListes(mb.equipe, newShift);
   try{ await sb.from('allowed_emails').update({listes}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
 }
-async function toggleList(email,k){
-  const mb=ADMIN.members.find(x=>x.email===email); if(!mb) return;
-  let lst=(mb.listes||[]).slice();
-  if(lst.includes(k)) lst=lst.filter(x=>x!==k); else lst.push(k);
-  try{ await sb.from('allowed_emails').update({listes:lst}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
-}
 /* Ouvrir ou fermer un pavé à UNE personne, sans toucher à son métier. On enregistre
    sa liste complète : à partir de là, elle ne suit plus son rôle. */
 async function togglePaveMembre(email, k){
@@ -7011,10 +6987,8 @@ function openAgenda(){ view="agenda"; render(); }
 function openQuartier(){ view="quartier"; render(); }
 /* Les activités pour enfants sont des ACTIVITÉS : on ouvre Culture, filtré sur Enfants.
    Le domaine Enfants & familles, lui, contient des services (ONE, AMO, écoles de devoirs). */
-function activitesEnfants(){ openDomaine('culture'); activeTag='Famille'; render(); }
 /* Le ticket Article 27 ouvre des lieux payants à 1,25 € : théâtre, cinéma, concerts.
    Ça mérite sa propre porte, à côté de celle des enfants. */
-function activitesArt27(){ openDomaine('culture'); activeTag='Article 27'; render(); }
 
 /* ═══════════ AUTOUR DU CENTRE — la feuille à donner ═══════════
    Tout part du centre, Bd Prince de Liège 38. Chaque adresse porte un QR : le résident
@@ -7323,11 +7297,6 @@ function jxNomTerrain(ter){
   if(ter.t==='met') return 'Métier : '+ter.k;
   return 'Au hasard';
 }
-function jxCouleurTerrain(ter){
-  if(ter && ter.t==='dom') return tileColor(ter.k);
-  if(ter && ter.t==='met'){ const m=METIERS_JEU.find(x=>x.k===ter.k); return m?m.c:'#f5c542'; }
-  return '#f5c542';
-}
 function jxQuestions(ter, n){
   const doms=jxDoms(ter);
   const g = doms ? quizGen(null, doms) : quizGen('all');
@@ -7598,16 +7567,6 @@ function quizVoirFiche(id){
   const c=zone.querySelector('.card');
   if(c && !c.classList.contains('open')) c.classList.add('open');
   setTimeout(function(){ if(c) c.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
-}
-function quizVoirFicheAilleurs(id){
-  const p=data.find(function(x){ return x.id===id; }); if(!p) return;
-  openDomaine(p.domaine);
-  setTimeout(function(){
-    const c=document.getElementById('c-'+id);
-    if(!c) return;
-    if(!c.classList.contains('open')) toggle(id);
-    c.scrollIntoView({behavior:'smooth', block:'center'});
-  }, 60);
 }
 
 /* ═══ L'affichage de la salle de jeux ═══ */
