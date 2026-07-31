@@ -3263,7 +3263,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v370-essai';
+const APP_VERSION = 'v371-essai';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3411,7 +3411,7 @@ function navPictos(){
      reste le premier des leurs. Picto provisoire.
      ⚠ Ce commentaire est AU-DESSUS du return, jamais derrière : un commentaire multi-lignes
      placé après « return » vaut retour à la ligne, et la fonction ne renvoie plus rien. */
-  return (estAdmin() ? `<button class="hicon gest" title="Gestion" onclick="openAdmin()">${icon('cog')}</button>` : '')+
+  return (peutGerer() ? `<button class="hicon gest" title="Gestion" onclick="openAdmin()">${icon('cog')}</button>` : '')+
          `<button class="hicon home" title="Accueil" onclick="goHome()">${icon('home')}</button>`+
          `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
@@ -3425,6 +3425,14 @@ function navPictos(){
    `!enApercu()` (le bouton du profil, le bureau, le chantier) ; l'en-tête avait été
    oublié. Repéré par Mag le 30/07/2026. */
 function estAdmin(){ try{ return !!(PROFILE && PROFILE.admin) && !enApercu(); }catch(e){ return false; } }
+/* LA COORDINATION AIDE À GÉRER L'ÉQUIPE (décision de Mag, 31/07/2026) : elle peut ajouter
+   quelqu'un, le suspendre ou le réactiver, et traiter les demandes d'accès. Elle ne peut
+   ni supprimer, ni changer les rôles, ni toucher aux accès, ni voir les statistiques.
+   ⚠ Cette fonction ne fait que CACHER des boutons. Ce qui protège vraiment, ce sont les
+   fonctions de la base (peut_gerer_equipe, voir sql/gestion-coordi.sql) : sans elles, la
+   limite ne serait qu'un décor. */
+function estCoordi(){ try{ return String((PROFILE&&PROFILE.equipe)||'').toLowerCase()==='coordi' && !enApercu(); }catch(e){ return false; } }
+function peutGerer(){ return estAdmin() || estCoordi(); }
 /* Pastille rouge sur le profil : Mag doit voir qu'une demande d'accès l'attend,
    sans avoir à ouvrir sa page. */
 function alertesProfil(){
@@ -6090,6 +6098,15 @@ async function loadAdmin(){
   adminLoaded=false; ADMIN={ members:[], requests:[] };
   if(!sb){ adminLoaded=true; return; }
   const champs='email,nom,equipe,pfo,referent,admin,actif,listes,paves';
+  /* La coordination n'a pas le droit de lire la table en direct : elle passe par les deux
+     fonctions prévues pour elle, qui ne renvoient que ce qu'elle a le droit de voir. */
+  if(!(PROFILE&&PROFILE.admin)){
+    try{
+      const a = await sb.rpc('gestion_equipe');   ADMIN.members=(a&&a.data)||[];
+      const b = await sb.rpc('gestion_demandes'); ADMIN.requests=(b&&b.data)||[];
+    }catch(e){}
+    adminLoaded=true; return;
+  }
   try{
     const { data, error } = await sb.from('allowed_emails').select(champs+',derniere_connexion,visites').order('email');
     if(error) throw error;
@@ -6122,14 +6139,14 @@ function usageHTML(mb){
 }
 function adminHTML(){
   if(!sb) return `<div class="empty"><p><b>Hors ligne.</b></p></div>`;
-  if(!(PROFILE&&PROFILE.admin)) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
+  if(!(PROFILE&&(PROFILE.admin||estCoordi()))) return `<div class="pf-empty">${icon('cog','width="34" height="34"')}<p><b>Réservé à l'administratrice.</b></p></div>`;
   if(!adminLoaded) return `<div class="empty"><p>Chargement…</p></div>`;
   let reqs='';
   if(ADMIN.requests.length){
     reqs=`<div class="adm-sec nu">`+
       ADMIN.requests.map(r=>`<div class="adm-req"><div class="adm-req-i"><b>${esc(r.mot? r.mot.split(' — ')[0] : r.email)}</b>${r.mot&&r.mot.indexOf(' — ')>0?`<span>${esc(r.mot.split(' — ').slice(1).join(' — '))}</span>`:''}${r.mot?`<span>${esc(r.email)}</span>`:''}<em>${esc(quandFr(r.cree_le))}${/@samusocial\.be$/i.test(r.email||'')?'':' · adresse perso'}</em></div><div class="adm-req-a"><button class="adm-ok" onclick="approveRequest('${esc(r.email)}',${r.id})">Approuver</button><button class="adm-no" onclick="refuseRequest(${r.id})">Refuser</button><button class="adm-del" title="Supprimer la demande" onclick="deleteRequest(${r.id})">${icon('trash')}</button></div></div>`).join('')+`</div>`;
   }
-  const add=`<div class="adm-sec nu"><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
+  const add=`<div class="adm-sec nu"><div class="adm-add"><input id="admEmail" type="email" placeholder="email@exemple.be" autocomplete="off"><select id="admRole">${ROLE_OPTS.map(r=>`<option value="${esc(r)}">${esc(roleLabel(r))}</option>`).join('')}</select><button class="adm-addbtn" onclick="addMember()">Ajouter</button></div><div class="adm-hint">${(PROFILE&&PROFILE.admin)?'':'Il faut une adresse <b>@samusocial.be</b>. '}La personne devra aussi être « testeur Google » tant que l'app n'est pas publiée.</div></div>`;
   /* La fiche d'une personne. Elle n'est fabriquée que si son métier est déplié : sinon
      l'écran affichait la trentaine de fiches à la suite, et on ne trouvait plus personne. */
   const carteMembre=function(mb){
@@ -6166,7 +6183,12 @@ function adminHTML(){
         <div class="acc-paves">${PAVES_TOUS.map(function(k){
           return `<button class="acc-p ${sesPaves.indexOf(k)>=0?'on':''}" onclick="togglePaveMembre('${esc(mb.email)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
         }).join('')}</div></div>`;
-    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button><button class="adm-pfo ref ${mb.referent?'on':''}" onclick="toggleReferent('${esc(mb.email)}',${mb.referent?'false':'true'})">Référent·e</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
+    /* La coordination voit une fiche RÉDUITE : le nom, l'adresse, et l'interrupteur pour
+       suspendre ou réactiver. Pas de rôle, pas de PFO, pas de poubelle, pas d'accès, pas
+       d'usage — ce n'est pas à elle de régler ça. */
+    const tete=`<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div>`;
+    if(!(PROFILE&&PROFILE.admin)) return tete+`<div class="adm-lists"><div class="adm-lists-h faint">${mb.actif?'Peut se connecter':'Suspendu·e — ne peut plus entrer'}</div></div></div>`;
+    return tete+`<div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button><button class="adm-pfo ref ${mb.referent?'on':''}" onclick="toggleReferent('${esc(mb.email)}',${mb.referent?'false':'true'})">Référent·e</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
   };
   /* L'ÉQUIPE, RANGÉE PAR MÉTIER. Une trentaine de fiches à la suite, ça ne se lit pas :
      on ne voit d'abord que les métiers, avec le nombre de personnes, et on ouvre celui
@@ -6219,6 +6241,17 @@ function adminHTML(){
     : admBloc('attente', 'Les gens en attente', 'personne pour l\'instant',
               '<div class="adm-hint">Quand quelqu\'un demandera à se connecter, ça apparaîtra ici — et ce bouton s\'ouvrira tout seul.</div>',
               false, 'rose');
+  /* LA PAGE DE LA COORDINATION : trois portes, pas six. Elle traite les demandes, ajoute
+     quelqu'un, suspend ou réactive. Le chantier, les accès, le plan et les statistiques
+     restent à l'administratrice — et ce n'est pas qu'un affichage : la base refuse les
+     autres gestes (voir sql/gestion-coordi.sql). */
+  if(!(PROFILE&&PROFILE.admin)){
+    return `<div class="pf-wrap">`
+      + attente
+      + admBloc('ajouter', 'Ajouter quelqu\'un', 'une adresse @samusocial.be, un métier', add, false, 'or')
+      + admBloc('equipe', "L'équipe", ADMIN.members.length+' personne'+(ADMIN.members.length>1?'s':''), team)
+      + `</div>`;
+  }
   return `<div class="pf-wrap">`
     + versChantier
     + attente
@@ -6621,13 +6654,17 @@ async function addMember(){
   const email=(em.value||'').trim().toLowerCase(); if(!email||email.indexOf('@')<1){ em.focus(); return; }
   const equipe=ro.value||'';
   cousinConfirm("Ajouter "+email+(equipe?(" en "+equipe):"")+" ?", async function(){
-    try{ await sb.from('allowed_emails').upsert({ email, equipe, actif:true, listes:deriveListes(equipe,'') }, { onConflict:'email' }); em.value=''; await loadAdmin(); if(view==='admin') render(); cousinToast('Ajouté ✓'); }
-    catch(e){ cousinToast('Impossible d\'ajouter : '+(e.message||e)); }
+    try{ const { error } = await sb.rpc('gestion_ajouter', { p_email:email, p_equipe:equipe, p_listes:deriveListes(equipe,'') });
+         if(error) throw error;
+         em.value=''; await loadAdmin(); if(view==='admin') render(); cousinToast('Ajouté ✓'); }
+    catch(e){ cousinToast('Impossible d\'ajouter : '+((e&&e.message)||e)); }
   }, {ok:'Ajouter'});
 }
 async function toggleActif(email,on){
   cousinConfirm((on?'Réactiver ':'Suspendre ')+email+' ?', async function(){
-    try{ await sb.from('allowed_emails').update({actif:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
+    try{ const { error } = await sb.rpc('gestion_actif', { p_email:email, p_actif:on });
+         if(error) throw error; await loadAdmin(); if(view==='admin') render(); }
+    catch(e){ cousinToast('Impossible : '+((e&&e.message)||e)); }
   }, {ok:(on?'Réactiver':'Suspendre'), danger:!on, onCancel:function(){ if(view==='admin') render(); }});
 }
 /* « Référent·e » est une CASQUETTE, pas un métier (décision de Mag, 31/07/2026) : une
@@ -6674,19 +6711,20 @@ async function removeMember(email){
   }, {ok:'Retirer', danger:true});
 }
 async function approveRequest(email,id){
-  try{ await sb.from('allowed_emails').upsert({ email:(email||'').toLowerCase(), equipe:'', actif:true }, { onConflict:'email' });
-       await sb.from('access_requests').update({statut:'approuve'}).eq('id',id);
+  try{ const { error } = await sb.rpc('gestion_demande', { p_id:id, p_action:'approuver', p_email:(email||'').toLowerCase() });
+       if(error) throw error;
        await loadAdmin(); if(view==='admin') render(); }
   catch(e){ cousinToast('Erreur : '+(e.message||e)); }
 }
 /* Supprimer une demande (typiquement un doublon) : elle disparaît pour de bon. */
 async function deleteRequest(id){
   cousinConfirm("Supprimer cette demande ?", async function(){
-    try{ await sb.from('access_requests').delete().eq('id',id); await loadAdmin(); if(view==='admin') render(); }
+    try{ const { error } = await sb.rpc('gestion_demande', { p_id:id, p_action:'supprimer' });
+         if(error) throw error; await loadAdmin(); if(view==='admin') render(); }
     catch(e){ cousinToast("Suppression impossible"); }
   }, {ok:'Supprimer', danger:true});
 }
-async function refuseRequest(id){ try{ await sb.from('access_requests').update({statut:'refuse'}).eq('id',id); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
+async function refuseRequest(id){ try{ await sb.rpc('gestion_demande', { p_id:id, p_action:'refuser' }); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 
 /* ---------- Quiz de connaissances (questions générées depuis le catalogue → toujours à jour) ---------- */
 let QUIZ={ qs:[], i:0, score:0, answered:false, picked:-1, theme:null };
