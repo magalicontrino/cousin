@@ -2201,7 +2201,7 @@ const GUIDES = {
 
 const DEMARCHES = [
   "Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale",
-  "RIS (revenu d'intégration)","Domiciliation","Mutuelle","Autre"
+  "RIS (revenu d'intégration)","Adresse de référence","Domiciliation","Mutuelle","Autre"
 ];
 
 /* Jeu d'icônes maison, style « bold » plein (currentColor). Le globe reste au trait. */
@@ -2627,6 +2627,23 @@ const SAMPLE = [
   dem("Aide Médicale Urgente (AMU)","CPAS de Molenbeek-Saint-Jean","Molenbeek-Saint-Jean",
     "À compléter.","À compléter : attestation du médecin, pièces, circuit interne.",
     "À compléter : ce qui diffère des autres CPAS.","À compléter",""),
+  /* ADRESSE DE RÉFÉRENCE — écrit le 31/07/2026 d'après les textes, pas de mémoire.
+     Sources vérifiées : loi du 2 avril 1965 (art. 2 §1er et §7) sur ejustice.just.fgov.be ;
+     guide de compétence territoriale du SPP Intégration sociale (primabook.mi-is.be) ;
+     adresse de référence : loi du 19 juillet 1991 sur les registres de la population et
+     AR du 16 juillet 1992. Ce qui reste à confirmer est écrit comme tel dans la fiche. */
+  src(dem("Adresse de référence","Tous CPAS — la règle","Régional / Toutes communes",
+    "Au CPAS de la commune où la personne est habituellement présente.",
+    "Trois conditions : ne pas avoir les ressources pour se loger, ne plus être inscrit·e aux registres de la population, et avoir introduit une demande d'aide auprès de ce CPAS.",
+    "Sans adresse, les droits tombent. L'adresse de référence sert à les garder : mutuelle, chômage, allocations familiales, et le courrier officiel qui arrive quelque part. Ce n'est pas un logement, c'est une adresse administrative.",
+    "À compléter : délai de décision du CPAS.",""),
+      "Sources : loi du 19 juillet 1991 sur les registres de la population et AR du 16 juillet 1992 ; guide du SPP Intégration sociale (primabook.mi-is.be)."),
+  src(dem("Adresse de référence","Changer de centre ne change pas forcément de CPAS","Régional / Toutes communes",
+    "Le CPAS compétent est en principe celui de la commune où la personne se trouve (loi du 2 avril 1965, art. 1er, 1°).",
+    "MAIS quand la personne est admise dans un établissement agréé pour accueillir des personnes en détresse et les loger temporairement, c'est le CPAS de la commune où elle était inscrite AU MOMENT DE SON ADMISSION qui reste compétent — pendant tout le séjour, même si son inscription change ou disparaît (art. 2 §1er).",
+    "C'est ce qui fait qu'une personne hébergée à Anderlecht peut continuer à dépendre du CPAS de Bruxelles-Ville : on ne la renvoie pas d'un CPAS à l'autre à chaque changement de centre. ⚠️ À CONFIRMER pour notre centre : la règle vaut si le centre est un établissement AGRÉÉ au sens de cet article. Pour un sans-abri qui n'est PAS dans un tel établissement, c'est l'inverse : le CPAS de sa résidence de fait (art. 2 §7).",
+    "—",""),
+      "Sources : loi du 2 avril 1965, art. 1er 1°, art. 2 §1er et art. 2 §7 — texte officiel sur ejustice.just.fgov.be ; guide de compétence territoriale du SPP Intégration sociale, primabook.mi-is.be."),
   dem("Carte médicale","Tous CPAS — trame générale","Régional / Toutes communes",
     "À compléter par CPAS.","À compléter : conditions, durée de validité, renouvellement.",
     "Les conditions et la durée varient d'un CPAS à l'autre : dupliquer cette fiche par commune.",
@@ -3247,6 +3264,9 @@ function dem(type,cpasNom,commune,ou,comment,attention,delai,mail){
 /* Une fiche marquée urgente reste dans son domaine ET remonte dans le panneau Urgences.
    Une seule fiche, deux endroits : rien à maintenir en double. */
 function urgent(fiche){ fiche.urgent=true; return fiche; }
+/* D'où vient ce qui est écrit sur la fiche. Sa règle, posée le 31/07/2026 : « surtout
+   n'invente rien, donc source ». Ce qu'on n'a pas vérifié doit se dire dans le texte. */
+function src(fiche, sources){ fiche.notes=sources||''; return fiche; }
 
 /* Version du catalogue fourni : à incrémenter à chaque mise à jour des données de départ.
    La fusion (load) rafraîchit le catalogue tout en gardant les favoris et les fiches ajoutées par l'utilisateur. */
@@ -3279,8 +3299,8 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v372';
-const SEED_VERSION = 71;   /* 31/07/2026 : les CPAS d'Anderlecht, de la Ville de Bruxelles et de Forest sont documentés — sans ce numéro, les téléphones garderaient l'ancien catalogue. */
+const APP_VERSION = 'v373';
+const SEED_VERSION = 72;   /* 31/07/2026 : les CPAS d'Anderlecht, de la Ville de Bruxelles et de Forest sont documentés — sans ce numéro, les téléphones garderaient l'ancien catalogue. */
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -4080,7 +4100,7 @@ function demarcheCard(p){
 
   const act=[];
   // Les mails types appartiennent aux démarches : le raccourci est ici, pas sur les fiches contact.
-  act.push(`<button class="btn map" onclick="event.stopPropagation();openDomaine('mails')">${icon('mail')}Mail type</button>`);
+  act.push(`<button class="btn map" onclick="event.stopPropagation();openMailPour('${esc(String(p.demarche||'').replace(/'/g,"\\'"))}')">${icon('mail')}Mail type</button>`);
   if(p.mail) act.push(`<a class="btn call" href="mailto:${esc(p.mail)}">${icon('mail')}Écrire</a>`);
   if(p.tel)  act.push(`<a class="btn map" href="tel:${esc(telClean)}">${icon('phone')}Appeler</a>`);
 
@@ -4895,6 +4915,30 @@ function emptyHTML(){
 }
 
 function toggle(id){document.getElementById('c-'+id).classList.toggle('open')}
+/* DU RÉQUISITOIRE AU MAIL DE RÉQUISITOIRE, SANS LE CHERCHER (sa demande, 31/07/2026).
+   « Mail type » ouvrait la liste entière et il fallait retrouver le bon modèle à la main.
+   On part maintenant de la démarche qu'on avait sous les yeux : le modèle correspondant
+   s'ouvre déjà déplié, et l'écran s'y pose. Si on ne trouve pas de modèle (démarche sans
+   mail type), on retombe simplement sur la liste, comme avant. */
+function openMailPour(demarche){
+  openDomaine('mails');
+  const cible=String(demarche||'').toLowerCase();
+  if(!cible) return;
+  const mail = data.find(function(m){
+    if(m.domaine!=='mails') return false;
+    const mots=(m.keywords||[]).map(function(k){ return String(k).toLowerCase(); });
+    const nom=String(m.nom||'').toLowerCase();
+    return mots.some(function(k){ return cible.indexOf(k)>=0 || k.indexOf(cible)>=0; })
+        || nom.indexOf(cible)>=0 || cible.indexOf(nom)>=0;
+  });
+  if(!mail) return;
+  setTimeout(function(){
+    const el=document.getElementById('c-'+mail.id);
+    if(!el) return;
+    el.classList.add('open');
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 60);
+}
 // Impression / PDF : window.print() avec une feuille propre (voir @media print)
 function doPrint(){
   let t='COUSIN';
