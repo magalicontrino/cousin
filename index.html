@@ -1369,6 +1369,12 @@ input, textarea, select{
   .st-j{margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
   .st-jb{display:flex; align-items:flex-end; gap:2px; height:56px}
   .st-jb i{flex:1 1 auto; min-width:2px; background:#1b1b1b; border-radius:2px 2px 0 0; opacity:.75}
+  /* La ligne d'explication, et à sa droite le bouton qui referme tout d'un coup. */
+  .adm-tete{display:flex; align-items:flex-start; gap:10px; margin-bottom:10px}
+  .adm-tete .adm-hint{flex:1 1 auto; min-width:0; margin:0}
+  .adm-fermer{flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--muted);
+    border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
+  .adm-fermer:active{transform:scale(.97)}
   /* L'équipe rangée par métier : une ligne par métier, repliée. */
   .adm-g{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:9px; overflow:hidden}
   .adm-g.ouverte{border-color:#1b1b1b}
@@ -3261,7 +3267,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v366';
+const APP_VERSION = 'v367';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3485,6 +3491,7 @@ function majApercu(){
 /* Quels métiers sont dépliés dans « L'équipe ». */
 var ADM_OUV={};
 function admOuvrir(r){ ADM_OUV[r]=!ADM_OUV[r]; if(view==='admin') render(); }
+function admToutFermer(){ ADM_OUV={}; if(view==='admin') render(); }
 /* On RESTE sur la page qu'on regarde : changer de groupe ne doit pas renvoyer à
    l'accueil, sinon on ne peut vérifier aucun autre écran. */
 function voirComme(role){ APERCU_ROLE=role; APERCU_QUI=null; render(); }
@@ -6192,8 +6199,13 @@ function adminHTML(){
       + (ouv ? '<div class="adm-gd">'+gens.map(carteMembre).join('')+'</div>' : '')
       + '</div>';
   }).join('');
+  /* Une liste longue qu'on a dépliée à plusieurs endroits devient impossible à reparcourir :
+     un bouton referme tout d'un coup. Il n'apparaît que s'il y a quelque chose d'ouvert. */
+  const nbOuverts=metiers.filter(function(r){ return ADM_OUV[r]; }).length;
   const team=`<div class="adm-sec nu">
-    <div class="adm-hint" style="margin-bottom:10px">Ouvre un métier pour voir les personnes qui y sont.</div>${groupes}</div>`;
+    <div class="adm-tete"><span class="adm-hint">Ouvre un métier pour voir les personnes qui y sont.</span>`
+    + (nbOuverts ? '<button class="adm-fermer" onclick="admToutFermer()">Tout refermer</button>' : '')
+    + `</div>${groupes}</div>`;
   const versChantier=`<button class="pf-out" style="margin-bottom:14px" onclick="openChantier()">${icon('alert')}
     <span class="pf-out-tx"><b>Le chantier</b><i>${chantierSous()}</i></span>
     ${BOITE.length?`<em class="ch-badge">${BOITE.length}</em>`:''}</button>`;
@@ -6481,6 +6493,7 @@ let ACC_OUV={};       // quelles cartes d'accès sont dépliées (clé = la list
 let ACC_ROLE_OUV={};  // quels métiers sont dépliés (on y voit alors les gens)
 let ACC_APART=null;   // le métier qu'on est en train de régler à part
 function accOuvrir(cle){ ACC_OUV[cle]=!ACC_OUV[cle]; if(view==='admin') render(); }
+function accToutFermer(){ ACC_OUV={}; ACC_ROLE_OUV={}; ACC_APART=null; if(view==='admin') render(); }
 function accRoleOuvrir(role){ ACC_ROLE_OUV[role]=!ACC_ROLE_OUV[role]; if(view==='admin') render(); }
 function accApart(role){ ACC_APART = (ACC_APART===role ? null : role); if(view==='admin') render(); }
 /* Le nom qu'on affiche pour quelqu'un : son nom s'il est renseigné, sinon on le déduit
@@ -6571,9 +6584,12 @@ function accesHTML(){
   }).join('');
   const essais=apercuBarreHTML();   // la même barre que sur le chantier
   /* Plus de titre ici non plus : le bouton de l'accordéon le porte. */
+  const ouverts = Object.keys(ACC_OUV).filter(function(k){ return ACC_OUV[k]; }).length
+                + Object.keys(ACC_ROLE_OUV).filter(function(k){ return ACC_ROLE_OUV[k]; }).length;
   return `<div class="adm-sec nu">
-    <div class="adm-hint" style="margin-bottom:10px">Un groupe = des métiers qui voient exactement la même chose. Touche un groupe pour l'ouvrir. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</div>
-    ${essais}${cartes}</div>`;
+    <div class="adm-tete"><span class="adm-hint">Un groupe = des métiers qui voient exactement la même chose. Touche un groupe pour l'ouvrir. Les PFO, la coordination et toi voyez tout, quoi qu'il arrive.</span>`
+    + (ouverts ? '<button class="adm-fermer" onclick="accToutFermer()">Tout refermer</button>' : '')
+    + `</div>${essais}${cartes}</div>`;
 }
 /* Régler tout un groupe d'un coup : c'est le geste normal ici — ces métiers ont le même
    accès, on veut qu'ils continuent à l'avoir. La carte reste ouverte sous sa nouvelle clé. */
