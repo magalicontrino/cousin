@@ -1372,6 +1372,7 @@ input, textarea, select{
   /* La casquette « référent·e » : même forme que PFO, autre couleur — ce n'est pas le même
      genre d'information (PFO ouvre les listes, référent·e ne fait que dire qui c'est). */
   .adm-pfo.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
+  .adm-sh.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
   /* La ligne d'explication, et à sa droite le bouton qui referme tout d'un coup. */
   .adm-tete{display:flex; align-items:flex-start; gap:10px; margin-bottom:10px}
   .adm-tete .adm-hint{flex:1 1 auto; min-width:0; margin:0}
@@ -3270,7 +3271,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v368';
+const APP_VERSION = 'v369';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -6161,10 +6162,15 @@ function adminHTML(){
     else if(hasShift){ listSection=`<div class="adm-lists-h">Quart :</div><div class="adm-shift"><button class="adm-sh ${shift==='jour'?'on':''}" onclick="setShift('${esc(mb.email)}','jour')">Jour</button><button class="adm-sh ${shift==='nuit'?'on':''}" onclick="setShift('${esc(mb.email)}','nuit')">Nuit</button></div>${shift?`<div class="adm-listnow">Voit : Polyvalent — ${shift==='nuit'?'Nuit':'Jour'}</div>`:`<div class="adm-listnow faint">Choisis Jour ou Nuit pour lui donner sa liste</div>`}`; }
     else if(estInfi){
       const et=etageDeInfi(mb.listes);
+      /* Trois postes possibles pour une infirmière : le rez, le 2e étage, ou référente.
+         Le troisième bouton pose la même casquette que celui d'à côté de PFO (c'est le
+         même réglage, à deux endroits) : une référente n'a pas de liste d'étage. */
       listSection=`<div class="adm-lists-h">Poste :</div><div class="adm-shift">`+
         `<button class="adm-sh ${et==='rez'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','rez')">Rez-de-chaussée</button>`+
-        `<button class="adm-sh ${et==='etage'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','etage')">2e étage</button></div>`+
-        (et?`<div class="adm-listnow">Voit : ${et==='rez'?'Médical — rez':'Médical — 2e étage'}</div>`
+        `<button class="adm-sh ${et==='etage'?'on':''}" onclick="setEtageInfi('${esc(mb.email)}','etage')">2e étage</button>`+
+        `<button class="adm-sh ref ${mb.referent?'on':''}" onclick="toggleReferent('${esc(mb.email)}',${mb.referent?'false':'true'})">Référente</button></div>`+
+        (mb.referent?`<div class="adm-listnow">Référente — pas de liste d'étage${et?(et==='rez'?', et voit Médical — rez':', et voit Médical — 2e étage'):''}</div>`
+         :et?`<div class="adm-listnow">Voit : ${et==='rez'?'Médical — rez':'Médical — 2e étage'}</div>`
            :`<div class="adm-listnow faint">Choisis son poste pour lui donner sa liste</div>`);
     }
     else if(hasFixed){ listSection=`<div class="adm-lists-h">Voit : Médical</div>`; }
