@@ -1369,6 +1369,9 @@ input, textarea, select{
   .st-j{margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
   .st-jb{display:flex; align-items:flex-end; gap:2px; height:56px}
   .st-jb i{flex:1 1 auto; min-width:2px; background:#1b1b1b; border-radius:2px 2px 0 0; opacity:.75}
+  /* La casquette « référent·e » : même forme que PFO, autre couleur — ce n'est pas le même
+     genre d'information (PFO ouvre les listes, référent·e ne fait que dire qui c'est). */
+  .adm-pfo.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
   /* La ligne d'explication, et à sa droite le bouton qui referme tout d'un coup. */
   .adm-tete{display:flex; align-items:flex-start; gap:10px; margin-bottom:10px}
   .adm-tete .adm-hint{flex:1 1 auto; min-width:0; margin:0}
@@ -2116,7 +2119,7 @@ const FEEDBACK = {
 // Doit correspondre EXACTEMENT aux options du formulaire, sinon Google écarte la réponse.
 /* Tous les métiers du centre — la même liste que dans l'Admin, plus Admin.
    Il en manquait la moitié : entretien, maintenance, logistique, coordination… */
-const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référent·e infis & aide-soignant·es",
+const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante",
                  "Polyvalent","Coordi","Agent entretien","Travaux / Maintenance","Logistique",
                  "Responsable punaise","Article 60","Admin"];
 /* Deux versions de l'accueil. La version complète ouvre tout ; la version simple ne garde
@@ -2124,7 +2127,7 @@ const EQUIPES = ["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référe
    il suffit de changer le rôle de la personne dans l'Admin. */
 /* Les aides-soignantes travaillent aux côtés des travailleuses sociales : même accès
    qu'elles (décision de Mag, 2026-07-30). */
-const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi","Coordi","Référent·e infis & aide-soignant·es","Aide-soignante"];
+const ROLES_PRO = ["TS","Médical","Éduc","Psy","Infi","Coordi","Aide-soignante"];
 const PAVES_SIMPLE = ["reseau","formations","centre"];
 const PAVES_TOUS = ["reseau","demarches","formations","mails","methodes","centre"];
 /* Réglage vivant : ce que chaque rôle voit est enregistré dans la base (table roles_acces)
@@ -3267,7 +3270,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v367';
+const APP_VERSION = 'v368';
 const SEED_VERSION = 70;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -6065,7 +6068,7 @@ async function supprimerBoite(id){
 /* « TS » reste la valeur enregistrée dans la base ; à l'écran on écrit le métier en entier. */
 const ROLE_LABELS={'TS':"Travailleur(euse)s social(e)s"};
 function roleLabel(r){ return ROLE_LABELS[r] || r; }
-const ROLE_OPTS=["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Référent·e infis & aide-soignant·es","Polyvalent","Coordi",
+const ROLE_OPTS=["TS","Médical","Éduc","Psy","Infi","Aide-soignante","Polyvalent","Coordi",
                 "Agent entretien","Travaux / Maintenance","Logistique","Responsable punaise","Article 60"];
 const LISTE_KEYS=["pfo-jour","pfo-nuit","médical","polyvalent-jour","polyvalent-nuit"];
 // Déduire le quart (jour/nuit) des listes, et les listes du rôle+quart
@@ -6101,7 +6104,7 @@ function openAdmin(){
 async function loadAdmin(){
   adminLoaded=false; ADMIN={ members:[], requests:[] };
   if(!sb){ adminLoaded=true; return; }
-  const champs='email,nom,equipe,pfo,admin,actif,listes,paves';
+  const champs='email,nom,equipe,pfo,referent,admin,actif,listes,paves';
   try{
     const { data, error } = await sb.from('allowed_emails').select(champs+',derniere_connexion,visites').order('email');
     if(error) throw error;
@@ -6175,7 +6178,7 @@ function adminHTML(){
         <div class="acc-paves">${PAVES_TOUS.map(function(k){
           return `<button class="acc-p ${sesPaves.indexOf(k)>=0?'on':''}" onclick="togglePaveMembre('${esc(mb.email)}','${k}')">${esc(PAVES_NOMS[k])}</button>`;
         }).join('')}</div></div>`;
-    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
+    return `<div class="adm-mb ${mb.actif?'':'off'}"><div class="adm-mb-top"><span class="feed-av" style="background:${userColor(mb.nom||mb.email)}">${esc(userInitial(mb.nom||mb.email))}</span><div class="adm-mb-id"><b>${esc(mb.nom||mb.email)}</b><span>${esc(mb.email)}</span></div><label class="adm-switch"><input type="checkbox" ${mb.actif?'checked':''} onchange="toggleActif('${esc(mb.email)}',this.checked)"><span class="adm-slider"></span></label></div><div class="adm-mb-row">${roleSel}<button class="adm-pfo ${mb.pfo?'on':''}" onclick="togglePfo('${esc(mb.email)}',${mb.pfo?'false':'true'})">PFO</button><button class="adm-pfo ref ${mb.referent?'on':''}" onclick="toggleReferent('${esc(mb.email)}',${mb.referent?'false':'true'})">Référent·e</button>${mb.admin?'<span class="adm-badge">ADMIN</span>':''}${isMe?'':`<button class="adm-del" onclick="removeMember('${esc(mb.email)}')">${icon('trash')}</button>`}</div><div class="adm-lists">${listSection}</div>${accesPerso}${usageHTML(mb)}</div>`;
   };
   /* L'ÉQUIPE, RANGÉE PAR MÉTIER. Une trentaine de fiches à la suite, ça ne se lit pas :
      on ne voit d'abord que les métiers, avec le nombre de personnes, et on ouvre celui
@@ -6382,8 +6385,7 @@ const GROUPES_PLAN=[
      éducs, les psys et les infis, qui les ont. Repéré par Mag.
      ⚠ Ce tableau ne fait que DESSINER le plan : l'accès réel de chacun vit dans la table
      roles_acces. Déplacer un métier ici ne change ce que voit personne. */
-  {l:'C', nom:'Auprès des personnes',  roles:['TS','Médical','Éduc','Psy','Infi','Aide-soignante',
-                                              'Référent·e infis & aide-soignant·es']},
+  {l:'C', nom:'Auprès des personnes',  roles:['TS','Médical','Éduc','Psy','Infi','Aide-soignante']},
   {l:'D', nom:'Autour du centre',      roles:['Polyvalent','Travaux / Maintenance','Logistique',
                                               'Agent entretien','Responsable punaise','Article 60']}
 ];
@@ -6403,6 +6405,7 @@ function planAccesHTML(){
     return listeHTML(l.map(function(m){
       return esc(joliNom(m))
         + (m.pfo?' <b class="plan-tag">PFO</b>':'')
+        + (m.referent?' <b class="plan-tag">référent·e</b>':'')
         + (Array.isArray(m.paves)&&m.paves.length?' <b class="plan-tag main">réglé à la main</b>':'');
     }));
   };
@@ -6551,6 +6554,7 @@ function accesHTML(){
                       return '<div class="acc-q"><span class="acc-qn">'+esc(joliMembre(m))+'</span>'
                            + '<span class="acc-qm">'+esc(m.email||'')+'</span>'
                            + (m.pfo?'<b class="plan-tag">PFO</b>':'')
+                           + (m.referent?'<b class="plan-tag">référent·e</b>':'')
                            + (Array.isArray(m.paves)&&m.paves.length?'<b class="plan-tag main">réglé à la main</b>':'')
                            + (m.actif===false?'<b class="plan-tag">suspendu</b>':'')
                            + '</div>';
@@ -6638,6 +6642,11 @@ async function toggleActif(email,on){
     try{ await sb.from('allowed_emails').update({actif:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){}
   }, {ok:(on?'Réactiver':'Suspendre'), danger:!on, onCancel:function(){ if(view==='admin') render(); }});
 }
+/* « Référent·e » est une CASQUETTE, pas un métier (décision de Mag, 31/07/2026) : une
+   infirmière référente reste une infirmière — mêmes listes, mêmes accès. Le rôle
+   « Référent·e infis & aide-soignant·es » a donc disparu de la liste des métiers, et les
+   personnes concernées sont passées en « Infi » avec cette étiquette en plus. */
+async function toggleReferent(email,on){ try{ await sb.from('allowed_emails').update({referent:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 async function togglePfo(email,on){ try{ await sb.from('allowed_emails').update({pfo:on}).eq('email',email); await loadAdmin(); if(view==='admin') render(); }catch(e){} }
 async function setRole(email,equipe){
   const mb=ADMIN.members.find(x=>x.email===email);
