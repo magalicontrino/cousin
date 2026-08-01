@@ -1365,6 +1365,12 @@ input, textarea, select{
   /* La casquette « référent·e » : même forme que PFO, autre couleur — ce n'est pas le même
      genre d'information (PFO ouvre les listes, référent·e ne fait que dire qui c'est). */
   .adm-pfo.ref.on{background:#6cb392; color:#0e3a28; border-color:transparent}
+  /* La boule du ticket : rouge aujourd'hui, or la veille. Téléphone seulement. */
+  .ag-pt{position:absolute; top:-3px; right:-3px; width:15px; height:15px; border-radius:50%;
+    border:2.5px solid var(--bg); display:block}
+  .ag-pt.auj{background:#e63329}
+  .ag-pt.veille{background:var(--gold)}
+  @media (min-width:1280px){ body:not(.apercu-tel) .ag-pt{display:none} }
   /* Le mail type déroulé dans la fiche de la démarche. */
   .mailin:not(:empty){margin-top:12px; padding-top:12px; border-top:1px dashed var(--line)}
   .mailin .card{margin-bottom:0}
@@ -1910,6 +1916,18 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     body.is-jeux #view{flex:1 1 auto; display:flex; flex-direction:column; padding-bottom:0}
     body.is-jeux #view > :first-child{margin-top:auto}
     body.is-jeux #view > :last-child{margin-bottom:auto}
+    /* ═══ RÈGLE GÉNÉRALE : CE QUI TIENT DANS L'ÉCRAN EST CENTRÉ EN HAUTEUR ═══
+       Sa règle, posée le 31/07/2026 : « il faut toujours que tu centres cette partie
+       centrale — en hauteur — quand ça rentre ». Et quand c'est trop long, on ne centre
+       pas : `safe center` retombe alors sur un alignement en haut, sinon le début de la
+       page serait rogné et aucun défilement ne pourrait le rattraper.
+       Posé ici une fois pour toutes : chaque nouvel écran en hérite, il n'y a plus à le
+       régler page par page. */
+    body:not(.is-home) main{min-height:calc(100svh - var(--barre,138px) - 130px - var(--apercu-h));
+      display:flex; flex-direction:column; justify-content:center; justify-content:safe center}
+    /* Les 140 px réservés en bas aux boutons flottants ne servent à rien ici : sur grand
+       écran ils sont hors de la colonne. Sans ça, tout remonterait de 70 px. */
+    body:not(.apercu-tel):not(.is-home) #view{padding-bottom:0}
     /* LES PAVÉS DU RÉSEAU SONT CENTRÉS EN HAUTEUR. Les 96 px réservés en bas aux boutons
        flottants n'ont plus lieu d'être sur grand écran (ils sont hors de la colonne) :
        ils tiraient toute la grille 48 px trop haut. */
@@ -3344,7 +3362,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v375';
+const APP_VERSION = 'v376';
 const SEED_VERSION = 74;   /* 31/07/2026 : les CPAS d'Anderlecht, de la Ville de Bruxelles et de Forest sont documentés — sans ce numéro, les téléphones garderaient l'ancien catalogue. */
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
@@ -3703,11 +3721,18 @@ function render(){
   document.body.classList.toggle('is-home', view==="home");
   document.body.classList.toggle('is-reseau', view==="reseau");
   noterEcran();   // statistiques d'usage : quel écran vient d'être ouvert
+  try{ majBarre(); }catch(e){}   // la hauteur de la barre a pu changer avec le titre
   /* La salle de jeux tient dans un écran : sur ordinateur on la centre en hauteur (voir CSS). */
   try{ document.body.classList.toggle('is-jeux', view==="quiz" && !JEU && !QUIZ.theme && !QUIZ.qs.length); }
   catch(e){ document.body.classList.remove('is-jeux'); }
   document.body.classList.toggle('urg-open', view==="home" && urgOpen);
   const el=document.getElementById('view');
+  /* ON REMONTE EN HAUT QUAND ON CHANGE D'ÉCRAN (sa question du 31/07 : « ça revient pas à
+     zéro, c'est voulu ? » — non, c'était un oubli). On ne le fait QUE si l'écran change :
+     cocher une tâche ou ouvrir un filtre redessine la page, et on doit rester où on est. */
+  try{
+    if(_dernierEcranRendu!==view){ _dernierEcranRendu=view; window.scrollTo(0,0); }
+  }catch(e){}
   try{ rangerTris(); }catch(e){}   // on quitte un domaine : la colonne de tris s'en va avec lui
   const q=query.trim().toLowerCase();
 
@@ -3980,7 +4005,9 @@ function homeHTML(){
    chiffre — « 4 » suffit à savoir qu'il y a 4 lignes à faire. Un clic déplie et montre
    TOUT ce qui est écrit ; un second clic ouvre l'écran. */
 var BU_OUV={};
-function bureauOuvrir(cle){ BU_OUV[cle]=!BU_OUV[cle]; render(); }
+/* Une seule vignette ouverte à la fois, et un second appui la referme : dépliées toutes
+   ensemble, elles recouvraient le bord de l'écran (« mais ils doivent se refermer »). */
+function bureauOuvrir(cle){ const etait=BU_OUV[cle]; BU_OUV={}; if(!etait) BU_OUV[cle]=true; render(); }
 function carteBureau(cle, ic, titre, gros, sous, action, urgent){
   const ouvert=!!BU_OUV[cle];
   return '<button class="bu-c'+(urgent?' chaud':'')+(ouvert?' ouvert':'')+'" onclick="'
@@ -3997,7 +4024,12 @@ function bureauHTML(){
        adm=ADMIN_RESUME; chant=CHANTIER||[]; boite=BOITE||[]; }
   catch(e){ return ''; }
   let apercu=false; try{ apercu=enApercu(); }catch(e){}
-  if(!P || !P.admin || apercu) return '';
+  /* LES VIGNETTES SONT POUR TOUT LE MONDE (sa décision, 31/07/2026). Elles étaient
+     réservées à l'administratrice alors que deux d'entre elles servent d'abord à l'équipe :
+     ce qui reste à cocher, et la sortie gratuite du jour. Seules celles qui touchent à
+     l'administration restent à elle — le chantier et les demandes d'accès. */
+  if(!P || apercu) return '';
+  const admin = !!P.admin;
   const c=[];
 
   /* Un onglet n'apparaît QUE s'il reste quelque chose à faire : une languette qui dit
@@ -4009,16 +4041,24 @@ function bureauHTML(){
     if(faits<tot) c.push(carteBureau('liste','list','Ma liste du jour', faits+'/'+tot,
       (tot-faits)+' tâche'+((tot-faits)>1?'s':'')+' à cocher', 'openMaListe()', true));
   }
-  if(adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
-  const reste=chant.filter(function(l){ return !l.fait; }).length;
+  if(admin && adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
+  const reste=admin ? chant.filter(function(l){ return !l.fait; }).length : 0;
   if(reste) c.push(carteBureau('chantier','alert','Le chantier', reste,
     'lignes à faire'+(boite.length? ' · '+boite.length+' suggestion'+(boite.length>1?'s':''):''), 'openChantier()'));
   if(chM) c.push(carteBureau('chambres','cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
   else if(chE) c.push(carteBureau('chambres','cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
   try{
+    /* On écrit le NOM du lieu, pas seulement le nombre : « 1 sortie gratuite » oblige à
+       cliquer pour savoir laquelle, et c'est justement ce qu'on veut éviter au passage. */
     const auj=agendaProchains(1, function(r){ return true; });
-    if(auj.length) c.push(carteBureau('agenda','ticket','Aujourd\'hui', auj.length,
-      auj.length>1?'sorties gratuites':'sortie gratuite', 'openAgenda()', true));
+    if(auj.length){
+      const noms=auj.map(function(x){ return String((x.r&&(x.r.t||x.r.nom||x.r.lieu))||'').trim(); })
+                    .filter(function(n){ return n; });
+      const sous = noms.length
+        ? (noms.length>2 ? noms.slice(0,2).join(' · ')+' +'+(noms.length-2) : noms.join(' · '))
+        : (auj.length>1?'sorties gratuites':'sortie gratuite');
+      c.push(carteBureau('agenda','ticket','Aujourd\'hui', auj.length, sous, 'openAgenda()', true));
+    }
   }catch(e){}
 
   if(!c.length) return '';
@@ -5247,6 +5287,7 @@ let _visiteComptee=false;
    seules les fonctions stats_ecrans() et stats_jours() en sortent des totaux. Voir
    sql/stats-ecrans.sql. */
 let _dernierEcranNote=null;
+let _dernierEcranRendu=null;   // pour remonter en haut quand on change d'écran
 function noterEcran(){
   try{
     if(!sb || !PROFILE || !view) return;
@@ -7328,11 +7369,19 @@ function agendaHTML(){
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
 }
 /* Le bouton du bas porte le ticket de Culture, et une pastille quand c'est aujourd'hui. */
+/* LA PETITE BOULE SUR LE TICKET (sa demande, 31/07/2026) : sur téléphone, on doit voir
+   sans rien ouvrir qu'il y a une sortie gratuite aujourd'hui — ou déjà la veille, pour
+   avoir le temps d'en parler aux personnes hébergées. Rouge = c'est aujourd'hui, or =
+   c'est demain. Sur grand écran, rien : elle a demandé que ce soit un rappel de poche. */
 function majBoutonAgenda(){
   const btn=document.querySelector('.dock-agenda'); if(!btn) return;
-  const aujourdhui=agendaProchains(1).length;
+  const auj = agendaProchains(1).length;
+  const demain = agendaProchains(2).length - auj;
   btn.style.display='flex';
-  btn.innerHTML = icon('ticket') + (aujourdhui? '<em class="ch-badge">'+aujourdhui+'</em>' : '');
+  let boule='';
+  if(auj)         boule='<em class="ag-pt auj" title="Sortie gratuite aujourd\'hui"></em>';
+  else if(demain) boule='<em class="ag-pt veille" title="Sortie gratuite demain"></em>';
+  btn.innerHTML = icon('ticket') + boule;
 }
 
 /* ═══════════════════ LA SALLE DE JEUX ═══════════════════
@@ -8590,21 +8639,27 @@ window.addEventListener('load', function(){ setTimeout(navDepuisAdresse, 400); }
 /* HAUTEUR RÉELLE DE LA BARRE DU HAUT, mesurée en direct. Sur l'accueil il n'y a que le
    logo ; sur une page il y a en plus le titre et la flèche retour — la barre grandit.
    Une hauteur écrite en dur coupait la première rangée de pavés du Réseau. */
-(function majBarre(){
+/* ⚠ MESURÉE AUSSI À CHAQUE RENDU, PAS SEULEMENT PAR L'OBSERVATEUR. Le ResizeObserver
+   prévient APRÈS coup : le temps qu'il réagisse, la page était déjà dessinée avec l'ancienne
+   hauteur, et sur une page à titre (« Salle de jeux ») le contenu passait DERRIÈRE la barre.
+   render() appelle donc majBarre() une fois l'en-tête à jour. */
+function majBarre(){
   const h=document.querySelector('header'), ap=document.getElementById('apercuBar');
   if(!h) return;
-  const maj=function(){
-    const r=document.documentElement.style;
-    r.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
-    /* Le bandeau noir d'aperçu, quand il est affiché : la page démarre en dessous.
-       Caché, il mesure 0 — les calculs marchent alors tout seuls. */
-    if(ap) r.setProperty('--apercu-h', Math.round(ap.getBoundingClientRect().height)+'px');
-  };
+  const r=document.documentElement.style;
+  r.setProperty('--barre', Math.round(h.getBoundingClientRect().height)+'px');
+  /* Le bandeau noir d'aperçu, quand il est affiché : la page démarre en dessous.
+     Caché, il mesure 0 — les calculs marchent alors tout seuls. */
+  if(ap) r.setProperty('--apercu-h', Math.round(ap.getBoundingClientRect().height)+'px');
+}
+(function(){
+  const h=document.querySelector('header'), ap=document.getElementById('apercuBar');
+  if(!h) return;
   if(window.ResizeObserver){
-    const o=new ResizeObserver(maj); o.observe(h); if(ap) o.observe(ap);
+    const o=new ResizeObserver(majBarre); o.observe(h); if(ap) o.observe(ap);
   }
-  window.addEventListener('resize', maj);
-  maj();
+  window.addEventListener('resize', majBarre);
+  majBarre();
 })();
 
 /* App installable : on n'enregistre le service worker que sur le vrai hébergement
