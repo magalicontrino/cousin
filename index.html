@@ -3916,7 +3916,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v394';
+const APP_VERSION = 'v395';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6744,8 +6744,14 @@ function acJourFr(iso){
 function activitesHTML(){
   const peut = (typeof peutGerer==='function') ? peutGerer() : false;
   let h='';
+  if(!ACTIVITES.length){
+    h+='<div class="ag-jour proche">Le programme du mois</div>'
+      +'<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'"><p>Aucune activité encodée pour l\'instant. '
+      +(peut?'Ajoute-les ci-dessous quand une asbl envoie son calendrier.':'Elles apparaîtront ici dès qu\'une asbl aura envoyé son calendrier.')
+      +'</p></div>';
+  }
   if(ACTIVITES.length){
-    h+='<div class="ag-jour proche" style="margin-top:18px">Le programme du mois</div>';
+    h+='<div class="ag-jour proche">Le programme du mois</div>';
     let dernier='';
     ACTIVITES.forEach(function(a){
       if(a.jour!==dernier){ dernier=a.jour; h+='<div class="ag-jour">'+esc(acJourFr(a.jour))+'</div>'; }
@@ -8082,7 +8088,10 @@ function agFiltre(k){
   if(k==='assos')   AG_ASSOS=!AG_ASSOS;
   render();
 }
-function openAgenda(){ view="agenda"; render(); }
+/* ⚠ On redemande le programme à la base en ouvrant la page : sans ça, une app restée
+   ouverte depuis ce matin n'aurait jamais vu les activités encodées entre-temps. */
+function openAgenda(){
+  try{ if(!ACTIVITES.length && sb){ loadActivites().then(function(){ if(view==='agenda') render(); }); } }catch(e){} view="agenda"; render(); }
 function openQuartier(){ view="quartier"; render(); }
 /* Les activités pour enfants sont des ACTIVITÉS : on ouvre Culture, filtré sur Enfants.
    Le domaine Enfants & familles, lui, contient des services (ONE, AMO, écoles de devoirs). */
@@ -8281,8 +8290,10 @@ function agendaHTML(){
     + '<div class="ag-bascule"><button class="ag-b'+(AG_VUE==='liste'?' on':'')+'" onclick="agVue(\'liste\')">Liste</button>'
     +   '<button class="ag-b'+(AG_VUE==='calendrier'?' on':'')+'" onclick="agVue(\'calendrier\')">Calendrier</button></div>'
     + (AG_VUE==='calendrier' ? agCalendrierHTML() : '')
-    + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? html : '')
+    /* LE PROGRAMME DES ASBL PASSE EN PREMIER (01/08/2026) : c'est ce qui change, donc ce
+       qu'on vient voir. Les gratuités récurrentes, elles, sont là toute l'année. */
     + ((AG_VUE==='liste' && AG_ASSOS) ? activitesHTML() : '')
+    + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? html : '')
     + (AG_ART27 ? agArt27HTML() : '')
     + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
