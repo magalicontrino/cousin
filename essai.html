@@ -1418,6 +1418,12 @@ input, textarea, select{
   .ag-b{flex:1 1 auto; border:1.5px solid var(--line); background:var(--card); color:var(--muted);
     border-radius:20px; padding:9px 12px; font:inherit; font-size:13px; font-weight:800; cursor:pointer}
   .ag-b.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
+  /* QUATRE FILTRES SUR UNE SEULE LIGNE (sa demande) : « Gratuit » devient « 0 € » et
+     « Avec enfant(s) » devient « Enfants ». La rangée ne passe plus à la ligne, même sur
+     un écran de 360 px : les boutons se serrent un peu au lieu de se déplier. */
+  .ag-discrets{flex-wrap:nowrap}
+  .ag-discret{flex:0 1 auto; min-width:0; white-space:nowrap}
+  .ag-discret span{overflow:hidden; text-overflow:ellipsis}
   .ag-discret.assos.on{background:#ff2d95; border-color:transparent; color:#fff}
   .cal{margin-bottom:6px}
   .cal-tete{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
@@ -1738,8 +1744,12 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-e{background:var(--card); border:1px solid var(--line); border-left:4px solid #ccc; border-radius:12px; padding:11px 13px; margin-bottom:8px}
   .ag-h{display:flex; align-items:baseline; gap:8px}
   .ag-e b{font-size:14px; font-weight:800; line-height:1.2}
-  .ag-prix{margin-left:auto; flex:0 0 auto; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  /* « GRATUIT » NE SE COUPE PLUS EN « GR » : le titre long comprimait l'étiquette. Elle ne
+     rétrécit plus (flex-shrink 0) et ne coupe plus son texte. */
+  .ag-prix{margin-left:auto; flex:0 0 auto; flex-shrink:0; white-space:nowrap; overflow:visible;
+    font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
     background:#e9f3ec; color:#1f7a44; border-radius:7px; padding:3px 7px}
+  .ag-h b{min-width:0}
   .ag-e em{display:block; font-style:normal; font-size:11.5px; font-weight:700; color:var(--muted); margin-top:3px}
   .ag-e p{font-size:12.5px; color:#54514b; font-weight:400; margin:5px 0 0; line-height:1.45}
   /* La pastille culturelle : même forme que les autres boutons du bas, au ticket de Culture. */
@@ -1770,6 +1780,18 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
   .ag-discret svg, .ag-discret .pico{width:15px; height:15px}
   .ag-discret.on{background:#1b1b1b; color:#f2eee6; border-radius:999px; opacity:1}
   .ag-discret.on svg, .ag-discret.on .pico{color:var(--gold)}
+  /* LES QUATRE FILTRES TIENNENT SUR UNE LIGNE, y compris sur un écran de 360 px : on
+     resserre, puis le dessin rétrécit, puis il s'efface s'il le faut — un mot lisible vaut
+     mieux qu'un picto qui pousse tout à la ligne suivante. */
+  .ag-discrets{gap:4px}
+  .ag-discret{padding:8px 10px; gap:5px}
+  @media (max-width:409px){
+    .ag-discret{padding:8px 7px; font-size:11.5px; gap:4px}
+    .ag-discret svg, .ag-discret .pico{width:13px; height:13px}
+  }
+  @media (max-width:374px){
+    .ag-discret svg, .ag-discret .pico{display:none}
+  }
   .ag-adr{display:block; font-size:11.5px; color:var(--muted); font-weight:500; margin-top:2px}
   .ag-src{display:inline-flex; align-items:center; gap:6px; margin:8px 0 0 8px; font-size:12px; font-weight:700;
     color:#54514b; text-decoration:none; border-bottom:1.5px solid rgba(27,27,27,.15)}
@@ -3894,7 +3916,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v393-essai';
+const APP_VERSION = 'v394-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8250,8 +8272,8 @@ function agendaHTML(){
   return '<div class="pf-wrap ag-page">'
     + '<div class="ag-tete-print"><b>Sorties gratuites</b><span>Vérifiez les horaires avant de vous déplacer</span></div>'
     + '<div class="ag-fixe"><div class="ag-discrets">'
-      + '<button class="ag-discret'+(AG_GRATUIT?' on':'')+'" onclick="agFiltre(\'gratuit\')">'+icon('star')+'<span>Gratuit</span></button>'
-      + '<button class="ag-discret'+(AG_ENFANTS?' on':'')+'" onclick="agFiltre(\'enfants\')">'+icon('educatif')+'<span>Avec enfant(s)</span></button>'
+      + '<button class="ag-discret'+(AG_GRATUIT?' on':'')+'" onclick="agFiltre(\'gratuit\')">'+icon('star')+'<span>0 €</span></button>'
+      + '<button class="ag-discret'+(AG_ENFANTS?' on':'')+'" onclick="agFiltre(\'enfants\')">'+icon('educatif')+'<span>Enfants</span></button>'
       + '<button class="ag-discret'+(AG_ART27?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Art 27</span></button>'
       + '<button class="ag-discret assos'+(AG_ASSOS?' on':'')+'" onclick="agFiltre(\'assos\')">'+icon('social')+'<span>Assos</span></button>'
       + '</div>'
