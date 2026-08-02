@@ -1492,6 +1492,10 @@ input, textarea, select{
   .ac-form input{width:100%; box-sizing:border-box; border:1.5px solid var(--line); background:var(--card);
     border-radius:13px; padding:11px 13px; font:inherit; font-size:14px; margin-bottom:8px}
   .ac-l{display:flex; gap:8px}
+  .ag-pic{flex:0 0 auto; display:inline-flex; color:var(--muted)}
+  .ag-pic svg, .ag-pic .pico{width:17px; height:17px}
+  .ac-ouvrir{margin-top:14px; border:1.5px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:20px; padding:8px 14px; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer}
   .ac-l input{flex:1 1 auto; min-width:0}
   .ac-del{margin-top:10px; border:1px solid var(--line); background:transparent; color:var(--muted);
     border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
@@ -3916,7 +3920,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v395';
+const APP_VERSION = 'v396';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6701,7 +6705,29 @@ async function rappelCalendriers(){
 /* LE ROSE FLUO DES ASBL (sa décision, 01/08/2026) : une sortie d'asbl n'est pas une
    gratuité récurrente. Les musées reviennent tous les mois ; WAKA UP, c'est un programme
    qui change et qui se remplit vite. La couleur dit la différence avant qu'on lise. */
+var AC_FORM=false;   // le formulaire d'encodage est replié tant qu'on ne le demande pas
 const ROSE_ASBL='#ff2d95';
+/* UN DESSIN PAR ACTIVITÉ, deviné du titre (sa demande, 01/08/2026 : « un gant pour la boxe,
+   une pelote de laine pour le tricot »). Ce sont des pictos existants, choisis au plus
+   proche — les vrais dessins (gant, pelote, plume, prise d'escalade…) sont à faire, une
+   ligne du chantier le rappelle. Aucun mot reconnu ? On retombe sur le ticket. */
+const ACT_PICTOS=[
+  [/boxe|boxing/i,            'jduel'],
+  [/tricot|laine|tisse|couture|crochet/i, 'linge'],
+  [/écrit|ecrit|plume|poésie|poesie/i,    'mail'],
+  [/escalade|grimpe/i,        'jcible'],
+  [/zen|yoga|médit|medit|sophro|relax/i,  'coeur'],
+  [/chant|musique|rythme|danse/i,         'fete'],
+  [/céramique|ceramique|créa|crea|peinture|dessin|art/i, 'palette'],
+  [/foot|sport|muscu|renforcement|gym|marche|vélo|velo|course/i, 'jchrono'],
+  [/cuisine|repas|café|cafe|petit-déj/i,  'colis'],
+  [/jeu|jeux|ludo/i,          'de']
+];
+function actPicto(titre){
+  const t=String(titre||'');
+  for(let i=0;i<ACT_PICTOS.length;i++){ if(ACT_PICTOS[i][0].test(t)) return ACT_PICTOS[i][1]; }
+  return 'ticket';
+}
 let ACTIVITES=[];
 async function loadActivites(){
   if(!sb) return;
@@ -6758,7 +6784,7 @@ function activitesHTML(){
       const heure=[a.debut,a.fin].filter(Boolean).join(' → ');
       const ou=[a.lieu,a.adresse].filter(Boolean).join(' · ');
       h+='<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'">'
-        +'<div class="ag-h"><b>'+esc(a.titre)+'</b>'+(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
+        +'<div class="ag-h"><span class="ag-pic">'+icon(actPicto(a.titre))+'</span><b>'+esc(a.titre)+'</b>'+(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
         +'<em>'+esc(a.asso)+(heure?' · '+esc(heure):'')+'</em>'
         +(ou?'<span class="ag-adr">'+esc(ou)+'</span>':'')
         +(a.inscription?'<p>'+esc(a.inscription)+'</p>':'')
@@ -6768,6 +6794,10 @@ function activitesHTML(){
     });
   }
   if(peut){
+    /* ELLE N'ENCODERA JAMAIS RIEN À LA MAIN — elle m'envoie la photo du calendrier et
+       j'encode. Le formulaire reste, pour la coordination ou pour un ajout à la volée,
+       mais il ne s'étale plus sous les yeux : un bouton discret l'ouvre. */
+    if(!AC_FORM) return h+'<button class="ac-ouvrir" onclick="AC_FORM=true; render()">Encoder un calendrier</button>';
     h+='<div class="ac-form"><div class="ag-jour">Ajouter une activité</div>'
       +'<div class="adm-hint" style="margin-bottom:8px">Le calendrier du mois d\'une asbl s\'encode ici, ligne par ligne. Toute l\'équipe le voit aussitôt.</div>'
       +'<input id="acAsso" placeholder="Association (WAKA UP…)" list="acAssos">'
@@ -6777,7 +6807,8 @@ function activitesHTML(){
       +'<input id="acLieu" placeholder="Lieu (salle, parc…)">'
       +'<input id="acAdr" placeholder="Adresse complète — pour l\'itinéraire">'
       +'<input id="acInsc" placeholder="Inscription : à qui, comment">'
-      +'<button class="adm-addbtn" onclick="ajouterActivite()">Ajouter au programme</button></div>';
+      +'<button class="adm-addbtn" onclick="ajouterActivite()">Ajouter au programme</button>'
+      +'<button class="ac-ouvrir" onclick="AC_FORM=false; render()">Fermer</button></div>';
   }
   return h;
 }
@@ -8035,7 +8066,7 @@ function agDuJour(d){
   }catch(e){}
   try{
     const iso=agIso(d);
-    if(AG_ASSOS) (ACTIVITES||[]).forEach(function(a){ if(a.jour===iso) out.push({c:ROSE_ASBL, t:a.asso+' · '+a.titre,
+    if(AG_ASSOS) (ACTIVITES||[]).forEach(function(a){ if(a.jour===iso) out.push({c:ROSE_ASBL, ic:actPicto(a.titre), t:a.asso+' · '+a.titre,
       s:[a.debut,a.fin].filter(Boolean).join(' → '), act:a}); });
   }catch(e){}
   return out;
@@ -8073,7 +8104,7 @@ function agCalendrierHTML(){
   h+= liste.length
     ? liste.map(function(e){
         return '<div class="ag-e" style="border-left-color:'+e.c+'">'
-          +'<div class="ag-h"><b>'+esc(e.t)+'</b></div>'
+          +'<div class="ag-h">'+(e.ic?'<span class="ag-pic">'+icon(e.ic)+'</span>':'')+'<b>'+esc(e.t)+'</b></div>'
           +(e.s?'<em>'+esc(e.s)+'</em>':'')
           +(e.regle&&e.regle.sous?'<p>'+esc(e.regle.sous)+'</p>':'')
           +(e.act&&e.act.inscription?'<p>'+esc(e.act.inscription)+'</p>':'')
@@ -8295,7 +8326,7 @@ function agendaHTML(){
     + ((AG_VUE==='liste' && AG_ASSOS) ? activitesHTML() : '')
     + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? html : '')
     + (AG_ART27 ? agArt27HTML() : '')
-    + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
+    + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27 && !AG_ASSOS) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
     + '<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openDomaine(\'culture\')">Voir toutes les activités</button></div>';
 }
