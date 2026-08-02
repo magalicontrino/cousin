@@ -3857,7 +3857,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v389';
+const APP_VERSION = 'v390';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -4117,7 +4117,22 @@ function retour(){
      on revient à la page précédente, pas à l'accueil. */
   if(view==='quiz' && JEU){ openJeux(); return; }
   if(view==='quiz' && JXCHOIX.jeu){ jxChoisirJeu(null); return; }
-  if(NAV_I>0){ history.back(); return; }
+  if(NAV_I>0){
+    const avant=view, i=NAV_I;
+    history.back();
+    setTimeout(function(){ if(view===avant && NAV_I===i) retourParent(); }, 350);
+    return;
+  }
+  retourParent();
+}
+/* L'écran parent, quand l'historique ne peut plus nous le dire : un domaine remonte au
+   Réseau, une sous-page à sa page, et le reste à l'accueil. */
+function retourParent(){
+  try{
+    if(DOM[view] && DOM[view].reseau){ openReseau(); return; }
+    if(view==='chambres'){ openMaListe(); return; }
+    if(view==='chantier' || view==='admin'){ openProfil(); return; }
+  }catch(e){}
   goHome();
 }
 function updateHeader(){
@@ -9326,8 +9341,21 @@ function navAdresse(s){
 /* La flèche de retour de l'app suit le vrai chemin parcouru : si on est arrivé aux
    chambres depuis le profil, elle ramène au profil, pas à « Ma liste ». Le raccourci
    d'origine ne sert que si l'écran a été ouvert directement (aucun historique). */
+/* ⚠ L'HISTORIQUE PEUT DISPARAÎTRE SOUS NOS PIEDS. En app installée, revenir d'un lien
+   externe (un itinéraire, un mail, un site) rend parfois une pile vide : history.back()
+   ne fait alors RIEN, et l'écran reste bloqué — ou pire, un second appui sort de l'app.
+   On demande donc le retour, et si rien n'a bougé au bout d'un tiers de seconde, on remonte
+   nous-mêmes à l'écran parent (le Réseau pour un domaine, l'accueil sinon). */
 function navRetour(defaut){
-  return function(){ if(NAV_I>0) history.back(); else defaut(); };
+  return function(){
+    if(NAV_I>0){
+      const avant=view, i=NAV_I;
+      history.back();
+      setTimeout(function(){ if(view===avant && NAV_I===i) defaut(); }, 350);
+      return;
+    }
+    defaut();
+  };
 }
 function navEnregistre(){
   if(NAV_MUET) return;
@@ -9387,7 +9415,7 @@ window.addEventListener('popstate', function(e){
 // Chaque fonction qui change d'écran laisse sa trace dans l'historique.
 ['goHome','openDomaine','openReseau','openFavoris','openUrgences','toggleUrg','quickSearch',
  'openProfil','openMaListe','openChambres','openFeed','openAdmin','openChantier','openQuiz','openPetition',
- 'openJeux','openAgenda','openQuartier',
+ 'openJeux','openAgenda','openQuartier','openNouveautes',
  'openForm','closeForm','openFeedback','closeFeedback'].forEach(function(n){
   const f=window[n]; if(typeof f!=='function') return;
   window[n]=function(){ const r=f.apply(this, arguments); navEnregistre(); return r; };
