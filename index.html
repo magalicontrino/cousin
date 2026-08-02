@@ -3920,7 +3920,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v396';
+const APP_VERSION = 'v397';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6729,6 +6729,11 @@ function actPicto(titre){
   return 'ticket';
 }
 let ACTIVITES=[];
+/* Le 03/08 le programme des asbl est reste invisible deux jours : la base refusait la
+   lecture (droits de table manquants), et ce catch avalait l'erreur sans un mot. Une liste
+   vide et une liste cassee se ressemblaient a l'ecran. On garde donc la panne de cote pour
+   pouvoir la DIRE, au lieu de faire croire qu'il n'y a rien de prevu. */
+var ACT_PANNE='';
 async function loadActivites(){
   if(!sb) return;
   try{
@@ -6736,8 +6741,8 @@ async function loadActivites(){
     const { data, error } = await sb.from('activites').select('*')
       .gte('jour', hier.toISOString().slice(0,10)).order('jour');
     if(error) throw error;
-    ACTIVITES=data||[];
-  }catch(e){ ACTIVITES=[]; }
+    ACTIVITES=data||[]; ACT_PANNE='';
+  }catch(e){ ACTIVITES=[]; ACT_PANNE=(e&&e.message)||String(e); }
 }
 async function ajouterActivite(){
   const v=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
@@ -6772,8 +6777,11 @@ function activitesHTML(){
   let h='';
   if(!ACTIVITES.length){
     h+='<div class="ag-jour proche">Le programme du mois</div>'
-      +'<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'"><p>Aucune activité encodée pour l\'instant. '
-      +(peut?'Ajoute-les ci-dessous quand une asbl envoie son calendrier.':'Elles apparaîtront ici dès qu\'une asbl aura envoyé son calendrier.')
+      +'<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'"><p>'
+      +(ACT_PANNE
+        ? 'Le programme n\'a pas pu être lu — ce n\'est pas qu\'il est vide, c\'est que la base a refusé de répondre. Préviens Magali.<br><small style="opacity:.65">'+esc(ACT_PANNE)+'</small>'
+        : 'Aucune activité encodée pour l\'instant. '
+          +(peut?'Ajoute-les ci-dessous quand une asbl envoie son calendrier.':'Elles apparaîtront ici dès qu\'une asbl aura envoyé son calendrier.'))
       +'</p></div>';
   }
   if(ACTIVITES.length){
