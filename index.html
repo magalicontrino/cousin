@@ -1412,6 +1412,14 @@ input, textarea, select{
   .ag-pt.auj{background:#e63329}
   .ag-pt.veille{background:var(--gold)}
   @media (min-width:1280px){ body:not(.apercu-tel) .ag-pt{display:none} }
+  /* Le formulaire d'ajout d'une activité, et le bouton pour en retirer une. */
+  .ac-form{margin-top:20px; padding-top:14px; border-top:1px dashed var(--line)}
+  .ac-form input{width:100%; box-sizing:border-box; border:1.5px solid var(--line); background:var(--card);
+    border-radius:13px; padding:11px 13px; font:inherit; font-size:14px; margin-bottom:8px}
+  .ac-l{display:flex; gap:8px}
+  .ac-l input{flex:1 1 auto; min-width:0}
+  .ac-del{margin-top:10px; border:1px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:20px; padding:5px 11px; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer}
   /* Le mail type déroulé dans la fiche de la démarche. */
   .mailin:not(:empty){margin-top:12px; padding-top:12px; border-top:1px dashed var(--line)}
   .mailin .card{margin-bottom:0}
@@ -3788,7 +3796,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v383';
+const APP_VERSION = 'v384';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -5776,6 +5784,7 @@ async function loadProfile(){
     try{ if(await loadFavoris()){ if(view==='favoris'||view==='home') render(); } }catch(e){}
     // Idem pour ce qu'elle a lu et où elle en est dans les jeux.
     try{ await chargerReglages(); }catch(e){}
+    try{ await loadActivites(); if(view==='agenda') render(); }catch(e){}
     let cl=[];
     try{ const { data } = await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
     const groups={}, order=[];
@@ -6443,6 +6452,85 @@ async function rappelCalendriers(){
       detail:"WAKA UP : info@waka-up.be · +32 474 85 78 25. Et les autres asbl qui sortent un programme mensuel. Ce qu'on en fait : leurs activités du mois rejoignent « Ce qui arrive ».",
       ordre:Date.now()%100000 });
   }catch(e){}
+}
+/* ═══ LE PROGRAMME DU MOIS ═══
+   « Ce qui arrive » ne savait afficher que des règles qui se répètent (tous les mercredis).
+   Or WAKA UP — et demain d'autres asbl — sortent un calendrier neuf chaque mois : des dates
+   uniques, un lieu qui change, une inscription à prendre. Elles vivent donc dans la table
+   `activites` (voir sql/activites.sql), que Mag ou la coordination remplissent depuis l'app
+   sans passer par moi. Tout le monde les lit ; seules elles peuvent en ajouter. */
+let ACTIVITES=[];
+async function loadActivites(){
+  if(!sb) return;
+  try{
+    const hier=new Date(); hier.setDate(hier.getDate()-1);
+    const { data, error } = await sb.from('activites').select('*')
+      .gte('jour', hier.toISOString().slice(0,10)).order('jour');
+    if(error) throw error;
+    ACTIVITES=data||[];
+  }catch(e){ ACTIVITES=[]; }
+}
+async function ajouterActivite(){
+  const v=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
+  const asso=v('acAsso'), titre=v('acTitre'), jour=v('acJour');
+  if(!asso || !titre || !jour){ cousinToast("Il faut au moins l'association, l'activité et la date"); return; }
+  try{
+    const { error } = await sb.from('activites').insert({
+      asso:asso, titre:titre, jour:jour, debut:v('acDebut')||null, fin:v('acFin')||null,
+      lieu:v('acLieu')||null, adresse:v('acAdr')||null, inscription:v('acInsc')||null,
+      ajoute_par:(PROFILE&&(PROFILE.nom||PROFILE.email))||'' });
+    if(error) throw error;
+    ['acTitre','acJour','acDebut','acFin','acLieu','acAdr','acInsc'].forEach(function(id){
+      const e=document.getElementById(id); if(e) e.value=''; });
+    await loadActivites(); if(view==='agenda') render();
+    cousinToast('Ajoutée ✓');
+  }catch(e){ cousinToast('Impossible : '+((e&&e.message)||e)); }
+}
+function retirerActivite(id, titre){
+  cousinConfirm('Retirer « '+titre+' » du programme ?', async function(){
+    try{ await sb.from('activites').delete().eq('id',id); await loadActivites(); if(view==='agenda') render(); }
+    catch(e){ cousinToast('Suppression refusée'); }
+  }, {ok:'Retirer', danger:true});
+}
+/* La date en toutes lettres : « lundi 3 août ». */
+function acJourFr(iso){
+  try{ const d=new Date(iso+'T12:00:00');
+    return d.toLocaleDateString('fr-BE',{weekday:'long', day:'numeric', month:'long'});
+  }catch(e){ return iso; }
+}
+function activitesHTML(){
+  const peut = (typeof peutGerer==='function') ? peutGerer() : false;
+  let h='';
+  if(ACTIVITES.length){
+    h+='<div class="ag-jour proche" style="margin-top:18px">Le programme du mois</div>';
+    let dernier='';
+    ACTIVITES.forEach(function(a){
+      if(a.jour!==dernier){ dernier=a.jour; h+='<div class="ag-jour">'+esc(acJourFr(a.jour))+'</div>'; }
+      const heure=[a.debut,a.fin].filter(Boolean).join(' → ');
+      const ou=[a.lieu,a.adresse].filter(Boolean).join(' · ');
+      h+='<div class="ag-e" style="border-left-color:#fd8fd0">'
+        +'<div class="ag-h"><b>'+esc(a.titre)+'</b>'+(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
+        +'<em>'+esc(a.asso)+(heure?' · '+esc(heure):'')+'</em>'
+        +(ou?'<span class="ag-adr">'+esc(ou)+'</span>':'')
+        +(a.inscription?'<p>'+esc(a.inscription)+'</p>':'')
+        +(a.adresse?'<a class="ag-iti" href="'+esc(itineraireURL(a.adresse))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>':'')
+        +(peut?'<button class="ac-del" onclick="retirerActivite('+a.id+',\''+esc(String(a.titre).replace(/'/g,"\\'"))+'\')">Retirer</button>':'')
+        +'</div>';
+    });
+  }
+  if(peut){
+    h+='<div class="ac-form"><div class="ag-jour">Ajouter une activité</div>'
+      +'<div class="adm-hint" style="margin-bottom:8px">Le calendrier du mois d\'une asbl s\'encode ici, ligne par ligne. Toute l\'équipe le voit aussitôt.</div>'
+      +'<input id="acAsso" placeholder="Association (WAKA UP…)" list="acAssos">'
+      +'<datalist id="acAssos">'+[...new Set(ACTIVITES.map(function(a){return a.asso;}))].map(function(a){return '<option value="'+esc(a)+'">';}).join('')+'</datalist>'
+      +'<input id="acTitre" placeholder="Activité (Boxe, Tricot, Atelier écriture…)">'
+      +'<div class="ac-l"><input id="acJour" type="date"><input id="acDebut" placeholder="10h"><input id="acFin" placeholder="11h30"></div>'
+      +'<input id="acLieu" placeholder="Lieu (salle, parc…)">'
+      +'<input id="acAdr" placeholder="Adresse complète — pour l\'itinéraire">'
+      +'<input id="acInsc" placeholder="Inscription : à qui, comment">'
+      +'<button class="adm-addbtn" onclick="ajouterActivite()">Ajouter au programme</button></div>';
+  }
+  return h;
 }
 async function loadChantier(){
   if(!sb) return;
@@ -7868,6 +7956,7 @@ function agendaHTML(){
       + '</div>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer</span></button></div>'
     + ((AG_GRATUIT || AG_ENFANTS) ? html : '')
+    + ((AG_GRATUIT || AG_ENFANTS) ? activitesHTML() : '')
     + (AG_ART27 ? agArt27HTML() : '')
     + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
