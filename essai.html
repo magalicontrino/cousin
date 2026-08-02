@@ -1412,6 +1412,14 @@ input, textarea, select{
   .ag-pt.auj{background:#e63329}
   .ag-pt.veille{background:var(--gold)}
   @media (min-width:1280px){ body:not(.apercu-tel) .ag-pt{display:none} }
+  /* Du neuf : une ligne par ajout, cliquable, avec son étiquette. */
+  .nv-l{display:flex; align-items:center; gap:10px; width:100%; text-align:left; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 13px;
+    margin-bottom:8px; font:inherit; color:inherit}
+  .nv-q{flex:0 0 auto; font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--gold-d); background:var(--soft); border-radius:20px; padding:3px 8px}
+  .nv-t{flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700; line-height:1.35}
+  .nv-ch{flex:0 0 auto; width:15px; height:15px; color:var(--faint)}
   /* Le formulaire d'ajout d'une activité, et le bouton pour en retirer une. */
   .ac-form{margin-top:20px; padding-top:14px; border-top:1px dashed var(--line)}
   .ac-form input{width:100%; box-sizing:border-box; border:1.5px solid var(--line); background:var(--card);
@@ -3796,7 +3804,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v384-essai';
+const APP_VERSION = 'v385-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -4104,6 +4112,11 @@ function updateHeader(){
     em.innerHTML=icon('building');
     document.getElementById('hName').textContent="Chambres";
     back.onclick=navRetour(openMaListe);
+  }else if(view==="nouveautes"){
+    em.style.color='#f5c542';
+    em.innerHTML=icon('bulb');
+    document.getElementById('hName').textContent="Du neuf";
+    back.onclick=navRetour(goHome);
   }else if(view==="petition"){
     em.style.color='#e63329';
     em.innerHTML=icon('petition');
@@ -4198,6 +4211,7 @@ function render(){
   if(view==="quartier"){ el.innerHTML = quartierHTML(); return; }
   if(view==="quiz"){ el.innerHTML = quizHTML(); return; }
   if(view==="petition"){ el.innerHTML = petitionHTML(); return; }
+  if(view==="nouveautes"){ el.innerHTML = nouveautesHTML(); return; }
 
   // Vue domaine
   const dm=DOM[view];
@@ -4491,6 +4505,11 @@ function bureauHTML(){
     'lignes à faire'+(boite.length? ' · '+boite.length+' suggestion'+(boite.length>1?'s':''):''), 'openChantier()'));
   if(chM) c.push(carteBureau('chambres','cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
   else if(chE) c.push(carteBureau('chambres','cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
+  try{
+    const nv=nouveautesRecentes().length;
+    if(nv) c.push(carteBureau('neuf','bulb','Du neuf', nv,
+      nv>1?'ajouts cette quinzaine':'ajout cette quinzaine', 'openNouveautes()', true));
+  }catch(e){}
   try{
     /* On écrit le NOM du lieu, pas seulement le nombre : « 1 sortie gratuite » oblige à
        cliquer pour savoir laquelle, et c'est justement ce qu'on veut éviter au passage. */
@@ -6243,6 +6262,50 @@ function petitionHTML(){
       ${finie?'' : `<a class="pet-go" href="${esc(p.url)}" target="_blank" rel="noopener">Signer la pétition${icon('lienfin','class="pet-fleche"')}</a>`}
     </div>`;
   }).join('')+'</div>';
+}
+/* ═══ DU NEUF ═══
+   Sa demande du 01/08/2026 : « que les éducs puissent voir qu'il y a une nouveauté ».
+   Deux sources, et une seule liste :
+   — ce que J'AJOUTE dans l'app (fiches, formations, quiz, pages) : écrit ici à la main,
+     parce qu'une date de fichier ne dit pas ce qui a changé pour l'équipe ;
+   — ce que L'ÉQUIPE ajoute (les activités du mois) : lu directement dans la base.
+   On ne garde que les 14 derniers jours : passé ce délai, ce n'est plus une nouvelle. */
+const NOUVEAUTES=[
+  {le:'2026-08-01', quoi:'Domaine',   titre:"Handicap : 13 fiches et une formation complète", ouvre:"openDomaine('handicap')"},
+  {le:'2026-08-01', quoi:'Page',      titre:"Le programme du mois des asbl, dans « Ce qui arrive »", ouvre:"openAgenda()"},
+  {le:'2026-08-01', quoi:'Fiche',     titre:"WAKA UP — sport, art et culture pour les femmes (Jette), gratuit", ouvre:"openDomaine('culture')"},
+  {le:'2026-08-01', quoi:'Fiches',    titre:"DoucheFLUX, le Syndicat des immenses, les soins infirmiers extérieurs", ouvre:"openDomaine('social')"},
+  {le:'2026-07-31', quoi:'Formation', titre:"Adresse de référence, CPAS compétent et agrément", ouvre:"openDomaine('formations')"},
+  {le:'2026-07-31', quoi:'Quiz',      titre:"30 questions sur l'adresse de référence et le CPAS compétent", ouvre:"openQuiz()"},
+  {le:'2026-07-31', quoi:'Démarches', titre:"Anderlecht, Ville de Bruxelles et Forest : où envoyer réquisitoires et AMU", ouvre:"openDomaine('demarches')"}
+];
+function nouveautesRecentes(){
+  const limite=new Date(); limite.setDate(limite.getDate()-14);
+  const out=NOUVEAUTES.filter(function(n){ return new Date(n.le+'T12:00:00')>=limite; })
+    .map(function(n){ return {le:n.le, quoi:n.quoi, titre:n.titre, ouvre:n.ouvre}; });
+  try{
+    ACTIVITES.forEach(function(a){
+      if(!a.ajoute_le) return;
+      if(new Date(a.ajoute_le)<limite) return;
+      out.push({ le:String(a.ajoute_le).slice(0,10), quoi:'Activité',
+        titre:a.asso+' · '+a.titre+' — '+acJourFr(a.jour), ouvre:'openAgenda()' });
+    });
+  }catch(e){}
+  return out.sort(function(a,b){ return a.le<b.le?1:-1; });
+}
+function openNouveautes(){ view='nouveautes'; query=''; urgOpen=false; render(); }
+function nouveautesHTML(){
+  const l=nouveautesRecentes();
+  if(!l.length) return '<div class="pf-wrap"><div class="pf-empty">'+icon('bulb')
+    +'<p><b>Rien de neuf ces deux dernières semaines.</b></p><p>Cette page montre ce qui a été ajouté dans l\'app : fiches, formations, activités.</p></div></div>';
+  let h='<div class="pf-wrap"><div class="adm-hint" style="margin-bottom:12px">Ce qui a été ajouté dans l\'app ces 14 derniers jours.</div>';
+  let jour='';
+  l.forEach(function(n){
+    if(n.le!==jour){ jour=n.le; h+='<div class="ag-jour">'+esc(acJourFr(n.le))+'</div>'; }
+    h+='<button class="nv-l" onclick="'+n.ouvre+'"><span class="nv-q">'+esc(n.quoi)+'</span>'
+      +'<span class="nv-t">'+esc(n.titre)+'</span>'+icon('chevron','class="nv-ch"')+'</button>';
+  });
+  return h+'</div>';
 }
 function openPetition(){ view='petition'; query=''; urgOpen=false; const s=document.getElementById('search'); if(s) s.value=''; render(); }
 function openFeed(){
