@@ -1418,6 +1418,7 @@ input, textarea, select{
   .ag-b{flex:1 1 auto; border:1.5px solid var(--line); background:var(--card); color:var(--muted);
     border-radius:20px; padding:9px 12px; font:inherit; font-size:13px; font-weight:800; cursor:pointer}
   .ag-b.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
+  .ag-discret.assos.on{background:#ff2d95; border-color:transparent; color:#fff}
   .cal{margin-bottom:6px}
   .cal-tete{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
   .cal-tete span{flex:1 1 auto; text-align:center; font-size:15px; font-weight:900; text-transform:capitalize}
@@ -3886,7 +3887,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v391-essai';
+const APP_VERSION = 'v392-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6641,6 +6642,10 @@ async function rappelCalendriers(){
    uniques, un lieu qui change, une inscription à prendre. Elles vivent donc dans la table
    `activites` (voir sql/activites.sql), que Mag ou la coordination remplissent depuis l'app
    sans passer par moi. Tout le monde les lit ; seules elles peuvent en ajouter. */
+/* LE ROSE FLUO DES ASBL (sa décision, 01/08/2026) : une sortie d'asbl n'est pas une
+   gratuité récurrente. Les musées reviennent tous les mois ; WAKA UP, c'est un programme
+   qui change et qui se remplit vite. La couleur dit la différence avant qu'on lise. */
+const ROSE_ASBL='#ff2d95';
 let ACTIVITES=[];
 async function loadActivites(){
   if(!sb) return;
@@ -6690,7 +6695,7 @@ function activitesHTML(){
       if(a.jour!==dernier){ dernier=a.jour; h+='<div class="ag-jour">'+esc(acJourFr(a.jour))+'</div>'; }
       const heure=[a.debut,a.fin].filter(Boolean).join(' → ');
       const ou=[a.lieu,a.adresse].filter(Boolean).join(' · ');
-      h+='<div class="ag-e" style="border-left-color:#fd8fd0">'
+      h+='<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'">'
         +'<div class="ag-h"><b>'+esc(a.titre)+'</b>'+(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
         +'<em>'+esc(a.asso)+(heure?' · '+esc(heure):'')+'</em>'
         +(ou?'<span class="ag-adr">'+esc(ou)+'</span>':'')
@@ -7941,6 +7946,9 @@ function agendaLibelleJour(i,d){
 /* Deux interrupteurs INDÉPENDANTS : on peut vouloir les deux à la fois — une sortie
    avec des enfants ET payée par un ticket Article 27, ça existe. */
 var AG_GRATUIT=true, AG_ENFANTS=false, AG_ART27=false;   // Gratuit allumé d'office : c'est le cœur de la page
+/* Les asbl ont leur propre bouton (sa demande, 01/08/2026) : leur programme change tous les
+   mois et se remplit vite, on doit pouvoir le regarder seul — ou l'éteindre. Allumé d'office. */
+var AG_ASSOS=true;
 /* ═══ LE CALENDRIER ═══
    Sa demande : « pour voir ce qu'il y a les deux semaines à suivre, je dois vraiment
    scroller ». Un mois tient dans un écran quand on le dessine en grille : chaque jour
@@ -7965,7 +7973,7 @@ function agDuJour(d){
   }catch(e){}
   try{
     const iso=agIso(d);
-    (ACTIVITES||[]).forEach(function(a){ if(a.jour===iso) out.push({c:'#fd8fd0', t:a.asso+' · '+a.titre,
+    if(AG_ASSOS) (ACTIVITES||[]).forEach(function(a){ if(a.jour===iso) out.push({c:ROSE_ASBL, t:a.asso+' · '+a.titre,
       s:[a.debut,a.fin].filter(Boolean).join(' → '), act:a}); });
   }catch(e){}
   return out;
@@ -8015,6 +8023,7 @@ function agFiltre(k){
   if(k==='gratuit') AG_GRATUIT=!AG_GRATUIT;
   if(k==='enfants') AG_ENFANTS=!AG_ENFANTS;
   if(k==='art27')   AG_ART27=!AG_ART27;
+  if(k==='assos')   AG_ASSOS=!AG_ASSOS;
   render();
 }
 function openAgenda(){ view="agenda"; render(); }
@@ -8210,13 +8219,14 @@ function agendaHTML(){
       + '<button class="ag-discret'+(AG_GRATUIT?' on':'')+'" onclick="agFiltre(\'gratuit\')">'+icon('star')+'<span>Gratuit</span></button>'
       + '<button class="ag-discret'+(AG_ENFANTS?' on':'')+'" onclick="agFiltre(\'enfants\')">'+icon('educatif')+'<span>Avec enfant(s)</span></button>'
       + '<button class="ag-discret'+(AG_ART27?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Art 27</span></button>'
+      + '<button class="ag-discret assos'+(AG_ASSOS?' on':'')+'" onclick="agFiltre(\'assos\')">'+icon('social')+'<span>Assos</span></button>'
       + '</div>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer</span></button></div>'
     + '<div class="ag-bascule"><button class="ag-b'+(AG_VUE==='liste'?' on':'')+'" onclick="agVue(\'liste\')">Liste</button>'
     +   '<button class="ag-b'+(AG_VUE==='calendrier'?' on':'')+'" onclick="agVue(\'calendrier\')">Calendrier</button></div>'
     + (AG_VUE==='calendrier' ? agCalendrierHTML() : '')
     + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? html : '')
-    + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? activitesHTML() : '')
+    + ((AG_VUE==='liste' && AG_ASSOS) ? activitesHTML() : '')
     + (AG_ART27 ? agArt27HTML() : '')
     + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
