@@ -1903,6 +1903,15 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
        bord — juste moins. Toute nouvelle page hérite du réglage automatiquement,
        parce que --barre est mesurée en direct. */
     header{position:fixed; top:var(--apercu-h); left:0; right:0; z-index:40; background:transparent; padding:16px 0 6px}
+    /* ⚠ ELLE EST TRANSPARENTE, ELLE NE DOIT DONC PAS NON PLUS ATTRAPER LES CLICS. Sa barre
+       fait toute la largeur de l'écran : tout ce qui passait dessous — la rangée de tris
+       collée en haut de la page, le bouton Imprimer — devenait inatteignable, on cliquait
+       dans le vide. Seuls le logo, les pictos, le titre et la recherche restent cliquables. */
+    header{pointer-events:none}
+    /* Et on ne réactive QUE ce qui se clique vraiment. Réactiver les rangées entières ne
+       servait à rien : le titre de la page s'étire sur toute la largeur, il rattrapait les
+       clics au milieu de l'écran exactement comme la barre. */
+    header .hicon, header .logo-img, header .back, header .search{pointer-events:auto}
     /* La page démarre SOUS la barre, quelle que soit sa hauteur : avec le titre de la page
        elle est plus haute que sur l'accueil, et une valeur fixe coupait la première rangée
        de pavés. --barre est mesurée en direct (voir majBarre). */
@@ -2454,6 +2463,11 @@ const SAMPLE = [
      qui sert quand quelqu'un s'ennuie, pas le nom de l'organisme.
      Sources relevées le 30/07/2026 : brusselsmuseums.be, bruxelles.article27.be,
      cultureghem.be. À revérifier une fois par an — les gratuités bougent. */
+  /* WAKA UP, ajoutée le 01/08/2026 : elle sort un programme CHAQUE MOIS, d'où le rappel
+     automatique déposé dans le chantier au début de chaque mois (voir rappelCalendriers).
+     Infos relevées sur waka-up.be et sur leur calendrier d'août 2026. */
+  tags(d("culture","WAKA UP","Jette","Sport, art et culture pour toutes les femmes : boxe, renforcement musculaire, tricot, écriture, escalade, céramique, chants. Gratuit, et une garde d'enfants est assurée pendant les activités. Programme différent chaque mois.","Femmes — en particulier femmes victimes de violences, sans abri, migrantes, en famille monoparentale","+32 474 85 78 25","info@waka-up.be","waka-up.be","Avenue de Jette 225, 1090 Jette (portail vert)","Téléphone entre 9h30 et 18h","Activités GRATUITES, sur inscription auprès de l'association — leur demander le calendrier du mois. ⚠️ LE LIEU CHANGE SELON L'ACTIVITÉ (parc, salle de sport, atelier…) : l'itinéraire ci-dessous part de leur bureau à Jette, il faut vérifier l'adresse du jour sur waka-up.be ou par téléphone avant d'y envoyer quelqu'un. Siège social : rue du Korenbeek 133, 1080 Molenbeek-Saint-Jean."),
+    ["Gratuit","Femmes","Avec enfants"]),
   tags(d("culture","Musées gratuits — le 1er dimanche du mois","Régional / Toutes communes",
     "Une vingtaine de musées bruxellois ouvrent gratuitement, sans ticket ni réservation, le premier dimanche de chaque mois.",
     "Tout public, sans condition","","","brusselsmuseums.be","","Le 1er dimanche du mois, aux heures d'ouverture de chaque musée",
@@ -3774,12 +3788,12 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v382-essai';
+const APP_VERSION = 'v383-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
    des deux, sinon un téléphone garderait la moitié de l'ancien catalogue. */
-const SEED_VERSION = 79;
+const SEED_VERSION = 80;
 function slug(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);}
 (function assignSids(){
   const seen={};
@@ -6411,8 +6425,28 @@ let chBloc='Bugs à corriger';         // le bloc choisi dans le champ d'ajout
 let chEdit=null;                      // la ligne en cours de correction
 let chFinis=false;                    // afficher ou non ce qui est déjà coché
 
+/* RAPPEL DU DÉBUT DE MOIS (sa demande, 01/08/2026) : les asbl comme WAKA UP sortent un
+   programme neuf chaque mois, et il faut aller le leur demander. Plutôt qu'une alarme
+   extérieure qu'on oublie de brancher, c'est l'app qui dépose la ligne dans le chantier
+   quand Mag l'ouvre dans les cinq premiers jours du mois — une seule fois par mois, le
+   titre portant le mois. Personne d'autre ne la voit : le chantier est à elle. */
+async function rappelCalendriers(){
+  try{
+    if(!sb || !(PROFILE && PROFILE.admin)) return;
+    const d=new Date();
+    if(d.getDate()>5) return;
+    const mois=d.toLocaleDateString('fr-BE',{month:'long', year:'numeric'});
+    const titre='Demander les calendriers du mois — '+mois;
+    const { data } = await sb.from('chantier').select('id').eq('titre',titre).limit(1);
+    if(data && data.length) return;
+    await sb.from('chantier').insert({ bloc:'Ça attend tes collègues', titre:titre,
+      detail:"WAKA UP : info@waka-up.be · +32 474 85 78 25. Et les autres asbl qui sortent un programme mensuel. Ce qu'on en fait : leurs activités du mois rejoignent « Ce qui arrive ».",
+      ordre:Date.now()%100000 });
+  }catch(e){}
+}
 async function loadChantier(){
   if(!sb) return;
+  rappelCalendriers();
   try{
     const { data } = await sb.from('chantier').select('id,bloc,titre,detail,ordre,fait,fait_le').order('ordre');
     CHANTIER = data || [];
