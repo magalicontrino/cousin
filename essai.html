@@ -1412,6 +1412,34 @@ input, textarea, select{
   .ag-pt.auj{background:#e63329}
   .ag-pt.veille{background:var(--gold)}
   @media (min-width:1280px){ body:not(.apercu-tel) .ag-pt{display:none} }
+  /* ═══ LE CALENDRIER de « Ce qui arrive » ═══ Un mois tient dans un écran : chaque jour
+     porte un point par activité, et on touche un jour pour voir ce qu'il contient. */
+  .ag-bascule{display:flex; gap:6px; margin:2px 0 14px}
+  .ag-b{flex:1 1 auto; border:1.5px solid var(--line); background:var(--card); color:var(--muted);
+    border-radius:20px; padding:9px 12px; font:inherit; font-size:13px; font-weight:800; cursor:pointer}
+  .ag-b.on{background:#1b1b1b; color:var(--bg); border-color:transparent}
+  .cal{margin-bottom:6px}
+  .cal-tete{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
+  .cal-tete span{flex:1 1 auto; text-align:center; font-size:15px; font-weight:900; text-transform:capitalize}
+  .cal-fl{flex:0 0 auto; width:34px; height:34px; border-radius:11px; border:0; background:var(--soft);
+    color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
+  .cal-fl svg, .cal-fl .pico{width:16px; height:16px}
+  .cal-fl.droite svg, .cal-fl.droite .pico{transform:rotate(180deg)}
+  .cal-j{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:5px}
+  .cal-j span{text-align:center; font-size:10px; font-weight:900; letter-spacing:.04em; color:var(--faint)}
+  .cal-g{display:grid; grid-template-columns:repeat(7,1fr); gap:3px}
+  .cal-c{aspect-ratio:1/1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; border:0; background:var(--card); border-radius:11px; cursor:pointer; font:inherit; padding:0}
+  .cal-c.hors{background:transparent; opacity:.3; cursor:default}
+  .cal-n{font-size:13px; font-weight:800; color:var(--ink); line-height:1}
+  .cal-pts{display:flex; gap:2px; height:6px; align-items:center}
+  .cal-pts i{width:5px; height:5px; border-radius:50%; display:block}
+  .cal-c.auj{outline:2px solid var(--ink); outline-offset:-2px}
+  .cal-c.choisi{background:#1b1b1b}
+  .cal-c.choisi .cal-n{color:var(--bg)}
+  .cal-jour{font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); margin:18px 2px 9px}
+  .cal-vide{font-size:13px; color:var(--muted); font-style:italic; padding:4px 2px}
   /* ═══ DU NEUF ═══ Une page qui doit donner envie d'être ouverte : un chiffre en grand,
      une couleur par sorte d'ajout, et des lignes qu'on lit en diagonale. */
   .nv-tete{display:flex; align-items:center; gap:14px; background:#1b1b1b; color:var(--bg);
@@ -3825,7 +3853,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v386-essai';
+const APP_VERSION = 'v388-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7850,16 +7878,91 @@ function agendaProchains(jours, filtre){   /* 31 jours sur la page, 1 pour la pa
   }
   return out;
 }
+/* SE REPÉRER DANS LE TEMPS SANS COMPTER SUR SES DOIGTS (sa demande, 01/08/2026).
+   « Mardi 11 août » ne dit pas si c'est dans trois jours ou dans dix. On garde donc le nom
+   du jour ET la distance, jusqu'à deux semaines — au-delà, la date suffit. */
 function agendaLibelleJour(i,d){
+  const nom=JOURS_L[d.getDay()]+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   if(i===0) return "Aujourd'hui";
   if(i===1) return "Demain";
-  return JOURS_L[d.getDay()]+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
+  if(i<14)  return nom+' · dans '+i+' jours';
+  return nom;
 }
 /* Le tri de « Ce qui arrive » se fait SUR LA PAGE, dans la petite ligne du haut :
    on ne quitte jamais l'écran. */
 /* Deux interrupteurs INDÉPENDANTS : on peut vouloir les deux à la fois — une sortie
    avec des enfants ET payée par un ticket Article 27, ça existe. */
 var AG_GRATUIT=true, AG_ENFANTS=false, AG_ART27=false;   // Gratuit allumé d'office : c'est le cœur de la page
+/* ═══ LE CALENDRIER ═══
+   Sa demande : « pour voir ce qu'il y a les deux semaines à suivre, je dois vraiment
+   scroller ». Un mois tient dans un écran quand on le dessine en grille : chaque jour
+   porte des points de couleur, un par activité, et on touche un jour pour voir ce qu'il
+   contient. La liste reste là pour qui préfère lire à la suite — d'où le basculement. */
+var AG_VUE='liste';          // 'liste' ou 'calendrier'
+var AG_MOIS=null;            // le 1er du mois affiché (null = mois en cours)
+var AG_JOUR=null;            // le jour choisi dans la grille (ISO)
+function agVue(v){ AG_VUE=v; render(); }
+function agMois(pas){
+  const b=AG_MOIS?new Date(AG_MOIS):new Date();
+  b.setDate(1); b.setMonth(b.getMonth()+pas);
+  AG_MOIS=b.toISOString().slice(0,10); AG_JOUR=null; render();
+}
+function agChoisirJour(iso){ AG_JOUR=(AG_JOUR===iso)?null:iso; render(); }
+function agIso(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+/* Ce qui tombe un jour donné : les règles qui se répètent ET les activités encodées. */
+function agDuJour(d){
+  const out=[];
+  try{
+    (AGENDA_REGLES||[]).forEach(function(r){ if(agVisible(r) && r.quand(d)) out.push({c:r.c||'#6cb392', t:r.titre, s:r.lieu, regle:r}); });
+  }catch(e){}
+  try{
+    const iso=agIso(d);
+    (ACTIVITES||[]).forEach(function(a){ if(a.jour===iso) out.push({c:'#fd8fd0', t:a.asso+' · '+a.titre,
+      s:[a.debut,a.fin].filter(Boolean).join(' → '), act:a}); });
+  }catch(e){}
+  return out;
+}
+function agCalendrierHTML(){
+  const base=AG_MOIS?new Date(AG_MOIS+'T12:00:00'):new Date();
+  base.setDate(1); base.setHours(12,0,0,0);
+  const auj=new Date(); auj.setHours(12,0,0,0);
+  const premier=new Date(base);
+  const decal=(premier.getDay()+6)%7;                   // la semaine commence lundi
+  const debut=new Date(premier); debut.setDate(1-decal);
+  let h='<div class="cal">'
+    + '<div class="cal-tete"><button class="cal-fl" onclick="agMois(-1)">'+icon('chevron')+'</button>'
+    +   '<span>'+esc(MOIS_L[base.getMonth()]+' '+base.getFullYear())+'</span>'
+    +   '<button class="cal-fl droite" onclick="agMois(1)">'+icon('chevron')+'</button></div>'
+    + '<div class="cal-j">'+['L','M','M','J','V','S','D'].map(function(j){ return '<span>'+j+'</span>'; }).join('')+'</div>'
+    + '<div class="cal-g">';
+  for(let i=0;i<42;i++){
+    const d=new Date(debut); d.setDate(debut.getDate()+i);
+    if(i>=35 && d.getMonth()!==base.getMonth()) break;
+    const iso=agIso(d), dedans=(d.getMonth()===base.getMonth());
+    const ev=dedans?agDuJour(d):[];
+    const estAuj=(agIso(auj)===iso);
+    h+='<button class="cal-c'+(dedans?'':' hors')+(estAuj?' auj':'')+(AG_JOUR===iso?' choisi':'')+'"'
+      + (dedans?' onclick="agChoisirJour(\''+iso+'\')"':' disabled')+'>'
+      + '<span class="cal-n">'+d.getDate()+'</span>'
+      + '<span class="cal-pts">'+ev.slice(0,3).map(function(e){ return '<i style="background:'+e.c+'"></i>'; }).join('')+'</span>'
+      + '</button>';
+  }
+  h+='</div>';
+  /* Ce que contient le jour choisi — ou, par défaut, ce qui arrive aujourd'hui. */
+  const cible=AG_JOUR?new Date(AG_JOUR+'T12:00:00'):auj;
+  const liste=agDuJour(cible);
+  h+='<div class="cal-jour">'+esc(JOURS_L[cible.getDay()]+' '+cible.getDate()+' '+MOIS_L[cible.getMonth()])+'</div>';
+  h+= liste.length
+    ? liste.map(function(e){
+        return '<div class="ag-e" style="border-left-color:'+e.c+'">'
+          +'<div class="ag-h"><b>'+esc(e.t)+'</b></div>'
+          +(e.s?'<em>'+esc(e.s)+'</em>':'')
+          +(e.regle&&e.regle.sous?'<p>'+esc(e.regle.sous)+'</p>':'')
+          +(e.act&&e.act.inscription?'<p>'+esc(e.act.inscription)+'</p>':'')
+          +'</div>'; }).join('')
+    : '<div class="cal-vide">Rien de prévu ce jour-là.</div>';
+  return h+'</div>';
+}
 function agFiltre(k){
   if(k==='gratuit') AG_GRATUIT=!AG_GRATUIT;
   if(k==='enfants') AG_ENFANTS=!AG_ENFANTS;
@@ -8061,8 +8164,11 @@ function agendaHTML(){
       + '<button class="ag-discret'+(AG_ART27?' on':'')+'" onclick="agFiltre(\'art27\')">'+icon('ticket')+'<span>Art 27</span></button>'
       + '</div>'
     + '<button class="ag-print" onclick="doPrint()">'+icon('note')+'<span>Imprimer</span></button></div>'
-    + ((AG_GRATUIT || AG_ENFANTS) ? html : '')
-    + ((AG_GRATUIT || AG_ENFANTS) ? activitesHTML() : '')
+    + '<div class="ag-bascule"><button class="ag-b'+(AG_VUE==='liste'?' on':'')+'" onclick="agVue(\'liste\')">Liste</button>'
+    +   '<button class="ag-b'+(AG_VUE==='calendrier'?' on':'')+'" onclick="agVue(\'calendrier\')">Calendrier</button></div>'
+    + (AG_VUE==='calendrier' ? agCalendrierHTML() : '')
+    + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? html : '')
+    + ((AG_VUE==='liste' && (AG_GRATUIT || AG_ENFANTS)) ? activitesHTML() : '')
     + (AG_ART27 ? agArt27HTML() : '')
     + ((!AG_GRATUIT && !AG_ENFANTS && !AG_ART27) ? '<div class="ag-e" style="border-left-color:#b3aea3"><p>Tout est éteint : rallume un bouton pour voir des sorties.</p></div>' : '')
     + '<button class="quiz-next ag-doux" style="margin-top:14px" onclick="openQuartier()">Autour d’ici</button>'
