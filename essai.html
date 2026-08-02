@@ -1400,6 +1400,12 @@ input, textarea, select{
   .st-c{flex:0 0 auto; font-size:11px; font-weight:700; color:var(--muted)}
   .st-b{height:8px; border-radius:5px; background:rgba(27,27,27,.07); overflow:hidden}
   .st-b i{display:block; height:100%; border-radius:5px; background:var(--gold)}
+  /* Aujourd'hui · 7 jours · 30 jours. Le choix se voit d'un coup d'œil : celui qui est
+     allumé est plein, les deux autres sont de simples contours. */
+  .st-per{display:flex; gap:6px; margin:2px 0 10px; flex-wrap:wrap}
+  .st-p{flex:0 0 auto; padding:5px 11px; border-radius:999px; border:1.5px solid var(--line);
+        background:transparent; color:var(--muted); font:800 11px/1 inherit; cursor:pointer}
+  .st-p.on{background:var(--ink); border-color:var(--ink); color:#fff}
   /* Les trois écrans préférés d'un métier, sous sa barre. */
   .st-top{margin-top:4px; font-size:11px; color:var(--muted); line-height:1.5}
   .st-top b{font-weight:800; color:var(--ink)}
@@ -3924,7 +3930,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v399-essai';
+const APP_VERSION = 'v400-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7325,17 +7331,40 @@ function admSection(cle){
    ligne (la table n'a aucune politique de lecture) : les deux fonctions de la base ne
    renvoient que des totaux. Voir sql/stats-ecrans.sql. */
 var STATS=null, _statsEnCours=false;
+/* La période regardée, en jours. Chaque période garde son résultat : revenir sur « 30 jours »
+   ne redemande rien à la base.
+   Pourquoi « 24 heures » et pas « aujourd'hui » : l'équipe travaille la nuit. À 3 h du matin,
+   « aujourd'hui » commencerait à minuit et couperait la nuit en deux — on verrait la moitié
+   du service en cours. Les 24 dernières heures suivent le rythme réel du centre. */
+var STATS_JOURS=30;
+var STATS_CACHE={};
+const STATS_PERIODES=[[1,'24 heures'],[7,'7 jours'],[30,'30 jours']];
+function statsPeriode(j){
+  STATS_JOURS=j;
+  STATS=STATS_CACHE[j]||null;
+  render();
+  if(!STATS) chargerStats();
+}
 async function chargerStats(){
   if(_statsEnCours || STATS) return;
+  const j=STATS_JOURS;
   _statsEnCours=true;
+  let res;
   try{
-    const a = await sb.rpc('stats_ecrans', { jours:30 });
-    const b = await sb.rpc('stats_jours',  { jours:30 });
-    const c = await sb.rpc('stats_equipes',{ jours:30 });
-    STATS={ ecrans:(a && a.data)||[], jours:(b && b.data)||[], equipes:(c && c.data)||[] };
-  }catch(e){ STATS={ ecrans:[], jours:[], equipes:[], erreur:(e&&e.message)||'lecture impossible' }; }
+    const a = await sb.rpc('stats_ecrans', { jours:j });
+    const b = await sb.rpc('stats_jours',  { jours:j });
+    const c = await sb.rpc('stats_equipes',{ jours:j });
+    res={ ecrans:(a && a.data)||[], jours:(b && b.data)||[], equipes:(c && c.data)||[] };
+  }catch(e){ res={ ecrans:[], jours:[], equipes:[], erreur:(e&&e.message)||'lecture impossible' }; }
+  STATS_CACHE[j]=res;
+  if(STATS_JOURS===j) STATS=res;
   _statsEnCours=false;
   if(view==='admin') render();
+}
+function periodesHTML(){
+  return '<div class="st-per">'+STATS_PERIODES.map(function(p){
+    return '<button class="st-p'+(STATS_JOURS===p[0]?' on':'')+'" onclick="statsPeriode('+p[0]+')">'+esc(p[1])+'</button>';
+  }).join('')+'</div>';
 }
 /* Le nom lisible d'un écran : les domaines portent déjà le leur, le reste est nommé ici. */
 const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', favoris:'Favoris', maliste:'Ma liste',
@@ -7387,6 +7416,12 @@ function venusHTML(){
    qu'on sait déjà — le métier, qui est dans le profil. Aucune donnée nouvelle n'est prise.
    ⚠ Sous 3 personnes, le détail des écrans est masqué par la base elle-même : « les infi
    ouvrent surtout Démarches » reviendrait à nommer quelqu'un. */
+/* La case « métier » peut être vide — c'est le cas des comptes créés à la main, dont son
+   adresse hotmail. On le dit plutôt que d'afficher une ligne sans nom. */
+function nomMetier(e){
+  if(!e || e==='Sans metier') return 'Sans métier';
+  return (typeof roleLabel==='function') ? roleLabel(e) : e;
+}
 function equipesHTML(){
   const eq=(STATS && STATS.equipes)||[];
   if(!eq.length) return '';
@@ -7399,7 +7434,7 @@ function equipesHTML(){
         }).join(' · ')
       : '<em>détail masqué : moins de 3 personnes</em>';
     return '<div class="st-l"><div class="st-h">'
-      + '<span class="st-n">'+esc(typeof roleLabel==='function'?roleLabel(x.equipe):x.equipe)+'</span>'
+      + '<span class="st-n">'+esc(nomMetier(x.equipe))+'</span>'
       + '<span class="st-c">'+p+' personne'+(p>1?'s':'')+' · '+v+' ouverture'+(v>1?'s':'')+'</span></div>'
       + '<div class="st-b"><i style="width:'+Math.max(3, Math.round(v/max*100))+'%"></i></div>'
       + '<div class="st-top">'+detail+'</div></div>';
@@ -7411,8 +7446,12 @@ function statsHTML(){
   if(STATS.erreur) return venusHTML()+'<div class="adm-hint">Impossible de lire les statistiques : '+esc(STATS.erreur)+'</div>';
   const ec=STATS.ecrans||[], jr=STATS.jours||[];
   if(!ec.length) return venusHTML()
-    + '<div class="st-sec">Où l’équipe passe son temps</div>'
-    + '<div class="adm-hint">Rien à montrer pour l’instant : ce compteur-là n’a été branché que le 31 juillet, il ne sait rien de ce qui s’est passé avant. Il se remplit au fur et à mesure que l’équipe ouvre l’app.</div>';
+    + '<div class="st-sec">Où l’équipe passe son temps</div>' + periodesHTML()
+    + '<div class="adm-hint">'
+    + (STATS_JOURS===1
+        ? 'Personne n’a ouvert l’app depuis 24 heures. Regarde sur 7 ou 30 jours.'
+        : 'Rien à montrer pour l’instant : ce compteur-là n’a été branché que le 31 juillet, il ne sait rien de ce qui s’est passé avant. Il se remplit au fur et à mesure que l’équipe ouvre l’app.')
+    + '</div>';
   const totalVues=ec.reduce(function(n,x){ return n+Number(x.vues||0); },0);
   const gens=jr.reduce(function(n,x){ return Math.max(n, Number(x.personnes||0)); },0);
   const max=Math.max.apply(null, ec.map(function(x){ return Number(x.vues||0); }));
@@ -7422,21 +7461,23 @@ function statsHTML(){
       + '<span class="st-c">'+v+' ouverture'+(v>1?'s':'')+' · '+p+' personne'+(p>1?'s':'')+'</span></div>'
       + '<div class="st-b"><i style="width:'+Math.max(3, Math.round(v/max*100))+'%"></i></div></div>';
   }).join('');
-  // La courbe des 30 jours : une colonne par jour, la hauteur = le nombre d'ouvertures.
+  // La courbe : une colonne par jour, la hauteur = le nombre d'ouvertures. Sur « aujourd'hui »
+  // il n'y aurait qu'une seule barre — ça n'apprend rien, on ne la montre pas.
   let courbe='';
-  if(jr.length){
+  if(jr.length>1){
     const mx=Math.max.apply(null, jr.map(function(x){ return Number(x.vues||0); }));
-    courbe='<div class="st-j"><div class="adm-hint" style="margin-bottom:6px">Les 30 derniers jours</div><div class="st-jb">'
+    courbe='<div class="st-j"><div class="adm-hint" style="margin-bottom:6px">Les '+STATS_JOURS+' derniers jours</div><div class="st-jb">'
       + jr.map(function(x){
           const v=Number(x.vues||0);
           return '<i title="'+esc(String(x.jour))+' — '+v+' ouverture'+(v>1?'s':'')+'" style="height:'+Math.max(4, Math.round(v/mx*100))+'%"></i>';
         }).join('')
       + '</div></div>';
   }
+  const quand = STATS_JOURS===1 ? 'en 24 heures' : 'sur '+STATS_JOURS+' jours';
   return venusHTML()
-       + '<div class="st-sec">Où l’équipe passe son temps</div>'
-       + '<div class="st-tot"><b>'+totalVues+'</b> ouverture'+(totalVues>1?'s':'')+' sur 30 jours'
-       + (gens?' · <b>'+gens+'</b> personne'+(gens>1?'s':'')+' le même jour au plus':'')+'</div>'
+       + '<div class="st-sec">Où l’équipe passe son temps</div>' + periodesHTML()
+       + '<div class="st-tot"><b>'+totalVues+'</b> ouverture'+(totalVues>1?'s':'')+' '+quand
+       + (gens?' · <b>'+gens+'</b> personne'+(gens>1?'s':'')+(STATS_JOURS===1?'':' le même jour au plus'):'')+'</div>'
        + lignes + courbe + equipesHTML()
        + '<div class="adm-hint" style="margin-top:10px">On ne peut pas savoir qui a ouvert quoi : le journal ne se lit qu’en totaux, et tout ce qui a plus de 90 jours s’efface.</div>';
 }
