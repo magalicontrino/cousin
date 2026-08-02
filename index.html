@@ -1402,6 +1402,9 @@ input, textarea, select{
   .st-b i{display:block; height:100%; border-radius:5px; background:var(--gold)}
   /* Aujourd'hui · 7 jours · 30 jours. Le choix se voit d'un coup d'œil : celui qui est
      allumé est plein, les deux autres sont de simples contours. */
+  /* Sa ligne à elle, détachée de l'équipe : même dessin, mais posée à part. */
+  .st-moi{display:flex; align-items:baseline; gap:8px; margin-top:8px; padding-top:8px;
+          border-top:1px dashed var(--line); opacity:.75}
   .st-per{display:flex; gap:6px; margin:2px 0 10px; flex-wrap:wrap}
   .st-p{flex:0 0 auto; padding:5px 11px; border-radius:999px; border:1.5px solid var(--line);
         background:transparent; color:var(--muted); font:800 11px/1 inherit; cursor:pointer}
@@ -3930,7 +3933,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v400';
+const APP_VERSION = 'v401';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -5921,6 +5924,11 @@ function noterEcran(){
   try{
     if(!sb || !PROFILE || !view) return;
     if(typeof enApercu==='function' && enApercu()) return;
+    /* Elle est mise à part (demande du 03/08) : une administratrice ouvre vingt écrans par
+       soir pour vérifier son travail, ce qui n'apprend rien sur l'usage de l'équipe et
+       gonflait tous les chiffres. Ses connexions restent notées (sa ligne « Toi »), ses
+       promenades dans l'app ne le sont plus. */
+    if(PROFILE.admin) return;
     if(view===_dernierEcranNote) return;
     _dernierEcranNote=view;
     envoiMuet(sb.rpc('noter_ecran', { nom:view }));
@@ -7393,13 +7401,29 @@ function quandConnexion(iso){
 /* QUI EST VENU, ET QUAND. Construit sur ce qui était DÉJÀ enregistré (dernière connexion
    et nombre d'ouvertures, dans allowed_emails) : ça répond tout de suite, sans attendre
    que le journal des écrans se remplisse. */
+/* ⚠ ELLE EST MISE À PART (demande du 03/08) : ses propres passages ne sont pas l'équipe.
+   Sa ligne descend sous la liste, et ses écrans ne sont plus comptés du tout (voir
+   noterEcran). Sans ça, ses allers-retours d'administratrice gonflaient les chiffres
+   censés mesurer l'usage des autres. */
+function estMoi(m){
+  try{ return !!(PROFILE && m.email && m.email.toLowerCase()===String(PROFILE.email||'').toLowerCase()); }
+  catch(e){ return false; }
+}
+function maLigneHTML(){
+  const moi=(ADMIN.members||[]).filter(estMoi)[0];
+  if(!moi || !moi.derniere_connexion) return '';
+  const n=Number(moi.visites||0);
+  return '<div class="st-moi"><span class="st-vn">Toi</span>'
+       + '<span class="st-vq">'+esc(quandConnexion(moi.derniere_connexion))+'</span>'
+       + '<span class="st-vc">'+n+' ouverture'+(n>1?'s':'')+'</span></div>';
+}
 function venusHTML(){
-  const mem=(ADMIN.members||[]).filter(function(m){ return m.actif!==false; });
-  if(!mem.length) return '';
+  const mem=(ADMIN.members||[]).filter(function(m){ return m.actif!==false && !estMoi(m); });
+  if(!mem.length) return maLigneHTML();
   const venus=mem.filter(function(m){ return m.derniere_connexion; })
                  .sort(function(a,b){ return new Date(b.derniere_connexion)-new Date(a.derniere_connexion); });
   const jamais=mem.length-venus.length;
-  if(!venus.length) return '<div class="adm-hint">Personne ne s’est encore connecté.</div>';
+  if(!venus.length) return '<div class="adm-hint">Personne de l’équipe ne s’est encore connecté.</div>'+maLigneHTML();
   const lignes=venus.map(function(m){
     const n=Number(m.visites||0);
     return '<div class="st-v"><span class="st-vn">'+esc(joliMembre(m))+'</span>'
@@ -7408,7 +7432,8 @@ function venusHTML(){
   }).join('');
   return '<div class="st-sec">Qui est venu, et quand</div>'+lignes
        + (jamais? '<div class="adm-hint" style="margin-top:6px">'+jamais+' personne'+(jamais>1?'s':'')
-                  +' de l’équipe ne s’'+(jamais>1?'sont':'est')+' jamais connectée'+(jamais>1?'s':'')+'.</div>' : '');
+                  +' de l’équipe ne s’'+(jamais>1?'sont':'est')+' jamais connectée'+(jamais>1?'s':'')+'.</div>' : '')
+       + maLigneHTML();
 }
 /* QUI S'EN SERT, PAR MÉTIER (03/08/2026). Mag voulait savoir de quelle commune les gens se
    connectent : ça n'est pas fiable (une adresse internet mobile désigne l'opérateur, pas la
