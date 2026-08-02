@@ -3920,7 +3920,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v397';
+const APP_VERSION = 'v398';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -5680,10 +5680,8 @@ function submitFeedback(){
   fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
   // La même idée arrive AUSSI dans la boîte de l'Admin, d'où Mag la range dans le chantier.
   // Le formulaire Google reste branché : rien ne se perd si la base ne répond pas.
-  try{
-    if(sb) sb.from('suggestions').insert({ texte:idee, equipe:equipe||null,
-      auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null });
-  }catch(e){}
+  if(sb) envoiMuet(sb.from('suggestions').insert({ texte:idee, equipe:equipe||null,
+    auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null }));
 }
 
 /* La proposition n'est pas enregistrée sur l'appareil : elle part à l'équipe,
@@ -5698,10 +5696,8 @@ function submitProposal(){
   if(equipe) fd.append(FEEDBACK.equipe, equipe);
   fetch(FEEDBACK.action, {method:'POST', mode:'no-cors', body:fd}).catch(function(){});
   // Comme les suggestions : ça atterrit aussi dans la boîte de l'Admin.
-  try{
-    if(sb) sb.from('suggestions').insert({ texte:"PROPOSITION DE FICHE — "+txt, equipe:equipe||null,
-      auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null });
-  }catch(e){}
+  if(sb) envoiMuet(sb.from('suggestions').insert({ texte:"PROPOSITION DE FICHE — "+txt, equipe:equipe||null,
+    auteur_nom:(PROFILE&&PROFILE.nom)||null, auteur_email:(PROFILE&&PROFILE.email)||null }));
   closeForm();
   cousinToast("Merci ! Ta proposition part à l'équipe ✓");
 }
@@ -5879,6 +5875,28 @@ function openProfil(){
 }
 
 let _visiteComptee=false;
+/* ⚠ PIÈGE QUI NOUS A COÛTÉ TROIS JOURS DE STATISTIQUES (constaté le 03/08/2026).
+   Chez Supabase, écrire sb.rpc(...) ou sb.from(...).insert(...) NE PART PAS. La requête
+   n'est envoyée qu'au moment où on attend la réponse (await, ou .then()). Un appel posé
+   « pour la forme », sans await, ne quitte jamais le téléphone : aucune erreur, aucune
+   trace, rien. C'est ce qui rendait invisibles toutes les connexions de l'équipe.
+   Cette fonction est là pour ça : envoyer vraiment, sans attendre le résultat et sans
+   jamais bloquer l'app si la base ne répond pas. À utiliser pour tout ce qu'on dépose. */
+function envoiMuet(requete){
+  try{ requete.then(function(){}, function(){}); }catch(e){}
+}
+/* Une app installée sur un téléphone ne se ferme pas : elle dort. Sans ceci, quelqu'un qui
+   l'ouvre tous les matins resterait affiché « venu il y a trois jours », parce qu'on n'aurait
+   compté que le tout premier démarrage. On recompte donc une visite quand l'app revient au
+   premier plan après plus de quatre heures — pas avant, sinon chaque coup d'œil compterait. */
+let _derniereVisite=0;
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState!=='visible') return;
+  if(!sb || !PROFILE) return;
+  if(Date.now()-_derniereVisite < 4*3600*1000) return;
+  _derniereVisite=Date.now();
+  envoiMuet(sb.rpc('touch_connexion'));
+});
 /* ─────────── OÙ L'ÉQUIPE PASSE SON TEMPS (statistiques d'usage, 31/07/2026) ───────────
    Une ligne par écran RÉELLEMENT ouvert — pas à chaque clic de filtre, sinon les chiffres
    ne voudraient plus rien dire. Jamais en aperçu : quand Mag regarde l'app comme un autre
@@ -5895,7 +5913,7 @@ function noterEcran(){
     if(typeof enApercu==='function' && enApercu()) return;
     if(view===_dernierEcranNote) return;
     _dernierEcranNote=view;
-    sb.rpc('noter_ecran', { nom:view });
+    envoiMuet(sb.rpc('noter_ecran', { nom:view }));
   }catch(e){}
 }
 async function loadProfile(){
@@ -5929,7 +5947,7 @@ async function loadProfile(){
     }
     PROFILE={ email, nom, equipe, pfo, admin, uid, listes, paves:pavesPerso };
     // Une visite = une ouverture de l'app. On n'enregistre rien d'autre (ni temps, ni clics).
-    if(!_visiteComptee){ _visiteComptee=true; try{ sb.rpc('touch_connexion'); }catch(e){} }
+    if(!_visiteComptee){ _visiteComptee=true; _derniereVisite=Date.now(); envoiMuet(sb.rpc('touch_connexion')); }
     // Ses favoris : ils vivent en base, ils la suivent d'un téléphone à l'autre.
     try{ if(await loadFavoris()){ if(view==='favoris'||view==='home') render(); } }catch(e){}
     // Idem pour ce qu'elle a lu et où elle en est dans les jeux.
