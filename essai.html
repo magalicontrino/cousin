@@ -3933,7 +3933,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v401-essai';
+const APP_VERSION = 'v402-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7179,6 +7179,21 @@ async function loadAdmin(){
     try{ const { data } = await sb.from('allowed_emails').select(champs).order('email'); ADMIN.members=data||[]; }catch(e2){}
   }
   try{ const { data } = await sb.from('access_requests').select('id,email,mot,cree_le').eq('statut','en_attente').order('cree_le',{ascending:false}); ADMIN.requests=data||[]; }catch(e){}
+  /* Les connexions D'AVANT notre compteur. Il n'existe que depuis le 2 août ; Supabase, lui,
+     note depuis toujours la dernière ouverture de session de chacun. Sans ça, l'écran disait
+     « personne ne s'est encore connecté » alors que 15 personnes l'avaient déjà fait.
+     ⚠ Ce n'est pas la même chose que notre compteur : ouvrir une SESSION, c'est retaper son
+     compte Google, ce qui n'arrive qu'une fois de temps en temps. L'app le dit autrement. */
+  try{
+    const { data } = await sb.rpc('connexions_equipe');
+    if(data && data.length){
+      const parMail={}; data.forEach(function(x){ parMail[String(x.email).toLowerCase()]=x; });
+      ADMIN.members.forEach(function(m){
+        const s=parMail[String(m.email||'').toLowerCase()];
+        if(s) m.dernier_login=s.dernier_login;
+      });
+    }
+  }catch(e){}
   adminLoaded=true;
 }
 /* Usage : uniquement la dernière connexion et le nombre d'ouvertures. Rien de plus. */
@@ -7409,26 +7424,38 @@ function estMoi(m){
   try{ return !!(PROFILE && m.email && m.email.toLowerCase()===String(PROFILE.email||'').toLowerCase()); }
   catch(e){ return false; }
 }
+/* Deux sources, deux phrases. Notre compteur sait « quand l'app a été ouverte, et combien
+   de fois » ; Supabase sait « quand la session a été ouverte », c'est-à-dire quand la
+   personne a retapé son compte Google. On ne mélange pas les deux : la seconde est écrite
+   au passé et sans nombre d'ouvertures, parce qu'elle n'en connaît pas. */
+function quandVenu(m){
+  if(m.derniere_connexion) return new Date(m.derniere_connexion).getTime();
+  if(m.dernier_login)      return new Date(m.dernier_login).getTime();
+  return 0;
+}
+function ligneVenu(m){
+  if(m.derniere_connexion){
+    const n=Number(m.visites||0);
+    return '<span class="st-vq">'+esc(quandConnexion(m.derniere_connexion))+'</span>'
+         + '<span class="st-vc">'+n+' ouverture'+(n>1?'s':'')+'</span>';
+  }
+  const d=new Date(m.dernier_login);
+  return '<span class="st-vq">connecté·e le '+esc(d.toLocaleDateString('fr-BE',{day:'numeric',month:'long'}))+'</span>'
+       + '<span class="st-vc">avant le compteur</span>';
+}
 function maLigneHTML(){
   const moi=(ADMIN.members||[]).filter(estMoi)[0];
-  if(!moi || !moi.derniere_connexion) return '';
-  const n=Number(moi.visites||0);
-  return '<div class="st-moi"><span class="st-vn">Toi</span>'
-       + '<span class="st-vq">'+esc(quandConnexion(moi.derniere_connexion))+'</span>'
-       + '<span class="st-vc">'+n+' ouverture'+(n>1?'s':'')+'</span></div>';
+  if(!moi || !quandVenu(moi)) return '';
+  return '<div class="st-moi"><span class="st-vn">Toi</span>'+ligneVenu(moi)+'</div>';
 }
 function venusHTML(){
   const mem=(ADMIN.members||[]).filter(function(m){ return m.actif!==false && !estMoi(m); });
   if(!mem.length) return maLigneHTML();
-  const venus=mem.filter(function(m){ return m.derniere_connexion; })
-                 .sort(function(a,b){ return new Date(b.derniere_connexion)-new Date(a.derniere_connexion); });
+  const venus=mem.filter(quandVenu).sort(function(a,b){ return quandVenu(b)-quandVenu(a); });
   const jamais=mem.length-venus.length;
   if(!venus.length) return '<div class="adm-hint">Personne de l’équipe ne s’est encore connecté.</div>'+maLigneHTML();
   const lignes=venus.map(function(m){
-    const n=Number(m.visites||0);
-    return '<div class="st-v"><span class="st-vn">'+esc(joliMembre(m))+'</span>'
-         + '<span class="st-vq">'+esc(quandConnexion(m.derniere_connexion))+'</span>'
-         + '<span class="st-vc">'+n+' ouverture'+(n>1?'s':'')+'</span></div>';
+    return '<div class="st-v"><span class="st-vn">'+esc(joliMembre(m))+'</span>'+ligneVenu(m)+'</div>';
   }).join('');
   return '<div class="st-sec">Qui est venu, et quand</div>'+lignes
        + (jamais? '<div class="adm-hint" style="margin-top:6px">'+jamais+' personne'+(jamais>1?'s':'')
