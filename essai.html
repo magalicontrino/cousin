@@ -1810,6 +1810,17 @@ body, body.is-home{ padding:0 12px !important; overflow:visible !important; heig
     .ag-discret svg, .ag-discret .pico{display:none}
   }
   .ag-adr{display:block; font-size:11.5px; color:var(--muted); font-weight:500; margin-top:2px}
+  /* Les activités des asbl : le dessin à gauche, en grand (04/08). Ses dessins sont faits de
+     traits fins — à 17 px, la pelote n'était qu'une tache. 17 × 4 = 68. */
+  .ag-act{display:flex; gap:14px; align-items:flex-start}
+  .ag-act-txt{flex:1 1 auto; min-width:0}
+  .ag-pic-g{flex:0 0 auto; display:inline-flex; color:var(--muted)}
+  .ag-pic-g .pico, .ag-pic-g svg{width:68px; height:68px}
+  /* « Il faut s'inscrire » : ça ne se devine pas, et une personne qui se déplace pour rien
+     ne revient pas. Dit une seule fois, en haut du programme, aux couleurs de l'asbl. */
+  .ag-avert{background:#ffe3f1; border-radius:10px; padding:9px 12px; margin:2px 0 10px}
+  .ag-avert b{display:block; font-size:12px; color:#b1005f; letter-spacing:.01em}
+  .ag-avert span{display:block; font-size:11.5px; font-weight:600; color:#8a0049; margin-top:2px}
   .ag-src{display:inline-flex; align-items:center; gap:6px; margin:8px 0 0 8px; font-size:12px; font-weight:700;
     color:#54514b; text-decoration:none; border-bottom:1.5px solid rgba(27,27,27,.15)}
   .ag-src svg, .ag-src .pico{width:13px; height:13px}
@@ -2481,7 +2492,7 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
                  activité cesse d'emprunter le picto d'une autre — la boxe portait celui du
                  duel, le tricot celui du linge. Les siens prennent la place au même nom de
                  fichier : LA PELOTE EST DÉJÀ LA SIENNE (déposée le 04/08). Planche, section 10. */
-              boxe:'boxe.svg', pelote:'pelote.svg', plume:'plume.svg', escalade:'escalade.svg',
+              boxe:'gand.svg', pelote:'pelote.svg', plume:'plume.svg', escalade:'escalade.svg',
               assise:'assise.svg', musique:'musique.svg', poterie:'poterie.svg', ballon:'ballon.svg'};
 /* Pictos MULTICOLORES : le masque CSS ne sait porter qu'une seule couleur, donc ceux-là
    sont posés en image et gardent leurs vraies teintes (l'arc-en-ciel a 7 couleurs). */
@@ -3939,7 +3950,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v403-essai';
+const APP_VERSION = 'v404-essai';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6829,19 +6840,36 @@ function activitesHTML(){
   }
   if(ACTIVITES.length){
     h+='<div class="ag-jour proche">Le programme du mois</div>';
+    /* L'INSCRIPTION SE DIT UNE FOIS, EN HAUT (sa demande du 04/08). Répétée sur chaque carte,
+       elle poussait le reste hors de l'écran. Une ligne par asbl qui la demande, construite
+       depuis les activités : si une asbl n'en demande pas, elle n'apparaît pas ici. */
+    const parAsso={};
+    ACTIVITES.forEach(function(a){
+      if(!a.inscription) return;
+      const c=String(a.inscription).replace(/^\s*inscriptions?\s*:\s*/i,'').trim();
+      if(!parAsso[a.asso]) parAsso[a.asso]=[];
+      if(parAsso[a.asso].indexOf(c)<0) parAsso[a.asso].push(c);
+    });
+    Object.keys(parAsso).forEach(function(asso){
+      h+='<div class="ag-avert"><b>Il faut s’inscrire à l’avance</b>'
+       + '<span>Pour toutes les activités de '+esc(asso)+' — '+esc(parAsso[asso].join(' · '))+'</span></div>';
+    });
     let dernier='';
     ACTIVITES.forEach(function(a){
       if(a.jour!==dernier){ dernier=a.jour; h+='<div class="ag-jour">'+esc(acJourFr(a.jour))+'</div>'; }
       const heure=[a.debut,a.fin].filter(Boolean).join(' → ');
       const ou=[a.lieu,a.adresse].filter(Boolean).join(' · ');
-      h+='<div class="ag-e" style="border-left-color:'+ROSE_ASBL+'">'
-        +'<div class="ag-h"><span class="ag-pic">'+icon(actPicto(a.titre))+'</span><b>'+esc(a.titre)+'</b>'+(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
+      /* Le dessin passe à gauche, en grand (sa demande du 04/08 : « au moins 4 fois plus
+         grand »). Ses dessins sont faits de traits fins : à 17 px on ne voyait qu'une tache. */
+      h+='<div class="ag-e ag-act" style="border-left-color:'+ROSE_ASBL+'">'
+        +'<span class="ag-pic-g">'+icon(actPicto(a.titre))+'</span><div class="ag-act-txt">'
+        +'<div class="ag-h"><b>'+esc(a.titre)+'</b>'
+        +(a.gratuit?'<span class="ag-prix">Gratuit</span>':'')+'</div>'
         +'<em>'+esc(a.asso)+(heure?' · '+esc(heure):'')+'</em>'
         +(ou?'<span class="ag-adr">'+esc(ou)+'</span>':'')
-        +(a.inscription?'<p>'+esc(a.inscription)+'</p>':'')
         +(a.adresse?'<a class="ag-iti" href="'+esc(itineraireURL(a.adresse))+'" target="_blank" rel="noopener">Itinéraire depuis le centre</a>':'')
         +(peut?'<button class="ac-del" onclick="retirerActivite('+a.id+',\''+esc(String(a.titre).replace(/'/g,"\\'"))+'\')">Retirer</button>':'')
-        +'</div>';
+        +'</div></div>';   /* on referme la colonne de texte ET la carte */
     });
   }
   if(peut){
