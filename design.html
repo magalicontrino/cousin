@@ -2371,15 +2371,17 @@ body.is-reseau .dcard svg, body.is-reseau .dcard .pico{color:#141414}
    la couleur reste sur le picto de chaque ligne, et là seulement — c'est la règle.
    Le panneau défile DANS SA BOÎTE au lieu de pousser la page. */
 /* PAS D'ASCENSEUR (sa demande du 04/08) : la barre système, même réduite, reste un objet
-   de navigateur au milieu d'une page en papier. On la cache, et on pose à sa place un
-   simple trait d'encre à GAUCHE, en dehors du cadre — il ne suit pas le défilement, il dit
-   seulement « ça continue en dessous ». Un repère, pas un outil. */
+   de navigateur au milieu d'une page en papier. On la cache. À sa place, à GAUCHE et en
+   dehors du cadre : une FINE LIGNE sur toute la hauteur, et dessus une BARRE d'encre qui
+   suit le défilement (sa demande du 04/08, deuxième passe : on doit deviner qu'il reste
+   des choses en dessous). Le trait de la première passe était dessiné DANS la boîte qui
+   défile — coupé par elle, il ne s'est jamais vu. Le repère vit donc dans une coque à
+   côté du panneau, qui ne défile pas, et n'apparaît que si ça défile vraiment. */
 .urg-panel{scrollbar-width:none; -ms-overflow-style:none}
 .urg-panel::-webkit-scrollbar{width:0; height:0}
-.urg-panel.open::before{
-  content:''; position:absolute; left:-9px; top:2px; bottom:2px; width:2px;
-  background:#141414; opacity:.28;
-}
+.urg-shell{position:relative}
+.urg-rail{display:none; position:absolute; left:-9px; width:2px; background:rgba(20,20,20,.16)}
+.urg-rail b{position:absolute; left:0; width:2px; background:#141414; display:block}
 .urg-panel{position:relative; background:var(--paper); border:1px solid #141414; border-radius:0;
   max-height:58vh; overflow:auto;
   /* Il arrive en freinant (sa demande du 04/08) : la courbe part vite et ralentit
@@ -4582,8 +4584,28 @@ function openReseau(){view="reseau"; activeCommune="Toutes"; activeDemarche="Tou
 function openFavoris(){view="favoris"; activeCommune="Toutes"; activeDemarche="Toutes"; activeTag="Tout"; activeMetier="Toutes"; activeKw="Tous"; activeFam="Toutes"; activeGenre="Tous"; document.getElementById('search').value=""; query=""; render()}
 
 /* Accordéon Urgences (sur l'accueil, comme une FAQ — pas de page séparée). */
-function toggleUrg(){ urgOpen=!urgOpen; if(!urgOpen) urgCat=null; render(); if(!urgOpen) window.scrollTo(0,0); }
-function openUrgences(){ view="home"; urgOpen=true; urgCat=null; query=""; document.getElementById('search').value=""; render(); }
+function toggleUrg(){ urgOpen=!urgOpen; if(!urgOpen) urgCat=null; render(); if(!urgOpen) window.scrollTo(0,0); planifieUrgRail(); }
+function openUrgences(){ view="home"; urgOpen=true; urgCat=null; query=""; document.getElementById('search').value=""; render(); planifieUrgRail(); }
+/* Le repère de défilement des urgences : la fine ligne fait la hauteur du panneau, la
+   barre d'encre a la taille de la part visible et se pose là où on en est. Il disparaît
+   si tout tient sans défiler — un repère qui dit « il en reste » n'a pas le droit de
+   mentir. Recalculé à l'ouverture, à chaque défilement, quand une catégorie se déplie,
+   et si l'écran change de taille. */
+function majUrgRail(){
+  const p=document.getElementById('urgPanel'), r=document.getElementById('urgRailRep');
+  if(!p||!r) return;
+  const cache=p.scrollHeight-p.clientHeight;
+  if(!p.classList.contains('open')||cache<8){ r.style.display='none'; return; }
+  r.style.display='block';
+  r.style.top=p.offsetTop+'px'; r.style.height=p.clientHeight+'px';
+  const b=r.firstElementChild, h=Math.max(24, p.clientHeight*p.clientHeight/p.scrollHeight);
+  b.style.height=h+'px';
+  b.style.top=(p.scrollTop/cache)*(p.clientHeight-h)+'px';
+}
+/* Deux rendez-vous : tout de suite (dès que la page est posée), puis après les
+   animations d'ouverture (~0,4 s), quand le panneau a sa vraie hauteur. */
+function planifieUrgRail(){ requestAnimationFrame(majUrgRail); setTimeout(majUrgRail, 450); }
+window.addEventListener('resize', majUrgRail);
 
 /* Les 3 pictos + le chat, en haut à droite, présents sur tous les écrans. */
 function navPictos(){
@@ -5122,7 +5144,7 @@ function homeHTML(){
       <span class="hero-txt"><b>Urgences</b><small>101 · 112 · numéros d'écoute</small></span>
       <span class="hero-chev">${icon('chevron')}</span>
     </button>
-    <div class="urg-panel ${urgOpen?'open':''}" id="urgPanel">${urgOpen?urgencesListHTML():''}</div>
+    <div class="urg-shell"><div class="urg-panel ${urgOpen?'open':''}" id="urgPanel" onscroll="majUrgRail()">${urgOpen?urgencesListHTML():''}</div><i class="urg-rail" aria-hidden="true" id="urgRailRep"><b></b></i></div>
     <div class="dgrid">${tiles}</div>
     <button class="home-quiz" onclick="openQuiz()">${icon('bulb')}<span>Quiz — teste tes connaissances</span></button>
     ${bureauHTML()}`;
@@ -5305,6 +5327,7 @@ function toggleUrgCat(btn,i){
   btn.classList.toggle('open', willOpen);
   const acc=btn.nextElementSibling;
   if(acc && acc.classList.contains('urg-acc')){ acc.classList.toggle('open', willOpen); setAcc(acc, willOpen); }
+  planifieUrgRail();   // la hauteur du contenu vient de changer : la barre se recale
 }
 function reseauHTML(){
   const doms=DOMAINES.filter(dm=>dm.reseau);
