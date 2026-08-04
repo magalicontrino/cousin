@@ -207,6 +207,12 @@ body.is-home .dcard svg, body.is-home .dcard .pico{width:auto; height:min(46px,3
   .hicon.fav.on{color:#f5c542}
   .hicon.notif::after{content:''; position:absolute; top:7%; right:7%; width:29%; height:29%;
     border-radius:50%; background:#fd8fd0; border:1.5px solid var(--bg); box-sizing:border-box}
+  /* La pastille-nombre des boutons du haut (profil, Ma liste, Du neuf). Elle était posée
+     dans le code depuis le début… sans jamais avoir reçu de style : invisible. C'est elle
+     qui reprend les nombres des onglets retirés le 04/08/2026 (« 8 à cocher », « 20 »). */
+  .hicon .hbadge{position:absolute; top:-5px; right:-5px; background:#e63329; color:#f2eee6;
+    font-style:normal; font-size:10px; font-weight:900; min-width:17px; height:17px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid var(--bg)}
 /* Pictos dessinés par Magali (dossier picto/). Affichés en masque : ils prennent
      la couleur courante, donc toute la logique de couleurs de l'app continue de marcher. */
   /* Chiffres : rendus par Outfit (voir la note sur les polices d'essai plus haut). */
@@ -4106,11 +4112,11 @@ function navPictos(){
          `<button class="hicon home" title="Accueil" onclick="goHome()">${icon('home')}</button>`+
          `<button class="hicon urg" title="Urgences" onclick="openUrgences()">${icon('siren')}</button>`+
          `<button class="hicon fav" title="Favoris" onclick="openFavoris()">${icon('star')}</button>`+
-         `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}</button>`+
+         `<button class="hicon lst" title="Ma liste" onclick="openMaListe()">${icon('list')}${alertesListe()}</button>`+
          /* DU NEUF MONTE DANS LA BARRE (sa demande, 04/08/2026) : « retire ça et mets un
             picto en haut à droite avec les autres ». L'onglet de la marge disparaît au
             profit d'un bouton, au même rang que les autres, pour tout le monde. */
-         `<button class="hicon neuf" title="Du neuf" onclick="openNouveautes()">${icon('bulb')}</button>`+
+         `<button class="hicon neuf" title="Du neuf" onclick="openNouveautes()">${icon('bulb')}${alertesNeuf()}</button>`+
          `<button class="hicon prof" title="Mon profil" onclick="openProfil()">${icon('user')}${alertesProfil()}</button>`;
 }
 /* La roue dentée de l'en-tête n'existe que pour l'administratrice — ET elle doit
@@ -4134,6 +4140,24 @@ function alertesProfil(){
   try{
     const n = (ADMIN_RESUME && ADMIN_RESUME.demandes) ? ADMIN_RESUME.demandes : 0;
     return n ? `<em class="hbadge">${n>9?'9+':n}</em>` : '';
+  }catch(e){ return ''; }
+}
+/* Les deux nombres perdus quand les onglets de la marge ont été retirés (04/08/2026) :
+   ils reviennent en pastilles sur leurs boutons. « Ma liste » = ce qui reste à cocher
+   aujourd'hui ; « Du neuf » = les nouveautés des deux dernières semaines. Ici, pas de
+   « 9+ » : « il te reste 8 choses » et « 20 nouveautés » doivent se lire tels quels. */
+function alertesListe(){
+  try{
+    let n=0;
+    (CHECKLISTS||[]).filter(function(x){ return x.mienne; })
+      .forEach(function(x){ x.taches.forEach(function(t){ if(!DONE[t.id]) n++; }); });
+    return n ? `<em class="hbadge">${n>99?'99+':n}</em>` : '';
+  }catch(e){ return ''; }
+}
+function alertesNeuf(){
+  try{
+    const n=nouveautesRecentes().length;
+    return n ? `<em class="hbadge">${n>99?'99+':n}</em>` : '';
   }catch(e){ return ''; }
 }
 /* Les deux pictos en bas à gauche : écran / téléphone. Réservés à l'administratrice —
@@ -4663,31 +4687,16 @@ function bureauHTML(){
   const c=[];
 
   /* Un onglet n'apparaît QUE s'il reste quelque chose à faire : une languette qui dit
-     « tout est fait » ne sert à rien et occupe le bord de l'écran pour rien. */
-  const mesTaches=CL.filter(function(x){ return x.mienne; });
-  if(mesTaches.length){
-    let tot=0, faits=0;
-    mesTaches.forEach(function(x){ tot+=x.taches.length; x.taches.forEach(function(t){ if(DN[t.id]) faits++; }); });
-    /* L'ONGLET DE LA LISTE EST RETIRÉ (sa demande, 04/08/2026) : « retire ça vu que le
-       picto est déjà en haut ». Il faisait doublon avec le bouton de la barre. Ce qu'il
-       apportait en plus — le nombre de tâches restantes — doit revenir sous forme d'une
-       pastille sur ce bouton : c'est la prochaine chose à faire, sinon on perd le signal
-       « il te reste 8 choses à cocher ». Le calcul est gardé ici, prêt à la nourrir. */
-    RESTE_LISTE = tot - faits;
-  }
+     « tout est fait » ne sert à rien et occupe le bord de l'écran pour rien.
+     (Les comptes « à cocher » et « du neuf » ne vivent plus ici : depuis le retrait des
+     onglets du 04/08/2026, ce sont les pastilles de la barre du haut qui les portent —
+     voir alertesListe() et alertesNeuf().) */
   if(admin && adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
   const reste=admin ? chant.filter(function(l){ return !l.fait; }).length : 0;
   if(reste) c.push(carteBureau('chantier','alert','Le chantier', reste,
     'lignes à faire'+(boite.length? ' · '+boite.length+' suggestion'+(boite.length>1?'s':''):''), 'openChantier()'));
   if(chM) c.push(carteBureau('chambres','cle','Chambres', chM, 'qui attendent ton geste', 'openChambres()', true));
   else if(chE) c.push(carteBureau('chambres','cle','Chambres', chE, 'en cours dans le centre', 'openChambres()'));
-  try{
-    const nv=nouveautesRecentes().length;
-    /* L'ONGLET « DU NEUF » EST RETIRÉ (04/08/2026) : il est monté dans la barre du haut,
-       au même rang que les autres. On garde le compte de côté — il servira à poser une
-       pastille sur ce bouton, comme pour la liste. */
-    RESTE_NEUF = nv || 0;
-  }catch(e){}
   try{
     /* On écrit le NOM du lieu, pas seulement le nombre : « 1 sortie gratuite » oblige à
        cliquer pour savoir laquelle, et c'est justement ce qu'on veut éviter au passage. */
@@ -5925,7 +5934,6 @@ function openProfil(){
 }
 
 let _visiteComptee=false;
-var RESTE_LISTE=0, RESTE_NEUF=0;   /* restant à cocher · nouveautés — nourriront les pastilles */
 /* ⚠ PIÈGE QUI NOUS A COÛTÉ TROIS JOURS DE STATISTIQUES (constaté le 03/08/2026).
    Chez Supabase, écrire sb.rpc(...) ou sb.from(...).insert(...) NE PART PAS. La requête
    n'est envoyée qu'au moment où on attend la réponse (await, ou .then()). Un appel posé
@@ -9581,6 +9589,10 @@ async function toggleTache(id, el){
   const row=el.closest('.pf-task'); if(row) row.classList.toggle('done', on);
   if(on) DONE[id]=true; else delete DONE[id];
   updateProg();
+  /* La pastille « à cocher » de la barre du haut suit chaque coche — sans ça elle
+     mentirait jusqu'au prochain changement d'écran. On redessine la barre, puis on
+     rétablit l'étoile des favoris (le redessin repart d'une étoile éteinte). */
+  const hn=document.getElementById('hnav'); if(hn){ hn.innerHTML=navPictos(); updateFavBadge(); }
   if(!sb) return;
   try{
     const uid=(await sb.auth.getSession()).data.session.user.id;
