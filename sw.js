@@ -30,8 +30,15 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  /* POUR LES PAGES (index, essai, design…), ON EXIGE DU FRAIS (04/08/2026) : le
+     navigateur a le droit de resservir une page depuis SON cache pendant 10 minutes
+     (réglage de l'hébergeur) — pendant les soirées de retouches, on voyait donc
+     l'ancienne version en boucle. `cache:'no-cache'` force la re-vérification auprès
+     du serveur (réponse « rien de neuf » = quelques octets, ça reste instantané).
+     Les polices et pictos, eux, gardent le cache normal : ils ne changent jamais. */
+  const page = e.request.mode === 'navigate' || e.request.destination === 'document';
   e.respondWith(
-    fetch(e.request)
+    fetch(page ? new Request(e.request, {cache:'no-cache'}) : e.request)
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
