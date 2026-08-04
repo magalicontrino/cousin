@@ -4440,7 +4440,14 @@ function render(){
      PAS dans le tri : le centre est mixte, la plupart des gens sont seuls, et une famille
      n'a pas à occuper une place dans la rangée de boutons. */
   const TAGS_CACHES=['Famille'];
-  const tousTags=[]; items.filter(passeCommune).forEach(p=>(p.tags||[]).forEach(t=>{ if(tousTags.indexOf(t)<0) tousTags.push(t); }));
+  /* LES FILTRES SONT STABLES ET INDEPENDANTS (son test du 04/08 au soir : « quand je
+     clique, des fois ca fait ci, des fois ca fait ca — c'est pas logique »). Avant,
+     chaque liste d'etiquettes etait fabriquee a partir des fiches DEJA filtrees par
+     l'autre choix : choisir une commune effacait « Femmes » en douce, choisir un tag
+     faisait disparaitre le bloc Commune entier. Desormais les deux listes viennent de
+     TOUTES les fiches du domaine : rien ne disparait, aucun choix n'est efface — au
+     pire la combinaison donne « 0 ressources », et on le VOIT au lieu de le subir. */
+  const tousTags=[]; items.forEach(p=>(p.tags||[]).forEach(t=>{ if(tousTags.indexOf(t)<0) tousTags.push(t); }));
   const dispoTags=tousTags.filter(t=>TAGS_CACHES.indexOf(t)<0);
   // On ne relâche l'étiquette que si elle n'existe PLUS ; une étiquette simplement
   // cachée du tri (Famille) reste valable quand on arrive par le petit lien.
@@ -4463,7 +4470,7 @@ function render(){
       `<div class="chip ${t===activeTag?'active':''}" onclick="setTag('${t.replace(/'/g,"\\'")}')">${esc(t)}</div>`).join('')+`</div>`);
   }
   if(dm.byCommune){
-    const communes=["Toutes",...COMMUNES.filter(c=>items.filter(passeTag).some(p=>p.commune===c))];
+    const communes=["Toutes",...COMMUNES.filter(c=>items.some(p=>p.commune===c))];
     if(communes.indexOf(activeCommune)<0) activeCommune="Toutes";
     if(communes.length>2){
       html+=triBloc('Commune', `<div class="chips">`+communes.map(c=>
