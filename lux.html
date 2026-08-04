@@ -282,13 +282,6 @@ body.no-tabs #tabbar{display:none}
 </head>
 <body>
 <div id="view"></div>
-<div id="search" role="dialog" aria-label="Recherche">
-  <div class="s-top">
-    <button class="cbtn" onclick="closeSearch()" aria-label="Fermer"><span class="ic" id="s-back"></span></button>
-    <input id="s-input" type="search" placeholder="Un service, une commune, une démarche…" autocomplete="off">
-  </div>
-  <div class="s-res" id="s-res"></div>
-</div>
 <nav id="tabbar" aria-label="Navigation principale"></nav>
 <div id="toast" role="status"></div>
 <script>
@@ -1938,7 +1931,7 @@ const DOMAINES = [
   {key:"methodes",    label:"Protocole",           short:"Protocole", ic:"clipboard", method:true},
   {key:"formations",  label:"Formations",          short:"Formations",ic:"book",     isFormation:true},
   {key:"mails",       label:"Mail et note type",   short:"Mails",     ic:"mail",     isMail:true},
-  {key:"centre",      label:"Gestion du centre",   short:"Centre",    ic:"cog",      method:true}
+  {key:"centre",      label:"Gestion du centre",   short:"Centre",    ic:"building", method:true}
 ];
 const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 /* [encre, fond doux] par domaine — palette feutrée, une teinte par famille. */
@@ -2002,6 +1995,7 @@ function parseRoute(){
   const seg=h.split('/');
   if(seg[0]==='d' && DOM[seg[1]]) return {view:'domaine',key:seg[1]};
   if(seg[0]==='f' && BYSID[seg[1]]) return {view:'fiche',sid:seg[1]};
+  if(seg[0]==='centre') return {view:'centre'};
   if(seg[0]==='favoris') return {view:'favoris'};
   if(seg[0]==='urgences') return {view:'urgences'};
   return {view:'home'};
@@ -2026,6 +2020,7 @@ function render(){
   if(current.view==='home') view.innerHTML=vHome();
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
   else if(current.view==='fiche') view.innerHTML=vFiche(BYSID[current.sid]);
+  else if(current.view==='centre') view.innerHTML=vCentre();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
   renderTabs();
@@ -2041,29 +2036,32 @@ function tile(d){
 }
 function vHome(){
   const reseau=DOMAINES.filter(d=>d.reseau||d.isDem);
-  const outils=DOMAINES.filter(d=>d.method||d.isFormation||d.isMail);
   return '<div class="home-top">'+
     '<div class="wordmark"><b>COUSIN</b><span class="lux">Lux</span><span class="sub">Réseau d\u2019aide · Bruxelles</span></div>'+
-    '<div class="search-wrap"><button class="search-pill" onclick="openSearch()">'+
-      '<span class="ic">'+icon('search')+'</span>'+
-      '<span>Que cherches-tu ?<em>Un service, une commune, une démarche…</em></span>'+
-    '</button></div>'+
-    '<button class="urg-banner" onclick="go(\'#/urgences\')">'+
+    '<button class="urg-banner" style="margin-top:14px" onclick="go(\'#/urgences\')">'+
       '<span class="ic">'+icon('siren')+'</span>'+
       '<span><b>Urgences</b><small>Les numéros et les bons réflexes, en un geste</small></span>'+
       '<span class="ic chev" style="transform:rotate(180deg)">'+icon('chevron')+'</span>'+
     '</button>'+
     '<div class="sect"><h2>Le réseau bruxellois</h2><p class="hint">Les services vers qui orienter, domaine par domaine.</p>'+
       '<div class="dgrid">'+reseau.map(tile).join('')+'</div></div>'+
-    '<div class="sect"><h2>Les outils de l\u2019équipe</h2><p class="hint">Protocoles, formations et modèles prêts à l\u2019emploi.</p>'+
-      '<div class="dgrid">'+outils.map(tile).join('')+'</div></div>'+
     '<div class="foot">COUSIN · Lux — maquette. Les favoris restent sur cet appareil pour l\u2019instant.</div>'+
   '</div>';
 }
 
+/* ---------- page Centre : les outils de l'équipe, au même endroit ---------- */
+const OUTILS=['centre','methodes','mails','formations'];
+function vCentre(){
+  return '<div class="subtop"><h1 style="font-size:23px;padding-top:6px">Le centre</h1></div>'+
+    '<p class="hint" style="font-size:13.5px;color:var(--ink2);margin-bottom:14px">Les outils de l\u2019équipe, rangés au même endroit.</p>'+
+    '<div class="dgrid">'+OUTILS.map(k=>tile(DOM[k])).join('')+'</div>'+
+    '<div style="height:26px"></div>';
+}
+
 /* ---------- rail de catégories ---------- */
 function rail(active){
-  const list=DOMAINES.filter(d=>d.key!=='urgences');
+  const isTool=DOM[active]&&(DOM[active].method||DOM[active].isFormation||DOM[active].isMail);
+  const list=DOMAINES.filter(d=>d.key!=='urgences'&&(isTool?(d.method||d.isFormation||d.isMail):(d.reseau||d.isDem)));
   return '<div class="rail">'+list.map(d=>
     '<button class="'+(d.key===active?'on':'')+'" onclick="go(\'#/d/'+d.key+'\')">'+
     '<span class="ic">'+icon(d.ic)+'</span>'+esc(d.short)+'</button>').join('')+'</div>';
@@ -2247,43 +2245,13 @@ function vUrgences(){
     '<div style="height:20px"></div>';
 }
 
-/* ---------- recherche ---------- */
-const sEl=document.getElementById('search'), sIn=document.getElementById('s-input'), sRes=document.getElementById('s-res');
-document.getElementById('s-back').innerHTML=icon('chevron');
-function openSearch(){sEl.classList.add('open');sIn.value='';searchRender('');setTimeout(()=>sIn.focus(),60)}
-function closeSearch(){sEl.classList.remove('open');sIn.blur()}
-sIn.addEventListener('input',()=>searchRender(sIn.value));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch()});
-function searchRender(q){
-  const f=fold(q.trim());
-  if(f.length<2){
-    sRes.innerHTML='<div class="s-hint"><b>Quelques pistes</b>Tape un nom de service, une commune, une démarche ou un mot-clé.'+
-      '<div class="s-sug">'+['Mutuelle','AMU','Maison d\u2019accueil','Anderlecht','Avocat','Assuétudes','SDF','Carte médicale']
-        .map(s=>'<button class="chip" onclick="sIn.value=\''+s.replace(/'/g,"\\'")+'\';searchRender(sIn.value)">'+s+'</button>').join('')+'</div></div>';
-    return;
-  }
-  const hits=DATA.filter(p=>{
-    return fold(p.nom).includes(f)||fold(p.desc).includes(f)||fold(p.commune).includes(f)||
-      fold(p.demarche).includes(f)||fold(p.public).includes(f)||fold(p.objet).includes(f)||
-      fold(p.keywords.join(' ')).includes(f)||fold(p.tags.join(' ')).includes(f);
-  }).slice(0,80);
-  if(!hits.length){
-    sRes.innerHTML='<div class="empty"><span class="ic">'+icon('search')+'</span><b>Rien trouvé</b><p>Essaie un mot plus court, ou une autre orthographe.</p></div>';
-    return;
-  }
-  const byDom=DOMAINES.filter(d=>hits.some(p=>p.domaine===d.key));
-  sRes.innerHTML=byDom.map(d=>'<div class="ghead">'+esc(d.label)+'</div>'+
-    '<div class="cards" style="padding-top:0">'+hits.filter(p=>p.domaine===d.key).map(p=>{
-      const card=fcard(p);
-      return card.replace('onclick="go(','onclick="closeSearch();go(');
-    }).join('')+'</div>').join('');
-}
-
 /* ---------- barre d'onglets ---------- */
 function renderTabs(){
   const v=current.view;
+  const isTool=v==='domaine'&&(DOM[current.key].method||DOM[current.key].isFormation||DOM[current.key].isMail);
   document.getElementById('tabbar').innerHTML=
-    '<button class="'+((v==='home'||v==='domaine')?'on':'')+'" onclick="go(\'#/\')"><span class="ic">'+icon('search')+'</span>Explorer</button>'+
+    '<button class="'+((v==='home'||(v==='domaine'&&!isTool))?'on':'')+'" onclick="go(\'#/\')"><span class="ic">'+icon('home')+'</span>Accueil</button>'+
+    '<button class="'+((v==='centre'||isTool)?'on':'')+'" onclick="go(\'#/centre\')"><span class="ic">'+icon('building')+'</span>Centre</button>'+
     '<button class="'+(v==='favoris'?'on':'')+'" onclick="go(\'#/favoris\')"><span class="ic">'+icon('star')+'</span>Favoris</button>'+
     '<button class="urgtab '+(v==='urgences'?'on':'')+'" onclick="go(\'#/urgences\')"><span class="ic">'+icon('siren')+'</span>Urgences</button>';
 }
