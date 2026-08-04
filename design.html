@@ -2306,7 +2306,7 @@ body.is-home .dgrid > .dcard::before{
 .bu-c:hover{background:#e8e6e1}
 .bu-h, .bu-s{font-family:var(--mono); letter-spacing:.1em; text-transform:uppercase; font-size:9.5px}
 .bu-txt b{font-family:'Eastman Grotesque','Eastman',sans-serif; text-transform:uppercase; letter-spacing:-.01em}
-.bu-bord{background:#141414}
+.bu-bord{background:transparent; color:#141414}
 
 /* ── L'ACCENT DE LIVRE, à utiliser au compte-gouttes ─────────────────────────── */
 .accent-serif{font-family:var(--serif); font-style:italic; text-transform:none; letter-spacing:0}
@@ -4817,9 +4817,16 @@ var BU_OUV={};
 function bureauOuvrir(cle){ const etait=BU_OUV[cle]; BU_OUV={}; if(!etait) BU_OUV[cle]=true; render(); }
 function carteBureau(cle, ic, titre, gros, sous, action, urgent, couleur){
   const ouvert=!!BU_OUV[cle];
+  /* DEUX ZONES QUAND L'ONGLET EST OUVERT (sa demande, 04/08/2026) : « quand je clique sur
+     le petit onglet sur le bord, il doit se refermer ; c'est quand je clique sur la partie
+     où il y a le texte que ça ouvre la page. Sinon je ne peux jamais refermer ». C'était
+     vrai : ouvert, le bouton entier menait à l'écran, et il restait donc toujours un
+     onglet déplié contre le bord. Le bord referme, le texte emmène. */
   return '<button class="bu-c'+(urgent?' chaud':'')+(ouvert?' ouvert':'')+(couleur?' '+couleur:'')+'" onclick="'
     + (ouvert ? action : "bureauOuvrir('"+cle+"')") + '" title="'+esc(titre)+'">'
-    + '<span class="bu-bord">'+icon(ic)
+    + '<span class="bu-bord"'
+    + (ouvert ? ' onclick="event.stopPropagation();bureauOuvrir(\''+cle+'\')" title="Refermer"' : '')
+    + '>'+icon(ic)
     +   (gros!==null && gros!==undefined ? '<b>'+esc(String(gros))+'</b>' : '')
     + '</span>'
     + '<span class="bu-txt"><span class="bu-h">'+esc(titre)+'</span>'
