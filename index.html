@@ -3950,7 +3950,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v406';
+const APP_VERSION = 'v407';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -4664,8 +4664,12 @@ function bureauHTML(){
   if(mesTaches.length){
     let tot=0, faits=0;
     mesTaches.forEach(function(x){ tot+=x.taches.length; x.taches.forEach(function(t){ if(DN[t.id]) faits++; }); });
-    if(faits<tot) c.push(carteBureau('liste','list','Ma liste du jour', faits+'/'+tot,
-      (tot-faits)+' tâche'+((tot-faits)>1?'s':'')+' à cocher', 'openMaListe()', true));
+    /* L'ONGLET DE LA LISTE EST RETIRÉ (sa demande, 04/08/2026) : « retire ça vu que le
+       picto est déjà en haut ». Il faisait doublon avec le bouton de la barre. Ce qu'il
+       apportait en plus — le nombre de tâches restantes — doit revenir sous forme d'une
+       pastille sur ce bouton : c'est la prochaine chose à faire, sinon on perd le signal
+       « il te reste 8 choses à cocher ». Le calcul est gardé ici, prêt à la nourrir. */
+    RESTE_LISTE = tot - faits;
   }
   if(admin && adm && adm.demandes) c.push(carteBureau('acces','user','Demandes d\'accès', adm.demandes, 'en attente de ta réponse', 'openAdmin()', true));
   const reste=admin ? chant.filter(function(l){ return !l.fait; }).length : 0;
@@ -5912,6 +5916,7 @@ function openProfil(){
 }
 
 let _visiteComptee=false;
+var RESTE_LISTE=0;   /* tâches encore à cocher — nourrira la pastille du bouton Liste */
 /* ⚠ PIÈGE QUI NOUS A COÛTÉ TROIS JOURS DE STATISTIQUES (constaté le 03/08/2026).
    Chez Supabase, écrire sb.rpc(...) ou sb.from(...).insert(...) NE PART PAS. La requête
    n'est envoyée qu'au moment où on attend la réponse (await, ou .then()). Un appel posé
