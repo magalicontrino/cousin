@@ -88,6 +88,21 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .urg-banner .chev{margin-left:auto;font-size:20px;opacity:.8;line-height:1}
 .hint{font-size:13.5px;color:var(--enc2)}
 
+/* ---- le grand damier de l'accueil (choix 4) ---- */
+.hgrid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ligne);margin-bottom:0}
+.hc{border-right:1px solid var(--ligne);border-bottom:1px solid var(--ligne);background:transparent;
+  text-align:left;padding:12px;display:flex;flex-direction:column;transition:background .12s ease}
+.hc:nth-child(2n){border-right:0}
+.hc:active{background:var(--noir)}
+.hc:active *{color:#f4f3f1!important}
+.hc:active .pico{background:#f4f3f1!important}
+.hc.t2{min-height:132px}
+.hc.w{grid-column:1/-1;flex-direction:row;align-items:center;gap:12px;min-height:0;padding:13px 12px;border-right:0}
+.hc.s{flex-direction:row;align-items:center;gap:9px;min-height:0;padding:11px 12px}
+.hc .lab{font-family:ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase}
+.hc .sub{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8984;margin-top:3px}
+.hc .hpi{margin:auto auto 0;align-self:flex-end}
+
 /* ---- le quotidien : deux demi-cases encadrées ---- */
 .tstrip{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ligne);border-bottom:0;overflow:visible;margin:0}
 .tpill{display:flex;align-items:center;gap:10px;background:#f4f3f0;color:var(--noir);
@@ -3058,26 +3073,33 @@ function vHome(){
         '<button class="sqbtn" title="Le fil de l\'équipe" aria-label="Le fil de l\'équipe" onclick="go(\'#/fil\')" style="margin-left:.3em"><span class="ic">'+icon('feed')+'</span></button>'+
         '<button class="sqbtn" title="Se mobiliser" aria-label="Se mobiliser" onclick="go(\'#/mobiliser\')"><span class="ic">'+icon('petition')+'</span></button>'+
       '</span></div>'+
-    '<button class="urg-banner" onclick="go(\'#/urgences\')">'+
-      '<span class="rond"><span class="ic">'+icon('siren')+'</span></span>'+
-      '<span><b>Urgences</b><small>101 · 112 · les bons réflexes</small></span>'+
-      '<span class="chev">›</span>'+
-    '</button>'+
-    bandeAujourdhui()+
-    '<button class="dcard" style="border-top:0" onclick="go(\'#/ticket\')">'+
-      '<span class="tx"><b><i class="tdot" style="background:#6cb392"></i>Le ticket</b>'+
-      '<small>'+(auj.length?'Aujourd\'hui : '+esc(auj.slice(0,3).map(function(x){return x.r.titre.split(' — ')[0]}).join(' · '))
-                          :'Sorties gratuites · Article 27 · ces prochains jours')+'</small></span>'+
-      '<span class="pi"><span class="ic">'+icon('ticket')+'</span></span></button>'+
-    '<button class="dcard" style="border-top:0" onclick="go(\'#/liste\')">'+
-      '<span class="tx"><b><i class="tdot" style="background:#5b8fd4"></i>Ma liste du jour</b>'+
-      '<small>Ta check-list — s\u2019allumera avec la connexion</small></span>'+
-      '<span class="pi"><span class="ic">'+icon('list')+'</span></span></button>'+
-    demCard()+
-    (nFav?'<button class="dcard" style="border-top:0" onclick="go(\'#/favoris\')">'+
-      '<span class="tx"><b><i class="tdot" style="background:#f5c542"></i>Tes étoiles</b>'+
-      '<small>'+nFav+' fiche'+(nFav>1?'s':'')+' gardée'+(nFav>1?'s':'')+' sous la main</small></span>'+
-      '<span class="pi" style="color:#c9940c"><span class="ic">'+icon('star')+'</span></span></button>':'')+
+
+    (function(){
+      const d=new Date().getDay(), l=LINGE[d], col=prochaineCollecte();
+      return '<div class="hgrid">'+
+        '<button class="hc t2" onclick="go(\'#/ticket\')">'+
+          '<span class="lab"><i class="tdot" style="background:#6cb392"></i>Le ticket</span>'+
+          '<span class="sub">'+(auj.length?auj.length+' sortie'+(auj.length>1?'s':'')+' aujourd\'hui':'Sorties & Article 27')+'</span>'+
+          '<span class="hpi">'+svgTicket('#1b1b1b').replace('width:19px;height:19px','width:42px;height:42px')+'</span></button>'+
+        '<button class="hc t2" onclick="go(\'#/d/demarches\')">'+
+          '<span class="lab"><i class="tdot" style="background:#b28b7a"></i>Démarches</span>'+
+          '<span class="sub">AMU · RIS · Mutuelle…</span>'+
+          '<span class="hpi"><span class="ic" style="width:42px;height:42px">'+icon('demarche')+'</span></span></button>'+
+        (l?'<button class="hc s" onclick="goFiche(/linge/i)">'+
+          '<span class="ic" style="width:20px;height:20px;color:'+(LINGE_COUL[l.etage]||'#1b1b1b')+'">'+icon('linge')+'</span>'+
+          '<span class="sub" style="margin:0;color:#5a564e">Linge · '+esc(l.etage)+'</span></button>':'')+
+        (col?'<button class="hc s" onclick="goFiche(/poubelle/i)">'+
+          '<span class="ic" style="width:20px;height:20px;color:'+POUB_COUL[col.sacs[0].c]+'">'+icon('poubelle')+'</span>'+
+          '<span class="sub" style="margin:0;color:'+(col.urgent?'#e63329':'#5a564e')+'">'+esc(col.quand.charAt(0).toUpperCase()+col.quand.slice(1))+' · '+esc(sacsTexte(col.sacs))+'</span></button>':'')+
+        '<button class="hc w" onclick="go(\'#/liste\')">'+
+          '<span class="lab"><i class="tdot" style="background:#5b8fd4"></i>Ma liste du jour</span>'+
+          '<span style="flex:1"></span><span class="ic" style="width:32px;height:32px">'+icon('list')+'</span></button>'+
+        (nFav?'<button class="hc w" onclick="go(\'#/favoris\')">'+
+          '<span class="lab"><i class="tdot" style="background:#f5c542"></i>Tes étoiles</span>'+
+          '<span class="sub" style="margin:0 0 0 8px">'+nFav+' fiche'+(nFav>1?'s':'')+'</span>'+
+          '<span style="flex:1"></span><span class="ic" style="width:26px;height:26px;color:#c9940c">'+icon('star')+'</span></button>':'')+
+      '</div>';
+    })()+
     '<div class="foot">COUSIN · Lux — maquette. Les favoris restent sur cet appareil pour l\'instant.</div>'+
   '</div>';
 }
@@ -3495,7 +3517,7 @@ function toggleUrgCat(btn,i){
 function vUrgences(){
   urgCat=null;
   return '<div class="subtop"><h1 style="font-size:23px;padding-top:6px;color:var(--danger)">Urgences</h1></div>'+
-    '<p class="hint" style="margin-bottom:14px">Un doute ? On appelle. Personne ne reprochera un appel de trop.</p>'+
+
     urgencesListHTML()+
     '<div style="height:20px"></div>';
 }
@@ -3513,7 +3535,7 @@ function vQuiz(){
   if(!QZ){
     const themes=[['all','Tout mélangé'],['droits','Adresse de référence, CPAS et agrément']]
       .concat(DOMAINES.filter(x=>x.reseau).map(x=>[x.key,x.label]));
-    return top+'<p class="hint" style="margin:6px 0 16px">Teste tes connaissances du réseau. Chaque correction renvoie vers la fiche.</p>'+
+    return top+
       themes.map(t=>'<button class="gopt" onclick="quizStart(\''+t[0]+'\')">'+esc(t[1])+'</button>').join('')+
       '<div style="height:20px"></div>';
   }
@@ -3548,7 +3570,7 @@ function vTicket(){
   const prochains=agendaProchains(15,function(){return true;});
   let h='<div class="subtop">'+
     '<h1 style="padding-top:6px">Le ticket</h1></div>'+
-    '<p class="hint" style="margin:6px 0 12px">Les sorties gratuites et les lieux Article 27 — l\'outil des éducs.</p>';
+'';
   h+='<div class="ghead" style="margin-top:0">'+svgTicket('#6cb392')+'Ces prochains jours</div>';
   let curKey='';
   h+='<div style="border-top:1px solid var(--ligne)">';
