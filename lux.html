@@ -2905,8 +2905,9 @@ function triProximite(arr){
   const rang=p=> p.commune==='Anderlecht'?0 : (!p.commune||p.commune==='Régional / Toutes communes')?1 : 2;
   return arr.slice().sort((a,b)=> rang(a)-rang(b) || a.nom.localeCompare(b.nom,'fr'));
 }
-/* ÉTIQUETTES PROPOSÉES PAR CLAUDE (06/08/2026), déduites du texte des fiches —
-   À VALIDER AVEC MAG fiche par fiche (sa règle : le classement se vérifie à deux).
+/* ÉTIQUETTES (06/08/2026) — proposées par Claude, relues fiche par fiche par Claude
+   sur mandat de Mag (« fais au mieux ») ; les corrections manuelles vivent dans
+   TAGS_PLUS / TAGS_MOINS plus bas. Mag garde le droit de veto sur tout.
    Une fiche peut porter plusieurs étiquettes. Planning n'en a pas besoin :
    toutes les fiches y font la même chose, c'est la commune qui compte. */
 const TAGS_REGLES={
@@ -2918,7 +2919,8 @@ const TAGS_REGLES={
   [/centre de jour|hôpital de jour|consultation|ambulatoire|suivi|substitution|TSO|bas.seuil|équipe mobile|liaison|outreach/i,'Consultations & suivi'],
   [/entraide|anonymes|Al-Anon|proches|famille|aidants|Similes|Interface|Nomade/i,'Proches & entraide'],
   [/prévention|écoute|ligne|info anonyme|promotion de la santé|Tabacstop|FARES|formation/i,'Prévention & écoute'],
-  [/alcool/i,'Alcool'],[/tabac/i,'Tabac'],[/jeu(x)? |internet|comportementales/i,'Jeu & écrans'],[/femmes/i,'Femmes']],
+  [/alcool/i,'Alcool'],[/tabac/i,'Tabac'],[/jeu(x)? |internet|comportementales/i,'Jeu & écrans'],[/femmes/i,'Femmes'],
+  [/Plateforme Bruxelloise|féda bxl/i,'Pour les pros']],
  social:[
   [/aide alimentaire|colis|repas|épicerie|Restos/i,'Aide alimentaire'],
   [/douche|buanderie|vesti|casier|seconde main|aide matérielle/i,'Hygiène & vestiaire'],
@@ -2937,6 +2939,32 @@ DATA.forEach(p=>{
   const regles=TAGS_REGLES[p.domaine]; if(!regles) return;
   const hay=p.nom+' '+(p.desc||'')+' '+(p.public||'');
   regles.forEach(r=>{ if(r[0].test(hay) && !p.tags.includes(r[1])) p.tags.push(r[1]); });
+});
+/* Corrections à la main (relecture fiche par fiche) : les règles se faisaient piéger
+   par des mots du texte (« 1re ligne » → écoute, « agréé PHARE » → droits, etc.). */
+const TAGS_PLUS={
+ 'Ex Æquo':['Prévention & écoute'],
+ 'La Trace':['Consultations & suivi'],
+ "Autre'Lieu":['Proches & entraide'],
+ 'PsyBru':['Consultations & suivi']
+};
+const TAGS_MOINS={
+ 'Alcooliques Anonymes (AA)':['Prévention & écoute'],
+ 'Aidants-Proches':['Prévention & écoute'],
+ 'CAP-ITI':['Prévention & écoute'],
+ 'Réseau Aide & Justiciable (RAJ)':['Prévention & écoute'],
+ 'I.Care asbl':['Prévention & écoute'],
+ 'PsyBru':['Prévention & écoute'],
+ 'Plateforme Bruxelloise pour la Santé Mentale (PBSM)':['Prévention & écoute'],
+ 'féda bxl':['Prévention & écoute'],
+ 'Syndicat des immenses':['Pour les pros'],
+ "La Braise — service d'accompagnement (lésion cérébrale)":['Droits & allocations'],
+ "Bataclan — service d'accompagnement (tout type de handicap)":['Droits & allocations']
+};
+DATA.forEach(p=>{
+  (TAGS_PLUS[p.nom]||[]).forEach(t=>{ if(!p.tags.includes(t)) p.tags.push(t); });
+  const moins=TAGS_MOINS[p.nom];
+  if(moins) p.tags=p.tags.filter(t=>!moins.includes(t));
 });
 /* Le paquet des CPAS (repris de l'app principale) : un par commune, mêmes missions,
    on les replie derrière un seul bouton. */
