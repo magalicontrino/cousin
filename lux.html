@@ -65,6 +65,16 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .urg-banner .chev{margin-left:auto;font-size:24px;font-weight:700;opacity:.9;line-height:1}
 .hint{font-size:13.5px;color:var(--enc2)}
 
+/* ---- la grande carte Démarches de l'accueil ---- */
+.dcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--noir);
+  color:var(--creme);border-radius:16px;padding:16px;margin-bottom:12px;transition:transform .12s ease}
+.dcard:active{transform:scale(.98)}
+.dcard .tx{flex:1;min-width:0}
+.dcard b{display:block;font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.dcard small{display:block;font-size:12px;color:rgba(242,238,230,.6);margin-top:3px}
+.dcard .pi{width:36px;height:36px;flex:none}
+.dcard .pi .ic{width:100%;height:100%}
+
 /* ---- pavés ---- */
 .dgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .tile{background:var(--noir);color:var(--creme);border-radius:16px;padding:14px 14px 12px;
@@ -2004,7 +2014,7 @@ function bandeAujourdhui(){
 /* Les domaines : mêmes clés et mêmes noms que l'app actuelle (les fiches s'y rattachent),
    mais chaque domaine reçoit sa teinte douce et son encre, façon palette feutrée. */
 const DOMAINES = [
-  {key:"demarches",   label:"Démarches CPAS",      short:"Démarches", ic:"demarche", byCommune:true, isDem:true},
+  {key:"demarches",   label:"Démarches",           short:"Démarches", ic:"demarche", byCommune:true, isDem:true},
   {key:"medical",     label:"Médical",             short:"Médical",   ic:"medical",  byCommune:true, reseau:true},
   {key:"social",      label:"Social",              short:"Social",    ic:"social",   reseau:true},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
@@ -2124,7 +2134,7 @@ function tile(d){
 function doo(f,col,size){return '<span class="pico" style="width:'+size+'px;height:'+size+'px;color:'+col+
   ';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></span>'}
 function vHome(){
-  const reseau=DOMAINES.filter(d=>d.reseau||d.isDem);
+  const reseau=DOMAINES.filter(d=>d.reseau);
   return '<div class="home-top">'+
     '<div class="brand">COUSIN · LUX</div>'+
     '<div class="bigtitle disp">Vous cherchez'+
@@ -2138,6 +2148,10 @@ function vHome(){
       '<span class="chev">›</span>'+
     '</button>'+
     bandeAujourdhui()+
+    '<button class="dcard" onclick="go(\'#/d/demarches\')">'+
+      '<span class="tx"><b>Démarches</b><small>Réquisitoire · AMU · Carte médicale · RIS · Mutuelle · DGPH…</small></span>'+
+      '<span class="pi" style="color:#b28b7a"><span class="ic">'+icon('demarche')+'</span></span>'+
+    '</button>'+
     '<div class="dgrid">'+reseau.map(tile).join('')+'</div>'+
     '<div class="foot">COUSIN · Lux — maquette. Les favoris restent sur cet appareil pour l’instant.</div>'+
   '</div>';
@@ -2220,10 +2234,25 @@ function vDomaine(key){
   const d=DOM[key];
   let items=DATA.filter(p=>p.domaine===key);
   let chips='';
-  if(d.isDem){
+  if(d.isDem && filt.dem==='Toutes'){
+    /* Liste condensée : on cherche LA démarche, pas la fiche. Une ligne par démarche,
+       et le choix de l'organisme (CPAS, DGPH…) vient après. */
     const dems=DEMARCHES.filter(t=>items.some(p=>p.demarche===t));
+    return '<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+      '<h1>'+esc(d.label)+'</h1><span class="count">'+dems.length+'</span></div>'+
+      rail(key)+
+      '<div class="cards" style="display:flex;flex-direction:column">'+dems.map(t=>{
+        const n=items.filter(p=>p.demarche===t).length;
+        return '<div class="fcard" role="button" tabindex="0" onclick="setFilt(\'dem\',\''+esc(t).replace(/'/g,"\\'")+'\')">'+
+          '<span class="fpi" style="color:'+dc('demarches')+'"><span class="ic">'+icon('demarche')+'</span></span>'+
+          '<span class="tx"><b>'+esc(t)+'</b><small>'+n+' organisme'+(n>1?'s':'')+'</small></span>'+
+          '<span class="tcard-chev" style="font-size:20px;font-weight:700;color:rgba(27,27,27,.4)">›</span></div>';
+      }).join('')+'</div>';
+  }
+  if(d.isDem){
+    const dems=DEMARCHES.filter(t=>DATA.some(p=>p.domaine===key&&p.demarche===t));
     chips+=chipRow('dem',dems,filt.dem,'Toutes');
-    if(filt.dem!=='Toutes') items=items.filter(p=>p.demarche===filt.dem);
+    items=items.filter(p=>p.demarche===filt.dem);
   }
   if(d.isMail){
     chips+=chipRow('genre',['Mail','Note'],filt.genre,'Tous');
