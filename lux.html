@@ -163,6 +163,25 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 /* Réseau : la grille fine au trait (l'autocollant essayé puis écarté par Mag le 05/08/2026),
    avec un CARRÉ de couleur devant le nom — plus gros que la police — et le compte dessous. */
 .tsq{display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-3px;flex:none}
+
+/* ---- accueil personnalisé : blocs à gros filet de couleur (choix « 2 » de Mag, 05/08/2026) ---- */
+/* « BONJOUR MAG » : la fonte EXACTE du grand titre du Réseau (.home-title), en OR. */
+.hello{font-family:'Eastman',sans-serif;font-size:min(11.8vw,47px);font-weight:800;text-transform:uppercase;
+  line-height:.92;letter-spacing:-.015em;color:#c9940c;flex:1;min-width:0}
+.hello span{display:block}
+.pbloc{border:1px solid var(--ligne);border-left:7px solid;background:#f4f3f0;padding:11px 12px 8px;margin-bottom:10px}
+.pbloc .ptop{display:flex;align-items:center;font-family:ui-monospace,monospace;font-size:10.5px;
+  font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px}
+.pbloc .ptop .n{color:var(--enc2);margin-left:7px}
+.pbloc .pli{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;
+  border:0;border-top:1px solid #e2e0db;border-radius:0;padding:9px 0;font-size:14px;font-weight:800;color:var(--noir)}
+.pbloc .pli:first-of-type{border-top:0}
+.pbloc .pli .ic{width:16px;height:16px;flex:none}
+.pbloc .pli em{font-style:normal;margin-left:auto;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);font-weight:500;flex:none}
+.quizbar{display:flex;align-items:center;gap:10px;justify-content:center;width:100%;
+  background:var(--noir);color:#f2eee6;border-radius:0;padding:13px 12px;font-weight:800;font-size:14.5px;margin-bottom:12px}
+.quizbar .ic{width:19px;height:19px}
 /* Réseau : le picto dans le coin bas-droit de la case (demande de Mag, 05/08/2026). */
 .dgrid.res .tile .pi{margin:auto 0 0 auto}
 /* Le grand carré de couleur qui porte le picto (pavés du Centre, choix « 3 »). */
@@ -3030,6 +3049,37 @@ function grpCpas(list){
   '</div>';
 }
 
+/* ---------- LE COMPTE (maquette) — 05/08/2026 ----------
+   Le prénom est retenu sur cet appareil ; avec la connexion Google de l'équipe, il
+   viendra du profil, avec le rôle et le groupe d'accès. Les DERNIÈRES FICHES VUES
+   se gardent ici aussi (elles suivront la personne une fois la connexion branchée). */
+const PKEY='lux_prenom', VKEY='lux_vues';
+let PRENOM; try{PRENOM=localStorage.getItem(PKEY)||''}catch(e){PRENOM=''}
+let VUES; try{VUES=JSON.parse(localStorage.getItem(VKEY)||'[]')}catch(e){VUES=[]}
+function setPrenom(v){
+  PRENOM=(v||'').trim().slice(0,24);
+  try{localStorage.setItem(PKEY,PRENOM)}catch(e){}
+  render();
+}
+function demanderPrenom(){
+  const v=prompt('Ton prénom, pour que COUSIN te dise bonjour :', PRENOM||'');
+  if(v!==null) setPrenom(v);
+}
+function noterVue(sid){
+  if(!sid) return;
+  VUES=[{sid:sid,t:Date.now()}].concat(VUES.filter(x=>x.sid!==sid)).slice(0,12);
+  try{localStorage.setItem(VKEY,JSON.stringify(VUES))}catch(e){}
+}
+/* « hier », « lundi », « il y a 3 semaines » — le repère de temps des reprises. */
+function quand(ts){
+  const j=Math.floor((Date.now()-ts)/86400000);
+  if(j<=0) return 'aujourd\'hui';
+  if(j===1) return 'hier';
+  if(j<7) return JOURS_L[new Date(ts).getDay()];
+  if(j<14) return 'la semaine dernière';
+  return 'il y a '+Math.floor(j/7)+' semaines';
+}
+
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
 const FKEY='lux_favs';
 let FAVS;
@@ -3155,11 +3205,44 @@ function vHome(){
   const nFav=FAVS.size;
   const auj=agendaProchains(1,function(){return true;});
   return '<div class="home-top">'+
-    /* Le fil et Se mobiliser : bien en évidence en tête de l'accueil (Mag, 05/08/2026). */
-    '<div style="display:flex;gap:10px;justify-content:flex-end;margin:4px 0 12px">'+
-      '<button class="sqbtn" title="Le fil de l\'équipe" aria-label="Le fil de l\'équipe" onclick="go(\'#/fil\')"><span class="ic">'+icon('feed')+'</span></button>'+
-      '<button class="sqbtn" title="Se mobiliser" aria-label="Se mobiliser" onclick="go(\'#/mobiliser\')"><span class="ic">'+icon('petition')+'</span></button>'+
+    /* BONJOUR + le prénom, et les deux boutons carrés (fil, mobiliser) — Mag, 05/08/2026.
+       Sans prénom, on invite à le donner ; avec la connexion, il viendra du profil. */
+    '<div style="display:flex;align-items:flex-end;gap:10px;margin:6px 0 14px">'+
+      '<div class="hello">'+(PRENOM
+        ? '<span>Bonjour</span><span>'+esc(PRENOM)+'</span>'
+        : '<span>Bonjour</span>')+'</div>'+
+      '<button class="sqbtn" style="width:40px;height:40px;margin:0" title="Le fil de l\'équipe" aria-label="Le fil de l\'équipe" onclick="go(\'#/fil\')"><span class="ic" style="width:18px;height:18px">'+icon('feed')+'</span></button>'+
+      '<button class="sqbtn" style="width:40px;height:40px;margin:0" title="Se mobiliser" aria-label="Se mobiliser" onclick="go(\'#/mobiliser\')"><span class="ic" style="width:18px;height:18px">'+icon('petition')+'</span></button>'+
     '</div>'+
+    (PRENOM?'':'<button class="pbloc" style="border-left-color:#f8763f;width:100%;text-align:left;display:block" onclick="demanderPrenom()">'+
+      '<span class="ptop">Dis-moi ton prénom</span>'+
+      '<span style="display:block;font-size:13px;color:var(--enc2);padding:6px 0 4px">Pour que COUSIN t\'accueille par ton nom. La vraie connexion de l\'équipe viendra ensuite.</span></button>')+
+
+    /* TES ÉTOILES : les favoris, groupés ici (son principe : « les étoiles avec les étoiles »). */
+    (function(){
+      const favs=DATA.filter(p=>FAVS.has(p.sid)).slice(0,4);
+      if(!favs.length) return '';
+      return '<div class="pbloc" style="border-left-color:#f5c542">'+
+        '<div class="ptop">Tes étoiles <span class="n">'+FAVS.size+'</span></div>'+
+        favs.map(p=>'<button class="pli" onclick="go(\'#/f/'+p.sid+'\')">'+
+          '<span class="ic" style="color:#d9a20b">'+icon('star')+'</span>'+esc(p.nom)+
+          '<em>'+esc((DOM[p.domaine]||{}).short||'')+'</em></button>').join('')+
+        (FAVS.size>favs.length?'<button class="pli" onclick="go(\'#/favoris\')" style="color:var(--enc2);font-weight:600">Voir les '+FAVS.size+' étoiles</button>':'')+
+      '</div>';
+    })()+
+
+    /* REPRENDRE : les dernières fiches ouvertes. */
+    (function(){
+      const vus=VUES.map(v=>({p:DATA.find(x=>x.sid===v.sid),t:v.t})).filter(x=>x.p).slice(0,3);
+      if(!vus.length) return '';
+      return '<div class="pbloc" style="border-left-color:#f3c6da">'+
+        '<div class="ptop">Reprendre <span class="n">'+vus.length+'</span></div>'+
+        vus.map(x=>'<button class="pli" onclick="go(\'#/f/'+x.p.sid+'\')">'+
+          '<span class="ic">'+icon(fichePicto(x.p)||(DOM[x.p.domaine]||{}).ic||'compass')+'</span>'+esc(x.p.nom)+
+          '<em>'+esc(quand(x.t))+'</em></button>').join('')+
+      '</div>';
+    })()+
+    '<button class="quizbar" onclick="go(\'#/quiz\')"><span class="ic">'+icon('bulb')+'</span>Quiz — teste tes connaissances</button>'+
 
     (function(){
       const d=new Date().getDay(), l=LINGE[d], col=prochaineCollecte();
@@ -3183,10 +3266,6 @@ function vHome(){
         '<button class="hc w" onclick="go(\'#/liste\')">'+
           '<span class="lab"><i class="tdot" style="background:#5b8fd4"></i>Ma liste du jour</span>'+
           '<span style="flex:1"></span><span class="ic" style="width:28px;height:28px">'+icon('list')+'</span></button>'+
-        (nFav?'<button class="hc w" onclick="go(\'#/favoris\')">'+
-          '<span class="lab"><i class="tdot" style="background:#f5c542"></i>Tes étoiles</span>'+
-          '<span class="sub" style="margin:0 0 0 8px">'+nFav+' fiche'+(nFav>1?'s':'')+'</span>'+
-          '<span style="flex:1"></span><span class="ic" style="width:26px;height:26px;color:#c9940c">'+icon('star')+'</span></button>':'')+
       '</div>';
     })()+
 
@@ -3306,6 +3385,11 @@ function vProfil(){
   return '<div class="subtop">'+
     '<h1 style="padding-top:6px">Mon profil</h1></div>'+
     '<p class="hint" style="margin:6px 0 16px">Ta carte d\'identité dans l\'app, comme aujourd\'hui — dès que Lux sera branchée à la connexion Google de l\'équipe.</p>'+
+    /* Le prénom marche DÉJÀ (retenu sur cet appareil) : c'est lui qui dit bonjour sur l'accueil. */
+    '<button class="pbloc" style="border-left-color:#f8763f;width:100%;text-align:left;display:block;margin-bottom:14px" onclick="demanderPrenom()">'+
+      '<span class="ptop">Ton prénom'+(PRENOM?' <span class="n">'+esc(PRENOM)+'</span>':'')+'</span>'+
+      '<span style="display:block;font-size:13px;color:var(--enc2);padding:6px 0 4px">'+
+      (PRENOM?'C\'est lui qui te dit bonjour sur l\'accueil. Touche pour le changer.':'Touche ici pour que COUSIN t\'accueille par ton nom.')+'</span></button>'+
     pcard('user','Carte d\'identité','Ton nom, ton métier, tes badges (PFO, Jour/Nuit…) et ta vue.')+
     pcard('list','Ma liste du jour','Ta check-list du jour et l\'anneau de progression.')+
     pcard('star','Tes étoiles partout','Tes favoris qui te suivent d\'un téléphone à l\'autre.')+
@@ -3493,6 +3577,7 @@ function rowline(ic,label,val,linkHtml){
 function vFiche(p){
   const d=DOM[p.domaine]||{}, c=dc(p.domaine);
   document.title='COUSIN · '+p.nom;
+  noterVue(p.sid);
   let body='';
   /* — corps selon le type de fiche — */
   if(p.domaine==='demarches'){
