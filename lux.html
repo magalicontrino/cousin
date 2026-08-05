@@ -302,10 +302,12 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .urg-acc.open .urg-acc-inner{opacity:1}
 .urg-slider{display:flex;gap:9px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .urg-slider::-webkit-scrollbar{display:none}
+/* Cases d'appel « de nuit » (choix « 2 » de Mag) : case noire, nom crème,
+   numéro à la couleur de la catégorie, picto rouge. */
 .urg-sq{flex:0 0 auto;width:124px;min-height:106px;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:7px;text-align:center;background:transparent;border:1px solid var(--noir);border-radius:0;
-  padding:13px 10px;color:var(--noir);overflow:hidden;transition:background .16s ease;cursor:pointer}
-.urg-sq:active{background:rgba(27,27,27,.06)}
+  justify-content:center;gap:7px;text-align:center;background:var(--noir);border:1px solid var(--noir);border-radius:0;
+  padding:13px 10px;color:#f2eee6;overflow:hidden;transition:background .16s ease;cursor:pointer}
+.urg-sq:active{background:#333}
 .urg-sq .ic{width:24px;height:24px;color:var(--rouge)}
 .urg-sq-tx{display:flex;flex-direction:column;gap:3px;width:100%;min-width:0}
 .urg-sq b{font-size:13px;font-weight:800;line-height:1.12;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -3511,10 +3513,12 @@ const URG_PLURIEL={"Hébergement d'urgence":"Hébergements d'urgence"};
 function urgName(p){const n=p.nom.replace(/^\s*\d[\d\s]*[–—-]\s*/,'').replace(/\s*[–—-]\s*\d[\d\s]*$/,'').trim();return n||p.nom;}
 function urgShort(p){let n=urgName(p).replace(/\s*\(.*?\)\s*/g,' ').replace(/\s*[–—-]\s.*$/,'');return n.trim()||urgName(p);}
 function urgSub(p){const par=p.nom.match(/\(([^)]+)\)/);const t=par?par[1].trim():'';return t?t.charAt(0).toUpperCase()+t.slice(1):'';}
-function urgSq(p){
+function urgSq(p,cc){
   const tel=(p.tel||'').replace(/\s/g,'');
   const sub=urgSub(p)||esc(p.tel);
-  const tx='<span class="urg-sq-tx"><b>'+esc(urgShort(p))+'</b>'+(sub?'<em>'+sub+'</em>':'')+'</span>';
+  /* Le numéro prend la couleur de la catégorie (cases de nuit). */
+  const em=sub?'<em'+(cc?' style="color:'+cc+'"':'')+'>'+sub+'</em>':'';
+  const tx='<span class="urg-sq-tx"><b>'+esc(urgShort(p))+'</b>'+em+'</span>';
   if(tel) return '<a class="urg-sq" href="tel:'+esc(tel)+'"><span class="ic">'+icon('phone')+'</span>'+tx+'</a>';
   if(p.site) return '<a class="urg-sq" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener"><span class="ic">'+icon('lien')+'</span>'+tx+'</a>';
   return '<div class="urg-sq" role="button" onclick="go(\'#/f/'+p.sid+'\')"><span class="ic">'+icon('note')+'</span>'+tx+'</div>';
@@ -3540,8 +3544,8 @@ function urgencesListHTML(){
       vitalHtml='<div class="urg-vital">'+halves+'</div>'; return;
     }
     const open=urgCat===idx;
-    const sqs='<div class="urg-slider">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(urgSq).join('')+'</div>';
     const cc=URG_CATC[b.label]||'#f5c542';
+    const sqs='<div class="urg-slider">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>urgSq(p,cc)).join('')+'</div>';
     rows+='<button class="urg-catbtn '+(open?'open':'')+'" style="border-left-color:'+cc+'" onclick="toggleUrgCat(this,'+idx+')">'+
       '<span class="urg-cbleft"><span class="urg-cbic"><span class="ic">'+(b.label==='Violences · femmes'?URG_FEMME:icon(URG_CATK[b.label]||'phone'))+'</span></span>'+
       '<span class="urg-cblab">'+esc(b.list.length>1&&URG_PLURIEL[b.label]?URG_PLURIEL[b.label]:b.label)+'</span></span>'+
