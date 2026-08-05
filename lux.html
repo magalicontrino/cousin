@@ -217,6 +217,9 @@ body.no-tabs #tabbar{display:none}
   display:flex;align-items:center;justify-content:center;transition:transform .12s ease}
 #tabbar button:active .db{transform:scale(.92)}
 #tabbar .db .ic{width:22px;height:22px}
+#tabbar .db{position:relative}
+#tabbar .db .dot{position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;
+  background:var(--rouge);border:2px solid var(--creme)}
 #tabbar .lbl{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:#8a8378}
 #tabbar button.on .lbl{color:var(--noir)}
 
@@ -2941,7 +2944,8 @@ function parseRoute(){
   if(seg[0]==='centre') return {view:'centre'};
   if(seg[0]==='admin') return {view:'admin'};
   if(seg[0]==='quiz') return {view:'quiz'};
-  if(seg[0]==='sorties') return {view:'sorties'};
+  if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
+  if(seg[0]==='quartier') return {view:'quartier'};
   if(seg[0]==='favoris') return {view:'favoris'};
   if(seg[0]==='urgences') return {view:'urgences'};
   return {view:'home'};
@@ -2969,7 +2973,8 @@ function render(){
   else if(current.view==='centre') view.innerHTML=vCentre();
   else if(current.view==='admin') view.innerHTML=vAdmin();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
-  else if(current.view==='sorties') view.innerHTML=vSorties();
+  else if(current.view==='neuf') view.innerHTML=vNeuf();
+  else if(current.view==='quartier') view.innerHTML=vQuartier();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
   renderTabs();
@@ -2987,12 +2992,17 @@ function doo(f,col,size){const t=(typeof size==='number')?size+'px':size;
   ';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></span>'}
 function vHome(){
   const reseau=DOMAINES.filter(d=>d.reseau);
+  const nFav=FAVS.size;
   return '<div class="home-top">'+
-    '<img class="lgo" src="logo.png" alt="COUSIN">'+
+    '<img class="lgo" src="logo.png" alt="COUSIN" onclick="go(\'#/\')">'+
     '<div class="home-title">'+
       '<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url(picto/ico-demidisques.svg);mask-image:url(picto/ico-demidisques.svg)"></span><svg class="deco deco-arc" viewBox="0 0 60 31" fill="none"><path d="M2 30 A28 28 0 0 1 58 30" stroke="#e63329" stroke-width="4.6"/><path d="M6.6 30 A23.4 23.4 0 0 1 53.4 30" stroke="#f8763f" stroke-width="4.6"/><path d="M11.2 30 A18.8 18.8 0 0 1 48.8 30" stroke="#f5c542" stroke-width="4.6"/><path d="M15.8 30 A14.2 14.2 0 0 1 44.2 30" stroke="#6cb392" stroke-width="4.6"/><path d="M20.4 30 A9.6 9.6 0 0 1 39.6 30" stroke="#2f6fd0" stroke-width="4.6"/><path d="M25 30 A5 5 0 0 1 35 30" stroke="#a05fd0" stroke-width="4.6"/></svg></span>'+
       '<span class="tl">Cherchez<span class="pico deco-fleur" style="-webkit-mask-image:url(picto/ico-fleur.svg);mask-image:url(picto/ico-fleur.svg)"></span></span>'+
       '<span class="tl last"><span class="tl-txt">Qu<span class="tdo"></span>i<span style="margin-left:.16em">?</span></span></span></div>'+
+    '<button class="dcard" style="margin-bottom:12px" onclick="go(\'#/favoris\')">'+
+      '<span class="tx"><b>Tes étoiles</b><small>'+(nFav?nFav+' fiche'+(nFav>1?'s':'')+' gardée'+(nFav>1?'s':'')+' sous la main':'Touche l\u2019étoile d\u2019une fiche pour la garder ici')+'</small></span>'+
+      '<span class="pi" style="color:#f5c542"><span class="ic">'+icon('star')+'</span></span>'+
+    '</button>'+
     '<button class="urg-banner" onclick="go(\'#/urgences\')">'+
       '<span class="rond"><span class="ic">'+icon('siren')+'</span></span>'+
       '<span><b>Urgences</b><small>101 · 112 · les bons réflexes</small></span>'+
@@ -3000,11 +3010,6 @@ function vHome(){
     '</button>'+
     bandeAujourdhui()+demCard()+
     '<div class="dgrid">'+reseau.map(tile).join('')+'</div>'+
-    '<button class="qcard" onclick="go(\'#/quiz\')"><span class="ic">'+icon('bulb')+'</span>Quiz — teste tes connaissances</button>'+
-    '<button class="dcard" onclick="go(\'#/sorties\')">'+
-      '<span class="tx"><b>Sorties & quartier</b><small>Gratuit ces jours-ci · Article 27 · autour du centre · se mobiliser</small></span>'+
-      '<span class="pi" style="color:#6cb392"><span class="ic">'+icon('ticket')+'</span></span>'+
-    '</button>'+
     '<div class="foot">COUSIN · Lux — maquette. Les favoris restent sur cet appareil pour l’instant.</div>'+
   '</div>';
 }
@@ -3042,6 +3047,9 @@ function vCentre(){
   return '<div class="subtop"><h1 style="font-size:22px;padding-top:6px">Le centre</h1></div>'+
     '<div class="ghead" style="margin-top:6px">Les outils</div>'+demCard()+
     '<div class="dgrid clair">'+OUTILS.map(k=>tile(DOM[k])).join('')+'</div>'+
+    '<button class="tcard" style="margin-top:11px" onclick="go(\'#/quartier\')">'+
+    '<span class="tic" style="color:#6cb392"><span class="ic">'+icon('pin')+'</span></span>'+
+    '<span class="ttx"><b>Autour d\u2019ici</b><em>Le quartier, depuis le centre — la feuille à donner</em></span><span class="chev">›</span></button>'+
     '<div class="ghead">Le quotidien</div>'+cards+
     '<div class="ghead">Réservé</div>'+
     '<button class="tcard" onclick="go(\'#/admin\')">'+
@@ -3380,14 +3388,20 @@ function vQuiz(){
   return h+'<div style="height:30px"></div>';
 }
 
-/* ---------- Sorties & quartier — gratuit, Article 27, autour du centre, se mobiliser ---------- */
+/* ---------- Quoi de neuf — la porte vivante : dernière minute, ticket, mobiliser, quiz ---------- */
 let A27=null;
 function a27T(i){A27=(A27===i)?null:i;render();}
-function vSorties(){
+function vNeuf(){
   const fmt=d=>JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   const prochains=agendaProchains(15,function(){return true;}).slice(0,14);
-  let h='<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Sorties & quartier</h1></div>';
-  h+='<div class="ghead" style="margin-top:6px">Gratuit, ces prochains jours</div>';
+  let h='<div class="subtop"><h1 style="font-size:23px;padding-top:6px">Quoi de neuf</h1></div>';
+  /* Dernière minute — le fil de l'équipe, qui s'allumera avec la connexion */
+  h+='<div class="ghead" style="margin-top:6px">Dernière minute</div>'+
+    '<div class="bloc"><b><span class="ic" style="width:20px;height:20px">'+icon('feed')+'</span>Le fil de l\'équipe'+
+    '<span class="abadge" style="margin-left:auto">Avec la connexion</span></b>'+
+    '<p>Les messages de l\'équipe arriveront ici : infos, bravos, questions — comme dans l\'app actuelle.</p></div>';
+  /* Le ticket — ce qui arrive */
+  h+='<div class="ghead">Le ticket — ces prochains jours</div>';
   h+=prochains.map(x=>'<div class="bloc" style="border-left:6px solid '+x.r.c+'">'+
     '<b style="text-transform:none;letter-spacing:0">'+esc(x.r.titre)+'</b>'+
     '<p>'+esc(fmt(x.d))+' · '+esc(x.r.lieu)+(x.r.sous?'\n'+esc(x.r.sous):'')+'</p>'+
@@ -3400,15 +3414,30 @@ function vSorties(){
     return '<button class="gopt" style="display:flex;justify-content:space-between;align-items:center" onclick="a27T('+i+')"><span>'+esc(c.commune)+'</span><span style="opacity:.5">'+c.lieux.length+(open?' −':' +')+'</span></button>'+
       (open?'<div class="bloc">'+c.lieux.map(l=>'<p style="margin-bottom:6px"><b style="text-transform:none;letter-spacing:0">'+esc(l.n)+'</b>'+(l.tel?' · <a class="glink" href="tel:'+esc(l.tel.replace(/[^+0-9]/g,''))+'">'+esc(l.tel)+'</a>':'')+'</p>').join('')+'</div>':'');
   }).join('');
-  h+='<div class="ghead">Autour d\'ici</div>'+
-    '<p class="hint" style="margin-bottom:10px">Le quartier, depuis le centre (Bd Prince de Liège 38).</p>';
-  h+=QUARTIER.map(g=>'<div class="bloc"><b>'+esc(g.grp)+'</b>'+
-    g.lignes.map(l=>'<p style="margin-bottom:6px"><b style="text-transform:none;letter-spacing:0">'+esc(l.t)+'</b> — '+esc(l.d)+
-      (l.adr?' <a class="glink" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">Itinéraire →</a>':'')+'</p>').join('')+'</div>').join('');
+  /* Se mobiliser */
   h+='<div class="ghead">Se mobiliser</div>';
   h+=PETITIONS.map(pt=>'<div class="bloc"><b style="text-transform:none;letter-spacing:0">'+esc(pt.titre)+'</b>'+
     '<p>'+esc(pt.sous)+'\n'+esc(pt.desc)+'</p>'+
     '<a class="glink" href="'+esc(pt.url)+'" target="_blank" rel="noopener">Signer la pétition →</a></div>').join('');
+  /* Quiz & jeux */
+  h+='<div class="ghead">Le rigolo qui apprend</div>'+
+    '<button class="qcard" style="margin-top:2px" onclick="go(\'#/quiz\')"><span class="ic">'+icon('bulb')+'</span>Quiz — teste tes connaissances</button>'+
+    '<p class="hint" style="margin:2px 0 14px">Les 8 jeux de la salle de jeux arriveront ici aussi.</p>';
+  /* Le + — avis et suggestions */
+  h+='<div class="ghead">Une idée, un avis ?</div>'+
+    '<div class="bloc"><b><span class="ic" style="width:20px;height:20px">'+icon('bulb')+'</span>La boîte à idées'+
+    '<span class="abadge" style="margin-left:auto">Avec la connexion</span></b>'+
+    '<p>Proposer une fiche, signaler une erreur, suggérer une idée — le « + » s\'activera avec la connexion, comme dans l\'app actuelle.</p></div>';
+  return h+'<div style="height:26px"></div>';
+}
+
+/* ---------- Autour d'ici — le quartier, depuis le centre ---------- */
+function vQuartier(){
+  let h='<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Autour d\'ici</h1></div>'+
+    '<p class="hint" style="margin:6px 0 14px">Le quartier, depuis le centre (Bd Prince de Liège 38). La feuille à donner.</p>';
+  h+=QUARTIER.map(g=>'<div class="bloc"><b>'+esc(g.grp)+'</b>'+
+    g.lignes.map(l=>'<p style="margin-bottom:6px"><b style="text-transform:none;letter-spacing:0">'+esc(l.t)+'</b> — '+esc(l.d)+
+      (l.adr?' <a class="glink" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">Itinéraire →</a>':'')+'</p>').join('')+'</div>').join('');
   return h+'<div style="height:26px"></div>';
 }
 
@@ -3416,14 +3445,15 @@ function vSorties(){
 function renderTabs(){
   const v=current.view;
   const isTool=v==='domaine'&&(DOM[current.key].method||DOM[current.key].isFormation||DOM[current.key].isMail);
-  const T=[['#/','Réseau','compass','#f3c6da',(v==='home'||v==='quiz'||v==='sorties'||(v==='domaine'&&!isTool))],
-           ['#/centre','Centre','centre','#f8763f',(v==='centre'||isTool||v==='admin')],
-           ['#/favoris','Favoris','star','#f5c542',v==='favoris'],
+  const sortieAuj=agendaProchains(1,function(){return true;}).length>0;
+  const T=[['#/','Réseau','compass','#f3c6da',(v==='home'||v==='favoris'||(v==='domaine'&&!isTool))],
+           ['#/centre','Centre','centre','#f8763f',(v==='centre'||isTool||v==='admin'||v==='quartier')],
+           ['#/neuf','Quoi de neuf','feed','#f5c542',(v==='neuf'||v==='quiz'),sortieAuj],
            ['#/urgences','Urgences','siren','#e63329',v==='urgences']];
   document.getElementById('tabbar').innerHTML=T.map(t=>
     '<button class="'+(t[4]?'on':'')+'" onclick="go(\''+t[0]+'\')">'+
     '<span class="db" style="'+(t[4]?('background:'+t[3]+';color:#1b1b1b'):('color:'+t[3]))+'">'+
-    '<span class="ic">'+icon(t[2])+'</span></span>'+
+    '<span class="ic">'+icon(t[2])+'</span>'+(t[5]?'<i class="dot"></i>':'')+'</span>'+
     '<span class="lbl">'+t[1]+'</span></button>').join('');
 }
 
