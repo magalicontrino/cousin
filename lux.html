@@ -248,21 +248,24 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .urg-vhalf .ic{width:20px;height:20px;color:#f4f3f1}
 .urg-vhalf b{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600}
 .urg-vhalf em{font-style:normal;font-size:22px;font-weight:800;letter-spacing:.5px}
+.urgwrap{border:1px solid var(--ligne);border-bottom:0}
 .urg-catbtn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
-  border-radius:0;padding:13px 14px;margin:0 0 9px;color:var(--noir);
-  text-align:left;transition:transform .12s ease}
-.urg-catbtn:active{transform:scale(.99)}
+  border-radius:0;border-bottom:1px solid var(--ligne);border-left:7px solid transparent;
+  padding:13px 13px;margin:0;color:var(--noir);background:transparent;
+  text-align:left;transition:background .12s ease}
+.urg-catbtn:active{background:rgba(27,27,27,.05)}
 .urg-cbleft{display:flex;align-items:center;gap:12px;min-width:0}
-.urg-cbic{flex:none;width:38px;height:38px;border-radius:0;background:var(--noir);color:#f4f3f1;
+.urg-cbic{flex:none;width:24px;height:24px;border-radius:0;background:transparent;
   display:flex;align-items:center;justify-content:center}
-.urg-cbic .ic{width:21px;height:21px}
+.urg-cbic .ic{width:22px;height:22px}
 .urg-cblab{font-weight:800;font-size:15px;letter-spacing:-.01em;text-transform:uppercase;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.urg-cbright{flex:none;display:flex;align-items:center;gap:9px}
-.urg-cbn{min-width:24px;height:24px;padding:0 7px;background:rgba(0,0,0,.16);
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12.5px;color:var(--noir)}
-.urg-cbsign{flex:none;width:30px;height:30px;background:var(--noir);
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#f4f3f1}
+.urg-cbright{flex:none;display:flex;align-items:center;gap:11px}
+.urg-cbn{font-family:ui-monospace,monospace;font-size:11.5px;letter-spacing:.1em;color:#6b6965}
+.urg-cbsign{flex:none;font-weight:800;font-size:17px;color:var(--noir)}
+.urg-acc{border-bottom:0}
+.urg-acc.open{border-bottom:1px solid var(--ligne)}
+.urg-acc .urg-slider{padding:10px 12px 12px}
 .urg-cbsign::after{content:'+'}
 .urg-catbtn.open .urg-cbsign::after{content:'−'}
 .urg-acc{height:0;overflow:hidden;transition:height .36s cubic-bezier(.22,1,.36,1)}
@@ -3391,23 +3394,25 @@ function urgencesListHTML(){
   const autres=items.filter(p=>!used.has(p));
   if(autres.length) buckets.push({label:"Autres",list:autres});
   const nonEmpty=buckets.filter(b=>b.list.length);
-  return nonEmpty.map((b,idx)=>{
+  let vitalHtml='', rows='';
+  nonEmpty.forEach((b,idx)=>{
     if(b.label==="Secours vital"){
       const halves=b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>{
         const tel=(p.tel||'').replace(/\s/g,'');
         return '<a class="urg-vhalf" href="tel:'+esc(tel)+'"><b>'+esc(urgShort(p))+'</b><em>'+esc(p.tel)+'</em></a>';
       }).join('');
-      return '<div class="urg-vital">'+halves+'</div>';
+      vitalHtml='<div class="urg-vital">'+halves+'</div>'; return;
     }
     const open=urgCat===idx;
     const sqs='<div class="urg-slider">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(urgSq).join('')+'</div>';
     const cc=URG_CATC[b.label]||'#f5c542';
-    return '<button class="urg-catbtn '+(open?'open':'')+'" style="background:'+cc+'" onclick="toggleUrgCat(this,'+idx+')">'+
-      '<span class="urg-cbleft"><span class="urg-cbic"><span class="ic">'+(b.label==='Violences · femmes'?URG_FEMME:icon(URG_CATK[b.label]||'phone'))+'</span></span>'+
+    rows+='<button class="urg-catbtn '+(open?'open':'')+'" style="border-left-color:'+cc+'" onclick="toggleUrgCat(this,'+idx+')">'+
+      '<span class="urg-cbleft"><span class="urg-cbic" style="color:'+cc+'"><span class="ic">'+(b.label==='Violences · femmes'?URG_FEMME:icon(URG_CATK[b.label]||'phone'))+'</span></span>'+
       '<span class="urg-cblab">'+esc(b.list.length>1&&URG_PLURIEL[b.label]?URG_PLURIEL[b.label]:b.label)+'</span></span>'+
       '<span class="urg-cbright"><span class="urg-cbn">'+b.list.length+'</span><span class="urg-cbsign"></span></span>'+
     '</button><div class="urg-acc '+(open?'open':'')+'"><div class="urg-acc-inner">'+sqs+'</div></div>';
-  }).join('');
+  });
+  return vitalHtml+'<div class="urgwrap">'+rows+'</div>';
 }
 function setAcc(acc,open){const inner=acc.querySelector('.urg-acc-inner');acc.style.height=open?inner.scrollHeight+'px':'0px';}
 function toggleUrgCat(btn,i){
