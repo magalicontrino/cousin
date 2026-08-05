@@ -220,6 +220,25 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .dayh{font-size:14px;font-weight:800;text-transform:uppercase;margin:14px 0 4px}
 .dayh.auj{color:var(--rouge)}
 
+/* ---- formations : carte blanche cerclée de noir (choix « 2 » de Mag, 05/08/2026) ---- */
+.flc{background:#fff;border:2px solid var(--noir);border-radius:0;margin-bottom:12px;padding:13px 13px 12px;cursor:pointer}
+.flc .ft{display:flex;gap:11px;align-items:flex-start;text-align:left}
+.flc .frond{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:var(--noir)}
+.flc .frond .ic{width:18px;height:18px}
+.flc .ftx{flex:1;min-width:0}
+.flc .ftx b{font-size:14.5px;font-weight:800;line-height:1.2;display:block}
+.flc .ftx em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--enc2);margin-top:3px}
+.flc .fet{margin-top:11px;border-top:1px solid var(--ligne)}
+.flc .fe{display:flex;gap:10px;align-items:center;width:100%;text-align:left;
+  border:0;border-bottom:1px solid var(--ligne);border-radius:0;padding:8px 2px;font-size:13px;background:transparent}
+.flc .fe i{font-style:normal;width:20px;height:20px;flex:none;border:1.5px solid var(--noir);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.flc .fe.faite i{background:#6cb392;border-color:#6cb392}
+.flc .fe.faite span{color:var(--enc2);text-decoration:line-through}
+.flc .ftest{display:inline-flex;align-items:center;gap:8px;margin-top:11px;border:1px solid var(--noir);border-radius:0;
+  padding:8px 12px;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;background:transparent}
+.flc .ftest .ic{width:14px;height:14px}
+
 /* ---- fiche : en-tête cadré, couleur du domaine ---- */
 .fhead{border-top:1px solid var(--ligne);border-bottom:1px solid var(--ligne);
   padding:18px 2px;display:flex;gap:14px;align-items:flex-start}
@@ -3324,6 +3343,51 @@ function fcard(p){
       '<b>'+esc(p.nom)+'</b><small>'+esc(sub)+'</small></span>'+
     heartBtn(p.sid)+'</div>';
 }
+
+/* RAPATRIÉ DE L'APP PRINCIPALE (formations) — la recette qui plaisait à Mag :
+   rond de couleur du thème, durée de lecture, chapitres cochables, « Se tester ».
+   Se corrige dans index.html puis se recopie ici. */
+const THEME_COUL={'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8fd4','Entretien & écoute':'#5b8fd4','Violences':'#fd8fd0',
+  'Premiers pas':'#6cb392','Article 27':'#f5c542','Handicap':'#5b8fd4','Les mots':'#e63329','':'#b28b7a'};
+const THEME_DOM={'Droit des étrangers':'etrangers','Article 27':'culture','Handicap':'handicap'};
+function themeCoul(t){return THEME_COUL[t||'']||'#b28b7a'}
+let FLU;try{FLU=JSON.parse(localStorage.getItem('lux_formations')||'{}')}catch(e){FLU={}}
+function fluSave(){try{localStorage.setItem('lux_formations',JSON.stringify(FLU))}catch(e){}}
+function fluLus(sid){return FLU[sid]||[]}
+function fluToggle(ev,sid,i){ev.stopPropagation();const l=fluLus(sid),k=l.indexOf(i);
+  if(k<0)l.push(i);else l.splice(k,1);FLU[sid]=l;fluSave();render();}
+function formationChapitres(page){
+  const titres=[],re=/<div class="f-h">([\s\S]*?)<\/div>/g;let m;
+  while((m=re.exec(page||'')))titres.push(m[1].replace(/<[^>]*>/g,'').trim());
+  return titres;
+}
+function formationDuree(page){
+  const mots=String(page||'').replace(/<[^>]*>/g,' ').split(/\s+/).filter(Boolean).length;
+  return Math.max(2,Math.round(mots/200));
+}
+function seTester(ev,theme){ev.stopPropagation();quizStart(THEME_DOM[theme]||'all');go('#/quiz');}
+function anneauProg(pct,c){const r=13,circ=2*Math.PI*r;
+  return '<svg viewBox="0 0 32 32" style="width:30px;height:30px;flex:none">'+
+    '<circle cx="16" cy="16" r="'+r+'" fill="none" stroke="var(--ligne)" stroke-width="4"/>'+
+    (pct>0?'<circle cx="16" cy="16" r="'+r+'" fill="none" stroke="'+c+'" stroke-width="4" stroke-dasharray="'+(circ*Math.min(1,pct))+' '+circ+'" stroke-linecap="round" transform="rotate(-90 16 16)"/>':'')+
+  '</svg>';}
+function flCard(p){
+  const ch=formationChapitres(p.page),lus=fluLus(p.sid),coul=themeCoul(p.theme);
+  const met=(p.metiers&&p.metiers.length)?' · '+p.metiers.join(' · '):'';
+  const etapes=ch.length?'<div class="fet">'+ch.map((t,i)=>{
+    const fait=lus.indexOf(i)>=0;
+    return '<button class="fe'+(fait?' faite':'')+'" onclick="fluToggle(event,\''+p.sid+'\','+i+')">'+
+      '<i>'+(fait?'✓':(i+1))+'</i><span>'+esc(t.replace(/^\d+\.\s*/,''))+'</span></button>';
+  }).join('')+'</div>':'';
+  return '<div class="flc" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')">'+
+    '<div class="ft"><span class="frond" style="background:'+coul+'"><span class="ic">'+icon('book')+'</span></span>'+
+    '<span class="ftx"><b>'+esc(p.nom)+'</b><em>'+esc((p.theme||'Formation')+met)+' · '+formationDuree(p.page)+' min</em></span>'+
+    anneauProg(ch.length?lus.length/ch.length:0,'#6cb392')+'</div>'+
+    etapes+
+    '<button class="ftest" onclick="seTester(event,\''+esc(p.theme||'').replace(/'/g,"\\'")+'\')">'+
+      '<span class="ic">'+icon('bulb')+'</span>Se tester sur ce sujet</button>'+
+  '</div>';
+}
 function vDomaine(key){
   const d=DOM[key];
   let items=DATA.filter(p=>p.domaine===key);
@@ -3386,7 +3450,8 @@ function vDomaine(key){
     '<h1>'+esc(d.label)+'</h1><span class="pastille" style="background:'+dc(key)+'">'+
       (items.length+ (grpHtml? '+' : ''))+' FICHE'+(items.length>1?'S':'')+'</span></div>'+
     rail(key)+chips+
-    '<div class="cards">'+(items.length||grpHtml?items.map(fcard).join('')+grpHtml:
+    '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
+    (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
     '</div>';
 }
