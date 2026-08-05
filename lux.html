@@ -147,24 +147,24 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tile:nth-child(2n){border-right:0}
 .tile:active{background:var(--noir);color:#f4f3f1}
 .tile:active small{color:rgba(242,238,230,.6)}
+/* Au survol (souris) : la case s'inverse en noir — « sinon, on ne voit rien » (Mag). */
+@media (hover:hover){
+  .tile:hover{background:var(--noir);color:#f4f3f1}
+  .tile:hover b{color:#f4f3f1!important}
+  .tile:hover .tn,.tile:hover .tn2{color:rgba(242,238,230,.6)}
+}
+.tile:active b{color:#f4f3f1!important}
+.tile:active .tn,.tile:active .tn2{color:rgba(242,238,230,.6)}
 .tile b{font-family:ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.2em;
   text-transform:uppercase;line-height:1.4}
 .tile .tn{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;color:var(--enc2);margin-left:7px;font-weight:500}
 .tile .pi{margin:auto auto 0;width:42px;height:42px}
 .tile .pi .ic{width:100%;height:100%}
-/* Réseau : cartes « autocollantes » — blanches, trait noir, ombre pleine décalée ;
-   on appuie, la carte s'enfonce (choix « 2 » de Mag, 05/08/2026). Seulement le Réseau :
-   les pavés du Centre gardent leur grille au trait. */
-.dgrid.stick{gap:12px;border:0;padding:2px 2px 8px}
-.dgrid.stick .tile{background:var(--creme);border:1.5px solid var(--noir);box-shadow:4px 4px 0 var(--noir);
-  transition:transform .1s ease,box-shadow .1s ease}
-.dgrid.stick .tile:nth-child(2n){border-right:1.5px solid var(--noir)}
-/* À l'appui : la carte s'enfonce, et RIEN ne pâlit — texte et picto restent noirs
-   (le pâlissement venait de l'inversion générale des .tile, neutralisée ici). */
-.dgrid.stick .tile:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--noir);background:var(--creme);color:var(--noir)}
-.dgrid.stick .tile:active b,.dgrid.stick .tile:active .ic,.dgrid.stick .tile:active .pi{color:var(--noir)}
-.dgrid.stick .tile:active small{color:var(--enc2)}
-.dgrid.stick .tile:active .tn{color:var(--enc2)}
+/* Réseau : la grille fine au trait (l'autocollant essayé puis écarté par Mag le 05/08/2026),
+   avec un CARRÉ de couleur devant le nom — plus gros que la police — et le compte dessous. */
+.tsq{display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-3px;flex:none}
+.tn2{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
+  color:var(--enc2);font-weight:500;margin:4px 0 0 24px}
 .foot{padding:18px 0 30px;text-align:center;font-size:12px;color:#a3a19c}
 
 /* ---- rail des domaines : cases au trait collées, l'active s'inverse (choix « 2 » de Mag) ---- */
@@ -3127,11 +3127,16 @@ function render(){
 }
 
 /* ---------- accueil ---------- */
-function tile(d){
+function tile(d,reseau){
   const n=DATA.filter(p=>p.domaine===d.key).length;
-  return '<button class="tile" onclick="go(\'#/d/'+d.key+'\')">'+
-    '<b><i class="tdot" style="background:'+dc(d.key)+'"></i>'+esc(d.short||d.label)+
-    '<span class="tn">'+n+'</span></b>'+
+  /* Réseau : CARRÉ de couleur plus gros que la police + compte dessous (sa maquette).
+     Ailleurs (Centre) : le petit rond et le compte sur la ligne, inchangés. */
+  const lab=reseau
+    ?'<b style="color:var(--noir)"><i class="tsq" style="background:'+dc(d.key)+'"></i>'+esc(d.short||d.label)+'</b>'+
+     '<span class="tn2">'+n+'</span>'
+    :'<b><i class="tdot" style="background:'+dc(d.key)+'"></i>'+esc(d.short||d.label)+
+     '<span class="tn">'+n+'</span></b>';
+  return '<button class="tile" onclick="go(\'#/d/'+d.key+'\')">'+lab+
     '<span class="pi"><span class="ic">'+icon(d.ic)+'</span></span></button>';
 }
 function doo(f,col,size){const t=(typeof size==='number')?size+'px':size;
@@ -3326,7 +3331,7 @@ function vReseau(){
   const reseau=DOMAINES.filter(d=>d.reseau);
   return '<div class="subtop"><h1 style="font-size:22px;padding-top:6px">Réseau</h1>'+
     '<span class="count">'+reseau.length+' domaines</span></div>'+
-    '<div class="dgrid stick" style="margin-top:8px">'+reseau.map(tile).join('')+'</div>'+
+    '<div class="dgrid" style="border-top:1px solid var(--ligne);margin-top:6px">'+reseau.map(x=>tile(x,true)).join('')+'</div>'+
     '<div style="height:20px"></div>';
 }
 
