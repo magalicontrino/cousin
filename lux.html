@@ -182,6 +182,43 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .quizbar{display:flex;align-items:center;gap:10px;justify-content:center;width:100%;
   background:var(--noir);color:#f2eee6;border-radius:0;padding:13px 12px;font-weight:800;font-size:14.5px;margin-bottom:12px}
 .quizbar .ic{width:19px;height:19px}
+
+/* ---- les chambres (rapatrié de l'app principale, habillé Lux) ---- */
+.chadd{display:flex;gap:8px;margin:10px 0 10px}
+.chadd input{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;
+  border:1px solid var(--ligne);border-radius:0;padding:11px 12px}
+.chadd input:focus{outline:0;border-color:var(--noir)}
+.chaddbtn{flex:none;background:var(--noir);color:#f2eee6;border-radius:0;padding:11px 16px;
+  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+.chrgpd{display:flex;gap:10px;border:1px solid var(--ligne);border-left:7px solid #f5c542;background:#f4f3f0;
+  padding:11px 12px;font-size:12.5px;color:var(--enc2);line-height:1.45;margin-bottom:14px}
+.chrgpd .ic{width:18px;height:18px;flex:none;color:var(--noir);margin-top:1px}
+.chrgpd b{color:var(--noir)}
+.chc{border:1px solid var(--ligne);background:#f4f3f0;margin-bottom:8px}
+.chc.finie{opacity:.62}
+.chh{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px;background:transparent;border:0;border-radius:0}
+.chnum{font-size:19px;font-weight:800}
+.chini{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--noir);background:rgba(27,27,27,.09);padding:3px 7px}
+.chg{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--noir);flex:none}
+.chprog{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:var(--enc2)}
+.chfin{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;color:#1b1b1b;background:#6cb392;padding:3px 8px}
+.chchev{width:13px;height:13px;flex:none;color:var(--enc2)}
+.chcorps{border-top:1px solid var(--ligne);padding:4px 12px 10px}
+.chet{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;
+  border:0;border-bottom:1px solid #e2e0db;border-radius:0;padding:10px 0}
+.chet:last-of-type{border-bottom:0}
+.chet i{font-style:normal;width:22px;height:22px;flex:none;border:1.5px solid var(--noir);background:transparent;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--noir)}
+.chet b{display:block;font-size:14px;font-weight:800;line-height:1.2}
+.chet em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:2px}
+.chet.ok b{text-decoration:line-through;color:var(--enc2)}
+.chet .chq{margin-left:auto;flex:none}
+.chdel{width:100%;background:transparent;border:1px solid var(--ligne);border-radius:0;margin-top:9px;
+  padding:9px;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:600;color:var(--danger)}
 /* Réseau : le picto dans le coin bas-droit de la case (demande de Mag, 05/08/2026). */
 .dgrid.res .tile .pi{margin:auto 0 0 auto}
 /* Le grand carré de couleur qui porte le picto (pavés du Centre, choix « 3 »). */
@@ -3080,6 +3117,84 @@ function quand(ts){
   return 'il y a '+Math.floor(j/7)+' semaines';
 }
 
+/* ---------- LES CHAMBRES (rapatrié de l'app principale, 05/08/2026) ----------
+   Le parcours d'une chambre quand quelqu'un part : désencoder, vider, nettoyer, libérer.
+   Ici en maquette (sur cet appareil) ; avec la connexion, la liste sera partagée par
+   toute l'équipe et chaque coche portera le nom et l'heure, comme dans l'app principale.
+   Étapes et étages recopiés d'index.html — à resynchroniser si ça change là-bas. */
+const CH_ETAPES=[
+  {k:'desencode', l:'Désencoder',                    qui:'PFO',                        c:'#5b8fd4'},
+  {k:'vide',      l:'Vider la chambre',              qui:'Aide-soignant',              c:'#f5c542'},
+  {k:'affaires',  l:'Affaires mises de côté',        qui:'si la personne en a laissé', c:'#b28b7a', opt:true},
+  {k:'nettoye',   l:'Nettoyer',                      qui:'Entretien',                  c:'#6cb392'},
+  {k:'libere',    l:'Libérer sur la liste étage',    qui:'PFO',                        c:'#f8763f'}
+];
+const ETAGES_FEMMES=[3,6];
+function etageDe(num){const m=String(num||'').match(/^(\d)/);return m?parseInt(m[1],10):0}
+function genreEtage(num){const e=etageDe(num);if(!e)return null;
+  return ETAGES_FEMMES.indexOf(e)>=0?{l:'♀',c:'#fd8fd0'}:{l:'♂',c:'#5b8fd4'}}
+const CHKEY='lux_chambres';
+let CHAMBRES; try{CHAMBRES=JSON.parse(localStorage.getItem(CHKEY)||'[]')}catch(e){CHAMBRES=[]}
+let CH_OUVERTES={};
+function chSave(){try{localStorage.setItem(CHKEY,JSON.stringify(CHAMBRES))}catch(e){}}
+function chambreFinie(ch){return CH_ETAPES.filter(e=>!e.opt).every(e=>ch[e.k])}
+function chEnCours(){return CHAMBRES.filter(c=>!chambreFinie(c)).length}
+function ajouterChambre(){
+  const n=document.getElementById('chNum'), i=document.getElementById('chIni');
+  const num=(n&&n.value||'').trim(); if(!num){n&&n.focus();return}
+  CHAMBRES.unshift({id:'c'+Date.now(),numero:num,initiales:(i&&i.value||'').trim().slice(0,14)});
+  chSave(); if(n)n.value=''; if(i)i.value=''; render();
+}
+function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
+function cocherEtape(id,k){
+  const ch=CHAMBRES.find(c=>c.id===id); if(!ch)return;
+  if(ch[k]) delete ch[k]; else ch[k]=Date.now();
+  chSave(); render();
+}
+function retirerChambre(id,num){
+  if(confirm('Retirer la chambre '+num+' de la liste ?')){
+    CHAMBRES=CHAMBRES.filter(c=>c.id!==id); chSave(); render();
+  }
+}
+function chCard(ch){
+  const oblig=CH_ETAPES.filter(e=>!e.opt);
+  const faites=oblig.filter(e=>ch[e.k]).length, finie=faites===oblig.length;
+  const g=genreEtage(ch.numero), ouverte=!!CH_OUVERTES[ch.id];
+  return '<div class="chc'+(finie?' finie':'')+'">'+
+    '<button class="chh" onclick="toggleChambre(\''+ch.id+'\')">'+
+      '<span class="chnum">'+esc(ch.numero)+'</span>'+
+      (ch.initiales?'<span class="chini">'+esc(ch.initiales)+'</span>':'')+
+      (g?'<span class="chg" style="background:'+g.c+'">'+g.l+'</span>':'')+
+      '<span style="flex:1"></span>'+
+      (finie?'<span class="chfin">Libérée ✓</span>':'<span class="chprog">'+faites+'/'+oblig.length+'</span>')+
+      '<span class="ic chchev" style="transform:rotate('+(ouverte?'90deg':'-90deg')+')">'+icon('chevron')+'</span>'+
+    '</button>'+
+    (ouverte?'<div class="chcorps">'+
+      CH_ETAPES.map(e=>'<button class="chet'+(ch[e.k]?' ok':'')+'" onclick="cocherEtape(\''+ch.id+'\',\''+e.k+'\')">'+
+        '<i style="'+(ch[e.k]?'background:'+e.c+';border-color:'+e.c:'')+'">'+(ch[e.k]?'✓':'')+'</i>'+
+        '<span><b>'+e.l+'</b><em>'+esc(e.qui)+(e.opt?' · facultatif':'')+'</em></span>'+
+        (ch[e.k]?'<em class="chq">'+new Date(ch[e.k]).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'})+'</em>':'')+
+      '</button>').join('')+
+      '<button class="chdel" onclick="retirerChambre(\''+ch.id+'\',\''+esc(ch.numero)+'\')">Retirer cette chambre</button>'+
+    '</div>':'')+
+  '</div>';
+}
+function vChambres(){
+  const encours=CHAMBRES.filter(c=>!chambreFinie(c)), finies=CHAMBRES.filter(chambreFinie).slice(0,8);
+  return '<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+    '<h1>Chambres</h1><span class="pastille" style="background:#f8763f">'+encours.length+' EN COURS</span></div>'+
+    '<div class="chadd">'+
+      '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
+      '<input id="chIni" type="text" maxlength="14" placeholder="Ex. M.D. ou Marie D." autocomplete="off">'+
+      '<button class="chaddbtn" onclick="ajouterChambre()">Ajouter</button>'+
+    '</div>'+
+    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Les initiales</b>, ou le <b>prénom et la première lettre du nom</b>. <b>Jamais le nom complet.</b> C\'est seulement pour savoir quel lit débarrasser quand la chambre est à deux — retire la chambre de la liste une fois qu\'elle est libérée.</span></div>'+
+    (encours.length?'<div class="ghead">En cours <span style="color:var(--enc2)">'+encours.length+'</span></div>'+encours.map(chCard).join(''):'')+
+    (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
+    (!CHAMBRES.length?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b><p>Ajoute un numéro quand une personne part.</p></div>':'')+
+    '<p class="hint" style="margin:14px 0 26px">Sur cet appareil pour l\'instant. Avec la connexion, la liste sera partagée par toute l\'équipe et chaque coche portera un nom et une heure.</p>';
+}
+
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
 const FKEY='lux_favs';
 let FAVS;
@@ -3126,6 +3241,7 @@ function parseRoute(){
   if(seg[0]==='ticket') return {view:'ticket'};
   if(seg[0]==='fil') return {view:'fil'};
   if(seg[0]==='liste') return {view:'liste'};
+  if(seg[0]==='chambres') return {view:'chambres'};
   if(seg[0]==='reseau') return {view:'reseau'};
   if(seg[0]==='quartier') return {view:'quartier'};
   if(seg[0]==='favoris') return {view:'favoris'};
@@ -3172,6 +3288,7 @@ function render(){
   else if(current.view==='ticket') view.innerHTML=vTicket();
   else if(current.view==='fil') view.innerHTML=vFil();
   else if(current.view==='liste') view.innerHTML=vListe();
+  else if(current.view==='chambres') view.innerHTML=vChambres();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
@@ -3257,7 +3374,12 @@ function vHome(){
         (col?'<button class="hc s" onclick="goFiche(/poubelle/i)">'+
           '<span class="ic" style="width:20px;height:20px;color:'+POUB_COUL[col.sacs[0].c]+'">'+icon('poubelle')+'</span>'+
           '<span class="sub" style="margin:0;color:'+(col.urgent?'#e63329':'#5a564e')+'">'+esc(col.quand.charAt(0).toUpperCase()+col.quand.slice(1))+' · '+esc(sacsTexte(col.sacs))+'</span></button>':'')+
-        /* Démarches n'est PLUS ici : il vit dans les outils du Centre (Mag, 05/08/2026). */
+        /* Démarches n'est PLUS ici : il vit dans les outils du Centre (Mag, 05/08/2026).
+           Les chambres n'apparaissent QUE s'il y en a en cours — sinon on ne les montre pas. */
+        (chEnCours()?'<button class="hc w" onclick="go(\'#/chambres\')">'+
+          '<span class="lab"><i class="tdot" style="background:#f8763f"></i>Chambres</span>'+
+          '<span class="sub" style="margin:0 0 0 8px">'+chEnCours()+' en cours</span>'+
+          '<span style="flex:1"></span><span class="ic" style="width:26px;height:26px">'+icon('cle')+'</span></button>':'')+
         '<button class="hc w" onclick="go(\'#/liste\')">'+
           '<span class="lab"><i class="tdot" style="background:#5b8fd4"></i>Ma liste du jour</span>'+
           '<span style="flex:1"></span><span class="ic" style="width:28px;height:28px">'+icon('list')+'</span></button>'+
@@ -3310,6 +3432,10 @@ function vCentre(){
       '<span class="psq" style="background:#6cb392"><span class="ic">'+icon('pin')+'</span></span></button>'+
     '</div>'+
     '<div class="ghead">Le quotidien</div>'+
+    /* Les chambres : le parcours quand quelqu'un part (rapatrié de l'app principale). */
+    '<button class="tcard" onclick="go(\'#/chambres\')">'+
+    '<span class="tic" style="color:#f8763f"><span class="ic">'+icon('cle')+'</span></span>'+
+    '<span class="ttx"><b>Chambres</b><em>'+(chEnCours()?chEnCours()+' en cours — vider, nettoyer, libérer':'Vider, nettoyer, libérer')+'</em></span><span class="chev">›</span></button>'+
     '<button class="tcard" onclick="go(\'#/liste\')">'+
     '<span class="tic" style="color:#5b8fd4"><span class="ic">'+icon('list')+'</span></span>'+
     '<span class="ttx"><b>Ma liste du jour</b><em>Ta check-list — avec la connexion</em></span><span class="chev">›</span></button>'+
