@@ -3949,6 +3949,40 @@ function anneauProg(pct,c){const r=13,circ=2*Math.PI*r;
     '<circle cx="16" cy="16" r="'+r+'" fill="none" stroke="var(--ligne)" stroke-width="4"/>'+
     (pct>0?'<circle cx="16" cy="16" r="'+r+'" fill="none" stroke="'+c+'" stroke-width="4" stroke-dasharray="'+(circ*Math.min(1,pct))+' '+circ+'" stroke-linecap="round" transform="rotate(-90 16 16)"/>':'')+
   '</svg>';}
+/* LA PAGE FORMATIONS redessinée (handoff) : bandeau noir, « À reprendre » en
+   carrousel de modules colorés, puis tous les modules en registre cerclé. */
+function vFormations(){
+  const mods=DATA.filter(p=>p.domaine==='formations');
+  const avance=function(p){const ch=formationChapitres(p.page);return ch.length?fluLus(p.sid).length/ch.length:0};
+  const commences=mods.filter(p=>fluLus(p.sid).length>0);
+  const areprendre=(commences.length?commences:mods).slice(0,6);
+  let h=heroBandeau('Formations', mods.length+' modules · '+commences.length+' commencé'+(commences.length>1?'s':''), '#6cb392','book', false);
+
+  h+='<div class="sect"><b>À reprendre</b><em>Glisse →</em></div>'+
+    '<div class="rail2">'+areprendre.map(function(p,i){
+      const ch=formationChapitres(p.page), lus=fluLus(p.sid).length, c=themeCoul(p.theme);
+      const noir=(i%2===0);
+      return '<button class="fmod'+(noir?' noir':' plein')+'"'+(noir?'':' style="background:'+c+'"')+' onclick="go(\'#/f/'+p.sid+'\')">'+
+        '<span class="ic" style="color:'+(noir?c:'#1b1b1b')+'">'+icon('book')+'</span>'+
+        '<b>'+esc(p.nom)+'</b>'+
+        '<em'+(noir?' style="color:'+c+'"':'')+'>'+(ch.length?lus+' / '+ch.length+' chapitres · ':'')+formationDuree(p.page)+' min</em></button>';
+    }).join('')+
+    '<span class="fmod plein" style="background:#f5c542;width:70px;min-height:172px;padding:15px" aria-hidden="true">'+
+      '<span class="ic" style="color:#1b1b1b;width:30px;height:30px;margin:auto 0 0 auto">'+icon('book')+'</span></span>'+
+    '</div>'+pagination(areprendre.length);
+
+  h+='<div class="sectl">Tous les modules</div><div class="flist">'+
+    mods.map(function(p){
+      const ch=formationChapitres(p.page), lus=fluLus(p.sid).length, c=themeCoul(p.theme);
+      const fini=(ch.length&&lus>=ch.length);
+      return '<button class="frow2" onclick="go(\'#/f/'+p.sid+'\')">'+
+        '<span class="rd" style="background:'+c+'"><span class="ic">'+icon('book')+'</span></span>'+
+        '<span class="tx"><b>'+esc(p.nom)+'</b><em>'+(ch.length?lus+' / '+ch.length+' chapitres · ':'')+formationDuree(p.page)+' min</em></span>'+
+        (fini?'<span class="chfin">✓</span>':'<span class="chv" style="font-size:19px;opacity:.45">›</span>')+
+      '</button>';
+    }).join('')+'</div><div style="height:26px"></div>';
+  return h;
+}
 function flCard(p){
   const ch=formationChapitres(p.page),lus=fluLus(p.sid),coul=themeCoul(p.theme);
   const met=(p.metiers&&p.metiers.length)?' · '+p.metiers.join(' · '):'';
@@ -4023,6 +4057,7 @@ function vDomaine(key){
     const cpas=items.filter(estCpas);
     if(cpas.length>3){ items=items.filter(p=>!estCpas(p)); grpHtml=grpCpas(cpas); }
   }
+  if(d.isFormation && filt.tag==='Tout' && filt.commune==='Toutes') return vFormations();
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
     rail(key)+chips+
     '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
