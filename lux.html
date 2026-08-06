@@ -5620,10 +5620,13 @@ function grpDuMetier(m){ return GROUPE_DE_METIER[m]||'C'; }
    l'écran d'en dessous qu'on veut regarder (Mag, 06/08/2026). */
 let APERCU_OUVERT=false;
 function apercuOuvrir(){ APERCU_OUVERT=!APERCU_OUVERT; render(); }
-/* Un clic à côté referme la carte : elle ne doit pas rester dans les pattes. */
+/* Un clic à côté referme la carte : elle ne doit pas rester dans les pattes.
+   ⚠ On EXCLUT les boutons qui l'ouvrent (l'œil du rail, la boule) : sinon ce
+   guetteur fermait la carte juste avant que le bouton ne la rouvre, et l'œil
+   semblait ne plus rien faire (Mag, 06/08/2026). */
 document.addEventListener('click',function(e){
   if(!APERCU_OUVERT) return;
-  if(e.target.closest && e.target.closest('.bascule')) return;
+  if(e.target.closest && e.target.closest('.bascule,.bboule,.apercuvr')) return;
   APERCU_OUVERT=false; render();
 },true);
 /* La lettre portée par la boule quand un aperçu tourne : impossible d'oublier
@@ -5783,6 +5786,22 @@ async function loadAdmin(){
     const {data}=await sb.from('access_requests').select('id,email,mot,cree_le').eq('statut','en_attente').order('cree_le',{ascending:false});
     ADMIN.requests=data||[];
   }catch(e){}
+  /* LES CONNEXIONS D'AVANT NOTRE COMPTEUR. Il n'existe que depuis le 2 août ;
+     Supabase, lui, note depuis toujours la dernière ouverture de session. Sans ça,
+     l'écran disait « personne ne s'est encore connecté » alors que toute l'équipe
+     l'avait déjà fait. ⚠ Ce n'est PAS la même chose que nos visites : ouvrir une
+     SESSION, c'est retaper son compte Google — ça n'arrive qu'une fois de temps en
+     temps. C'est dit tel quel dans l'écran. */
+  try{
+    const {data}=await sb.rpc('connexions_equipe');
+    if(data&&data.length){
+      const parMail={}; data.forEach(function(x){ parMail[String(x.email).toLowerCase()]=x; });
+      ADMIN.members.forEach(function(m){
+        const st=parMail[String(m.email||'').toLowerCase()];
+        if(st) m.dernier_login=st.dernier_login;
+      });
+    }
+  }catch(e){}
   adminLoaded=true;
 }
 /* On relit l'équipe en ouvrant la page, pas plus d'une fois par minute. */
@@ -5805,6 +5824,21 @@ function admActif(email,on){
       toast(on?'Compte réactivé ✓':'Compte coupé');
       admRefaire();
     }, {ok:on?'Réactiver':'Couper', danger:!on});
+}
+function etageInfi(m){
+  const l=Array.isArray(m.listes)?m.listes:[];
+  if(l.indexOf('médical-rez')>=0) return 'rez';
+  if(l.indexOf('médical-2e')>=0) return '2e';
+  return '';
+}
+async function admReferent(email,on){
+  try{ await sb.from('allowed_emails').update({referent:on}).eq('email',email); admRefaire(); }catch(e){ toast('Refusé'); }
+}
+async function admEtageInfi(email,etage){
+  const m=ADMIN.members.find(x=>x.email===email); if(!m) return;
+  const actuel=etageInfi(m);
+  const listes = (actuel===etage) ? [] : [etage==='rez'?'médical-rez':'médical-2e'];
+  try{ await sb.from('allowed_emails').update({listes:listes}).eq('email',email); admRefaire(); }catch(e){ toast('Refusé'); }
 }
 async function admPfo(email,on){
   try{ await sb.from('allowed_emails').update({pfo:on}).eq('email',email); admRefaire(); }catch(e){ toast('Refusé'); }
@@ -5877,6 +5911,21 @@ async function admDemande(id,action,email){
         admRefaire();
       }catch(e){ toast('Refusé par la base'); }
     }, {ok:mots[action], danger:action!=='approuver'});
+}
+/* « il y a 4 jours », « il y a 3 h » — la distance, pas la date : c'est ce qu'on
+   cherche à savoir quand on regarde qui est venu. */
+function depuis(iso){
+  if(!iso) return null;
+  const t=new Date(iso); if(isNaN(t)) return null;
+  const min=Math.floor((Date.now()-t.getTime())/60000);
+  if(min<2) return "à l'instant";
+  if(min<60) return 'il y a '+min+' min';
+  const h=Math.floor(min/60); if(h<24) return 'il y a '+h+' h';
+  const j=Math.floor(h/24);
+  if(j===1) return 'hier';
+  if(j<31) return 'il y a '+j+' jours';
+  const mo=Math.floor(j/30);
+  return 'il y a '+mo+' mois';
 }
 /* « le 29 juillet à 9 h 12 » — pour savoir quand la demande est arrivée. */
 function quandFr(iso){
@@ -6136,6 +6185,30 @@ function vAdmin(){
     h+='</div>';
   }
 
+  /* --- QUI EST VENU : la même liste, mais rangée par dernière visite --- */
+  const venus=mem.slice().sort(function(a,b){
+    const va=new Date(a.derniere_connexion||a.dernier_login||0).getTime();
+    const vb=new Date(b.derniere_connexion||b.dernier_login||0).getTime();
+    return vb-va;
+  });
+  const recents=venus.filter(function(m){ return m.derniere_connexion||m.dernier_login; }).length;
+  h+='<button class="acc'+(ADM_SECTION==='venus'?' open':'')+'" style="margin-top:12px" onclick="admSection(\'venus\')">'+
+     '<b>Qui est venu</b><span class="n">'+recents+' sur '+mem.length+' déjà entrés</span>'+
+     '<span class="sg">'+(ADM_SECTION==='venus'?'⌄':'›')+'</span></button>';
+  if(ADM_SECTION==='venus'){
+    h+='<div class="rlist">'+venus.map(function(m){
+      const q=depuis(m.derniere_connexion)||depuis(m.dernier_login);
+      const sess=!m.derniere_connexion&&m.dernier_login;
+      return '<div class="role"'+(q?'':' style="opacity:.5"')+'>'+
+        '<b>'+esc(m.nom||m.email)+'</b>'+
+        '<span class="n">'+(q? esc(q)+(sess?' · session':'')+(m.visites?' · '+m.visites+' visites':'')
+                             : 'jamais entré')+'</span></div>';
+    }).join('')+'</div>'+
+    '<div class="fsrc" style="text-align:left;padding:10px 0 0">« Session » veut dire : la dernière fois '+
+    'que la personne a retapé son compte Google. Ça n’arrive qu’une fois de temps en temps — ce n’est pas '+
+    'la dernière fois qu’elle a ouvert COUSIN.</div>';
+  }
+
   /* --- L'équipe --- */
   h+='<button class="acc'+(ADM_SECTION==='eq'?' open':'')+'" style="margin-top:12px" onclick="admSection(\'eq\')">'+
      '<b>L’équipe</b><span class="n">'+mem.length+' inscrits · '+actifs+' actifs</span>'+
@@ -6177,8 +6250,18 @@ function vAdmin(){
             '</select></div>'+
           '<div class="fchips">'+
             '<button class="fchip'+(m.pfo?' on':'')+'" onclick="admPfo(\''+esc(m.email)+'\','+(m.pfo?'false':'true')+')">PFO</button>'+
+            '<button class="fchip'+(m.referent?' on':'')+'" onclick="admReferent(\''+esc(m.email)+'\','+(m.referent?'false':'true')+')">Référent·e</button>'+
             '<button class="fchip'+(off?'':' on')+'" onclick="admActif(\''+esc(m.email)+'\','+(off?'true':'false')+')">'+(off?'Coupé':'Actif')+'</button>'+
           '</div>'+
+          /* Les infirmières font le même métier au rez et à l'étage, mais pas les mêmes
+             tâches : chacune reçoit la liste de son poste (rapatrié de l'app d'avant). */
+          (/infi/i.test(m.equipe||'')
+            ? '<div style="font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8984;margin-top:4px">Son poste</div>'+
+              '<div class="fchips">'+
+                '<button class="fchip'+(etageInfi(m)==='rez'?' on':'')+'" onclick="admEtageInfi(\''+esc(m.email)+'\',\'rez\')">Rez-de-chaussée</button>'+
+                '<button class="fchip'+(etageInfi(m)==='2e'?' on':'')+'" onclick="admEtageInfi(\''+esc(m.email)+'\',\'2e\')">2e étage</button>'+
+              '</div>'
+            : '')+
           '<div style="font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8984;margin-top:4px">Ses check-lists</div>'+
           '<div class="fchips">'+LISTE_ORDER.map(function(k){
               const on=Array.isArray(m.listes)&&m.listes.indexOf(k)>=0;
@@ -7553,7 +7636,7 @@ function renderTabs(){
       '<span class="db"><span class="ic">'+icon(t[2])+'</span></span>'+
       '<span class="lbl">'+t[1]+'</span></button>').join('')+'</div>'+
     '<div class="railsec">'+S.map(x=>
-      '<button class="'+(x[0]==='@apercu'?(enApercu()?'vueon':''):(x[0]==='#/'+v?'on':''))+'"'+
+      '<button class="'+(x[0]==='@apercu'?('apercuvr'+(enApercu()?' vueon':'')):(x[0]==='#/'+v?'on':''))+'"'+
       (x[3]?' style="--c:'+x[3]+'"':'')+' onclick="'+
       (x[0]==='@idee'?'ouvrirIdee()':x[0]==='@apercu'?'apercuOuvrir()':'go(\''+x[0]+'\')')+'"><span class="ic"'+
       (x[3]?' style="color:'+x[3]+'"':'')+'>'+icon(x[2])+'</span>'+
