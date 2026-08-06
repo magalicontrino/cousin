@@ -255,6 +255,8 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 /* On fait défiler la pile au doigt pour changer de jeu (Mag, 06/08/2026). */
 .pile .pcarte{cursor:grab;user-select:none;-webkit-user-select:none}
 .pile .pcarte.glisse{transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .28s ease}
+/* La copie de la carte qui s'en va : posée au même endroit, par-dessus. */
+.pile .pcarte.fantome{position:absolute;left:10.6%;top:0;margin-left:0;z-index:3}
 .pile .pcarte:active{cursor:grabbing}
 .pilenav{display:flex;align-items:center;gap:10px;margin-top:12px;max-width:380px}
 .pilenav .pgn{padding:0;flex:1;justify-content:flex-start}
@@ -4295,22 +4297,36 @@ function jeuSuivant(){ JEUI=(JEUI+1)%JEUX.length; majPile(1); }
 function jeuPrecedent(){ JEUI=(JEUI-1+JEUX.length)%JEUX.length; majPile(-1); }
 function jeuAleatoire(){ JEUI=Math.floor(Math.random()*JEUX.length); majPile(1); }
 function lancerJeu(){ const j=JEUX[JEUI]; jxJouer(j.k,{t:'tout'}); go('#/quiz'); }
-/* On redessine la pile en place, sans refaire toute la page. */
+/* On redessine la pile TOUT DE SUITE : la carte suivante est déjà en place,
+   et l'ancienne s'envole par-dessus, comme une vraie carte qu'on écarte.
+   (Avant, on attendait la fin de l'animation : il y avait un trou. Mag, 06/08/2026) */
 function majPile(sens){
-  const c=document.getElementById('pcarte');
-  if(c){
-    c.classList.add('glisse');
-    c.style.transform='translateX('+(sens>0?-110:110)+'%) rotate('+(sens>0?-8:8)+'deg)';
-    c.style.opacity='0';
+  const p=document.getElementById('pile');
+  if(!p) return;
+  const ancienne=document.getElementById('pcarte');
+  /* On garde une copie de la carte qui part, posée par-dessus la pile. */
+  let fantome=null;
+  if(ancienne){
+    fantome=ancienne.cloneNode(true);
+    fantome.removeAttribute('id');
+    fantome.classList.add('glisse','fantome');
+    fantome.style.pointerEvents='none';
   }
-  setTimeout(function(){
-    const p=document.getElementById('pile');
-    if(!p) return;
-    const nav=p.nextElementSibling;
-    p.outerHTML=pileJeux();
-    if(nav&&nav.classList.contains('pilenav')) nav.remove();
-    brancherGeste();
-  },160);
+  /* La nouvelle pile est dessinée immédiatement. */
+  const nav=p.nextElementSibling;
+  p.outerHTML=pileJeux();
+  if(nav&&nav.classList.contains('pilenav')) nav.remove();
+  const neuve=document.getElementById('pile');
+  if(fantome&&neuve){
+    neuve.appendChild(fantome);
+    /* un souffle pour que le navigateur prenne la position de départ, puis on l'envoie */
+    requestAnimationFrame(function(){
+      fantome.style.transform='translateX('+(sens>0?-125:125)+'%) rotate('+(sens>0?-12:12)+'deg)';
+      fantome.style.opacity='0';
+    });
+    setTimeout(function(){ fantome.remove(); },320);
+  }
+  brancherGeste();
 }
 /* Le geste : on suit le doigt, et au relâchement on décide. */
 function brancherGeste(){
