@@ -71,6 +71,25 @@ h1,h2,h3{font-weight:800;line-height:1.2}
 .monoS{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#8b8984}
 ::selection{background:#f3c6da}
 
+/* « Ce qu'il faut retenir » : la carte-question de fin de cours (proposition 3). */
+.ret{margin-top:26px}
+.ret-t{font-size:22px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+.ret-s{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:#8b8984;margin:5px 0 14px;padding-bottom:10px;border-bottom:2px solid var(--noir)}
+.ret-c{margin-bottom:12px}
+.ret-q{background:var(--noir);color:#f0efed;border-radius:6px 6px 0 0;padding:13px 14px;
+  font-size:15.5px;font-weight:500;line-height:1.32}
+.ret-q .n{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;
+  color:#f5c542;font-weight:400;margin-bottom:6px}
+/* La réponse et le pourquoi forment UN seul bloc sous la question : pas de marge
+   entre les deux, sinon les filets latéraux se coupent en plein milieu. */
+.ret-r{border:1px solid var(--ligne);border-top:0;background:#fdfdfc;padding:13px 14px 12px;
+  display:flex;gap:7px;font-size:14.5px;line-height:1.4}
+.ret-r i{font-style:normal;color:#6cb392;flex:none}
+.ret-p{border:1px solid var(--ligne);border-top:1px solid var(--ligne);border-radius:0 0 6px 6px;
+  background:#fdfdfc;padding:10px 14px 13px;font-size:12.5px;color:#73716b;line-height:1.5}
+.ret-p b{color:var(--noir);font-weight:700}
+
 /* DANS LE CORPS D'UNE FORMATION (.rich), le texte est écrit à la main : un picto y
    arrive parfois sans sa boîte `.ic`, et un <svg> sans dimension prend alors TOUTE la
    largeur disponible — d'où les pictos géants (Mag, 07/08/2026). On leur impose la
@@ -6651,6 +6670,39 @@ function formationChapitres(page){
   while((m=re.exec(page||'')))titres.push(m[1].replace(/<[^>]*>/g,'').trim());
   return titres;
 }
+/* ═════════════════════════════════════════════════════════════════════════
+   LA CARTE-QUESTION EN FIN DE COURS — proposition 3, choisie par Mag le 07/08/2026
+   (« pas assez schématisé, un peu de couleur, pas très gai d'apprendre comme ça »).
+   Un cours se termine par ce qu'il faut en retenir, posé en QUESTIONS : la question
+   sur fond noir, la réponse, et le pourquoi avec son article de loi.
+
+   ⚠ ON N'INVENTE AUCUNE QUESTION. Seuls les cours dont les questions ont vraiment été
+   ÉCRITES en ont. À ce jour il n'y en a qu'UN : « Adresse de référence, CPAS compétent
+   et agrément », dont les 30 questions ont été rédigées le 31/07/2026 à partir des
+   textes cités dans le cours. Les huit autres formations n'affichent rien du tout,
+   et c'est voulu : une question bâclée sur une règle de droit fait plus de mal que de
+   bien. Pour qu'un cours ait sa récapitulation, il faut d'abord écrire ses questions.
+   ═════════════════════════════════════════════════════════════════════════ */
+const FORMATION_RETENIR={
+  'Adresse de référence, CPAS compétent et agrément': function(){
+    return (typeof QUIZ_ECRIT!=='undefined') ? QUIZ_ECRIT : [];
+  }
+};
+function formationRetenir(p){
+  const f = p && FORMATION_RETENIR[p.nom];
+  if(!f) return '';
+  const qs=f().filter(function(q){ return q && q.q && q.opts && q.pourquoi; });
+  if(!qs.length) return '';
+  return '<div class="ret"><div class="ret-t">Ce qu’il faut retenir</div>'+
+    '<div class="ret-s">'+qs.length+' questions · les réponses sont dessous</div>'+
+    qs.map(function(q,i){
+      return '<div class="ret-c">'+
+        '<div class="ret-q"><span class="n">'+(i+1)+' / '+qs.length+'</span>'+esc(q.q)+'</div>'+
+        '<div class="ret-r"><i>→</i><span>'+esc(q.opts[q.correct])+'</span></div>'+
+        '<div class="ret-p"><b>Pourquoi :</b> '+esc(q.pourquoi)+'</div>'+
+      '</div>';
+    }).join('')+'</div>';
+}
 function formationDuree(page){
   const mots=String(page||'').replace(/<[^>]*>/g,' ').split(/\s+/).filter(Boolean).length;
   return Math.max(2,Math.round(mots/200));
@@ -6852,7 +6904,7 @@ function vFiche(p){
   } else if(p.memo){
     body+='<div class="rich" style="white-space:pre-line">'+esc(p.memo)+'</div>';
   } else if(p.page){
-    body+='<div class="rich">'+p.page+'</div>';
+    body+='<div class="rich">'+p.page+'</div>'+formationRetenir(p);
   }
   /* Les lignes d'information */
   function frow(lab,val,lien){
