@@ -5337,7 +5337,9 @@ const THEME_COUL={'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8f
 const THEME_DOM={'Droit des étrangers':'etrangers','Article 27':'culture','Handicap':'handicap'};
 function themeCoul(t){return THEME_COUL[t||'']||'#b28b7a'}
 let FLU;try{FLU=JSON.parse(localStorage.getItem('lux_formations')||'{}')}catch(e){FLU={}}
-function fluSave(){try{localStorage.setItem('lux_formations',JSON.stringify(FLU))}catch(e){}}
+function fluSave(){try{localStorage.setItem('lux_formations',JSON.stringify(FLU))}catch(e){}
+  /* et dans la base : ce qui est lu ne se reperd pas en changeant de téléphone */
+  if(typeof reglagePousser==='function') reglagePousser('formations',FLU);}
 function fluLus(sid){return FLU[sid]||[]}
 function fluToggle(ev,sid,i){ev.stopPropagation();const l=fluLus(sid),k=l.indexOf(i);
   if(k<0)l.push(i);else l.splice(k,1);FLU[sid]=l;fluSave();render();}
@@ -5686,7 +5688,8 @@ var JXS = (function(){
 })();
 function jxSave(){
   try{ localStorage.setItem('lux_jeux', JSON.stringify(JXS)); }catch(e){}
-  /* la synchronisation viendra avec la connexion */
+  /* et dans la base : les records et l'avancement suivent la personne */
+  if(typeof reglagePousser==='function') reglagePousser('jeux',JXS);
 }
 function jxNote(src, juste){
   jxNoteSemaine(juste);            // le compteur de l'équipe, toutes parties confondues
@@ -6541,8 +6544,87 @@ async function loadProfile(){
     try{ await loadChambres(); }catch(e){}
     // Ses check-lists du jour, et ce qui est déjà coché aujourd'hui.
     try{ await loadListes(); }catch(e){}
+    // Ce qu'elle a lu dans les formations, et où elle en est dans les jeux.
+    try{ await chargerReglages(); }catch(e){}
   }catch(e){}
   profileLoaded=true;
+}
+
+/* ---------- CE QUI NE DOIT PLUS SE PERDRE ----------
+   Règle posée par Mag le 30/07/2026 : « tout ce qui se perd et qui est intéressant de
+   garder, tu le mets en base ». Les chapitres de formation lus et l'avancement des jeux
+   ne vivaient que dans le téléphone. Table `reglages_perso` (chacun ne voit que la sienne).
+   Le téléphone reste la copie de travail : on ne l'écrase que si la lecture a VRAIMENT
+   réussi. */
+const REG_MIGRE='lux_reglages_en_base';
+let _regEnAttente={}, _regMinuteur=null;
+function reglagePousser(cle,valeur){
+  if(!sb||!PROFILE||!PROFILE.uid) return;
+  _regEnAttente[cle]=valeur;
+  /* On attend une seconde : cocher cinq chapitres à la suite ne doit pas déclencher
+     cinq allers-retours vers la base. */
+  clearTimeout(_regMinuteur);
+  _regMinuteur=setTimeout(function(){
+    const lot=_regEnAttente; _regEnAttente={};
+    Object.keys(lot).forEach(function(k){
+      envoiMuet(sb.from('reglages_perso').upsert(
+        {user_id:PROFILE.uid, cle:k, valeur:lot[k], maj_le:new Date().toISOString()},
+        {onConflict:'user_id,cle'}));
+    });
+  },1000);
+}
+/* Un record ne redescend jamais : si un appareil en connaît un meilleur, il gagne. */
+function fusionnerRecords(a,b){
+  const out=Object.assign({},b||{});
+  Object.keys(a||{}).forEach(function(k){
+    if(typeof a[k]==='number'&&(typeof out[k]!=='number'||a[k]>out[k])) out[k]=a[k];
+  });
+  return out;
+}
+async function chargerReglages(){
+  if(!sb||!PROFILE||!PROFILE.uid) return false;
+  let lignes;
+  try{
+    const {data:rows,error}=await sb.from('reglages_perso').select('cle,valeur');
+    if(error) return false;
+    lignes={}; (rows||[]).forEach(r=>{lignes[r.cle]=r.valeur});
+  }catch(e){ return false; }
+  let premiere=false;
+  try{ premiere=!localStorage.getItem(REG_MIGRE); }catch(e){}
+  /* FORMATIONS — la première fois on fait l'UNION : un chapitre lu ici ou là reste lu,
+     on ne redemande à personne de relire ce qu'il a déjà lu. Ensuite la base fait foi,
+     sinon décocher sur un téléphone ne servirait à rien. */
+  const fBase=lignes.formations;
+  if(fBase&&typeof fBase==='object'){
+    if(premiere){
+      Object.keys(fBase).forEach(function(sid){
+        const ici=FLU[sid]||[], la=Array.isArray(fBase[sid])?fBase[sid]:[];
+        const u=ici.slice(); la.forEach(i=>{ if(u.indexOf(i)<0) u.push(i); });
+        FLU[sid]=u;
+      });
+    } else {
+      Object.keys(FLU).forEach(k=>{delete FLU[k]});
+      Object.keys(fBase).forEach(sid=>{FLU[sid]=fBase[sid]});
+    }
+    try{ localStorage.setItem('lux_formations',JSON.stringify(FLU)); }catch(e){}
+  }
+  // JEUX — la base fait foi, sauf les records : on garde toujours le meilleur des deux.
+  const jBase=lignes.jeux;
+  if(jBase&&typeof jBase==='object'){
+    const recs=fusionnerRecords(JXS.rec,jBase.rec);
+    JXS.dom=jBase.dom||JXS.dom||{};
+    JXS.jour=jBase.jour||JXS.jour||{};
+    if(jBase.sem) JXS.sem=jBase.sem;
+    JXS.rec=recs;
+    try{ localStorage.setItem('lux_jeux',JSON.stringify(JXS)); }catch(e){}
+  }
+  // Premier passage sur cet appareil : ce qui n'existait QUE là monte en base.
+  if(premiere){
+    try{ localStorage.setItem(REG_MIGRE,'1'); }catch(e){}
+    reglagePousser('formations',FLU);
+    reglagePousser('jeux',JXS);
+  }
+  return true;
 }
 
 /* ---------- MA LISTE DU JOUR ----------
