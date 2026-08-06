@@ -548,7 +548,11 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tour em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#8b8984}
 .msg{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:15px;color:var(--noir)}
-.msg.epingle{background:var(--noir);color:#f2eee6;border-color:var(--noir)}
+/* ÉPINGLÉ : crème à gros filet doré, pas une dalle noire — la carte noire faisait
+   sévère et assombrissait tout le haut du fil (Mag, 06/08/2026). */
+.msg.epingle{background:#fdfdfc;color:var(--noir);border-color:var(--noir);
+  border-left:7px solid #d9a20b;padding-left:14px}
+.msg.epingle .lab{color:#b7862c}
 .msg .top{display:flex;align-items:center;gap:10px}
 .msg .av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   flex:none;font-size:14px;font-weight:800;color:var(--noir)}
@@ -666,6 +670,10 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .bascule .bgrp button{font-family:ui-monospace,monospace;font-size:9px;font-weight:600;letter-spacing:.1em;
   text-transform:uppercase;color:#f2eee6;border:1px solid rgba(242,238,230,.32);border-radius:999px;padding:5px 10px}
 .bascule .bgrp button.on{background:#f2eee6;color:var(--noir);border-color:#f2eee6}
+.bascule .bmet{font:inherit;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:#f2eee6;background:rgba(242,238,230,.1);
+  border:1px solid rgba(242,238,230,.32);border-radius:6px;padding:7px 9px;max-width:230px}
+.bascule .bmet option{color:#1b1b1b;background:#f2eee6}
 .bascule .bfin{align-self:flex-start;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--jaune);text-decoration:underline}
 .bascule em{font-style:normal;font-size:11px;line-height:1.4;opacity:.72;max-width:240px}
@@ -730,8 +738,6 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .frx button .ic{width:15px;height:15px}
 .frx button em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;font-weight:600}
 .frx button.moi{background:var(--noir);border-color:var(--noir);color:#f2eee6}
-.msg.epingle .frx button{background:rgba(242,238,230,.14);border-color:rgba(242,238,230,.3);color:#f2eee6}
-.msg.epingle .frx button.moi{background:#f2eee6;color:var(--noir)}
 @media (hover:hover){.frx button:hover{transform:translateY(-1px)}}
 /* Épingler et Supprimer sont de VRAIS boutons, pas du texte gris qu'on ne voit pas
    (Mag, 06/08/2026). Supprimer porte le rouge : c'est ce qu'on ne défait pas. */
@@ -743,7 +749,6 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
   .fsup:hover{background:var(--noir);color:#f2eee6}
   .fsup.sup:hover{background:var(--rouge);color:#fff;border-color:var(--rouge)}
 }
-.msg.epingle .fsup{background:transparent;border-color:#f2eee6;color:#f2eee6}
 
 /* ---- les chambres (rapatrié de l'app principale, habillé Lux) ---- */
 .chadd{display:flex;gap:8px;margin:10px 0 10px}
@@ -1268,7 +1273,8 @@ body.no-tabs #tabbar{display:none}
   .frow2:hover,.unum:hover,.tache:hover,.role:hover,.acc:hover,.msg:hover,
   .repli:hover,.pli:hover,.chh:hover,.chet:hover,.cliste:hover{
     transform:translateX(3px);background:#fff}
-  .msg.epingle:hover,.acc.open:hover,.ucat:hover{background:#242424;transform:translateX(3px)}
+  .acc.open:hover,.ucat:hover{background:#242424;transform:translateX(3px)}
+  .msg.epingle:hover{background:#fff;transform:translateX(3px)}
 
   /* 3. Les boutons pleins : ils s'assombrissent un peu */
   .fbtn:hover{background:#fff;box-shadow:0 0 0 1.5px var(--noir)}
@@ -5416,10 +5422,35 @@ document.addEventListener('keydown',function(e){
    ⚠ HONNÊTETÉ : une seule règle d'accès a été décidée à ce jour (le groupe D ne voit
    pas « Les outils de l'équipe » ni l'Admin). Le reste de « qui voit quoi » attend
    notre séance à deux. L'aperçu applique ce qui est décidé, pas plus. */
-let APERCU_TEL=false, APERCU_GRP=null;
+let APERCU_TEL=false, APERCU_GRP=null, APERCU_METIER='';
+/* Le groupe de chaque métier, tel que Mag les a définis (A administration,
+   B coordination, C auprès des personnes, D autour du centre). Choisir un métier
+   revient donc à choisir son groupe : on ne demande pas à Mag de le savoir par cœur. */
+const GROUPE_DE_METIER={
+  'Admin':'A',
+  'Coordi':'B',
+  'TS':'C','Médical':'C','Éduc':'C','Psy':'C','Infi':'C','Aide-soignante':'C',
+  'Travaux / Maintenance':'C','Logistique':'C',
+  'Polyvalent':'D','Agent entretien':'D','Responsable punaise':'D','Article 60':'D'
+};
+function grpDuMetier(m){ return GROUPE_DE_METIER[m]||'C'; }
 function apercuTel(on){ APERCU_TEL=on; render(); window.scrollTo(0,0); }
-function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; render(); }
-function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; render(); }
+function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; APERCU_METIER=''; render(); }
+function apercuMetier(m){
+  APERCU_METIER=m||'';
+  APERCU_GRP = m ? (grpDuMetier(m)==='D'?'D':'ABC') : null;
+  render();
+}
+function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; APERCU_METIER=''; render(); }
+/* Dans le cadre du téléphone, l'app se rouvre dans une fenêtre NEUVE : sans ça elle
+   ne saurait pas qu'on est en aperçu et montrerait la vue de Mag (constaté le 06/08). */
+try{
+  const q=new URLSearchParams(location.search);
+  if(q.get('apercu')==='tel'){
+    if(q.get('grp')) APERCU_GRP=q.get('grp');
+    if(q.get('met')) APERCU_METIER=q.get('met');
+  }
+}catch(e){}
 function enApercu(){ return APERCU_TEL||!!APERCU_GRP; }
 /* Elle reste administratrice pour de vrai ; c'est seulement l'AFFICHAGE qui change. */
 function vueAdmin(){ return !!(PROFILE&&PROFILE.admin) && !APERCU_GRP; }
@@ -5435,13 +5466,22 @@ function barreApercu(){
       '<button class="'+(APERCU_TEL?'on':'')+'" onclick="apercuTel(true)">Téléphone</button>'+
     '</div>'+
     '<div class="bgrp">'+g('ABC','Groupe A · B · C')+g('D','Groupe D')+'</div>'+
+    '<select class="bmet" onchange="apercuMetier(this.value)">'+
+      '<option value="">Ou choisis un métier…</option>'+
+      EQUIPES.map(function(q){ return '<option value="'+esc(q)+'"'+(APERCU_METIER===q?' selected':'')+'>'+
+        esc(q)+' — groupe '+grpDuMetier(q)+'</option>'; }).join('')+
+    '</select>'+
     (enApercu()?'<button class="bfin" onclick="apercuFin()">Revenir à ma vue</button>':'')+
+    (APERCU_METIER?'<em>Tu vois COUSIN comme <b>'+esc(APERCU_METIER)+'</b> — groupe '+grpDuMetier(APERCU_METIER)+'.</em>':'')+
     (APERCU_GRP?'<em>Une seule règle est décidée à ce jour : le groupe D ne voit ni « Les outils de l’équipe » ni l’Admin.</em>':'')+
   '</div>';
 }
 /* Le cadre du téléphone : l'app se rouvre dedans, à 390 px de large. */
 function cadreTelephone(){
-  const url=location.pathname+'?apercu=tel'+(location.hash||'#/');
+  const url=location.pathname+'?apercu=tel'
+    +(APERCU_GRP?'&grp='+encodeURIComponent(APERCU_GRP):'')
+    +(APERCU_METIER?'&met='+encodeURIComponent(APERCU_METIER):'')
+    +(location.hash||'#/');
   return '<div class="teltest"><div class="telcadre">'+
     '<iframe src="'+esc(url)+'" title="Aperçu téléphone"></iframe></div>'+
     '<p>C’est exactement ce que voit un téléphone. Navigue dedans comme sur le tien.</p></div>';
