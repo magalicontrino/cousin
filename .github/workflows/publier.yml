@@ -1,0 +1,69 @@
+# PUBLIER COUSIN
+#
+# Pourquoi ce fichier existe (06/08/2026) : la publication automatique de GitHub
+# envoyait TOUT le dépôt en ligne — dont le dossier « Font » (48 Mo de polices
+# d'origine) et les dossiers de maquettes. Le dernier envoi qui est passé mettait
+# déjà plus de quatre minutes ; ensuite ça dépassait le temps autorisé et GitHub
+# coupait la publication. Le fichier _config.yml excluait bien ces dossiers, mais
+# il n'est lu que par le constructeur Jekyll, qu'on avait désactivé : ses
+# exclusions ne servaient à rien.
+#
+# Ici on choisit nous-mêmes ce qui part en ligne : le site, et rien d'autre.
+# TOUT RESTE DANS LE DÉPÔT — les polices et les maquettes ne sont pas effacées,
+# elles ne sont simplement plus recopiées sur le site public.
+
+name: Publier COUSIN
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # permet aussi de relancer une publication à la main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Les envois se suivent au lieu de s'annuler l'un l'autre. Avant, deux envois
+# rapprochés se tuaient mutuellement et plus rien n'arrivait jamais en ligne.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Préparer le site (sans les sources de design)
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '_site' \
+            --exclude '_config.yml' \
+            --exclude 'Font ' \
+            --exclude 'claudedesign lux' \
+            --exclude 'ecran lux' \
+            --exclude 'outils' \
+            --exclude 'vecteurs.json' \
+            ./ _site/
+          echo "Poids envoyé en ligne :"
+          du -sh _site
+          echo "Fichiers :"
+          find _site -type f | wc -l
+
+      - name: Déposer le site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Mettre en ligne
+        id: deploiement
+        uses: actions/deploy-pages@v4
