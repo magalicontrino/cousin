@@ -231,11 +231,18 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .pile .pcarte b{font-size:17px;font-weight:800;line-height:1.2;margin-top:auto}
 .pile .pcarte em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:#f5c542;margin-top:6px}
-.pile .tirer{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;
+.pile .tirer{position:absolute;right:4px;bottom:16px;display:flex;flex-direction:column;
   align-items:center;gap:6px;background:transparent;border:0}
-.pile .tirer .rd{width:52px;height:52px;border-radius:50%;border:1.5px solid var(--noir);display:flex;align-items:center;justify-content:center}
-.pile .tirer .rd .ic{width:22px;height:22px;transform:rotate(180deg)}
-.pile .tirer span{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#8b8984}
+.pile .tirer .rd{width:50px;height:50px;border-radius:50%;border:1.5px solid var(--noir);display:flex;align-items:center;justify-content:center}
+.pile .tirer .rd .ic{width:23px;height:23px}
+.pile .tirer span{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#73716b}
+/* Barres de pagination sous les carrousels */
+.pgn{display:flex;gap:6px;justify-content:center;padding:10px 0 0}
+.pgn i{width:5px;height:5px;border-radius:3px;background:#c2c0bb}
+.pgn i.on{width:22px;background:var(--noir)}
+/* Les sacs-poubelle au trait, un par sac, dans la boule */
+.sacs{display:flex;align-items:center;justify-content:center;gap:1px}
+.sacs svg{width:17px;height:22px}
 .lienbas{display:flex;align-items:center;gap:9px;width:100%;background:transparent;border:0;
   border-top:1px solid var(--ligne);padding:13px 0 0;margin-top:14px;text-align:left;
   font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
@@ -3437,15 +3444,40 @@ function heroBandeau(titre, surtitre, couleur, pic, retour){
 function doo(f,col,size){const t=(typeof size==='number')?size+'px':size;
   return '<span class="pico" style="width:'+t+';height:'+t+';color:'+col+
   ';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></span>'}
+/* Les barres de pagination sous un carrousel (handoff : 3 barres, la 1re allongée). */
+function pagination(n){
+  if(n<2) return '';
+  const k=Math.min(3,n);
+  let h='<div class="pgn">';
+  for(let i=0;i<k;i++) h+='<i class="'+(i===0?'on':'')+'"></i>';
+  return h+'</div>';
+}
+/* Un sac-poubelle au trait par sac à sortir, à sa couleur. */
+function sacsSvg(sacs){
+  return '<span class="sacs">'+sacs.map(function(s){
+    const c=(POUB_COUL[s.c]==='#242424')?'#f4f3f1':POUB_COUL[s.c];
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="M3.6 6.4h16.8"/><path d="M9.2 6.4V4.3a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1v2.1"/>'+
+      '<path d="M5.9 6.4l.9 12.6a1.6 1.6 0 0 0 1.6 1.5h7.2a1.6 1.6 0 0 0 1.6-1.5l.9-12.6"/></svg>';
+  }).join('')+'</span>';
+}
 function vHome(){
   /* L'ACCUEIL redessiné d'après le handoff Claude Design (06/08/2026) :
      date + bonjour géant, la pile du quiz du jour, les sorties en carrousel,
      les boules « à faire aujourd'hui », puis tes étoiles en carrousel. */
   const auj=agendaProchains(1,function(){return true;});
+  /* S'il n'y a rien aujourd'hui, on montre quand même ce qui vient (le carrousel ne
+     doit pas disparaître : c'est une section du design). */
+  const sorties=auj.length?auj:agendaProchains(15,function(){return true;}).slice(0,6);
   const d=new Date(), l=LINGE[d.getDay()], col=prochaineCollecte();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   /* Une question tirée des vraies questions du quiz, pour la carte du jour. */
-  const q=(function(){ try{ const g=quizGen('all'); return g&&g.qs&&g.qs[0]?g.qs[0].q:''; }catch(e){ return ''; } })();
+  const q=(function(){ try{
+    const g=quizGen('all'); if(!g||!g.qs) return '';
+    /* La carte est petite : on prend la question la plus COURTE du tirage. */
+    const courtes=g.qs.map(function(x){return x.q}).filter(Boolean).sort(function(a,b){return a.length-b.length});
+    return courtes[0]||'';
+  }catch(e){ return ''; } })();
 
   let h='<div class="home-top">'+
     '<div class="hdate">'+esc(dateTxt)+'</div>'+
@@ -3464,32 +3496,33 @@ function vHome(){
       '<b>'+esc(q||'Teste tes connaissances du réseau')+'</b>'+
       '<em>Question 1 / 5</em></button>'+
     '<button class="tirer" onclick="go(\'#/quiz\')" aria-label="Tirer une question">'+
-      '<span class="rd"><span class="ic">'+icon('chevron')+'</span></span><span>Tirer</span></button></div>';
+      '<span class="rd"><span class="ic">'+icon('jcartes')+'</span></span><span>Tirer</span></button></div>';
 
   /* LES SORTIES DU JOUR — carrousel */
-  if(auj.length){
-    h+='<div class="sect"><b>Sorties aujourd\'hui</b><em>Glisse →</em></div>'+
-      '<div class="rail2">'+auj.slice(0,6).map(function(x,i){
-        const plein=(i%2===0);
-        const c=['#6fb08e','#f5c542','#f3c6da','#b28b7a'][i%4];
+  if(sorties.length){
+    h+='<div class="sect"><b>Sorties '+(auj.length?'aujourd\'hui':'ces prochains jours')+'</b><em>Glisse →</em></div>'+
+      '<div class="rail2">'+sorties.map(function(x,i){
+        const r=x.r||{}, plein=(i%2===0), c=r.c||'#6fb08e';
+        const jour=(x.i===0)?'Aujourd\'hui':(JOURS_L[x.d.getDay()]+' '+x.d.getDate());
         return '<button class="rc'+(plein?' plein':'')+'" '+(plein?'style="background:'+c+'"':'')+' onclick="go(\'#/ticket\')">'+
-          '<b>'+esc(x.nom||x.titre||'Sortie')+'</b>'+
-          '<em>'+esc(x.quand||x.heure||'Aujourd\'hui')+'</em>'+
+          '<b>'+esc(r.titre||'Sortie')+'</b>'+
+          '<em>'+esc(jour+(r.prix?' · '+r.prix:''))+'</em>'+
           '<span class="ic">'+icon('ticket')+'</span></button>';
-      }).join('')+'</div>';
+      }).join('')+'</div>'+pagination(sorties.length);
   }
 
   /* À FAIRE AUJOURD'HUI — les boules */
   const boules=[];
   if(l) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e','goFiche(/linge/i)']);
   if(chEnCours()) boules.push(['cle','Chambres',chEnCours()+' en cours','#f0efed','go(\'#/chambres\')']);
-  /* Le sac noir ne se voit pas sur un rond noir : on le passe en crème. */
-  if(col){ const cs=POUB_COUL[col.sacs[0].c]; boules.push(['poubelle','Poubelles',col.quand,(cs==='#242424'?'#f0efed':cs),'goFiche(/poubelle/i)']); }
+  /* Poubelles : UN sac dessiné par sac à sortir, à sa couleur (le noir passe en crème). */
+  if(col) boules.push([sacsSvg(col.sacs),'Poubelles',col.quand,null,'goFiche(/poubelle/i)']);
   if(boules.length){
     h+='<div class="sect"><b>À faire aujourd\'hui</b><em>'+boules.length+' chose'+(boules.length>1?'s':'')+'</em></div>'+
       '<div class="boules">'+boules.map(function(b){
+        const dedans=b[3]?'<span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span>':b[0];
         return '<button class="boule" onclick="'+b[4]+'">'+
-          '<span class="rond"><span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span></span>'+
+          '<span class="rond">'+dedans+'</span>'+
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
       }).join('')+'</div>'+
       '<button class="lienbas" onclick="go(\'#/liste\')"><span class="ic">'+icon('list')+'</span>Toutes les tâches · Ma liste du jour</button>';
@@ -3505,7 +3538,7 @@ function vHome(){
           '<b>'+esc(p.nom)+'</b>'+
           '<em style="color:'+(noir?c:'#8b8984')+'">'+esc(((DOM[p.domaine]||{}).short||'')+(p.tel?' · '+p.tel:''))+'</em>'+
           '<span class="ic" style="color:'+c+'">'+icon(fichePicto(p)||(DOM[p.domaine]||{}).ic||'compass')+'</span></button>';
-      }).join('')+'</div>';
+      }).join('')+'</div>'+pagination(Math.min(favs.length,8));
   }
 
   /* REPRENDRE — les dernières fiches ouvertes */
