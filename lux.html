@@ -289,6 +289,30 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
 
+/* ---- URGENCES redessinées (handoff Claude Design) ---- */
+.uvital{padding:16px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.uvital a{border-radius:6px;background:var(--danger);color:#f2eee6;padding:14px;
+  display:flex;align-items:baseline;gap:10px;min-height:76px}
+.uvital b{font-size:34px;font-weight:800;line-height:.9;letter-spacing:-.03em}
+.uvital span{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+.ucats{padding:20px 0 0;display:flex;flex-direction:column;gap:10px}
+.ucat{border-radius:6px;background:var(--noir);color:#f2eee6;padding:14px;
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;border:0}
+.ucat .rd{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.ucat .rd .ic{width:18px;height:18px;color:var(--noir)}
+.ucat b{flex:1;font-size:15.5px;font-weight:700}
+.ucat .n{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em}
+.ucat .sg{font-size:19px;line-height:1}
+.usous{display:flex;flex-direction:column;gap:8px;padding-left:14px;margin-top:8px}
+.unum{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:12px 13px;
+  display:flex;align-items:center;gap:12px;color:var(--noir)}
+.unum>.ic{width:20px;height:20px;flex:none}
+.unum .tx{flex:1;min-width:0}
+.unum .tx b{display:block;font-size:15px;font-weight:700;line-height:1.2}
+.unum .tx em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:#8b8984;margin-top:2px}
+.unum .no{font-size:16px;font-weight:800;flex:none;white-space:nowrap}
+
 /* ---- les chambres (rapatrié de l'app principale, habillé Lux) ---- */
 .chadd{display:flex;gap:8px;margin:10px 0 10px}
 .chadd input{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;
@@ -4020,15 +4044,16 @@ const URG_PLURIEL={"Hébergement d'urgence":"Hébergements d'urgence"};
 function urgName(p){const n=p.nom.replace(/^\s*\d[\d\s]*[–—-]\s*/,'').replace(/\s*[–—-]\s*\d[\d\s]*$/,'').trim();return n||p.nom;}
 function urgShort(p){let n=urgName(p).replace(/\s*\(.*?\)\s*/g,' ').replace(/\s*[–—-]\s.*$/,'');return n.trim()||urgName(p);}
 function urgSub(p){const par=p.nom.match(/\(([^)]+)\)/);const t=par?par[1].trim():'';return t?t.charAt(0).toUpperCase()+t.slice(1):'';}
+/* Une ligne de numéro dans une catégorie (handoff Claude Design). */
 function urgSq(p,cc){
   const tel=(p.tel||'').replace(/\s/g,'');
-  const sub=urgSub(p)||esc(p.tel);
-  /* Le numéro prend la couleur de la catégorie (cases de nuit). */
-  const em=sub?'<em'+(cc?' style="color:'+cc+'"':'')+'>'+sub+'</em>':'';
-  const tx='<span class="urg-sq-tx"><b>'+esc(urgShort(p))+'</b>'+em+'</span>';
-  if(tel) return '<a class="urg-sq" href="tel:'+esc(tel)+'"><span class="ic">'+icon('phone')+'</span>'+tx+'</a>';
-  if(p.site) return '<a class="urg-sq" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener"><span class="ic">'+icon('lien')+'</span>'+tx+'</a>';
-  return '<div class="urg-sq" role="button" onclick="go(\'#/f/'+p.sid+'\')"><span class="ic">'+icon('note')+'</span>'+tx+'</div>';
+  const sub=urgSub(p);
+  const dedans='<span class="ic">'+icon(tel?'phone':(p.site?'lien':'note'))+'</span>'+
+    '<span class="tx"><b>'+esc(urgShort(p))+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+'</span>'+
+    (p.tel?'<span class="no" style="color:'+(cc||'#e63329')+'">'+esc(p.tel)+'</span>':'');
+  if(tel) return '<a class="unum" href="tel:'+esc(tel)+'">'+dedans+'</a>';
+  if(p.site) return '<a class="unum" href="'+esc(urlHref(p.site))+'" target="_blank" rel="noopener">'+dedans+'</a>';
+  return '<div class="unum" role="button" onclick="go(\'#/f/'+p.sid+'\')">'+dedans+'</div>';
 }
 function urgencesListHTML(){
   const items=DATA.filter(p=>p.domaine==='urgences' || p.urgent);
@@ -4046,37 +4071,28 @@ function urgencesListHTML(){
     if(b.label==="Secours vital"){
       const halves=b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>{
         const tel=(p.tel||'').replace(/\s/g,'');
-        return '<a class="urg-vhalf" href="tel:'+esc(tel)+'"><b>'+esc(urgShort(p))+'</b><em>'+esc(p.tel)+'</em></a>';
+        return '<a href="tel:'+esc(tel)+'"><b>'+esc(p.tel)+'</b><span>'+esc(urgShort(p))+'</span></a>';
       }).join('');
-      vitalHtml='<div class="urg-vital">'+halves+'</div>'; return;
+      vitalHtml='<div class="uvital">'+halves+'</div>'; return;
     }
     const open=urgCat===idx;
     const cc=URG_CATC[b.label]||'#f5c542';
-    const sqs='<div class="urg-slider">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>urgSq(p,cc)).join('')+'</div>';
-    rows+='<button class="urg-catbtn '+(open?'open':'')+'" style="border-left-color:'+cc+'" onclick="toggleUrgCat(this,'+idx+')">'+
-      '<span class="urg-cbleft"><span class="urg-cbic"><span class="ic">'+(b.label==='Violences · femmes'?URG_FEMME:icon(URG_CATK[b.label]||'phone'))+'</span></span>'+
-      '<span class="urg-cblab">'+esc(b.list.length>1&&URG_PLURIEL[b.label]?URG_PLURIEL[b.label]:b.label)+'</span></span>'+
-      '<span class="urg-cbright"><span class="urg-cbn">'+b.list.length+'</span><span class="urg-cbsign"></span></span>'+
-    '</button><div class="urg-acc '+(open?'open':'')+'"><div class="urg-acc-inner">'+sqs+'</div></div>';
+    rows+='<div><button class="ucat" onclick="toggleUrgCat(this,'+idx+')">'+
+      '<span class="rd" style="background:'+cc+'"><span class="ic">'+(b.label==='Violences · femmes'?URG_FEMME:icon(URG_CATK[b.label]||'phone'))+'</span></span>'+
+      '<b>'+esc(b.list.length>1&&URG_PLURIEL[b.label]?URG_PLURIEL[b.label]:b.label)+'</b>'+
+      '<span class="n" style="color:'+cc+'">'+b.list.length+'</span>'+
+      '<span class="sg" style="color:'+cc+'">'+(open?'−':'+')+'</span></button>'+
+      (open?'<div class="usous">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>urgSq(p,cc)).join('')+'</div>':'')+
+    '</div>';
   });
-  return vitalHtml+'<div class="urgwrap">'+rows+'</div>';
+  return vitalHtml+'<div class="ucats">'+rows+'</div>';
 }
-function setAcc(acc,open){const inner=acc.querySelector('.urg-acc-inner');acc.style.height=open?inner.scrollHeight+'px':'0px';}
-function toggleUrgCat(btn,i){
-  const willOpen=urgCat!==i; urgCat=willOpen?i:null;
-  const cur=document.querySelector('.urg-catbtn.open');
-  if(cur&&cur!==btn){cur.classList.remove('open');const a=cur.nextElementSibling;if(a&&a.classList.contains('urg-acc')){a.classList.remove('open');setAcc(a,false);}}
-  btn.classList.toggle('open',willOpen);
-  const acc=btn.nextElementSibling;
-  if(acc&&acc.classList.contains('urg-acc')){acc.classList.toggle('open',willOpen);setAcc(acc,willOpen);}
-}
+function toggleUrgCat(btn,i){ urgCat=(urgCat===i)?null:i; render(); }
 function vUrgences(){
-  urgCat=null;
-  /* Titre en NOIR : le rouge reste pour les boutons d'appel (Mag, 05/08/2026). */
-  return '<div class="subtop"><h1 style="font-size:23px;padding-top:6px">Urgences</h1></div>'+
-
+  /* Bandeau noir + 112/101 en cartes rouges + catégories dépliables (handoff). */
+  return heroBandeau('Urgences','On sait où téléphoner','#e63329','siren',false)+
     urgencesListHTML()+
-    '<div style="height:20px"></div>';
+    '<div style="height:26px"></div>';
 }
 
 /* ---------- le quiz — questions écrites + questions fabriquées depuis les fiches ---------- */
