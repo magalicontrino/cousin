@@ -658,6 +658,19 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 
 /* ---- LA SEMAINE DES POUBELLES (fiche « Jour des poubelles ») ---- */
 /* ---- VOIR L'APP COMME LES AUTRES (barre d'aperçu, administration seulement) ---- */
+/* Repliée : une boule. Noire et discrète au repos, DORÉE avec la lettre de la vue
+   dès qu'un aperçu tourne — le seul rappel permanent qu'on ne regarde pas sa vue. */
+.bboule{position:fixed;left:12px;bottom:calc(var(--tab-h) + 10px);z-index:60;
+  width:46px;height:46px;border-radius:50%;background:var(--noir);color:#f2eee6;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 5px 16px rgba(27,27,27,.28);transition:transform .16s ease}
+.bboule .ic{width:21px;height:21px}
+.bboule.actif{background:#d9a20b;color:var(--noir);box-shadow:0 0 0 3px rgba(217,162,11,.28),0 5px 16px rgba(27,27,27,.28)}
+.bboule .bl{font-family:ui-monospace,monospace;font-size:13px;font-weight:700;letter-spacing:.02em}
+.bboule.actif .bl{font-size:12px}
+@media (hover:hover){ .bboule:hover{transform:scale(1.08)} }
+@media (min-width:900px){ .bboule{left:248px;bottom:16px} }
+.bascule .bplier{position:absolute;top:6px;right:10px;font-size:20px;line-height:1;color:rgba(242,238,230,.6)}
 .bascule{position:fixed;left:12px;bottom:calc(var(--tab-h) + 10px);z-index:60;background:var(--noir);
   color:#f2eee6;border-radius:8px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;
   max-width:calc(100vw - 24px);box-shadow:0 6px 22px rgba(27,27,27,.25)}
@@ -1793,6 +1806,7 @@ const ICONS = {
   croix:    '<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>',
   check:    '<path d="M4.5 12.6l4.6 4.6L19.6 6.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>',
   plus:     '<path d="M12 4.6v14.8M4.6 12h14.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>',
+  oeil:     '<path d="M12 5.2c-4.6 0-8 4-9 6.8 1 2.8 4.4 6.8 9 6.8s8-4 9-6.8c-1-2.8-4.4-6.8-9-6.8z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.9" fill="currentColor"/>',
   logout:   '<path d="M14.5 4h3.5A1.5 1.5 0 0 1 19.5 5.5v13A1.5 1.5 0 0 1 18 20h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 8.5L6 12l3.5 3.5M6 12h9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   list:     '<circle cx="4.6" cy="6" r="2.4"/><circle cx="4.6" cy="12" r="2.4"/><circle cx="4.6" cy="18" r="2.4"/><rect x="9.4" y="4.4" width="12.2" height="3.2" rx="1.6"/><rect x="9.4" y="10.4" width="12.2" height="3.2" rx="1.6"/><rect x="9.4" y="16.4" width="12.2" height="3.2" rx="1.6"/>',
   accomp:   '<circle cx="8.2" cy="5.4" r="3"/><path d="M3.4 20.8v-4.6a4.8 4.8 0 0 1 4.8-4.8 4.8 4.8 0 0 1 4.8 4.8v4.6z"/><circle cx="17" cy="7.8" r="2.4"/><path d="M13.2 20.8v-5.2a3.8 3.8 0 0 1 3.8-3.8 3.8 3.8 0 0 1 3.8 3.8v5.2z" opacity=".55"/>',
@@ -5432,14 +5446,35 @@ const GROUPE_DE_METIER={
   'Polyvalent':'D','Agent entretien':'D','Responsable punaise':'D','Article 60':'D'
 };
 function grpDuMetier(m){ return GROUPE_DE_METIER[m]||'C'; }
-function apercuTel(on){ APERCU_TEL=on; render(); window.scrollTo(0,0); }
-function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; APERCU_METIER=''; render(); }
+/* Repliée, la barre n'est qu'une petite boule en bas à gauche ; on la touche pour
+   ouvrir la carte, et elle se replie dès qu'un choix est fait — c'est justement
+   l'écran d'en dessous qu'on veut regarder (Mag, 06/08/2026). */
+let APERCU_OUVERT=false;
+function apercuOuvrir(){ APERCU_OUVERT=!APERCU_OUVERT; render(); }
+/* Un clic à côté referme la carte : elle ne doit pas rester dans les pattes. */
+document.addEventListener('click',function(e){
+  if(!APERCU_OUVERT) return;
+  if(e.target.closest && e.target.closest('.bascule')) return;
+  APERCU_OUVERT=false; render();
+},true);
+/* La lettre portée par la boule quand un aperçu tourne : impossible d'oublier
+   qu'on ne regarde pas sa propre vue. */
+function apercuLettre(){
+  if(APERCU_METIER) return APERCU_METIER.charAt(0).toUpperCase();
+  if(APERCU_GRP==='D') return 'D';
+  if(APERCU_GRP) return 'ABC';
+  if(APERCU_TEL) return '';
+  return '';
+}
+function apercuTel(on){ APERCU_TEL=on; APERCU_OUVERT=false; render(); window.scrollTo(0,0); }
+function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; APERCU_METIER=''; APERCU_OUVERT=false; render(); }
 function apercuMetier(m){
   APERCU_METIER=m||'';
   APERCU_GRP = m ? (grpDuMetier(m)==='D'?'D':'ABC') : null;
+  APERCU_OUVERT=false;
   render();
 }
-function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; APERCU_METIER=''; render(); }
+function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; APERCU_METIER=''; APERCU_OUVERT=false; render(); }
 /* Dans le cadre du téléphone, l'app se rouvre dans une fenêtre NEUVE : sans ça elle
    ne saurait pas qu'on est en aperçu et montrerait la vue de Mag (constaté le 06/08). */
 try{
@@ -5457,7 +5492,14 @@ function barreApercu(){
   if(!(PROFILE&&PROFILE.admin)) return '';
   if(location.search.indexOf('apercu=tel')>=0) return '';   // dans le cadre du téléphone : pas de barre
   const g=function(k,l){ return '<button class="'+(APERCU_GRP===k?'on':'')+'" onclick="apercuGrp(\''+k+'\')">'+l+'</button>'; };
+  if(!APERCU_OUVERT){
+    const L=apercuLettre();
+    return '<button class="bboule'+(enApercu()?' actif':'')+'" onclick="apercuOuvrir()" '+
+      'aria-label="Voir l’app comme quelqu’un d’autre" title="Voir comme">'+
+      (L?'<span class="bl">'+esc(L)+'</span>':'<span class="ic">'+icon('oeil')+'</span>')+'</button>';
+  }
   return '<div class="bascule'+(enApercu()?' actif':'')+'">'+
+    '<button class="bplier" onclick="apercuOuvrir()" aria-label="Replier">−</button>'+
     '<b>Voir comme</b>'+
     '<div class="bgrp becran">'+
       '<button class="'+(APERCU_TEL?'':'on')+'" onclick="apercuTel(false)">Écran</button>'+
