@@ -77,18 +77,22 @@ h1,h2,h3{font-weight:800;line-height:1.2}
 .ret-s{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
   color:#8b8984;margin:5px 0 14px;padding-bottom:10px;border-bottom:2px solid var(--noir)}
 .ret-c{margin-bottom:12px}
-.ret-q{background:var(--noir);color:#f0efed;border-radius:6px 6px 0 0;padding:13px 14px;
-  font-size:15.5px;font-weight:500;line-height:1.32}
+/* La question porte la COULEUR DU COURS, à plein. Ses couleurs de thème sont toutes
+   claires : l'encre reste donc noire, c'est le contraste le plus lisible. */
+.ret-q{color:var(--noir);border-radius:6px 6px 0 0;padding:14px;
+  font-size:16px;font-weight:800;line-height:1.28;letter-spacing:-.015em}
 .ret-q .n{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;
-  color:#f5c542;font-weight:400;margin-bottom:6px}
+  color:rgba(27,27,27,.55);font-weight:400;margin-bottom:6px}
 /* La réponse et le pourquoi forment UN seul bloc sous la question : pas de marge
    entre les deux, sinon les filets latéraux se coupent en plein milieu. */
 .ret-r{border:1px solid var(--ligne);border-top:0;background:#fdfdfc;padding:13px 14px 12px;
   display:flex;gap:7px;font-size:14.5px;line-height:1.4}
 .ret-r i{font-style:normal;color:#6cb392;flex:none}
-.ret-p{border:1px solid var(--ligne);border-top:1px solid var(--ligne);border-radius:0 0 6px 6px;
-  background:#fdfdfc;padding:10px 14px 13px;font-size:12.5px;color:#73716b;line-height:1.5}
-.ret-p b{color:var(--noir);font-weight:700}
+.ret-r{border-radius:0 0 6px 6px}
+.ret-role{border:1px solid var(--ligne);border-left:5px solid var(--ligne);background:#f6f5f3;
+  padding:10px 12px;margin-top:7px;font-size:13px;color:#3c3a36;line-height:1.5}
+.ret-role .rl{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;
+  margin-bottom:4px;font-weight:600}
 
 /* DANS LE CORPS D'UNE FORMATION (.rich), le texte est écrit à la main : un picto y
    arrive parfois sans sa boîte `.ic`, et un <svg> sans dimension prend alors TOUTE la
@@ -6655,8 +6659,8 @@ function fcard(p){
    rond de couleur du thème, durée de lecture, chapitres cochables, « Se tester ».
    Se corrige dans index.html puis se recopie ici. */
 const THEME_COUL={'Droit des étrangers':'#f8763f','Entretien et écoute':'#5b8fd4','Entretien & écoute':'#5b8fd4','Violences':'#fd8fd0',
-  'Premiers pas':'#6cb392','Article 27':'#f5c542','Handicap':'#5b8fd4','Les mots':'#e63329','':'#b28b7a'};
-const THEME_DOM={'Droit des étrangers':'etrangers','Article 27':'culture','Handicap':'handicap'};
+  'Premiers pas':'#6cb392','Article 27':'#f5c542','Handicap':'#5b8fd4','Les mots':'#e63329','Droits et CPAS':'#A9C8E8','':'#b28b7a'};
+const THEME_DOM={'Droit des étrangers':'etrangers','Article 27':'culture','Handicap':'handicap','Droits et CPAS':'demarches'};
 function themeCoul(t){return THEME_COUL[t||'']||'#b28b7a'}
 let FLU;try{FLU=JSON.parse(localStorage.getItem('lux_formations')||'{}')}catch(e){FLU={}}
 function fluSave(){try{localStorage.setItem('lux_formations',JSON.stringify(FLU))}catch(e){}
@@ -6683,6 +6687,15 @@ function formationChapitres(page){
    et c'est voulu : une question bâclée sur une règle de droit fait plus de mal que de
    bien. Pour qu'un cours ait sa récapitulation, il faut d'abord écrire ses questions.
    ═════════════════════════════════════════════════════════════════════════ */
+/* Les trois rôles sous une réponse (choix « les deux » de Mag, 07/08/2026 : la carte
+   prend la couleur du cours ET les encadrés ont leur code couleur par rôle).
+   Le rouge est ici un choix explicite de Mag pour l'erreur fréquente — ailleurs dans
+   COUSIN il reste réservé aux urgences. */
+const RET_ROLES=[
+  {k:'regle',     lab:'LA RÈGLE',           c:'#6cb392'},
+  {k:'exception', lab:'L’EXCEPTION',        c:'#f8763f'},
+  {k:'erreur',    lab:'L’ERREUR FRÉQUENTE', c:'#e63329'}
+];
 const FORMATION_RETENIR={
   'Adresse de référence, CPAS compétent et agrément': function(){
     return (typeof QUIZ_ECRIT!=='undefined') ? QUIZ_ECRIT : [];
@@ -6693,13 +6706,24 @@ function formationRetenir(p){
   if(!f) return '';
   const qs=f().filter(function(q){ return q && q.q && q.opts && q.pourquoi; });
   if(!qs.length) return '';
+  const c=themeCoul(p.theme);
   return '<div class="ret"><div class="ret-t">Ce qu’il faut retenir</div>'+
-    '<div class="ret-s">'+qs.length+' questions · les réponses sont dessous</div>'+
+    '<div class="ret-s" style="border-bottom-color:'+c+'">'+qs.length+' questions · la règle sous chaque réponse</div>'+
     qs.map(function(q,i){
+      /* Les encadrés par rôle. On ne remplit QUE ce qui a été écrit : aujourd'hui la
+         règle (elle vient du « pourquoi » de la question, avec son article de loi).
+         L'exception et l'erreur fréquente attendent d'être rédigées cours par cours —
+         tant qu'elles ne le sont pas, leur encadré ne s'affiche pas du tout. */
+      const roles=RET_ROLES.map(function(r){
+        const txt = (r.k==='regle') ? q.pourquoi : q[r.k];
+        if(!txt) return '';
+        return '<div class="ret-role" style="border-left-color:'+r.c+'">'+
+          '<span class="rl" style="color:'+r.c+'">'+r.lab+'</span>'+esc(txt)+'</div>';
+      }).join('');
       return '<div class="ret-c">'+
-        '<div class="ret-q"><span class="n">'+(i+1)+' / '+qs.length+'</span>'+esc(q.q)+'</div>'+
-        '<div class="ret-r"><i>→</i><span>'+esc(q.opts[q.correct])+'</span></div>'+
-        '<div class="ret-p"><b>Pourquoi :</b> '+esc(q.pourquoi)+'</div>'+
+        '<div class="ret-q" style="background:'+c+'"><span class="n">'+(i+1)+' / '+qs.length+'</span>'+esc(q.q)+'</div>'+
+        '<div class="ret-r"><i style="color:'+c+'">→</i><span>'+esc(q.opts[q.correct])+'</span></div>'+
+        roles+
       '</div>';
     }).join('')+'</div>';
 }
