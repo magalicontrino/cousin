@@ -583,7 +583,7 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .chip.on{background:var(--noir);color:#f4f3f1}
 
 /* ---- listes de fiches : le registre ---- */
-.cards{display:flex;flex-direction:column;gap:0;padding:0 0 30px;border-top:1px solid var(--ligne)}
+.cards{display:flex;flex-direction:column;gap:0;padding:12px 0 30px}
 .fcard{cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;width:100%;
   background:transparent;border:0;border-bottom:1px solid var(--ligne);border-radius:0;
   padding:14px 2px;transition:background .1s ease}
@@ -3568,6 +3568,7 @@ function parseRoute(){
   if(seg[0]==='fil') return {view:'fil'};
   if(seg[0]==='liste') return {view:'liste'};
   if(seg[0]==='chambres') return {view:'chambres'};
+  if(seg[0]==='linge') return {view:'linge'};
   if(seg[0]==='reseau') return {view:'reseau'};
   if(seg[0]==='quartier') return {view:'quartier'};
   if(seg[0]==='favoris') return {view:'favoris'};
@@ -3615,6 +3616,7 @@ function render(){
   else if(current.view==='fil') view.innerHTML=vFil();
   else if(current.view==='liste') view.innerHTML=vListe();
   else if(current.view==='chambres') view.innerHTML=vChambres();
+  else if(current.view==='linge') view.innerHTML=vLinge();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
@@ -3724,7 +3726,7 @@ function vHome(){
 
   /* À FAIRE AUJOURD'HUI — les boules */
   const boules=[];
-  if(l) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e','goFiche(/linge/i)']);
+  if(l) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e',"go('#/linge')"]);
   if(chEnCours()) boules.push(['cle','Chambres',chEnCours()+' en cours','#f0efed','go(\'#/chambres\')']);
   /* Poubelles : UN sac dessiné par sac à sortir, à sa couleur (le noir passe en crème). */
   if(col) boules.push([sacsSvg(col.sacs),'Poubelles',col.quand,null,'goFiche(/poubelle/i)']);
@@ -3818,7 +3820,7 @@ function vCentre(){
   /* LE QUOTIDIEN */
   h+='<div class="sectc"><b><i style="background:#6cb392"></i>Le quotidien</b><em>Aujourd’hui</em></div>'+
     '<div class="qgrid">';
-  if(l) h+='<button class="qcarte" onclick="goFiche(/linge/i)">'+
+  if(l) h+='<button class="qcarte" onclick="go(\'#/linge\')">'+
     '<span class="ic" style="color:'+(LINGE_COUL[l.etage]||'#1b1b1b')+'">'+icon('linge')+'</span>'+
     '<span class="tx"><b>Linge — aujourd’hui</b><em>'+esc(l.etage+(l.chambres?' · ch. '+l.chambres:''))+
     (lt?' · demain '+esc(lt.etage):'')+'</em></span><span class="chv">›</span></button>';
@@ -3899,6 +3901,7 @@ function vFil(){
 
 /* DU NEUF — ce qui est arrivé sur l'appli. À COMPLÉTER À CHAQUE MISE EN LIGNE. */
 const NOUVEAUTES=[
+  {d:'2026-08-06', t:'Le nouveau visage de COUSIN : bandeaux noirs, cartes de couleur, carrousels — les 16 écrans redessinés.'},
   {d:'2026-08-06', t:'« Le ticket » s\'appelle maintenant « Activités » — c\'est l\'idée, pas le picto.'},
   {d:'2026-08-06', t:'Les pages de domaines : bandeau noir, pastille de couleur, rail en cases.'},
   {d:'2026-08-06', t:'Urgences : les cases d\'appel passent en noir, le numéro prend la couleur de sa catégorie.'},
@@ -3917,14 +3920,21 @@ function duNeufSemaine(){
   return NOUVEAUTES.filter(n=>new Date(n.d)>=il7);
 }
 function vDuNeuf(){
-  const fmt=iso=>{const d=new Date(iso);return JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];};
-  return '<div class="subtop">'+
-    '<h1 style="padding-top:6px">Du neuf</h1></div>'+
-    '<p class="hint" style="margin:6px 0 12px">Ce qui est arrivé de nouveau sur l\'appli ces derniers jours.</p>'+
-    '<div style="border-top:1px solid var(--ligne)">'+
-    NOUVEAUTES.map(n=>'<div class="fcard" style="cursor:default"><span class="tx">'+
-      '<span class="monoS">'+esc(fmt(n.d))+'</span><b style="font-weight:600;font-size:14.5px">'+esc(n.t)+'</b></span></div>').join('')+
-    '</div><div style="height:26px"></div>';
+  /* QUOI DE NEUF redessiné (handoff) : journal des nouveautés, daté, groupé par jour. */
+  const fmt=function(iso){const d=new Date(iso);return JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];};
+  const auj=new Date().toISOString().slice(0,10);
+  let h=heroBandeau('Quoi de neuf','Ces derniers jours','#f5c542','bulb');
+  let jour='';
+  h+='<div class="qgrid" style="padding-top:16px">';
+  NOUVEAUTES.forEach(function(n){
+    if(n.d!==jour){
+      jour=n.d;
+      h+='<div class="sectl" style="margin-top:'+(h.indexOf('sectl')<0?'4px':'14px')+'">'+
+        (n.d===auj?'Aujourd’hui':esc(fmt(n.d)))+'</div>';
+    }
+    h+='<div class="msg"><p style="margin:0">'+esc(n.t)+'</p></div>';
+  });
+  return h+'</div><div style="height:26px"></div>';
 }
 
 /* La page Profil — s'activera avec la connexion, comme dans l'app actuelle. */
@@ -4003,12 +4013,14 @@ function chipRow(name,values,activeVal,allLabel){
   '</div>';
 }
 function fcard(p){
+  /* Ligne de fiche redessinée (handoff) : carte cerclée, rond de couleur du domaine,
+     nom, public en écriture machine, étoile au bout. */
   const d=DOM[p.domaine]||{}, c=dc(p.domaine);
-  const sub=[p.commune&&p.commune!=='Régional / Toutes communes'?p.commune:'',p.public].filter(Boolean).join(' · ')||p.desc.split('\n')[0];
-  return '<div class="fcard" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')">'+
-    '<span class="fpi"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
-    '<span class="tx">'+(p.urgent?'<span class="utag">Urgence</span>':'')+
-      '<b>'+esc(p.nom)+'</b><small>'+esc(sub)+'</small></span>'+
+  const sub=[p.commune&&p.commune!=='Régional / Toutes communes'?p.commune:'',p.public].filter(Boolean).join(' · ')||(p.desc||'').split('\n')[0];
+  return '<div class="frow2" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
+    '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
+    '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+'</span>'+
+    (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
     heartBtn(p.sid)+'</div>';
 }
 
@@ -4486,12 +4498,39 @@ function vNeuf(){
 }
 
 /* ---------- Autour d'ici — le quartier, depuis le centre ---------- */
+/* LE LINGE (écran 07 du handoff) : ce qu'il y a à faire aujourd'hui + le tour de la semaine. */
+function vLinge(){
+  const d=new Date(), l=LINGE[d.getDay()];
+  const jours=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  let h=heroBandeau('Le linge', (l?l.etage:'Pas de linge aujourd’hui'), '#6cb392','linge');
+  if(l) h+='<div class="cliste" style="border-color:var(--noir)">'+
+    '<span class="tx"><span class="sur">Aujourd’hui</span><b>'+esc(l.etage)+'</b>'+
+    (l.chambres?'<em>Chambres '+esc(l.chambres)+'</em>':'')+'</span>'+
+    '<span class="ic" style="color:'+(LINGE_COUL[l.etage]||'#1b1b1b')+'">'+icon('linge')+'</span></div>';
+  h+='<div class="sect"><b>Le tour de la semaine</b><em>'+Object.keys(LINGE).length+' jours</em></div>';
+  Object.keys(LINGE).forEach(function(k){
+    const x=LINGE[k];
+    h+='<div class="tour"><i style="background:'+(LINGE_COUL[x.etage]||'#8b8984')+'"></i>'+
+      '<b>'+esc(x.etage)+'</b><em>'+esc(jours[k]+(x.chambres?' · '+x.chambres:''))+'</em></div>';
+  });
+  h+='<button class="fbtn" style="width:100%;margin-top:18px" onclick="goFiche(/linge/i)">'+
+    '<span class="ic">'+icon('compass')+'</span>La fiche complète</button>';
+  return h+'<div style="height:26px"></div>';
+}
 function vQuartier(){
-  let h='<div class="subtop"><h1 style="padding-top:6px">Autour d\'ici</h1></div>'+
-    '<p class="hint" style="margin:6px 0 14px">Le quartier, depuis le centre (Bd Prince de Liège 38). La feuille à donner.</p>';
-  h+=QUARTIER.map(g=>'<div class="bloc"><b>'+esc(g.grp)+'</b>'+
-    g.lignes.map(l=>'<p style="margin-bottom:6px"><b style="text-transform:none;letter-spacing:0">'+esc(l.t)+'</b> — '+esc(l.d)+
-      (l.adr?' <a class="glink" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">Itinéraire →</a>':'')+'</p>').join('')+'</div>').join('');
+  /* AUTOUR D'ICI redessiné (handoff) : le quartier groupé par besoin, en registre. */
+  let h=heroBandeau('Autour d’ici','Bd Prince de Liège 38','#b28b7a','pin')+
+    '<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>La feuille à donner</b>'+
+    '<p>Ce qu’il y a autour du centre, à recopier ou à montrer sur le téléphone.</p></div>';
+  QUARTIER.forEach(function(g){
+    h+='<div class="sectl">'+esc(g.grp)+'</div><div class="rlist">'+
+      g.lignes.map(function(l){
+        return '<div class="frow2" style="align-items:flex-start">'+
+          '<span class="tx"><b>'+esc(l.t)+'</b><em style="text-transform:none;letter-spacing:0;font-family:inherit;font-size:13px;color:#4a4844;margin-top:4px">'+esc(l.d)+'</em></span>'+
+          (l.adr?'<a class="chv" style="font-size:19px;opacity:.45;text-decoration:none;color:inherit" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">›</a>':'')+
+        '</div>';
+      }).join('')+'</div>';
+  });
   return h+'<div style="height:26px"></div>';
 }
 
