@@ -282,7 +282,7 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .pile .pcarte{cursor:grab;user-select:none;-webkit-user-select:none}
 .pile .pcarte.glisse{transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .28s ease}
 /* La copie de la carte qui s'en va : posée au même endroit, par-dessus. */
-.pile .pcarte.fantome{position:absolute;left:10.6%;top:0;margin-left:0;z-index:3}
+.pile .pcarte.fantome{position:absolute;left:20%;top:0;margin-left:0;z-index:3}
 .pile .pcarte:active{cursor:grabbing}
 .pilenav{display:flex;align-items:center;gap:10px;margin-top:12px;max-width:380px}
 .pilenav .pgn{padding:0;flex:1;justify-content:flex-start}
@@ -291,10 +291,12 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .pilenav .fl .ic{width:13px;height:13px}
 .pilenav .fl.droite .ic{transform:rotate(180deg)}
 /* La carte du dessous laisse voir, dans son coin, le picto du jeu qui vient. */
-.pile .p1.apercu{display:flex;align-items:flex-start;justify-content:flex-start;padding:14px;
+/* Le picto du jeu suivant se met dans le BAS de la bande qui dépasse : c'est le seul
+   endroit de la carte de derrière qu'on voit vraiment (Mag, 06/08/2026). */
+.pile .p1.apercu{display:flex;align-items:flex-end;justify-content:flex-start;padding:11px;
   border:0;cursor:pointer;transition:transform .16s ease}
-@media (hover:hover){.pile .p1.apercu:hover{transform:rotate(-6deg) scale(1.02)}}
-.pile .p1.apercu .ic{width:34px;height:34px}
+@media (hover:hover){.pile .p1.apercu:hover{transform:rotate(-5deg) scale(1.03)}}
+.pile .p1.apercu .ic{width:25px;height:25px}
 /* Les points de position, un par jeu. */
 .pilenav .pilepts{flex:none}
 .pilenav .pilepts i{width:5px;height:5px;border-radius:3px;background:#c2c0bb}
@@ -308,11 +310,15 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 }
 /* Sur téléphone, rien sous la pile : on glisse, ou on touche la carte du dessous. */
 @media (max-width:899px){ .pilenav{display:none} .pile{margin-bottom:34px} }
-.pile .p1{position:absolute;left:6.1%;top:14px;width:54.7%;aspect-ratio:1;border-radius:6px;
-  background:#f3cde5;transform:rotate(-8deg)}
-.pile .p2{position:absolute;left:9.5%;top:6px;width:55.3%;aspect-ratio:1;border-radius:6px;
-  border:1.5px solid var(--noir);transform:rotate(5deg);opacity:.55}
-.pile .pcarte{position:relative;margin-left:10.6%;width:56%;aspect-ratio:1;border-radius:6px;
+/* LA PILE : trois cartes en éventail vers la gauche, chacune dépasse franchement de
+   la précédente — sinon on ne voit pas ce qui vient derrière (Mag, 06/08/2026). La
+   carte de devant est posée à droite, les deux suivantes glissent vers la gauche en
+   tournant un peu plus à chaque fois. */
+.pile .p1{position:absolute;left:12%;top:8px;width:48%;aspect-ratio:1;border-radius:6px;
+  background:#f3cde5;transform:rotate(-7deg);box-shadow:0 0 0 1.5px rgba(27,27,27,.16)}
+.pile .p2{position:absolute;left:5%;top:16px;width:46%;aspect-ratio:1;border-radius:6px;
+  transform:rotate(-14deg);opacity:.9;box-shadow:0 0 0 1.5px rgba(27,27,27,.14)}
+.pile .pcarte{position:relative;margin-left:20%;width:50%;aspect-ratio:1;border-radius:6px;
   background:var(--noir);color:#f2eee6;padding:16px;display:flex;flex-direction:column;text-align:left;border:0}
 .pile .pcarte .ic{width:48px;height:48px;color:#f5c542;flex:none}
 .pile .pcarte b{font-size:18px;font-weight:800;line-height:1.1;margin-top:auto}
@@ -4642,26 +4648,9 @@ function vHome(){
   /* Plus d'invitation à donner son prénom sur l'accueil (Mag, 06/08/2026) :
      il viendra de la connexion, et se change déjà depuis Mon profil. */
 
-  /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
-     Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
-     on touche la carte pour lancer la partie. */
-  h+='<div class="sect cote"><b>Jeux</b><em>'+JEUX.length+' jeux · glisse pour changer</em></div>'+
-    pileJeux();
-
-  /* LES SORTIES DU JOUR — carrousel */
-  if(sorties.length){
-    h+='<div class="sect"><b>Sorties '+(auj.length?'aujourd\'hui':'ces prochains jours')+'</b><em>Glisse →</em></div>'+
-      '<div class="rail2">'+sorties.map(function(x,i){
-        const r=x.r||{}, plein=(i%2===0), c=r.c||'#6fb08e';
-        const jour=(x.i===0)?'Aujourd\'hui':(JOURS_L[x.d.getDay()]+' '+x.d.getDate());
-        return '<button class="rc'+(plein?' plein':'')+'" '+(plein?'style="background:'+c+'"':'')+' onclick="go(\'#/ticket\')">'+
-          '<b>'+esc(r.titre||'Sortie')+'</b>'+
-          '<em>'+esc(jour+(r.prix?' · '+r.prix:''))+'</em>'+
-          '<span class="ic">'+icon('ticket')+'</span></button>';
-      }).join('')+'</div>'+pagination(sorties.length);
-  }
-
-  /* À FAIRE AUJOURD'HUI — les boules */
+  /* À FAIRE AUJOURD'HUI — les boules. EN PREMIER, juste sous la météo (Mag,
+     06/08/2026 : « c'est vraiment le truc à avoir en première »). Le linge, les
+     poubelles et les chambres, c'est le travail du jour ; les jeux viennent après. */
   const boules=[];
   if(l) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e',"go('#/linge')"]);
   if(chEnCours()) boules.push(['cle','Chambres',chEnCours()+' en cours','#f0efed','go(\'#/chambres\')']);
@@ -4682,6 +4671,25 @@ function vHome(){
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
       }).join('')+'</div>'+
       '<button class="lienbas" onclick="go(\'#/liste\')"><span class="ic">'+icon('list')+'</span>Toutes les tâches · Ma liste du jour</button>';
+  }
+
+  /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
+     Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
+     on touche la carte pour lancer la partie. */
+  h+='<div class="sect cote"><b>Jeux</b><em>'+JEUX.length+' jeux · glisse pour changer</em></div>'+
+    pileJeux();
+
+  /* LES SORTIES DU JOUR — carrousel */
+  if(sorties.length){
+    h+='<div class="sect"><b>Sorties '+(auj.length?'aujourd\'hui':'ces prochains jours')+'</b><em>Glisse →</em></div>'+
+      '<div class="rail2">'+sorties.map(function(x,i){
+        const r=x.r||{}, plein=(i%2===0), c=r.c||'#6fb08e';
+        const jour=(x.i===0)?'Aujourd\'hui':(JOURS_L[x.d.getDay()]+' '+x.d.getDate());
+        return '<button class="rc'+(plein?' plein':'')+'" '+(plein?'style="background:'+c+'"':'')+' onclick="go(\'#/ticket\')">'+
+          '<b>'+esc(r.titre||'Sortie')+'</b>'+
+          '<em>'+esc(jour+(r.prix?' · '+r.prix:''))+'</em>'+
+          '<span class="ic">'+icon('ticket')+'</span></button>';
+      }).join('')+'</div>'+pagination(sorties.length);
   }
 
   /* TES ÉTOILES — carrousel */
