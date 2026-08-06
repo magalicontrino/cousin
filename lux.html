@@ -724,7 +724,7 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 @media (max-width:899px){ .bascule .becran{display:none} }
 /* Sur grand écran, la barre se pose À DROITE du rail, sinon elle le recouvre. */
 @media (min-width:900px){ .bascule{left:248px;bottom:16px} }
-.teltest{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 30px}
+.teltest{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 0 8px}
 /* Le téléphone est TOUJOURS visible en entier : s'il ne tient pas dans la hauteur de
    l'écran, on le dessine plus petit — sans toucher à sa largeur intérieure de 414 px,
    sinon ce ne serait plus la mise en page d'un téléphone (Mag, 06/08/2026). */
@@ -5564,14 +5564,26 @@ function cadreTelephone(){
     '<iframe src="'+esc(url)+'" title="Aperçu téléphone"></iframe></div></div>'+
     '<p>C’est exactement ce que voit un téléphone. Navigue dedans comme sur le tien.</p></div>';
 }
-/* On réduit le dessin du téléphone juste ce qu'il faut pour qu'il tienne en entier. */
+/* LE TÉLÉPHONE TIENT TOUJOURS EN ENTIER DANS LA HAUTEUR DE L'ÉCRAN (Mag, 06/08/2026).
+   On le dessine plus petit s'il le faut — proportionnellement, jamais écrasé. Son
+   intérieur reste large de 414 px : sans ça ce ne serait plus la mise en page d'un
+   téléphone qu'on regarde, et l'aperçu ne servirait à rien.
+   ⚠ On mesure la place AVANT d'avoir réduit : sinon la mesure dépendrait du réglage
+   précédent et la taille sautillerait à chaque passage. */
+const TEL_H=836;                       /* 812 de haut + les 2 × 12 px de la coque */
 function ajusterCadre(){
   const z=document.getElementById('telzoom'); if(!z) return;
-  const haut=z.getBoundingClientRect().top;
-  const dispo=window.innerHeight-haut-72;
-  const k=Math.max(.45,Math.min(1,dispo/836));
+  z.style.transform='none'; z.style.height='auto';        // on repart de la taille réelle
+  const haut=z.getBoundingClientRect().top + window.scrollY;
+  const sousLeTel=54;                                     // la phrase d'explication
+  /* On retire aussi la marge du bas de la page, sinon elle fait défiler l'écran
+     alors même que le téléphone tient : Mag verrait une barre de défilement pour rien. */
+  const v=document.getElementById('view');
+  const padBas=v?(parseFloat(getComputedStyle(v).paddingBottom)||0):0;
+  const dispo=window.innerHeight-haut-sousLeTel-padBas;
+  const k=Math.max(.35,Math.min(1,dispo/TEL_H));
   z.style.transform='scale('+k+')';
-  z.style.height=Math.round(836*k)+'px';   /* pas de trou sous le téléphone réduit */
+  z.style.height=Math.round(TEL_H*k)+'px';                /* pas de trou sous le téléphone */
 }
 window.addEventListener('resize',function(){ if(APERCU_TEL) ajusterCadre(); });
 
