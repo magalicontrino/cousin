@@ -1844,7 +1844,7 @@ body.no-tabs #tabbar{display:none}
     <div id="authMsg" class="auth-msg"></div>
     <textarea id="authMot" class="auth-mot" rows="2" placeholder="Ton prénom, ta fonction… un mot pour Mag" style="display:none"></textarea>
     <button id="authReq" class="auth-google" onclick="requestAccess()" style="display:none;margin-top:10px">Demander l'accès</button>
-    <button id="authSwitch" class="auth-switch" onclick="signOutCousin()" style="display:none">Changer de compte</button>
+    <button id="authSwitch" class="auth-switch" onclick="signOutVraiment()" style="display:none">Changer de compte</button>
   </div>
 </div>
 
@@ -5608,7 +5608,11 @@ function vProfil(){
           figées : nom et adresse viennent de Google, le métier de l'Admin. */
        (MES_LISTES.length?'<button class="role ouvre" onclick="go(\'#/liste\')"><b>Tes listes</b><span class="n">'+
           esc(MES_LISTES.map(k=>LISTE_LABELS[k]||k).join(' · '))+'</span><span class="sg">›</span></button>':'')+
-       '<button class="role ouvre" onclick="go(\'#/favoris\')"><b>Tes étoiles</b><span class="n">'+FAVS.size+' fiche'+(FAVS.size>1?'s':'')+'</span><span class="sg">›</span></button>'+
+       /* On compte les étoiles COMME LA PAGE FAVORIS les compte : celles qui mènent
+          à une fiche qui existe encore. En comptant FAVS.size on annonçait « 1 fiche »
+          alors que la page disait « aucun favori » — une étoile posée sur une fiche
+          depuis retirée du catalogue reste dans la liste sans rien ouvrir. */
+       '<button class="role ouvre" onclick="go(\'#/favoris\')"><b>Tes étoiles</b><span class="n">'+nFavosVivants()+' fiche'+(nFavosVivants()>1?'s':'')+'</span><span class="sg">›</span></button>'+
      '</div>'+
      '<div class="fsrc" style="text-align:left;padding:12px 0 0">Ton nom et ton adresse viennent de ton '+
      'compte Google. Ton métier et tes listes, c’est Mag qui les règle dans l’Admin.</div>'+
@@ -6865,9 +6869,18 @@ function guideBack(gk){gPath.pop();document.getElementById('gzone').innerHTML=gu
 function guideReset(gk){gPath=[];document.getElementById('gzone').innerHTML=guideNode(gk)}
 
 /* ---------- favoris ---------- */
+/* Les étoiles qui mènent encore quelque part. FAVS peut garder le repère d'une fiche
+   retirée du catalogue : elle compte pour rien, elle ne s'ouvre pas. */
+function nFavosVivants(){ return DATA.filter(function(p){ return FAVS.has(p.sid); }).length; }
 function vFavoris(){
   const favs=DATA.filter(p=>FAVS.has(p.sid));
-  let h='<div class="subtop"><h1 style="font-size:23px;padding-top:6px">Favoris</h1>'+
+  /* LA FLÈCHE DE RETOUR est revenue ici le 07/08/2026. Elle avait été retirée des
+     pages simples parce que « la barre et le dock suffisent » — c'était vrai tant
+     qu'on n'arrivait aux favoris que par l'étoile, présente partout. Depuis que le
+     profil y mène aussi, on pouvait y entrer sans pouvoir revenir d'où on venait. */
+  let h='<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour">'+
+    '<span class="ic">'+icon('chevron')+'</span></button>'+
+    '<h1 style="font-size:23px;padding-top:6px">Favoris</h1>'+
     '<span class="count">'+(favs.length||'')+'</span></div>';
   if(!favs.length){
     return h+'<div class="empty"><span class="ic">'+icon('star')+'</span><b>Aucun favori pour l\u2019instant</b>'+
@@ -8090,7 +8103,16 @@ function signInGoogle(){
   if(!sb){ showMessage("Pas de connexion internet. Réessaie une fois en ligne."); return; }
   sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
 }
-async function signOutCousin(){
+/* On demande TOUJOURS avant de déconnecter (Mag, 07/08/2026). Se déconnecter efface
+   les étoiles de l'appareil et oblige à repasser par Google : ce n'est pas un geste
+   qu'on doit pouvoir faire du pouce en rangeant son téléphone dans sa poche.
+   La confirmation passe par la fenêtre de COUSIN, jamais par celle du navigateur. */
+function signOutCousin(){
+  cousinConfirme('Se déconnecter',
+    'Tu devras repasser par ton compte Google pour revenir. Tes étoiles et tes listes sont gardées dans la base : elles te reviendront à la prochaine connexion.',
+    signOutVraiment, {ok:'Se déconnecter', danger:true});
+}
+async function signOutVraiment(){
   try{ localStorage.removeItem('cousin_auth_ok'); }catch(e){}
   /* On efface les étoiles DE CET APPAREIL, pas celles de la base : elles sont en
      sécurité et reviendront à la prochaine connexion. Sinon le collègue qui se
