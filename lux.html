@@ -258,6 +258,40 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .pastille{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;font-weight:600;
   padding:4px 9px;color:var(--noir);flex:none;white-space:nowrap}
 
+/* ---- BANDEAU DE TITRE D'ÉCRAN (handoff Claude Design, 06/08/2026) ----
+   Bloc noir pleine largeur : surtitre machine en couleur d'accent, gros titre 38px,
+   picto 36px de la couleur d'accent à droite. La première carte de contenu remonte
+   de 12px pour chevaucher le bandeau. */
+.hero{position:sticky;top:calc(67px + env(safe-area-inset-top));z-index:30;
+  background:var(--noir);color:#f2eee6;margin:0 calc(-1 * var(--pad));
+  padding:18px var(--pad) 20px;display:flex;align-items:flex-end;gap:12px}
+.hero .htx{flex:1;min-width:0}
+.hero .hsur{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.2em;
+  text-transform:uppercase;font-weight:600}
+.hero h1{display:block;font-size:38px;font-weight:800;text-transform:uppercase;
+  letter-spacing:-.035em;line-height:.9;margin-top:6px;color:#f2eee6}
+.hero .hpic{width:36px;height:36px;flex:none}
+.hero .hpic .ic{width:100%;height:100%}
+.hero .cbtn{width:36px;height:36px;border-radius:50%;border-color:#f2eee6;color:#f2eee6;align-self:center}
+.hero .cbtn .ic{width:13px;height:13px}
+.apreshero{margin-top:-12px;position:relative;z-index:1}
+
+/* ---- Cartes de domaines : bande de couleur en haut (handoff) ---- */
+.dgrid.res{grid-template-columns:repeat(2,1fr);gap:10px;border:0;margin-bottom:16px}
+.dgrid.res .tile{background:#f6f5f3;border:1px solid #dcdad5;border-radius:6px;overflow:hidden;
+  padding:0;min-height:134px}
+.dgrid.res .tile .bande{height:8px;display:block;flex:none}
+.dgrid.res .tile .tin{padding:13px 14px 14px;display:flex;flex-direction:column;flex:1}
+.dgrid.res .tile b{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;line-height:1.5}
+.dgrid.res .tile .tn2{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  color:var(--enc2);font-weight:500;margin:0}
+.dgrid.res .tile .pi{margin:auto 0 0 auto;width:38px;height:38px}
+@media (hover:hover){.dgrid.res .tile:hover{background:#fdfdfc;border-color:var(--noir)}}
+.dgrid.res .tile:hover b,.dgrid.res .tile:active b{color:var(--noir)!important}
+.dgrid.res .tile:active{background:#fdfdfc;color:var(--noir);border-color:var(--noir)}
+.dgrid.res .tile:active .tn2,.dgrid.res .tile:hover .tn2{color:var(--enc2)}
+
 /* ---- filtres : cases au trait ---- */
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
   margin:0 calc(-1 * var(--pad));padding:12px var(--pad) 12px}
@@ -3312,15 +3346,28 @@ function tile(d,reseau){
   const n=DATA.filter(p=>p.domaine===d.key).length;
   /* Réseau : CARRÉ de couleur plus gros que la police + compte dessous (sa maquette).
      Ailleurs (Centre) : le petit rond et le compte sur la ligne, inchangés. */
+  /* Réseau : carte à BANDE DE COULEUR en haut (handoff Claude Design, 06/08/2026). */
   if(reseau)
     return '<button class="tile" onclick="go(\'#/d/'+d.key+'\')">'+
-      '<b style="color:var(--noir)"><i class="tsq" style="background:'+dc(d.key)+'"></i>'+esc(d.short||d.label)+'</b>'+
-      '<span class="tn2">'+n+'</span>'+
-      '<span class="pi"><span class="ic">'+icon(d.ic)+'</span></span></button>';
+      '<i class="bande" style="background:'+dc(d.key)+'"></i>'+
+      '<span class="tin"><b>'+esc(d.short||d.label)+'</b>'+
+      '<span class="tn2">'+n+' fiche'+(n>1?'s':'')+'</span>'+
+      '<span class="pi"><span class="ic">'+icon(d.ic)+'</span></span></span></button>';
   /* Centre : le picto vit sur un GRAND carré de sa couleur, en bas à droite (choix « 3 » de Mag). */
   return '<button class="tile" onclick="go(\'#/d/'+d.key+'\')">'+
     '<b>'+esc(d.short||d.label)+'<span class="tn">'+n+'</span></b>'+
     '<span class="psq" style="background:'+dc(d.key)+'"><span class="ic">'+icon(d.ic)+'</span></span></button>';
+}
+/* Le bandeau noir de titre d'écran (handoff Claude Design, 06/08/2026).
+   surtitre + titre + picto d'accent ; la flèche de retour n'apparaît que si on la demande. */
+function heroBandeau(titre, surtitre, couleur, pic, retour){
+  return '<div class="hero">'+
+    (retour!==false?'<button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
+    '<span class="htx">'+
+      (surtitre?'<span class="hsur" style="color:'+couleur+'">'+esc(surtitre)+'</span>':'')+
+      '<h1>'+esc(titre)+'</h1></span>'+
+    (pic?'<span class="hpic" style="color:'+couleur+'"><span class="ic">'+icon(pic)+'</span></span>':'')+
+  '</div>';
 }
 function doo(f,col,size){const t=(typeof size==='number')?size+'px':size;
   return '<span class="pico" style="width:'+t+';height:'+t+';color:'+col+
@@ -3641,8 +3688,7 @@ function vDomaine(key){
     /* Liste condensée : une ligne par démarche, puis le choix de l'organisme. */
     const dems=DEMARCHES.filter(t=>items.some(p=>p.demarche===t));
     const pp=DATA.find(p=>p.domaine==='formations' && /Premiers pas/i.test(p.nom));
-    return '<div class="subtop noir"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
-      '<h1>'+esc(d.label)+'</h1><span class="pastille" style="background:'+dc(key)+'">'+dems.length+' DÉMARCHES</span></div>'+
+    return heroBandeau(d.label, dems.length+' démarches', dc(key), d.ic)+
       rail(key)+
       '<div class="cards" style="display:flex;flex-direction:column">'+dems.map(t=>{
         const n=items.filter(p=>p.demarche===t).length;
@@ -3691,9 +3737,7 @@ function vDomaine(key){
     const cpas=items.filter(estCpas);
     if(cpas.length>3){ items=items.filter(p=>!estCpas(p)); grpHtml=grpCpas(cpas); }
   }
-  return '<div class="subtop noir"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
-    '<h1>'+esc(d.label)+'</h1><span class="pastille" style="background:'+dc(key)+'">'+
-      (items.length+ (grpHtml? '+' : ''))+' FICHE'+(items.length>1?'S':'')+'</span></div>'+
+  return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
     rail(key)+chips+
     '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
     (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
@@ -4009,7 +4053,8 @@ function renderTabs(){
   const isTool=v==='domaine'&&(DOM[current.key].method||DOM[current.key].isFormation||DOM[current.key].isMail);
   const T=[['#/','Accueil','centre','#f5c542',(v==='home'||v==='favoris'||v==='profil'||v==='duneuf'||v==='liste')],
            ['#/reseau','Réseau','compass','#f3c6da',(v==='reseau'||(v==='domaine'&&!isTool))],
-           ['#/centre','Centre','cible','#f8763f',(v==='centre'||isTool||v==='admin'||v==='quartier'||v==='ticket')],
+           /* Centre en BLEU (handoff Claude Design, 06/08/2026). */
+           ['#/centre','Centre','cible','#A9C8E8',(v==='centre'||isTool||v==='admin'||v==='quartier'||v==='ticket'||v==='chambres')],
            ['#/urgences','Urgences','siren','#e63329',v==='urgences']];
   document.getElementById('tabbar').innerHTML=T.map(t=>
     '<button class="'+(t[4]?'on':'')+'" onclick="go(\''+t[0]+'\')">'+
