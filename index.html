@@ -5130,7 +5130,7 @@ function vCentre(){
   let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', false)+
     '<button class="cliste" onclick="go(\'#/liste\')">'+
       '<span class="tx"><span class="sur">Ma liste du jour</span>'+
-      '<b>Ta check-list</b><em>'+(!listesLoaded?'Chargement…':(resteAListe()?resteAListe()+' à faire':'Tout est fait ✓'))+'</em></span>'+
+      '<b>Ta check-list</b><em>'+(!listesLoaded?'Chargement…':((resteAListe()+resteRappels())?(resteAListe()+resteRappels())+' à faire':'Tout est fait ✓'))+'</em></span>'+
       '<span class="ic">'+icon('list')+'</span></button>'+
     (voitOutilsCentre()
       ? '<div class="sectc"><b><i style="background:#b28b7a"></i>Les outils de l’équipe</b><em>Vues A · B · C</em></div>'
@@ -5180,9 +5180,10 @@ function vListe(){
   const miennes=CHECKLISTS.filter(g=>g.mienne), autres=CHECKLISTS.filter(g=>!g.mienne);
 
   if(!CHECKLISTS.length)
-    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Aucune liste</b>'+
-      '<p>Aucune check-list ne t’est accessible pour l’instant. Si ton rôle en a une, '+
-      'demande à Mag de te l’attribuer.</p></div><div style="height:26px"></div>';
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Pas de liste de travail</b>'+
+      '<p>Aucune check-list de rôle ne t’est attribuée. Si ton rôle en a une, demande-la à Mag.\n\n'+
+      'En attendant, tu peux te faire tes propres rappels ci-dessous.</p></div>'+
+      rappelsHTML()+'<div style="height:26px"></div>';
 
   if(!miennes.length)
     h+='<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Pas de liste à toi</b>'+
@@ -5209,12 +5210,16 @@ function vListe(){
     return s;
   };
 
+  if(miennes.length)
+    h+='<div class="sect" style="margin-top:22px"><b>Le travail</b><em>la liste de ton rôle</em></div>';
   h+=miennes.map(bloc).join('');
   if(autres.length){
     h+='<div class="sect" style="margin-top:32px"><b>Les autres listes</b><em>pour jeter un œil</em></div>';
     h+=autres.map(bloc).join('');
   }
-  h+='<p class="hint" style="margin:18px 0 26px">Ce que tu coches est à toi, et se remet à zéro tout seul demain.</p>';
+  h+=rappelsHTML();
+  h+='<p class="hint" style="margin:18px 0 26px">Ce que tu coches est à toi — personne d’autre ne le voit — '+
+     'et tout se décoche tout seul demain matin. Tes rappels, eux, restent.</p>';
   return h+'<div style="height:26px"></div>';
 }
 
@@ -7754,6 +7759,13 @@ async function chargerReglages(){
     }
     try{ localStorage.setItem('lux_formations',JSON.stringify(FLU)); }catch(e){}
   }
+  // SES RAPPELS À ELLE : la base fait foi, ils la suivent d'un téléphone à l'autre.
+  if(Array.isArray(lignes.ma_liste)){
+    MESRAPPELS=lignes.ma_liste;
+    try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
+  } else if(premiere && MESRAPPELS.length){
+    reglagePousser('ma_liste',MESRAPPELS);
+  }
   // SON PETIT NOM : la base fait foi, il la suit d'un téléphone à l'autre.
   if(typeof lignes.pseudo==='string'){
     PSEUDO=lignes.pseudo;
@@ -7825,6 +7837,77 @@ async function resetListe(nom){
       }catch(e){ toast('Impossible de remettre à zéro'); }
     }, {ok:'Tout décocher', danger:true});
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   MES RAPPELS À MOI — la liste personnelle (Mag, 06/08/2026)
+   Deux listes côte à côte, et c'est voulu :
+   · LA LISTE DU TRAVAIL est IMPOSÉE — c'est Mag qui l'écrit, elle est la même
+     pour tout un rôle. C'est elle qui fait que le relais se passe entre les
+     équipes : si chacun écrivait la sienne, ce repère commun disparaîtrait.
+   · MES RAPPELS sont à la personne. Elle les écrit, elle seule les voit.
+   Où ça vit : dans son tiroir personnel (reglages_perso, clé « ma_liste »),
+   celui qui garde déjà son pseudo. Pas de nouvelle table, pas de nouvelle
+   autorisation à créer.
+   ⚠ HONNÊTETÉ : c'est PRIVÉ vis-à-vis de l'équipe, pas anonyme — Mag est
+   propriétaire de la base. Dit tel quel dans la page, pas de promesse en l'air.
+   Les LIGNES restent d'un jour à l'autre ; ce sont les COCHES qui repartent à
+   zéro à minuit, comme la liste du travail — une seule logique à comprendre. */
+let MESRAPPELS;
+try{ MESRAPPELS=JSON.parse(localStorage.getItem('lux_mes_rappels')||'[]'); }catch(e){ MESRAPPELS=[]; }
+if(!Array.isArray(MESRAPPELS)) MESRAPPELS=[];
+function rappelsSauver(){
+  try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
+  if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
+}
+function rappelFait(r){ return r && r.faitLe===todayStr(); }
+function rappelAjouter(){
+  const i=document.getElementById('rapTxt'); if(!i) return;
+  const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
+  MESRAPPELS.push({id:'r'+Date.now(), texte:t.slice(0,120)});
+  rappelsSauver(); i.value=''; render();
+  setTimeout(function(){ const c=document.getElementById('rapTxt'); if(c) c.focus(); },30);
+}
+function rappelCocher(id){
+  const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
+  r.faitLe = rappelFait(r) ? null : todayStr();
+  rappelsSauver(); render();
+}
+function rappelRetirer(id){
+  const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
+  cousinConfirme('Retirer ce rappel ?', r.texte, function(){
+    MESRAPPELS=MESRAPPELS.filter(x=>x.id!==id); rappelsSauver(); render();
+  }, {ok:'Retirer', danger:true});
+}
+function resteRappels(){ return MESRAPPELS.filter(function(r){ return !rappelFait(r); }).length; }
+/* Le bloc « Mes rappels », affiché sous la liste du travail. */
+function rappelsHTML(){
+  const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
+  let h='<div class="sect" style="margin-top:34px"><b>Mes rappels</b>'+
+        '<em>'+(tot? fait+' / '+tot : 'rien pour l’instant')+'</em></div>';
+  h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Ceux-là sont à toi : tu les écris, '+
+     'et personne dans l’équipe ne les voit. Ils te suivent d’un téléphone à l’autre.</div>';
+  if(tot){
+    h+='<div style="display:flex;align-items:center;gap:14px;padding:14px 2px 4px">'+
+       anneauProg(tot?fait/tot:0,'#5b8fd4')+
+       '<span style="flex:1;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;'+
+       'text-transform:uppercase;color:#8b8984">'+(tot-fait?(tot-fait)+' à faire':'Tout est fait ✓')+'</span></div>';
+    h+='<div class="rlist">'+MESRAPPELS.map(function(r){
+      const ok=rappelFait(r);
+      return '<div class="tache'+(ok?' faite':'')+'">'+
+        '<button class="cas" onclick="rappelCocher(\''+r.id+'\')" aria-label="Cocher">'+
+          (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+        '<span class="tx" onclick="rappelCocher(\''+r.id+'\')" style="cursor:pointer"><b>'+esc(r.texte)+'</b></span>'+
+        '<button class="fsup sup" onclick="rappelRetirer(\''+r.id+'\')">Retirer</button>'+
+      '</div>';
+    }).join('')+'</div>';
+  }
+  h+='<div class="chadd" style="margin-top:12px">'+
+       '<input id="rapTxt" type="text" placeholder="Ce que tu ne veux pas oublier…" autocomplete="off" '+
+       'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
+       '<button class="chaddbtn" onclick="rappelAjouter()">Ajouter</button>'+
+     '</div>';
+  return h;
+}
+
 /* Ce qui reste à cocher dans SES listes — c'est ce chiffre qui compte sur l'accueil. */
 function resteAListe(){
   let n=0;
