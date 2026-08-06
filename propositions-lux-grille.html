@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lux — la piste « grille »</title>
+<style>
+/* Page locale — rien en ligne. Déclinaisons de sa maquette : grille aux traits fins,
+   libellés espacés façon machine, gros pictos posés au coin bas-droit. */
+@font-face{font-family:'Eastman';src:url('font/eastman-regular.woff2') format('woff2');font-weight:400;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+@font-face{font-family:'Eastman';src:url('font/eastman-medium.woff2') format('woff2');font-weight:500;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+@font-face{font-family:'Eastman';src:url('font/eastman-bold.woff2') format('woff2');font-weight:700;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+@font-face{font-family:'Eastman';src:url('font/eastman-extrabold.woff2') format('woff2');font-weight:800;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Eastman',-apple-system,sans-serif;background:#dcd8d0;color:#1b1b1b;font-size:16px;line-height:1.4;padding:22px 14px 60px}
+.wrap{max-width:430px;margin:0 auto}
+h1{font-size:21px;margin-bottom:4px}
+.intro{font-size:13.5px;color:#555;margin-bottom:22px}
+.pico{display:inline-block;background:currentColor;-webkit-mask-size:contain;mask-size:contain;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.variant{margin-bottom:34px}
+.vtag{display:inline-flex;font-size:13px;font-weight:700;letter-spacing:.06em;
+  background:#1b1b1b;color:#f2eee6;border-radius:999px;padding:6px 14px;margin-bottom:6px}
+.vdesc{font-size:13px;color:#444;margin-bottom:12px}
+.phone{border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.15);background:#f2efe9;padding:18px 0 0}
+.pad{padding:0 16px}
+.ht{font-weight:800;text-transform:uppercase;letter-spacing:-.04em;line-height:.85;font-size:34px;margin-bottom:14px}
+.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;font-weight:500;
+  letter-spacing:.28em;text-transform:uppercase;color:#5a564e}
+/* la grille aux traits fins : les lignes se partagent, comme un tableau */
+.tgrid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #c9c4b8}
+.cell{border-bottom:1px solid #c9c4b8;border-right:1px solid #c9c4b8;
+  min-height:128px;padding:13px 13px 11px;display:flex;flex-direction:column;background:transparent}
+.cell:nth-child(2n){border-right:0}
+.cell .pi{margin-top:auto;align-self:flex-end;width:40px;height:40px}
+.cell .pi .pico,.cell .pi svg{width:100%;height:100%}
+.cellw{grid-column:1 / -1}
+/* dock selon la variante */
+.dockA{display:flex;justify-content:center;gap:14px;padding:14px 0 16px}
+.dockA .db{width:50px;height:50px;border-radius:50%;background:#1b1b1b;display:flex;align-items:center;justify-content:center}
+.dockA .db .pico,.dockA .db svg{width:21px;height:21px}
+.dockB{display:flex;border-top:1px solid #c9c4b8}
+.dockB .sq{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 0 14px;border-right:1px solid #c9c4b8}
+.dockB .sq:last-child{border-right:0}
+.dockB .sq .pico,.dockB .sq svg{width:22px;height:22px}
+.dockB .lbl{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:#5a564e}
+.sqbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid #1b1b1b;background:transparent}
+.sqbtn .pico,.sqbtn svg{width:18px;height:18px;color:#1b1b1b}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Lux — la piste « grille »</h1>
+<p class="intro">Ta maquette déclinée : traits fins qui se partagent, libellés espacés façon machine, gros pictos au coin. Trois dosages — dis-moi lequel, ou compose.</p>
+<div id="zones"></div>
+</div>
+<script>
+const K={reseau:'#f3c6da',dem:'#b28b7a',form:'#6cb392',mails:'#f5c542',proto:'#fd8fd0',centre:'#f8763f',urg:'#e63329'};
+function pico(f,color,s){return '<span class="pico" style="color:'+(color||'#1b1b1b')+';width:'+(s||24)+'px;height:'+(s||24)+'px;-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></span>'}
+const svgHouse=c=>'<svg viewBox="0 0 24 24" style="width:100%;height:100%" fill="'+(c||'#1b1b1b')+'"><path d="M12 3 21.4 11.6v9.4H2.6v-9.4z"/></svg>';
+const svgClip=c=>'<svg viewBox="0 0 24 24" style="width:100%;height:100%" fill="'+(c||'#1b1b1b')+'"><rect x="2" y="2" width="9" height="9" rx="1.4"/><rect x="13" y="2" width="9" height="9" rx="1.4"/><rect x="2" y="13" width="9" height="9" rx="1.4"/><rect x="13" y="13" width="9" height="9" rx="1.4"/></svg>';
+const T=[['ico-reseau.svg','Réseau',K.reseau],['ico-demarches.svg','Démarches',K.dem],['formations.svg','Formations',K.form],
+         ['ico-guillemets.svg','Mail et note type',K.mails],['CLIP','Protocole',K.proto],['HOUSE','Gestion du centre',K.centre]];
+function ic(t,col){return t[0]==='HOUSE'?svgHouse(col):t[0]==='CLIP'?svgClip(col):pico(t[0],col||'#1b1b1b',40)}
+function titre(){
+  return '<div class="pad"><div class="ht">Vous cherchez<br>qu'+
+    '<span style="display:inline-block;vertical-align:-2px">'+pico('ico-donut.svg','#f8763f',22)+'</span>i&nbsp;? '+
+    '<span class="sqbtn" style="vertical-align:6px">'+pico('urgences.svg','#1b1b1b',18)+'</span></div></div>';
+}
+function grille(mode){
+  return '<div class="tgrid">'+T.map(t=>{
+    const col = mode==='couleur' ? t[2] : '#1b1b1b';
+    return '<div class="cell"><span class="mono">'+t[1]+'</span><span class="pi">'+ic(t,col)+'</span></div>';
+  }).join('')+'</div>';
+}
+function urgRow(mode){
+  if(mode==='rouge') return '<div class="tgrid" style="border-top:0"><div class="cell cellw" style="background:#e63329;min-height:74px">'+
+    '<span class="mono" style="color:#f2eee6">Urgences — 101 · 112</span>'+
+    '<span class="pi" style="width:28px;height:28px">'+pico('urgences.svg','#f2eee6',28)+'</span></div></div>';
+  return '<div class="tgrid" style="border-top:0"><div class="cell cellw" style="min-height:74px">'+
+    '<span class="mono" style="color:#e63329">Urgences — 101 · 112</span>'+
+    '<span class="pi" style="width:28px;height:28px">'+pico('urgences.svg','#e63329',28)+'</span></div></div>';
+}
+function dockRond(){
+  return '<div class="dockA">'+[['ico-reseau.svg',K.reseau],['HOUSE',K.centre],['FEED',K.mails],['urgences.svg',K.urg]].map(x=>
+    '<span class="db">'+(x[0]==='HOUSE'?'<span style="width:21px;height:21px;display:inline-flex">'+svgHouse(x[1])+'</span>'
+      :x[0]==='FEED'?'<svg viewBox="0 0 24 24" style="width:21px;height:21px" fill="'+x[1]+'"><path d="M3.4 9.5 17.4 4.1a1.1 1.1 0 0 1 1.5 1v13.8a1.1 1.1 0 0 1-1.5 1L3.4 14.5a1.1 1.1 0 0 1-.7-1v-3a1.1 1.1 0 0 1 .7-1z"/><path d="M6.6 15.5h3.7l.9 4.3a1.4 1.4 0 0 1-1.4 1.7H8.4a1.4 1.4 0 0 1-1.4-1.1z"/></svg>'
+      :pico(x[0],x[1],21))+'</span>').join('')+'</div>';
+}
+function dockGrille(){
+  return '<div class="dockB">'+[['ico-reseau.svg','Réseau'],['HOUSE','Centre'],['FEED','Quoi de neuf'],['urgences.svg','Urgences']].map(x=>
+    '<span class="sq">'+(x[0]==='HOUSE'?'<span style="width:22px;height:22px;display:inline-flex">'+svgHouse('#1b1b1b')+'</span>'
+      :x[0]==='FEED'?'<svg viewBox="0 0 24 24" style="width:22px;height:22px" fill="#1b1b1b"><path d="M3.4 9.5 17.4 4.1a1.1 1.1 0 0 1 1.5 1v13.8a1.1 1.1 0 0 1-1.5 1L3.4 14.5a1.1 1.1 0 0 1-.7-1v-3a1.1 1.1 0 0 1 .7-1z"/><path d="M6.6 15.5h3.7l.9 4.3a1.4 1.4 0 0 1-1.4 1.7H8.4a1.4 1.4 0 0 1-1.4-1.1z"/></svg>'
+      :pico(x[0],'#1b1b1b',22))+'<span class="lbl">'+x[1]+'</span></span>').join('')+'</div>';
+}
+const V=[
+ ['g1','1 — La grille, noire','Ta maquette telle quelle : tout au trait fin, pictos noirs, libellés machine. Les urgences en rouge plein — seule couleur de l\'écran avec le titre. Le dock garde ses ronds noirs.',
+   ()=>titre()+urgRow('rouge')+grille('noir')+dockRond()],
+ ['g2','2 — La grille, pictos couleur','La même grille, mais chaque picto garde SA couleur du main. Plus vivant, toujours aussi calme. Urgences en rouge tracé.',
+   ()=>titre()+urgRow('trace')+grille('couleur')+dockRond()],
+ ['g3','3 — Tout tracé, dock compris','Le plus radical : même le dock devient une rangée de cases au trait, libellés machine. Plus aucun rond noir — que du trait, du crème et le rouge des urgences.',
+   ()=>titre()+urgRow('rouge')+grille('noir')+dockGrille()]
+];
+document.getElementById('zones').innerHTML=V.map(v=>
+ '<div class="variant" id="'+v[0]+'"><span class="vtag">'+v[1]+'</span><p class="vdesc">'+v[2]+'</p>'+
+ '<div class="phone">'+v[3]()+'</div></div>').join('');
+</script>
+</body>
+</html>
