@@ -1076,6 +1076,17 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .copybox{background:transparent;border:1px solid var(--ligne);border-radius:0;padding:15px;margin:12px 0}
 .copybox .lab{display:flex;align-items:center;gap:10px;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--enc2);margin-bottom:6px}
 /* Chaque bloc a son propre bouton de copie : l'objet et le corps se copient séparément. */
+/* LES CROCHETS VIVANTS : pastilles à choisir, petits champs à écrire — dans la phrase. */
+.nchoix{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:baseline}
+.nopt{border:1.5px solid var(--noir);border-radius:999px;padding:2px 10px;font-size:13.5px;
+  font-weight:600;background:#fdfdfc;color:var(--noir);line-height:1.4}
+.nopt.on{background:var(--noir);color:#f2eee6}
+@media (hover:hover){ .nopt:hover{background:var(--jaune);border-color:var(--noir);color:var(--noir)} }
+.nfill{font:inherit;font-size:14px;font-weight:700;color:var(--noir);background:#fff7d6;
+  border:0;border-bottom:1.5px solid var(--noir);padding:1px 6px;min-width:120px;max-width:100%}
+.nfill:focus{outline:0;background:#fff}
+.nfill::placeholder{font-weight:400;color:#8b8984}
+
 .cbcop{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ligne);border-radius:999px;padding:4px 10px;font-family:ui-monospace,monospace;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--noir);background:#fdfdfc}
 .cbcop .ic{width:12px;height:12px}
 @media (hover:hover){ .cbcop:hover{background:var(--noir);color:#f2eee6} }
@@ -4612,13 +4623,68 @@ function heartBtn(sid,extra){
 function telHref(t){const m=/[+0-9][0-9 .\/-]{2,}/.exec(t||'');const n=m?m[0].replace(/[^+0-9]/g,''):'';return n.length>=3?('tel:'+n):''}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove('show'),1800)}
+/* ══════════════════════════════════════════════════════════════════════════
+   LES MODÈLES QUI SE REMPLISSENT TOUT SEULS (rapatrié de l'ancienne app le
+   06/08/2026 — il avait été oublié à la bascule, retrouvé en comparant les deux).
+   Dans le texte d'un mail ou d'une note, ce qui est entre crochets devient vivant :
+     [soins / médicaments / autre]  →  trois pastilles ; on touche la bonne et les
+                                       autres s'effacent (re-toucher les fait revenir)
+     [nom, date de naissance]       →  un petit champ à écrire, dans la phrase
+   Le modèle se monte donc DANS l'app, et on ne copie que le texte fini — au lieu
+   d'emporter des crochets à nettoyer ensuite dans Gmail.
+   Rien n'est enregistré : c'est un brouillon de travail, il repart à zéro en
+   quittant la fiche. Aucune donnée d'hébergé ne doit rester dans COUSIN.
+   ══════════════════════════════════════════════════════════════════════════ */
+const NOTE_CHOIX={};
+function noteCle(sid,champ){ return sid+'|'+champ; }
+function corpsInteractif(p,champ){
+  const cle=noteCle(p.sid,champ), ch=NOTE_CHOIX[cle]||{};
+  let i=-1;
+  return esc(p[champ]||'').replace(/\[([^\]]+)\]/g, function(m,contenu){
+    i++; const idx=i, val=ch[idx];
+    if(contenu.indexOf('/')>=0){
+      const opts=contenu.split('/').map(function(o){ return o.trim(); });
+      /* Une fois le choix fait, les autres possibilités s'effacent : le modèle se
+         resserre au fur et à mesure. Un nouvel appui sur le mot choisi les ramène. */
+      const montres=(val===undefined)?opts:[val];
+      return '<span class="nchoix">'+montres.map(function(o){
+        const sur=o.replace(/'/g,"\\'");
+        return '<button class="nopt'+(val===o?' on':'')+'" onclick="choixNote(event,\''+p.sid+'\',\''+champ+'\','+idx+',\''+sur+'\')">'+esc(o)+'</button>';
+      }).join('')+'</span>';
+    }
+    return '<input class="nfill" value="'+esc(val||'')+'" placeholder="'+esc(contenu)+'" '+
+           'onclick="event.stopPropagation()" oninput="saisieNote(\''+p.sid+'\',\''+champ+'\','+idx+',this.value)">';
+  });
+}
+function choixNote(ev,sid,champ,idx,valeur){
+  ev.stopPropagation();
+  const cle=noteCle(sid,champ), c=NOTE_CHOIX[cle]||(NOTE_CHOIX[cle]={});
+  c[idx]=(c[idx]===valeur)?undefined:valeur;      // re-toucher = revenir en arrière
+  const p=BYSID[sid]; if(!p) return;
+  const zone=document.getElementById('mod-'+champ+'-'+sid);
+  if(zone) zone.innerHTML=corpsInteractif(p,champ);
+}
+function saisieNote(sid,champ,idx,valeur){
+  const cle=noteCle(sid,champ), c=NOTE_CHOIX[cle]||(NOTE_CHOIX[cle]={});
+  c[idx]=valeur;
+}
+/* Le texte FINI : les choix faits et les mots écrits remplacent les crochets ; ce
+   qu'on n'a pas rempli reste entre crochets, pour qu'on voie ce qui manque. */
+function texteNote(p,champ){
+  const ch=NOTE_CHOIX[noteCle(p.sid,champ)]||{}; let i=-1;
+  return String(p[champ]||'').replace(/\[([^\]]+)\]/g, function(m){
+    i++; const v=ch[i];
+    return (v===undefined||v==='')?m:v;
+  });
+}
+
 /* Un brouillon Gmail tout prêt : objet et corps dedans, destinataire à remplir.
    « view=cm » = fenêtre de rédaction, « fs=1 » = plein écran. Si la personne a
    plusieurs comptes Google, Gmail lui demandera lequel — c'est normal. */
 function gmailHref(p){
   return 'https://mail.google.com/mail/?view=cm&fs=1'+
-    '&su='+encodeURIComponent(p.objet||p.nom||'')+
-    '&body='+encodeURIComponent(p.corps||'');
+    '&su='+encodeURIComponent(texteNote(p,'objet')||p.nom||'')+
+    '&body='+encodeURIComponent(texteNote(p,'corps'));
 }
 function copyTxt(txt,msg){navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copié'),()=>toast('Copie impossible'))}
 function itiHref(adr){return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(ITI_DEPART)+
@@ -6426,14 +6492,16 @@ function vFiche(p){
   } else if(p.domaine==='mails'){
     /* TROIS GESTES, pas un seul (Mag, 06/08/2026) : copier l'objet, copier le corps,
        ou ouvrir directement un brouillon Gmail — l'équipe est sur Gmail au travail. */
-    const cbx=function(lab,txt,quoi){
+    const cbx=function(lab,champ){
       return '<div class="copybox"><div class="lab">'+lab+
-        '<button class="cbcop" onclick="copyTxt(BYSID[\''+p.sid+'\'].'+quoi+',\''+lab+' copié\')">'+
+        '<button class="cbcop" onclick="copyTxt(texteNote(BYSID[\''+p.sid+'\'],\''+champ+'\'),\''+lab+' copié\')">'+
           '<span class="ic">'+icon('copy')+'</span>Copier</button></div>'+
-        '<p>'+esc(txt)+'</p></div>';
+        '<p id="mod-'+champ+'-'+p.sid+'">'+corpsInteractif(p,champ)+'</p></div>';
     };
-    body+=(p.objet?cbx('Objet',p.objet,'objet'):'')+
-      (p.corps?cbx(p.genre==='Note'?'Canevas de note':'Corps du mail',p.corps,'corps'):'');
+    body+=(p.objet?cbx('Objet','objet'):'')+
+      (p.corps?cbx(p.genre==='Note'?'Canevas de note':'Corps du mail','corps'):'')+
+      '<div class="fsrc" style="text-align:left;padding:8px 2px 0">Touche les mots entre crochets : '+
+      'choisis, ou écris dedans. Le modèle se monte ici, tu ne copies que le texte fini.</div>';
   } else if(/poubelle/i.test(p.nom||'')){
     body+=poubellesTableau();
   } else if(p.memo){
@@ -6463,17 +6531,19 @@ function vFiche(p){
   if(p.adr) b1='<a class="fbtn" href="'+itiHref(p.adr)+'" target="_blank" rel="noopener"><span class="ic">'+icon('pin')+'</span>Itinéraire</a>';
   if(p.domaine==='mails'&&p.corps){
     if(p.genre==='Note'){
-      b2='<button class="fbtn plein" style="background:'+c+'" onclick="copyTxt(BYSID[\''+p.sid+'\'].corps,\'Note copiée\')">'+
+      b2='<button class="fbtn plein" style="background:'+c+'" onclick="copyTxt(texteNote(BYSID[\''+p.sid+'\'],\'corps\'),\'Note copiée\')">'+
          '<span class="ic">'+icon('copy')+'</span>Copier la note</button>';
     } else {
       /* Gmail ouvre un vrai brouillon, objet et texte déjà dedans : il ne reste qu'à
          mettre le destinataire et à compléter les [crochets]. */
       b1='<a class="fbtn" href="'+esc(gmailHref(p))+'" target="_blank" rel="noopener">'+
          '<span class="ic">'+icon('copy')+'</span>Copier le mail</a>';
-      b1='<button class="fbtn" onclick="copyTxt(BYSID[\''+p.sid+'\'].corps,\'Mail copié\')">'+
+      b1='<button class="fbtn" onclick="copyTxt(texteNote(BYSID[\''+p.sid+'\'],\'corps\'),\'Mail copié\')">'+
          '<span class="ic">'+icon('copy')+'</span>Copier le mail</button>';
-      b2='<a class="fbtn plein" style="background:'+c+'" href="'+esc(gmailHref(p))+'" target="_blank" rel="noopener">'+
-         '<span class="ic">'+icon('send')+'</span>Ouvrir dans Gmail</a>';
+      /* On recalcule l'adresse AU CLIC : sinon elle emporterait le modèle tel qu'il
+         était au dessin de la page, sans les choix faits depuis. */
+      b2='<button class="fbtn plein" style="background:'+c+'" onclick="window.open(gmailHref(BYSID[\''+p.sid+'\']),\'_blank\')">'+
+         '<span class="ic">'+icon('send')+'</span>Ouvrir dans Gmail</button>';
     }
   }
   else if(th) b2='<a class="fbtn plein" style="background:'+c+'" href="'+th+'"><span class="ic">'+icon('phone')+'</span>Appeler</a>';
