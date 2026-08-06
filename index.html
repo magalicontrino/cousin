@@ -640,6 +640,14 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .jx-flip .jx-face em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-top:14px}
 
+/* ---- LES MODÈLES DE CHECK-LISTS ---- */
+.modn{flex:none;width:22px;font-family:ui-monospace,monospace;font-size:10px;color:#8b8984;text-align:right}
+.modb{flex:none;display:flex;flex-direction:column;gap:2px}
+.modb button,.modb span{width:26px;height:18px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;color:var(--noir);border:1px solid var(--ligne);border-radius:4px;background:#fdfdfc}
+.modb span{border-color:transparent;background:transparent}
+@media (hover:hover){ .modb button:hover{background:var(--noir);color:#f2eee6} }
+
 /* ---- LES STATISTIQUES : des barres, pas des camemberts ---- */
 .stl{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--ligne)}
 .stn{flex:0 0 38%;font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -4707,6 +4715,7 @@ function parseRoute(){
   if(seg[0]==='jeux') return {view:'jeux'};
   if(seg[0]==='chantier') return {view:'chantier'};
   if(seg[0]==='stats') return {view:'stats'};
+  if(seg[0]==='modeles') return {view:'modeles'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -4773,6 +4782,7 @@ function render(){
   else if(current.view==='jeux') view.innerHTML=vJeux();
   else if(current.view==='chantier'){ view.innerHTML=vChantier(); rafraichirChantier(); }
   else if(current.view==='stats') view.innerHTML=vStats();
+  else if(current.view==='modeles'){ view.innerHTML=vModeles(); rafraichirModeles(); }
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
   else if(current.view==='quartier') view.innerHTML=vQuartier();
@@ -6096,6 +6106,120 @@ function vStats(){
   return h+'<div style="height:26px"></div>';
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   LES MODÈLES DE CHECK-LISTS (rapatrié le 06/08/2026)
+   Avant, changer une tâche voulait dire ouvrir Supabase. Ici Mag écrit, réordonne
+   et retire les tâches d'un rôle directement dans l'app.
+   Une tâche vit dans `checklists` (liste, tache, ordre). Ce que les gens COCHENT
+   est ailleurs (`checklist_faites`) : retirer une tâche n'efface donc le travail
+   de personne, ça retire seulement la ligne du modèle.
+   ══════════════════════════════════════════════════════════════════════════ */
+let MOD_LISTE='pfo-jour', MODELES=[], modelesLoaded=false, MOD_ERREUR=null;
+async function loadModeles(){
+  modelesLoaded=false;
+  if(!sb){ modelesLoaded=true; return; }
+  try{
+    const {data,error}=await sb.from('checklists').select('id,liste,tache,ordre').order('ordre');
+    if(error) throw error;
+    MODELES=data||[];
+  }catch(e){ MODELES=[]; }
+  modelesLoaded=true;
+}
+function modChoisir(k){ MOD_LISTE=k; MOD_ERREUR=null; render(); }
+function modDe(k){ return MODELES.filter(function(t){ return t.liste===k; })
+                          .sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }); }
+async function modAjouter(){
+  const i=document.getElementById('modTxt'); if(!i) return;
+  const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
+  const dernieres=modDe(MOD_LISTE);
+  const ordre=(dernieres.length? (dernieres[dernieres.length-1].ordre||0) : 0)+10;
+  try{
+    const r=await sb.from('checklists').insert({liste:MOD_LISTE, tache:t, ordre:ordre}).select('id');
+    if(r.error) throw r.error;
+    if(!r.data||!r.data.length) throw new Error('la base n’a rien écrit');
+    i.value=''; MOD_ERREUR=null;
+    await loadModeles(); await loadListes(); render(); toast('Tâche ajoutée ✓');
+  }catch(e){ MOD_ERREUR='Ajout refusé : '+((e&&e.message)||'la base a dit non'); render(); }
+}
+function modRetirer(id,texte){
+  cousinConfirme('Retirer cette tâche du modèle ?',
+    texte+'\n\nCe que les collègues ont déjà coché n’est pas effacé — c’est la ligne du modèle qui part.',
+    async function(){
+      try{
+        const r=await sb.from('checklists').delete().eq('id',id).select('id');
+        if(r.error) throw r.error;
+        MOD_ERREUR=null; await loadModeles(); await loadListes(); render();
+      }catch(e){ MOD_ERREUR='Suppression refusée : '+((e&&e.message)||'la base a dit non'); render(); }
+    }, {ok:'Retirer', danger:true});
+}
+/* Monter ou descendre : on échange les deux numéros d'ordre. */
+async function modBouger(id,sens){
+  const l=modDe(MOD_LISTE);
+  const i=l.findIndex(function(t){ return t.id===id; });
+  const j=i+sens;
+  if(i<0||j<0||j>=l.length) return;
+  const a=l[i], b=l[j];
+  const oa=a.ordre||0, ob=b.ordre||0;
+  try{
+    await sb.from('checklists').update({ordre:ob}).eq('id',a.id);
+    await sb.from('checklists').update({ordre:oa}).eq('id',b.id);
+    MOD_ERREUR=null; await loadModeles(); render();
+  }catch(e){ MOD_ERREUR='Déplacement refusé : '+((e&&e.message)||'la base a dit non'); render(); }
+}
+let _modVu=0;
+function rafraichirModeles(){
+  if(!sb||!PROFILE||!PROFILE.admin) return;
+  if(modelesLoaded && Date.now()-_modVu<45000) return;
+  _modVu=Date.now();
+  loadModeles().then(function(){ if(current.view==='modeles') render(); });
+}
+function vModeles(){
+  let h=heroBandeau('Les modèles','Ce que chaque rôle doit faire','#6cb392','list',true);
+  if(!(PROFILE&&PROFILE.admin))
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
+      '<p>Seule l’administration écrit les listes.</p></div><div style="height:26px"></div>';
+  if(!modelesLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+
+  h+='<div class="fchips" style="margin-top:16px">'+LISTE_ORDER.map(function(k){
+      const n=modDe(k).length;
+      return '<button class="fchip'+(MOD_LISTE===k?' on':'')+'" onclick="modChoisir(\''+k+'\')">'+
+        esc(LISTE_LABELS[k]||k)+' '+n+'</button>';
+    }).join('')+'</div>';
+
+  if(MOD_ERREUR)
+    h+='<div class="admok rate"><b>✗ '+esc(MOD_ERREUR)+'</b>'+
+       '<span>La base laisse LIRE les modèles mais pas les écrire. Il manque une autorisation — '+
+       'dis-le moi et je la pose (sql/checklists-ecrire.sql).</span></div>';
+
+  const taches=modDe(MOD_LISTE);
+  h+='<div class="sect" style="margin-top:24px"><b>'+esc(LISTE_LABELS[MOD_LISTE]||MOD_LISTE)+'</b>'+
+     '<em>'+taches.length+' tâche'+(taches.length>1?'s':'')+'</em></div>';
+  if(!taches.length){
+    h+='<p class="hint" style="margin-top:12px">Cette liste est vide. Écris sa première tâche ci-dessous.</p>';
+  } else {
+    h+='<div class="rlist">'+taches.map(function(t,i){
+      return '<div class="tache">'+
+        '<span class="modn">'+(i+1)+'</span>'+
+        '<span class="tx"><b>'+esc(t.tache)+'</b></span>'+
+        '<span class="modb">'+
+          (i>0?'<button onclick="modBouger('+t.id+',-1)" aria-label="Monter">↑</button>':'<span></span>')+
+          (i<taches.length-1?'<button onclick="modBouger('+t.id+',1)" aria-label="Descendre">↓</button>':'<span></span>')+
+        '</span>'+
+        '<button class="fsup sup" onclick="modRetirer('+t.id+',\''+esc((t.tache||'').replace(/'/g,"\\'"))+'\')">Retirer</button>'+
+      '</div>';
+    }).join('')+'</div>';
+  }
+  h+='<div class="chadd" style="margin-top:12px">'+
+       '<input id="modTxt" type="text" placeholder="Une tâche de plus…" autocomplete="off" '+
+       'onkeydown="if(event.key===\'Enter\'){event.preventDefault();modAjouter();}">'+
+       '<button class="chaddbtn" onclick="modAjouter()">Ajouter</button>'+
+     '</div>';
+  h+='<div class="fsavoir" style="margin-top:22px"><b><span class="ic">'+icon('bulb')+'</span>Ce que ça change, et ce que ça ne change pas</b>'+
+     '<p>Ce que tu écris ici apparaît le jour même dans « Ma liste » de tous ceux qui ont ce rôle.\n\n'+
+     'Retirer une tâche n’efface le travail de personne : ce que les collègues ont coché est gardé ailleurs.</p></div>';
+  return h+'<div style="height:26px"></div>';
+}
+
 function vChantier(){
   let h=heroBandeau('Le chantier','Ta liste de travail','#f8763f','list',true);
   if(!(PROFILE&&PROFILE.admin))
@@ -6317,6 +6441,9 @@ function vAdmin(){
        '<b>Le chantier</b><span class="n">'+
        (chantierLoaded ? (aFaire+' à faire'+(enBoite?' · '+enBoite+' dans la boîte':'')) : 'ta liste de travail')+
        '</span><span class="sg">›</span></button>';
+    h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/modeles\')">'+
+       '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
+       '<span class="sg">›</span></button>';
     h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/stats\')">'+
        '<b>Statistiques</b><span class="n">où l’équipe passe son temps</span>'+
        '<span class="sg">›</span></button>';
