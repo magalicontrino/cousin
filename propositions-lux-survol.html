@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le rail — quatre effets au survol</title>
+<style>
+@font-face{font-family:'Eastman';src:url('font/eastman-regular.woff2') format('woff2');font-weight:400;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+@font-face{font-family:'Eastman';src:url('font/eastman-bold.woff2') format('woff2');font-weight:700;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+@font-face{font-family:'Eastman';src:url('font/eastman-extrabold.woff2') format('woff2');font-weight:800;font-display:swap;unicode-range:U+0-2F, U+3A-10FFFF}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Eastman',-apple-system,sans-serif;background:#dcd8d0;color:#1b1b1b;font-size:16px;line-height:1.4;padding:26px 18px 60px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:22px;margin-bottom:4px}
+.intro{font-size:13.5px;color:#555;margin-bottom:26px;max-width:640px}
+.rangee{display:flex;gap:20px;flex-wrap:wrap}
+.col{flex:1;min-width:236px}
+.vtag{display:inline-flex;font-size:12.5px;font-weight:700;letter-spacing:.06em;
+  background:#1b1b1b;color:#f2eee6;border-radius:999px;padding:6px 14px;margin-bottom:6px}
+.vdesc{font-size:12.5px;color:#444;margin-bottom:10px;min-height:52px}
+.rail{width:236px;background:#1b1b1b;color:#f2eee6;padding:22px 18px;display:flex;flex-direction:column;gap:22px;border-radius:8px}
+.pr{display:flex;flex-direction:column;gap:8px}
+.pr button{display:flex;flex-direction:row;align-items:center;gap:12px;padding:11px 12px;
+  border-radius:6px;background:transparent;color:#f2eee6;width:100%;text-align:left;border:0;cursor:pointer;
+  font-family:inherit}
+.pr .db{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#1b1b1b}
+.pr .db svg{width:17px;height:17px}
+.pr b{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.pr button.on{background:#f2eee6;color:#1b1b1b}
+.sec{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:18px;border-top:1px solid rgba(242,238,230,.2)}
+.sec button{display:flex;flex-direction:row;align-items:center;gap:11px;padding:9px 12px;color:#f2eee6;
+  width:100%;text-align:left;background:transparent;border:0;cursor:pointer;font-family:inherit;border-radius:6px}
+.sec svg{width:16px;height:16px;flex:none}
+.sec span{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+
+/* 1 — le fond s'éclaire */
+.v1 .pr button:not(.on):hover,.v1 .sec button:hover{background:rgba(242,238,230,.12)}
+
+/* 2 — le trait de couleur à gauche */
+.v2 .pr button:not(.on),.v2 .sec button{border-left:3px solid transparent;padding-left:9px}
+.v2 .pr button:not(.on):hover,.v2 .sec button:hover{border-left-color:var(--c,#f2eee6);background:rgba(242,238,230,.07)}
+
+/* 3 — ça glisse vers la droite */
+.v3 .pr button,.v3 .sec button{transition:transform .16s ease,opacity .16s ease}
+.v3 .pr button:not(.on):hover,.v3 .sec button:hover{transform:translateX(6px)}
+.v3 .sec button{opacity:.75}
+.v3 .sec button:hover{opacity:1}
+
+/* 4 — le rond grossit et le texte s'allume */
+.v4 .pr .db{transition:transform .16s ease}
+.v4 .pr button:not(.on):hover .db{transform:scale(1.14)}
+.v4 .sec svg{transition:transform .16s ease}
+.v4 .sec button:hover svg{transform:scale(1.2)}
+.v4 .sec button{color:rgba(242,238,230,.62)}
+.v4 .sec button:hover{color:#f2eee6}
+.v4 .pr button:not(.on):hover b{text-decoration:underline;text-underline-offset:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Le rail — quatre effets au survol</h1>
+<p class="intro">Passe la souris sur les lignes de chaque rail pour comparer. Le bouton actif (Accueil) ne bouge jamais : c'est le repère. Réponds par un numéro.</p>
+<div class="rangee" id="zone"></div>
+</div>
+<script>
+const P=[['Accueil','#f5c542','M4 11.5L12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z',true],
+         ['Réseau','#f3c6da','M7 7.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm10 0a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM7 14a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm10 0a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z',false],
+         ['Centre','#A9C8E8','M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 5a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',false],
+         ['Urgences','#e63329','M12 3a5 5 0 0 1 5 5v3h1.5a1.5 1.5 0 0 1 0 3h-13a1.5 1.5 0 0 1 0-3H7V8a5 5 0 0 1 5-5zm-2 15h4a2 2 0 1 1-4 0z',false]];
+const S=[['Tes étoiles','M12 2l2.4 5.9 6.3.4-4.9 4.1 1.6 6.2L12 15.2l-5.4 3.4 1.6-6.2-4.9-4.1 6.3-.4z'],
+         ['Le fil','M3 10v4h3l5 4V6L6 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z'],
+         ['Quoi de neuf','M12 2a7 7 0 0 1 4 12.7V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3A7 7 0 0 1 12 2zm-2 19h4v1h-4z'],
+         ['Profil','M12 2.6a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6zm0 11a8.4 8.4 0 0 1 8.4 6.8v1.2H3.6v-1.2A8.4 8.4 0 0 1 12 13.6z'],
+         ['Admin','M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 4l2 1.6-1.6 2.8-2.4-.8-1.7 1 -.4 2.5h-3.2l-.4-2.5-1.7-1-2.4.8L7.6 15 9.6 12 7.6 9l1.6-2.8 2.4.8 1.7-1L13.7 3.5h3.2l.4 2.5 1.7 1 2.4-.8L23 9z']];
+const svg=(d,c)=>'<svg viewBox="0 0 24 24" fill="'+(c||'currentColor')+'"><path d="'+d+'"/></svg>';
+function rail(cls){
+  return '<div class="rail '+cls+'">'+
+    '<div class="pr">'+P.map(p=>'<button class="'+(p[3]?'on':'')+'" style="--c:'+p[1]+'">'+
+      '<span class="db" style="background:'+p[1]+'">'+svg(p[2],'#1b1b1b')+'</span><b>'+p[0]+'</b></button>').join('')+'</div>'+
+    '<div class="sec">'+S.map(s=>'<button>'+svg(s[1])+'<span>'+s[0]+'</span></button>').join('')+'</div>'+
+  '</div>';
+}
+const V=[
+ ['1 · Le fond s\'éclaire','La ligne survolée prend un voile crème très léger. Discret, net, c\'est ce que font la plupart des applis.','v1'],
+ ['2 · Le trait de couleur','Un trait vertical apparaît à gauche, à la couleur de la destination — rose pour Réseau, bleu pour Centre. Ça rappelle tes filets de couleur.','v2'],
+ ['3 · Ça glisse','La ligne avance de quelques pixels vers la droite, comme si elle venait à toi. Vivant, sans rien changer aux couleurs.','v3'],
+ ['4 · Le rond grossit','Le rond de couleur enfle un peu et le libellé se souligne ; en bas, le picto grossit et le texte passe du gris au crème.','v4']
+];
+document.getElementById('zone').innerHTML=V.map(v=>
+ '<div class="col"><span class="vtag">'+v[0]+'</span><p class="vdesc">'+v[1]+'</p>'+rail(v[2])+'</div>').join('');
+</script>
+</body>
+</html>
