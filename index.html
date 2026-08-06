@@ -5156,14 +5156,32 @@ function supprimerMsg(id){
       catch(e){ toast('Suppression refusée'); }
     }, {ok:'Supprimer', danger:true});
 }
+/* TROIS ÉPINGLES AU MAXIMUM (Mag, 06/08/2026). Au-delà, plus rien ne ressort : tout
+   est important, donc rien ne l'est, et le fil normal se retrouve poussé hors de
+   l'écran. À la quatrième, la PLUS ANCIENNE se détache toute seule — Mag n'a rien
+   à gérer, et le haut du fil reste lisible. */
+const MAX_EPINGLES=3;
 async function epinglerMsg(id,on){
   if(!sb) return;
   /* On DIT ce qui coince au lieu d'un « indisponible » qui n'apprend rien : la colonne
-     existe, mais la base doit aussi AUTORISER l'écriture (voir sql/feed-epingler.sql). */
+     existe, et depuis le 06/08/2026 la base autorise enfin l'écriture (sql/feed-epingler.sql). */
   try{
     const r=await sb.from('feed').update({epingle:on}).eq('id',id).select('id');
     if(r.error) throw r.error;
     if(!r.data||!r.data.length){ toast('La base refuse l’épinglage (autorisation manquante)'); return; }
+    if(on){
+      /* FEED n'est pas encore relu : le message qu'on vient d'épingler s'ajoute à la main. */
+      const epingles=FEED.filter(m=>m.epingle||m.id===id);
+      if(epingles.length>MAX_EPINGLES){
+        const aDetacher=epingles.filter(m=>m.id!==id)
+          .sort(function(a,b){ return new Date(a.cree_le)-new Date(b.cree_le); })
+          .slice(0, epingles.length-MAX_EPINGLES);
+        for(let i=0;i<aDetacher.length;i++){
+          try{ await sb.from('feed').update({epingle:false}).eq('id',aDetacher[i].id); }catch(e){}
+        }
+        if(aDetacher.length) toast('3 épingles au maximum — la plus ancienne s’est détachée');
+      }
+    }
     await loadFeed(); render();
   }catch(e){ toast('Épinglage refusé : '+((e&&e.message)||'la base a dit non')); }
 }
@@ -5211,6 +5229,13 @@ function vFil(){
   if(!feedLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
   if(!FEED.length) return h+'<div class="empty" style="margin-top:16px"><span class="ic">'+icon('feed')+'</span>'+
     '<b>Le fil est vide.</b><p>Personne n’a encore écrit. À toi de commencer.</p></div>';
+
+  /* Le compte des épingles, pour l'administration seulement : elle sait où elle en est
+     avant d'en poser une de plus. */
+  const nEp=FEED.filter(function(m){return m.epingle}).length;
+  if(vueAdmin() && nEp)
+    h+='<div class="fsrc" style="text-align:left;padding:14px 0 0">'+
+       nEp+' épingle'+(nEp>1?'s':'')+' sur '+MAX_EPINGLES+' — au-delà, la plus ancienne se détache toute seule.</div>';
 
   h+='<div class="rlist" style="padding-top:18px">';
   FEED.forEach(function(m){
