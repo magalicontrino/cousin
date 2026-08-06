@@ -4295,7 +4295,31 @@ function pileJeux(){
 }
 function jeuSuivant(){ JEUI=(JEUI+1)%JEUX.length; majPile(1); }
 function jeuPrecedent(){ JEUI=(JEUI-1+JEUX.length)%JEUX.length; majPile(-1); }
-function jeuAleatoire(){ JEUI=Math.floor(Math.random()*JEUX.length); majPile(1); }
+/* Le dé : les cartes défilent de plus en plus lentement, puis s'arrêtent sur
+   une carte au hasard — comme une roue qu'on lance (Mag, 06/08/2026). */
+let _deTourne=false;
+function jeuAleatoire(){
+  if(_deTourne) return;
+  _deTourne=true;
+  const de=document.querySelector('.pile .tirer .rd');
+  if(de) de.style.transition='transform .5s ease', de.style.transform='rotate(360deg)';
+  /* entre 8 et 13 cartes, en ralentissant : la dernière est celle qui reste */
+  const pas=8+Math.floor(Math.random()*6);
+  let n=0;
+  (function tourner(){
+    JEUI=(JEUI+1)%JEUX.length;
+    majPile(1);
+    n++;
+    if(n<pas){
+      /* de 55 ms au début à ~260 ms à la fin : le ralenti se sent */
+      const d=55+Math.round(205*Math.pow(n/pas,2.2));
+      setTimeout(tourner,d);
+    } else {
+      _deTourne=false;
+      if(de) de.style.transform='';
+    }
+  })();
+}
 function lancerJeu(){ const j=JEUX[JEUI]; jxJouer(j.k,{t:'tout'}); go('#/quiz'); }
 /* On redessine la pile TOUT DE SUITE : la carte suivante est déjà en place,
    et l'ancienne s'envole par-dessus, comme une vraie carte qu'on écarte.
@@ -4317,7 +4341,7 @@ function majPile(sens){
   p.outerHTML=pileJeux();
   if(nav&&nav.classList.contains('pilenav')) nav.remove();
   const neuve=document.getElementById('pile');
-  if(fantome&&neuve){
+  if(fantome&&neuve&&!_deTourne){
     neuve.appendChild(fantome);
     /* un souffle pour que le navigateur prenne la position de départ, puis on l'envoie */
     requestAnimationFrame(function(){
@@ -4445,9 +4469,8 @@ function vHome(){
 
   h+=meteoHTML();
 
-  if(!PRENOM) h+='<button class="pbloc" style="border-left-color:#f8763f;width:100%;text-align:left;display:block;margin-top:14px" onclick="demanderPrenom()">'+
-    '<span class="ptop">Dis-moi ton prénom</span>'+
-    '<span style="display:block;font-size:13px;color:var(--enc2);padding:6px 0 4px">Pour que COUSIN t\'accueille par ton nom.</span></button>';
+  /* Plus d'invitation à donner son prénom sur l'accueil (Mag, 06/08/2026) :
+     il viendra de la connexion, et se change déjà depuis Mon profil. */
 
   /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
      Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
