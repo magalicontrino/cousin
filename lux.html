@@ -582,7 +582,7 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 /* ---- LA SALLE DE JEUX : les 8 jeux en cartes ---- */
 .jgrille{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding-top:18px}
 .jcarte{display:flex;flex-direction:column;align-items:flex-start;gap:0;border-radius:8px;
-  padding:15px;text-align:left;color:var(--noir);min-height:172px}
+  padding:15px;text-align:left;color:var(--noir);min-height:132px}
 .jcarte.sombre{color:#f2eee6}
 .jcarte .ic{width:34px;height:34px;flex:none}
 .jcarte b{font-size:17px;font-weight:800;line-height:1.1;margin-top:12px}
@@ -4707,6 +4707,14 @@ function sacsSvg(sacs){
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 let JEUI=0;                        // le jeu montré
 let _pStart=null, _pDx=0;          // le suivi du geste
+/* La couleur du picto d'un jeu. Elle se trompait : sur une carte sombre elle
+   reprenait LA COULEUR DU FOND — le picto bleu de « Cartes à retourner » était donc
+   dessiné en bleu sur bleu, invisible (Mag, 06/08/2026). Un picto se lit toujours
+   SUR son fond : crème sur une carte sombre, jaune sur la carte noire, noir ailleurs. */
+function couleurPictoJeu(j){
+  if(j.c==='#1b1b1b') return '#f5c542';
+  return j.sombre ? '#f2eee6' : '#1b1b1b';
+}
 function pileJeux(){
   const j=JEUX[JEUI]||JEUX[0];
   const suiv=JEUX[(JEUI+1)%JEUX.length];
@@ -4722,7 +4730,7 @@ function pileJeux(){
       '<span class="ic" style="color:'+(suiv.sombre||suiv.c==='#1b1b1b'?'#f2eee6':'rgba(27,27,27,.42)')+'">'+icon(suiv.ic)+'</span></button>'+
     '<button class="pcarte" id="pcarte" onclick="lancerJeu()"'+
       (j.sombre||j.c==='#1b1b1b'?'':' style="background:'+j.c+';color:#1b1b1b"')+'>'+
-      '<span class="ic" style="color:'+(j.sombre||j.c==='#1b1b1b'?j.c==='#1b1b1b'?'#f5c542':j.c:'#1b1b1b')+'">'+icon(j.ic)+'</span>'+
+      '<span class="ic" style="color:'+couleurPictoJeu(j)+'">'+icon(j.ic)+'</span>'+
       '<b>'+esc(j.nom)+'</b>'+
       '<em style="color:'+(j.sombre||j.c==='#1b1b1b'?'#f5c542':'rgba(27,27,27,.7)')+'">'+esc(j.p)+'</em></button>'+
     '<button class="tirer" onclick="jeuAleatoire()" aria-label="Un jeu au hasard">'+
@@ -6956,17 +6964,16 @@ const svgTicket=(c)=>'<svg viewBox="0 0 24 24" style="width:19px;height:19px" fi
    avec tous les jeux ? »). */
 function vJeux(){
   let h=heroBandeau('Les jeux', JEUX.length+' façons de réviser','#f5c542','de',true);
-  h+='<p class="hint" style="margin:14px 0 0">Tous se jouent avec les vraies fiches de COUSIN. '+
-     'Rien n’est noté sur personne : c’est pour réviser, pas pour se comparer.</p>';
   h+='<div class="jgrille">'+JEUX.map(function(j){
     const rec=(JXS.rec&&JXS.rec[j.k])||0;
     const sombre=j.sombre||j.c==='#1b1b1b';
     return '<button class="jcarte'+(sombre?' sombre':'')+'" style="background:'+j.c+'" '+
       'onclick="jxJouer(\''+j.k+'\',{t:\'tout\'});go(\'#/quiz\')">'+
-      '<span class="ic" style="color:'+(sombre?(j.c==='#1b1b1b'?'#f5c542':j.c):'#1b1b1b')+'">'+icon(j.ic)+'</span>'+
+      '<span class="ic" style="color:'+couleurPictoJeu(j)+'">'+icon(j.ic)+'</span>'+
+      /* Le titre et sa phrase suffisent : les règles longues alourdissaient les cartes
+         (Mag, 06/08/2026). Chaque jeu explique sa règle au moment où on le lance. */
       '<b>'+esc(j.nom)+'</b>'+
       '<em>'+esc(j.p)+'</em>'+
-      '<small>'+esc(j.regle)+'</small>'+
       (rec?'<span class="jrec">Record '+rec+'</span>':'')+
     '</button>';
   }).join('')+'</div>';
