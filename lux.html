@@ -239,7 +239,32 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    dessous suivent la même règle, décalées et tournées comme sur la planche. */
 /* La pile est bornée : sans ça, les deux cartes du dessous (en %) s'étirent sur
    les écrans larges pendant que la carte noire, elle, reste bornée. */
-.pile{position:relative;margin:16px 0 22px;max-width:380px}
+.pile{position:relative;margin:16px 0 22px;max-width:380px;touch-action:pan-y}
+/* On fait défiler la pile au doigt pour changer de jeu (Mag, 06/08/2026). */
+.pile .pcarte{cursor:grab;user-select:none;-webkit-user-select:none}
+.pile .pcarte.glisse{transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .28s ease}
+.pile .pcarte:active{cursor:grabbing}
+.pilenav{display:flex;align-items:center;gap:10px;margin-top:12px;max-width:380px}
+.pilenav .pgn{padding:0;flex:1;justify-content:flex-start}
+.pilenav .fl{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--noir);
+  display:flex;align-items:center;justify-content:center;background:transparent;flex:none}
+.pilenav .fl .ic{width:13px;height:13px}
+.pilenav .fl.droite .ic{transform:rotate(180deg)}
+/* La carte du dessous laisse voir, dans son coin, le picto du jeu qui vient. */
+.pile .p1.apercu{display:flex;align-items:flex-start;justify-content:flex-start;padding:14px}
+.pile .p1.apercu .ic{width:34px;height:34px}
+/* Les points de position, un par jeu. */
+.pilenav .pilepts{flex:none}
+.pilenav .pilepts i{width:5px;height:5px;border-radius:3px;background:#c2c0bb}
+.pilenav .pilepts i.on{width:18px;background:var(--noir)}
+/* L'invitation à glisser : sur TÉLÉPHONE, à la place des flèches. */
+.glissez{flex:1;text-align:center;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--enc2)}
+@media (min-width:900px){
+  .glissez{display:none}
+  .pilenav .pilepts{flex:1;justify-content:center}
+}
+@media (max-width:899px){ .pilenav .fl{display:none} }
 .pile .p1{position:absolute;left:6.1%;top:14px;width:54.7%;aspect-ratio:1;border-radius:6px;
   background:#f3cde5;transform:rotate(-8deg)}
 .pile .p2{position:absolute;left:9.5%;top:6px;width:55.3%;aspect-ratio:1;border-radius:6px;
@@ -953,7 +978,7 @@ body.no-tabs #tabbar{display:none}
   #view>*{max-width:100%}
   .boules{max-width:620px}
   .qrep{display:grid;grid-template-columns:repeat(2,1fr)}
-  .pgn{display:none}
+  .pgn:not(.pilepts){display:none}
 
   /* ---- les carrousels montrent plus de cartes ---- */
   .rail2{margin:0;padding:14px 0 6px;flex-wrap:wrap}
@@ -1041,6 +1066,327 @@ body.no-tabs #tabbar{display:none}
 .tache:active,.role:active,.acc:active,.msg:active,.fbtn:active,.quizbar:active,
 .repli:active,.pli:active,.chh:active,.chet:active,.qrep button:active,.cliste:active{
   transform:scale(.985)}
+
+/* ---- LES JEUX : styles rapatriés de l'app principale (06/08/2026), avec les
+   couleurs de Lux. Se corrigent dans app-classique.html puis se recopient. ---- */
+.quiz-launch svg, .quiz-launch .pico{width:20px; height:20px}
+  .quiz-launch:active{transform:scale(.98)}
+  .quiz-top{display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--enc2); margin-bottom:14px; text-transform:uppercase; letter-spacing:.04em}
+  .quiz-q{font-size:19px; font-weight:800; color:var(--noir); line-height:1.3; margin-bottom:18px}
+  .quiz-opts{display:flex; flex-direction:column; gap:10px}
+  .quiz-opt{text-align:left; padding:15px 16px; border-radius:14px; background:#fdfdfc; border:1.5px solid var(--ligne); font-size:15px; font-weight:500; color:var(--noir); cursor:pointer; font-family:inherit}
+  .quiz-opt:active{transform:scale(.99)}
+  /* Une réponse à choisir porte sa lettre : impossible de la confondre avec un indice. */
+  .quiz-opt.lettre{display:flex; align-items:center; gap:11px}
+  .quiz-opt.lettre i{font-style:normal; flex:0 0 auto; width:26px; height:26px; border-radius:8px; background:#1b1b1b;
+    color:#f5c542; font-size:12.5px; font-weight:800; display:flex; align-items:center; justify-content:center}
+  .quiz-opt.lettre.good i{background:#1f7a44; color:#fff}
+  .quiz-opt.lettre.bad i{background:#b8442f; color:#fff}
+  .quiz-opt.good{background:#c9e7d5; border-color:#6cb392; color:#155}
+  .quiz-opt.bad{background:#f3b4ad; border-color:#e63329; color:#611}
+  .quiz-opt[disabled]{cursor:default}
+  .quiz-next{margin-top:16px; width:100%; padding:15px; border-radius:14px; background:#1b1b1b; color:#f2eee6; border:0; font-size:15px; font-weight:800; cursor:pointer}
+  .quiz-next:active{transform:scale(.98)}
+  .quiz-res{text-align:center; padding:30px 20px; background:#fdfdfc; border:1px solid var(--ligne); border-radius:16px}
+  .quiz-score{font-size:46px; font-weight:900; color:#c9940c}
+  .quiz-msg{font-size:16px; font-weight:700; margin:6px 0 18px; color:var(--noir)}
+  .quiz-intro{font-size:14px; font-weight:600; color:var(--enc2); margin-bottom:14px; line-height:1.5}
+  /* ═══ LA SALLE DE JEUX ═══
+     Deux questions séparées : à quoi on joue (l'étagère), puis sur quoi (le terrain). */
+  .jx-de{width:100%; border:0; border-radius:18px; background:#1b1b1b; color:#f2eee6; font-family:inherit;
+    padding:15px 16px; display:flex; align-items:center; gap:13px; text-align:left; cursor:pointer; margin-bottom:12px}
+  .jx-de .d{font-size:31px; line-height:1; transition:transform .6s cubic-bezier(.2,.9,.3,1.4)}
+  .jx-de.roule .d{transform:rotate(720deg) scale(1.15)}
+  .jx-de b{display:block; font-size:15.5px; font-weight:700}
+  .jx-de em{font-style:normal; font-size:12px; color:#c3bcae; font-weight:400}
+  /* Téléphone : trois par rangée, les cartes restent lisibles au pouce.
+     Tablette couchée et ordinateur : DEUX par rangée — la colonne de l'app ne s'élargit
+     pas, donc trois cartes y deviendraient minuscules alors que la place ne manque pas. */
+  .jx-shelf{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px}
+  /* Neuf pavés = TROIS colonnes sur trois rangées : ça tombe juste, partout, et la salle
+     tient sur un écran de téléphone sans défiler. Sur grand écran, juste un peu plus d'air. */
+  @media (min-width:820px){
+    .jx-shelf{gap:12px}
+    .jx-t b{font-size:14.5px}
+  }
+  /* Mêmes règles que les pavés de l'accueil : le nom en haut, le dessin en grand en bas à
+     droite, le pavé carré. C'est le même geste, ça doit se ressembler. */
+  .jx-t{border:0; border-radius:10px; padding:12px 12px 10px; font-family:inherit; text-align:left; cursor:pointer;
+    aspect-ratio:1/1; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start;
+    color:#1b1b1b; position:relative; overflow:hidden; transition:transform .16s cubic-bezier(.22,1,.36,1)}
+  .jx-t:active{transform:scale(.96)}
+  /* Le dessin prend toute la place laissée par le nom, centré. */
+  .jx-t .ic{position:absolute; left:0; right:0; bottom:6px; top:34px; display:flex; align-items:center; justify-content:center; line-height:0}
+  .jx-t .ic svg, .jx-t .ic .pico{width:auto; height:min(58px,64%); aspect-ratio:1; display:block; color:inherit}
+  .jx-de .d svg, .jx-de .d .pico{width:28px; height:28px; display:block}
+  .jx-o i svg, .jx-o i .pico{width:19px; height:19px; display:block}
+  .jx-bar .gros svg, .jx-bar .gros .pico{width:27px; height:27px; display:block}
+  .jx-ind i svg, .jx-ind i .pico{width:17px; height:17px; display:block}
+  .quiz-next svg, .quiz-next .pico, .pf-golist svg, .pf-golist .pico{width:18px; height:18px; vertical-align:-3px}
+  .jx-prog svg, .jx-prog .pico{width:15px; height:15px; vertical-align:-2px}
+  /* Le point « formation commencée », à la place de la pastille orange en emoji. */
+  .fc-pt{display:inline-block; width:11px; height:11px; border-radius:50%; background:#f5c542}
+  .fc-coche svg, .fc-coche .pico{width:19px; height:19px; color:#1f7a44}
+  .jx-t b{display:block; font-size:12.5px; font-weight:800; line-height:1.15; letter-spacing:-.01em; position:relative; z-index:2}
+  .jx-t em{display:block; font-style:normal; font-size:11px; font-weight:400; opacity:.72; margin-top:3px; line-height:1.3; max-width:86%}
+  .jx-t.sombre{color:#f2eee6}
+  .jx-t:active{transform:scale(.985)}
+  .jx-t.on{outline:3px solid #1b1b1b; outline-offset:2px}
+  /* Le terrain, déplié sous l'étagère */
+  /* Ce qui arrive */
+  .ag-intro{font-size:12.5px; color:var(--enc2); font-weight:400; line-height:1.5; margin:0 2px 16px}
+  .ag-jour{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--enc2); margin:16px 2px 8px}
+  .ag-jour.proche{color:#1b1b1b}
+  .ag-e{background:#fdfdfc; border:1px solid var(--ligne); border-left:4px solid #ccc; border-radius:12px; padding:11px 13px; margin-bottom:8px}
+  .ag-h{display:flex; align-items:baseline; gap:8px}
+  .ag-e b{font-size:14px; font-weight:800; line-height:1.2}
+  /* « GRATUIT » NE SE COUPE PLUS EN « GR » : le titre long comprimait l'étiquette. Elle ne
+     rétrécit plus (flex-shrink 0) et ne coupe plus son texte. */
+  .ag-prix{margin-left:auto; flex:0 0 auto; flex-shrink:0; white-space:nowrap; overflow:visible;
+    font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    background:#e9f3ec; color:#1f7a44; border-radius:7px; padding:3px 7px}
+  .ag-h b{min-width:0}
+  .ag-e em{display:block; font-style:normal; font-size:11.5px; font-weight:700; color:var(--enc2); margin-top:3px}
+  .ag-e p{font-size:12.5px; color:#54514b; font-weight:400; margin:5px 0 0; line-height:1.45}
+  /* La pastille culturelle : même forme que les autres boutons du bas, au ticket de Culture. */
+  .dock-agenda{position:relative; flex:0 0 auto; width:58px; height:58px; border-radius:50%; display:none;
+    border:4px solid var(--creme); background:#6cb392; color:#1b1b1b; padding:0; cursor:pointer;
+    align-items:center; justify-content:center}
+  .dock-agenda svg, .dock-agenda .pico{width:26px; height:26px}
+  /* Lien discret : la plupart des personnes hébergées sont seules. Ce qui touche aux
+     enfants ne doit pas s'afficher en grand — juste rester trouvable pour qui en a besoin. */
+  /* Le tri et l'impression RESTENT SOUS LA MAIN : la liste fait 24 musées et 141 lieux,
+     on ne va pas remonter tout en haut à chaque fois qu'on veut changer de filtre. */
+  .ag-fixe{position:sticky; top:0; z-index:12; background:var(--creme); padding-top:6px;
+    box-shadow:0 6px 10px -8px rgba(27,27,27,.25)}
+  /* PARTOUT, on laisse la hauteur des pastilles flottantes en bas. Sinon elles passent
+     par-dessus la dernière ligne — une carte, un pavé, un bouton — et on ne les voit plus.
+     L'accueil a sa propre réserve (voir body.is-home), il n'est pas concerné ici. */
+  .pf-wrap{padding-bottom:96px}
+  /* LA RÉSERVE SOUS LE CONTENU. Les boutons flottent en bas (choix de Mag) : il faut donc
+     qu'ils aient toujours de l'air au-dessus d'eux, sinon la dernière ligne de la page vient
+     se coller dessous. Ils occupent 84 px avec leur marge — on réserve 140. */
+  body:not(.is-home) #view{padding-bottom:140px}
+  @media print{ .pf-wrap, #view{padding-bottom:0 !important} }
+  @media print{ .ag-fixe{position:static; box-shadow:none} }
+  .ag-discrets{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:14px 0 4px}
+  .ag-discret{display:flex; align-items:center; justify-content:center; gap:7px; width:auto; margin:0;
+    padding:8px 14px; border:0; background:transparent; color:var(--enc2); font-family:inherit;
+    font-size:12px; font-weight:600; cursor:pointer; opacity:.75}
+  .ag-discret svg, .ag-discret .pico{width:15px; height:15px}
+  .ag-discret.on{background:#1b1b1b; color:#f2eee6; border-radius:999px; opacity:1}
+  .ag-discret.on svg, .ag-discret.on .pico{color:#f5c542}
+  /* LES QUATRE FILTRES TIENNENT SUR UNE LIGNE, y compris sur un écran de 360 px : on
+     resserre, puis le dessin rétrécit, puis il s'efface s'il le faut — un mot lisible vaut
+     mieux qu'un picto qui pousse tout à la ligne suivante. */
+  .ag-discrets{gap:4px}
+  .ag-discret{padding:8px 10px; gap:5px}
+  @media (max-width:409px){
+    .ag-discret{padding:8px 7px; font-size:11.5px; gap:4px}
+    .ag-discret svg, .ag-discret .pico{width:13px; height:13px}
+  }
+  @media (max-width:374px){
+    .ag-discret svg, .ag-discret .pico{display:none}
+  }
+  .ag-adr{display:block; font-size:11.5px; color:var(--enc2); font-weight:500; margin-top:2px}
+  /* Les activités des asbl : le dessin à gauche, en grand (04/08). Ses dessins sont faits de
+     traits fins — à 17 px, la pelote n'était qu'une tache. 17 × 4 = 68. */
+  .ag-act{display:flex; gap:14px; align-items:flex-start}
+  .ag-act-txt{flex:1 1 auto; min-width:0}
+  .ag-pic-g{flex:0 0 auto; display:inline-flex; color:var(--enc2)}
+  .ag-pic-g .pico, .ag-pic-g svg{width:68px; height:68px}
+  /* « Il faut s'inscrire » : ça ne se devine pas, et une personne qui se déplace pour rien
+     ne revient pas. Dit une seule fois, en haut du programme, aux couleurs de l'asbl. */
+  .ag-avert{background:#ffe3f1; border-radius:10px; padding:9px 12px; margin:2px 0 10px}
+  .ag-avert b{display:block; font-size:12px; color:#b1005f; letter-spacing:.01em}
+  .ag-avert span{display:block; font-size:11.5px; font-weight:600; color:#8a0049; margin-top:2px}
+  .ag-src{display:inline-flex; align-items:center; gap:6px; margin:8px 0 0 8px; font-size:12px; font-weight:700;
+    color:#54514b; text-decoration:none; border-bottom:1.5px solid rgba(27,27,27,.15)}
+  .ag-src svg, .ag-src .pico{width:13px; height:13px}
+  /* Les liens remontent sous le titre : ils ne portent plus la marge de gauche du bas de carte. */
+  .ag-liens{display:flex; flex-wrap:wrap; gap:4px 10px; margin:6px 0 2px}
+  /* Les lieux du ticket Article 27 : une ligne par lieu, groupés par commune */
+  .a27-h{background:#fdfdfc; border:1px solid var(--ligne); border-left:4px solid #f5c542;
+    border-radius:14px; padding:12px 14px; margin:14px 0 10px}
+  .a27-h b{display:block; font-size:14px; font-weight:800; margin-bottom:4px}
+  .a27-h span{display:block; font-size:12px; font-weight:400; color:var(--enc2); line-height:1.45}
+  .a27-h .ag-src{margin:8px 0 0}
+  .a27-c{background:#fdfdfc; border:1px solid var(--ligne); border-radius:14px; padding:4px 13px 8px; margin-bottom:9px}
+  .a27-com{font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:#c9940c;
+    padding:10px 0 6px; border-bottom:1px solid var(--ligne); margin-bottom:4px}
+  .a27-l{display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 8px; padding:6px 0; border-bottom:1px solid #f0efed}
+  .a27-l:last-child{border-bottom:0}
+  .a27-l b, .a27-n{font-size:13px; font-weight:700; flex:1 1 auto; min-width:0; line-height:1.25}
+  .a27-n{color:var(--noir); text-decoration:none; display:inline-flex; align-items:baseline; gap:5px}
+  .a27-fl{width:11px; height:11px; color:#f6f5f3; flex:0 0 auto}
+  .a27-t{font-style:normal; font-size:10px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; background:#f0efed; color:var(--enc2); flex:0 0 auto}
+  .a27-t.musee{background:#f9dce8; color:#8a3a5c}
+  .a27-t.theatre{background:#fbeec2; color:#8a6a08}
+  .a27-t.musique{background:#cdefea; color:#1d6b60}
+  .a27-t.cinema{background:#d9e2f7; color:#2f4c8f}
+  .a27-t.jeunesse{background:#fbd9cc; color:#a2451f}
+  .a27-t.pluri{background:#d8ecdf; color:#2f6b46}
+  .a27-tel{flex:0 0 auto; font-size:12.5px; font-weight:700; color:var(--noir); text-decoration:none;
+    border-bottom:1.5px solid #f5c542}
+  /* Les lieux d'une gratuité collective, écrits un par un */
+  .ag-liste{list-style:none; margin:7px 0 0; padding:0; display:flex; flex-direction:column; gap:2px}
+  .ag-liste li{font-size:12px; color:var(--enc2); line-height:1.35; padding-left:11px; position:relative}
+  .ag-liste li::before{content:''; position:absolute; left:0; top:7px; width:4px; height:4px; border-radius:50%; background:#f6f5f3}
+  /* Les annuaires de gratuités : une seule fois, en haut de page, pas sur chaque carte */
+  .ag-annuaires{background:#fdfdfc; border:1px solid var(--ligne); border-radius:14px; padding:11px 13px; margin-bottom:14px}
+  .ag-annuaires b{display:block; font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--enc2); margin-bottom:7px}
+  .ag-annuaires a{display:inline-flex; align-items:center; gap:6px; margin-right:12px; font-size:12.5px; font-weight:700; color:var(--noir); text-decoration:none}
+  .ag-annuaires svg, .ag-annuaires .pico{width:13px; height:13px}
+  .ag-ann-p{font-size:12px; color:var(--enc2); line-height:1.45; margin:0 0 8px; font-weight:400}
+  .ag-enf-note{background:#fdfdfc; border:1px solid var(--ligne); border-left:4px solid #f3c6da;
+    border-radius:14px; padding:11px 13px; margin-bottom:12px}
+  .ag-enf-note b{display:block; font-size:13px; font-weight:800; margin-bottom:4px}
+  .ag-enf-note span{display:block; font-size:12px; font-weight:400; color:var(--enc2); line-height:1.45}
+  .ag-liens .ag-src{margin:0}
+  .ag-iti{display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#1b1b1b;
+    background:#f3efe6; border-radius:9px; padding:7px 11px; text-decoration:none}
+  .ag-doux{font-weight:600 !important; font-size:13.5px !important}
+  .ag-print{width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 16px;
+    padding:13px; border:0; border-radius:13px; background:#1b1b1b; color:#f2eee6; font-family:inherit;
+    font-size:14px; font-weight:700; cursor:pointer}
+  .ag-print svg, .ag-print .pico{width:17px; height:17px}
+  .ag-qr, .ag-tete-print, .ag-pied{display:none}
+  /* ── LA FEUILLE À DONNER ──────────────────────────────────────────────────
+     Deux colonnes serrées, une seule couleur d'encre (le filet de gauche), et un
+     QR par sortie : le résident scanne et son itinéraire s'ouvre depuis le centre.
+     Tout le reste de l'app disparaît. */
+  @media print{
+    /* Le chantier sur papier : une colonne de cases vides, sans les boutons ni le champ d'ajout. */
+    .cha-add, .cha-x, .cha-sec .listbar{display:none !important}
+    .ch-tete-print{display:block !important; margin-bottom:12px; border-bottom:2px solid #000; padding-bottom:6px}
+    .ch-tete-print b{font-size:19px; font-weight:900; display:block; text-transform:uppercase; color:#b8880c}
+    .ch-tete-print span{font-size:10px; color:#444}
+    .cha-sec .adm-h{display:none !important}
+    .cha-sec .pf-list{break-inside:avoid; border:0 !important; padding:0 !important; margin-bottom:10px !important}
+    .cha-sec .pf-list-h{border-bottom:1.5px solid #f5c542 !important; padding-bottom:2px !important; margin-bottom:5px !important}
+    .cha-sec .pf-list-t{font-size:11px !important; font-weight:900 !important; text-transform:uppercase}
+    .cha-sec .pf-task{break-inside:avoid; padding:3px 0 !important; border:0 !important}
+    .cha-sec .pf-txt{font-size:11px !important; line-height:1.3 !important}
+    .cha-sec .cha-d{font-size:9px !important; color:#444 !important}
+    .cha-sec .pf-box{border:1.5px solid #b8880c !important; border-radius:3px !important; background:none !important}
+    .cha-sec .pf-box svg, .cha-sec .pf-box .pico{display:none !important}
+    .cha-l.done .pf-txt{text-decoration:line-through !important}
+    .ag-page .ag-intro, .ag-page .ag-print, .ag-page .quiz-next, .ag-page .ag-iti, .ag-page .ag-discrets{display:none !important}
+    .a27-fl{display:none !important}
+    .a27-n{color:#000 !important}
+    .ag-adr, .a27-tel{color:#000 !important}
+    .ag-page .ag-src{display:block !important; margin:3px 0 0 !important; font-size:8.5px !important; border:0 !important; color:#555 !important}
+    .ag-tete-print{display:block !important; margin-bottom:10px; border-bottom:2px solid #1b1b1b; padding-bottom:6px}
+    .ag-tete-print b{font-size:19px; font-weight:900; display:block}
+    .ag-tete-print span{font-size:10px; color:#444}
+    .ag-page{columns:2; column-gap:12px}
+    .ag-jour{break-after:avoid; margin:8px 0 4px !important; font-size:9.5px !important}
+    .ag-e{break-inside:avoid; position:relative; padding:7px 9px 7px 10px !important; margin-bottom:6px !important;
+      border:1px solid #e7e2d8 !important; border-left-width:5px !important; box-shadow:none !important}
+    .ag-e b{font-size:11.5px !important; line-height:1.15}
+    .ag-e em{font-size:9.5px !important; color:#333 !important}
+    .ag-adr{font-size:9.5px !important}
+    .ag-e p{font-size:9.5px !important; color:#333 !important; margin-top:3px !important}
+    .ag-liste{margin-top:4px !important}
+    .ag-liste li{font-size:8.5px !important; color:#000 !important; line-height:1.25 !important}
+    .ag-prix{padding:1px 6px !important; font-size:8.5px !important}
+    .ag-qr{display:block !important; float:right; width:52px; height:52px; margin:0 0 4px 6px}
+    .ag-qr svg{width:52px; height:52px; display:block}
+    .ag-pied{display:block !important; break-before:column; font-size:9px; color:#333; margin-top:8px}
+    .a27-c{break-inside:avoid; border:1px solid #e7e2d8 !important; padding:2px 8px 5px !important; margin-bottom:5px !important}
+    .a27-com{font-size:9px !important; padding:6px 0 3px !important}
+    .a27-l{padding:2px 0 !important}
+    .a27-l b{font-size:9.5px !important}
+    .a27-t{font-size:7.5px !important; padding:1px 5px !important}
+    .a27-tel{font-size:9px !important}
+    .a27-h{break-inside:avoid; border:1px solid #e7e2d8 !important; padding:7px 9px !important; margin:8px 0 6px !important}
+    .a27-h b{font-size:11px !important}
+    .a27-h span{font-size:8.5px !important}
+  }
+  .jx-cap{border-radius:18px; padding:20px 18px 18px; text-align:center; margin-bottom:12px}
+  .jx-cap-ic{display:block; line-height:0; margin-bottom:12px}
+  .jx-cap-ic svg, .jx-cap-ic .pico{width:64px; height:64px; display:inline-block}
+  .jx-cap b{display:block; font-size:21px; font-weight:800; letter-spacing:-.02em}
+  .jx-cap em{font-style:normal; font-size:13px; font-weight:500; opacity:.8}
+  .jx-ter{background:#fdfdfc; border:1px solid var(--ligne); border-radius:18px; padding:14px 15px; margin-top:11px}
+  .jx-ter .rg{font-size:12.5px; color:var(--enc2); font-weight:400; margin:0 0 13px; line-height:1.45}
+  .jx-ter h4{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--enc2); margin:0 0 8px}
+  .jx-opts{display:flex; flex-direction:column; gap:7px}
+  .jx-o{border:1.5px solid var(--ligne); background:#fbfaf7; border-radius:13px; padding:11px 13px; font-family:inherit;
+    font-size:13.5px; font-weight:600; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; color:var(--noir)}
+  .jx-o i{font-style:normal; font-size:17px; flex:0 0 auto}
+  .jx-o em{font-style:normal; font-size:11px; font-weight:400; color:var(--enc2); display:block; margin-top:1px}
+  .jx-o.on{background:#1b1b1b; color:#f2eee6; border-color:#1b1b1b; box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+  .jx-o.on i svg, .jx-o.on i .pico{color:#f5c542}
+  .jx-o.on em{color:#c3bcae}
+  .jx-puces{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+  .jx-p{border:0; border-radius:999px; padding:7px 12px; font-family:inherit; font-size:11.5px; font-weight:600; cursor:pointer; color:#1b1b1b}
+  .jx-p.on{outline:2.5px solid #1b1b1b; outline-offset:1.5px}
+  .jx-go{margin-top:13px; width:100%; border:0; border-radius:14px; background:#1b1b1b; color:#f2eee6;
+    font-family:inherit; font-size:15px; font-weight:700; padding:14px; cursor:pointer}
+  .jx-go[disabled]{opacity:.35}
+  /* La roue, version app */
+  .jx-roue-box{text-align:center; padding:6px 0 2px}
+  .jx-rh{position:relative; width:236px; height:236px; margin:0 auto}
+  .jx-fl{position:absolute; top:-3px; left:50%; transform:translateX(-50%); z-index:3; width:0; height:0;
+    border-left:12px solid transparent; border-right:12px solid transparent; border-top:20px solid #1b1b1b}
+  .jx-roue{width:236px; height:236px; border-radius:50%; position:relative; border:6px solid #1b1b1b;
+    transition:transform 4.2s cubic-bezier(.13,.86,.2,1)}
+  .jx-roue .lab{position:absolute; left:50%; top:50%; transform-origin:0 0; font-size:9px; font-weight:800;
+    text-transform:uppercase; white-space:nowrap; width:72px; letter-spacing:-.02em}
+  .jx-moy{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:50px; height:50px; border-radius:50%;
+    background:#1b1b1b; color:#f5c542; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    z-index:2; border:4px solid var(--creme)}
+  /* Carte qui se retourne */
+  .jx-flip{perspective:1000px; height:210px; margin-bottom:12px; cursor:pointer}
+  .jx-flip-in{position:relative; width:100%; height:100%; transition:transform .55s; transform-style:preserve-3d}
+  .jx-flip.on .jx-flip-in{transform:rotateY(180deg)}
+  .jx-face{position:absolute; inset:0; backface-visibility:hidden; border-radius:18px; padding:18px;
+    display:flex; flex-direction:column; justify-content:center; color:#f2eee6}
+  .jx-face.dos{transform:rotateY(180deg); background:#1b1b1b}
+  .jx-face small{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; opacity:.75}
+  .jx-face b{font-size:17px; font-weight:800; line-height:1.28; margin-top:6px}
+  .jx-face em{font-style:normal; font-size:12.5px; font-weight:400; margin-top:8px; opacity:.9}
+  /* Bandeaux de jeu (série, chrono) */
+  .jx-bar{display:flex; align-items:center; gap:12px; background:#1b1b1b; color:#f2eee6; border-radius:16px;
+    padding:12px 14px; margin-bottom:14px}
+  .jx-bar .gros{font-size:27px; line-height:1; flex:0 0 auto}
+  .jx-bar b{display:block; font-size:15px; font-weight:700}
+  .jx-bar em{font-style:normal; font-size:11.5px; color:#c3bcae; font-weight:400}
+  .jx-bar .chiffre{margin-left:auto; font-size:26px; font-weight:800; color:#f5c542}
+  .jx-bar.presse .chiffre{color:#ff8f7a}
+  /* Indices de « Qui suis-je ? » */
+  .jx-titre{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--enc2); margin:2px 2px 8px}
+  .jx-ind{background:#e9e3d7; border:0; border-radius:14px; padding:11px 13px; margin-bottom:7px;
+    font-size:13.5px; font-weight:500; display:flex; gap:10px; align-items:flex-start; color:#3f3b34}
+  .jx-ind i{font-style:normal; font-size:16px}
+  .jx-ind.floue{filter:blur(5px); opacity:.5}
+  /* Vrai ou faux */
+  .jx-vf{display:flex; gap:10px; margin-top:16px}
+  .jx-vf button{flex:1; border:0; border-radius:16px; padding:20px 10px; font-family:inherit; font-size:17px;
+    font-weight:700; cursor:pointer}
+  .jx-vrai{background:#c9e7d5; color:#1f5c38}
+  .jx-faux{background:#f3b4ad; color:#8a2318}
+  /* Progression */
+  .eq-carte{background:#1b1b1b; color:#f2eee6; border-radius:20px; padding:26px 18px; text-align:center; margin-bottom:12px}
+  .eq-gros{font-size:64px; font-weight:900; line-height:1; color:#f5c542; letter-spacing:-.03em}
+  .eq-sous{font-size:13.5px; font-weight:500; color:#c3bcae; margin-top:8px}
+  .pourq{font-size:12.5px; color:var(--enc2); font-weight:400; line-height:1.5; margin:12px 2px 0}
+  .jx-prog{background:#fdfdfc; border:1px solid var(--ligne); border-radius:18px; padding:14px 15px; margin-top:12px}
+  .jx-prog h4{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--enc2); margin:0 0 11px}
+  .jx-l{display:flex; align-items:center; gap:10px; margin-bottom:9px; width:100%; background:transparent;
+    border:0; padding:4px 2px; border-radius:9px; font-family:inherit; color:inherit; cursor:pointer; text-align:left}
+  .jx-l:active{background:rgba(27,27,27,.05)}
+  .jx-l em{font-style:normal; font-size:10.5px; font-weight:700; color:var(--enc2); flex:0 0 auto}
+  .jx-l.parfait em{color:#1f7a44}
+  .jx-l span{font-size:12.5px; font-weight:600; width:112px; flex:0 0 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .jx-l .b{flex:1; height:9px; border-radius:5px; background:rgba(27,27,27,.08); overflow:hidden}
+  .jx-l .b i{display:block; height:100%; border-radius:5px}
+  .jx-l .n{font-size:11px; font-weight:700; color:var(--enc2); width:44px; text-align:right; flex:0 0 auto}
+  .jx-vide{font-size:12.5px; color:var(--enc2); font-weight:400}
+  .quiz-themes{display:flex; flex-direction:column; gap:9px}
+  .quiz-theme{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:15px 16px; border-radius:14px; background:#fdfdfc; border:1.5px solid var(--ligne); font-size:15px; font-weight:600; color:var(--noir); cursor:pointer; font-family:inherit; text-align:left}
 </style>
 </head>
 <body>
@@ -3822,7 +4168,7 @@ function render(){
     nb.classList.toggle('on',current.view==='duneuf');
   }
   if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tag:'Tout',dem:'Toutes',genre:'Tous',famille:'Toutes'};
-  if(current.view==='home') view.innerHTML=vHome();
+  if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
   else if(current.view==='fiche') view.innerHTML=vFiche(BYSID[current.sid]);
   else if(current.view==='centre') view.innerHTML=vCentre();
@@ -3891,6 +4237,87 @@ function sacsSvg(sacs){
       '<path d="M5.9 6.4l.9 12.6a1.6 1.6 0 0 0 1.6 1.5h7.2a1.6 1.6 0 0 0 1.6-1.5l.9-12.6"/></svg>';
   }).join('')+'</span>';
 }
+
+/* ══════════ LA PILE DE JEUX qu'on fait défiler ══════════
+   Un doigt (ou la souris) vers la gauche/droite fait passer au jeu suivant.
+   Les flèches et les barres du dessous font la même chose, au clic. */
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+let JEUI=0;                        // le jeu montré
+let _pStart=null, _pDx=0;          // le suivi du geste
+function pileJeux(){
+  const j=JEUX[JEUI]||JEUX[0];
+  const suiv=JEUX[(JEUI+1)%JEUX.length];
+  return '<div class="pile" id="pile">'+
+    /* La carte du dessous porte la couleur ET le picto du jeu suivant : on voit
+       ce qui arrive avant même de glisser (Mag, 06/08/2026). */
+    '<span class="p1 apercu" style="background:'+(suiv.c||'#f3cde5')+'">'+
+      '<span class="ic" style="color:'+(suiv.sombre||suiv.c==='#1b1b1b'?'#f2eee6':'rgba(27,27,27,.42)')+'">'+icon(suiv.ic)+'</span></span>'+
+    '<i class="p2"></i>'+
+    '<button class="pcarte" id="pcarte" onclick="lancerJeu()"'+
+      (j.sombre||j.c==='#1b1b1b'?'':' style="background:'+j.c+';color:#1b1b1b"')+'>'+
+      '<span class="ic" style="color:'+(j.sombre||j.c==='#1b1b1b'?j.c==='#1b1b1b'?'#f5c542':j.c:'#1b1b1b')+'">'+icon(j.ic)+'</span>'+
+      '<b>'+esc(j.nom)+'</b>'+
+      '<em style="color:'+(j.sombre||j.c==='#1b1b1b'?'#f5c542':'rgba(27,27,27,.7)')+'">'+esc(j.p)+'</em></button>'+
+    '<button class="tirer" onclick="jeuAleatoire()" aria-label="Un jeu au hasard">'+
+      '<span class="rd"><span class="ic">'+icon('de')+'</span></span><span>Au hasard</span></button>'+
+  '</div>'+
+  '<div class="pilenav">'+
+    '<button class="fl" onclick="jeuPrecedent()" aria-label="Jeu précédent"><span class="ic">'+icon('chevron')+'</span></button>'+
+    '<span class="pgn pilepts">'+JEUX.map(function(x,i){
+      return '<i class="'+(i===JEUI?'on':'')+'"></i>';
+    }).join('')+'</span>'+
+    '<span class="glissez">Glisse pour changer de jeu →</span>'+
+    '<button class="fl droite" onclick="jeuSuivant()" aria-label="Jeu suivant"><span class="ic">'+icon('chevron')+'</span></button>'+
+  '</div>';
+}
+function jeuSuivant(){ JEUI=(JEUI+1)%JEUX.length; majPile(1); }
+function jeuPrecedent(){ JEUI=(JEUI-1+JEUX.length)%JEUX.length; majPile(-1); }
+function jeuAleatoire(){ JEUI=Math.floor(Math.random()*JEUX.length); majPile(1); }
+function lancerJeu(){ const j=JEUX[JEUI]; jxJouer(j.k,{t:'tout'}); go('#/quiz'); }
+/* On redessine la pile en place, sans refaire toute la page. */
+function majPile(sens){
+  const c=document.getElementById('pcarte');
+  if(c){
+    c.classList.add('glisse');
+    c.style.transform='translateX('+(sens>0?-110:110)+'%) rotate('+(sens>0?-8:8)+'deg)';
+    c.style.opacity='0';
+  }
+  setTimeout(function(){
+    const p=document.getElementById('pile');
+    if(!p) return;
+    const nav=p.nextElementSibling;
+    p.outerHTML=pileJeux();
+    if(nav&&nav.classList.contains('pilenav')) nav.remove();
+    brancherGeste();
+  },160);
+}
+/* Le geste : on suit le doigt, et au relâchement on décide. */
+function brancherGeste(){
+  const c=document.getElementById('pcarte');
+  if(!c) return;
+  const debut=function(x){ _pStart=x; _pDx=0; c.classList.remove('glisse'); };
+  const bouge=function(x){
+    if(_pStart===null) return;
+    _pDx=x-_pStart;
+    c.style.transform='translateX('+_pDx+'px) rotate('+(_pDx/26)+'deg)';
+  };
+  const fin=function(){
+    if(_pStart===null) return;
+    const dx=_pDx; _pStart=null;
+    c.classList.add('glisse');
+    if(Math.abs(dx)>60){ dx<0?jeuSuivant():jeuPrecedent(); }
+    else { c.style.transform=''; }
+  };
+  c.addEventListener('touchstart',e=>debut(e.touches[0].clientX),{passive:true});
+  c.addEventListener('touchmove', e=>bouge(e.touches[0].clientX),{passive:true});
+  c.addEventListener('touchend',  fin);
+  c.addEventListener('mousedown', e=>{e.preventDefault();debut(e.clientX);});
+  window.addEventListener('mousemove', e=>{ if(_pStart!==null) bouge(e.clientX); });
+  window.addEventListener('mouseup', fin);
+  /* Un vrai clic (sans glissement) lance le jeu ; un glissement ne doit pas le lancer. */
+  c.addEventListener('click', e=>{ if(Math.abs(_pDx)>8){ e.preventDefault(); e.stopPropagation(); } }, true);
+}
+
 function vHome(){
   /* L'ACCUEIL redessiné d'après le handoff Claude Design (06/08/2026) :
      date + bonjour géant, la pile du quiz du jour, les sorties en carrousel,
@@ -3920,15 +4347,11 @@ function vHome(){
     '<span class="ptop">Dis-moi ton prénom</span>'+
     '<span style="display:block;font-size:13px;color:var(--enc2);padding:6px 0 4px">Pour que COUSIN t\'accueille par ton nom.</span></button>';
 
-  /* LE QUIZ DU JOUR — la pile de cartes */
-  h+='<div class="sect cote"><b>Quiz du jour</b><em>5 questions · 3 min</em></div>'+
-    '<div class="pile"><i class="p1"></i><i class="p2"></i>'+
-    '<button class="pcarte" onclick="go(\'#/quiz\')">'+
-      '<span class="ic">'+icon('bulb')+'</span>'+
-      '<b>'+esc(q||'Teste tes connaissances du réseau')+'</b>'+
-      '<em>Question 1 / 5</em></button>'+
-    '<button class="tirer" onclick="go(\'#/quiz\')" aria-label="Tirer une question">'+
-      '<span class="rd"><span class="ic">'+icon('jcartes')+'</span></span><span>Tirer</span></button></div>';
+  /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
+     Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
+     on touche la carte pour lancer la partie. */
+  h+='<div class="sect cote"><b>Jeux</b><em>'+JEUX.length+' jeux · glisse pour changer</em></div>'+
+    pileJeux();
 
   /* LES SORTIES DU JOUR — carrousel */
   if(sorties.length){
@@ -4539,6 +4962,286 @@ function vUrgences(){
 }
 
 /* ---------- le quiz — questions écrites + questions fabriquées depuis les fiches ---------- */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LES 8 JEUX — rapatriés de l'app principale le 06/08/2026.
+   Le moteur est repris tel quel (il fonctionne depuis des semaines) ; seul ce
+   qui passe par la connexion est mis en veille : le compteur d'équipe de la
+   semaine s'allumera avec Supabase. Se corrige dans app-classique.html puis
+   se recopie ici.
+   ═══════════════════════════════════════════════════════════════════════ */
+const JEUX = [
+  {k:'roue',   ic:'jroue', nom:'La roue',            c:'#f5c542', p:'Elle choisit à ta place',        regle:"Tu la fais tourner, elle s'arrête sur un domaine, et tu réponds à ses questions."},
+  {k:'flip',   ic:'jcartes', nom:'Cartes à retourner',  c:'#5b8fd4', p:'Question devant, réponse derrière', sombre:true, regle:"Une question au recto. Tu réfléchis, tu retournes la carte, tu vois la réponse. Pas de score, pas d'échec."},
+  {k:'serie',  ic:'jserie', nom:'La série',            c:'#f8763f', p:"Combien d'affilée sans faute ?",  regle:"Chaque bonne réponse allonge la série. Une erreur et elle repart à zéro. Ton record t'attend."},
+  {k:'chrono', ic:'jchrono', nom:'Chrono 60 s',         c:'#6cb392', p:'Une minute, un maximum',          regle:"Soixante secondes, autant de bonnes réponses que possible. Ça se joue debout."},
+  {k:'qui',    ic:'jenquete', nom:'Qui suis-je ?',       c:'#fd8fd0', p:'Trois indices, à toi de trouver', regle:"Les indices tombent un par un. Plus tu trouves tôt, plus tu marques."},
+  {k:'vf',     ic:'jcible', nom:'Vrai ou faux',        c:'#f3c6da', p:"Deux boutons, c'est tout",        regle:"Une affirmation, deux boutons. La correction arrive avec la fiche."},
+  {k:'jour',   ic:'jjour', nom:'La question du jour', c:'#b28b7a', p:"Une par jour, pour tout le monde", regle:"Une seule question, la même pour toute l'équipe, qui change à minuit."},
+  {k:'equipe', ic:'social', nom:'L\'équipe cette semaine', c:'#1b1b1b', p:'Un score commun, personne contre personne', sombre:true,
+   regle:"Chaque bonne réponse de chacun s'ajoute au compteur de l'équipe. Il n'y a pas d'adversaire et pas de classement : on regarde ensemble ce que l'équipe a appris cette semaine."}
+];
+
+/* Ce qu'on garde d'une partie à l'autre : les records et ce qu'on maîtrise par domaine. */
+var JXS = (function(){
+  try{ return Object.assign({rec:{}, dom:{}, jour:{}}, JSON.parse(localStorage.getItem('lux_jeux')||'{}')); }
+  catch(e){ return {rec:{}, dom:{}, jour:{}}; }
+})();
+function jxSave(){
+  try{ localStorage.setItem('lux_jeux', JSON.stringify(JXS)); }catch(e){}
+  /* la synchronisation viendra avec la connexion */
+}
+function jxNote(src, juste){
+  jxNoteSemaine(juste);            // le compteur de l'équipe, toutes parties confondues
+  const p = src ? DATA.find(x=>x.id===src) : null;
+  if(!p) return;
+  const d = JXS.dom[p.domaine] || (JXS.dom[p.domaine]={v:0,j:0});
+  d.v++; if(juste) d.j++; jxSave();
+}
+/* Le lundi de la semaine en cours : c'est la borne du compteur d'équipe. */
+function semaineLundi(){
+  const d=new Date(); const j=(d.getDay()+6)%7; d.setDate(d.getDate()-j);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* Chaque réponse nourrit le compteur de la semaine : le mien sur le téléphone, et
+   celui de l'équipe dans la base partagée (si la table existe — sinon on n'affiche
+   que le mien, sans rien casser). */
+function jxNoteSemaine(juste){
+  const l=semaineLundi();
+  if(!JXS.sem || JXS.sem.lundi!==l) JXS.sem={lundi:l, justes:0, total:0};
+  JXS.sem.total++; if(juste) JXS.sem.justes++;
+  jxSave(); jxPousserScore();
+}
+let _pousseEnCours=false;
+async function jxPousserScore(){
+  return; /* le compteur d'équipe attend la connexion */
+  _pousseEnCours=true;
+  try{
+    await sb.from('jeux_semaine').upsert(
+      { user_id:PROFILE.uid, lundi:JXS.sem.lundi, justes:JXS.sem.justes, total:JXS.sem.total },
+      { onConflict:'user_id,lundi' });
+  }catch(e){ /* table pas encore créée : on reste en local */ }
+  _pousseEnCours=false;
+}
+async function jxLireEquipe(){
+  if(!JEU || JEU.type!=='equipe') return;
+  { JEU.equipe='hors-ligne'; render(); return; }
+  try{
+    const { DATA, error } = await sb.from('jeux_semaine').select('justes,total,user_id').eq('lundi',semaineLundi());
+    if(error) throw error;
+    JEU.equipe = { justes:data.reduce((n,r)=>n+(r.justes||0),0), total:data.reduce((n,r)=>n+(r.total||0),0), gens:data.length };
+  }catch(e){ JEU.equipe='absente'; }
+  render();
+}
+function jxRecord(cle, valeur){
+  if((JXS.rec[cle]||0) < valeur){ JXS.rec[cle]=valeur; jxSave(); return true; }
+  return false;
+}
+
+var JEU = null;                 // la partie en cours (var : render() peut passer ici avant)
+var JXCHOIX = {jeu:null, terrain:{t:'tout'}};   // ce qu'on est en train de choisir
+var JXTIMER = null;
+
+function openJeux(){  JEU=null; JXCHOIX={jeu:null,terrain:{t:'tout'}}; jxStop(); render(); }
+function jxStop(){ if(JXTIMER){ clearInterval(JXTIMER); JXTIMER=null; } }
+function jxChoisirJeu(k){ JXCHOIX.jeu = k || null; JXCHOIX.terrain={t:'tout'}; render(); }
+function jxTerrain(t,k){ JXCHOIX.terrain={t,k}; render(); }
+
+/* Le terrain devient une liste de domaines (ou rien = tout le réseau). */
+function jxDoms(ter){
+  const tous = DOMAINES.filter(d=>d.reseau).map(d=>d.key);
+  if(!ter || ter.t==='tout') return null;
+  if(ter.t==='dom') return [ter.k];
+  if(ter.t==='met'){ const m=METIERS_JEU.find(x=>x.k===ter.k); return m ? m.doms.filter(d=>tous.includes(d)) : null; }
+  if(ter.t==='hasard') return [tous[Math.floor(Math.random()*tous.length)]];
+  return null;
+}
+function jxNomTerrain(ter){
+  if(!ter || ter.t==='tout') return 'Tout mélangé';
+  if(ter.t==='dom') return (DOM[ter.k]&&DOM[ter.k].label)||ter.k;
+  if(ter.t==='met') return 'Métier : '+ter.k;
+  return 'Au hasard';
+}
+function jxQuestions(ter, n){
+  const doms=jxDoms(ter);
+  const g = doms ? quizGen(null, doms) : quizGen('all');
+  return g.qs.slice(0, n||40);
+}
+
+/* ── Lancer une partie ─────────────────────────────────────────────── */
+function jxJouer(k, ter){
+  const type = k || JXCHOIX.jeu, terrain = ter || JXCHOIX.terrain;
+  jxStop();
+  if(type==='equipe'){ JEU={type:'equipe',terrain:terrain||{t:'tout'},equipe:null}; go('#/quiz'); jxLireEquipe(); return; }
+  if(type==='roue'){ JEU={type,terrain,phase:'roue',angle:0,tourne:false}; go('#/quiz'); return; }
+  if(type==='qui'){ JEU={type,terrain,items:jxQuiItems(terrain,12),i:0,niveau:1,score:0,answered:false,picked:-1}; go('#/quiz'); return; }
+  if(type==='vf'){ JEU={type,terrain,items:jxVfItems(terrain,14),i:0,score:0,answered:false,picked:null}; go('#/quiz'); return; }
+  if(type==='jour'){ JEU={type,terrain:{t:'tout'},q:jxQuestionDuJour(),answered:!!jxJourFait(),picked:-1}; go('#/quiz'); return; }
+  if(type==='flip'){ JEU={type,terrain,qs:jxQuestions(terrain,20),i:0,retourne:false}; go('#/quiz'); return; }
+  if(type==='serie'){ JEU={type,terrain,qs:jxQuestions(terrain,40),i:0,serie:0,answered:false,picked:-1,fini:false}; go('#/quiz'); return; }
+  if(type==='chrono'){
+    JEU={type,terrain,qs:jxQuestions(terrain,60),i:0,score:0,answered:false,picked:-1,reste:60,fini:false};
+    go('#/quiz');
+    JXTIMER=setInterval(()=>{ if(!JEU||JEU.type!=='chrono'){ jxStop(); return; }
+      JEU.reste--; if(JEU.reste<=0){ JEU.reste=0; JEU.fini=true; jxRecord('chrono',JEU.score); jxStop(); }
+      render(); },1000);
+    return;
+  }
+  // par défaut : les questions classiques
+  JEU={type:'quiz',terrain,qs:jxQuestions(terrain,60),i:0,score:0,answered:false,picked:-1};
+  go('#/quiz');
+}
+function jxDe(){
+  const j=JEUX.filter(x=>x.k!=='equipe'), tous=DOMAINES.filter(d=>d.reseau);
+  const jeu=j[Math.floor(Math.random()*j.length)];
+  const d=tous[Math.floor(Math.random()*tous.length)];
+  cousinToast(jeu.nom+' · '+d.label);
+  setTimeout(()=>jxJouer(jeu.k,{t:'dom',k:d.key}),450);
+}
+
+/* ── « Qui suis-je ? » : trois indices qui tombent un par un ────────── */
+function jxQuiItems(ter,n){
+  const doms=jxDoms(ter);
+  let pool=DATA.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.desc && p.desc.length>15);
+  if(doms) pool=pool.filter(p=>doms.includes(p.domaine));
+  const noms=pool.map(p=>p.nom);
+  return qShuffle(pool).slice(0,n).map(p=>{
+    const faux=qShuffle(noms.filter(x=>x!==p.nom)).slice(0,3);
+    const opts=qShuffle([p.nom].concat(faux));
+    /* Trois indices sur ce que FAIT le service, jamais sur son adresse : une maison
+       déménage, et connaître une rue n'a jamais fait connaître un réseau. */
+    const ind=[];
+    ind.push({i:icon('palette'), t:'Je suis dans « '+DOM[p.domaine].label+' »'});
+    ind.push({i:icon('chat'), t:(p.public && p.public.length>4) ? "Je m'adresse à : "+qTrim(p.public,90) : 'Je reçois sans condition particulière'});
+    ind.push({i:icon('bulb'), t:'On vient chez moi pour : '+qTrim(p.desc,110)});
+    return {p:p.id, nom:p.nom, opts, correct:opts.indexOf(p.nom), ind};
+  }).filter(x=>x.opts.length===4);
+}
+/* ── Vrai ou faux : une affirmation, deux boutons ───────────────────── */
+function jxVfItems(ter,n){
+  const doms=jxDoms(ter);
+  let pool=DATA.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.desc && p.desc.length>15);
+  if(doms) pool=pool.filter(p=>doms.includes(p.domaine));
+  const autres=DATA.filter(p=>p.desc && p.desc.length>15);
+  return qShuffle(pool).slice(0,n).map((p,idx)=>{
+    const vrai = idx%2===0;
+    let phrase;
+    if(vrai){ phrase='« '+p.nom+' » : '+qTrim(p.desc,120); }
+    else{
+      const x=qShuffle(autres.filter(a=>a.nom!==p.nom && a.desc!==p.desc))[0];
+      phrase='« '+p.nom+' » : '+qTrim(x?x.desc:'',120);
+    }
+    return {src:p.id, phrase, vrai, vraie:qTrim(p.desc,140), nom:p.nom};
+  });
+}
+/* ── La question du jour : la même pour tout le monde, elle change à minuit ── */
+/* La question du jour doit être LA MÊME pour tout le monde et NE PAS BOUGER d'un
+   affichage à l'autre. Le générateur mélange tout au hasard : on remet donc les questions
+   ET les réponses dans un ordre stable (alphabétique) avant de tirer avec la date.
+   Sans ça, la réponse enregistrée pointait vers une autre option — et l'app affichait
+   une correction avant même qu'on ait répondu. */
+function jxQuestionDuJour(){
+  /* Entièrement déterminée par la DATE : même fiche, mêmes leurres, même ordre pour tout
+     le monde et à chaque affichage. Le générateur du quiz tire au hasard (les leurres
+     changeaient à chaque rendu), on ne peut donc pas s'en servir ici. */
+  const pool = DATA.filter(function(p){ return p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.desc && p.desc.length>15; })
+                   .sort(function(a,b){ return a.nom.localeCompare(b.nom,'fr'); });
+  if(pool.length<4) return null;
+  const j=todayStr(); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))>>>0;
+  const p = pool[h % pool.length];
+  const bonne = qTrim(p.desc,110);
+  const leurres=[];
+  for(let k=1; leurres.length<3 && k<pool.length; k++){
+    const x = pool[(h + k*7) % pool.length];
+    const t = qTrim(x.desc,110);
+    if(x.nom!==p.nom && t!==bonne && leurres.indexOf(t)<0) leurres.push(t);
+  }
+  if(leurres.length<3) return null;
+  const opts = [bonne].concat(leurres).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+  return { q:"Que propose « "+p.nom+" » ?", opts:opts, correct:opts.indexOf(bonne), src:p.id };
+}
+function jxJourFait(){ return JXS.jour && JXS.jour.date===todayStr() ? JXS.jour : null; }
+
+/* ── Répondre, selon le jeu ────────────────────────────────────────── */
+function jxRep(i){
+  if(!JEU || JEU.answered) return;
+  const Q=JEU.qs?JEU.qs[JEU.i]:null;
+  JEU.answered=true; JEU.picked=i;
+  const juste = Q && i===Q.correct;
+  if(Q) jxNote(Q.src, juste);
+  if(JEU.type==='serie'){
+    if(juste){ JEU.serie++; jxRecord('serie',JEU.serie); }
+    else { JEU.fini=true; }
+  } else if(JEU.type==='chrono'){
+    if(juste) JEU.score++;
+    setTimeout(()=>{ if(JEU&&JEU.type==='chrono'&&!JEU.fini){ jxSuivante(); } },420);
+  } else if(juste && JEU.score!==undefined){ JEU.score++; }
+  render();
+}
+function jxSuivante(){
+  if(!JEU) return;
+  JEU.i++; JEU.answered=false; JEU.picked=-1; JEU.retourne=false; JEU.niveau=1;
+  if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='chrono'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
+  if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='serie'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
+  render();
+}
+function jxFlip(){ if(JEU){ JEU.retourne=!JEU.retourne; render(); } }
+function jxIndice(){ if(JEU && JEU.niveau<3){ JEU.niveau++; render(); } }
+function jxRepQui(i){
+  if(!JEU || JEU.answered) return;
+  const it=JEU.items[JEU.i]; JEU.answered=true; JEU.picked=i;
+  const juste=i===it.correct;
+  if(juste) JEU.score += (4-JEU.niveau);      // trouvé au 1er indice = 3 points
+  jxNote(it.p, juste); render();
+}
+function jxRepVf(rep){
+  if(!JEU || JEU.answered) return;
+  const it=JEU.items[JEU.i]; JEU.answered=true; JEU.picked=rep;
+  const juste = (rep===it.vrai);
+  if(juste) JEU.score++;
+  jxNote(it.src, juste); render();
+}
+function jxSuivanteItem(){ if(!JEU) return; JEU.i++; JEU.answered=false; JEU.picked=null; JEU.niveau=1; render(); }
+function jxRepJour(i){
+  if(!JEU || JEU.answered || !JEU.q) return;
+  const juste = i===JEU.q.correct;
+  JEU.answered=true; JEU.picked=i;
+  JXS.jour={date:todayStr(), juste:juste, choisi:JEU.q.opts[i]}; jxSave();
+  jxNote(JEU.q.src, juste); render();
+}
+/* ── La roue ───────────────────────────────────────────────────────── */
+function jxTournerRoue(){
+  if(!JEU || JEU.tourne) return;
+  const tous=DOMAINES.filter(d=>d.reseau);
+  const n=Math.min(8,tous.length), pas=360/n;
+  const gagnant=Math.floor(Math.random()*n);
+  JEU.tourne=true;
+  const cible=360*5 + (360 - (gagnant*pas + pas/2));
+  JEU.angle = JEU.angle + (cible - (JEU.angle%360));
+  const el=document.getElementById('jxRoue'); if(el) el.style.transform='rotate('+JEU.angle+'deg)';
+  setTimeout(()=>{
+    if(!JEU) return;
+    const dom=JEU.secteurs[gagnant];
+    jxJouer('quiz',{t:'dom',k:dom.key});
+  },4400);
+}
+function openQuiz(theme){
+   JEU=null;
+  QUIZ = theme ? quizGen(theme) : { qs:[], i:0, score:0, answered:false, picked:-1, theme:null };
+  render();
+}
+/* Le quiz porte sur le MÉTIER du réseau : qui fait quoi, pour quel public, dans quel domaine.
+   Volontairement AUCUNE question sur les numéros de téléphone ni les adresses — ça, on le cherche
+   dans l'app au moment où on en a besoin ; ce qu'il faut connaître par cœur, c'est à qui s'adresser. */
+/* ═══ LES QUESTIONS ÉCRITES À LA MAIN ═══
+   Le reste du quiz se fabrique tout seul à partir des fiches. Ces questions-là, non : elles
+   portent sur des règles de droit, où une formulation approximative ferait plus de mal que
+   de bien. Écrites le 31/07/2026 avec la formation « Adresse de référence, CPAS compétent
+   et agrément », d'après les textes cités en bas de cette formation. Chaque question porte
+   son POURQUOI : on ne retient pas une bonne réponse, on retient une raison. */
+/* Elles rejoignent aussi « Tout mélangé » : la règle de droit croise les fiches du réseau,
+   c'est comme ça qu'on la retient pour de bon. */
+
 let QZ=null;
 /* Le design prévoit une manche de 5 questions (« 5 questions · 3 min »). */
 function quizStart(t){QZ=quizGen(t); if(QZ&&QZ.qs&&QZ.qs.length>5) QZ.qs=QZ.qs.slice(0,5); render();window.scrollTo(0,0);}
@@ -4548,9 +5251,268 @@ function quizAnswer(i){if(!QZ||QZ.answered)return;QZ.answered=true;QZ.picked=i;
 function quizNext(){QZ.i++;QZ.answered=false;QZ.picked=-1;render();window.scrollTo(0,0);}
 function quizTheme(){QZ=null;render();window.scrollTo(0,0);}
 function quizFiche(id){const p=DATA.find(x=>x.id===id);if(p)go('#/f/'+p.sid);}
+/* Les aides du renderer (en-tête, options, retour au choix). */
+function jxHubHTML(){
+  /* Le score est le 9e pavé : la salle tient alors sur un écran de téléphone, sans défiler. */
+  if(JXCHOIX.jeu==='score') return `<div class="pf-wrap">
+      <div class="jx-cap" style="background:#1b1b1b;color:#f2eee6">
+        <span class="jx-cap-ic">${icon('stats')}</span><b>Mon score</b>
+        <em>Ce que je maîtrise, domaine par domaine</em></div>
+      ${jxProgHTML()}
+      <button class="quiz-next" style="margin-top:12px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="jxChoisirJeu(null)">← Tous les jeux</button>
+    </div>`;
+  /* Un jeu choisi = on ENTRE dans sa page : son dessin en grand, sa règle, puis le
+     terrain. Avant, le panneau se dépliait sous l'étagère et on ne voyait pas où on était. */
+  if(JXCHOIX.jeu) return jxPresentationHTML();
+  const shelf = JEUX.map(j=>`<button class="jx-t${j.sombre?' sombre':''}" style="background:${j.c}" onclick="jxChoisirJeu('${j.k}')">
+      <b>${esc(j.nom)}</b><span class="ic">${icon(j.ic)}</span></button>`).join('');
+  const score = `<button class="jx-t sombre" style="background:#3b3833" onclick="jxChoisirJeu('score')">
+      <b>Mon score</b><span class="ic">${icon('stats')}</span></button>`;
+  return `<div class="pf-wrap">
+    <button class="jx-de" id="jxDe" onclick="this.classList.add('roule');jxDe()">
+      <span class="d">${icon('de')}</span><span><b>Surprends-moi</b><em>Un jeu au hasard, un terrain au hasard. Zéro décision.</em></span></button>
+    <div class="jx-shelf">${shelf}${score}</div>
+  </div>`;
+}
+function jxPresentationHTML(){
+  {
+    const j=JEUX.find(x=>x.k===JXCHOIX.jeu), T=JXCHOIX.terrain;
+    /* Le choix actif doit se VOIR : la comparaison ratait quand la clé est vide. */
+    const o=(t,k,ic,titre,sous)=>`<button class="jx-o${(T.t===t && (T.k||'')===(k||''))?' on':''}" onclick="jxTerrain('${t}'${k?",'"+k.replace(/'/g,"\\'")+"'":''})"><i>${ic}</i><span>${esc(titre)}<em>${esc(sous)}</em></span></button>`;
+    const mets = METIERS_JEU.map(m=>`<button class="jx-p${(T.t==='met'&&T.k===m.k)?' on':''}" style="background:${m.c}" onclick="jxTerrain('met','${m.k}')">${esc(m.k)}</button>`).join('');
+    const doms = DOMAINES.filter(d=>d.reseau).map(d=>`<button class="jx-p${(T.t==='dom'&&T.k===d.key)?' on':''}" style="background:${tileColor(d.key)}" onclick="jxTerrain('dom','${d.key}')">${esc(d.short||d.label)}</button>`).join('');
+    return `<div class="pf-wrap">
+      <div class="jx-cap" style="background:${j.c};color:${j.sombre?'#f2eee6':'#1b1b1b'}">
+        <span class="jx-cap-ic">${icon(j.ic)}</span>
+        <b>${esc(j.nom)}</b>
+        <em>${esc(j.p)}</em>
+      </div>
+      <div class="jx-ter">
+      <p class="rg">${esc(j.regle)}</p>
+      <h4>Sur quoi tu joues ?</h4>
+      <div class="jx-opts">
+        ${o('tout','', icon('globe'),'Tout mélangé','Toutes les fiches du réseau')}
+        ${o('met','', icon('accomp'),'Un métier','Ce que ce poste doit connaître par cœur')}
+        ${o('dom','', icon('palette'),'Un domaine','Médical, Social, Juridique…')}
+        ${o('hasard','',icon('de'),'Au hasard','Le terrain est tiré au sort')}
+      </div>
+      ${T.t==='met'?`<div class="jx-puces">${mets}</div>`:''}
+      ${T.t==='dom'?`<div class="jx-puces">${doms}</div>`:''}
+      <button class="jx-go" onclick="jxJouer()" ${((T.t==='met'||T.t==='dom')&&!T.k)?'disabled':''}>C'est parti — ${esc(jxNomTerrain(T))}</button>
+      </div>
+      <button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="jxChoisirJeu(null)">← Tous les jeux</button>
+    </div>`;
+  }
+}
+/* Ce qu'on maîtrise, domaine par domaine — nourri par toutes les parties. */
+function jxProgHTML(){
+  /* Chaque ligne est jouable : on appuie, on rejoue ce domaine. À 100 %, on remet le
+     compteur à zéro avant de rejouer — sinon on ne saurait jamais si c'était de la chance. */
+  const lignes=DOMAINES.filter(d=>d.reseau).map(d=>{
+    const s=JXS.dom[d.key]; if(!s||!s.v) return '';
+    const pc=Math.round(s.j/s.v*100);
+    const parfait = pc>=100;
+    return `<button class="jx-l${parfait?' parfait':''}" onclick="rejouerDomaine('${d.key}',${parfait})">
+      <span>${esc(d.short||d.label)}</span>
+      <div class="b"><i style="width:${pc}%;background:${tileColor(d.key)}"></i></div>
+      <div class="n">${pc}%</div>
+      <em>${parfait?'Refaire à zéro':'Rejouer'}</em></button>`;
+  }).filter(Boolean).join('');
+  const rec = [];
+  if(JXS.rec.serie) rec.push(icon('jserie')+' série record : <b>'+JXS.rec.serie+'</b>');
+  if(JXS.rec.chrono) rec.push(icon('jchrono')+' chrono record : <b>'+JXS.rec.chrono+'</b>');
+  return `<div class="jx-prog"><h4>Ce que je maîtrise</h4>
+    ${lignes || '<div class="jx-vide">Rien encore : joue une partie et la barre se remplit, domaine par domaine.</div>'}
+    ${rec.length?`<div class="jx-vide" style="margin-top:10px">${rec.join(' · ')}</div>`:''}</div>`;
+}
+/* Rejouer un domaine depuis « Ce que je maîtrise ». Si on y était à 100 %, on efface son
+   compteur d'abord : le nouveau pourcentage mesure alors vraiment la connaissance, pas la chance. */
+function rejouerDomaine(k, remiseAZero){
+  if(remiseAZero){ delete JXS.dom[k]; jxSave(); }
+  jxJouer('quiz', {t:'dom', k});
+}
+function jxRetourHub(){ return `<button class="quiz-next" style="margin-top:10px;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="openJeux()">← Retour aux jeux</button>`; }
+function jxEnTete(nom, ic){
+  return `<div class="quiz-top"><span>${ic} ${esc(nom)}</span><span>${esc(jxNomTerrain(JEU.terrain))}</span></div>`;
+}
+function jxOptsHTML(Q, fn){
+  return Q.opts.map((o,idx)=>{
+    let cls='quiz-opt';
+    if(JEU.answered){ if(idx===Q.correct) cls+=' good'; else if(idx===JEU.picked) cls+=' bad'; }
+    return `<button class="${cls}" ${JEU.answered?'disabled':''} onclick="${fn}(${idx})">${esc(o)}</button>`;
+  }).join('');
+}
+
+/* L'affichage des 8 jeux, rapatrié tel quel. */
+function jxJeuHTML(){
+  const T=JEU.type;
+
+  if(T==='equipe'){
+    const moi=(JXS.sem && JXS.sem.lundi===semaineLundi()) ? JXS.sem : {justes:0,total:0};
+    const e=JEU.equipe;
+    let bloc;
+    if(e===null) bloc = `<div class="jx-vide">Je compte…</div>`;
+    else if(e==='hors-ligne') bloc = `<div class="jx-vide">Hors ligne — je ne peux pas lire le compteur de l'équipe. Le tien est juste en dessous.</div>`;
+    else if(e==='absente') bloc = `<div class="jx-vide">Le compteur partagé n'est pas encore branché : il attend une table dans la base. En attendant, voilà le tien.</div>`;
+    else bloc = `<div class="eq-gros">${e.justes}</div>
+      <div class="eq-sous">bonne${e.justes>1?'s':''} réponse${e.justes>1?'s':''} cette semaine, à ${e.gens>1?e.gens+' ':''}${e.gens>1?'':'une personne'}${e.gens>1?'personnes':''}</div>`;
+    return `<div class="pf-wrap">
+      <div class="quiz-top"><span>L'équipe cette semaine</span><span>depuis lundi</span></div>
+      <div class="eq-carte">${bloc}</div>
+      <div class="jx-bar"><span class="gros">${icon('check')}</span><span><b>Toi : ${moi.justes} bonne${moi.justes>1?'s':''}</b><em>sur ${moi.total} question${moi.total>1?'s':''} jouées cette semaine</em></span></div>
+      <div class="pourq">Pas de classement, pas de comparaison entre collègues : un seul chiffre, celui de l'équipe. Il repart à zéro chaque lundi.</div>
+      <button class="quiz-next" onclick="jxJouer('quiz',{t:'tout'})">Ajouter des points — jouer maintenant</button>
+      ${jxRetourHub()}</div>`;
+  }
+
+  if(T==='roue'){
+    const tous=DOMAINES.filter(d=>d.reseau).slice(0,8);
+    JEU.secteurs=tous;
+    const pas=360/tous.length;
+    const parts=tous.map((d,i)=>`${tileColor(d.key)} ${i*pas}deg ${(i+1)*pas}deg`).join(',');
+    const labs=tous.map((d,i)=>{
+      const a=(i*pas+pas/2-90+360)%360, g=a>90&&a<270;
+      const mot=(d.short||d.label); const court = mot.length>10 ? mot.slice(0,9)+'.' : mot;
+      return `<div class="lab" style="transform:rotate(${g?a+180:a}deg) translate(${g?'-104px':'32px'},-6px);text-align:${g?'right':'left'}">${esc(court)}</div>`;
+    }).join('');
+    return `<div class="pf-wrap"><div class="jx-roue-box">
+      <div class="quiz-q" style="font-size:16px;margin-bottom:14px">Elle choisit ton domaine — tu n'as rien à décider.</div>
+      <div class="jx-rh"><div class="jx-fl"></div>
+        <div class="jx-roue" id="jxRoue" style="background:conic-gradient(${parts})">${labs}</div>
+        <div class="jx-moy">COUSIN</div></div>
+      <button class="quiz-next" onclick="jxTournerRoue()">${icon('jroue')} Faire tourner</button>
+      ${jxRetourHub()}</div></div>`;
+  }
+
+  if(T==='flip'){
+    const Q=JEU.qs[JEU.i];
+    if(!Q) return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-msg">Paquet terminé</div>${jxRetourHub()}</div></div>`;
+    return `<div class="pf-wrap">${jxEnTete('Cartes à retourner',icon('jcartes'))}
+      <div class="jx-flip${JEU.retourne?' on':''}" onclick="jxFlip()">
+        <div class="jx-flip-in">
+          <div class="jx-face" style="background:#5b8fd4"><small>Carte ${JEU.i+1}</small><b>${esc(Q.q)}</b><em>Appuie pour retourner</em></div>
+          <div class="jx-face dos"><small>La réponse</small><b>${esc(Q.opts[Q.correct])}</b><em>Appuie pour revenir</em></div>
+        </div>
+      </div>
+      <button class="quiz-next" onclick="jxSuivante()">Carte suivante</button>${jxRetourHub()}</div>`;
+  }
+
+  if(T==='serie'){
+    if(JEU.fini){
+      const r=JXS.rec.serie||0;
+      // La question ratée reste à l'écran, avec sa correction : c'est là qu'on apprend.
+      const ratee = JEU.qs[JEU.i];
+      const corr = ratee ? `<div class="jx-titre" style="margin-top:18px">La question qui t'a arrêtée</div>
+        <div class="quiz-q" style="font-size:16px">${esc(ratee.q)}</div>${quizCorrection(ratee)}` : '';
+      return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.serie}</div>
+        <div class="quiz-msg">${JEU.serie>=r&&JEU.serie>0?'Nouveau record !':'Série terminée'}</div>
+        <div class="jx-vide" style="margin-bottom:14px">Ton record : ${r}</div>
+        <button class="pf-golist" onclick="jxJouer('serie',JEU.terrain)">${icon('jserie')} <span>Rejouer</span></button>${jxRetourHub()}</div>${corr}</div>`;
+    }
+    const Q=JEU.qs[JEU.i];
+    const flamme = icon('jserie');
+    return `<div class="pf-wrap">
+      <div class="jx-bar"><span class="gros">${flamme}</span><span><b>Série de ${JEU.serie}</b><em>Record : ${JXS.rec.serie||0} · ${esc(jxNomTerrain(JEU.terrain))}</em></span><span class="chiffre">${JEU.serie}</span></div>
+      <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div>
+      ${JEU.answered?quizCorrection(Q):''}
+      ${JEU.answered?(JEU.picked===Q.correct?`<button class="quiz-next" onclick="jxSuivante()">Continuer la série</button>`:''):''}
+      ${JEU.answered?jxRetourHub():''}</div>`;
+  }
+
+  if(T==='chrono'){
+    if(JEU.fini){
+      return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.score}</div>
+        <div class="quiz-msg">bonnes réponses en 60 secondes</div>
+        <div class="jx-vide" style="margin-bottom:14px">Ton record : ${JXS.rec.chrono||0}</div>
+        <button class="pf-golist" onclick="jxJouer('chrono',JEU.terrain)">${icon('jchrono')} <span>Rejouer</span></button>${jxRetourHub()}</div></div>`;
+    }
+    const Q=JEU.qs[JEU.i];
+    return `<div class="pf-wrap">
+      <div class="jx-bar${JEU.reste<=10?' presse':''}"><span class="gros">${icon('jchrono')}</span><span><b>${JEU.score} bonne${JEU.score>1?'s':''}</b><em>${esc(jxNomTerrain(JEU.terrain))}</em></span><span class="chiffre">${JEU.reste}</span></div>
+      <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div></div>`;
+  }
+
+  if(T==='qui'){
+    const it=JEU.items[JEU.i];
+    if(!it) return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.score}</div><div class="quiz-msg">points</div>${jxRetourHub()}</div></div>`;
+    // Après la réponse, tous les indices se découvrent — sinon on ne retient rien.
+    const cache = idx => !JEU.answered && idx+1>JEU.niveau;
+    const inds=it.ind.map((x,idx)=>`<div class="jx-ind${cache(idx)?' floue':''}"><i>${x.i}</i><span>${cache(idx)?'Indice caché — appuie sur « Un indice de plus »':esc(x.t)}</span></div>`).join('');
+    const LETTRES=['A','B','C','D','E'];
+    const opts=it.opts.map((o,idx)=>{
+      let cls='quiz-opt lettre';
+      if(JEU.answered){ if(idx===it.correct) cls+=' good'; else if(idx===JEU.picked) cls+=' bad'; }
+      return `<button class="${cls}" ${JEU.answered?'disabled':''} onclick="jxRepQui(${idx})"><i>${LETTRES[idx]||'?'}</i><span>${esc(o)}</span></button>`;
+    }).join('');
+    return `<div class="pf-wrap">
+      <div class="quiz-top"><span>Qui suis-je ? ${JEU.i+1}/${JEU.items.length}</span><span>Score : ${JEU.score}</span></div>
+      <div class="jx-titre">Les indices</div>
+      ${inds}
+      ${(!JEU.answered && JEU.niveau<3)?`<button class="quiz-next" style="margin:4px 0 16px" onclick="jxIndice()">Un indice de plus (−1 point)</button>`:''}
+      <div class="jx-titre" style="margin-top:18px">Alors, qui suis-je ?</div>
+      <div class="quiz-opts">${opts}</div>
+      ${JEU.answered?`<div class="quiz-corr">${JEU.picked===it.correct?'Bien vu — c\u2019était ':'C\u2019était '}<b>${esc(it.nom)}</b>. Les trois indices sont dépliés au-dessus.</div>
+      ${quizCorrection({src:it.p, opts:it.opts, correct:it.correct})}
+      <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`:''}</div>`;
+  }
+
+  if(T==='vf'){
+    const it=JEU.items[JEU.i];
+    if(!it) return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${JEU.score}/${JEU.items.length}</div><div class="quiz-msg">Vrai ou faux terminé</div>${jxRetourHub()}</div></div>`;
+    const juste=(JEU.picked===it.vrai);
+    return `<div class="pf-wrap">
+      <div class="quiz-top"><span>Vrai ou faux ${JEU.i+1}/${JEU.items.length}</span><span>Score : ${JEU.score}</span></div>
+      <div class="quiz-q">${esc(it.phrase)}</div>
+      ${JEU.answered
+        ? `<div class="quiz-corr" style="border-left:4px solid ${juste?'#6cb392':'#e63329'}"><b>${juste?'Bien vu !':'Raté'}</b><br>${it.vrai?'C’était vrai.':'C’était faux — en réalité : '+esc(it.vraie)}</div>
+           ${quizCorrection({src:it.src, opts:[it.vraie], correct:0})}
+           <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`
+        : `<div class="jx-vf"><button class="jx-vrai" onclick="jxRepVf(true)">✓ Vrai</button><button class="jx-faux" onclick="jxRepVf(false)">✕ Faux</button></div>`}
+    </div>`;
+  }
+
+  if(T==='jour'){
+    const Q=JEU.q, fait=jxJourFait();
+    if(!Q) return `<div class="pf-wrap"><div class="pf-empty"><p>Pas de question aujourd'hui.</p></div>${jxRetourHub()}</div>`;
+    if(fait && !JEU.answered) JEU.picked=Q.opts.indexOf(fait.choisi);
+    const choisi = JEU.answered ? JEU.picked : (fait ? Q.opts.indexOf(fait.choisi) : -1);
+    const opts=Q.opts.map((o,idx)=>{
+      let cls='quiz-opt';
+      if(JEU.answered||fait){ if(idx===Q.correct) cls+=' good'; else if(idx===choisi) cls+=' bad'; }
+      return `<button class="${cls}" ${(JEU.answered||fait)?'disabled':''} onclick="jxRepJour(${idx})">${esc(o)}</button>`;
+    }).join('');
+    return `<div class="pf-wrap">
+      <div class="quiz-top"><span>La question du jour</span><span>${esc(todayStr())}</span></div>
+      <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${opts}</div>
+      ${(JEU.answered||fait)?quizCorrection(Q):''}
+      ${(JEU.answered||fait)?`<div class="quiz-corr">${(fait&&fait.juste)||(JEU.answered&&JEU.picked===Q.correct)?'Bravo — c’est la bonne.':'C’était : <b>'+esc(Q.opts[Q.correct])+'</b>'}<br><span style="color:var(--muted)">Une nouvelle question demain, la même pour toute l’équipe.</span></div>${jxRetourHub()}`:''}
+    </div>`;
+  }
+
+  // quiz classique (la roue nous amène ici, et « Tout mélangé » aussi)
+  const Q=JEU.qs[JEU.i];
+  if(!Q || JEU.i>=JEU.qs.length){
+    const n=JEU.qs.length, s=JEU.score, r=n?s/n:0;
+    const msg = r===1?"Sans faute !" : r>=.7?"Bien joué !" : r>=.4?"Pas mal, continue !" : "À revoir";
+    return `<div class="pf-wrap"><div class="quiz-res"><div class="quiz-score">${s}/${n}</div><div class="quiz-msg">${msg}</div>
+      <button class="pf-golist" onclick="jxJouer('quiz',JEU.terrain)">${icon('bulb')}<span>Rejouer</span></button>${jxRetourHub()}</div></div>`;
+  }
+  const corr = JEU.answered ? quizCorrection(Q) : '';
+  return `<div class="pf-wrap">
+    <div class="quiz-top"><span>Question ${JEU.i+1}/${JEU.qs.length}</span><span>${esc(jxNomTerrain(JEU.terrain))} · ${JEU.score}</span></div>
+    <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div>${corr}
+    ${JEU.answered?`<button class="quiz-next" onclick="jxSuivante()">${JEU.i+1<JEU.qs.length?'Question suivante':'Voir mon score'}</button>`:''}</div>`;
+}
+
+
 function vQuiz(){
-  /* LE QUIZ redessiné (handoff Claude Design) : boules d'état en haut, pile de
-     cartes avec la question, réponses en cartes cerclées qui verdissent. */
+  /* Si un des 8 jeux est en cours, c'est lui qu'on affiche (rapatrié de l'app
+     principale) ; sinon, le quiz redessiné au design Lux. */
+  if(typeof JEU!=='undefined' && JEU){
+    return '<div class="qtop"><button class="frond" onclick="jxStop();JEU=null;go(\'#/\')" aria-label="Fermer"><span class="ic">'+icon('chevron')+'</span></button>'+
+      '<span class="cpt" style="flex:1;text-align:center">'+esc((JEUX.find(x=>x.k===JEU.type)||{}).nom||'Jeu')+'</span></div>'+
+      '<div class="jxwrap">'+jxJeuHTML()+'</div><div style="height:26px"></div>';
+  }
   if(!QZ){
     const themes=[['all','Tout mélangé'],['droits','Adresse de référence, CPAS et agrément']]
       .concat(DOMAINES.filter(x=>x.reseau).map(x=>[x.key,x.label]));
