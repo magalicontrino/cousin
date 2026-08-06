@@ -228,12 +228,15 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .boule em{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;
   text-transform:uppercase;color:#8b8984;text-align:center}
 /* La pile de cartes du quiz */
-.pile{position:relative;height:214px;margin:16px 0 0}
-.pile .p1{position:absolute;left:22px;top:14px;width:196px;height:184px;border-radius:6px;
+/* Les proportions du design (carte 200 sur 358 de large) tenues en pourcentages :
+   la pile garde le même équilibre sur un petit comme sur un grand téléphone.
+   La carte du dessus peut grandir si la question est longue — pas les autres. */
+.pile{position:relative;min-height:214px;margin:16px 0 0}
+.pile .p1{position:absolute;left:6.1%;top:14px;width:54.7%;height:184px;border-radius:6px;
   background:#f3cde5;transform:rotate(-8deg)}
-.pile .p2{position:absolute;left:34px;top:6px;width:198px;height:190px;border-radius:6px;
+.pile .p2{position:absolute;left:9.5%;top:6px;width:55.3%;height:190px;border-radius:6px;
   background:#fdfdfc;border:1.5px solid var(--noir);transform:rotate(5deg)}
-.pile .pcarte{position:absolute;left:38px;top:0;width:200px;height:192px;border-radius:6px;
+.pile .pcarte{position:absolute;left:10.6%;top:0;width:56%;min-height:192px;border-radius:6px;
   background:var(--noir);color:#f2eee6;padding:16px;display:flex;flex-direction:column;text-align:left;border:0}
 .pile .pcarte .ic{width:48px;height:48px;color:#f5c542;flex:none}
 .pile .pcarte b{font-size:18px;font-weight:800;line-height:1.1;margin-top:auto}
@@ -3146,7 +3149,10 @@ function agVisible(r){
   if(AG_ENFANTS) return !!(r.enfants || r.kids);
   return false;
 }
-function agendaProchains(jours, filtre){   /* 31 jours sur la page, 1 pour la pastille */
+function agendaProchains(jours, filtre){
+  /* 31 jours sur la page, 1 pour la pastille.
+     SANS filtre, on écarte les activités marquées `enfants` : le centre accueille
+     des adultes, ces sorties-là n'ont rien à y faire (Mag, 06/08/2026). */
   if(!AGENDA_REGLES) return [];   // render() peut passer ici avant que la table soit remplie
   const garde = filtre || function(r){ return !r.enfants; };
   const out=[], base=new Date(); base.setHours(0,0,0,0);
@@ -3686,10 +3692,10 @@ function vHome(){
   /* L'ACCUEIL redessiné d'après le handoff Claude Design (06/08/2026) :
      date + bonjour géant, la pile du quiz du jour, les sorties en carrousel,
      les boules « à faire aujourd'hui », puis tes étoiles en carrousel. */
-  const auj=agendaProchains(1,function(){return true;});
+  const auj=agendaProchains(1);
   /* S'il n'y a rien aujourd'hui, on montre quand même ce qui vient (le carrousel ne
      doit pas disparaître : c'est une section du design). */
-  const sorties=auj.length?auj:agendaProchains(15,function(){return true;}).slice(0,6);
+  const sorties=auj.length?auj:agendaProchains(15).slice(0,6);
   const d=new Date(), l=LINGE[d.getDay()], col=prochaineCollecte();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   /* Une question tirée des vraies questions du quiz, pour la carte du jour. */
@@ -3802,7 +3808,7 @@ function vCentre(){
   const nFormations=DATA.filter(p=>p.domaine==='formations').length;
   const nMails=DATA.filter(p=>p.domaine==='mails').length;
   const nMeth=DATA.filter(p=>p.domaine==='methodes').length;
-  const auj=agendaProchains(1,function(){return true;});
+  const auj=agendaProchains(1);
 
   /* Les tuiles des outils : [titre, sous-titre, picto, classe, fond, couleur du picto, lien] */
   const outils=[
@@ -4447,7 +4453,7 @@ let A27=null;
 function a27T(i){A27=(A27===i)?null:i;render();}
 const svgTicket=(c)=>'<svg viewBox="0 0 24 24" style="width:19px;height:19px" fill="'+c+'"><path fill-rule="evenodd" d="M3 5.4h18a1.4 1.4 0 0 1 1.4 1.4v3.1a2.5 2.5 0 0 0 0 5v3.1a1.4 1.4 0 0 1-1.4 1.4H3a1.4 1.4 0 0 1-1.4-1.4v-3.1a2.5 2.5 0 0 0 0-5V6.8A1.4 1.4 0 0 1 3 5.4zm12.4 2.4v1.8h1.9V7.8zm0 3.3v1.8h1.9v-1.8zm0 3.3v1.8h1.9v-1.8z"/></svg>';
 function vTicket(){
-  const prochains=agendaProchains(15,function(){return true;});
+  const prochains=agendaProchains(15);
   let h='<div class="subtop">'+
     '<h1 style="padding-top:6px">Activités</h1></div>'+
 '';
@@ -4484,7 +4490,7 @@ function pico2(f,color,size){return '<span class="pico" style="width:'+size+'px;
   ';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></span>'}
 function vNeuf(){
   const svgTicket=(c)=>'<svg viewBox="0 0 24 24" style="width:19px;height:19px" fill="'+c+'"><path fill-rule="evenodd" d="M3 5.4h18a1.4 1.4 0 0 1 1.4 1.4v3.1a2.5 2.5 0 0 0 0 5v3.1a1.4 1.4 0 0 1-1.4 1.4H3a1.4 1.4 0 0 1-1.4-1.4v-3.1a2.5 2.5 0 0 0 0-5V6.8A1.4 1.4 0 0 1 3 5.4zm12.4 2.4v1.8h1.9V7.8zm0 3.3v1.8h1.9v-1.8zm0 3.3v1.8h1.9v-1.8z"/></svg>';
-  const prochains=agendaProchains(15,function(){return true;});
+  const prochains=agendaProchains(15);
   let h='<div class="subtop"><h1 style="font-size:22px;padding-top:6px">Quoi de neuf</h1></div>';
   h+='<div class="ghead" style="margin-top:4px"><span class="ic" style="width:19px;height:19px">'+icon('feed')+'</span>Dernière minute</div>'+
     '<div class="fcard" role="button" tabindex="0" onclick="go(\'#/fil\')" style="border-top:1px solid var(--ligne)">'+
