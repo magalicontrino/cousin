@@ -638,6 +638,16 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .jx-flip .jx-face em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-top:14px}
 
+/* ---- LES STATISTIQUES : des barres, pas des camemberts ---- */
+.stl{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--ligne)}
+.stn{flex:0 0 38%;font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stb{flex:1;height:9px;background:#e6e4df;border-radius:5px;overflow:hidden}
+.stb i{display:block;height:100%;background:var(--noir);border-radius:5px}
+.stc{flex:none;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;color:#8b8984;min-width:34px;text-align:right}
+.stjours{display:flex;align-items:flex-end;gap:3px;height:90px;padding-top:14px}
+.stj{flex:1;height:100%;display:flex;align-items:flex-end}
+.stj i{display:block;width:100%;background:#5b8fd4;border-radius:2px 2px 0 0}
+
 /* ---- LA SALLE DE JEUX : les 8 jeux en cartes ---- */
 .jgrille{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding-top:18px}
 .jcarte{display:flex;flex-direction:column;align-items:flex-start;gap:0;border-radius:8px;
@@ -4639,6 +4649,8 @@ function parseRoute(){
   if(seg[0]==='profil') return {view:'profil'};
   if(seg[0]==='quiz') return {view:'quiz'};
   if(seg[0]==='jeux') return {view:'jeux'};
+  if(seg[0]==='chantier') return {view:'chantier'};
+  if(seg[0]==='stats') return {view:'stats'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -4703,12 +4715,15 @@ function render(){
   else if(current.view==='linge') view.innerHTML=vLinge();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
   else if(current.view==='jeux') view.innerHTML=vJeux();
+  else if(current.view==='chantier'){ view.innerHTML=vChantier(); rafraichirChantier(); }
+  else if(current.view==='stats') view.innerHTML=vStats();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
   else if(current.view==='quartier') view.innerHTML=vQuartier();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
   renderTabs();
+  noterEcran();
   /* La barre « voir comme » (administration seulement) et, si elle est demandée,
      le cadre du téléphone À LA PLACE de la page. */
   const ap=document.getElementById('apercu');
@@ -5828,6 +5843,225 @@ function quandFr(iso){
   const memeJour=d.toDateString()===new Date().toDateString();
   return (memeJour?'aujourd’hui':'le '+d.getDate()+' '+M[d.getMonth()])+' à '+h+' h '+mn;
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   LE CHANTIER — la liste de travail de Mag sur COUSIN, rapatriée le 06/08/2026
+   (« il manque le chantier »). Elle seule la voit (la base la protège).
+   Deux parties : SON chantier (ce qu'elle a noté, rangé par bloc) et LA BOÎTE
+   (ce que l'équipe lui envoie par le « + »), qu'un bouton range dans le chantier.
+   ══════════════════════════════════════════════════════════════════════════ */
+const CH_BLOCS=['Bugs à corriger','Ça attend une phrase de toi','Ça attend tes collègues','À construire','Gardé pour plus tard'];
+let CHANTIER=[], BOITE=[], chantierLoaded=false, CH_BLOC='Bugs à corriger', CH_FINIS=false;
+async function loadChantier(){
+  chantierLoaded=false;
+  if(!sb){ chantierLoaded=true; return; }
+  try{
+    const {data}=await sb.from('chantier').select('id,bloc,titre,detail,ordre,fait,fait_le').order('ordre');
+    CHANTIER=data||[];
+  }catch(e){ CHANTIER=[]; }
+  try{
+    const {data}=await sb.from('suggestions').select('id,texte,equipe,auteur_nom,auteur_email,cree_le')
+                         .eq('traite',false).order('cree_le',{ascending:false});
+    BOITE=data||[];
+  }catch(e){ BOITE=[]; }
+  chantierLoaded=true;
+}
+let _chtVu=0;
+function rafraichirChantier(){
+  if(!sb||!PROFILE||!PROFILE.admin) return;
+  if(chantierLoaded && Date.now()-_chtVu<45000) return;
+  _chtVu=Date.now();
+  loadChantier().then(function(){ if(current.view==='chantier') render(); });
+}
+function chBloc(b){ CH_BLOC=b; render(); }
+function chFinis(){ CH_FINIS=!CH_FINIS; render(); }
+async function chAjouter(){
+  const i=document.getElementById('chtTitre'); if(!i) return;
+  const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
+  try{
+    await sb.from('chantier').insert({titre:t, bloc:CH_BLOC, ordre:Date.now()%100000});
+    i.value=''; await loadChantier(); render(); toast('Noté ✓');
+  }catch(e){ toast('Impossible d’ajouter'); }
+}
+async function chCocher(id,on){
+  try{
+    await sb.from('chantier').update({fait:on, fait_le:on?new Date().toISOString():null}).eq('id',id);
+    const l=CHANTIER.find(x=>x.id===id); if(l){ l.fait=on; l.fait_le=on?new Date().toISOString():null; }
+    render();
+  }catch(e){ toast('Refusé'); }
+}
+function chSupprimer(id,titre){
+  cousinConfirme('Supprimer cette ligne ?', titre, async function(){
+    try{ await sb.from('chantier').delete().eq('id',id); await loadChantier(); render(); }
+    catch(e){ toast('Refusé'); }
+  }, {ok:'Supprimer', danger:true});
+}
+/* Une idée reçue devient une ligne du chantier — et sort de la boîte. */
+async function boiteRanger(id){
+  const su=BOITE.find(x=>x.id===id); if(!su) return;
+  try{
+    await sb.from('chantier').insert({titre:su.texte, bloc:'À construire', ordre:Date.now()%100000});
+    await sb.from('suggestions').update({traite:true}).eq('id',id);
+    await loadChantier(); render(); toast('Rangé dans le chantier ✓');
+  }catch(e){ toast('Impossible de ranger'); }
+}
+function boiteClasser(id){
+  cousinConfirme('Classer sans suite ?','Le mot sort de ta boîte. Il n’est pas rangé dans le chantier.',
+    async function(){
+      try{ await sb.from('suggestions').update({traite:true}).eq('id',id); await loadChantier(); render(); }
+      catch(e){ toast('Refusé'); }
+    }, {ok:'Classer'});
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   LES STATISTIQUES — rapatriées le 06/08/2026 à la demande de Mag.
+   ⚠ ELLES NE MARCHENT QUE SI L'APP NOTE LES ÉCRANS. La nouvelle app avait perdu
+   ce geste à la bascule : j'avais rapatrié le compteur de connexions mais pas
+   celui des écrans, et les chiffres s'arrêtaient net au matin. noterEcran() est
+   remis plus bas, dans render().
+   Ce qu'on note : le NOM de l'écran, rien d'autre. Jamais qui, jamais quoi.
+   Jamais en aperçu (Mag verrait ses propres promenades), jamais pour l'admin
+   (elle ouvre vingt écrans par soir pour vérifier son travail, ça fausse tout).
+   ══════════════════════════════════════════════════════════════════════════ */
+const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
+let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', favoris:'Tes étoiles', liste:'Ma liste',
+  profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
+  jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
+  quartier:'Autour d’ici', chambres:'Chambres', linge:'Le linge', centre:'Le centre',
+  urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
+function nomEcran(k){
+  if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
+  try{ if(DOM[k]) return DOM[k].label; }catch(e){}
+  return k;
+}
+function statsPeriode(j){ STATS_JOURS=j; STATS=STATS_CACHE[j]||null; render(); chargerStats(j); }
+async function chargerStats(j){
+  if(!sb||_statsEnCours||STATS_CACHE[j]) { if(STATS_CACHE[j]){STATS=STATS_CACHE[j];} return; }
+  _statsEnCours=true;
+  let res;
+  try{
+    const a=await sb.rpc('stats_ecrans',{jours:j});
+    const b=await sb.rpc('stats_jours', {jours:j});
+    const c=await sb.rpc('stats_equipes',{jours:j});
+    res={ecrans:(a&&a.data)||[], jours:(b&&b.data)||[], equipes:(c&&c.data)||[]};
+  }catch(e){ res={ecrans:[],jours:[],equipes:[],erreur:(e&&e.message)||'lecture impossible'}; }
+  STATS_CACHE[j]=res;
+  if(STATS_JOURS===j) STATS=res;
+  _statsEnCours=false;
+  if(current.view==='stats') render();
+}
+function vStats(){
+  let h=heroBandeau('Statistiques','Où l’équipe passe son temps','#5b8fd4','ecran',true);
+  if(!(PROFILE&&PROFILE.admin))
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
+      '<p>Ces chiffres ne regardent que toi.</p></div><div style="height:26px"></div>';
+  h+='<div class="fchips" style="margin-top:16px">'+STATS_PERIODES.map(function(pp){
+      return '<button class="fchip'+(STATS_JOURS===pp[0]?' on':'')+'" onclick="statsPeriode('+pp[0]+')">'+esc(pp[1])+'</button>';
+    }).join('')+'</div>';
+  if(!STATS){ chargerStats(STATS_JOURS); return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>'; }
+  if(STATS.erreur)
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Lecture impossible</b>'+
+      '<p>'+esc(STATS.erreur)+'</p></div><div style="height:26px"></div>';
+
+  const ec=(STATS.ecrans||[]).slice().sort(function(a,b){ return (b.n||0)-(a.n||0); });
+  const total=ec.reduce(function(a,x){ return a+(x.n||0); },0);
+  h+='<div class="sect" style="margin-top:24px"><b>Les écrans</b><em>'+total+' ouverture'+(total>1?'s':'')+'</em></div>';
+  if(!ec.length){
+    h+='<p class="hint" style="margin-top:12px">Rien de noté sur cette période.</p>';
+  } else {
+    h+='<div class="rlist">'+ec.map(function(x){
+      const pc=total?Math.round((x.n||0)*100/total):0;
+      return '<div class="stl"><span class="stn">'+esc(nomEcran(x.ecran||x.nom||''))+'</span>'+
+        '<span class="stb"><i style="width:'+Math.max(2,pc)+'%"></i></span>'+
+        '<span class="stc">'+(x.n||0)+'</span></div>';
+    }).join('')+'</div>';
+  }
+  const eq=(STATS.equipes||[]).slice().sort(function(a,b){ return (b.n||0)-(a.n||0); });
+  if(eq.length){
+    const tot2=eq.reduce(function(a,x){ return a+(x.n||0); },0);
+    h+='<div class="sect" style="margin-top:28px"><b>Par métier</b><em>qui se sert de COUSIN</em></div>'+
+      '<div class="rlist">'+eq.map(function(x){
+        const pc=tot2?Math.round((x.n||0)*100/tot2):0;
+        return '<div class="stl"><span class="stn">'+esc(x.equipe||'sans métier')+'</span>'+
+          '<span class="stb"><i style="width:'+Math.max(2,pc)+'%;background:#5b8fd4"></i></span>'+
+          '<span class="stc">'+(x.n||0)+'</span></div>';
+      }).join('')+'</div>';
+  }
+  const jr=(STATS.jours||[]);
+  if(jr.length){
+    const maxi=Math.max.apply(null,jr.map(function(x){return x.n||0}))||1;
+    h+='<div class="sect" style="margin-top:28px"><b>Jour par jour</b><em>'+jr.length+' jours</em></div>'+
+      '<div class="stjours">'+jr.map(function(x){
+        const ht=Math.max(3,Math.round((x.n||0)*100/maxi));
+        return '<span class="stj" title="'+esc(String(x.jour||''))+' — '+(x.n||0)+'"><i style="height:'+ht+'%"></i></span>';
+      }).join('')+'</div>';
+  }
+  h+='<div class="fsavoir" style="margin-top:24px"><b><span class="ic">'+icon('bulb')+'</span>Ce qui est noté, et ce qui ne l’est pas</b>'+
+     '<p>On note le NOM de l’écran ouvert, et rien d’autre : jamais qui l’a ouvert, jamais ce qui y a été lu.\n\n'+
+     'Tes propres passages ne comptent pas — tu ouvres vingt écrans par soir pour vérifier ton travail, ça fausserait tout.</p></div>';
+  return h+'<div style="height:26px"></div>';
+}
+
+function vChantier(){
+  let h=heroBandeau('Le chantier','Ta liste de travail','#f8763f','list',true);
+  if(!(PROFILE&&PROFILE.admin))
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
+      '<p>Cette page n’est qu’à toi.</p></div><div style="height:26px"></div>';
+  if(!chantierLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+
+  /* LA BOÎTE d'abord : ce que l'équipe vient d'envoyer ne doit pas attendre. */
+  h+='<div class="sect" style="margin-top:20px"><b>La boîte</b>'+
+     '<em>'+(BOITE.length?BOITE.length+' mot'+(BOITE.length>1?'s':'')+' de l’équipe':'vide')+'</em></div>';
+  if(!BOITE.length){
+    h+='<p class="hint" style="margin-top:12px">Personne n’a rien envoyé. Le « + » en haut de l’écran arrive ici.</p>';
+  } else {
+    h+='<div class="rlist">'+BOITE.map(function(su){
+      return '<div class="msg"><div class="top"><span class="tx">'+
+        '<b>'+esc(su.auteur_nom||su.auteur_email||'Quelqu’un')+'</b>'+
+        '<em>'+esc(su.equipe||'')+(su.equipe?' · ':'')+esc(quandFr(su.cree_le))+'</em></span></div>'+
+        '<p>'+esc(su.texte||'').replace(/\n/g,'<br>')+'</p>'+
+        '<div class="fcbas">'+
+          '<button class="ann" onclick="boiteClasser('+su.id+')">Classer sans suite</button>'+
+          '<button class="pub" onclick="boiteRanger('+su.id+')">Ranger dans le chantier</button>'+
+        '</div></div>';
+    }).join('')+'</div>';
+  }
+
+  /* AJOUTER une ligne, dans le bloc choisi. */
+  h+='<div class="sect" style="margin-top:30px"><b>Noter quelque chose</b></div>'+
+     '<div class="fchips" style="margin-top:12px">'+CH_BLOCS.map(function(b){
+       return '<button class="fchip'+(CH_BLOC===b?' on':'')+'" onclick="chBloc(\''+esc(b).replace(/'/g,"\\'")+'\')">'+esc(b)+'</button>';
+     }).join('')+'</div>'+
+     '<div class="chadd" style="margin-top:10px">'+
+       '<input id="chtTitre" type="text" placeholder="Ce qu’il y a à faire…" autocomplete="off">'+
+       '<button class="chaddbtn" onclick="chAjouter()">Noter</button>'+
+     '</div>';
+
+  /* LE CHANTIER, bloc par bloc. */
+  const restants=CHANTIER.filter(l=>!l.fait).length;
+  h+='<div class="sect" style="margin-top:30px"><b>Le chantier</b>'+
+     '<em>'+restants+' à faire'+(CHANTIER.length-restants?' · '+(CHANTIER.length-restants)+' fait'+((CHANTIER.length-restants)>1?'s':''):'')+'</em></div>';
+  CH_BLOCS.forEach(function(b){
+    const lignes=CHANTIER.filter(l=>l.bloc===b && (CH_FINIS||!l.fait));
+    if(!lignes.length) return;
+    h+='<div class="sectl" style="margin-top:20px">'+esc(b)+'</div><div class="rlist">'+
+      lignes.map(function(l){
+        return '<div class="tache'+(l.fait?' faite':'')+'">'+
+          '<button class="cas" onclick="chCocher('+l.id+','+(l.fait?'false':'true')+')" aria-label="Cocher">'+
+            (l.fait?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+          '<span class="tx"><b>'+esc(l.titre)+'</b>'+
+            (l.detail?'<em style="text-transform:none;letter-spacing:0;font-family:inherit;font-size:13px;color:#4a4844;margin-top:4px">'+esc(l.detail)+'</em>':'')+
+            (l.fait&&l.fait_le?'<em>fait '+esc(quandFr(l.fait_le))+'</em>':'')+'</span>'+
+          '<button class="fsup sup" onclick="chSupprimer('+l.id+',\''+esc((l.titre||'').replace(/'/g,"\\'"))+'\')">Retirer</button>'+
+        '</div>';
+      }).join('')+'</div>';
+  });
+  if(!CHANTIER.filter(l=>CH_FINIS||!l.fait).length)
+    h+='<p class="hint" style="margin-top:14px">Rien dans le chantier'+(CH_FINIS?'':' — et rien de coché non plus')+'.</p>';
+  h+='<button class="fbtn" style="width:100%;margin-top:18px" onclick="chFinis()">'+
+     '<span class="ic">'+icon('check')+'</span>'+(CH_FINIS?'Cacher ce qui est fait':'Montrer aussi ce qui est fait')+'</button>';
+  return h+'<div style="height:26px"></div>';
+}
+
 function vAdmin(){
   let h=heroBandeau('Admin','L’équipe et les accès','#f8763f','cog');
   if(!(vueAdmin()||(PROFILE&&/coordi/i.test(PROFILE.equipe||'')&&!APERCU_GRP)))
@@ -5945,12 +6179,25 @@ function vAdmin(){
   }
 
   /* --- Ce qui n'a pas encore été rapatrié : on le dit, on ne le cache pas. --- */
+  /* LE CHANTIER et LES STATISTIQUES, rapatriés le 06/08/2026 (« il manque le chantier »,
+     « les statistiques surtout, j'aimerais bien les récupérer »). */
+  if(PROFILE.admin){
+    const aFaire=CHANTIER.filter(function(l){ return !l.fait; }).length;
+    const enBoite=BOITE.length;
+    h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/chantier\')">'+
+       '<b>Le chantier</b><span class="n">'+
+       (chantierLoaded ? (aFaire+' à faire'+(enBoite?' · '+enBoite+' dans la boîte':'')) : 'ta liste de travail')+
+       '</span><span class="sg">›</span></button>';
+    h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/stats\')">'+
+       '<b>Statistiques</b><span class="n">où l’équipe passe son temps</span>'+
+       '<span class="sg">›</span></button>';
+  }
+
   h+='<div class="fsavoir" style="margin-top:22px"><b><span class="ic">'+icon('bulb')+'</span>Ce qui reste à décider</b>'+
-     '<p>L’aperçu en bas à gauche marche déjà — mais il n’applique qu’UNE seule règle, '+
-     'la seule qu’on ait tranchée : le groupe D ne voit ni « Les outils de l’équipe » ni cette page.\n\n'+
-     'Le reste de « qui voit quoi » attend notre séance à deux : la nouvelle app n’a plus les six '+
-     'pavés d’accueil sur lesquels les anciens réglages étaient bâtis.\n\n'+
-     'Toujours dans l’app d’avant : les modèles de check-lists, les statistiques d’usage et ta Liste debug.</p></div>';
+     '<p>« Voir comme » vit dans l’œil du rail, pas ici. Il n’applique pour l’instant qu’UNE '+
+     'règle, la seule qu’on ait tranchée : le groupe D ne voit ni « Les outils de l’équipe » ni cette page. '+
+     'Les autres restrictions restent à décider ensemble.\n\n'+
+     'Toujours dans l’app d’avant : les modèles de check-lists.</p></div>';
   return h+'<div style="height:26px"></div>';
 }
 
@@ -7284,6 +7531,20 @@ try{ if(window.supabase && window.supabase.createClient)
    chez Supabase, écrire sb.from(...).insert(...) sans attendre la réponse NE PART PAS.
    Cette fonction envoie vraiment, sans bloquer l'app si la base ne répond pas. */
 function envoiMuet(requete){ try{ requete.then(function(){},function(){}); }catch(e){} }
+/* OÙ L'ÉQUIPE PASSE SON TEMPS. Une ligne par écran RÉELLEMENT ouvert — pas à chaque
+   clic de filtre, sinon les chiffres ne voudraient plus rien dire. Jamais en aperçu,
+   jamais pour l'administration, jamais bloquant. */
+let _dernierEcranNote=null;
+function noterEcran(){
+  try{
+    if(!sb||!PROFILE||!current||!current.view) return;
+    if(typeof enApercu==='function' && enApercu()) return;
+    if(PROFILE.admin) return;
+    if(current.view===_dernierEcranNote) return;
+    _dernierEcranNote=current.view;
+    envoiMuet(sb.rpc('noter_ecran',{nom:current.view}));
+  }catch(e){}
+}
 
 function _g(id){ return document.getElementById(id); }
 function hideGate(){ const g=_g('authGate'); if(g) g.classList.add('off'); }
@@ -7404,6 +7665,8 @@ async function loadProfile(){
     try{ await loadListes(); }catch(e){}
     // Ce qu'elle a lu dans les formations, et où elle en est dans les jeux.
     try{ await chargerReglages(); }catch(e){}
+    // Son chantier et sa boîte à idées : les comptes s'affichent sur la page Admin.
+    if(admin){ try{ await loadChantier(); }catch(e){} }
   }catch(e){}
   profileLoaded=true;
 }
