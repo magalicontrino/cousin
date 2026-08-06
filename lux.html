@@ -4885,6 +4885,22 @@ function pagination(n){
   for(let i=0;i<k;i++) h+='<i class="'+(i===0?'on':'')+'"></i>';
   return h+'</div>';
 }
+/* Les points SUIVENT le défilement du carrousel. Avant, le premier restait allumé
+   quoi qu'on fasse : trois points qui ne bougent jamais donnent l'impression d'être
+   bloqué au premier écran (Mag, 07/08/2026). */
+function railSuit(r){
+  const p=r.nextElementSibling;
+  if(!p || !p.classList.contains('pgn')) return;
+  const pts=p.querySelectorAll('i'); if(pts.length<2) return;
+  const max=r.scrollWidth-r.clientWidth;
+  const actif = max>0 ? Math.round((r.scrollLeft/max)*(pts.length-1)) : 0;
+  pts.forEach(function(x,i){ x.classList.toggle('on', i===actif); });
+}
+/* En capture : l'événement `scroll` ne remonte pas jusqu'au document. */
+document.addEventListener('scroll', function(e){
+  const r=e.target;
+  if(r && r.classList && r.classList.contains('rail2')) railSuit(r);
+}, true);
 /* Un sac-poubelle au trait par sac à sortir, à sa couleur. */
 
 
@@ -5201,6 +5217,10 @@ function vHome(){
 
 /* La page Centre : les outils de l'équipe, au même endroit. */
 const OUTILS=['centre','methodes','mails','formations'];
+/* Les deux seules tuiles que le groupe D ne voit pas (décidé par Mag le 07/08/2026).
+   Ce sont des outils de travail social : rédiger une demande, écrire un mail au nom
+   du centre. Le reste de la section leur reste ouvert. */
+const OUTILS_CACHES_D=['Démarches','Mails et notes'];
 function vCentre(){
   /* LE CENTRE redessiné d'après le handoff Claude Design (06/08/2026) :
      bandeau noir, carte « Ma liste du jour » qui chevauche, la grille des outils
@@ -5232,16 +5252,16 @@ function vCentre(){
       '<span class="tx"><span class="sur">Ma liste du jour</span>'+
       '<b>Ta check-list</b><em>'+(!listesLoaded?'Chargement…':((resteAListe()+resteRappels())?(resteAListe()+resteRappels())+' à faire':'Tout est fait ✓'))+'</em></span>'+
       '<span class="ic">'+icon('list')+'</span></button>'+
-    /* LES FORMATIONS RESTENT VISIBLES PAR LE GROUPE D (Mag, 07/08/2026 : « il y a les
-       jeux, le quiz et les formations, y'a pas de raison qu'ils n'apprennent pas »).
-       Les jeux et le quiz, eux, n'ont jamais été filtrés : ils vivent à l'accueil et
-       dans Quoi de neuf, hors de cette section. Se former n'est pas un outil de
-       coordination — c'est ouvert à tout le monde. */
-    '<div class="sectc"><b><i style="background:#b28b7a"></i>'+
-      (voitOutilsCentre()?'Les outils de l’équipe':'Se former')+'</b>'+
-      '<em>'+(voitOutilsCentre()?'Vues A · B · C':'Ouvert à tous')+'</em></div>'+
+    /* LA RÈGLE DU GROUPE D, corrigée le 07/08/2026 par Mag : la section « Les outils
+       de l'équipe » NE DISPARAÎT PAS. Elle reste, avec son titre, et on n'en retire
+       que DEUX tuiles : Démarches et Mails et notes. Tout le reste — formations,
+       protocole, activités, gestion du centre, autour d'ici — est visible par tout le
+       monde (« y'a pas de raison qu'ils n'apprennent pas »). Les jeux et le quiz, eux,
+       n'ont jamais été filtrés : ils vivent à l'accueil et dans Quoi de neuf. */
+    '<div class="sectc"><b><i style="background:#b28b7a"></i>Les outils de l’équipe</b>'+
+      '<em>'+(voitOutilsCentre()?'Toute l’équipe':'Vue D')+'</em></div>'+
     '<div class="ogrid">'+
-      (voitOutilsCentre()?outils:outils.filter(function(o){ return o[0]==='Formations'; }))
+      (voitOutilsCentre()?outils:outils.filter(function(o){ return OUTILS_CACHES_D.indexOf(o[0])<0; }))
       .map(function(o){
         return '<button class="otile '+o[3]+'"'+(o[4]?' style="background:'+o[4]+'"':'')+' onclick="'+o[6]+'">'+
           '<b>'+esc(o[0])+'</b><em>'+esc(o[1])+'</em>'+
@@ -6617,8 +6637,13 @@ function vFormations(){
         '<b>'+esc(p.nom)+'</b>'+
         '<em'+(noir?' style="color:'+c+'"':'')+'>'+(ch.length?lus+' / '+ch.length+' chapitres · ':'')+formationDuree(p.page)+' min</em></button>';
     }).join('')+
-    '<span class="fmod plein" style="background:#f5c542;width:70px;min-height:172px;padding:15px" aria-hidden="true">'+
-      '<span class="ic" style="color:#1b1b1b;width:30px;height:30px;margin:auto 0 0 auto">'+icon('book')+'</span></span>'+
+    /* Il y avait ici une FAUSSE CARTE jaune de 70 px, sans titre, posée pour dépasser
+       du bord et faire deviner qu'il y en avait d'autres. C'était un leurre de maquette,
+       et c'était un vrai élément : au téléphone on défilait jusqu'à elle et on tombait
+       sur du vide (« on reste bloqué sur la page qui est au bout »), et sur grand écran,
+       où le carrousel passe à la ligne, elle s'affichait toute seule et nue.
+       Retirée le 07/08/2026. La vraie dernière carte, coupée par le bord de l'écran,
+       annonce la suite bien mieux qu'une carte vide. */
     '</div>'+pagination(areprendre.length);
 
   h+='<div class="sectl">Tous les modules</div><div class="flist">'+
