@@ -4387,6 +4387,7 @@ function majPile(sens){
 function brancherGeste(){
   const c=document.getElementById('pcarte');
   if(!c) return;
+  _pStart=null; _pDx=0;
   const debut=function(x){ _pStart=x; _pDx=0; c.classList.remove('glisse'); };
   const bouge=function(x){
     if(_pStart===null) return;
@@ -4399,6 +4400,9 @@ function brancherGeste(){
     c.classList.add('glisse');
     if(Math.abs(dx)>60){ dx<0?jeuSuivant():jeuPrecedent(); }
     else { c.style.transform=''; }
+    /* On OUBLIE le décalage juste après : sinon il bloque tous les clics
+       suivants (la carte devenait morte après un premier glissement). */
+    setTimeout(function(){ _pDx=0; },0);
   };
   c.addEventListener('touchstart',e=>debut(e.touches[0].clientX),{passive:true});
   c.addEventListener('touchmove', e=>bouge(e.touches[0].clientX),{passive:true});
@@ -5671,9 +5675,8 @@ function vQuiz(){
   /* Si un des 8 jeux est en cours, c'est lui qu'on affiche (rapatrié de l'app
      principale) ; sinon, le quiz redessiné au design Lux. */
   if(typeof JEU!=='undefined' && JEU){
-    return '<div class="qtop"><button class="frond" onclick="jxStop();JEU=null;go(\'#/\')" aria-label="Fermer"><span class="ic">'+icon('chevron')+'</span></button>'+
-      '<span class="cpt" style="flex:1;text-align:center">'+esc((JEUX.find(x=>x.k===JEU.type)||{}).nom||'Jeu')+'</span></div>'+
-      '<div class="jxwrap">'+jxJeuHTML()+'</div><div style="height:26px"></div>';
+    /* Le jeu apporte son propre en-tête : on n'en remet pas un par-dessus. */
+    return '<div class="jxwrap">'+jxJeuHTML()+'</div><div style="height:26px"></div>';
   }
   if(!QZ){
     const themes=[['all','Tout mélangé'],['droits','Adresse de référence, CPAS et agrément']]
