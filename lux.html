@@ -9,6 +9,8 @@
      retourne toutes les couleurs (fond crème → gris foncé). -->
 <meta name="color-scheme" content="light only">
 <link rel="icon" href="favicon.svg">
+<!-- La connexion de l'équipe (Google via Supabase), reprise de app-classique.html. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
    COUSIN · Lux — langage « GRILLE » (validé le 06/08/2026) :
@@ -39,6 +41,28 @@ body{font-family:'Eastman',-apple-system,'Segoe UI',sans-serif;background:var(--
 body.no-tabs{padding-bottom:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:inherit;text-decoration:none}
+
+/* ---------- L'ÉCRAN DE CONNEXION (réservé à l'équipe) ----------
+   Repris tel quel de l'app actuelle — son arc-en-ciel, son « BIENVENUE SUR », son
+   logo — recalé sur le langage « grille » (crème, noir, angles de 6px). */
+.auth-gate{position:fixed;inset:0;z-index:9999;background:var(--creme);color:var(--noir);
+  display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+.auth-gate.off{display:none}
+.auth-box{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center}
+.auth-arc{width:67%;height:auto;display:block;margin:0 auto}
+.auth-bienvenue{font-family:'Eastman',sans-serif;font-size:min(15.5vw,64px);font-weight:800;
+  line-height:.84;letter-spacing:-.035em;text-transform:uppercase;margin:16px 0 0;white-space:nowrap}
+.auth-logo-img{width:27%;max-width:100px;height:auto;margin-top:16px}
+.auth-loading{color:var(--enc2);font-size:14px;margin-top:40px}
+.auth-google{margin-top:46px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:14px;
+  background:var(--noir);color:var(--creme);border:0;border-radius:6px;padding:17px 22px;font-size:15.5px;
+  font-weight:500;transition:transform .16s cubic-bezier(.22,1,.36,1)}
+.auth-google:active{transform:scale(.97)}
+.auth-msg{margin-top:26px;color:#4a4844;font-size:14px;line-height:1.55;max-width:320px;white-space:pre-line}
+.auth-mot{width:100%;margin-top:16px;border:1.5px solid var(--noir);border-radius:6px;padding:12px 14px;
+  font:inherit;font-size:14px;background:#fdfdfc;color:var(--noir);resize:none}
+.auth-mot:focus{outline:none}
+.auth-switch{margin-top:18px;background:none;border:0;font-size:14px;font-weight:700;text-decoration:underline}
 h1,h2,h3{font-weight:800;line-height:1.2}
 .mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;font-weight:500;
   letter-spacing:.24em;text-transform:uppercase;color:#6b6965}
@@ -1414,6 +1438,25 @@ body.no-tabs #tabbar{display:none}
 </style>
 </head>
 <body>
+
+<!-- Écran de connexion (réservé à l'équipe) — repris de l'app actuelle. -->
+<div id="authGate" class="auth-gate">
+  <div class="auth-box">
+    <svg class="auth-arc" viewBox="0 0 212 106" aria-hidden="true"><path d="M6 106 A100 100 0 0 1 206 106" fill="none" stroke="#f3c6da" stroke-width="12"/><path d="M18 106 A88 88 0 0 1 194 106" fill="none" stroke="#b28b7a" stroke-width="12"/><path d="M30 106 A76 76 0 0 1 182 106" fill="none" stroke="#6cb392" stroke-width="12"/><path d="M42 106 A64 64 0 0 1 170 106" fill="none" stroke="#f5c542" stroke-width="12"/><path d="M54 106 A52 52 0 0 1 158 106" fill="none" stroke="#5b8fd4" stroke-width="12"/><path d="M66 106 A40 40 0 0 1 146 106" fill="none" stroke="#fd8fd0" stroke-width="12"/><path d="M78 106 A28 28 0 0 1 134 106" fill="none" stroke="#f8763f" stroke-width="12"/></svg>
+    <h1 class="auth-bienvenue">Bienvenue<br>sur</h1>
+    <img class="auth-logo-img" src="logo.png" alt="COUSIN">
+    <div id="authLoading" class="auth-loading">Chargement…</div>
+    <button id="authBtn" class="auth-google" onclick="signInGoogle()" style="display:none">
+      <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.9 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.99 8.99 0 0 0 9 0 9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+      Connecte toi avec google
+    </button>
+    <div id="authMsg" class="auth-msg"></div>
+    <textarea id="authMot" class="auth-mot" rows="2" placeholder="Ton prénom, ta fonction… un mot pour Mag" style="display:none"></textarea>
+    <button id="authReq" class="auth-google" onclick="requestAccess()" style="display:none;margin-top:10px">Demander l'accès</button>
+    <button id="authSwitch" class="auth-switch" onclick="signOutCousin()" style="display:none">Changer de compte</button>
+  </div>
+</div>
+
 <div id="view"></div>
 <header id="topbar">
   <img class="lgo" src="logo.png" alt="COUSIN" onclick="go('#/')">
@@ -4144,8 +4187,10 @@ try{FAVS=new Set(JSON.parse(localStorage.getItem(FKEY)||'[]'))}catch(e){FAVS=new
 function favSave(){localStorage.setItem(FKEY,JSON.stringify([...FAVS]))}
 function toggleFav(ev,sid){
   ev.stopPropagation();
-  if(FAVS.has(sid)){FAVS.delete(sid)} else {FAVS.add(sid); toast('Ajouté aux favoris')}
+  const actif=!FAVS.has(sid);
+  if(actif){FAVS.add(sid); toast('Ajouté aux favoris')} else {FAVS.delete(sid)}
   favSave();
+  favEcrire(sid,actif);   // et dans la base, pour la retrouver sur tous ses téléphones
   document.querySelectorAll('[data-heart="'+sid+'"]').forEach(el=>el.classList.toggle('on',FAVS.has(sid)));
   if(current.view==='favoris') render();
 }
@@ -4208,12 +4253,16 @@ const view=document.getElementById('view');
 function render(){
   document.body.classList.toggle('no-tabs',current.view==='fiche');
   document.body.classList.toggle('at-home',current.view==='home');
-  const sb=document.getElementById('starbtn');
-  if(sb){ if(!sb.innerHTML) sb.innerHTML='<span class="ic">'+icon('star')+'</span>'; sb.classList.toggle('on',current.view==='favoris'); }
+  /* ⚠ Ne PAS renommer en « sb » : c'est le nom du lien vers la base (Supabase). */
+  const stb=document.getElementById('starbtn');
+  if(stb){ if(!stb.innerHTML) stb.innerHTML='<span class="ic">'+icon('star')+'</span>'; stb.classList.toggle('on',current.view==='favoris'); }
   const pb=document.getElementById('profilbtn');
   if(pb){ if(!pb.innerHTML) pb.innerHTML='<span class="ic">'+icon('user')+'</span>'; pb.classList.toggle('on',current.view==='profil'); }
   const ab=document.getElementById('admbtn');
-  if(ab){ if(!ab.innerHTML) ab.innerHTML='<span class="ic">'+icon('cog')+'</span>'; ab.classList.toggle('on',current.view==='admin'); }
+  if(ab){ if(!ab.innerHTML) ab.innerHTML='<span class="ic">'+icon('cog')+'</span>'; ab.classList.toggle('on',current.view==='admin');
+    /* La roue n'apparaît que pour l'administration : afficher une porte fermée à
+       tout le monde, c'est promettre une pièce qui n'existe pas pour eux. */
+    ab.style.display=(PROFILE&&PROFILE.admin)?'':'none'; }
   const nb=document.getElementById('neufbtn');
   if(nb){
     const dot=duNeufSemaine().length>0;
@@ -4721,23 +4770,46 @@ function vDuNeuf(){
   return h+'</div><div style="height:26px"></div>';
 }
 
-/* La page Profil — s'activera avec la connexion, comme dans l'app actuelle. */
+/* La page Profil — ta carte d'identité, telle que la base la connaît. */
 function vProfil(){
-  /* LE PROFIL — le prénom marche pour de vrai ; le reste attend la connexion,
-     et on ne lui invente ni métier ni vue. */
-  const ini=(PRENOM||'?').charAt(0).toUpperCase();
-  return heroBandeau('Profil','Ta carte d’identité','#f3c6da','user')+
-    '<div class="pident"><span class="avgrand">'+esc(ini)+'</span>'+
+  const co=!!(PROFILE&&PROFILE.email);          // connectée pour de vrai ?
+  const nomAff=(PROFILE&&PROFILE.nom)||PRENOM||'Sans prénom';
+  const ini=(nomAff||'?').charAt(0).toUpperCase();
+  let h=heroBandeau('Profil','Ta carte d’identité','#f3c6da','user');
+
+  if(!co){
+    /* Pas connectée (hors ligne, ou base muette) : on ne lui invente ni métier ni vue. */
+    return h+'<div class="pident"><span class="avgrand">'+esc(ini)+'</span>'+
       '<span class="tx"><b>'+esc(PRENOM||'Sans prénom')+'</b><em>Sur cet appareil</em></span></div>'+
-    '<button class="acc" style="margin-top:16px" onclick="demanderPrenom()">'+
-      '<b>Ton prénom</b><span class="n">'+esc(PRENOM||'à remplir')+'</span><span class="sg">›</span></button>'+
-    '<div class="fsrc" style="text-align:left;padding:10px 0 0">C’est lui qui te dit bonjour sur l’accueil. Il reste sur ce téléphone.</div>'+
-    '<div class="fsavoir" style="margin-top:18px"><b><span class="ic">'+icon('bulb')+'</span>Avec la connexion</b>'+
-    '<p>Ton métier, tes badges et ta vue viendront de ton compte Google ; tes étoiles te suivront '+
-    'd’un téléphone à l’autre. Tout ça marche déjà dans l’app actuelle.</p></div>'+
-    '<button class="fbtn" style="width:100%;margin-top:12px" onclick="location.href=\'app-classique.html\'">'+
-      '<span class="ic">'+icon('lien')+'</span>Ouvrir mon profil dans l’app actuelle</button>'+
-    '<div style="height:26px"></div>';
+      '<div class="fsavoir" style="margin-top:18px"><b><span class="ic">'+icon('bulb')+'</span>Pas connectée</b>'+
+      '<p>COUSIN n’arrive pas à joindre la base pour l’instant. Ton métier, tes badges et tes '+
+      'étoiles reviendront dès que tu seras à nouveau en ligne.</p></div>'+
+      '<div style="height:26px"></div>';
+  }
+
+  const badges=[];
+  if(PROFILE.admin) badges.push('Administration');
+  if(PROFILE.pfo)   badges.push('PFO');
+  h+='<div class="pident"><span class="avgrand">'+esc(ini)+'</span>'+
+      '<span class="tx"><b>'+esc(nomAff)+'</b><em>'+esc(PROFILE.equipe||'Métier non renseigné')+'</em></span></div>';
+  if(badges.length)
+    h+='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">'+
+       badges.map(b=>'<span class="badge">'+esc(b)+'</span>').join('')+'</div>';
+
+  h+='<div class="sect" style="margin-top:26px"><b>Ton compte</b></div>'+
+     '<div class="rlist">'+
+       '<div class="role"><b>Adresse</b><span class="n">'+esc(PROFILE.email)+'</span></div>'+
+       '<div class="role"><b>Métier</b><span class="n">'+esc(PROFILE.equipe||'—')+'</span></div>'+
+       (MES_LISTES.length?'<div class="role"><b>Tes listes</b><span class="n">'+
+          esc(MES_LISTES.map(k=>LISTE_LABELS[k]||k).join(' · '))+'</span></div>':'')+
+       '<div class="role"><b>Tes étoiles</b><span class="n">'+FAVS.size+' fiche'+(FAVS.size>1?'s':'')+'</span></div>'+
+     '</div>'+
+     '<div class="fsrc" style="text-align:left;padding:12px 0 0">Ton nom et ton adresse viennent de ton '+
+     'compte Google. Ton métier et tes listes, c’est Mag qui les règle dans l’Admin.</div>'+
+     '<button class="fbtn" style="width:100%;margin-top:18px" onclick="signOutCousin()">'+
+       '<span class="ic">'+icon('cle')+'</span>Se déconnecter</button>'+
+     '<div style="height:26px"></div>';
+  return h;
 }
 
 /* La page Admin — la structure de l'app actuelle, qui s'activera avec la connexion. */
@@ -5859,7 +5931,8 @@ function renderTabs(){
   /* Les 4 secondaires ne s'affichent que sur grand écran (rail de gauche) : sur
      téléphone elles vivent déjà dans la barre du haut. Handoff « Bureau », 06/08/2026. */
   const S=[['#/favoris','Tes étoiles','star'],['#/fil','Le fil','feed'],
-           ['#/duneuf','Quoi de neuf','bulb'],['#/profil','Profil','user'],['#/admin','Admin','cog']];
+           ['#/duneuf','Quoi de neuf','bulb'],['#/profil','Profil','user']]
+          .concat((PROFILE&&PROFILE.admin)?[['#/admin','Admin','cog']]:[]);
   document.getElementById('tabbar').innerHTML=
     '<img class="raillogo" src="logo.png" alt="COUSIN">'+
     '<div class="railprinc">'+T.map(t=>
@@ -5871,9 +5944,230 @@ function renderTabs(){
       '<span class="lbl">'+x[1]+'</span></button>').join('')+'</div>';
 }
 
+/* ============================================================================
+   LA CONNEXION DE L'ÉQUIPE (Google + Supabase)
+   Repris de app-classique.html, où ça tourne depuis le 24/07/2026.
+   Ce qui entre ici : qui tu es (ton nom Google, ton métier, ton rôle) et tes
+   étoiles, qui te suivent d'un téléphone à l'autre. Le reste (ma liste, le fil,
+   les chambres, l'admin) se branche ensuite, morceau par morceau.
+   ============================================================================ */
+const SB_URL='https://khuxeqxaqrvmbwcbaxes.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtodXhlcXhhcXJ2bWJ3Y2JheGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDIwODgsImV4cCI6MjA5OTg3ODA4OH0.IJJV7JCjMbcv-IU9Dh0vCZdTRS9T_pf7JCdTBHCJL10';
+let sb=null;
+try{ if(window.supabase && window.supabase.createClient)
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{detectSessionInUrl:false,flowType:'pkce',persistSession:true,autoRefreshToken:true}});
+}catch(e){}
+
+/* ⚠ PIÈGE QUI A COÛTÉ TROIS JOURS DE STATISTIQUES DANS L'APP ACTUELLE :
+   chez Supabase, écrire sb.from(...).insert(...) sans attendre la réponse NE PART PAS.
+   Cette fonction envoie vraiment, sans bloquer l'app si la base ne répond pas. */
+function envoiMuet(requete){ try{ requete.then(function(){},function(){}); }catch(e){} }
+
+function _g(id){ return document.getElementById(id); }
+function hideGate(){ const g=_g('authGate'); if(g) g.classList.add('off'); }
+function showLogin(){ _g('authLoading').style.display='none'; _g('authBtn').style.display='inline-flex'; _g('authMsg').textContent=''; _g('authSwitch').style.display='none'; }
+function showMessage(msg){ _g('authLoading').style.display='none'; _g('authBtn').style.display='none'; _g('authMsg').textContent=msg; _g('authSwitch').style.display='inline-block'; }
+
+function signInGoogle(){
+  if(!sb){ showMessage("Pas de connexion internet. Réessaie une fois en ligne."); return; }
+  sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
+}
+async function signOutCousin(){
+  try{ localStorage.removeItem('cousin_auth_ok'); }catch(e){}
+  /* On efface les étoiles DE CET APPAREIL, pas celles de la base : elles sont en
+     sécurité et reviendront à la prochaine connexion. Sinon le collègue qui se
+     connecte ensuite sur le même téléphone verrait les favoris de la personne
+     d'avant — et se les approprierait. Le repère FAV_MIGRE reste posé : c'est lui
+     qui empêche cette reprise. */
+  try{ FAVS=new Set(); favSave(); }catch(e){}
+  try{ localStorage.removeItem(PKEY); PRENOM=''; }catch(e){}
+  if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
+  location.reload();
+}
+async function requestAccess(){
+  if(!sb) return;
+  const rq=_g('authReq'), email=(window._reqEmail||'').toLowerCase();
+  if(!email) return;
+  // On joint le nom du compte Google et le mot laissé : Mag doit savoir qui demande.
+  const champ=_g('authMot');
+  const mot=[(window._reqNom||'').trim(), champ?(champ.value||'').trim():''].filter(Boolean).join(' — ');
+  try{
+    await sb.from('access_requests').insert({email, mot:mot||null});
+    if(rq){ rq.textContent="Demande envoyée ✓"; rq.disabled=true; rq.style.opacity=.7; }
+    if(champ) champ.style.display='none';
+    _g('authMsg').textContent="Demande envoyée ✓\n\nMag la voit dans son espace et la valide. Tu n'as rien d'autre à faire : reviens sur cette page plus tard, et si c'est validé tu entres directement.\n\nPense à la prévenir si c'est urgent.";
+  }catch(e){ if(rq) rq.textContent="Réessayer"; }
+}
+async function checkAllowed(){
+  // La sécurité (RLS) ne renvoie que la ligne de la personne si son email est autorisé.
+  try{ const {data}=await sb.from('allowed_emails').select('email'); return Array.isArray(data)&&data.length>0; }
+  catch(e){ return false; }
+}
+async function markSeen(user){
+  try{ await sb.from('profiles').upsert({id:user.id,email:user.email,vu_le:new Date().toISOString()},{onConflict:'id'}); }catch(e){}
+}
+
+/* ---------- QUI TU ES ---------- */
+let PROFILE=null, profileLoaded=false;
+let MES_LISTES=[];
+const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit'};
+let _visiteComptee=false, _derniereVisite=0;
+/* Une app installée sur un téléphone ne se ferme pas : elle dort. On recompte donc
+   une visite quand elle revient au premier plan après plus de quatre heures. */
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible') return;
+  if(!sb||!PROFILE) return;
+  if(Date.now()-_derniereVisite < 4*3600*1000) return;
+  _derniereVisite=Date.now();
+  envoiMuet(sb.rpc('touch_connexion'));
+});
+
+async function loadProfile(){
+  profileLoaded=false;
+  if(!sb) return;
+  try{
+    let email='',nom='',uid='';
+    try{
+      const ss=(await sb.auth.getSession()).data.session;
+      if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||'';
+        const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; }
+    }catch(e){}
+    let equipe='',pfo=false,admin=false,listes=[],pavesPerso=null;
+    /* ⚠ NE JAMAIS PERDRE SON RÔLE À CAUSE D'UNE COLONNE MANQUANTE : une seule colonne
+       absente faisait échouer toute la requête, et Mag se retrouvait sans badge et sans
+       Admin. On redemande donc le strict nécessaire si la version enrichie échoue. */
+    const lire=async function(champs){
+      let qy=sb.from('allowed_emails').select(champs);
+      if(email) qy=qy.ilike('email',email);
+      const r=await qy.limit(1);
+      if(r.error) throw r.error;
+      return r.data;
+    };
+    let me=null;
+    try{ me=await lire('email,equipe,pfo,admin,listes,paves'); }
+    catch(e){ try{ me=await lire('email,equipe,pfo,admin,listes'); }
+      catch(e2){ try{ me=await lire('email,equipe,pfo,admin'); }catch(e3){} } }
+    if(me&&me[0]){
+      equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin;
+      listes=Array.isArray(me[0].listes)?me[0].listes:[];
+      pavesPerso=Array.isArray(me[0].paves)?me[0].paves:null;
+      if(me[0].email) email=me[0].email;
+    }
+    PROFILE={email,nom,equipe,pfo,admin,uid,listes,paves:pavesPerso};
+    MES_LISTES=(listes&&listes.length)?listes.slice():(pfo?['pfo-jour','pfo-nuit']:[]);
+    // Son prénom vient maintenant de son compte Google : plus besoin de le taper.
+    const p1=(nom||'').trim().split(/\s+/)[0]||'';
+    if(p1){ PRENOM=p1.slice(0,24); try{ localStorage.setItem(PKEY,PRENOM); }catch(e){} }
+    // Une visite = une ouverture de l'app. On n'enregistre rien d'autre.
+    if(!_visiteComptee){ _visiteComptee=true; _derniereVisite=Date.now(); envoiMuet(sb.rpc('touch_connexion')); }
+    // Ses étoiles : elles vivent en base, elles la suivent d'un téléphone à l'autre.
+    try{ await loadFavoris(); }catch(e){}
+  }catch(e){}
+  profileLoaded=true;
+}
+
+/* ---------- LES ÉTOILES SUIVENT LA PERSONNE, PAS LE TÉLÉPHONE ----------
+   Le téléphone garde sa copie : c'est elle qui s'affiche hors ligne et pendant la
+   seconde où la base répond. La base n'écrase le téléphone que si la lecture a
+   VRAIMENT réussi — sinon on ne touche à rien : plutôt une étoile en trop qu'une
+   étoile perdue. */
+const FAV_MIGRE='lux_fav_en_base';
+function favEcrire(sid,actif){
+  if(!sb||!sid||!PROFILE||!PROFILE.uid) return;   // pas connecté : le téléphone suffit
+  try{
+    if(actif) envoiMuet(sb.from('favoris').insert({user_id:PROFILE.uid,sid:sid}));
+    else      envoiMuet(sb.from('favoris').delete().eq('user_id',PROFILE.uid).eq('sid',sid));
+  }catch(e){}
+}
+async function loadFavoris(){
+  if(!sb||!PROFILE||!PROFILE.uid) return false;
+  let enBase;
+  try{
+    const {data:rows,error}=await sb.from('favoris').select('sid');
+    if(error) return false;                       // table absente ou hors ligne : on garde le téléphone
+    enBase=new Set((rows||[]).map(r=>r.sid));
+  }catch(e){ return false; }
+  /* Première fois sur cet appareil : on REMONTE les étoiles déjà posées ici au lieu
+     de les effacer. Une seule fois — ensuite c'est la base qui fait foi, sinon une
+     étoile retirée sur le téléphone A reviendrait depuis le téléphone B. */
+  let premiere=false;
+  try{ premiere=!localStorage.getItem(FAV_MIGRE); }catch(e){}
+  if(premiere){
+    const aRemonter=[...FAVS].filter(s=>s&&!enBase.has(s));
+    if(aRemonter.length){
+      try{
+        await sb.from('favoris').insert(aRemonter.map(s=>({user_id:PROFILE.uid,sid:s})));
+        aRemonter.forEach(s=>enBase.add(s));
+      }catch(e){}
+    }
+    try{ localStorage.setItem(FAV_MIGRE,'1'); }catch(e){}
+  }
+  const avant=[...FAVS].sort().join('|');
+  FAVS=enBase; favSave();
+  const change=avant!==[...FAVS].sort().join('|');
+  if(change) render();
+  return change;
+}
+
+async function initAuth(){
+  if(!sb){
+    // Hors ligne : un compte déjà connecté ici garde la porte ouverte.
+    let dejaLa=false; try{ dejaLa=!!localStorage.getItem('cousin_auth_ok'); }catch(e){}
+    if(dejaLa){ hideGate(); return; }
+    showMessage("Connecte-toi à internet pour ouvrir COUSIN.");
+    return;
+  }
+  // Retour de Google : on échange le code d'autorisation contre une session.
+  try{
+    const code=new URL(location.href).searchParams.get('code');
+    const errDesc=new URL(location.href).searchParams.get('error_description');
+    if(errDesc){ showMessage("Google a refusé : "+errDesc+"\n\n(capture d'écran à envoyer)"); return; }
+    if(code){
+      const {error}=await sb.auth.exchangeCodeForSession(code);
+      // On efface le code de Google de l'adresse, sans casser la navigation interne.
+      history.replaceState(history.state,'',location.origin+location.pathname+(location.hash||''));
+      if(error){ showMessage("Connexion échouée : "+error.message+"\n\n(fais une capture et envoie-la)"); return; }
+    }
+  }catch(e){ showMessage("Connexion échouée : "+(e&&e.message?e.message:e)+"\n\n(fais une capture et envoie-la)"); return; }
+
+  let session=null;
+  try{ session=(await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session){ showLogin(); return; }
+  const ok=await checkAllowed();
+  if(!ok){
+    // Une demande déjà envoyée ? On rassure plutôt que de reproposer le bouton.
+    let dejaDemande=false;
+    try{
+      const {data:dq}=await sb.from('access_requests').select('statut')
+        .ilike('email',session.user.email||'').eq('statut','en_attente').limit(1);
+      dejaDemande=Array.isArray(dq)&&dq.length>0;
+    }catch(e){}
+    if(dejaDemande){
+      showMessage("Ta demande est en cours.\n\nMag la validera bientôt. Reviens sur cette page dans quelques heures : dès qu'elle a validé, tu entres directement, sans rien faire de plus.");
+      const rq=_g('authReq'); if(rq) rq.style.display='none';
+      return;
+    }
+    const emailDem=(session.user.email||'');
+    const pro=/@samusocial\.be$/i.test(emailDem);
+    showMessage("Ton compte "+emailDem+" n'est pas encore autorisé.\n\nDemande l'accès ci-dessous : Mag reçoit ta demande et te débloque."
+      +(pro?"":"\n\n⚠ C'est une adresse personnelle. Si tu as une adresse @samusocial.be, déconnecte-toi et reviens avec celle-là : c'est celle qu'on utilise dans l'équipe. Sinon, dis-nous qui tu es dans le mot ci-dessous."));
+    window._reqEmail=session.user.email||'';
+    try{ const mt=session.user.user_metadata||{}; window._reqNom=mt.full_name||mt.name||''; }catch(e){}
+    const rq=_g('authReq'); if(rq) rq.style.display='inline-flex';
+    const ch=_g('authMot'); if(ch) ch.style.display='block';
+    return;
+  }
+  try{ localStorage.setItem('cousin_auth_ok',session.user.email||'1'); }catch(e){}
+  markSeen(session.user);
+  hideGate();
+  // On connaît son nom avant d'afficher l'accueil : le bonjour ne clignote pas.
+  loadProfile().then(function(){ render(); });
+}
+
 /* ---------- démarrage ---------- */
 current=parseRoute();
 render();
+initAuth();
 </script>
 </body>
 </html>
