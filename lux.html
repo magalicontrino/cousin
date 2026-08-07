@@ -123,6 +123,52 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (hover:hover){ .imprbtn:hover{border-color:var(--noir);color:var(--noir)} }
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 
+/* ── L'ACCUEIL DU 08/08/2026 : météo réduite, rail du réseau, bande noire des jeux ── */
+.meteoL{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
+  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:#73716b}
+/* Le picto météo porte un width:100% en style en ligne : sans !important il gonfle
+   et fait 170 px de haut dans la ligne de date. */
+.meteoL svg,.meteoL .pico{width:14px!important;height:14px!important;flex:none}
+.meteoL b{font-weight:600;color:var(--noir)}
+.meteoL em{font-style:normal}
+.meteoL.alerte b,.meteoL.alerte em{color:var(--rouge)}
+.hdate{display:flex;align-items:center;gap:10px}
+
+/* Les raccourcis vers ses domaines : un rail qui glisse, jamais plus d'une ligne. */
+.rres-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:#8b8984;font-weight:400;margin:22px 0 9px}
+.rres{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;
+  margin:0 calc(-1 * var(--pad));padding:0 var(--pad) 2px}
+.rres::-webkit-scrollbar{display:none}
+.rpast{flex:none;display:inline-flex;align-items:center;gap:7px;background:#fdfdfc;
+  border:1.5px solid var(--noir);border-radius:20px;padding:7px 13px;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;font-weight:400;color:var(--noir)}
+.rpast i{width:11px;height:11px;flex:none}
+@media (hover:hover){ .rpast:hover{background:var(--noir);color:#f0efed} }
+
+/* LA BANDE DES JEUX : pleine largeur, elle coupe la page en deux. */
+.zjeux{background:#161616;color:#f0efed;margin:26px calc(-1 * var(--pad)) 0;padding:18px var(--pad) 22px}
+.zj-t{font-size:22px;font-weight:500;letter-spacing:-.02em}
+.zj-chif{display:flex;gap:8px;margin-top:14px}
+.zj-chif span{flex:1;background:#262626;border-radius:8px;padding:10px 11px}
+.zj-chif b{display:block;font-size:21px;font-weight:500;line-height:1;color:#F5D34F}
+.zj-chif span:nth-child(2) b{color:#6FC7D9}
+.zj-chif span:nth-child(3) b{color:#E8308A}
+.zj-chif em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:8px;
+  letter-spacing:.1em;text-transform:uppercase;color:#9a9894;margin-top:4px}
+/* Une carte de jeu NOIRE sur la bande NOIRE disparaît. Dans la bande, les cartes
+   sombres reçoivent donc un filet clair — la couleur reste la leur, on les voit. */
+/* Les cartes penchées mordent vers le haut : il leur faut plus d'air que d'habitude,
+   sinon la première recouvre les chiffres. */
+.zjeux .pile{margin-top:34px}
+.zjeux .pcarte,.zjeux .p1,.zjeux .p2{box-shadow:0 0 0 1.5px rgba(240,239,237,.28)}
+.zj-pied{display:flex;gap:8px;margin-top:16px}
+.zj-b{flex:1;border:1px solid #4a4a4a;border-radius:8px;padding:11px;color:#f0efed;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase}
+.zj-b.plein{background:#E8308A;border-color:#E8308A;color:#fff;font-weight:600}
+@media (hover:hover){ .zj-b:hover{border-color:#f0efed} }
+
 /* LE CALENDRIER DU MOIS. Une grille se lit d'un coup d'œil : c'est sa raison d'être,
    donc les cases restent carrées et les points de couleur disent ce qui tombe ce jour-là. */
 /* La carte qui presse : filet jaune à gauche, rien de plus — c'est un rappel, pas
@@ -5335,6 +5381,33 @@ function couleurPictoJeu(j){
   if(j.c==='#1b1b1b') return '#f5c542';
   return j.sombre ? '#f2eee6' : '#1b1b1b';
 }
+/* EN TÊTE DE TON RÉSEAU (08/08/2026) — les domaines qu'ELLE ouvre le plus, pas une
+   liste figée. La grille du réseau avait été retirée de l'accueil début août ; cinq
+   pastilles choisies pour soi n'est pas la même chose que seize cases répétées.
+
+   Le matériau existe déjà : `VUES` garde les 12 dernières fiches ouvertes, dans le
+   téléphone. On n'enregistre rien de nouveau, rien ne passe par la base, ça marche
+   hors ligne. Le bloc NE S'AFFICHE PAS tant qu'il n'y a pas d'historique — on ne
+   suggère pas à une nouvelle collègue des domaines qu'elle n'a jamais ouverts. */
+function railReseau(){
+  let doms=[];
+  try{
+    const compte={};
+    (VUES||[]).forEach(function(v){
+      const f=DATA.find(function(x){ return x.sid===v.sid; });
+      if(!f || !DOM[f.domaine] || !DOM[f.domaine].reseau) return;
+      compte[f.domaine]=(compte[f.domaine]||0)+1;
+    });
+    doms=Object.keys(compte).sort(function(a,b){ return compte[b]-compte[a]; }).slice(0,5);
+  }catch(e){ return ''; }
+  if(!doms.length) return '';
+  return '<div class="rres-t">En tête de ton réseau</div>'+
+    '<div class="rres">'+doms.map(function(k){
+      const d=DOM[k]||{};
+      return '<button class="rpast" onclick="go(\'#/d/'+k+'\')">'+
+        '<i style="background:'+dc(k)+'"></i>'+esc(d.short||d.label||k)+'</button>';
+    }).join('')+'</div>';
+}
 function pileJeux(){
   const j=JEUX[JEUI]||JEUX[0];
   const suiv=JEUX[(JEUI+1)%JEUX.length];
@@ -5502,6 +5575,18 @@ function meteoPicto(genre){
   if(genre==='neige')  return S+'<path d="M7.5 14.5a4.5 4.5 0 0 1 .3-9 6 6 0 0 1 11.4 1.7 3.7 3.7 0 0 1-.7 7.3z"/><circle cx="8.6" cy="19.4" r="1.5"/><circle cx="12.6" cy="20.6" r="1.5"/><circle cx="16.6" cy="19.4" r="1.5"/></svg>';
   return S+'<path d="M7.2 18a5 5 0 0 1 .4-10 6.6 6.6 0 0 1 12.5 1.9A4.1 4.1 0 0 1 19.3 18z"/></svg>';
 }
+/* LA MÉTÉO EN UNE LIGNE, pour l'accueil (Mag, 08/08/2026 : « tu peux minimiser la
+   météo »). On garde le picto, la température et l'alerte quand il y en a une — c'est
+   ce qui sert à décider d'une sortie. Le détail (min/max, pluie) reste dans la version
+   complète, qui vit ailleurs. */
+function meteoLigne(){
+  if(!METEO) return '';
+  const [mot,pic]=meteoMot(METEO.code);
+  const gel=(METEO.min<=0), pluvieux=(METEO.pluie>=50), chaud=(METEO.max>=28);
+  const al = gel?'Il gèle' : pluvieux?'Pluie' : chaud?'Forte chaleur' : '';
+  return '<span class="meteoL'+(al?' alerte':'')+'">'+meteoPicto(pic)+
+    '<b>'+METEO.temp+'°</b>'+(al?'<em>'+esc(al)+'</em>':'<em>'+esc(mot)+'</em>')+'</span>';
+}
 function meteoHTML(){
   if(!METEO) return '';
   const [mot,pic]=meteoMot(METEO.code);
@@ -5537,13 +5622,14 @@ function vHome(){
   }catch(e){ return ''; } })();
 
   let h='<div class="home-top">'+
-    '<div class="hdate">'+esc(dateTxt)+'</div>'+
+    '<div class="hdate">'+esc(dateTxt)+meteoLigne()+'</div>'+
     /* Sans prénom, tout tient sur une ligne : pas de ligne vide sous « Bonjour ». */
     '<div class="hbonj">'+(nomAffiche()
       ? '<span>Bonjour<i class="dd"></i></span><span>'+esc(nomAffiche())+'<i class="fl"></i></span>'
       : '<span>Bonjour<i class="dd"></i><i class="fl"></i></span>')+'</div>';
 
-  h+=meteoHTML();
+  /* La météo complète a quitté l'accueil : elle est réduite à une ligne dans la date.
+     (Mag, 08/08/2026) */
 
   /* Plus d'invitation à donner son prénom sur l'accueil (Mag, 06/08/2026) :
      il viendra de la connexion, et se change déjà depuis Mon profil. */
@@ -5601,13 +5687,30 @@ function vHome(){
       }).join('')+'</div>';
   }
 
+  h+=railReseau();
+
   /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
      Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
      on touche la carte pour lancer la partie. */
-  h+='<div class="sect cote"><b>Jeux</b>'+
-    '<em role="button" tabindex="0" style="text-decoration:underline;cursor:pointer" '+
-    'onclick="go(\'#/jeux\')">Voir les '+JEUX.length+' jeux →</em></div>'+
-    pileJeux();
+  /* LA BANDE NOIRE DES JEUX (08/08/2026, validé) — « sépare ce qui est jeux du reste ».
+     Ce n'est pas un titre qui sépare, c'est un changement de fond : la bande va d'un
+     bord à l'autre de l'écran. Au-dessus, ce qui presse ; dedans, les jeux ; en dessous,
+     on revient au travail. Ses cartes ne bougent pas, on les entoure seulement.
+     Le titre est « Tes jeux », sans rien dessous (sa correction du 08/08). */
+  const nRat=(typeof ratCompte==='function')?ratCompte():0;
+  h+='<div class="zjeux">'+
+      '<div class="zj-t">Tes jeux</div>'+
+      '<div class="zj-chif">'+
+        '<span><b>'+((JXS.rec&&(JXS.rec.chrono||JXS.rec.serie))||0)+'</b><em>Record</em></span>'+
+        '<span><b>'+((JXS.sem&&JXS.sem.lundi===semaineLundi())?JXS.sem.justes:0)+'</b><em>Bonnes</em></span>'+
+        '<span><b>'+nRat+'</b><em>À revoir</em></span>'+
+      '</div>'+
+      pileJeux()+
+      '<div class="zj-pied">'+
+        '<button class="zj-b" onclick="go(\'#/jeux\')">Les '+JEUX.length+' jeux</button>'+
+        (nRat?'<button class="zj-b plein" onclick="jxJouer(\'rat\')">Rattrapage · '+nRat+'</button>':'')+
+      '</div>'+
+    '</div>';
 
   /* LES SORTIES DU JOUR — carrousel */
   if(sorties.length){
@@ -7672,14 +7775,21 @@ function vUrgences(){
    semaine s'allumera avec Supabase. Se corrige dans app-classique.html puis
    se recopie ici.
    ═══════════════════════════════════════════════════════════════════════ */
+/* PALETTE DES JEUX — validée par Mag le 08/08/2026, à partir d'une image qu'elle a
+   envoyée : « c'est surtout le fuchsia, le bleu, le noir et le jaune que j'aime bien ».
+   QUATRE couleurs seulement, chacune sur deux jeux. Elles n'existent nulle part ailleurs
+   dans COUSIN, et c'est voulu : les jeux sont une zone à part, leur palette le dit.
+   Le ROUGE de sa première image a été écarté — il était à un cheveu du rouge des
+   urgences, et le rouge appartient aux urgences.
+   L'encre : noire sur le jaune et le bleu, crème sur le fuchsia et le noir (`sombre`). */
 const JEUX = [
-  {k:'roue',   ic:'jroue', nom:'La roue',            c:'#f5c542', p:'Elle choisit à ta place',        regle:"Tu la fais tourner, elle s'arrête sur un domaine, et tu réponds à ses questions."},
-  {k:'flip',   ic:'jcartes', nom:'Cartes à retourner',  c:'#5b8fd4', p:'Question devant, réponse derrière', sombre:true, regle:"Une question au recto. Tu réfléchis, tu retournes la carte, tu vois la réponse. Pas de score, pas d'échec."},
-  {k:'serie',  ic:'jserie', nom:'La série',            c:'#f8763f', p:"Combien d'affilée sans faute ?",  regle:"Chaque bonne réponse allonge la série. Une erreur et elle repart à zéro. Ton record t'attend."},
-  {k:'chrono', ic:'jchrono', nom:'Chrono 60 s',         c:'#6cb392', p:'Une minute, un maximum',          regle:"Soixante secondes, autant de bonnes réponses que possible. Ça se joue debout."},
-  {k:'qui',    ic:'jenquete', nom:'Qui suis-je ?',       c:'#fd8fd0', p:'Trois indices, à toi de trouver', regle:"Les indices tombent un par un. Plus tu trouves tôt, plus tu marques."},
-  {k:'vf',     ic:'jcible', nom:'Vrai ou faux',        c:'#f3c6da', p:"Deux boutons, c'est tout",        regle:"Une affirmation, deux boutons. La correction arrive avec la fiche."},
-  {k:'jour',   ic:'jjour', nom:'La question du jour', c:'#b28b7a', p:"Une par jour, pour tout le monde", regle:"Une seule question, la même pour toute l'équipe, qui change à minuit."},
+  {k:'roue',   ic:'jroue', nom:'La roue',            c:'#F5D34F', p:'Elle choisit à ta place',        regle:"Tu la fais tourner, elle s'arrête sur un domaine, et tu réponds à ses questions."},
+  {k:'flip',   ic:'jcartes', nom:'Cartes à retourner',  c:'#6FC7D9', p:'Question devant, réponse derrière', sombre:true, regle:"Une question au recto. Tu réfléchis, tu retournes la carte, tu vois la réponse. Pas de score, pas d'échec."},
+  {k:'serie',  ic:'jserie', nom:'La série',            c:'#E8308A', sombre:true, p:"Combien d'affilée sans faute ?",  regle:"Chaque bonne réponse allonge la série. Une erreur et elle repart à zéro. Ton record t'attend."},
+  {k:'chrono', ic:'jchrono', nom:'Chrono 60 s',         c:'#1b1b1b', sombre:true, p:'Une minute, un maximum',          regle:"Soixante secondes, autant de bonnes réponses que possible. Ça se joue debout."},
+  {k:'qui',    ic:'jenquete', nom:'Qui suis-je ?',       c:'#6FC7D9', p:'Trois indices, à toi de trouver', regle:"Les indices tombent un par un. Plus tu trouves tôt, plus tu marques."},
+  {k:'vf',     ic:'jcible', nom:'Vrai ou faux',        c:'#E8308A', sombre:true, p:"Deux boutons, c'est tout",        regle:"Une affirmation, deux boutons. La correction arrive avec la fiche."},
+  {k:'jour',   ic:'jjour', nom:'La question du jour', c:'#F5D34F', p:"Une par jour, pour tout le monde", regle:"Une seule question, la même pour toute l'équipe, qui change à minuit."},
   {k:'equipe', ic:'social', nom:'L\'équipe cette semaine', c:'#1b1b1b', p:'Un score commun, personne contre personne', sombre:true,
    regle:"Chaque bonne réponse de chacun s'ajoute au compteur de l'équipe. Il n'y a pas d'adversaire et pas de classement : on regarde ensemble ce que l'équipe a appris cette semaine."}
 ];
