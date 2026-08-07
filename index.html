@@ -11971,17 +11971,20 @@ async function initAuth(){
   hideGate();
   // On connaît son nom avant d'afficher l'accueil : le bonjour ne clignote pas.
   loadProfile().then(function(){
-    /* L'ONBOARDING À LA PREMIÈRE OUVERTURE (08/08/2026). Après la connexion, pas
-       avant : sur l'écran de garde, on ne sait pas encore à qui on parle.
-       Et JAMAIS quand on arrive par un lien direct vers une fiche — quelqu'un qui
-       ouvre COUSIN pour un numéro est en train de chercher quelque chose, ce n'est
-       pas le moment de lui présenter l'app. */
-    try{
-      const direct = location.hash && location.hash.length>2 && location.hash!=='#/';
-      if(!ONB.vu && !direct){ ONB_ETAPE=0; go('#/bienvenue'); return; }
-      /* La relance du raccourci : une fois tous les dix jours, trois fois au plus. */
-      if(!direct && onbRelance()){ ONB_ETAPE=5; go('#/bienvenue'); return; }
-    }catch(e){}
+    /* ⚠ L'ONBOARDING NE S'OUVRE PLUS TOUT SEUL — retiré à sa demande le 07/08/2026 :
+       « il arrive alors que je suis connectée, c'est insupportable ».
+
+       LE BUG QU'IL Y AVAIT DERRIÈRE, pour qu'on ne le refasse pas : `ONB.vu` n'était
+       écrit que par onbFini() — c'est-à-dire uniquement si on allait jusqu'au dernier
+       écran ou si on cliquait « Passer ». Quelqu'un qui s'échappe par le menu latéral
+       (le réflexe normal) ne notait rien : à l'ouverture suivante, l'onboarding
+       revenait. Pour elle il ne se présentait donc pas une fois, mais À CHAQUE FOIS.
+
+       L'onboarding EXISTE TOUJOURS et reste entier : #/bienvenue, le bouton « Revoir
+       la présentation » du profil, et la planche de l'Admin. Seul le déclenchement
+       automatique est coupé. Pour le rebrancher un jour POUR LES NOUVEAUX SEULEMENT,
+       il faudra d'abord corriger la cause : marquer `ONB.vu` à l'AFFICHAGE et pas à
+       la sortie — sinon la boucle revient avec. */
     render();
   });
 }
