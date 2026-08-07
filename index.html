@@ -8667,18 +8667,20 @@ function vDomaine(key){
   }
   /* Règle d'or reprise de l'app principale : aucun bouton de tri ne mène à une page vide.
      Chaque rangée ne propose que ce qui existe compte tenu de l'autre. */
-  const base=DATA.filter(p=>p.domaine===key && (!d.isDem||p.demarche===filt.dem));
-  const parCommune=(filt.commune==='Toutes')?base:base.filter(p=>p.commune===filt.commune);
-  const ordre=(TAGS_REGLES[key]||[]).map(r=>r[1]);
-  let alltags=[...new Set(parCommune.flatMap(p=>p.tags))];
-  alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
-  if(alltags.length>1){
-    chips+=chipRow('tag',alltags,filt.tag,'Tout');
-    if(filt.tag!=='Tout') items=items.filter(p=>p.tags.includes(filt.tag));
-  }
+  let base=DATA.filter(p=>p.domaine===key && (!d.isDem||p.demarche===filt.dem));
   /* DEUX BOUTONS À PART (Mag, 08/08/2026 : « un bouton étoile pour nos préférés, et
      aussi ceux qu'on déconseille »). Ils ne s'affichent QUE s'il y a quelque chose
-     à montrer : un filtre qui ne donne rien est pire qu'un filtre absent. */
+     à montrer : un filtre qui ne donne rien est pire qu'un filtre absent.
+
+     ⚠ ILS SONT UN CRAN AU-DESSUS DES SOUS-CATÉGORIES (Mag, 07/08/2026 : « là je suis
+     sur Sans mutuelle et c'est noté 3, ce n'est pas logique »). Elle avait raison, et
+     c'était un vrai bug : le compte se faisait sur le domaine ENTIER pendant qu'on
+     lisait une sous-catégorie. On annonçait 3 préférés, on cliquait, et on pouvait
+     tomber sur une page vide — précisément ce que la règle d'or au-dessus interdit.
+
+     « Nos préférés » n'est pas une sous-catégorie de plus : c'est un AVIS sur le lieu,
+     et il vaut pour tout le domaine. Il passe donc en premier, et ce sont les rangées
+     du dessous (sous-catégories, communes) qui se recalculent sur les préférés. */
   const nReco=base.filter(function(p){ return p.reco; }).length;
   const nDeco=base.filter(function(p){ return p.deco; }).length;
   if(nReco||nDeco){
@@ -8688,12 +8690,29 @@ function vDomaine(key){
       (nDeco?'<button class="favchip deco'+(filt.avis==='deco'?' on':'')+'" onclick="filtrerAvis(\'deco\')">'+
         '<span class="ic">'+icon('alert')+'</span>Déconseillés<i>'+nDeco+'</i></button>':'')+
       '</div>';
-    if(filt.avis==='reco') items=items.filter(function(p){ return p.reco; });
-    if(filt.avis==='deco') items=items.filter(function(p){ return p.deco; });
+    if(filt.avis==='reco'){ items=items.filter(p=>p.reco); base=base.filter(p=>p.reco); }
+    if(filt.avis==='deco'){ items=items.filter(p=>p.deco); base=base.filter(p=>p.deco); }
+  }
+  /* On relâche la commune AVANT de calculer les sous-catégories : si elle n'existe
+     plus dans ce qui reste, la rangée du dessous se calculerait sur un ensemble vide
+     et disparaîtrait alors qu'elle a des choses à proposer. */
+  if(filt.commune!=='Toutes' && !base.some(p=>p.commune===filt.commune)) filt.commune='Toutes';
+  const parCommune=(filt.commune==='Toutes')?base:base.filter(p=>p.commune===filt.commune);
+  const ordre=(TAGS_REGLES[key]||[]).map(r=>r[1]);
+  let alltags=[...new Set(parCommune.flatMap(p=>p.tags))];
+  alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
+  /* Si la sous-catégorie qu'on lisait n'existe plus dans ce qui reste — on vient de
+     cliquer « Nos préférés » — on la relâche au lieu d'afficher une page vide. */
+  if(filt.tag!=='Tout' && alltags.indexOf(filt.tag)<0) filt.tag='Tout';
+  if(alltags.length>1){
+    chips+=chipRow('tag',alltags,filt.tag,'Tout');
+    if(filt.tag!=='Tout') items=items.filter(p=>p.tags.includes(filt.tag));
   }
   if(d.byCommune){
     const parTag=(filt.tag==='Tout')?base:base.filter(p=>p.tags.includes(filt.tag));
     const coms=COMMUNES.filter(c=>parTag.some(p=>p.commune===c));
+    /* Même relâchement pour la commune, et pour la même raison. */
+    if(filt.commune!=='Toutes' && coms.indexOf(filt.commune)<0) filt.commune='Toutes';
     if(coms.length>1) chips+=chipRow('commune',coms,filt.commune,'Toutes');
     if(filt.commune!=='Toutes') items=items.filter(p=>p.commune===filt.commune);
   }
