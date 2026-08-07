@@ -793,6 +793,28 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .sch-note em{display:block;font-style:normal;padding:0 14px 13px;font-size:12px;line-height:1.45;color:var(--enc2)}
 @media print{ .sch-note{display:none} }
 
+/* ── LA FEUILLE DES SORTIES (08/08/2026) ── Elle s'affiche au mur du centre : elle
+   doit se lire debout et de loin. Date en gros à gauche, prix à droite, filets
+   fins — pas d'aplat, l'encre coûte. */
+.ag-h{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;margin:16px 0 6px;padding-bottom:5px;border-bottom:1.5px solid #1b1b1b}
+.ag-l{display:flex;gap:12px;align-items:flex-start;padding:8px 0;
+  border-bottom:1px solid #d6d4d0;break-inside:avoid}
+.ag-d{flex:none;width:52px;text-align:center;line-height:1.05}
+.ag-d b{display:block;font-size:21px;font-weight:700}
+.ag-d span{display:block;font-size:10px}
+.ag-d em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:7.5px;
+  letter-spacing:.08em;text-transform:uppercase;color:#73716b;margin-top:2px}
+.ag-t{flex:1;min-width:0}
+.ag-t b{display:block;font-size:13.5px;font-weight:600;line-height:1.25}
+.ag-t span{display:block;font-size:11px;color:#4a4844}
+.ag-t .ag-a{font-size:10.5px;color:#73716b}
+.ag-t em{display:block;font-style:normal;font-size:10.5px;color:#73716b;margin-top:1px}
+.ag-p{flex:none;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;border:1px solid #1b1b1b;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.ag-p.g{border-style:dashed}
+.ag-fin{margin-top:14px;padding-top:8px;border-top:1px solid #d6d4d0;font-size:11px;color:#73716b}
+
 /* ── CONSEILLÉE PAR L'ÉQUIPE (08/08/2026) ──────────────────────────────────
    Une fiche que l'équipe recommande se voit de loin : filet noir plus épais, et
    la RAISON écrite en toutes lettres. Pas de couleur d'accent en plus — le
@@ -5773,6 +5795,45 @@ function imprimer(){
             ((!f.tel&&!f.adr)?'<p class="pm">⚠ ni téléphone ni adresse dans la fiche</p>':'')+
           '</div>';
         }).join('');
+    }
+  }catch(e){}
+
+  /* ═══ LA FEUILLE DES SORTIES (08/08/2026, point 9 de la liste) ═══
+     L'écran des Activités a un calendrier, des pastilles et des cartes qui se
+     déplient : recopié tel quel sur du papier, ça donnait une bouillie. Or c'est
+     une feuille qu'on AFFICHE AU MUR du centre — elle doit se lire debout, de loin,
+     et tenir sur une page.
+     On la refabrique donc à partir de l'agenda : une ligne par sortie, la date en
+     gros à gauche, le reste à droite. Gratuit d'abord, Article 27 ensuite — c'est
+     la première question que les gens posent. */
+  try{
+    if(current && (current.view==='ticket' || current.view==='neuf')){
+      const lst=agendaProchains(31);
+      if(lst.length){
+        const JJ=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+        const MM=['janv.','févr.','mars','avril','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+        const ligne=function(x){
+          const dt=new Date(x.d), r=x.r||{};
+          const gratuit=/gratuit/i.test(r.prix||'');
+          return '<div class="ag-l">'+
+            '<div class="ag-d"><b>'+dt.getDate()+'</b><span>'+MM[dt.getMonth()]+'</span>'+
+              '<em>'+JJ[dt.getDay()]+'</em></div>'+
+            '<div class="ag-t"><b>'+esc(r.titre||'')+'</b>'+
+              (r.lieu?'<span>'+esc(r.lieu)+'</span>':'')+
+              (r.adr?'<span class="ag-a">'+esc(r.adr)+'</span>':'')+
+              (r.sous?'<em>'+esc(r.sous)+'</em>':'')+'</div>'+
+            '<div class="ag-p'+(gratuit?' g':'')+'">'+esc(r.prix||'')+'</div>'+
+          '</div>';
+        };
+        const grat=lst.filter(function(x){ return /gratuit/i.test((x.r||{}).prix||''); });
+        const pay =lst.filter(function(x){ return !/gratuit/i.test((x.r||{}).prix||''); });
+        corps='<div class="pf-n">'+lst.length+' sortie'+(lst.length>1?'s':'')+' dans les 31 prochains jours</div>'+
+          (grat.length?'<div class="ag-h">C’est gratuit</div>'+grat.map(ligne).join(''):'')+
+          (pay.length ?'<div class="ag-h">Article 27 et payant</div>'+pay.map(ligne).join(''):'')+
+          '<div class="ag-fin">Vérifie toujours avant de partir : les horaires changent, '+
+          'et certaines dates sautent pendant les vacances.</div>';
+        t='Sorties & activités';
+      }
     }
   }catch(e){}
 
