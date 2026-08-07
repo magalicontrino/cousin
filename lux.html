@@ -196,22 +196,32 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .sch-f.papier .sch-e{margin-bottom:15px}
 
 /* ── LA CARTE DE QUESTION (08/08/2026) ── */
-.qz{background:#1b1b1b;border-radius:12px;padding:18px 16px 16px;color:#f0efed;
-  min-height:calc(100dvh - 210px);display:flex;flex-direction:column}
+/* La carte s'ajuste au contenu. Avant elle s'étirait sur toute la hauteur de l'écran
+   et laissait un trou entre la question et les réponses. Elle garde un minimum pour
+   ne pas sauter d'une question à l'autre, mais elle ne se force plus. */
+.qz{background:#1b1b1b;border-radius:12px;padding:20px 18px 18px;color:#f0efed;
+  min-height:340px;max-width:620px;display:flex;flex-direction:column}
 .qz-tete{display:flex;align-items:center}
 .qz-dots{display:flex;gap:6px;align-items:center}
 .qz-dots i{width:9px;height:9px;border-radius:50%;background:#3d3d3d;flex:none}
 .qz-dots i.ok{background:#6FC7D9}
 .qz-dots i.ko{background:#E8308A}
 .qz-dots i.ici{width:11px;height:11px;background:#f0efed}
+/* La barre de progression : ce qui est juste en bleu, ce qui est raté en fuchsia,
+   le reste en creux. On lit sa partie d'un coup d'œil sans compter des ronds. */
+.qz-barre{flex:1;height:5px;border-radius:3px;background:#3d3d3d;overflow:hidden;display:flex;max-width:180px}
+.qz-barre i{display:block;height:100%}
+.qz-barre i.ok{background:#6FC7D9}
+.qz-barre i.ko{background:#E8308A}
+.qz-sc{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;color:#9a9894;margin-left:10px}
 .qz-n{margin-left:auto;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#F5D34F}
 .qz-sur{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
   color:#9a9894;margin-top:14px}
-.qz-q{font-size:26px;font-weight:500;line-height:1.16;letter-spacing:-.02em;margin-top:14px}
+.qz-q{font-size:25px;font-weight:500;line-height:1.2;letter-spacing:-.02em;margin-top:12px}
 .qz-q.petite{font-size:20px}
 /* Les réponses sont ANCRÉES EN BAS : la question grandit vers le haut, le pouce les
    retrouve toujours au même endroit. */
-.qz-opts{margin-top:auto;padding-top:22px;display:flex;flex-direction:column;gap:9px}
+.qz-opts{margin-top:auto;padding-top:26px;display:flex;flex-direction:column;gap:9px}
 .qz-opt{display:flex;align-items:center;gap:12px;background:none;border:1.5px solid #4a4a4a;
   border-radius:10px;padding:13px 14px;color:#f0efed;text-align:left;width:100%}
 .qz-l{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid #6a6a6a;
@@ -8623,12 +8633,23 @@ function jxRetourHub(){ return `<button class="jxautre" style="width:100%;margin
 const QZ_LETTRES=['A','B','C','D','E','F'];
 
 /* Les pastilles, lues dans le carnet de bord de la partie. */
+/* Les pastilles ne valent que sur une partie COURTE : à 28 questions, douze ronds gris
+   ne disent rien et font du bruit (Mag, 08/08/2026 : « pas très beau »). Au-delà de dix,
+   on passe à une barre qui avance, et qui garde les couleurs juste/raté. */
 function jxDots(total, i){
   const j=(JEU&&Array.isArray(JEU.journal))?JEU.journal:[];
-  const n=Math.min(total||0, 12);            // au-delà de 12, la rangée devient illisible
+  const n=total||0;
+  if(n>10){
+    const justes=j.filter(function(x){return x.juste;}).length, rates=j.length-justes;
+    const pc=function(v){ return (v/n*100).toFixed(1)+'%'; };
+    return '<div class="qz-barre">'+
+      '<i class="ok" style="width:'+pc(justes)+'"></i>'+
+      '<i class="ko" style="width:'+pc(rates)+'"></i>'+
+      '</div>'+(j.length?'<span class="qz-sc">'+justes+' bonne'+(justes>1?'s':'')+'</span>':'');
+  }
   let h='<div class="qz-dots">';
   for(let k=0;k<n;k++){
-    let cl='av';                              // à venir
+    let cl='av';
     if(k<j.length) cl = j[k].juste ? 'ok' : 'ko';
     else if(k===i) cl='ici';
     h+='<i class="'+cl+'"></i>';
