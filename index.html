@@ -6954,13 +6954,29 @@ function nomEcran(k){
 }
 function statsPeriode(j){ STATS_JOURS=j; STATS=STATS_CACHE[j]||null; render(); chargerStats(j); }
 async function chargerStats(j){
-  if(!sb||_statsEnCours||STATS_CACHE[j]) { if(STATS_CACHE[j]){STATS=STATS_CACHE[j];} return; }
+  if(_statsEnCours) return;
+  if(STATS_CACHE[j]){ STATS=STATS_CACHE[j]; return; }
+  /* Pas de connexion : on le DIT. Avant, on repartait sans rien poser dans STATS —
+     et comme vStats() rappelle chargerStats() tant que STATS est vide, la page
+     restait sur « Chargement… » pour toujours. */
+  if(!sb){ STATS_CACHE[j]={ecrans:[],jours:[],equipes:[],erreur:'Pas de connexion à la base — reconnecte-toi.'};
+           if(STATS_JOURS===j) STATS=STATS_CACHE[j];
+           /* Le render est DIFFÉRÉ : cette branche-ci est synchrone et vStats() nous appelle
+              depuis l'intérieur d'un render. Un render imbriqué serait aussitôt écrasé par
+              le HTML que le render parent est en train de calculer. */
+           if(current.view==='stats') setTimeout(render,0);
+           return; }
   _statsEnCours=true;
   let res;
   try{
     const a=await sb.rpc('stats_ecrans',{jours:j});
     const b=await sb.rpc('stats_jours', {jours:j});
     const c=await sb.rpc('stats_equipes',{jours:j});
+    /* ⚠ sb.rpc() NE LÈVE PAS d'exception : il répond {data, error}. Le try/catch seul
+       laissait donc passer les vraies pannes (fonction absente, droits refusés) en
+       silence, et la page annonçait « Rien de noté » — un mensonge indébogable. */
+    const err=(a&&a.error)||(b&&b.error)||(c&&c.error);
+    if(err) throw err;
     res={ecrans:(a&&a.data)||[], jours:(b&&b.data)||[], equipes:(c&&c.data)||[]};
   }catch(e){ res={ecrans:[],jours:[],equipes:[],erreur:(e&&e.message)||'lecture impossible'}; }
   STATS_CACHE[j]=res;
@@ -6976,42 +6992,56 @@ function vStats(){
   h+='<div class="fchips" style="margin-top:16px">'+STATS_PERIODES.map(function(pp){
       return '<button class="fchip'+(STATS_JOURS===pp[0]?' on':'')+'" onclick="statsPeriode('+pp[0]+')">'+esc(pp[1])+'</button>';
     }).join('')+'</div>';
-  if(!STATS){ chargerStats(STATS_JOURS); return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>'; }
+  /* On lance la lecture AVANT de conclure : sans connexion, chargerStats() répond tout de
+     suite, et « Chargement… » serait alors un mensonge qui ne s'effacerait jamais. */
+  if(!STATS) chargerStats(STATS_JOURS);
+  if(!STATS) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
   if(STATS.erreur)
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Lecture impossible</b>'+
       '<p>'+esc(STATS.erreur)+'</p></div><div style="height:26px"></div>';
 
-  const ec=(STATS.ecrans||[]).slice().sort(function(a,b){ return (b.n||0)-(a.n||0); });
-  const total=ec.reduce(function(a,x){ return a+(x.n||0); },0);
+  /* ⚠ LES COLONNES S'APPELLENT `vues` ET `personnes`, PAS `n` (réparé le 08/08/2026).
+     Tout ce bloc lisait `x.n`, qui n'existe dans aucune des trois fonctions SQL :
+     stats_ecrans renvoie (ecran, vues, personnes, derniere), stats_jours (jour, vues,
+     personnes), stats_equipes (equipe, personnes, vues, top). Résultat : la page
+     s'affichait bien, avec les bons noms d'écrans — et TOUS LES CHIFFRES À ZÉRO. */
+  const ec=(STATS.ecrans||[]).slice().sort(function(a,b){ return (b.vues||0)-(a.vues||0); });
+  const total=ec.reduce(function(a,x){ return a+(x.vues||0); },0);
   h+='<div class="sect" style="margin-top:24px"><b>Les écrans</b><em>'+total+' ouverture'+(total>1?'s':'')+'</em></div>';
   if(!ec.length){
     h+='<p class="hint" style="margin-top:12px">Rien de noté sur cette période.</p>';
   } else {
     h+='<div class="rlist">'+ec.map(function(x){
-      const pc=total?Math.round((x.n||0)*100/total):0;
-      return '<div class="stl"><span class="stn">'+esc(nomEcran(x.ecran||x.nom||''))+'</span>'+
+      const pc=total?Math.round((x.vues||0)*100/total):0;
+      return '<div class="stl" title="'+esc(nomEcran(x.ecran||''))+' — '+(x.vues||0)+' ouvertures par '+(x.personnes||0)+' personnes">'+
+        '<span class="stn">'+esc(nomEcran(x.ecran||''))+'</span>'+
         '<span class="stb"><i style="width:'+Math.max(2,pc)+'%"></i></span>'+
-        '<span class="stc">'+(x.n||0)+'</span></div>';
+        '<span class="stc">'+(x.vues||0)+'</span></div>';
     }).join('')+'</div>';
   }
-  const eq=(STATS.equipes||[]).slice().sort(function(a,b){ return (b.n||0)-(a.n||0); });
+  /* Par métier, on compte les PERSONNES et non les ouvertures : la question posée ici
+     est « qui se sert de COUSIN », et une seule personne très active ne doit pas faire
+     croire que tout un métier a adopté l'app. La somme est exacte, chacun n'a qu'un métier. */
+  const eq=(STATS.equipes||[]).slice().sort(function(a,b){ return (b.personnes||0)-(a.personnes||0); });
   if(eq.length){
-    const tot2=eq.reduce(function(a,x){ return a+(x.n||0); },0);
-    h+='<div class="sect" style="margin-top:28px"><b>Par métier</b><em>qui se sert de COUSIN</em></div>'+
+    const tot2=eq.reduce(function(a,x){ return a+(x.personnes||0); },0);
+    h+='<div class="sect" style="margin-top:28px"><b>Par métier</b><em>'+tot2+' personne'+(tot2>1?'s':'')+'</em></div>'+
       '<div class="rlist">'+eq.map(function(x){
-        const pc=tot2?Math.round((x.n||0)*100/tot2):0;
-        return '<div class="stl"><span class="stn">'+esc(x.equipe||'sans métier')+'</span>'+
+        const pc=tot2?Math.round((x.personnes||0)*100/tot2):0;
+        return '<div class="stl" title="'+esc(x.equipe||'sans métier')+' — '+(x.personnes||0)+
+          ' personnes, '+(x.vues||0)+' ouvertures'+(x.top?', surtout '+esc(nomEcran(x.top)):'')+'">'+
+          '<span class="stn">'+esc(x.equipe||'sans métier')+'</span>'+
           '<span class="stb"><i style="width:'+Math.max(2,pc)+'%;background:#5b8fd4"></i></span>'+
-          '<span class="stc">'+(x.n||0)+'</span></div>';
+          '<span class="stc">'+(x.personnes||0)+'</span></div>';
       }).join('')+'</div>';
   }
   const jr=(STATS.jours||[]);
   if(jr.length){
-    const maxi=Math.max.apply(null,jr.map(function(x){return x.n||0}))||1;
-    h+='<div class="sect" style="margin-top:28px"><b>Jour par jour</b><em>'+jr.length+' jours</em></div>'+
+    const maxi=Math.max.apply(null,jr.map(function(x){return x.vues||0}))||1;
+    h+='<div class="sect" style="margin-top:28px"><b>Jour par jour</b><em>'+jr.length+' jour'+(jr.length>1?'s':'')+'</em></div>'+
       '<div class="stjours">'+jr.map(function(x){
-        const ht=Math.max(3,Math.round((x.n||0)*100/maxi));
-        return '<span class="stj" title="'+esc(String(x.jour||''))+' — '+(x.n||0)+'"><i style="height:'+ht+'%"></i></span>';
+        const ht=Math.max(3,Math.round((x.vues||0)*100/maxi));
+        return '<span class="stj" title="'+esc(String(x.jour||''))+' — '+(x.vues||0)+'"><i style="height:'+ht+'%"></i></span>';
       }).join('')+'</div>';
   }
   h+='<div class="fsavoir" style="margin-top:24px"><b><span class="ic">'+icon('bulb')+'</span>Ce qui est noté, et ce qui ne l’est pas</b>'+
