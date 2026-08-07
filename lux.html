@@ -4879,6 +4879,46 @@ function imprimer(){
   const dateTxt='Imprimé le '+new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'});
   const src=document.getElementById('view');
   if(!src) return;
+
+  /* ═══ LA FEUILLE D'UNE LISTE DE FICHES (Mag, 08/08/2026) ═══
+     « Si je clique sur médical Bruxelles et que je veux imprimer Aquarelle et
+     médecin, je veux toutes les coordonnées et un résumé de la carte. »
+
+     L'écran ne montre que le nom et une ligne : recopier le DOM donnerait une feuille
+     inutile. On reconstruit donc la feuille à partir du catalogue — mais en prenant
+     les fiches DANS L'ORDRE OÙ ELLES SONT À L'ÉCRAN, filtres compris. C'est le seul
+     moyen que « médical + Bruxelles » imprime bien ce qu'elle a sous les yeux.
+
+     Minimaliste, parce que l'encre coûte : pas d'aplat, un filet fin, une seule fiche
+     par bloc et jamais coupée en deux. */
+  let corps=null;
+  try{
+    const sids=[...src.querySelectorAll('[onclick*="#/f/"]')].map(function(e){
+      const m=/#\/f\/([^']+)/.exec(e.getAttribute('onclick')||''); return m?m[1]:null;
+    }).filter(Boolean);
+    const vus=new Set(), fiches=[];
+    sids.forEach(function(sid){ if(vus.has(sid)) return; vus.add(sid);
+      const f=DATA.find(function(x){ return x.sid===sid; }); if(f) fiches.push(f); });
+    if(fiches.length){
+      corps='<div class="pf-n">'+fiches.length+' fiche'+(fiches.length>1?'s':'')+'</div>'+
+        fiches.map(function(f){
+          const l=[];
+          if(f.tel) l.push('<span><i>Tél</i>'+esc(f.tel)+'</span>');
+          if(f.adr) l.push('<span><i>Adresse</i>'+esc(f.adr)+'</span>');
+          if(f.horaires) l.push('<span><i>Horaires</i>'+esc(f.horaires)+'</span>');
+          if(f.mail) l.push('<span><i>Mail</i>'+esc(f.mail)+'</span>');
+          if(f.site) l.push('<span><i>Site</i>'+esc(f.site)+'</span>');
+          return '<div class="pf-f">'+
+            '<b>'+esc(f.nom)+'</b>'+
+            (f.commune?'<em>'+esc(f.commune)+'</em>':'')+
+            (f.desc?'<p>'+esc(f.desc)+'</p>':'')+
+            (f.public?'<p class="pu">Pour : '+esc(f.public)+'</p>':'')+
+            (l.length?'<div class="pf-l">'+l.join('')+'</div>':'')+
+          '</div>';
+        }).join('');
+    }
+  }catch(e){}
+
   /* LA FEUILLE S'OUVRE D'ABORD DANS UNE PAGE (Mag, 08/08/2026 : « il faut que je
      visualise ce que j'ai avant d'imprimer »). Elle la regarde, et c'est ELLE qui
      décide d'imprimer ou d'enregistrer en PDF. On n'envoie plus rien à l'imprimante
@@ -4908,13 +4948,25 @@ function imprimer(){
         'padding-bottom:8px;margin-bottom:16px}'+
       '.pt-h b{font-size:19px;font-weight:700;text-transform:uppercase}'+
       '.pt-h span{margin-left:auto;font-family:ui-monospace,monospace;font-size:10px;color:#444}'+
+      '.pf-n{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;'+
+        'color:#555;margin-bottom:12px}'+
+      '.pf-f{break-inside:avoid;page-break-inside:avoid;border-bottom:1px solid #ccc;padding:0 0 9px;margin-bottom:9px}'+
+      '.pf-f b{display:block;font-size:14.5px;font-weight:700;line-height:1.2}'+
+      '.pf-f em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;'+
+        'letter-spacing:.1em;text-transform:uppercase;color:#666;margin-top:2px}'+
+      '.pf-f p{font-size:12px;line-height:1.35;margin-top:4px;color:#222}'+
+      '.pf-f p.pu{color:#555;font-size:11px}'+
+      '.pf-l{display:flex;flex-wrap:wrap;gap:3px 16px;margin-top:5px}'+
+      '.pf-l span{font-size:11.5px;color:#111}'+
+      '.pf-l i{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;'+
+        'text-transform:uppercase;color:#777;margin-right:5px}'+
       '@media print{ .pt-tete{display:none!important} .fw{padding:0!important;max-width:100%!important} }'+
     '</style></head><body>'+
     '<div class="pt-tete"><b>Aperçu avant impression</b>'+
       '<button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>'+
     '<div class="fw"><div class="pt-h"><b>'+esc(t)+'</b><span>'+esc(dateTxt)+'</span></div>'+
-      src.innerHTML+'</div></body></html>');
+      (corps||src.innerHTML)+'</div></body></html>');
   w.document.close();
 }
 /* Le bouton, posé partout où une page vaut la peine d'être emportée sur papier. */
@@ -8713,6 +8765,11 @@ function _g(id){ return document.getElementById(id); }
 function hideGate(){ const g=_g('authGate'); if(g) g.classList.add('off'); }
 function showLogin(){ _g('authLoading').style.display='none'; _g('authBtn').style.display='inline-flex'; _g('authMsg').textContent=''; _g('authSwitch').style.display='none'; }
 function showMessage(msg){ _g('authLoading').style.display='none'; _g('authBtn').style.display='none'; _g('authMsg').textContent=msg; _g('authSwitch').style.display='inline-block'; }
+/* Message ET bouton : quand on dit « recommence », il faut de quoi recommencer.
+   showMessage() cachait le bouton Google — on lisait « appuie encore une fois »
+   sans rien à appuyer (Mag, 08/08/2026). */
+function showRetry(msg){ _g('authLoading').style.display='none'; _g('authBtn').style.display='inline-flex';
+  _g('authMsg').textContent=msg; _g('authSwitch').style.display='inline-block'; }
 
 function signInGoogle(){
   if(!sb){ showMessage("Pas de connexion internet. Réessaie une fois en ligne."); return; }
@@ -9133,16 +9190,49 @@ async function initAuth(){
     showMessage("Connecte-toi à internet pour ouvrir COUSIN.");
     return;
   }
-  // Retour de Google : on échange le code d'autorisation contre une session.
+  /* ═══ RETOUR DE GOOGLE : on échange le code d'autorisation contre une session ═══
+     ⚠ BUG RÉPARÉ LE 08/08/2026. Mag voyait souvent « PKCE code verifier not found in
+     storage », puis ça marchait en recommençant — « une sensation d'échec ».
+
+     La cause : l'adresse n'était nettoyée QU'APRÈS l'échange. Un code d'autorisation
+     ne s'échange qu'UNE FOIS ; si la page se relançait entre-temps (rechargement,
+     retour arrière, service worker qui réveille l'app), elle retrouvait le même
+     `?code=` dans l'URL et le rejouait — le vérificateur avait déjà été consommé.
+
+     Deux garde-fous maintenant :
+     · on efface le code de l'adresse AVANT de l'échanger, pour qu'il ne puisse pas
+       être rejoué ;
+     · un verrou empêche deux échanges dans la même page.
+
+     Et surtout : quand ça arrive quand même, on NE MONTRE PLUS le message technique
+     anglais. Ce n'est pas un échec de sa part, c'est un aller-retour qui a traîné :
+     on le dit en une phrase et on repropose le bouton. */
   try{
-    const code=new URL(location.href).searchParams.get('code');
-    const errDesc=new URL(location.href).searchParams.get('error_description');
+    const url=new URL(location.href);
+    const code=url.searchParams.get('code');
+    const errDesc=url.searchParams.get('error_description');
     if(errDesc){ showMessage("Google a refusé : "+errDesc+"\n\n(capture d'écran à envoyer)"); return; }
     if(code){
-      const {error}=await sb.auth.exchangeCodeForSession(code);
-      // On efface le code de Google de l'adresse, sans casser la navigation interne.
-      history.replaceState(history.state,'',location.origin+location.pathname+(location.hash||''));
-      if(error){ showMessage("Connexion échouée : "+error.message+"\n\n(fais une capture et envoie-la)"); return; }
+      if(window._codeEchange){ /* déjà fait dans cette page : on ne rejoue pas */ }
+      else{
+        window._codeEchange=true;
+        // L'adresse est nettoyée D'ABORD : le code ne pourra plus être rejoué.
+        history.replaceState(history.state,'',location.origin+location.pathname+(location.hash||''));
+        const {error}=await sb.auth.exchangeCodeForSession(code);
+        if(error){
+          const m=String((error&&error.message)||'');
+          if(/code verifier|code_verifier|pkce/i.test(m)){
+            // Le lien de connexion a traîné, ou la page a été rouverte entre-temps.
+            let dejaLa=null; try{ dejaLa=(await sb.auth.getSession()).data.session; }catch(e){}
+            if(!dejaLa){
+              showRetry("La connexion a expiré en chemin.\n\nAppuie encore une fois sur le bouton : ça repart, tu n'as rien fait de mal.");
+              return;
+            }
+          } else {
+            showMessage("Connexion échouée : "+m+"\n\n(fais une capture et envoie-la)"); return;
+          }
+        }
+      }
     }
   }catch(e){ showMessage("Connexion échouée : "+(e&&e.message?e.message:e)+"\n\n(fais une capture et envoie-la)"); return; }
 
