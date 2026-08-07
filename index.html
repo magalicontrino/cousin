@@ -125,6 +125,18 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (hover:hover){ .imprbtn:hover{border-color:var(--noir);color:var(--noir)} }
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 
+/* ── LE DICTIONNAIRE (08/08/2026) ── */
+#view .lex{max-width:620px;padding-top:14px}
+.lx{border-bottom:1px solid var(--ligne);padding:12px 0}
+.lx summary{cursor:pointer;list-style:none;display:block}
+.lx summary::-webkit-details-marker{display:none}
+.lx summary b{display:block;font-size:16px;font-weight:700;line-height:1.2}
+.lx summary span{display:block;font-size:13.5px;color:#3c3a36;line-height:1.45;margin-top:3px}
+.lx summary::after{content:'▾';float:right;margin-top:-38px;color:#8b8984;font-size:13px}
+.lx[open] summary::after{content:'▴'}
+.lx p{font-size:13px;color:#73716b;line-height:1.55;margin-top:9px;padding-left:11px;
+  border-left:2px solid var(--ligne)}
+
 /* ── ÉDUC (08/08/2026) ── */
 #view .ed-g{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding-top:14px;max-width:620px}
 .ed-c{background:#fdfdfc;border:1.5px solid var(--noir);border-radius:9px;padding:13px;text-align:left;
@@ -5388,6 +5400,7 @@ function parseRoute(){
   if(seg[0]==='modeles') return {view:'modeles'};
   if(seg[0]==='schemas') return {view:'schemas'};
   if(seg[0]==='educ') return {view:'educ'};
+  if(seg[0]==='lexique') return {view:'lexique'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -5457,6 +5470,7 @@ function render(){
   else if(current.view==='modeles'){ view.innerHTML=vModeles(); rafraichirModeles(); }
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='educ') view.innerHTML=vEduc();
+  else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
   else if(current.view==='quartier') view.innerHTML=vQuartier();
@@ -5953,6 +5967,8 @@ function vCentre(){
     ['Les schémas à donner','Une feuille A4, dans sa langue','demarche','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
     /* ÉDUC : ce qu'on PROPOSE aux hébergés, en face des démarches qu'on fait POUR eux. */
     ['Éduc','Sorties, culture, groupes de parole','accomp','','#f8763f','#1b1b1b',"go('#/educ')"],
+    /* LE DICTIONNAIRE : les mots de l'app expliqués, pour ne rester bloqué sur aucun. */
+    ['Le dictionnaire',LEXIQUE.length+' mots de chez nous','book','','#b28b7a','#1b1b1b',"go('#/lexique')"],
     ['Gestion du centre', nCentreFiches()+' fiches','centre','blanc',null,'#1b1b1b',"go('#/d/centre')"],
     ['Autour d’ici','Le quartier','pin','blanc',null,'#1b1b1b',"go('#/quartier')"]
   ];
@@ -6837,7 +6853,7 @@ function boiteClasser(id){
    ══════════════════════════════════════════════════════════════════════════ */
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
-const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', favoris:'Tes étoiles', liste:'Ma liste',
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', lexique:'Le dictionnaire', favoris:'Tes étoiles', liste:'Ma liste',
   profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', linge:'Le linge', centre:'Le centre',
@@ -9332,6 +9348,127 @@ const GROUPES_PAROLE=[
   eviter:"⚠ ON NE DIAGNOSTIQUE RIEN et on ne commente pas un chiffre devant le groupe. Si une mesure inquiète, on le dit à la personne SEULE et on l'oriente vers un médecin. Et on ne garde aucun chiffre dans COUSIN — l'app ne contient aucune donnée d'hébergé.",
   apres:"Le lien avec le médecin traitant se fait tout seul : c'est lui qui suivra les chiffres dans le temps."}
 ];
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LE DICTIONNAIRE (08/08/2026) — demandé par Mag : « fais un dictionnaire pour les
+   mots spécifiques comme ambulatoire, et reprends tous les mots qui tournent dans
+   l'app ».
+
+   Les mots sont RELEVÉS DANS COUSIN, pas pris dans un glossaire général : chacun
+   apparaît quelque part dans une fiche, une formation ou un schéma. C'est ce qui le
+   rend utile — on tombe dessus, on ne comprend pas, on vient ici.
+
+   Format : le mot, une phrase qui suffit, puis le détail si on veut. Pas de
+   définition de dictionnaire — ce qu'il faut en savoir POUR TRAVAILLER.
+   ═════════════════════════════════════════════════════════════════════════ */
+const LEXIQUE=[
+ {m:"Ambulatoire", c:"On vient, on repart le jour même. Pas d'hospitalisation, pas de lit.",
+  d:"Un service ambulatoire reçoit sur rendez-vous ou en permanence et la personne rentre chez elle. C'est le contraire de « résidentiel ». La plupart des services de santé mentale bruxellois sont ambulatoires."},
+ {m:"Résidentiel", c:"La personne y dort. Un lieu de vie, pas une consultation.",
+  d:"Maison d'accueil, hébergement d'urgence, logement collectif adapté : tout ce où l'on habite, même provisoirement."},
+ {m:"AMU — Aide Médicale Urgente", c:"Les soins pour les personnes en séjour irrégulier, payés par le CPAS.",
+  d:"« Urgente » ne veut pas dire « aux urgences » : ça couvre aussi le suivi et les médicaments. Il faut une attestation d'un médecin, demandée AVANT le soin, et une demande au CPAS de la commune."},
+ {m:"Réquisitoire", c:"Un bon de prise en charge du CPAS. Il se demande AVANT le soin.",
+  d:"Le CPAS s'engage à payer un soin précis chez un prestataire précis. Après le soin, il est trop tard : la facture est déjà pour la personne."},
+ {m:"Tiers payant", c:"On ne paie que sa part ; la mutuelle paie le reste directement.",
+  d:"Sans tiers payant, la personne avance tout et se fait rembourser après — ce qui est impossible quand on n'a rien. Il se demande au médecin, et beaucoup l'appliquent d'office pour les personnes précarisées."},
+ {m:"BIM — Intervention majorée", c:"Un statut qui fait payer moins chez le médecin et à la pharmacie.",
+  d:"Se demande à sa mutuelle. Il ouvre aussi d'autres droits : tarif social énergie, transports. Beaucoup y ont droit sans le savoir."},
+ {m:"CAAMI", c:"La mutuelle publique. L'inscription est gratuite.",
+  d:"Elle rembourse exactement comme les autres. Ce qu'elle n'a pas, ce sont les avantages complémentaires que les mutuelles privées financent par leur cotisation."},
+ {m:"RIS — Revenu d'intégration sociale", c:"L'aide financière mensuelle du CPAS.",
+  d:"Conditionné à la résidence, aux ressources, à la disposition au travail (avec des exceptions) et à un contrat d'intégration selon les situations."},
+ {m:"Adresse de référence", c:"Une adresse administrative chez un CPAS, pour exister dans les registres.",
+  d:"Ce n'est PAS un logement. Elle rend des droits — mutuelle, chômage, allocations, courrier — mais elle ne décide pas quel CPAS est compétent pour l'aide sociale."},
+ {m:"CPAS compétent", c:"Celui qui doit s'occuper de la personne. Ce n'est pas toujours celui où elle est.",
+  d:"En établissement agréé, c'est le CPAS de la commune d'inscription au moment de l'admission, pendant tout le séjour. Hors établissement, c'est celui de la résidence de fait."},
+ {m:"Résidence de fait", c:"Là où la personne vit vraiment, peu importe ce que disent les papiers.",
+  d:"C'est ce critère qui désigne le CPAS compétent quand la personne n'est pas en établissement agréé."},
+ {m:"Agrément", c:"L'autorisation officielle d'exercer, délivrée par la COCOM.",
+  d:"Sans agrément, un service d'aide aux sans-abri n'a pas le droit d'exister. Le mot compte aussi parce qu'il gèle le CPAS compétent au jour de l'entrée."},
+ {m:"Avis d'incompétence", c:"Le CPAS dit qu'il n'est pas le bon et transmet le dossier.",
+  d:"Il doit transmettre au CPAS compétent DANS LES CINQ JOURS, et intervenir provisoirement s'il y a urgence. Ce n'est jamais à la personne de faire le tour des guichets."},
+ {m:"Annexe", c:"Un document de l'Office des étrangers. Le numéro dit lequel.",
+  d:"L'annexe 26 accuse réception d'une demande de protection ; l'annexe 12 remplace une carte d'identité perdue. Toujours noter le NUMÉRO : il change tout."},
+ {m:"9 bis / 9 ter", c:"Deux demandes de régularisation. 9 bis = humanitaire, 9 ter = médicale.",
+  d:"Le 9 bis suppose des circonstances exceptionnelles et un ancrage ; la décision est discrétionnaire. Le 9 ter suppose une maladie grave et des soins inaccessibles au pays."},
+ {m:"Carte orange", c:"Un séjour provisoire, en attente d'une décision.",
+  d:"Travail et CPAS : selon les cas. C'est la carte qui demande le plus de vérifications."},
+ {m:"Dispatching", c:"Le service qui attribue une place d'accueil aux demandeurs de protection.",
+  d:"Chez Fedasil. À ne pas confondre avec le centre d'arrivée, où l'on introduit la demande."},
+ {m:"PHARE", c:"Le service bruxellois francophone du handicap : matériel, aménagement, accompagnement.",
+  d:"Il n'ouvre RIEN tant que la reconnaissance fédérale (DGPH) n'est pas là."},
+ {m:"DGPH", c:"Le fédéral. C'est lui qui RECONNAÎT le handicap et paie l'ARR et l'AI.",
+  d:"Jusqu'à 65 ans. Au-delà, c'est l'APA via Iriscare. La reconnaissance passe par un médecin qui évalue en POINTS."},
+ {m:"ARR / AI", c:"Les deux allocations : remplacement de revenus, et intégration.",
+  d:"L'AI s'ouvre à partir de 7 points d'autonomie. Les montants dépendent des revenus du MÉNAGE d'il y a deux ans — ce qui se conteste."},
+ {m:"APA", c:"L'allocation pour l'aide aux personnes âgées, à partir de 65 ans.",
+  d:"Par Iriscare à Bruxelles."},
+ {m:"Aménagement raisonnable", c:"Adapter une situation pour qu'une personne handicapée puisse y accéder.",
+  d:"Un rendez-vous au rez-de-chaussée, un document lisible, un délai. Le refuser est une discrimination — article 22ter de la Constitution. Unia : 0800 12 800."},
+ {m:"Double diagnostic", c:"Handicap mental ET troubles psychiques chez la même personne.",
+  d:"Le point aveugle du réseau : le handicap renvoie vers la psychiatrie, la psychiatrie renvoie vers le handicap. ANAÏS est une des rares adresses qui prend les deux."},
+ {m:"Trouble neurocognitif", c:"Une atteinte du cerveau qui s'installe et touche la mémoire, l'orientation, les gestes.",
+  d:"Ce qui compte, c'est le CHANGEMENT, pas l'état. Et le rythme : en quelques jours c'est une urgence, sur des mois c'est un dossier à ouvrir."},
+ {m:"Korsakoff", c:"Un trouble sévère de la mémoire dû à une carence en vitamine B1.",
+  d:"Lié à l'alcool chronique chez une personne dénutrie. La personne comble ses trous par des récits auxquels elle croit — elle ne ment pas. Pris tôt, ça peut s'arrêter."},
+ {m:"Confusion aiguë", c:"Une désorientation qui arrive en quelques heures. C'est une urgence.",
+  d:"Souvent une infection, un sevrage, une déshydratation, une hypoglycémie. Ça se soigne, et ça peut tuer si on attend."},
+ {m:"Réduction des risques", c:"Réduire les dommages sans exiger l'arrêt de la consommation.",
+  d:"Matériel stérile, information, testing. Ça ne remplace pas un sevrage : ça garde la personne en vie et en lien."},
+ {m:"Housing First", c:"On donne d'abord un logement, sans condition préalable.",
+  d:"Le contraire de l'escalier classique où il fallait « mériter » le logement en réglant d'abord le reste."},
+ {m:"Maraude", c:"Une équipe qui va vers les gens dans la rue, plutôt que de les attendre.",
+  d:"Travail de rue. DIOGENES en fait, Infirmiers de rue aussi."},
+ {m:"Asile de nuit", c:"Un abri pour la nuit, sans condition, à reprendre chaque soir.",
+  d:"À ne pas confondre avec une maison d'accueil, où l'on reste et où l'on est accompagné."},
+ {m:"Maison d'accueil", c:"Un hébergement où l'on reste, avec un accompagnement social.",
+  d:"Agréée par la COCOM. C'est l'admission dans un établissement agréé qui gèle le CPAS compétent."},
+ {m:"Centre de jour", c:"Un lieu ouvert la journée : se poser, se laver, laver son linge, être en lien.",
+  d:"On n'y dort pas. DoucheFLUX, à Anderlecht, en est un."},
+ {m:"Guidance à domicile", c:"Un accompagnement chez la personne, là où elle vit.",
+  d:"Y compris au centre : les services agréés PHARE peuvent venir."},
+ {m:"PFO", c:"Chez nous, la fonction qui encode, désencode et libère les chambres.",
+  d:"C'est le rôle qui tient le registre des places."},
+ {m:"Article 27", c:"Un ticket à 1,25 € pour le théâtre, le cinéma, les musées.",
+  d:"Ne se demande jamais en direct : il passe par une association partenaire, ou par le CPAS — mais il faut le demander."},
+ {m:"BAJ — Bureau d'aide juridique", c:"L'avocat gratuit ou presque, selon les revenus.",
+  d:"Anciennement « pro deo ». C'est par lui qu'on passe pour un recours."},
+ {m:"SAJ / SPJ", c:"L'aide à la jeunesse : le SAJ est volontaire, le SPJ est contraint par un juge.",
+  d:"On ne les confond pas : l'un se demande, l'autre s'impose."},
+ {m:"TAM", c:"L'audition filmée d'un mineur victime ou témoin, par un policier formé.",
+  d:"Principe : une seule audition, bien faite. Chaque fois qu'on refait raconter l'enfant, on abîme son témoignage."},
+ {m:"Salduz", c:"Le régime du mineur SUSPECT : droit à un avocat.",
+  d:"Rien à voir avec le TAM, qui concerne les victimes et les témoins."},
+ {m:"EVA", c:"La cellule de police formée à l'accueil des victimes de violences.",
+  d:"Celle de notre zone est au commissariat central d'Anderlecht — 02 559 81 36. Heures de bureau, avec ou sans rendez-vous."},
+ {m:"Sans-chez-soirisme", c:"Le mot qui remplace « sans-abrisme ».",
+  d:"Un abri n'est pas un chez-soi : une place en dortoir ne fait pas un domicile. Mot du Syndicat des immenses."},
+ {m:"Immense", c:"Individu dans une Merde Matérielle Énorme mais Non Sans Exigences.",
+  d:"Le mot que le Syndicat des immenses a choisi pour lui-même. Il dit le problème — matériel — sans y réduire la personne. Ne pas le coller sur quelqu'un qui ne s'y reconnaît pas."},
+ {m:"Allomorphisme", c:"Croire qu'une situation invivable pour soi est vivable pour un autre.",
+  d:"C'est le mot du moment où on se dit « bon, il a une place, ça va » — pour une nuit qu'on ne passerait pas soi-même."},
+ {m:"Dénombrement", c:"Le comptage des personnes sans chez-soi, une nuit par an, à Bruxelles.",
+  d:"Sans chiffre, un besoin n'existe pas dans une décision politique. Organisé par Bruss'help."},
+ {m:"COCOM / COCOF", c:"Les deux administrations bruxelloises qui agréent et financent.",
+  d:"La COCOM est bicommunautaire (les deux langues), la COCOF est francophone. PHARE dépend de la COCOF ; les maisons d'accueil, de la COCOM."},
+ {m:"Bruss'help", c:"L'organisme qui coordonne l'aide aux sans-abri à Bruxelles et oriente.",
+  d:"C'est lui qui pilote le dénombrement."}
+];
+
+function vLexique(){
+  const tri=LEXIQUE.slice().sort(function(a,b){ return a.m.localeCompare(b.m,'fr'); });
+  let h=heroBandeau('Le dictionnaire', tri.length+' mots de chez nous','#b28b7a','book',true);
+  h+='<div class="fsrc" style="text-align:left;padding:12px 0 0;max-width:620px">'+
+     'Les mots relevés DANS COUSIN — dans les fiches, les formations, les schémas. '+
+     'Une phrase suffit ; le reste se déplie si tu veux.</div>';
+  h+='<div class="lex">'+tri.map(function(x,i){
+    return '<details class="lx"><summary><b>'+esc(x.m)+'</b><span>'+esc(x.c)+'</span></summary>'+
+      '<p>'+esc(x.d)+'</p></details>';
+  }).join('')+'</div>';
+  h+='<div class="imprligne">'+boutonImprimer()+'</div>';
+  return h+'<div style="height:26px"></div>';
+}
 
 function vEduc(){
   let h=heroBandeau('Éduc','Ce qu’on peut proposer','#f8763f','accomp',true);
