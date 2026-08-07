@@ -6414,10 +6414,44 @@ function choixNote(ev,sid,champ,idx,valeur){
   const p=BYSID[sid]; if(!p) return;
   const zone=document.getElementById('mod-'+champ+'-'+sid);
   if(zone) zone.innerHTML=corpsInteractif(p,champ);
+  /* La note d'envoi reprend l'objet du mail : si on change un crochet, elle doit
+     suivre, sinon on colle dans le dossier un objet qui n'est plus celui envoyé. */
+  const zn=document.getElementById('mod-noteenvoi-'+sid);
+  if(zn) zn.textContent=noteMailEnvoye(p);
 }
 function saisieNote(sid,champ,idx,valeur){
   const cle=noteCle(sid,champ), c=NOTE_CHOIX[cle]||(NOTE_CHOIX[cle]={});
   c[idx]=valeur;
+}
+/* ═══ LA NOTE D'ENVOI, SOUS CHAQUE MAIL (Mag, 08/08/2026) ═══
+   « Je veux qu'il y ait des notes chaque fois qu'on écrit des mails, parce que je veux
+   qu'il y ait une note en dessous en disant "mail envoyé à ta ta". »
+
+   Le geste réel : on envoie un mail, puis on retourne dans le dossier écrire qu'on l'a
+   envoyé. C'était deux outils et deux moments ; c'est maintenant le même écran.
+
+   L'OBJET EST REPRIS TEL QU'ENVOYÉ — avec les crochets déjà remplis (texteNote), pas
+   le modèle brut : c'est ce qui a vraiment été envoyé qui doit être tracé.
+
+   ⚠ AUCUN NOM, comme partout dans COUSIN. « Envoyé à » reste vide : on y met un
+   SERVICE (le CPAS de Molenbeek, la maison médicale), jamais une personne. Et le nom
+   de l'hébergé ne se met pas ici — il est déjà dans le dossier où on colle la note. */
+function noteMailEnvoye(p){
+  const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const l=[];
+  l.push('MAIL ENVOYÉ — '+d);
+  l.push('Envoyé à : ');
+  if(p.objet) l.push('Objet : '+texteNote(p,'objet'));
+  l.push('Modèle utilisé : '+p.nom);
+  l.push('');
+  l.push('CE QUI EST DEMANDÉ');
+  l.push('· ');
+  l.push('');
+  l.push('SUITE À DONNER');
+  l.push('· Relancer si pas de réponse le ');
+  l.push('');
+  l.push('(Note produite par COUSIN. Elle ne contient aucun nom : compléter dans le dossier.)');
+  return l.join('\n');
 }
 /* Le texte FINI : les choix faits et les mots écrits remplacent les crochets ; ce
    qu'on n'a pas rempli reste entre crochets, pour qu'on voie ce qui manque. */
@@ -9353,6 +9387,17 @@ function vFiche(p){
       (p.corps?cbx(p.genre==='Note'?'Canevas de note':'Corps du mail','corps'):'')+
       '<div class="fsrc" style="text-align:left;padding:8px 2px 0">Touche les mots entre crochets : '+
       'choisis, ou écris dedans. Le modèle se monte ici, tu ne copies que le texte fini.</div>';
+    /* LA NOTE D'ENVOI, sous le mail — mais pas sous une Note : une note qui trace
+       l'envoi d'une note n'aurait aucun sens. */
+    if(p.genre!=='Note'){
+      body+='<div class="copybox" style="margin-top:14px"><div class="lab">La note pour le dossier'+
+        '<button class="cbcop" onclick="copyTxt(noteMailEnvoye(BYSID[\''+p.sid+'\']),\'Note copiée\')">'+
+          '<span class="ic">'+icon('copy')+'</span>Copier</button></div>'+
+        '<p id="mod-noteenvoi-'+p.sid+'" style="white-space:pre-wrap">'+esc(noteMailEnvoye(p))+'</p></div>'+
+        '<div class="fsrc" style="text-align:left;padding:8px 2px 0">Une fois le mail parti, '+
+        'colle ça dans le dossier : la date, le service, et l’objet exactement tel que tu l’as envoyé. '+
+        '<b>Aucun nom</b> — ni celui de la personne, ni le tien.</div>';
+    }
   } else if(/poubelle/i.test(p.nom||'')){
     body+=poubellesTableau();
   } else if(p.memo){
