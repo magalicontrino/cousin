@@ -11,6 +11,7 @@
 <link rel="icon" href="favicon.svg">
 <!-- La connexion de l'équipe (Google via Supabase), reprise de app-classique.html. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="qrcode.js"></script>
 <style>
 /* ============================================================
    COUSIN · Lux — langage « GRILLE » (validé le 06/08/2026) :
@@ -412,6 +413,15 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .boule{flex:1 1 0;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:8px;background:transparent;border:0;padding:0}
 .boule .rond{width:64px;height:64px;border-radius:50%;background:var(--noir);display:flex;align-items:center;justify-content:center}
 .boule .rond .ic{width:30px;height:30px}
+/* Ce qui n'a rien à faire aujourd'hui : plus de rond noir, un trait fin et un picto
+   gris. Ça reste cliquable et lisible, mais ça ne réclame plus le regard
+   (idée de Mag, 08/08/2026 : « griser un peu ceux qui sont inactifs »). */
+.boule.dort .rond{background:transparent;border:1.5px solid var(--ligne)}
+.boule.dort .rond .ic,.boule.dort .rond svg{color:#b4b2a9!important}
+.boule.dort b{color:#8b8984;font-weight:600}
+.boule.dort em{color:#b4b2a9}
+/* L'anneau a besoin d'air pour ne pas toucher la boule voisine. */
+.boules{gap:12px}
 /* Le bac de Mag est noir avec le recyclage en blanc : sur le rond noir, on le retourne
    pour qu'il se voie — bac clair, recyclage sombre. Son dessin reste le sien. */
 .boule .rond img.picoc{width:30px;height:30px;filter:invert(1)}
@@ -531,6 +541,13 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .fsavoir b .ic{width:16px;height:16px;flex:none}
 .fsavoir p{font-size:14.5px;line-height:1.5;margin:8px 0 0;white-space:pre-line}
 .fboutons{padding:14px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fboutons.n1{grid-template-columns:1fr}
+.fboutons.n3{grid-template-columns:repeat(3,1fr)}
+/* Sur téléphone, trois pictos suffisent : les mots serrés à trois colonnes se
+   couperaient en deux lignes (Mag, 08/08/2026 : « on comprendra »). */
+@media (max-width:520px){ .fboutons.n3 .lb{display:none} .fboutons.n3 .fbtn{gap:0} }
+.ftel-non{margin-top:10px;font-size:12.5px;color:#8b8984;line-height:1.5}
+.ftel-non button{text-decoration:underline;color:#73716b;font-size:12.5px}
 .fbtn{border-radius:6px;background:#f6f5f3;border:1.5px solid var(--noir);padding:14px;
   display:flex;align-items:center;justify-content:center;gap:9px;color:var(--noir);
   font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
@@ -4925,7 +4942,12 @@ function imprimer(){
         if(f.horaires) l.push('<span><i>Horaires</i>'+esc(f.horaires)+'</span>');
         if(f.mail) l.push('<span><i>Mail</i>'+esc(f.mail)+'</span>');
         if(f.site) l.push('<span><i>Site</i>'+esc(f.site)+'</span>');
+        /* Le QR n'apparaît QUE s'il y a une adresse : un QR vers nulle part serait
+           une tache d'encre. Et seulement sur la feuille d'un lieu — quinze QR sur
+           une liste noieraient la page et coûteraient cher. */
+        const qr = f.adr ? qrSVG(itiHref(f.adr), 104) : '';
         corps='<div class="pf-f pf-seule">'+
+          (qr?'<div class="pf-qr">'+qr+'<span>Scanne pour l’itinéraire<br>depuis là où tu es</span></div>':'')+
           '<b>'+esc(f.nom)+'</b>'+
           (f.commune?'<em>'+esc(f.commune)+'</em>':'')+
           (f.desc?'<p>'+esc(f.desc)+'</p>':'')+
@@ -5015,6 +5037,9 @@ function imprimer(){
       '.pf-l{display:flex;flex-wrap:wrap;gap:3px 16px;margin-top:5px}'+
       '.pf-l span{font-size:11.5px;color:#111}'+
       '.pf-seule b{font-size:20px}'+
+      '.pf-qr{float:right;margin:0 0 12px 16px;text-align:center;width:104px}'+
+      '.pf-qr span{display:block;font-family:ui-monospace,monospace;font-size:8px;letter-spacing:.06em;'+
+        'line-height:1.45;color:#666;margin-top:4px}'+
       '.pf-seule{border-bottom:0}'+
       '.pf-f p.pm{color:#a3281f;font-size:11px;margin-top:5px}'+
       '.pf-f p.pn{white-space:pre-line;margin-top:9px;padding-top:8px;border-top:1px solid #ddd;font-size:11.5px;color:#333}'+
@@ -5100,6 +5125,43 @@ function gmailHref(p){
     '&body='+encodeURIComponent(texteNote(p,'corps'));
 }
 function copyTxt(txt,msg){navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copié'),()=>toast('Copie impossible'))}
+/* ═══ LE QR CODE DE L'ITINÉRAIRE (08/08/2026) ═══
+   Mag voulait un itinéraire écrit sur la feuille (« prends le 89, 25 minutes »).
+   Impossible de façon fiable : ça dépend de l'heure, du jour, des travaux, et un
+   itinéraire imprimé vieillit en quelques jours. Le QR, lui, ouvre le trajet EN
+   DIRECT depuis l'endroit où la personne se trouve — il ne périme jamais.
+
+   « Vraiment minimalistes avec des points, le moins d'encre possible » :
+   · les modules sont des POINTS et non des carrés pleins — un point de rayon 0,40
+     couvre la moitié de la surface d'un carré : deux fois moins d'encre. On était
+     descendu à 0,36, mais en dessous de 0,40 le contraste par module devient trop
+     faible et les lecteurs décrochent sur un QR imprimé petit. Un QR qui ne se lit
+     pas coûte plus cher que l'encre qu'il économise.
+   · les trois repères d'angle sont des ANNEAUX CREUX, avec un point au centre :
+     c'est le minimum que les lecteurs exigent pour se caler.
+   Testé : reste lisible imprimé à 22 mm de côté. */
+function qrSVG(texte, taille){
+  try{
+    if(typeof qrcode!=='function') return '';
+    const qr=qrcode(0,'M'); qr.addData(String(texte||'')); qr.make();
+    const n=qr.getModuleCount();
+    const repere=function(r,c){ return (r<7&&c<7) || (r<7&&c>=n-7) || (r>=n-7&&c<7); };
+    let d='';
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+      if(!qr.isDark(r,c) || repere(r,c)) continue;
+      d+='<circle cx="'+(c+0.5)+'" cy="'+(r+0.5)+'" r="0.40"/>';
+    }
+    [[0,0],[0,n-7],[n-7,0]].forEach(function(o){
+      const y=o[0], x=o[1];
+      /* anneau creux (règle du pair-impair), puis le point du centre */
+      d+='<path fill-rule="evenodd" d="M'+x+' '+y+'h7v7h-7z M'+(x+1)+' '+(y+1)+'v5h5v-5z"/>';
+      d+='<circle cx="'+(x+3.5)+'" cy="'+(y+3.5)+'" r="1.35"/>';
+    });
+    const px=taille||96;
+    return '<svg viewBox="-1 -1 '+(n+2)+' '+(n+2)+'" width="'+px+'" height="'+px+'" '+
+      'xmlns="http://www.w3.org/2000/svg" fill="#1b1b1b" aria-hidden="true">'+d+'</svg>';
+  }catch(e){ return ''; }
+}
 function itiHref(adr){return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(ITI_DEPART)+
   '&destination='+encodeURIComponent(adr)+'&travelmode=transit'}
 
@@ -5492,7 +5554,8 @@ function vHome(){
   if(l) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e',"go('#/linge')"]);
   /* La CLÉ est TOUJOURS là, même quand la liste est vide (Mag, 06/08/2026 : « il y a
      toujours des trucs à changer ») — c'est aussi par elle qu'on ajoute une chambre. */
-  boules.push(['cle','Chambres',(chEnCours()?chEnCours()+' en cours':'Rien en cours'),'#f0efed','go(\'#/chambres\')']);
+  boules.push(['cle','Chambres',(chEnCours()?chEnCours()+' en cours':'Rien en cours'),'#f0efed','go(\'#/chambres\')',
+    !chEnCours()]);   // ← 6e valeur : vrai quand il n'y a rien à faire
   /* Poubelles : NOTRE picto (notif-poubelle), comme partout ailleurs dans l'app,
      à la couleur du premier sac — le noir passe en crème pour rester visible
      sur le rond noir (Mag, 06/08/2026). Les couleurs des sacs sont dites en toutes
@@ -5513,8 +5576,20 @@ function vHome(){
         const dedans=(b[0]==='poubelle')
           ? pictoPoubelle(b[3],'#1b1b1b',30)
           : (b[3]?'<span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span>':b[0]);
-        return '<button class="boule" onclick="'+b[4]+'">'+
-          '<span class="rond">'+dedans+'</span>'+
+        /* L'ANNEAU DE COULEUR — choix « 2 » de Mag, 08/08/2026. Ses pictos et ses ronds
+           noirs ne bougent pas : on ajoute juste un anneau à la couleur du jour autour,
+           pour qu'on voie de loin ce qui demande quelque chose. Et quand il n'y a rien
+           à faire (b[5]), le rond perd son noir : il ne reste qu'un trait fin et un
+           picto gris — présent, mais qui ne réclame plus l'attention. */
+        const dort=!!b[5];
+        /* Quand le sac du jour est NOIR, l'anneau noir se confondrait avec le rond noir.
+           On glisse alors un liseré crème entre les deux, pour que l'anneau existe
+           quand même (idée de Mag, 08/08/2026). */
+        const memeQueLeFond = String(b[3]||'').toLowerCase()==='#1b1b1b' || String(b[3]||'').toLowerCase()==='#242424';
+        const anneau = dort ? ''
+          : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+b[3]:'0 0 0 4px '+b[3])+'"';
+        return '<button class="boule'+(dort?' dort':'')+'" onclick="'+b[4]+'">'+
+          '<span class="rond"'+anneau+'>'+dedans+'</span>'+
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
       }).join('')+'</div>';
   }
@@ -7380,10 +7455,26 @@ function vFiche(p){
          '<span class="ic">'+icon('send')+'</span>Ouvrir dans Gmail</button>';
     }
   }
-  else if(th) b2='<a class="fbtn plein" style="background:'+c+'" href="'+th+'"><span class="ic">'+icon('phone')+'</span>Appeler</a>';
+  /* Le téléphone a QUITTÉ cette chaîne : il est devenu b0, son propre bouton. Avant,
+     un numéro chassait le site — on ne pouvait pas appeler ET ouvrir le site. Depuis le
+     08/08/2026 les trois cohabitent : appeler · itinéraire · ouvrir. */
   else if(p.mail) b2='<a class="fbtn plein" style="background:'+c+'" href="mailto:'+esc(p.mail)+'"><span class="ic">'+icon('send')+'</span>Écrire</a>';
   else if(p.site) b2='<a class="fbtn plein" style="background:'+c+'" href="'+urlHref(p.site)+'" target="_blank" rel="noopener"><span class="ic">'+icon('lien')+'</span>Ouvrir</a>';
-  const boutons=(b1||b2)?'<div class="fboutons">'+(b1||'<span></span>')+(b2||'<span></span>')+'</div>':'';
+  /* LE BOUTON TÉLÉPHONE, demandé par Mag le 08/08/2026 : « comment font les gens ? ».
+     Il passe EN PREMIER quand le numéro existe — appeler est le geste le plus fréquent,
+     bien avant l'itinéraire. Sur téléphone les libellés disparaissent : trois pictos
+     côte à côte se comprennent sans qu'on les nomme (sa remarque). */
+  let b0='';
+  if(p.tel) b0='<a class="fbtn plein" style="background:'+c+'" href="tel:'+esc(String(p.tel).replace(/[^0-9+]/g,''))+'" aria-label="Appeler '+esc(p.nom)+'">'+
+    '<span class="ic">'+icon('phone')+'</span><span class="lb">Appeler</span></a>';
+  /* Pas de numéro dans la fiche : on le DIT, au lieu de laisser un trou que personne
+     ne remarque. C'est ce qui manquait sur Aquarelle et Médecins du Monde. */
+  const sansTel = !p.tel && DOM[p.domaine] && DOM[p.domaine].reseau
+    ? '<div class="ftel-non">Pas de numéro dans cette fiche'+(p.site?' — le site est au-dessus.':'.')+
+      ' <button onclick="ouvrirIdee()">Le signaler</button></div>'
+    : '';
+  const n=[b0,b1,b2].filter(Boolean).length;
+  const boutons=n?'<div class="fboutons n'+n+'">'+[b0,b1,b2].filter(Boolean).join('')+'</div>'+sansTel:sansTel;
 
   /* Le bouton d'impression d'UNE fiche : c'est la feuille qu'on donne à quelqu'un
      pour qu'il puisse s'y rendre sans téléphone (Mag, 08/08/2026). */
