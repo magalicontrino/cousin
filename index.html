@@ -176,6 +176,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .sch-act{display:flex;gap:8px;margin-top:16px}
 .sch-impr{flex:2;background:var(--noir);color:#f0efed;border-radius:8px;padding:14px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.sch-rel{flex:1;border:1.5px solid var(--noir);border-radius:8px;padding:14px;
+  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
 .sch-rec{flex:1;border:1.5px solid var(--ligne);border-radius:8px;padding:14px;color:#73716b;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
 /* Sur le papier : pas de cadre ni de fond, la feuille EST la page. */
@@ -9398,6 +9400,7 @@ function vSchemas(){
     h+=schemaFeuille(s,L,lg,false);
     h+='<div class="sch-act">'+
        '<button class="sch-impr" onclick="imprimerSchema()">Imprimer ou enregistrer en PDF</button>'+
+       (SCHEMA_L!=='fr'?'<button class="sch-rel" onclick="imprimerRelecture()">Feuille de relecture</button>':'')+
        '<button class="sch-rec" onclick="schemaRecommencer()">Recommencer</button></div>';
   }
   return h+'</div><div style="height:26px"></div>';
@@ -9422,6 +9425,72 @@ function schemaFeuille(s,L,lg,pourPapier){
       : '')+
   '</div>';
 }
+/* ═══ LA FEUILLE DE RELECTURE (08/08/2026) ═══
+   Trouver quelqu'un qui lit l'arabe ou le polonais, c'est facile. Lui faire relire
+   une traduction sans qu'il connaisse ni l'app ni le français, ça ne l'est pas.
+
+   Cette feuille met LE FRANÇAIS ET LA TRADUCTION CÔTE À CÔTE, ligne par ligne, et
+   met en évidence les trois endroits où une inversion coûte un droit : « avant / après
+   le soin », « ne payez rien avant », « gratuit ». La personne compare, entoure ce qui
+   cloche, et rend le papier. Pas besoin d'ouvrir COUSIN. */
+function imprimerRelecture(){
+  const s=schemaTrouve(); if(!s) return;
+  if(SCHEMA_L==='fr'){ toast('Choisis d’abord une autre langue que le français'); return; }
+  const lg=SCHEMA_LANGUES.find(function(x){return x.k===SCHEMA_L;});
+  const F=s.fr, T=s[SCHEMA_L];
+  const mtF=SCHEMA_MT.fr, mtT=SCHEMA_MT[SCHEMA_L];
+  const rtl=lg.rtl?' dir="rtl" style="text-align:right"':'';
+  const ligne=function(titre, fr, tr){
+    return '<tr><td class="lab">'+esc(titre)+'</td>'+
+      '<td class="fr">'+esc(fr).replace(/\n/g,'<br>')+'</td>'+
+      '<td class="tr"'+rtl+'>'+esc(tr).replace(/\n/g,'<br>')+'</td></tr>';
+  };
+  let lignes = ligne('Titre', F.t, T.t) + ligne('Sous-titre', F.s, T.s);
+  F.e.forEach(function(e,i){
+    lignes += ligne('Étape '+(i+1)+' — titre', e.t, T.e[i]?T.e[i].t:'(MANQUE)');
+    lignes += ligne('Étape '+(i+1)+' — texte', e.d, T.e[i]?T.e[i].d:'(MANQUE)');
+  });
+  lignes += ligne('Médecin traitant — titre', mtF.t, mtT.t);
+  lignes += ligne('Médecin traitant — texte', mtF.d, mtT.d);
+  lignes += ligne('Avertissement', F.a, T.a);
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Relecture — '+esc(lg.nom)+'</title><style>'+
+    'body{font-family:-apple-system,Segoe UI,sans-serif;background:#e8e7e4;margin:0;padding:0;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;background:#1b1b1b;color:#f0efed;padding:11px 16px;display:flex;gap:10px;align-items:center}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);background:none;color:#f0efed;border-radius:5px;'+
+      'padding:8px 13px;font-size:11px;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;box-sizing:border-box;margin:22px auto;padding:14mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){.pg{width:auto;margin:10px;padding:10mm}}'+
+    'h1{font-size:19px;margin:0 0 4px}'+
+    '.cons{background:#f6f5f3;border-left:4px solid #e63329;padding:10px 12px;font-size:12.5px;line-height:1.5;margin:12px 0 16px}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'td{border-top:1px solid #ddd;padding:8px 6px;vertical-align:top;font-size:12px;line-height:1.45}'+
+    'td.lab{width:20%;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.06em;'+
+      'text-transform:uppercase;color:#777}'+
+    'td.fr{width:40%}td.tr{width:40%;background:#fbfaf8}'+
+    'tr{break-inside:avoid;page-break-inside:avoid}'+
+    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:12mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Relecture — français / '+esc(lg.nom)+'</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg"><h1>Relecture — '+esc(F.t)+'</h1>'+
+      '<div style="font-size:12px;color:#666">Français à gauche, '+esc(lg.nom)+' à droite.</div>'+
+      '<div class="cons"><b>Merci de vérifier surtout trois choses :</b><br>'+
+      '1. « <b>AVANT</b> le soin » n’est pas devenu « après ».<br>'+
+      '2. « Ne payez rien <b>avant</b> d’être passé au CPAS » garde bien ce sens.<br>'+
+      '3. « <b>gratuit</b> » veut bien dire sans rien payer.<br><br>'+
+      'Les mots entre parenthèses (CPAS, AMU, réquisitoire…) doivent RESTER en français : '+
+      'c’est ce mot-là qu’il faut dire au guichet. Entourez ce qui cloche et rendez la feuille.</div>'+
+      '<table>'+lignes+'</table></div></body></html>');
+  w.document.close();
+}
+
 /* L'impression : une seule page A4, la feuille et rien d'autre. */
 function imprimerSchema(){
   const s=schemaTrouve(); if(!s) return;
