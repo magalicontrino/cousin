@@ -4870,13 +4870,54 @@ function imprimer(){
   let t='COUSIN';
   try{
     const v=current&&current.view;
-    if(v==='domaine' && current.k && DOM[current.k]) t=DOM[current.k].label;
+    /* La route range la clé du domaine sous `key` — pas `k`. La feuille sortait
+       intitulée « Une liste » au lieu de « Logement ». */
+    if(v==='domaine' && current.key && DOM[current.key]) t=DOM[current.key].label;
+    else if(v==='fiche' && current.sid){
+      const f=DATA.find(function(x){ return x.sid===current.sid; }); if(f) t=f.nom;
+    }
     else if(v && ECRAN_NOMS[v]) t=ECRAN_NOMS[v];
   }catch(e){}
-  const h=document.querySelector('#printHead .ph-t'); if(h) h.textContent=t;
-  const d=document.querySelector('#printHead .ph-d');
-  if(d) d.textContent='Imprimé le '+new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'});
-  window.print();
+  const dateTxt='Imprimé le '+new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'});
+  const src=document.getElementById('view');
+  if(!src) return;
+  /* LA FEUILLE S'OUVRE D'ABORD DANS UNE PAGE (Mag, 08/08/2026 : « il faut que je
+     visualise ce que j'ai avant d'imprimer »). Elle la regarde, et c'est ELLE qui
+     décide d'imprimer ou d'enregistrer en PDF. On n'envoie plus rien à l'imprimante
+     dans son dos. */
+  const styles=[...document.querySelectorAll('style')].map(function(x){ return x.textContent; }).join('\n');
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups pour COUSIN'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>'+esc(t)+' — COUSIN</title><style>'+styles+'</style>'+
+    /* Dans l'aperçu, ce que l'impression cache est caché À L'ÉCRAN aussi : sinon on
+       regarderait une page qui ne ressemble pas à la feuille qui sortira. */
+    '<style>'+
+      'body{background:#fff!important;padding:0!important;margin:0!important;height:auto!important}'+
+      '.fw{max-width:760px;margin:0 auto;padding:26px 22px 60px}'+
+      '#topbar,#tabbar,#starbtn,#neufbtn,.bascule,.imprbtn,.jxpied,.jxback,.cbtn,'+
+      '.quiz-next,.acform,.cal-fl,.cal-sup,.fboutons,.fbtn,.chv,.sg,.jrat,.jgrille,.pgn,.rail2'+
+        '{display:none!important}'+
+      '.pt-tete{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;'+
+        'background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+      '.pt-tete b{flex:1;font-size:14px;font-weight:600}'+
+      '.pt-tete button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;'+
+        'font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;'+
+        'color:#f0efed;background:none;cursor:pointer}'+
+      '.pt-tete button.ok{background:#f0efed;color:#1b1b1b;border-color:#f0efed}'+
+      '.pt-h{display:flex;align-items:baseline;gap:14px;border-bottom:2px solid #000;'+
+        'padding-bottom:8px;margin-bottom:16px}'+
+      '.pt-h b{font-size:19px;font-weight:700;text-transform:uppercase}'+
+      '.pt-h span{margin-left:auto;font-family:ui-monospace,monospace;font-size:10px;color:#444}'+
+      '@media print{ .pt-tete{display:none!important} .fw{padding:0!important;max-width:100%!important} }'+
+    '</style></head><body>'+
+    '<div class="pt-tete"><b>Aperçu avant impression</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>'+
+    '<div class="fw"><div class="pt-h"><b>'+esc(t)+'</b><span>'+esc(dateTxt)+'</span></div>'+
+      src.innerHTML+'</div></body></html>');
+  w.document.close();
 }
 /* Le bouton, posé partout où une page vaut la peine d'être emportée sur papier. */
 function boutonImprimer(){
