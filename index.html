@@ -5895,14 +5895,22 @@ function vHome(){
   /* La CLÉ est TOUJOURS là, même quand la liste est vide (Mag, 06/08/2026 : « il y a
      toujours des trucs à changer ») — c'est aussi par elle qu'on ajoute une chambre. */
   boules.push(['cle','Chambres',(chEnCours()?chEnCours()+' en cours':'Rien en cours'),'#f0efed','go(\'#/chambres\')',
-    !chEnCours()]);   // ← 6e valeur : vrai quand il n'y a rien à faire
+    !chEnCours(), '#1b1b1b']);   // ← 6e : rien à faire · 7e : couleur de l'anneau
   /* Poubelles : NOTRE picto (notif-poubelle), comme partout ailleurs dans l'app,
      à la couleur du premier sac — le noir passe en crème pour rester visible
      sur le rond noir (Mag, 06/08/2026). Les couleurs des sacs sont dites en toutes
      lettres sous la boule. */
   if(col){
     const cs=POUB_COUL[col.sacs[0].c];
-    boules.push(['poubelle','Poubelles',sacsTexte(col.sacs),(cs==='#242424'?'#f0efed':cs),'goFiche(/poubelle/i)']);
+    /* ⚠ DEUX COULEURS, PAS UNE (réparé le 08/08/2026, signalé par Mag : « c'est pas
+       grisé mais il n'y a pas de contour non plus, donc je ne sais pas si c'est le jour »).
+       b[3] est la couleur du PICTO posé sur le rond noir — un sac noir y devient crème
+       pour rester visible. b[6] est la couleur du SAC, celle de l'anneau. Tant qu'une
+       seule valeur servait aux deux, le jour du sac NOIR dessinait un anneau CRÈME sur
+       un fond CRÈME : invisible. La boule ne disait donc plus rien les lundis, mercredis
+       et vendredis — les seuls jours où elle a quelque chose à dire. */
+    boules.push(['poubelle','Poubelles',sacsTexte(col.sacs),(cs==='#242424'?'#f0efed':cs),
+      'goFiche(/poubelle/i)', false, cs]);
   }
   /* LES PRODUITS, avec le linge, les poubelles et la clé — sa demande du 08/08/2026.
      La boule n'apparaît que quand la distribution est là : un rappel permanent ne
@@ -5931,9 +5939,13 @@ function vHome(){
         /* Quand le sac du jour est NOIR, l'anneau noir se confondrait avec le rond noir.
            On glisse alors un liseré crème entre les deux, pour que l'anneau existe
            quand même (idée de Mag, 08/08/2026). */
-        const memeQueLeFond = String(b[3]||'').toLowerCase()==='#1b1b1b' || String(b[3]||'').toLowerCase()==='#242424';
+        /* L'anneau prend b[6] quand elle existe — la couleur du JOUR, qui n'est pas
+           toujours celle du picto. Sans elle, une boule dont le picto est crème
+           (poubelle noire, clé des chambres) se dessinait un anneau crème invisible. */
+        const cAnneau = b[6] || b[3];
+        const memeQueLeFond = String(cAnneau||'').toLowerCase()==='#1b1b1b' || String(cAnneau||'').toLowerCase()==='#242424';
         const anneau = dort ? ''
-          : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+b[3]:'0 0 0 4px '+b[3])+'"';
+          : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+cAnneau:'0 0 0 4px '+cAnneau)+'"';
         return '<button class="boule'+(dort?' dort':'')+'" onclick="'+b[4]+'">'+
           '<span class="rond"'+anneau+'>'+dedans+'</span>'+
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
