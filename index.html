@@ -5092,7 +5092,17 @@ async function ajouterChambre(){
 function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
 /* Cocher ou décocher — toujours avec confirmation, et on note QUI l'a fait. */
 async function cocherEtape(id,k){
-  const ch=CHAMBRES.find(c=>c.id===id); if(!ch||!sb) return;
+  /* ⚠ ON COMPARE EN TEXTE DES DEUX CÔTÉS (réparé le 08/08/2026, signalé par Mag :
+     « on ne sait pas cocher »). L'identifiant arrive du onclick, donc TOUJOURS en
+     texte ('12'), alors que la base le renvoie en NOMBRE (12). Le === échouait,
+     la fonction repartait sans rien faire, et le clic ne produisait strictement
+     RIEN : pas de fenêtre, pas de message, rien à comprendre.
+     Les autres boutons de l'app (chantier, boîte à idées, check-lists) passent
+     leur identifiant sans apostrophes, donc en nombre — c'est pour ça qu'eux
+     fonctionnaient. Ici les apostrophes étaient là, et le === ne pardonne pas. */
+  const ch=CHAMBRES.find(c=>String(c.id)===String(id));
+  if(!ch){ toast('Chambre introuvable — recharge la page'); return; }
+  if(!sb){ toast('Pas de connexion — reconnecte-toi'); return; }
   const et=CH_ETAPES.find(x=>x.k===k); if(!et) return;
   const fait=!!ch[k+'_le'];
   cousinConfirme('Chambre '+ch.numero,
