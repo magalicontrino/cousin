@@ -1686,6 +1686,43 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .chet em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:2px}
 .chet.ok b{text-decoration:line-through;color:var(--enc2)}
+/* SANS OBJET : barré comme une étape faite, mais sans couleur et sans coche — on ne
+   décore pas d'un ✓ vert un geste que personne n'a fait. */
+.chet.so b{text-decoration:line-through;color:var(--enc2)}
+.chet.so i{border-color:#c2c0bb;color:#c2c0bb}
+.chet.so .chq{color:#a8a5a0;font-style:italic}
+
+/* ── LE CHOIX À L'AJOUT : à vider, ou déjà vide ── */
+.chdep{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.chdep-t{flex:none;align-self:center;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--enc2)}
+.chdep-b{flex:1;min-width:130px;text-align:left;background:#f4f3f0;border:1.5px solid var(--ligne);
+  border-radius:0;padding:9px 11px;color:var(--noir)}
+.chdep-b b{display:block;font-size:13.5px;font-weight:600;line-height:1.2}
+.chdep-b em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:8.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:3px}
+.chdep-b.on{border-color:var(--noir);background:#fdfdfc}
+.chdep-b.on em{color:var(--noir)}
+
+/* ── LE RÉSUMÉ DE CE QUI RESTE, ÉTAGE PAR ÉTAGE ── */
+.chres{border:1.5px solid var(--noir);background:#fdfdfc;padding:14px 15px 12px;margin-top:22px}
+.chres-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  padding-bottom:9px;border-bottom:1.5px solid var(--noir);margin-bottom:11px}
+.chres-n{display:inline-flex;align-items:baseline;gap:6px;border-left:4px solid var(--noir);
+  padding:1px 10px 1px 8px;margin:0 8px 6px 0;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2)}
+.chres-n b{font-family:'Eastman',system-ui,sans-serif;font-size:19px;font-weight:700;letter-spacing:-.02em;
+  color:var(--noir);line-height:1}
+/* La ligne du haut, tous étages confondus : c'est elle qu'on lit en premier. */
+.chres-tout{padding-bottom:10px;border-bottom:1px solid #e2e0db;margin-bottom:10px}
+.chres-e{display:flex;align-items:baseline;gap:12px;padding:5px 0}
+.chres-el{flex:none;width:88px;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--noir)}
+.chres-ec{flex:1;min-width:0}
+.chres-e .chres-n{font-size:8.5px;margin-bottom:2px}
+.chres-e .chres-n b{font-size:15px}
+.chres-p{font-size:12.5px;line-height:1.5;color:var(--enc2);margin:8px 0 0;
+  border-top:1px solid #e2e0db;padding-top:9px}
 .chet .chq{margin-left:auto;flex:none}
 .chdel{width:100%;background:transparent;border:1px solid var(--ligne);border-radius:0;margin-top:9px;
   padding:9px;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
@@ -6052,14 +6089,43 @@ function rafraichirChambres(){
     if(sig!==_chSignature){ _chSignature=sig; if(current.view==='chambres') render(); }
   });
 }
+/* ═══ CE QUI RESTE À FAIRE SUR UNE CHAMBRE ═══
+   La première étape obligatoire pas encore faite. C'est elle qui décide de tout :
+   ce qu'on annonce dans le résumé, et ce qu'on compte par étage. */
+function chProchaine(ch){
+  const e=CH_ETAPES.filter(function(x){ return !x.opt; }).find(function(x){ return !ch[x.k+'_le']; });
+  return e||null;
+}
+/* ═══ « VIDER » EST CONDITIONNEL (Mag, 08/08/2026) ═══
+   « Quand une personne part, on la désencode. Par contre la chambre reste soit avec
+   ses affaires — et donc il faut la vider — soit la personne est déjà partie avec
+   ses affaires, il ne faut pas la vider, alors il faut la nettoyer directement. »
+
+   L'ordre de l'app était donc BON ; c'est l'étape « vider » qui ne s'applique pas
+   toujours. On le demande à l'ajout, au moment où on le sait.
+
+   ⚠ ON NE COCHE PAS « VIDER » AU NOM DE QUELQU'UN. Une chambre qui n'a rien à vider
+   n'a pas été vidée par la personne qui l'ajoute : on écrit « sans objet » dans la
+   colonne du QUI, et l'écran l'affiche tel quel, en gris. Signer d'un nom un geste
+   que personne n'a fait, dans une liste faite justement pour savoir qui a fait quoi,
+   ce serait mentir à l'équipe. */
+const CH_SANS_OBJET='sans objet';
+let CH_DEPART='vider';     /* le choix en cours dans le formulaire d'ajout */
+function chDepart(v){ CH_DEPART=v; render(); }
 async function ajouterChambre(){
   const n=document.getElementById('chNum'), i=document.getElementById('chIni');
   const num=(n&&n.value||'').trim(); if(!num){n&&n.focus();return}
   if(!sb){ toast('Pas de connexion'); return; }
+  const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,14)||null,
+               cree_par:nomAffiche()};
+  if(CH_DEPART==='nettoyer'){
+    ligne.vide_le=new Date().toISOString();
+    ligne.vide_par=CH_SANS_OBJET;
+  }
   try{
-    await sb.from('chambres').insert({numero:num, initiales:(i&&i.value||'').trim().slice(0,14)||null,
-                                      cree_par:nomAffiche()});
+    await sb.from('chambres').insert(ligne);
     if(n)n.value=''; if(i)i.value='';
+    CH_DEPART='vider';                 /* la suivante repart du cas le plus courant */
     await loadChambres(); if(current.view==='chambres') render();
   }catch(e){ toast('Ajout impossible'); }
 }
@@ -6101,10 +6167,14 @@ function retirerChambre(id,num){
 /* « Marie · 14:20 » — sous chaque étape faite, qui et quand. */
 function chQuand(ch,k){
   const iso=ch[k+'_le']; if(!iso) return '';
+  /* Une étape sans objet ne porte ni heure ni prénom : elle n'a pas été faite, elle
+     n'avait pas lieu d'être. « Marie · 14:20 » ici serait un faux témoignage. */
+  if(chSansObjet(ch,k)) return 'sans objet';
   const h=new Date(iso).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});
   const qui=(ch[k+'_par']||'').trim().split(/\s+/)[0]||'';
   return qui? qui+' · '+h : h;
 }
+function chSansObjet(ch,k){ return (ch[k+'_par']||'')===CH_SANS_OBJET; }
 function chCard(ch){
   const oblig=CH_ETAPES.filter(e=>!e.opt);
   const faites=oblig.filter(e=>ch[e.k+'_le']).length, finie=faites===oblig.length;
@@ -6119,15 +6189,59 @@ function chCard(ch){
       '<span class="ic chchev" style="transform:rotate('+(ouverte?'90deg':'-90deg')+')">'+icon('chevron')+'</span>'+
     '</button>'+
     (ouverte?'<div class="chcorps">'+
-      CH_ETAPES.map(e=>{const ok=!!ch[e.k+'_le'];
-        return '<button class="chet'+(ok?' ok':'')+'" onclick="cocherEtape(\''+ch.id+'\',\''+e.k+'\')">'+
-        '<i style="'+(ok?'background:'+e.c+';border-color:'+e.c:'')+'">'+(ok?'✓':'')+'</i>'+
+      CH_ETAPES.map(e=>{const ok=!!ch[e.k+'_le'], so=chSansObjet(ch,e.k);
+        /* Une étape SANS OBJET reste cliquable — on peut s'être trompé et découvrir
+           qu'il y avait bien des affaires — mais elle ne se pare pas de la couleur
+           d'une étape accomplie : trait barré, gris, pas de coche. */
+        return '<button class="chet'+(so?' so':(ok?' ok':''))+'" onclick="cocherEtape(\''+ch.id+'\',\''+e.k+'\')">'+
+        '<i style="'+(ok&&!so?'background:'+e.c+';border-color:'+e.c:'')+'">'+(so?'—':(ok?'✓':''))+'</i>'+
         '<span><b>'+e.l+'</b><em>'+esc(e.qui)+(e.opt?' · facultatif':'')+'</em></span>'+
         (ok?'<em class="chq">'+esc(chQuand(ch,e.k))+'</em>':'')+
       '</button>';}).join('')+
       '<button class="chdel" onclick="retirerChambre(\''+ch.id+'\',\''+esc(ch.numero)+'\')">Retirer cette chambre</button>'+
     '</div>':'')+
   '</div>';
+}
+/* ═══ LE RÉSUMÉ DE CE QUI RESTE, ÉTAGE PAR ÉTAGE (Mag, 08/08/2026) ═══
+   « Il faut un résumé en bas de ce qui reste à faire : deux chambres à nettoyer, une
+   à vider. Je sais que je dois attendre qu'il y ait encore une chambre à vider, comme
+   ça il y aura trois chambres à nettoyer. J'attends, j'ai une vision globale. »
+
+   C'est un outil de DÉCISION, pas un compteur : on monte à l'étage une fois pour
+   trois chambres au lieu de trois fois pour une. Chaque chambre n'est comptée qu'une
+   seule fois, dans sa PROCHAINE étape — une chambre à vider n'est pas encore une
+   chambre à nettoyer, sinon les chiffres promettraient du travail qui n'est pas
+   encore possible. */
+function chNomEtage(e){
+  if(!e) return 'Sans étage';
+  return e===1 ? '1er étage' : e+'e étage';
+}
+function chResume(encours){
+  if(!encours.length) return '';
+  const oblig=CH_ETAPES.filter(function(e){ return !e.opt; });
+  const parEtage={}, total={};
+  encours.forEach(function(ch){
+    const p=chProchaine(ch); if(!p) return;
+    const e=etageDe(ch.numero);
+    (parEtage[e]||(parEtage[e]={}))[p.k]=(parEtage[e][p.k]||0)+1;
+    total[p.k]=(total[p.k]||0)+1;
+  });
+  const ligne=function(c){
+    return oblig.filter(function(e){ return c[e.k]; })
+      .map(function(e){ return '<span class="chr-n" style="border-color:'+e.c+'">'+
+        '<b>'+c[e.k]+'</b>'+(e.verbe||e.l.toLowerCase())+'</span>'; }).join('');
+  };
+  const etages=Object.keys(parEtage).sort(function(a,b){ return a-b; });
+  return '<div class="chres">'+
+    '<div class="chres-t">Ce qui reste</div>'+
+    '<div class="chres-tout">'+ligne(total)+'</div>'+
+    etages.map(function(e){
+      return '<div class="chres-e"><span class="chres-el">'+chNomEtage(parseInt(e,10))+'</span>'+
+        '<span class="chres-ec">'+ligne(parEtage[e])+'</span></div>';
+    }).join('')+
+    '<p class="chres-p">Une chambre n’est comptée qu’une fois, dans ce qu’elle attend '+
+    'maintenant. Tant qu’elle n’est pas libérée sur la liste étage, elle n’est pas '+
+    'donnée à quelqu’un d’autre.</p></div>';
 }
 function vChambres(){
   const encours=CHAMBRES.filter(c=>!chambreFinie(c)), finies=CHAMBRES.filter(chambreFinie).slice(0,8);
@@ -6138,12 +6252,22 @@ function vChambres(){
       '<input id="chIni" type="text" maxlength="14" placeholder="Ex. M.D. ou Marie D." autocomplete="off">'+
       '<button class="chaddbtn" onclick="ajouterChambre()">Ajouter</button>'+
     '</div>'+
+    /* LE CHOIX AVANT D'AJOUTER : « il reste des affaires » ou pas. C'est la seule
+       vraie question au moment où on ajoute — le reste du parcours ne change pas. */
+    '<div class="chdep">'+
+      '<span class="chdep-t">La chambre est</span>'+
+      '<button class="chdep-b'+(CH_DEPART==='vider'?' on':'')+'" onclick="chDepart(\'vider\')">'+
+        '<b>À vider</b><em>il reste des affaires</em></button>'+
+      '<button class="chdep-b'+(CH_DEPART==='nettoyer'?' on':'')+'" onclick="chDepart(\'nettoyer\')">'+
+        '<b>Déjà vide</b><em>on passe au nettoyage</em></button>'+
+    '</div>'+
     '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Les initiales</b>, ou le <b>prénom et la première lettre du nom</b>. <b>Jamais le nom complet.</b> C\'est seulement pour savoir quel lit débarrasser quand la chambre est à deux — retire la chambre de la liste une fois qu\'elle est libérée.</span></div>'+
     (encours.length?'<div class="ghead">En cours <span style="color:var(--enc2)">'+encours.length+'</span></div>'+encours.map(chCard).join(''):'')+
     (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
     (!CHAMBRES.length?(chambresLoaded
       ?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b><p>Ajoute un numéro quand une personne part.</p></div>'
       :'<div class="empty"><b>Chargement…</b></div>'):'')+
+    chResume(encours)+
     '<p class="hint" style="margin:14px 0 26px">La liste est partagée par toute l\'équipe : chaque coche porte un nom et une heure, et un clic de plus l\'annule.</p>';
 }
 
