@@ -125,6 +125,22 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (hover:hover){ .imprbtn:hover{border-color:var(--noir);color:var(--noir)} }
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 
+/* ── ÉDUC (08/08/2026) ── */
+#view .ed-g{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding-top:14px;max-width:620px}
+.ed-c{background:#fdfdfc;border:1.5px solid var(--noir);border-radius:9px;padding:13px;text-align:left;
+  display:flex;flex-direction:column;min-height:96px}
+.ed-c .ic{width:26px;height:26px}
+.ed-c b{display:block;font-size:15px;font-weight:600;margin-top:auto;line-height:1.2}
+.ed-c em{font-style:normal;display:block;font-size:12px;color:#73716b;line-height:1.35;margin-top:3px}
+.ed-p{border:1px solid var(--ligne);border-left:5px solid var(--ligne);background:#fdfdfc;
+  border-radius:0 8px 8px 0;padding:14px;margin-bottom:11px;max-width:620px}
+.ed-p>b{display:block;font-size:16.5px;font-weight:700;line-height:1.2;margin-bottom:10px}
+.ed-l{font-size:13.5px;color:#3c3a36;line-height:1.5;margin-top:9px}
+.ed-l i{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;color:#8b8984;margin-bottom:2px}
+.ed-l.ev{background:#f6f5f3;border-radius:6px;padding:9px 11px}
+@media (hover:hover){ .ed-c:hover{background:var(--noir);color:#f0efed} .ed-c:hover em{color:rgba(240,239,237,.7)} }
+
 /* ── LES SCHÉMAS À DONNER (08/08/2026) ── */
 #view .sch{max-width:620px}
 .sch-q{margin-top:20px}
@@ -5358,6 +5374,7 @@ function parseRoute(){
   if(seg[0]==='stats') return {view:'stats'};
   if(seg[0]==='modeles') return {view:'modeles'};
   if(seg[0]==='schemas') return {view:'schemas'};
+  if(seg[0]==='educ') return {view:'educ'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -5426,6 +5443,7 @@ function render(){
   else if(current.view==='stats') view.innerHTML=vStats();
   else if(current.view==='modeles'){ view.innerHTML=vModeles(); rafraichirModeles(); }
   else if(current.view==='schemas') view.innerHTML=vSchemas();
+  else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='reseau') view.innerHTML=vReseau();
   else if(current.view==='quartier') view.innerHTML=vQuartier();
@@ -5920,6 +5938,8 @@ function vCentre(){
     ['Mails et notes', nMails+' modèles à copier','mail','','#f6e7a8','#1b1b1b',"go('#/d/mails')"],
     /* LES SCHÉMAS : un outil, pas un lieu — d'où sa place ici et pas dans le Réseau. */
     ['Les schémas à donner','Une feuille A4, dans sa langue','demarche','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
+    /* ÉDUC : ce qu'on PROPOSE aux hébergés, en face des démarches qu'on fait POUR eux. */
+    ['Éduc','Sorties, culture, groupes de parole','accomp','','#f8763f','#1b1b1b',"go('#/educ')"],
     ['Gestion du centre', nCentreFiches()+' fiches','centre','blanc',null,'#1b1b1b',"go('#/d/centre')"],
     ['Autour d’ici','Le quartier','pin','blanc',null,'#1b1b1b',"go('#/quartier')"]
   ];
@@ -6804,7 +6824,7 @@ function boiteClasser(id){
    ══════════════════════════════════════════════════════════════════════════ */
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
-const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', favoris:'Tes étoiles', liste:'Ma liste',
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', favoris:'Tes étoiles', liste:'Ma liste',
   profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', linge:'Le linge', centre:'Le centre',
@@ -9252,6 +9272,79 @@ function schemaRecommencer(){ SCHEMA_REP={}; render(); }
 
 /* LA PAGE. Trois questions, puis la feuille — et le choix de langue au-dessus,
    parce qu'on choisit la langue de la personne, pas la sienne. */
+/* ═════════════════════════════════════════════════════════════════════════
+   ÉDUC (08/08/2026) — demandé par Mag : « mets un bouton éduc dans le centre,
+   rajoute de la culture et des sorties dedans, et mets aussi des idées de groupe
+   de parole ».
+
+   C'est la page des éducateurs : ce qu'on peut PROPOSER aux hébergés, par
+   opposition aux démarches qu'on doit faire POUR eux.
+
+   ⚠ LES GROUPES DE PAROLE SONT DES PISTES, PAS DES PROTOCOLES. Écrites d'après ce
+   que Mag a demandé, à adapter par ceux qui les animent. On ne prétend pas dire à
+   une éducatrice comment mener son groupe — on lui donne un point de départ pour
+   ne pas partir de la page blanche.
+   ═════════════════════════════════════════════════════════════════════════ */
+const GROUPES_PAROLE=[
+ {t:"Les violences sexuelles — en parler avant que ça arrive",
+  c:'#E8308A',
+  but:"Que les hébergés sachent reconnaître ce qui n'est pas normal, et qu'ils sachent qu'ici on les croira.",
+  comment:"Partir du Violentomètre (dans les formations) plutôt que de témoignages : l'outil met les mots à distance et personne n'a à se raconter. On lit les trois zones ensemble, chacun dit où il situerait telle situation — pas la sienne.",
+  eviter:"Ne pas demander à quelqu'un de témoigner. Ne rien promettre sur la suite. Ne pas rester seul·e à l'animer.",
+  apres:"Dire clairement où aller ensuite : la cellule EVA au commissariat d'Anderlecht (02 559 81 36) et Écoute Violences Conjugales (0800 30 030), gratuit et anonyme. C'est dans les Urgences de l'app."},
+
+ {t:"Pourquoi avoir un médecin traitant",
+  c:'#6FC7D9',
+  but:"Sortir du réflexe « j'ai mal, je vais aux urgences ». Beaucoup n'ont jamais eu de médecin à eux.",
+  comment:"Poser la question simplement : qui a un médecin qu'il revoit ? Laisser ceux qui en ont un raconter la différence. Expliquer qu'un médecin qui vous suit connaît votre dossier, sait ce que vous prenez, et réagit plus vite — aux urgences on recommence à zéro à chaque fois.",
+  eviter:"Ne pas faire la leçon à ceux qui vont aux urgences : souvent ils n'ont pas eu le choix. Et ne jamais parler du dossier médical de quelqu'un devant les autres.",
+  apres:"Proposer d'aider à en trouver un : les maisons médicales prennent sans mutuelle et beaucoup fonctionnent au forfait. La feuille « Les schémas à donner » l'explique aussi, dans sa langue."},
+
+ {t:"Le tensiomètre — apprivoiser sa tension",
+  c:'#F5D34F',
+  but:"Rendre concret quelque chose qu'on ne sent pas. L'hypertension ne fait pas mal, et c'est pour ça qu'on la laisse filer.",
+  comment:"Un atelier avec l'appareil, où chacun essaie s'il le veut. Montrer comment on s'installe, pourquoi on ne parle pas pendant la mesure, ce que veulent dire les deux chiffres. Chacun peut noter les siens sur un papier qu'il garde.",
+  eviter:"⚠ ON NE DIAGNOSTIQUE RIEN et on ne commente pas un chiffre devant le groupe. Si une mesure inquiète, on le dit à la personne SEULE et on l'oriente vers un médecin. Et on ne garde aucun chiffre dans COUSIN — l'app ne contient aucune donnée d'hébergé.",
+  apres:"Le lien avec le médecin traitant se fait tout seul : c'est lui qui suivra les chiffres dans le temps."}
+];
+
+function vEduc(){
+  let h=heroBandeau('Éduc','Ce qu’on peut proposer','#f8763f','accomp',true);
+
+  /* ── LA CULTURE ET LES SORTIES : on ne recopie rien, on renvoie vers ce qui existe
+     déjà et qui est tenu à jour ailleurs. */
+  h+='<div class="sect"><b>Culture et sorties</b><em>Ce qui est déjà dans l’app</em></div>'+
+    '<div class="ed-g">'+
+    [['Activités','Les sorties gratuites et l’Article 27','ticket','#6cb392',"go('#/ticket')"],
+     ['Le calendrier du mois','Ce qui tombe quel jour','de','#A9C8E8',"go('#/ticket')"],
+     ['Autour d’ici','Ce qu’il y a dans le quartier','pin','#f5c542',"go('#/quartier')"],
+     ['Activités & culture','Les fiches du réseau','ticket','#fd8fd0',"go('#/d/culture')"]]
+    .map(function(x){
+      return '<button class="ed-c" onclick="'+x[4]+'">'+
+        '<span class="ic" style="color:'+x[3]+'">'+icon(x[2])+'</span>'+
+        '<b>'+esc(x[0])+'</b><em>'+esc(x[1])+'</em></button>';
+    }).join('')+'</div>';
+
+  h+='<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Le ticket à 1,25 €</b>'+
+     '<p>Une personne ne peut jamais demander l’Article 27 toute seule : c’est nous qui apprécions sa situation et qui lui remettons le ticket. Et si elle est suivie par un CPAS, elle y a droit là-bas — mais elle doit le demander.</p></div>';
+
+  /* ── LES GROUPES DE PAROLE ── */
+  h+='<div class="sect" style="margin-top:26px"><b>Idées de groupes de parole</b><em>'+GROUPES_PAROLE.length+' pistes</em></div>'+
+    '<div class="fsrc" style="text-align:left;padding:0 0 12px">Des points de départ, pas des protocoles — à adapter par celui ou celle qui anime.</div>';
+  h+=GROUPES_PAROLE.map(function(g){
+    return '<div class="ed-p" style="border-left-color:'+g.c+'">'+
+      '<b>'+esc(g.t)+'</b>'+
+      '<div class="ed-l"><i>Le but</i>'+esc(g.but)+'</div>'+
+      '<div class="ed-l"><i>Comment l’amener</i>'+esc(g.comment)+'</div>'+
+      '<div class="ed-l ev"><i>Ce qu’on évite</i>'+esc(g.eviter)+'</div>'+
+      '<div class="ed-l"><i>Et après</i>'+esc(g.apres)+'</div>'+
+    '</div>';
+  }).join('');
+
+  h+='<div class="imprligne">'+boutonImprimer()+'</div>';
+  return h+'<div style="height:26px"></div>';
+}
+
 function vSchemas(){
   const s=schemaTrouve();
   let h=heroBandeau('Les schémas à donner','Une feuille A4, dans sa langue','#A9C8E8','demarche',true);
