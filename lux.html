@@ -123,6 +123,43 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (hover:hover){ .imprbtn:hover{border-color:var(--noir);color:var(--noir)} }
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 
+/* ── LA CARTE DE QUESTION (08/08/2026) ── */
+.qz{background:#1b1b1b;border-radius:12px;padding:18px 16px 16px;color:#f0efed;
+  min-height:calc(100dvh - 210px);display:flex;flex-direction:column}
+.qz-tete{display:flex;align-items:center}
+.qz-dots{display:flex;gap:6px;align-items:center}
+.qz-dots i{width:9px;height:9px;border-radius:50%;background:#3d3d3d;flex:none}
+.qz-dots i.ok{background:#6FC7D9}
+.qz-dots i.ko{background:#E8308A}
+.qz-dots i.ici{width:11px;height:11px;background:#f0efed}
+.qz-n{margin-left:auto;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#F5D34F}
+.qz-sur{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:#9a9894;margin-top:14px}
+.qz-q{font-size:26px;font-weight:500;line-height:1.16;letter-spacing:-.02em;margin-top:14px}
+.qz-q.petite{font-size:20px}
+/* Les réponses sont ANCRÉES EN BAS : la question grandit vers le haut, le pouce les
+   retrouve toujours au même endroit. */
+.qz-opts{margin-top:auto;padding-top:22px;display:flex;flex-direction:column;gap:9px}
+.qz-opt{display:flex;align-items:center;gap:12px;background:none;border:1.5px solid #4a4a4a;
+  border-radius:10px;padding:13px 14px;color:#f0efed;text-align:left;width:100%}
+.qz-l{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid #6a6a6a;
+  display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace;font-size:10px}
+.qz-t{font-size:15px;font-weight:500;line-height:1.3}
+.qz-opt.bon{background:#6FC7D9;border-color:#6FC7D9;color:#1b1b1b}
+.qz-opt.bon .qz-l{background:#1b1b1b;color:#6FC7D9;border-color:#1b1b1b}
+.qz-opt.rate{border-color:#E8308A;color:#E8308A}
+.qz-opt.rate .qz-l{border-color:#E8308A}
+.qz-pq{border-left:4px solid #F5D34F;background:#262626;border-radius:0 8px 8px 0;
+  padding:12px 13px;margin-top:16px}
+.qz-pql{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:#F5D34F}
+.qz-pqt{font-size:13.5px;color:#d8d6d2;line-height:1.5;margin-top:5px}
+.qz-fiche{margin-top:11px;width:100%;border:1px solid #4a4a4a;border-radius:7px;padding:9px;
+  color:#f0efed;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.qz-suite{width:100%;background:#F5D34F;color:#1b1b1b;border:0;border-radius:10px;padding:14px;
+  margin-top:12px;font-size:15px;font-weight:500}
+@media (hover:hover){ .qz-opt:hover{border-color:#f0efed} .qz-fiche:hover{background:#333} }
+
 /* ── L'ACCUEIL DU 08/08/2026 : météo réduite, rail du réseau, bande noire des jeux ── */
 .meteoL{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:#73716b}
@@ -8385,6 +8422,77 @@ function jxPied(k){
 }
 function jxRetourHub(){ return `<button class="jxautre" style="width:100%;margin-top:10px" onclick="go('#/jeux')">← Retour aux jeux</button>`; }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   LA CARTE DE QUESTION (08/08/2026) — design validé par Mag à partir d'une carte
+   qu'elle a envoyée. Fond noir, pastilles de progression en haut à gauche, compteur
+   à droite, la question en grand, et les réponses lettrées ANCRÉES EN BAS.
+
+   Pourquoi ancrées en bas et non centrées comme sur son image : certaines questions
+   du quiz font trois lignes de plus, et des boutons centrés partiraient hors de
+   l'écran. La question grandit vers le haut, les réponses ne bougent pas — le pouce
+   les retrouve toujours au même endroit.
+
+   Les pastilles disent le RÉSULTAT, pas seulement la position : bleu = juste,
+   fuchsia = raté, crème = où on en est, gris = à venir. Le fuchsia remplace le rouge :
+   dans COUSIN le rouge appartient aux urgences.
+   ═════════════════════════════════════════════════════════════════════════ */
+const QZ_LETTRES=['A','B','C','D','E','F'];
+
+/* Les pastilles, lues dans le carnet de bord de la partie. */
+function jxDots(total, i){
+  const j=(JEU&&Array.isArray(JEU.journal))?JEU.journal:[];
+  const n=Math.min(total||0, 12);            // au-delà de 12, la rangée devient illisible
+  let h='<div class="qz-dots">';
+  for(let k=0;k<n;k++){
+    let cl='av';                              // à venir
+    if(k<j.length) cl = j[k].juste ? 'ok' : 'ko';
+    else if(k===i) cl='ici';
+    h+='<i class="'+cl+'"></i>';
+  }
+  return h+'</div>';
+}
+/* Le bloc « pourquoi » + la fiche, sous la correction. */
+function jxPourquoi(Q){
+  const p = Q && Q.src ? DATA.find(function(x){ return x.id===Q.src; }) : null;
+  const txt = (Q&&Q.pourquoi) ? Q.pourquoi : (p&&p.desc ? p.desc : '');
+  if(!txt && !p) return '';
+  return '<div class="qz-pq">'+
+    '<div class="qz-pql">Pourquoi</div>'+
+    (txt?'<div class="qz-pqt">'+esc(txt)+'</div>':'')+
+    (p?'<button class="qz-fiche" onclick="go(\'#/f/'+p.sid+'\')">Ouvrir la fiche</button>':'')+
+  '</div>';
+}
+/* LA CARTE. `fn` = la fonction qui reçoit la réponse (jxRep…), `suite` = le bouton du bas. */
+function jxCarteQuestion(Q, fn, o){
+  o=o||{};
+  const rep = JEU.answered;
+  const choisi = (JEU.picked===undefined||JEU.picked===null) ? -1 : JEU.picked;
+  let lignes='';
+  if(!rep){
+    lignes = Q.opts.map(function(t,i){
+      return '<button class="qz-opt" onclick="'+fn+'('+i+')">'+
+        '<span class="qz-l">'+(QZ_LETTRES[i]||'?')+'</span>'+
+        '<span class="qz-t">'+esc(t)+'</span></button>';
+    }).join('');
+  } else {
+    /* APRÈS LA RÉPONSE, LES MAUVAISES DISPARAISSENT : il ne reste que la bonne et,
+       si on s'est trompé, celle qu'on avait choisie. Deux lignes au lieu de quatre —
+       l'œil va droit à ce qu'il faut retenir. */
+    lignes = '<div class="qz-opt bon"><span class="qz-l">✓</span><span class="qz-t">'+esc(Q.opts[Q.correct])+'</span></div>';
+    if(choisi>=0 && choisi!==Q.correct)
+      lignes += '<div class="qz-opt rate"><span class="qz-l">✕</span><span class="qz-t">'+esc(Q.opts[choisi])+'</span></div>';
+  }
+  return '<div class="qz">'+
+    '<div class="qz-tete">'+jxDots(o.total, o.i)+
+      '<span class="qz-n">'+((o.i||0)+1)+(o.total?' / '+o.total:'')+'</span></div>'+
+    (o.sur?'<div class="qz-sur">'+esc(o.sur)+'</div>':'')+
+    '<div class="qz-q'+(rep?' petite':'')+'">'+esc(Q.q)+'</div>'+
+    '<div class="qz-opts">'+lignes+'</div>'+
+    (rep?jxPourquoi(Q):'')+
+    (rep&&o.suite?'<button class="qz-suite" onclick="'+o.suite+'">'+esc(o.libelle||'Question suivante →')+'</button>':'')+
+  '</div>';
+}
+
 function jxOptsHTML(Q, fn){
   return Q.opts.map((o,idx)=>{
     let cls='quiz-opt';
@@ -8459,13 +8567,12 @@ function jxJeuHTML(){
         : jxFin('serie', JEU.serie, "d'affilée")}</div>`;
     }
     const Q=JEU.qs[JEU.i];
-    const flamme = icon('jserie');
-    return `<div class="pf-wrap">${jxTete('serie')}
-      <div class="jx-bar"><span class="gros">${flamme}</span><span><b>Série de ${JEU.serie}</b><em>Record : ${JXS.rec.serie||0}</em></span><span class="chiffre">${JEU.serie}</span></div>
-      <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div>
-      ${JEU.answered?quizCorrection(Q):''}
-      ${JEU.answered?(JEU.picked===Q.correct?`<button class="quiz-next" onclick="jxSuivante()">Continuer la série</button>`:''):''}
-      ${JEU.answered?jxPied('serie'):''}</div>`;
+    return `<div class="pf-wrap">${jxCarteQuestion(Q,'jxRep',{
+      total:Math.max(JEU.serie+1,5), i:JEU.i,
+      sur:'La série · '+JEU.serie+' d\'affilée',
+      suite:(JEU.answered&&JEU.picked===Q.correct)?'jxSuivante()':'',
+      libelle:'Continuer la série →'})}
+      ${JEU.answered&&JEU.picked!==Q.correct?jxPied('serie'):''}</div>`;
   }
 
   if(T==='chrono'){
@@ -8476,9 +8583,11 @@ function jxJeuHTML(){
         : jxFin('chrono', JEU.score, 'bonnes sur '+n)}</div>`;
     }
     const Q=JEU.qs[JEU.i];
-    return `<div class="pf-wrap">${jxTete('chrono')}
-      <div class="jx-bar${JEU.reste<=10?' presse':''}"><span class="gros">${icon('jchrono')}</span><span><b>${JEU.score} bonne${JEU.score>1?'s':''}</b><em>${esc(jxNomTerrain(JEU.terrain))}</em></span><span class="chiffre">${JEU.reste}</span></div>
-      <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div></div>`;
+    /* Le chrono garde son compte à rebours à la place du compteur de questions :
+       c'est le temps qui presse, pas le nombre. */
+    return `<div class="pf-wrap">${jxCarteQuestion(Q,'jxRep',{
+      total:JEU.journal?JEU.journal.length+1:1, i:JEU.i,
+      sur:'Chrono · '+JEU.reste+' s · '+JEU.score+' bonne'+(JEU.score>1?'s':'')})}</div>`;
   }
 
   if(T==='qui'){
@@ -8546,12 +8655,11 @@ function jxJeuHTML(){
   if(!Q || JEU.i>=JEU.qs.length){
     return `<div class="pf-wrap">${jxFin(k, JEU.score, 'justes sur '+JEU.qs.length)}</div>`;
   }
-  const corr = JEU.answered ? quizCorrection(Q) : '';
-  return `<div class="pf-wrap">
-    ${T==='rat'?jxTete('rat','Question '+(JEU.i+1)+' sur '+JEU.qs.length):
-      `<div class="quiz-top"><span>Question ${JEU.i+1}/${JEU.qs.length}</span><span>${esc(jxNomTerrain(JEU.terrain))} · ${JEU.score}</span></div>`}
-    <div class="quiz-q">${esc(Q.q)}</div><div class="quiz-opts">${jxOptsHTML(Q,'jxRep')}</div>${corr}
-    ${JEU.answered?`<button class="quiz-next" onclick="jxSuivante()">${JEU.i+1<JEU.qs.length?'Question suivante':'Voir mon score'}</button>`:''}</div>`;
+  return `<div class="pf-wrap">${jxCarteQuestion(Q,'jxRep',{
+    total:JEU.qs.length, i:JEU.i,
+    sur:(T==='rat'?'Rattrapage':jxNomTerrain(JEU.terrain)),
+    suite:'jxSuivante()',
+    libelle:(JEU.i+1<JEU.qs.length?'Question suivante →':'Voir mon score →')})}</div>`;
 }
 
 
