@@ -38,6 +38,14 @@
   --tab-h:calc(88px + env(safe-area-inset-bottom));
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* LA MAIN SUR TOUT CE QUI SE CLIQUE (Mag, 08/08/2026 : « je veux qu'il y ait la
+   main sur tous les boutons de ce site, j'aime pas quand il y a que le pointeur »).
+   Les boutons du navigateur n'ont PAS la main par défaut — chaque bloc de l'app
+   devait la redemander, et un oubli suffisait à la perdre. Posée une fois pour
+   toutes ici, y compris sur les fausses cartes cliquables (role="button") et les
+   cases à cocher. Sauf ce qui est désactivé : là, la flèche est la bonne réponse. */
+button,summary,label,select,[role="button"],[onclick],a[href],input[type=checkbox],input[type=radio]{cursor:pointer}
+button:disabled,[aria-disabled="true"],.dort,.disabled{cursor:default}
 body{font-family:'Eastman',-apple-system,'Segoe UI',sans-serif;background:var(--creme);color:var(--noir);
   font-size:16px;line-height:1.45;padding-bottom:var(--tab-h);
   padding-top:calc(68px + env(safe-area-inset-top))}
@@ -319,6 +327,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
     column-gap:34px;align-items:start}
   #view .home-top > .hdate,
   #view .home-top > .hbonj{grid-column:1 / -1}
+  /* La pile est plus compacte dans sa colonne : à l'arrivée sur l'accueil, la bande
+     des jeux dépassait de 90 px sous le bas de l'écran et se retrouvait coupée
+     (Mag, 08/08/2026). Elle tient maintenant en entier. */
+  #view .home-top > .zjeux .pile{max-width:250px;margin:20px auto 0}
+  #view .home-top > .zjeux .pilenav{margin-top:8px}
   /* La bande des jeux va à droite et y reste, quelle que soit sa hauteur.
      ⚠ Il faut annuler ici le max-width et les marges automatiques posés plus bas
      pour le centrage : sans ça, elle se retrouvait à 248 px, perdue au milieu de
@@ -1034,6 +1047,18 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .ucat .n{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em}
 .ucat .sg{font-size:19px;line-height:1}
 .usous{display:flex;flex-direction:column;gap:8px;padding-left:14px;margin-top:8px}
+/* Le titre d'un réseau prend TOUTE la largeur : en grille, il s'intercalait entre
+   deux numéros et cassait la lecture (Mag, 08/08/2026, capture à l'appui). */
+.usous .ures{grid-column:1 / -1;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  margin:10px 0 2px;padding-bottom:6px;border-bottom:1px solid rgba(240,239,237,.25)}
+.usous .ures:first-child{margin-top:0}
+.usous .ures b{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:#f0efed}
+.usous .ures em{font-style:normal;font-size:11.5px;color:rgba(240,239,237,.6)}
+/* L'étiquette sur la ligne elle-même. */
+.ures-p{display:inline-block;margin-left:8px;vertical-align:1px;
+  font-family:ui-monospace,monospace;font-size:8px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;border:1px solid var(--ligne);border-radius:999px;padding:2px 7px;color:var(--enc2)}
 .unum{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:12px 13px;
   display:flex;align-items:center;gap:12px;color:var(--noir)}
 .unum>.ic{width:20px;height:20px;flex:none}
@@ -8723,6 +8748,23 @@ function vFavoris(){
 }
 
 /* ---------- urgences — les catégories de l'app principale : on sait où téléphoner ---------- */
+/* ═══ LES RÉSEAUX HOSPITALIERS (Mag, 08/08/2026) ═══
+   « Il faut un sous-menu CHIREC avec les numéros qui en font partie, et après le
+   reste. Quand je saurai qui fait partie d'un autre groupe, je te le dirai. »
+   Les trois réseaux sont déjà documentés dans la fiche « Chercher quelqu'un aux
+   urgences » : on les reprend ici, à un seul endroit. Ajouter un hôpital à un
+   réseau = ajouter un mot dans la liste ci-dessous, rien d'autre. */
+const URG_RESEAUX=[
+  {nom:'CHIREC',  d:'Delta a le SMUR · Braine-l’Alleud', qui:[/anne\s*&\s*st\s*remi|sainte-anne|chirec|delta/i]},
+  {nom:'IRIS',    d:'Les hôpitaux publics — un même réseau',
+   qui:[/saint-pierre|brugmann|bracops|moli[eè]re|etterbeek|ixelles|paul brien|iris/i]},
+  {nom:'HUB',     d:'L’universitaire de l’ULB — avec Bordet', qui:[/erasme|bordet|huderf|hub/i]}
+];
+function urgReseauDe(p){
+  const n=p.nom||'';
+  for(const r of URG_RESEAUX){ if(r.qui.some(function(x){ return x.test(n); })) return r; }
+  return null;
+}
 let urgCat=null;
 const URG_CATS=[
   /* « police » tout court attrapait la cellule EVA, qui parle de violences : on ne
@@ -8731,7 +8773,13 @@ const URG_CATS=[
   {label:"Secours vital",     re:/112|^101|^police|secours|pompier/i},
   {label:"Violences · femmes",re:/violence|viol|conjugal/i},
   {label:"Médical",           re:/garde m[ée]dicale|antipoison|1710|m[ée]dical|intoxication/i},
-  {label:"Urgences hôpitaux", re:/h[oô]pital|urgences$/i},
+  /* ⚠ LE CLASSEMENT SE FAISAIT SUR LE MOT « HÔPITAL » DE LA DESCRIPTION. En
+     réécrivant la fiche du CHIREC le 08/08/2026, ce mot a disparu de son texte — et
+     Sainte-Anne Saint-Remi est tombée dans « Autres », invisible. Mag : « y a pas
+     Chirec, je comprends pas ». On attrape maintenant la forme du NOM (« – Urgences »)
+     et les noms de réseaux, qui ne dépendent plus de la façon dont la fiche est
+     rédigée. La fiche de méthode entre aussi dans la catégorie : sa place est là. */
+  {label:"Urgences hôpitaux", re:/h[oô]pital|[–-]\s*urgences|chercher quelqu.un aux urgences|chirec/i},
   {label:"Hébergement d'urgence", re:/sans-abri|h[ée]bergement|asile de nuit|accueil d'urgence|orientation|maraude/i},
   {label:"Drogue & alcool",   re:/drogue|alcool|d[ée]pendance/i},
   {label:"Écoute & aide",     re:/[ée]coute|t[ée]l[ée]-accueil|107|soutien|suicide|enfant|jeune|103/i}
@@ -8749,7 +8797,11 @@ function urgSq(p,cc){
   const tel=(p.tel||'').replace(/\s/g,'');
   const sub=urgSub(p);
   const dedans='<span class="ic">'+icon(tel?'phone':(p.site?'lien':'note'))+'</span>'+
-    '<span class="tx"><b>'+esc(urgShort(p))+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+'</span>'+
+    '<span class="tx"><b>'+esc(urgShort(p))+'</b>'+
+      /* Le réseau écrit sur la ligne elle-même : un titre de section se perd dès
+         qu'on fait défiler, une étiquette suit le numéro partout (Mag, 08/08/2026). */
+      (urgReseauDe(p)?'<span class="ures-p">'+esc(urgReseauDe(p).nom)+'</span>':'')+
+      (sub?'<em>'+esc(sub)+'</em>':'')+'</span>'+
     (p.tel?'<span class="no" style="color:'+(cc||'#e63329')+'">'+esc(p.tel)+'</span>':'');
   /* On n'appelle plus au premier doigt : une FICHE MONTE DU BAS avec les horaires,
      l'adresse et un gros bouton d'appel. Composer un numéro d'urgence par erreur,
@@ -8820,10 +8872,34 @@ function urgencesListHTML(){
       '<b>'+esc(b.list.length>1&&URG_PLURIEL[b.label]?URG_PLURIEL[b.label]:b.label)+'</b>'+
       '<span class="n" style="color:'+cc+'">'+b.list.length+'</span>'+
       '<span class="sg" style="color:'+cc+'">'+(open?'−':'+')+'</span></button>'+
-      (open?'<div class="usous">'+b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>urgSq(p,cc)).join('')+'</div>':'')+
+      (open?'<div class="usous">'+(b.label==='Urgences hôpitaux'
+              ? urgParReseau(b.list,cc)
+              : b.list.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>urgSq(p,cc)).join(''))+'</div>':'')+
     '</div>';
   });
   return vitalHtml+'<div class="ucats">'+rows+'</div>';
+}
+/* Les hôpitaux rangés par réseau : appeler un site du même groupe, c'est peut-être
+   déjà avoir la réponse — c'est toute la question que Mag posait. Le nom du réseau
+   fait titre, et ce qui n'appartient à aucun est mis à part au lieu d'être noyé. */
+function urgParReseau(list,cc){
+  const par={}, hors=[];
+  list.forEach(function(p){
+    const r=urgReseauDe(p);
+    if(r){ (par[r.nom]=par[r.nom]||[]).push(p); } else hors.push(p);
+  });
+  /* ⚠ PAS DE TITRES DE SECTION. Premier essai avec un intertitre par réseau : dans
+     la grille à deux colonnes, il s'intercalait entre deux numéros et cassait la
+     lecture (Mag, capture à l'appui). L'étiquette posée sur CHAQUE ligne dit la même
+     chose, suit le numéro partout, et ne casse rien. Le regroupement, lui, reste :
+     les CHIREC se suivent, puis les IRIS, puis le HUB. */
+  let h='';
+  URG_RESEAUX.forEach(function(r){
+    const l=par[r.nom]; if(!l||!l.length) return;
+    h+=l.sort(function(a,b){ return a.nom.localeCompare(b.nom,'fr'); }).map(function(p){ return urgSq(p,cc); }).join('');
+  });
+  h+=hors.sort(function(a,b){ return a.nom.localeCompare(b.nom,'fr'); }).map(function(p){ return urgSq(p,cc); }).join('');
+  return h;
 }
 function toggleUrgCat(btn,i){ urgCat=(urgCat===i)?null:i; render(); }
 function vUrgences(){
