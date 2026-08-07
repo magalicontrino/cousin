@@ -4648,6 +4648,10 @@ function quizGen(theme, doms, tout){
     const c={}; liste.forEach(x=>{ const k=String(x[champ]||'').trim().toLowerCase(); c[k]=(c[k]||0)+1; }); return c;
   };
   const nbDesc=compte(descAll,'desc'), nbPub=compte(pubAll,'public');
+  /* Les communes réellement présentes dans le réseau, pour fabriquer des leurres
+     crédibles : proposer « Namur » à côté d'Anderlecht ne teste rien. */
+  const communesAll=[...new Set(allReseau.map(x=>String(x.commune||'').trim())
+    .filter(c=>c && !/régional|toutes communes/i.test(c)))];
   const unique=(c,v)=> c[String(v||'').trim().toLowerCase()]===1;
   const pick=(arr,n)=>qShuffle(arr).slice(0,n);
   // 3 mauvaises réponses distinctes entre elles ET différentes de la bonne
@@ -4680,11 +4684,28 @@ function quizGen(theme, doms, tout){
         if(ln.length===3){ const opts=qShuffle([p.nom].concat(ln)); qs.push({q:"Quel service s'adresse à : « "+bonne+" » ?",opts,correct:opts.indexOf(p.nom),src:p.id}); }
       }
     }
-    // Le bon domaine (seulement en « tout mélangé » : dans un thème, la réponse serait évidente)
-    if(theme==='all' || (doms && doms.length>1)){
-      const bonne=DOM[p.domaine].label;
-      const l=leurres(DOMAINES.filter(x=>x.reseau && x.key!==p.domaine).map(x=>x.label),bonne);
-      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Dans quel domaine trouve-t-on « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne),src:p.id}); }
+    /* ⚠ PLUS DE QUESTION « DANS QUEL DOMAINE ? » — retirée le 08/08/2026 à la
+       demande de Mag : « ce jeu de trois domaines, on s'en fout, ça ne nous apprend
+       rien du tout. En fait il faudrait poser des questions que par rapport aux
+       associations. » Elle a raison : savoir que l'ONE est rangé dans « Jeunesse &
+       familles » est une question sur NOTRE classement, pas sur le réseau. Ça ne
+       sert à personne sur le terrain.
+       À la place : LA COMMUNE. Savoir où se trouve un service, c'est ce qui décide
+       si on y envoie quelqu'un à pied ou en métro. On ne la pose que pour les
+       services réellement situés — « Régional / Toutes communes » n'apprend rien
+       non plus — et seulement si la commune n'est pas déjà dans leur nom. */
+    /* On compare MOT À MOT, pas en sous-chaîne : « CPAS de la Ville de Bruxelles »
+       ne contient pas littéralement « Bruxelles-Ville », et la question tombait
+       quand même toute cuite. */
+    const motsCle=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .split(/[^a-z0-9]+/).filter(m=>m.length>3);
+    const dansLeNom=(nom,com)=>{ const n=motsCle(nom), c=motsCle(com);
+      return c.length>0 && c.every(m=>n.indexOf(m)>=0); };
+    if(p.commune && !/régional|toutes communes/i.test(p.commune)
+       && !dansLeNom(p.nom,p.commune)){
+      const bonne=p.commune;
+      const l=leurres(communesAll.filter(x=>x!==bonne),bonne);
+      if(l.length===3){ const opts=qShuffle([bonne].concat(l)); qs.push({q:"Dans quelle commune se trouve « "+p.nom+" » ?",opts,correct:opts.indexOf(bonne),src:p.id}); }
     }
   });
   /* `tout` = on rend TOUTES les questions, sans tirage ni mélange : c'est ce qu'il faut
@@ -8713,7 +8734,19 @@ function jxSuivante(){
   if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='serie'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
   render();
 }
-function jxFlip(){ if(JEU){ JEU.retourne=!JEU.retourne; render(); } }
+/* LA CARTE SE RETOURNE POUR DE VRAI (Mag, 08/08/2026 : « mets un effet de
+   retournement »). Le CSS de la bascule existait depuis toujours — perspective,
+   preserve-3d, rotateY(180deg), une transition de .55 s. Il ne servait à rien :
+   `render()` réécrivait tout le HTML de la page à chaque clic, donc le navigateur
+   découvrait une carte NEUVE déjà retournée. Une transition ne s'anime qu'entre
+   deux états du MÊME élément — on se contente donc de poser la classe. */
+function jxFlip(){
+  if(!JEU) return;
+  JEU.retourne=!JEU.retourne;
+  const el=document.querySelector('.jx-flip');
+  if(el) el.classList.toggle('on', JEU.retourne);
+  else render();   /* filet : si la carte n'est pas à l'écran, on redessine */
+}
 function jxIndice(){ if(JEU && JEU.niveau<3){ JEU.niveau++; render(); } }
 /* « Qui suis-je ? » et « Vrai ou faux » ne posent pas des questions de la même
    forme que les autres. Pour que le carnet et le panier n'aient qu'UNE forme à
