@@ -307,8 +307,35 @@ h1,h2,h3{font-weight:700;line-height:1.2}
    restaient donc collés à GAUCHE d'une vue de 1200 px, avec un demi-écran de vide à
    droite. Les grilles du Réseau et du Centre, elles, se servent vraiment de toute la
    largeur — on ne touche donc qu'à ce qui est bridé à 620 px. */
+/* ══ L'ACCUEIL EN DEUX COLONNES SUR GRAND ÉCRAN (Mag, 08/08/2026 : « la mise en
+   page de l'accueil, ça pète tout le responsive, t'as affaire de colonnes ») ══
+   Le tort était de garder une seule colonne de 620 px collée à gauche : sur 1500 px,
+   ça laissait la moitié de l'écran vide. Le bandeau reste en large, comme elle l'a
+   demandé, et le contenu se répartit en dessous — le travail du jour et les listes à
+   gauche, la bande noire des jeux à droite, qui tient toute la hauteur.
+   `align-items:start` : sans lui, chaque bloc s'étirerait pour remplir sa rangée. */
+@media (min-width:1000px){
+  #view .home-top{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
+    column-gap:34px;align-items:start}
+  #view .home-top > .hdate,
+  #view .home-top > .hbonj{grid-column:1 / -1}
+  /* La bande des jeux va à droite et y reste, quelle que soit sa hauteur.
+     ⚠ Il faut annuler ici le max-width et les marges automatiques posés plus bas
+     pour le centrage : sans ça, elle se retrouvait à 248 px, perdue au milieu de
+     sa colonne. Dans une grille, un bloc doit remplir sa colonne. */
+  #view .home-top > .zjeux{grid-column:2;grid-row:3 / span 40;position:sticky;top:16px;
+    width:100%;max-width:none;margin:0}
+  /* Tout le reste s'empile dans la colonne de gauche, dans l'ordre du HTML. */
+  #view .home-top > .sect,
+  #view .home-top > .boules,
+  #view .home-top > .rres-boite,
+  #view .home-top > .rail2,
+  #view .home-top > .lienbas,
+  #view .home-top > .qneuf{grid-column:1;max-width:none}
+  #view .boules{max-width:none}
+}
 @media (min-width:900px){
-  #view .boules, #view .zjeux, #view .rres-boite,
+  #view .zjeux, #view .rres-boite,
   #view .lienbas, #view .pt, #view .lex, #view .ed-g, #view .sch, #view .qneuf,
   #view .cal, #view .acform, #view .cc, #view .cdet, #view .rich,
   #view .imprligne, #view .expg, #view .f-page, #view .quiz-card
@@ -802,6 +829,17 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
   line-height:1.55;white-space:pre-wrap;word-break:break-word;color:#3d3b37;max-height:340px;overflow:auto}
 .sch-note em{display:block;font-style:normal;padding:0 14px 13px;font-size:12px;line-height:1.45;color:var(--enc2)}
 @media print{ .sch-note{display:none} }
+
+/* ── LA PLANCHE DE L'ONBOARDING (réservée à l'administration) ── */
+.obt-i{font-size:14.5px;line-height:1.55;margin:16px 0 4px;color:#3d3b37;max-width:620px}
+.obt-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:18px}
+.obt-n{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;border-bottom:1.5px solid var(--noir);padding-bottom:7px;margin-bottom:11px}
+.obt-tel{background:var(--creme);border:2px solid var(--noir);border-radius:18px;padding:11px;overflow:hidden}
+.obt-no{pointer-events:none}
+.obt-tel .onb{padding:0;max-width:none}
+.obt-tel .onb-e{min-height:460px}
+.obt-tel .onb-t{font-size:30px}
 
 /* ══ L'ONBOARDING (08/08/2026) ══ Un écran à la fois, plein cadre. Rien d'inventé :
    les titres reprennent la typographie des bandeaux, les couleurs sont celles de
@@ -6128,6 +6166,7 @@ function parseRoute(){
   if(seg[0]==='chantier') return {view:'chantier'};
   if(seg[0]==='stats') return {view:'stats'};
   if(seg[0]==='modeles') return {view:'modeles'};
+  if(seg[0]==='bienvenue-tout') return {view:'bienvenuetout'};
   if(seg[0]==='bienvenue') return {view:'bienvenue'};
   if(seg[0]==='schemas') return {view:'schemas'};
   if(seg[0]==='educ') return {view:'educ'};
@@ -6201,6 +6240,7 @@ function render(){
   else if(current.view==='chantier'){ view.innerHTML=vChantier(); rafraichirChantier(); }
   else if(current.view==='stats') view.innerHTML=vStats();
   else if(current.view==='modeles'){ view.innerHTML=vModeles(); rafraichirModeles(); }
+  else if(current.view==='bienvenuetout') view.innerHTML=vBienvenueTout();
   else if(current.view==='bienvenue') view.innerHTML=vBienvenue();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='educ') view.innerHTML=vEduc();
@@ -10694,6 +10734,35 @@ function vBienvenue(){
   }
 
   return h+'</div>';
+}
+/* LA PLANCHE DES SIX ÉCRANS (Mag, 08/08/2026 : « on fait un par un toutes les
+   fenêtres pour qu'on voie un peu si ça va »). Générée depuis vBienvenue() plutôt
+   que recopiée dans un fichier à part : elle ne peut donc jamais mentir sur ce que
+   l'app fait vraiment. Réservée à l'administration — ce n'est pas un écran d'équipe. */
+function vBienvenueTout(){
+  if(!(PROFILE&&PROFILE.admin)) { onbRejouer(); return ''; }
+  const titres=['1 · L’app se présente','2 · Les quatre boutons','3 · La règle',
+                '4 · Ta journée','5 · C’est prêt','6 · Le raccourci'];
+  const garde=ONB_ETAPE;
+  let h=heroBandeau('L’onboarding','Les six écrans, un par un','#A9C8E8','ecran',true);
+  h+='<div class="obt-i">Ce que voit quelqu’un qui ouvre COUSIN <b>pour la première fois</b>, '+
+     'juste après s’être connecté avec Google. Une seule fois : ensuite, ça ne revient plus.<br>'+
+     'Les boutons ne marchent pas ici — c’est une planche pour regarder.</div>';
+  h+='<div class="obt-g">';
+  for(let i=0;i<6;i++){
+    ONB_ETAPE=i;
+    h+='<div class="obt-c"><div class="obt-n">'+titres[i]+'</div>'+
+       '<div class="obt-tel"><div class="obt-no">'+vBienvenue()+'</div></div></div>';
+  }
+  ONB_ETAPE=garde;
+  h+='</div>';
+  h+='<div class="fsavoir" style="margin-top:24px"><b><span class="ic">'+icon('bulb')+'</span>Quand ça se déclenche</b>'+
+     '<p>À la première ouverture APRÈS la connexion Google, une seule fois — et jamais quand on arrive '+
+     'par un lien direct vers une fiche : quelqu’un qui ouvre COUSIN pour un numéro cherche quelque chose.\n\n'+
+     'Ensuite, une seule chose revient : le rappel du raccourci, tant qu’il n’est pas fait — une fois tous '+
+     'les dix jours, trois fois au maximum, et jamais si l’app est déjà sur l’écran d’accueil.\n\n'+
+     '« Revoir la visite » est dans ton profil.</p></div>';
+  return h+'<div style="height:26px"></div>';
 }
 function onbLigne(ic,c,t,s){
   return '<div class="onb-li"><span class="onb-r" style="background:'+c+'"><i class="ic">'+icon(ic)+'</i></span>'+
