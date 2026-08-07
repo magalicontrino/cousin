@@ -775,6 +775,24 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
 
+/* ── LA NOTE POUR LE DOSSIER (08/08/2026) ── Volontairement en machine à écrire :
+   c'est un texte à copier ailleurs, pas une page à lire. On doit voir que c'est
+   du brut. */
+.sch-note{max-width:620px;margin:18px auto 0;border:1.5px solid var(--noir);border-radius:8px;
+  background:#fdfdfc;overflow:hidden}
+.sch-nt{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 14px;border-bottom:1px solid var(--ligne)}
+.sch-nt b{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase}
+.sch-ncp{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--noir);
+  border-radius:999px;background:var(--noir);color:var(--creme);padding:6px 13px;cursor:pointer;
+  font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.sch-ncp .ic,.sch-ncp svg{width:12px;height:12px;flex:none}
+.sch-note pre{margin:0;padding:14px;font-family:ui-monospace,monospace;font-size:11.5px;
+  line-height:1.55;white-space:pre-wrap;word-break:break-word;color:#3d3b37;max-height:340px;overflow:auto}
+.sch-note em{display:block;font-style:normal;padding:0 14px 13px;font-size:12px;line-height:1.45;color:var(--enc2)}
+@media print{ .sch-note{display:none} }
+
 /* ── CONSEILLÉE PAR L'ÉQUIPE (08/08/2026) ──────────────────────────────────
    Une fiche que l'équipe recommande se voit de loin : filet noir plus épais, et
    la RAISON écrite en toutes lettres. Pas de couleur d'accent en plus — le
@@ -10361,8 +10379,62 @@ function vSchemas(){
        '<button class="sch-impr" onclick="imprimerSchema()">Imprimer ou enregistrer en PDF</button>'+
        (SCHEMA_L!=='fr'?'<button class="sch-rel" onclick="imprimerRelecture()">Feuille de relecture</button>':'')+
        '<button class="sch-rec" onclick="schemaRecommencer()">Recommencer</button></div>';
+    h+=noteDossierHTML(s);
   }
   return h+'</div><div style="height:26px"></div>';
+}
+/* ═══ LA NOTE POUR LE DOSSIER (08/08/2026) ═══
+   L'entonnoir produisait une feuille POUR LA PERSONNE, dans sa langue. Il manquait
+   son pendant : ce qu'on écrit, nous, dans le dossier, après l'entretien. C'est
+   les mêmes trois réponses, retournées du côté du professionnel — la situation
+   constatée, ce qui a été dit, et ce qui reste à faire.
+
+   ⚠ AUCUN NOM, JAMAIS. La note ne contient ni le nom de la personne ni le nôtre :
+   c'est la règle de COUSIN, et elle vaut ici plus qu'ailleurs puisque ce texte est
+   fait pour partir dans un autre logiciel. On copie, on colle, on complète là-bas. */
+function noteDossier(s){
+  const R=SCHEMA_REP;
+  const dit=function(k){ const q=SCHEMA_Q.find(function(x){return x.k===k;});
+    if(!q||!R[k]) return null;
+    const o=q.o.find(function(x){return x.v===R[k];}); return o?o.t:null; };
+  const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const L=s.fr;
+  const l=[];
+  l.push('SITUATION — accès aux soins · '+d);
+  l.push('');
+  l.push('CE QUI A ÉTÉ ÉTABLI');
+  if(dit('sejour')) l.push('· Séjour : '+dit('sejour'));
+  if(dit('mut'))    l.push('· Mutuelle : '+dit('mut'));
+  if(dit('cpas'))   l.push('· CPAS : '+dit('cpas'));
+  l.push('');
+  l.push('ORIENTATION DONNÉE : '+L.t);
+  l.push('('+L.s+')');
+  l.push('');
+  l.push('CE QUI A ÉTÉ EXPLIQUÉ, dans l’ordre');
+  L.e.forEach(function(e,i){ l.push((i+1)+'. '+e.t+' — '+e.d); });
+  if(L.a){ l.push(''); l.push('POINT DE VIGILANCE : '+L.a); }
+  l.push('');
+  l.push('REMIS À LA PERSONNE : la feuille « '+L.t+' »'+
+    (SCHEMA_L!=='fr' ? ' en '+((SCHEMA_LANGUES.find(function(x){return x.k===SCHEMA_L;})||{}).nom||SCHEMA_L) : ' en français')+'.');
+  l.push('');
+  l.push('À FAIRE / À VÉRIFIER');
+  l.push('· ');
+  l.push('');
+  l.push('(Note produite par COUSIN. Elle ne contient aucun nom : compléter dans le dossier.)');
+  return l.join('\n');
+}
+function noteDossierHTML(s){
+  const t=noteDossier(s);
+  return '<div class="sch-note">'+
+    '<div class="sch-nt"><b>La note pour le dossier</b>'+
+      '<button class="sch-ncp" onclick="copierNoteDossier()">'+icon('clipboard')+'Copier</button></div>'+
+    '<pre>'+esc(t)+'</pre>'+
+    '<em>Elle ne contient aucun nom — ni celui de la personne, ni le tien. On la colle dans le dossier et on complète là-bas.</em>'+
+  '</div>';
+}
+function copierNoteDossier(){
+  const s=schemaTrouve(); if(!s){ toast('Réponds d’abord aux questions'); return; }
+  copyTxt(noteDossier(s),'Note copiée — colle-la dans le dossier');
 }
 /* La feuille elle-même — la même en écran et à l'impression, pour qu'il n'y ait pas
    de surprise entre les deux. */
