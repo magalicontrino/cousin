@@ -1715,12 +1715,18 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
   color:var(--noir);line-height:1}
 /* La ligne du haut, tous étages confondus : c'est elle qu'on lit en premier. */
 .chres-tout{padding-bottom:10px;border-bottom:1px solid #e2e0db;margin-bottom:10px}
-.chres-e{display:flex;align-items:baseline;gap:12px;padding:5px 0}
-.chres-el{flex:none;width:88px;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--noir)}
-.chres-ec{flex:1;min-width:0}
-.chres-e .chres-n{font-size:8.5px;margin-bottom:2px}
+/* Un étage = un petit bloc : son nom, puis une ligne par étape avec ses numéros. */
+.chres-e{padding:9px 0 3px;border-top:1px solid #e2e0db}
+.chres-e:first-of-type{border-top:0;padding-top:2px}
+.chres-el{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--noir);margin-bottom:7px}
+.chres-l{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.chres-e .chres-n{font-size:8.5px;margin:0;flex:none}
 .chres-e .chres-n b{font-size:15px}
+/* Les numéros : gros et en chiffres d'imprimerie, ce sont eux qu'on va lire de loin
+   en montant l'escalier. */
+.chres-num{font-family:ui-monospace,monospace;font-size:13px;font-weight:500;letter-spacing:.06em;
+  color:var(--noir);line-height:1.4}
 .chres-p{font-size:12.5px;line-height:1.5;color:var(--enc2);margin:8px 0 0;
   border-top:1px solid #e2e0db;padding-top:9px}
 .chet .chq{margin-left:auto;flex:none}
@@ -6219,25 +6225,42 @@ function chNomEtage(e){
 function chResume(encours){
   if(!encours.length) return '';
   const oblig=CH_ETAPES.filter(function(e){ return !e.opt; });
+  /* On garde les NUMÉROS, pas seulement les comptes (Mag, 08/08/2026 : « je
+     préférerais qu'il y ait le numéro des chambres à côté »). « 2 à nettoyer » dit
+     quoi faire ; « 118, 122 » dit où aller — sans ça il faut redescendre la liste
+     chambre par chambre pour retrouver lesquelles. */
   const parEtage={}, total={};
   encours.forEach(function(ch){
     const p=chProchaine(ch); if(!p) return;
     const e=etageDe(ch.numero);
-    (parEtage[e]||(parEtage[e]={}))[p.k]=(parEtage[e][p.k]||0)+1;
-    total[p.k]=(total[p.k]||0)+1;
+    const t=(parEtage[e]||(parEtage[e]={}));
+    (t[p.k]||(t[p.k]=[])).push(ch.numero);
+    (total[p.k]||(total[p.k]=[])).push(ch.numero);
   });
-  const ligne=function(c){
+  /* La ligne du haut garde les CHIFFRES SEULS : c'est le coup d'œil, la vision
+     globale. Les numéros vivent dans les lignes d'étage juste en dessous, là où ils
+     servent vraiment — on monte à un étage, pas dans le bâtiment entier. */
+  const chiffres=function(c){
     return oblig.filter(function(e){ return c[e.k]; })
-      .map(function(e){ return '<span class="chr-n" style="border-color:'+e.c+'">'+
-        '<b>'+c[e.k]+'</b>'+(e.verbe||e.l.toLowerCase())+'</span>'; }).join('');
+      .map(function(e){ return '<span class="chres-n" style="border-color:'+e.c+'">'+
+        '<b>'+c[e.k].length+'</b>'+(e.verbe||e.l.toLowerCase())+'</span>'; }).join('');
   };
   const etages=Object.keys(parEtage).sort(function(a,b){ return a-b; });
   return '<div class="chres">'+
     '<div class="chres-t">Ce qui reste</div>'+
-    '<div class="chres-tout">'+ligne(total)+'</div>'+
+    '<div class="chres-tout">'+chiffres(total)+'</div>'+
     etages.map(function(e){
-      return '<div class="chres-e"><span class="chres-el">'+chNomEtage(parseInt(e,10))+'</span>'+
-        '<span class="chres-ec">'+ligne(parEtage[e])+'</span></div>';
+      const c=parEtage[e];
+      return '<div class="chres-e">'+
+        '<div class="chres-el">'+chNomEtage(parseInt(e,10))+'</div>'+
+        oblig.filter(function(x){ return c[x.k]; }).map(function(x){
+          const nums=c[x.k].slice().sort(function(a,b){ return String(a).localeCompare(String(b),'fr',{numeric:true}); });
+          return '<div class="chres-l">'+
+            '<span class="chres-n" style="border-color:'+x.c+'"><b>'+nums.length+'</b>'+
+              (x.verbe||x.l.toLowerCase())+'</span>'+
+            '<span class="chres-num">'+nums.map(esc).join(' · ')+'</span></div>';
+        }).join('')+
+      '</div>';
     }).join('')+
     '<p class="chres-p">Une chambre n’est comptée qu’une fois, dans ce qu’elle attend '+
     'maintenant. Tant qu’elle n’est pas libérée sur la liste étage, elle n’est pas '+
