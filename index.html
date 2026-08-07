@@ -775,6 +775,17 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
 
+/* ── CONSEILLÉE PAR L'ÉQUIPE (08/08/2026) ──────────────────────────────────
+   Une fiche que l'équipe recommande se voit de loin : filet noir plus épais, et
+   la RAISON écrite en toutes lettres. Pas de couleur d'accent en plus — le
+   domaine a déjà la sienne, et deux couleurs sur la même carte se disputent. */
+.frow2.reco{border-width:2px;background:#fdfdfc}
+.recolg{display:flex;align-items:center;gap:5px;margin-top:7px;
+  font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--noir)}
+.recolg svg,.recolg .ic{width:12px;height:12px;flex:none;color:#c9940c}
+.recopq{display:block;margin-top:3px;font-size:12.5px;line-height:1.4;color:#4a4844;font-style:normal}
+
 /* ── LES PAGES DE FORMATION (08/08/2026) ──────────────────────────────────
    ⚠ CE BLOC N'EXISTAIT PAS. Les quatorze formations écrivent depuis toujours
    des `f-page`, `f-lead`, `f-h`, `f-card`, `f-steps`, `f-note` — et AUCUNE de
@@ -4202,7 +4213,15 @@ function d(dom,nom,commune,desc,pub,tel,mail,site,adr,horaires,notes){
 }
 /* CONSEILLÉE PAR L'ÉQUIPE : la fiche remonte en tête de son domaine, dans un
    paquet à part. Une recommandation de collègue vaut mieux qu'un annuaire. */
-function reco(fiche){ fiche.reco=true; return fiche; }
+/* CONSEILLÉE PAR L'ÉQUIPE (rendu réel construit le 08/08/2026).
+   ⚠ Jusqu'ici `reco` ne servait À RIEN : le drapeau était posé sur trois fiches
+   et n'était lu nulle part. Goujonissimo se trouvait en tête du Médical par
+   hasard, par ordre alphabétique. Mag : « je préférerais que ça se voie, et
+   surtout qu'on puisse écrire POURQUOI ».
+   Le deuxième argument est cette raison-là. Elle s'affiche telle quelle, en
+   toutes lettres, sous le nom : « parce que l'équipe trouve ça chouette et
+   qu'ils parlent beaucoup de langues » vaut mieux qu'une pastille muette. */
+function reco(fiche, pourquoi){ fiche.reco=true; if(pourquoi) fiche.recoTxt=pourquoi; return fiche; }
 /* Pose les étiquettes de tri sur une fiche (Culture : Musée, Gratuit, Extérieur…). */
 function tags(fiche, liste){ fiche.tags=liste||[]; return fiche; }
 function m(nom,desc,notes){
@@ -5292,7 +5311,10 @@ function urlHref(u){return /^https?:/.test(u||'')?u:('https://'+(u||''))}
    Anderlecht d'abord, puis le régional, puis le reste par ordre alphabétique. */
 function triProximite(arr){
   const rang=p=> p.commune==='Anderlecht'?0 : (!p.commune||p.commune==='Régional / Toutes communes')?1 : 2;
-  return arr.slice().sort((a,b)=> rang(a)-rang(b) || a.nom.localeCompare(b.nom,'fr'));
+  /* Les fiches conseillées par l'équipe passent DEVANT tout le reste, y compris
+     devant la proximité : l'avis d'un collègue qui y a envoyé quelqu'un vaut mieux
+     qu'une adresse proche (Mag, 08/08/2026). */
+  return arr.slice().sort((a,b)=> (b.reco?1:0)-(a.reco?1:0) || rang(a)-rang(b) || a.nom.localeCompare(b.nom,'fr'));
 }
 /* ÉTIQUETTES (06/08/2026) — proposées par Claude, relues fiche par fiche par Claude
    sur mandat de Mag (« fais au mieux ») ; les corrections manuelles vivent dans
@@ -7915,9 +7937,11 @@ function fcard(p){
      nom, public en écriture machine, étoile au bout. */
   const d=DOM[p.domaine]||{}, c=dc(p.domaine);
   const sub=[p.commune&&p.commune!=='Régional / Toutes communes'?p.commune:'',p.public].filter(Boolean).join(' · ')||(p.desc||'').split('\n')[0];
-  return '<div class="frow2" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
+  return '<div class="frow2'+(p.reco?' reco':'')+'" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
     '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
-    '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+'</span>'+
+    '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+
+      (p.reco?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
+        (p.recoTxt?'<span class="recopq">'+esc(p.recoTxt)+'</span>':''):'')+'</span>'+
     (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
     heartBtn(p.sid)+'</div>';
 }
