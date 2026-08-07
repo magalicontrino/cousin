@@ -2532,6 +2532,32 @@ body.no-tabs #tabbar{display:none}
   .jx-l .b i{display:block; height:100%; border-radius:5px}
   .jx-l .n{font-size:11px; font-weight:500; color:var(--enc2); width:44px; text-align:right; flex:0 0 auto}
   .jx-vide{font-size:12.5px; color:var(--enc2); font-weight:400}
+  /* ── LA RECHERCHE (07/08/2026) ──
+     Le champ fait 52 px de haut et son texte 16 px : en dessous de 16, l'iPhone
+     zoome tout seul sur le champ quand on le touche, et la page part de travers. */
+  .rechbarre{display:flex;align-items:center;gap:10px;border:1.5px solid var(--noir);
+    border-radius:12px;background:#fdfdfc;padding:0 12px;margin:16px 0 2px;height:52px}
+  .rechbarre>.ic{width:19px;height:19px;color:var(--noir);flex:none}
+  .rechbarre input{flex:1;min-width:0;height:100%;border:0;background:none;outline:none;
+    font-family:inherit;font-size:16px;color:var(--noir);-webkit-appearance:none}
+  .rechbarre input::-webkit-search-cancel-button{display:none}
+  .rechbarre input::placeholder{color:var(--enc2)}
+  .rechbarre button{flex:none;border:0;background:none;padding:8px;cursor:pointer;display:flex}
+  .rechbarre button .ic{width:14px;height:14px;color:var(--enc2)}
+  .rechnb{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--enc2);padding:14px 0 2px}
+  .rechvide{border:1.5px solid var(--ligne);border-radius:12px;padding:18px;margin-top:14px;background:#fdfdfc}
+  .rechvide b{display:block;font-size:16px;font-weight:600;margin-bottom:8px;line-height:1.3}
+  .rechvide p{font-size:14px;line-height:1.55;color:var(--enc2);margin:0}
+  .rechracc{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .rechracc button{border:1.5px solid var(--noir);border-radius:999px;background:var(--creme);
+    padding:9px 14px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--noir);cursor:pointer}
+  .rechracc button:active{transform:scale(.96)}
+  /* Le numéro sur la ligne de résultat : c'est souvent tout ce qu'on venait chercher. */
+  .rechtel{display:block;font-size:14.5px;font-weight:600;margin-top:4px;color:var(--noir)}
+  .rechtel.vide{font-weight:400;font-size:12px;color:var(--enc2)}
+
   .quiz-themes{display:flex; flex-direction:column; gap:9px}
   .quiz-theme{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:15px 16px; border-radius:14px; background:#fdfdfc; border:1.5px solid var(--ligne); font-size:15px; font-weight:500; color:var(--noir); cursor:pointer; font-family:inherit; text-align:left}
 </style>
@@ -2564,6 +2590,11 @@ body.no-tabs #tabbar{display:none}
 <header id="topbar">
   <img class="lgo" src="logo.png" alt="COUSIN" onclick="go('#/')">
   <span style="flex:1"></span>
+  <!-- LA LOUPE, SUR TOUS LES ÉCRANS (Mag, 07/08/2026). Elle cherche dans toutes les
+       fiches à la fois : elle ne dépend donc d'aucune page et doit être joignable de
+       partout, toujours au même endroit. Sur grand écran la barre du haut disparaît —
+       « Rechercher » est alors une ligne du rail de gauche (voir renderTabs). -->
+  <button id="rechbtn" onclick="go('#/recherche')" aria-label="Rechercher" title="Rechercher"></button>
   <button id="admbtn" onclick="go('#/admin')" aria-label="Paramètres" title="Paramètres"></button>
   <button id="profilbtn" onclick="go('#/profil')" aria-label="Mon profil" title="Mon profil"></button>
   <button id="neufbtn" onclick="go('#/duneuf')" aria-label="Du neuf sur l'appli" title="Du neuf sur l'appli"></button>
@@ -5504,15 +5535,27 @@ const POUBELLES={1:[{n:3,c:'noire',l:'noires'}],
   3:[{n:3,c:'noire',l:'noires'},{n:2,c:'jaune',l:'jaunes'},{n:2,c:'bleue',l:'bleues'}],
   5:[{n:3,c:'noire',l:'noires'}]};
 const POUB_COUL={noire:'#242424',jaune:'#f5c518',bleue:'#2f6fed'};
+/* LE RYTHME RÉEL DES SACS (précisé par Mag le 07/08/2026 : « aujourd'hui elles sont
+   parties ce matin ; il fallait les mettre hier jusqu'à ce matin midi »).
+   Donc DEUX moments seulement où il y a quelque chose à faire :
+     · la VEILLE À PARTIR DU SOIR — c'est là qu'on sort les sacs ;
+     · le MATIN MÊME jusqu'à midi — les sacs sont dehors, le camion passe.
+   Le reste du temps il n'y a rien à faire, et la boule doit le dire au lieu de rester
+   allumée : une boule toujours allumée n'apprend plus rien à personne.
+   `court` est ce qui tient sous la boule ; `quand` est la phrase complète. */
 function prochaineCollecte(){
   const now=new Date(), d=now.getDay();
-  if(POUBELLES[d] && now.getHours()<12) return {sacs:POUBELLES[d], quand:'ce matin', urgent:true};
+  if(POUBELLES[d] && now.getHours()<12)
+    return {sacs:POUBELLES[d], quand:'ce matin', court:'ce matin', urgent:true};
   for(let i=1;i<=7;i++){
     const j=(d+i)%7;
     if(POUBELLES[j]){
-      const quand = i===1 ? (now.getHours()>=16 ? 'ce soir ou demain matin' : 'demain matin')
+      const veille=(i===1 && now.getHours()>=16);
+      const quand = i===1 ? (veille ? 'ce soir ou demain matin' : 'demain matin')
                           : JOURS[j].toLowerCase()+' matin';
-      return {sacs:POUBELLES[j], quand, urgent:i===1&&now.getHours()>=16};
+      const court = i===1 ? (veille ? 'à sortir ce soir' : 'demain matin')
+                          : JOURS[j].toLowerCase();
+      return {sacs:POUBELLES[j], quand, court, urgent:veille};
     }
   }
 }
@@ -6395,6 +6438,7 @@ function parseRoute(){
   if(seg[0]==='liste') return {view:'liste'};
   if(seg[0]==='chambres') return {view:'chambres'};
   if(seg[0]==='linge') return {view:'linge'};
+  if(seg[0]==='recherche') return {view:'recherche'};
   if(seg[0]==='reseau') return {view:'reseau'};
   if(seg[0]==='quartier') return {view:'quartier'};
   if(seg[0]==='favoris') return {view:'favoris'};
@@ -6419,6 +6463,8 @@ function render(){
   document.body.classList.toggle('no-tabs',current.view==='fiche');
   document.body.classList.toggle('at-home',current.view==='home');
   /* ⚠ Ne PAS renommer en « sb » : c'est le nom du lien vers la base (Supabase). */
+  const rcb=document.getElementById('rechbtn');
+  if(rcb){ if(!rcb.innerHTML) rcb.innerHTML='<span class="ic">'+icon('search')+'</span>'; rcb.classList.toggle('on',current.view==='recherche'); }
   const stb=document.getElementById('starbtn');
   if(stb){ if(!stb.innerHTML) stb.innerHTML='<span class="ic">'+icon('star')+'</span>'; stb.classList.toggle('on',current.view==='favoris'); }
   const pb=document.getElementById('profilbtn');
@@ -6462,6 +6508,10 @@ function render(){
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
+  else if(current.view==='recherche'){ view.innerHTML=vRecherche();
+    /* Le curseur est déjà dans le champ : on arrive ici pour taper, pas pour regarder.
+       Sur téléphone le clavier s'ouvre donc tout seul — un geste de moins. */
+    setTimeout(function(){ const c=document.getElementById('rechInput'); if(c) c.focus(); },30); }
   else if(current.view==='reseau') view.innerHTML=vReseau();
   else if(current.view==='quartier') view.innerHTML=vQuartier();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
@@ -6853,8 +6903,13 @@ function vHome(){
        seule valeur servait aux deux, le jour du sac NOIR dessinait un anneau CRÈME sur
        un fond CRÈME : invisible. La boule ne disait donc plus rien les lundis, mercredis
        et vendredis — les seuls jours où elle a quelque chose à dire. */
-    boules.push(['poubelle','Poubelles',sacsTexte(col.sacs),(cs==='#242424'?'#f0efed':cs),
-      'goFiche(/poubelle/i)', false, cs]);
+    /* ⚠ LA BOULE DIT MAINTENANT QUAND, ET S'ÉTEINT QUAND IL N'Y A RIEN À FAIRE
+       (Mag, 07/08/2026). Elle n'affichait que la COULEUR du sac et restait allumée en
+       permanence : un vendredi soir, les poubelles déjà parties le matin, elle disait
+       encore « Noir » comme si c'était à faire. La couleur ne suffit pas — ce qu'on
+       veut savoir, c'est si c'est ce soir ou lundi. */
+    boules.push(['poubelle','Poubelles',sacsTexte(col.sacs)+' · '+col.court,
+      (cs==='#242424'?'#f0efed':cs), 'goFiche(/poubelle/i)', !col.urgent, cs]);
   }
   /* LES PRODUITS, avec le linge, les poubelles et la clé — sa demande du 08/08/2026.
      La boule n'apparaît que quand la distribution est là : un rappel permanent ne
@@ -7390,6 +7445,24 @@ function vProfil(){
      entre collègues (Mag, 06/08/2026). */
   /* On peut refaire la visite quand on veut — et surtout retrouver COMMENT METTRE
      COUSIN SUR L'ÉCRAN D'ACCUEIL, que personne ne sait chercher (Mag, 08/08/2026). */
+  /* ══ LES BOULES DE L'ACCUEIL, RÉGLABLES ICI (07/08/2026) ══
+     Mag : « pourquoi les produits ne sont pas là ? ». Ils avaient disparu de « À faire
+     aujourd'hui » parce qu'ils avaient été décochés à l'onboarding — un écran vu une
+     fois, des mois plus tôt, et jamais rouvert depuis. Le réglage existait donc, mais
+     il n'était atteignable QU'EN REFAISANT toute la visite : personne ne peut deviner
+     ça, et en attendant on croit à une panne. Un réglage qui décide de ce qu'on voit
+     tous les jours doit se changer là où on va le chercher — dans son profil. */
+  const tCoch=ONB.taches||[];
+  h+='<div class="sect" style="margin-top:22px"><b>À faire aujourd’hui</b><em>'+
+       (tCoch.length?tCoch.length+' sur '+ONB_TACHES.length:'toutes')+'</em></div>'+
+     '<div class="fsrc" style="text-align:left;padding:0 0 10px">Ce qui s’allume sur ton accueil. '+
+     'Rien de coché = tout est montré.</div>'+
+     '<div class="onb-ch">'+ONB_TACHES.map(function(x){
+       const on=!tCoch.length||tCoch.indexOf(x.k)>=0;
+       return '<button class="onb-c'+(on?' on':'')+'" onclick="onbToggleTache(\''+x.k+'\')">'+
+         '<i></i>'+esc(x.t)+'</button>';
+     }).join('')+'</div>';
+
   h+='<button class="acc" style="margin-top:18px" onclick="onbRejouer()">'+
        '<b>Revoir la visite</b><span class="n">'+(ONB.raccourci?'et le raccourci':'et l’ajouter à l’écran d’accueil')+'</span>'+
        '<span class="sg">›</span></button>';
@@ -8380,6 +8453,300 @@ function vAdmin(){
      'Il garde en revanche les formations, les jeux et le quiz — se former est ouvert à tout le monde.\n\n'+
      'Les autres restrictions restent à décider ensemble.</p></div>';
   return h+'<div style="height:26px"></div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA RECHERCHE (07/08/2026) — demandée par Mag : « je veux une recherche qui
+   soit très efficace ».
+
+   TROIS CHOSES LA RENDENT UTILE, ET AUCUNE N'EST ÉVIDENTE :
+
+   ① ELLE CHERCHE PARTOUT D'UN COUP. Avant, il fallait choisir un domaine puis
+      une sous-catégorie. Or l'intérêt d'une recherche, c'est justement de sauter
+      cette étape : on ne sait pas toujours dans quel domaine une chose est rangée.
+
+   ② ELLE CHERCHE DANS LES NOTES, pas seulement dans les noms. C'est là qu'il y a
+      « sans rendez-vous », « au forfait », « sans papiers ». On cherche une
+      SITUATION, presque jamais un nom d'association — quand on connaît le nom,
+      on connaît déjà le numéro.
+
+   ③ ELLE PARDONNE LA FAÇON DONT ON TAPE, parce qu'on tape mal quand on est
+      pressé et debout : sans accents, sans tirets, sur des débuts de mots, dans
+      le désordre, et avec une faute de frappe.
+
+   ⚠ LE DICTIONNAIRE PLUS BAS EST LE CŒUR DE TOUT ÇA. Sans lui, « MM » ne trouve
+   rien. C'est la seule partie que le code ne peut pas deviner : elle vient du
+   vocabulaire de l'équipe. À compléter au fur et à mesure — c'est fait pour.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Ce qu'on tape → ce que ça doit aller chercher dans les fiches.
+   À gauche, les mots tels qu'on les tape (sans accent, en minuscules).
+   À droite, ce qui existe VRAIMENT dans les fiches — sinon la ligne ne sert à rien. */
+const RECH_MOTS = [
+  /* ce par quoi Mag commence toujours (07/08/2026) */
+  ['mm',            ['maison medicale']],
+  ['maison med',    ['maison medicale']],
+  ['forfait',       ['maison medicale','forfait']],
+  ['medecin',       ['maison medicale','medecin','generaliste']],
+  ['docteur',       ['maison medicale','medecin','generaliste']],
+  ['generaliste',   ['maison medicale','generaliste']],
+  ['cpas',          ['cpas']],
+  ['ris',           ['revenu d integration','ris']],
+  /* le médical */
+  ['dentiste',      ['dentiste','dentaire']],
+  ['psy',           ['sante mentale','psycholog','psychiatr']],
+  ['kine',          ['kine']],
+  ['infirmier',     ['infirmier','soins a domicile']],
+  ['plaie',         ['infirmier','soins a domicile','plaie']],
+  /* l'argent des soins */
+  ['amu',           ['aide medicale urgente','amu']],
+  ['requisitoire',  ['requisitoire','aide medicale urgente']],
+  ['sans mutuelle', ['sans mutuelle']],
+  ['mutuelle',      ['sans mutuelle','mutuelle']],
+  /* le séjour */
+  ['sans papiers',  ['sans papiers','sejour','irregulier']],
+  ['papiers',       ['sejour','sans papiers','titre de sejour']],
+  ['sejour',        ['sejour']],
+  ['asile',         ['asile','demandeur']],
+  ['regularisation',['9bis','9ter','regularisation']],
+  /* les besoins de base, dits comme on les dit */
+  ['manger',        ['alimentaire','repas','colis']],
+  ['nourriture',    ['alimentaire','repas','colis']],
+  ['repas',         ['alimentaire','repas']],
+  ['dormir',        ['hebergement','maison d accueil','nuit']],
+  ['lit',           ['hebergement','maison d accueil']],
+  ['loger',         ['logement','hebergement']],
+  ['douche',        ['douche','hygiene']],
+  ['laver',         ['douche','hygiene','lavoir']],
+  ['lessive',       ['lavoir','lessive']],
+  ['vetements',     ['vestiaire','vetements']],
+  /* le reste du quotidien */
+  ['adresse',       ['adresse de reference']],
+  ['avocat',        ['aide juridique','avocat','baj']],
+  ['droit',         ['juridique','droit']],
+  ['violence',      ['violences']],
+  ['drogue',        ['addiction','drogue','assuetude']],
+  ['alcool',        ['alcool','addiction']],
+  ['ivg',           ['ivg','avortement']],
+  ['enceinte',      ['grossesse','enceinte']],
+  ['enfant',        ['enfant','jeunesse','famille']],
+  ['interprete',    ['interprete','traduction']],
+  ['gratuit',       ['gratuit']]
+];
+
+/* Enlever les accents, les apostrophes et les tirets : « L'Îlot » et « l ilot »
+   doivent être le même mot, sinon on ne trouve jamais rien du premier coup. */
+function rNorm(s){
+  return String(s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[’'`´]/g,' ')
+    .replace(/[-_/.,;:()!?«»"]/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+
+/* Le texte de chaque fiche, préparé une seule fois et gardé de côté : refaire ce
+   travail à chaque lettre tapée rendrait la recherche molle sur un téléphone. */
+var RECH_IDX=null;
+function rechIndex(){
+  if(RECH_IDX) return RECH_IDX;
+  RECH_IDX=DATA.map(function(p){
+    return { p:p,
+      nom:rNorm(p.nom), commune:rNorm(p.commune), tags:rNorm((p.tags||[]).join(' ')),
+      dom:rNorm((DOM[p.domaine]||{}).label), desc:rNorm(p.desc), pub:rNorm(p.public),
+      notes:rNorm(p.notes), tel:String(p.tel||'').replace(/\D/g,'') };
+  });
+  return RECH_IDX;
+}
+
+/* Un mot trouvé AU DÉBUT d'un mot compte double : « med » dans « médical » vaut
+   mieux que « med » perdu au milieu de « intermédiaire ». */
+function rechDans(txt, mot){
+  if(!txt||!mot) return 0;
+  const i=txt.indexOf(mot);
+  if(i<0) return 0;
+  /* ⚠ UN MOT TRÈS COURT DOIT ÊTRE UN MOT ENTIER. Sans cette règle, « mm » se trouve
+     dans « co-mm-une » et dans « co-mm-ent » : la recherche ramenait 231 fiches sur
+     345, c'est-à-dire rien du tout. « mm » ne sert donc que par le dictionnaire, qui
+     l'envoie chercher « maison medicale ». */
+  if(mot.length<=2){
+    let j=i;
+    while(j>=0){
+      const avant=(j===0 || txt.charAt(j-1)===' ');
+      const apres=(j+mot.length>=txt.length || txt.charAt(j+mot.length)===' ');
+      if(avant&&apres) return 2;
+      j=txt.indexOf(mot,j+1);
+    }
+    return 0;
+  }
+  return (i===0 || txt.charAt(i-1)===' ') ? 2 : 1;
+}
+/* Une faute de frappe tolérée, et seulement sur les mots assez longs pour que ce
+   ne soit pas un hasard : « medcin » doit trouver « medecin ». */
+function rechDist1(a,b){
+  if(a===b) return true;
+  const la=a.length, lb=b.length;
+  if(Math.abs(la-lb)>1) return false;
+  let i=0,j=0,ecarts=0;
+  while(i<la && j<lb){
+    if(a.charAt(i)===b.charAt(j)){ i++; j++; continue; }
+    if(++ecarts>1) return false;
+    if(la>lb) i++; else if(lb>la) j++; else { i++; j++; }
+  }
+  if(i<la||j<lb) ecarts++;
+  return ecarts<=1;
+}
+function rechPresque(txt, mot){
+  if(mot.length<5||!txt) return false;
+  const mots=txt.split(' ');
+  for(let i=0;i<mots.length;i++) if(rechDist1(mots[i],mot)) return true;
+  return false;
+}
+
+/* Ce que vaut UN mot tapé, sur UNE fiche. Zéro = ce mot n'y est pas, et la fiche
+   est écartée : quand on tape deux mots, on les veut tous les deux. */
+/* Ce qu'il faut trouver, et par quels chemins. Un « terme » n'est pas un mot : c'est
+   une liste d'équivalents dont UN SEUL suffit. */
+function rechTermes(q, tolerant){
+  const qn=rNorm(q);
+  /* ① L'expression entière est dans le dictionnaire (« maison med », « sans papiers ») :
+     c'est UN terme, pas deux. Sans ça, ces lignes-là ne servaient à rien — chaque mot
+     partait chercher de son côté et l'équivalent n'était jamais consulté. */
+  for(let i=0;i<RECH_MOTS.length;i++)
+    if(RECH_MOTS[i][0]===qn) return [[qn].concat(RECH_MOTS[i][1])];
+  /* ② Sinon chaque mot est un terme, avec ses équivalents à lui. */
+  return qn.split(' ').filter(function(m){ return m.length>1; }).map(function(m){
+    let alt=[m];
+    for(let i=0;i<RECH_MOTS.length;i++){
+      const cle=RECH_MOTS[i][0];
+      /* La faute de frappe vaut AUSSI pour le dictionnaire : « medcin » doit retrouver
+         la ligne « medecin », sinon le dictionnaire ne pardonne rien alors que c'est
+         justement là qu'on tape mal. */
+      if(cle===m || (tolerant && m.length>=5 && rechDist1(cle,m))) alt=alt.concat(RECH_MOTS[i][1]);
+    }
+    return alt;
+  });
+}
+function rechMot(f, pistes, tolerant){
+  const mot=pistes[0];
+  let best=0;
+  for(let i=0;i<pistes.length;i++){
+    const m=pistes[i];
+    const s=Math.max(
+      100*rechDans(f.nom,m),
+      50*rechDans(f.tags,m),
+      40*rechDans(f.commune,m),
+      35*rechDans(f.dom,m),
+      25*rechDans(f.desc,m),
+      20*rechDans(f.pub,m),
+      12*rechDans(f.notes,m));
+    if(s>best) best=s;
+  }
+  /* Un numéro de téléphone se cherche aussi : on tape « 02 880 » et on tombe dessus. */
+  if(!best && /^\d{2,}$/.test(mot) && f.tel.indexOf(mot)>=0) best=120;
+  /* La faute de frappe n'est tentée qu'en dernier recours, et jamais dans les notes :
+     sur 300 fiches de notes longues, elle ramènerait n'importe quoi. */
+  if(!best && tolerant && (rechPresque(f.nom,mot)||rechPresque(f.tags,mot)||rechPresque(f.commune,mot)))
+    best=45;
+  return best;
+}
+
+/* La recherche elle-même. Renvoie les fiches classées, la meilleure d'abord. */
+function rechercher(q, tolerant){
+  const mots=rechTermes(q,tolerant);
+  if(!mots.length) return [];
+  const out=[];
+  rechIndex().forEach(function(f){
+    let total=0;
+    for(let i=0;i<mots.length;i++){
+      const s=rechMot(f,mots[i],tolerant);
+      if(!s) return;                     /* un mot manque → la fiche ne convient pas */
+      total+=s;
+    }
+    /* CE QUE L'ÉQUIPE PRÉFÈRE PASSE DEVANT — même règle que le tri des domaines :
+       l'avis d'un collègue qui y a envoyé quelqu'un vaut mieux qu'un bon score. */
+    if(f.p.reco) total+=60;
+    if(f.p.deco) total-=80;
+    /* Maisons médicales et CPAS remontent : Mag, 07/08/2026 — « on travaille
+       beaucoup avec les maisons médicales et les CPAS ». À score égal, c'est
+       presque toujours ça qu'on cherchait. */
+    if(f.tags.indexOf('maison medicale')>=0 || estCpas(f.p)) total+=35;
+    out.push({p:f.p, score:total});
+  });
+  out.sort(function(a,b){ return b.score-a.score || a.p.nom.localeCompare(b.p.nom,'fr'); });
+  return out;
+}
+
+/* Les raccourcis de l'écran vide : ce que l'équipe cherche tous les jours. */
+const RECH_RACCOURCIS=['Maison médicale','CPAS','AMU','Sans papiers','Hébergement','Alimentaire','Sans mutuelle','Douche'];
+
+var RECH_Q='';
+function rechLancer(q){
+  RECH_Q=q;
+  const c=document.getElementById('rechInput'); if(c) c.value=q;
+  rechAfficher();
+}
+function rechTape(v){ RECH_Q=v; rechAfficher(); }
+function rechVider(){ RECH_Q=''; const c=document.getElementById('rechInput'); if(c){ c.value=''; c.focus(); } rechAfficher(); }
+
+/* ⚠ ON NE REDESSINE QUE LES RÉSULTATS, jamais la page entière : un render() complet
+   remplace le champ de saisie, et le clavier du téléphone se referme à chaque lettre. */
+function rechAfficher(){
+  const z=document.getElementById('rechRes'); if(!z) return;
+  const eff=document.getElementById('rechEff'); if(eff) eff.style.visibility=RECH_Q?'visible':'hidden';
+  z.innerHTML=rechResultatsHTML();
+}
+function rechCarte(p){
+  const c=dc(p.domaine), d=DOM[p.domaine]||{};
+  const bas=[d.label, (p.commune&&p.commune!=='Régional / Toutes communes')?p.commune:''].filter(Boolean).join(' · ');
+  return '<div class="frow2'+(p.reco?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" '+
+    'onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
+    '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
+    '<span class="tx"><b>'+esc(p.nom)+'</b>'+(bas?'<em>'+esc(bas)+'</em>':'')+
+      (p.tel?'<span class="rechtel">'+esc(p.tel)+'</span>':'<span class="rechtel vide">Pas de numéro dans cette fiche</span>')+
+      (p.reco?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>':'')+
+      (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>':'')+'</span>'+
+    heartBtn(p.sid)+'</div>';
+}
+function rechResultatsHTML(){
+  if(!RECH_Q.trim()){
+    return '<div class="rechvide"><b>Cherche ce que tu veux, dans toutes les fiches à la fois.</b>'+
+      '<p>Un nom, une commune, un numéro de téléphone — ou simplement la situation : '+
+      '« sans papiers », « manger », « dormir ». Ça cherche aussi dans les notes des fiches.</p></div>'+
+      '<div class="rechracc">'+RECH_RACCOURCIS.map(function(r){
+        return '<button onclick="rechLancer(\''+r.replace(/'/g,"\\'")+'\')">'+esc(r)+'</button>';
+      }).join('')+'</div>';
+  }
+  let res=rechercher(RECH_Q,false);
+  let corrige=false;
+  /* Rien trouvé ? On retente en tolérant une faute de frappe, et ON LE DIT — sinon
+     la personne croit que le mot n'existe pas alors qu'elle l'a mal tapé. */
+  if(!res.length){ res=rechercher(RECH_Q,true); corrige=res.length>0; }
+  if(!res.length){
+    return '<div class="rechvide"><b>Rien pour « '+esc(RECH_Q)+' ».</b>'+
+      '<p>Essaie avec un seul mot, ou avec la situation plutôt que le nom : « sans papiers » '+
+      'plutôt que le nom de l’association. Si tu es sûre que ça devrait exister, '+
+      'dis-le avec le « + » — c’est peut-être une fiche qui manque.</p></div>';
+  }
+  const max=40, montre=res.slice(0,max);
+  return '<div class="rechnb">'+res.length+' résultat'+(res.length>1?'s':'')+
+      (corrige?' — en corrigeant l’orthographe':'')+'</div>'+
+    '<div class="cards" style="border-top:0;padding-top:4px">'+
+      montre.map(function(r){ return rechCarte(r.p); }).join('')+'</div>'+
+    (res.length>max?'<div class="rechnb" style="text-align:center;padding-bottom:20px">'+
+      'Les '+max+' plus proches sont affichés. Ajoute un mot pour resserrer.</div>':'')+
+    '<div style="height:26px"></div>';
+}
+function vRecherche(){
+  return heroBandeau('Rechercher','Dans les '+DATA.length+' fiches','#f5c542','search')+
+    '<div class="rechbarre">'+
+      '<span class="ic">'+icon('search')+'</span>'+
+      '<input id="rechInput" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" '+
+        'placeholder="maison médicale, CPAS, sans papiers…" value="'+esc(RECH_Q)+'" '+
+        'oninput="rechTape(this.value)">'+
+      '<button id="rechEff" onclick="rechVider()" aria-label="Effacer" '+
+        'style="visibility:'+(RECH_Q?'visible':'hidden')+'"><span class="ic">'+icon('croix')+'</span></button>'+
+    '</div>'+
+    '<div id="rechRes">'+rechResultatsHTML()+'</div>';
 }
 
 /* ---------- la page Réseau : la grille des domaines, comme dans son app ---------- */
@@ -11470,7 +11837,10 @@ function renderTabs(){
      sinon il devient invisible sur ordinateur. */
   /* « Une suggestion » EN TÊTE et en ROSE (Mag, 06/08/2026) : c'est le geste qu'on
      veut voir tout de suite quand quelque chose cloche. */
+  /* « Rechercher » juste après la suggestion : sur grand écran la barre du haut
+     n'existe pas, la loupe doit donc vivre ici, sinon elle devient introuvable. */
   const S=[['@idee','Une suggestion','plus','#fd8fd0'],
+           ['#/recherche','Rechercher','search'],
            ['#/favoris','Tes étoiles','star'],['#/fil','Le fil','feed'],
            ['#/duneuf','Quoi de neuf','bulb'],['#/profil','Profil','user']]
           .concat(vueAdmin()?[['#/admin','Admin','cog']]:[])
