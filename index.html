@@ -4894,7 +4894,32 @@ function imprimer(){
      Minimaliste, parce que l'encre coûte : pas d'aplat, un filet fin, une seule fiche
      par bloc et jamais coupée en deux. */
   let corps=null;
+  /* UNE FICHE SEULE : c'est la feuille qu'on donne à quelqu'un pour qu'il y aille.
+     On la fabrique exprès — l'écran a des boutons d'appel et une étoile qui n'ont
+     rien à faire sur du papier. */
   try{
+    if(current && current.view==='fiche' && current.sid){
+      const f=DATA.find(function(x){ return x.sid===current.sid; });
+      if(f){
+        const l=[];
+        if(f.tel) l.push('<span><i>Tél</i>'+esc(f.tel)+'</span>');
+        if(f.adr) l.push('<span><i>Adresse</i>'+esc(f.adr)+'</span>');
+        if(f.horaires) l.push('<span><i>Horaires</i>'+esc(f.horaires)+'</span>');
+        if(f.mail) l.push('<span><i>Mail</i>'+esc(f.mail)+'</span>');
+        if(f.site) l.push('<span><i>Site</i>'+esc(f.site)+'</span>');
+        corps='<div class="pf-f pf-seule">'+
+          '<b>'+esc(f.nom)+'</b>'+
+          (f.commune?'<em>'+esc(f.commune)+'</em>':'')+
+          (f.desc?'<p>'+esc(f.desc)+'</p>':'')+
+          (f.public?'<p class="pu">Pour : '+esc(f.public)+'</p>':'')+
+          (l.length?'<div class="pf-l">'+l.join('')+'</div>':'')+
+          (f.notes?'<p class="pn">'+esc(f.notes)+'</p>':'')+
+        '</div>';
+      }
+    }
+  }catch(e){}
+  try{
+    if(corps) throw 0;
     const sids=[...src.querySelectorAll('[onclick*="#/f/"]')].map(function(e){
       const m=/#\/f\/([^']+)/.exec(e.getAttribute('onclick')||''); return m?m[1]:null;
     }).filter(Boolean);
@@ -4960,6 +4985,9 @@ function imprimer(){
       '.pf-f p.pu{color:#555;font-size:11px}'+
       '.pf-l{display:flex;flex-wrap:wrap;gap:3px 16px;margin-top:5px}'+
       '.pf-l span{font-size:11.5px;color:#111}'+
+      '.pf-seule b{font-size:20px}'+
+      '.pf-seule{border-bottom:0}'+
+      '.pf-f p.pn{white-space:pre-line;margin-top:9px;padding-top:8px;border-top:1px solid #ddd;font-size:11.5px;color:#333}'+
       '.pf-l i{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;'+
         'text-transform:uppercase;color:#777;margin-right:5px}'+
       '@media print{ .pt-tete{display:none!important} .fw{padding:0!important;max-width:100%!important} }'+
@@ -7312,7 +7340,10 @@ function vFiche(p){
   else if(p.site) b2='<a class="fbtn plein" style="background:'+c+'" href="'+urlHref(p.site)+'" target="_blank" rel="noopener"><span class="ic">'+icon('lien')+'</span>Ouvrir</a>';
   const boutons=(b1||b2)?'<div class="fboutons">'+(b1||'<span></span>')+(b2||'<span></span>')+'</div>':'';
 
-  return '<div class="fcarte">'+
+  /* Le bouton d'impression d'UNE fiche : c'est la feuille qu'on donne à quelqu'un
+     pour qu'il puisse s'y rendre sans téléphone (Mag, 08/08/2026). */
+  return '<div class="imprligne">'+boutonImprimer()+'</div>'+
+    '<div class="fcarte">'+
       '<i class="bande" style="background:'+c+'"></i>'+
       '<div class="fin">'+
         '<div class="ftop">'+
