@@ -10204,6 +10204,20 @@ var JXTIMER = null;
 
 
 function jxStop(){ if(JXTIMER){ clearInterval(JXTIMER); JXTIMER=null; } }
+/* LE COMPTE À REBOURS DU CHRONO, dans sa propre fonction depuis le 08/08/2026 : il
+   ne démarre plus une seule fois au lancement, il se relance à chaque question. Le
+   temps s'arrête pendant qu'on lit la correction et repart quand on continue.
+   ⚠ jxStop() d'abord : sans ça, deux clics rapides feraient tourner deux comptes en
+   parallèle et le chrono descendrait deux fois plus vite. */
+function jxChronoTic(){
+  jxStop();
+  JXTIMER=setInterval(function(){
+    if(!JEU||JEU.type!=='chrono'){ jxStop(); return; }
+    JEU.reste--;
+    if(JEU.reste<=0){ JEU.reste=0; JEU.fini=true; jxRecord('chrono',JEU.score); jxStop(); }
+    render();
+  },1000);
+}
 function jxChoisirJeu(k){ JXCHOIX.jeu = k || null; JXCHOIX.terrain={t:'tout'}; render(); }
 function jxTerrain(t,k){ JXCHOIX.terrain={t,k}; render(); }
 
@@ -10251,9 +10265,7 @@ function jxJouer(k, ter){
   if(type==='chrono'){
     JEU={type,terrain,qs:jxQuestions(terrain,60),i:0,score:0,answered:false,picked:-1,reste:60,fini:false,recAvant:(JXS.rec&&JXS.rec.chrono)||0};
     go('#/quiz');
-    JXTIMER=setInterval(()=>{ if(!JEU||JEU.type!=='chrono'){ jxStop(); return; }
-      JEU.reste--; if(JEU.reste<=0){ JEU.reste=0; JEU.fini=true; jxRecord('chrono',JEU.score); jxStop(); }
-      render(); },1000);
+    jxChronoTic();
     return;
   }
   // par défaut : les questions classiques
@@ -10345,7 +10357,19 @@ function jxRep(i){
     else { JEU.fini=true; }
   } else if(JEU.type==='chrono'){
     if(juste) JEU.score++;
-    setTimeout(()=>{ if(JEU&&JEU.type==='chrono'&&!JEU.fini){ jxSuivante(); } },420);
+    /* ⚠ ON NE PASSE PLUS TOUT SEUL À LA QUESTION SUIVANTE (Mag, 08/08/2026 : « quand
+       on clique sur la réponse, ça passe directement à l'autre. On n'a pas le temps
+       de lire, de s'informer, de s'instruire. C'est impossible de jouer »).
+
+       Il y avait un setTimeout de 420 MILLISECONDES : la correction, le « Pourquoi »
+       et le lien vers la fiche s'affichaient et disparaissaient avant qu'on ait pu
+       poser les yeux dessus. Un jeu dont le but est d'apprendre ne peut pas cacher
+       la réponse — c'était le seul moment où la personne apprend quelque chose.
+
+       Et LE CHRONO S'ARRÊTE pendant qu'on lit : sinon lire coûte des secondes, et
+       le jeu punirait exactement ce qu'il est censé encourager. Il repart au clic
+       sur « Question suivante » (voir jxSuivante). */
+    jxStop();
   } else if(juste && JEU.score!==undefined){ JEU.score++; }
   render();
 }
@@ -10354,6 +10378,8 @@ function jxSuivante(){
   JEU.i++; JEU.answered=false; JEU.picked=-1; JEU.retourne=false; JEU.niveau=1;
   if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='chrono'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
   if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='serie'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
+  /* Le chrono reprend là où il s'était arrêté : le temps de lecture n'est pas compté. */
+  if(JEU.type==='chrono' && !JEU.fini) jxChronoTic();
   render();
 }
 /* Les deux flèches en rond du bandeau. Dessinées ici plutôt que prises dans les
@@ -10862,9 +10888,13 @@ function jxJeuHTML(){
     const Q=JEU.qs[JEU.i];
     /* Le chrono garde son compte à rebours à la place du compteur de questions :
        c'est le temps qui presse, pas le nombre. */
+    /* Le bouton « Question suivante » existe maintenant pour le chrono aussi : c'est
+       lui qui relance le temps. Le sous-titre le dit quand la lecture est en cours,
+       sinon on croirait le compte à rebours bloqué. */
     return `<div class="pf-wrap">${jxCarteQuestion(Q,'jxRep',{
       total:JEU.journal?JEU.journal.length+1:1, i:JEU.i,
-      sur:'Chrono · '+JEU.reste+' s · '+JEU.score+' bonne'+(JEU.score>1?'s':'')})}</div>`;
+      sur:'Chrono · '+JEU.reste+' s'+(JEU.answered?' · en pause':'')+' · '+JEU.score+' bonne'+(JEU.score>1?'s':''),
+      suite:'jxSuivante()', libelle:'Question suivante →'})}</div>`;
   }
 
   if(T==='qui'){
