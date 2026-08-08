@@ -798,6 +798,26 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    gris. Ça reste cliquable et lisible, mais ça ne réclame plus le regard
    (idée de Mag, 08/08/2026 : « griser un peu ceux qui sont inactifs »). */
 .boule.dort .rond{background:transparent;border:1.5px solid var(--ligne)}
+/* ── L'ANNEAU DÉGRADÉ DES POUBELLES (Mag, 08/08/2026) ──
+   La couleur du sac fondue dans le fuchsia, en halo autour du rond. Il reste allumé
+   même quand la collecte n'est pas pour tout de suite — c'est la seule boule dans ce
+   cas, parce que c'est la seule dont la couleur EST l'information.
+   ⚠ `--sac` est posée à l'écriture de la boule : c'est la couleur du sac du jour. */
+/* ⚠ LE DÉGRADÉ EST DANS LA BORDURE DU ROND, PAS DERRIÈRE LUI. Premier essai : un
+   halo en pseudo-élément posé en `z-index:-1` — il passait derrière le fond du cadre
+   des boules et devenait invisible. Ici les deux fonds sont empilés dans le rond
+   lui-même : le noir jusqu'au bord intérieur, le dégradé jusqu'au bord extérieur.
+   Rien ne peut passer devant, et la boule garde ses 64 px comme ses voisines. */
+.boule .rond.deg{border:5px solid transparent;
+  background:
+    linear-gradient(var(--noir),var(--noir)) padding-box,
+    conic-gradient(from 210deg, #E8308A, var(--sac,#242424) 42%, var(--sac,#242424) 58%, #E8308A) border-box}
+/* Au repos, l'anneau reste — un cran plus fin, pour ne pas crier autant qu'un jour
+   de collecte. C'est la seule boule qui garde sa couleur en dormant. */
+.boule.dort .rond.deg{border-width:3.5px;
+  background:
+    linear-gradient(var(--noir),var(--noir)) padding-box,
+    conic-gradient(from 210deg, #E8308A, var(--sac,#242424) 42%, var(--sac,#242424) 58%, #E8308A) border-box}
 .boule.dort .rond .ic,.boule.dort .rond svg{color:#b4b2a9!important}
 .boule.dort b{color:#8b8984;font-weight:600}
 .boule.dort em{color:#b4b2a9}
@@ -4998,7 +5018,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v436';
+const APP_VERSION = 'v437';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8347,10 +8367,35 @@ function vHome(){
            (poubelle noire, clé des chambres) se dessinait un anneau crème invisible. */
         const cAnneau = b[6] || b[3];
         const memeQueLeFond = String(cAnneau||'').toLowerCase()==='#1b1b1b' || String(cAnneau||'').toLowerCase()==='#242424';
-        const anneau = dort ? ''
-          : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+cAnneau:'0 0 0 4px '+cAnneau)+'"';
+        /* ═══ LES POUBELLES GARDENT LEUR COULEUR MÊME AU REPOS (Mag, 08/08/2026) ═══
+           « Mets une couleur autour des poubelles, même quand c'est noir — un truc qui
+           fait qu'on voit que c'est à faire. Genre un dégradé fuchsia-noir. »
+
+           Le défaut : quand la collecte n'est pas imminente, la boule s'éteint comme
+           les autres — trait gris pâle, plus de couleur. Or les poubelles, elles, ont
+           toujours quelque chose à dire : le sac du jour a une couleur, et c'est elle
+           qu'on cherche. Un sac NOIR sur une boule éteinte, ça ne se voit plus du tout.
+
+           Elles sont donc les seules à garder un anneau au repos, et cet anneau est un
+           DÉGRADÉ : la couleur du sac fondue dans le fuchsia. Le dégradé se voit sur
+           n'importe quel fond, y compris quand le sac est noir.
+
+           ⚠ LE FUCHSIA NE NOMME AUCUN SAC, et ne doit jamais le laisser croire : il
+           n'existe pas de sac fuchsia à Bruxelles. C'est un halo, pas une couleur de
+           sac — la couleur du sac reste celle du gros de l'anneau, le fuchsia n'est
+           que la lueur autour. Si un jour la STIB… pardon, si la Ville sort un sac
+           rose, il faudra changer ce halo. */
+        const poub = b[0]==='poubelle';
+        /* ⚠ La classe se compose ICI, dans `rondCl` — pas dans `anneau`. Mettre un
+           `class=` dans `anneau` donnerait DEUX attributs class sur la même balise :
+           le navigateur garde le premier et ignore le second, en silence. */
+        const rondCl = 'rond'+(poub?' deg':'');
+        const anneau = (dort && !poub) ? ''
+          : poub
+            ? ' style="--sac:'+(cAnneau||'#242424')+'"'
+            : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+cAnneau:'0 0 0 4px '+cAnneau)+'"';
         return '<button class="boule'+(dort?' dort':'')+'" onclick="'+b[4]+'">'+
-          '<span class="rond"'+anneau+'>'+dedans+'</span>'+
+          '<span class="'+rondCl+'"'+anneau+'>'+dedans+'</span>'+
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
       }).join('')+'</div>';
   }
