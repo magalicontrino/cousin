@@ -1974,6 +1974,31 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .autrl[open]>summary b{color:var(--noir)}
 .autrl-c{padding:0 12px 14px;opacity:.82}
 
+/* ── LES PROPOSITIONS D'ACTIVITÉS AU CENTRE ──
+   Le filet de gauche dit la SOURCE : rose pour un hébergé, bleu pour un éduc, vert
+   pour l'équipe. C'est la seule chose qu'on doit voir avant de lire le texte. */
+.prop{border:1px solid var(--ligne);border-left:7px solid var(--ligne);background:#f4f3f0;
+  padding:11px 12px 10px;margin-bottom:8px}
+.prop.faite{opacity:.6}
+.prop-h{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.prop-s{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:500;color:#1b1b1b;padding:3px 8px}
+/* Le compte des demandes : gros, parce que c'est lui qui décide quoi lancer. */
+.prop-n{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--noir);border:1.5px solid var(--noir);padding:2px 7px;font-weight:600}
+.prop-e{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--enc2)}
+.prop>b{display:block;font-size:15px;font-weight:600;line-height:1.3}
+.prop>p{font-size:13px;line-height:1.45;color:#4a4844;margin-top:5px}
+.prop>em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:8.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:6px}
+.prop-b{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.prop-b button{flex:none;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:0;padding:8px 12px;
+  color:var(--noir);font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;font-weight:500}
+.prop-b button.doux{border-color:var(--ligne);color:var(--enc2)}
+.propc{margin:2px 0 0}
+
 /* ── LA PASSATION ──
    Un réveil se lit à l'heure, pas au texte : l'heure vient donc DEVANT, en chiffres
    d'imprimerie, et la chambre juste après. */
@@ -5157,7 +5182,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v416';
+const APP_VERSION = 'v417';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -12477,6 +12502,166 @@ function agCalendrierHTML(){
     : '<div class="cal-vide">Rien de prévu ce jour-là.</div>';
   return h+'</div>';
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES ACTIVITÉS AU CENTRE — LE CARNET DES PROPOSITIONS (Mag, 08/08/2026)
+
+   « Pour les activités au centre, on devrait pouvoir noter les propositions et les
+   demandes des hébergés, en plus des idées des éducs et des suggestions de
+   l'équipe. »
+
+   TROIS SOURCES, et c'est tout le sujet : la même phrase ne vaut pas la même chose
+   selon qui la dit. « On pourrait faire un atelier couture » venant de l'équipe,
+   c'est une idée ; venant de trois hébergés, c'est une demande à laquelle le centre
+   ne répond pas. D'où le compteur : trois personnes qui réclament la même chose, ce
+   n'est plus une idée, c'est un besoin — et c'est ce chiffre qui dit quoi lancer en
+   premier.
+
+   ⚠ CE N'EST PAS UN PROGRAMME, ET C'EST VOULU. Un carnet n'engage personne à animer
+   quoi que ce soit. C'est exactement ce qui avait fait écarter l'agenda des
+   activités le 30/07 : « c'est un peu trop de pression pour l'instant pour les
+   travailleurs éducs ». Noter une demande ne promet rien ; afficher un programme,
+   si. Ne pas transformer ce carnet en calendrier sans le lui demander.
+
+   ⚠ AUCUN NOM D'HÉBERGÉ, pas même des initiales : on note QUE quelqu'un l'a
+   demandé, jamais qui.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const PROP_SOURCES=[
+  {k:'heberge', l:'Un hébergé l’a demandé', court:'Demandé', c:'#EE4C7C'},
+  {k:'educ',    l:'Idée d’un éducateur',    court:'Éduc',    c:'#7C8AE0'},
+  {k:'equipe',  l:'Suggestion de l’équipe', court:'Équipe',  c:'#4FAE86'}
+];
+const PROP_ETATS={idee:'À voir', essayer:'À essayer', faite:'Déjà faite'};
+var PROPOS=[], PROP_PANNE='', PROP_CHARGE=false;
+var PROP_SOURCE='heberge';   /* le cas qu'elle veut pouvoir noter en premier */
+
+function propSource(k){ return PROP_SOURCES.find(function(s){ return s.k===k; })||PROP_SOURCES[2]; }
+async function loadPropositions(){
+  if(!sb){ PROP_CHARGE=true; return; }
+  try{
+    const {data,error}=await sb.from('propositions').select('*')
+      .order('demandee',{ascending:false}).order('cree_le',{ascending:false}).limit(200);
+    if(error) throw error;
+    PROPOS=data||[]; PROP_PANNE='';
+  }catch(e){ PROPOS=[]; PROP_PANNE=(e&&e.message)||String(e); }
+  PROP_CHARGE=true;
+}
+function propSourceChoix(k){ PROP_SOURCE=k; render(); }
+async function propAjouter(){
+  const v=function(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; };
+  const texte=v('propTxt');
+  if(!texte){ const e=document.getElementById('propTxt'); if(e) e.focus(); return; }
+  if(!sb){ toast('Pas de connexion'); return; }
+  try{
+    const {error}=await sb.from('propositions').insert({
+      texte:texte.slice(0,200), source:PROP_SOURCE, note:v('propNote')||null, par:nomAffiche() });
+    if(error) throw error;
+    ['propTxt','propNote'].forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
+    await loadPropositions(); render(); toast('Notée ✓');
+  }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
+}
+/* « Quelqu'un d'autre l'a demandé » : le geste le plus utile de l'écran. C'est lui
+   qui transforme une envie isolée en besoin visible. */
+async function propEncore(id){
+  const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
+  if(!p || !sb) return;
+  try{
+    const {error}=await sb.from('propositions')
+      .update({demandee:Math.min(99,(p.demandee||1)+1)}).eq('id',p.id);
+    if(error) throw error;
+    await loadPropositions(); render();
+  }catch(e){ toast('Modification refusée'); }
+}
+async function propEtat(id, etat){
+  const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
+  if(!p || !sb) return;
+  const maj={etat:etat};
+  if(etat==='faite'){ maj.fait_le=new Date().toISOString(); maj.fait_par=nomAffiche(); }
+  else { maj.fait_le=null; maj.fait_par=null; }
+  try{
+    const {error}=await sb.from('propositions').update(maj).eq('id',p.id);
+    if(error) throw error;
+    await loadPropositions(); render();
+  }catch(e){ toast('Modification refusée'); }
+}
+function propRetirer(id){
+  const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  cousinConfirme('Retirer cette proposition ?', p.texte, async function(){
+    try{ const {error}=await sb.from('propositions').delete().eq('id',p.id);
+      if(error) throw error;
+      await loadPropositions(); render();
+    }catch(e){ toast('Suppression refusée'); }
+  }, {ok:'Retirer', danger:true});
+}
+function propCarte(p){
+  const s=propSource(p.source), mienne=!!(PROFILE && p.uid===PROFILE.uid);
+  const qui=String(p.par||'').trim().split(/\s+/)[0];
+  return '<div class="prop'+(p.etat==='faite'?' faite':'')+'" style="border-left-color:'+s.c+'">'+
+    '<div class="prop-h">'+
+      '<span class="prop-s" style="background:'+s.c+'">'+esc(s.court)+'</span>'+
+      /* Le compteur ne s'affiche qu'à partir de deux : « demandé 1 fois » est une
+         information vide, et ça ferait un chiffre sur chaque ligne pour rien. */
+      ((p.demandee||1)>1?'<span class="prop-n">'+p.demandee+' fois</span>':'')+
+      '<span style="flex:1"></span>'+
+      '<span class="prop-e">'+esc(PROP_ETATS[p.etat]||p.etat)+'</span>'+
+    '</div>'+
+    '<b>'+esc(p.texte)+'</b>'+
+    (p.note?'<p>'+esc(p.note)+'</p>':'')+
+    '<em>'+(qui?'noté par '+esc(qui):'')+
+      (p.fait_le?' · faite le '+esc(tbDateCourte(p.fait_le)):'')+'</em>'+
+    '<div class="prop-b">'+
+      (p.etat!=='faite'?'<button onclick="propEncore(\''+p.id+'\')">Demandé encore</button>':'')+
+      (p.etat==='idee'?'<button onclick="propEtat(\''+p.id+'\',\'essayer\')">À essayer</button>':'')+
+      (p.etat!=='faite'?'<button onclick="propEtat(\''+p.id+'\',\'faite\')">On l’a faite</button>'
+                       :'<button onclick="propEtat(\''+p.id+'\',\'idee\')">Remettre à voir</button>')+
+      (mienne?'<button class="doux" onclick="propRetirer(\''+p.id+'\')">Retirer</button>':'')+
+    '</div>'+
+  '</div>';
+}
+function propositionsHTML(){
+  const vivantes=PROPOS.filter(function(p){ return p.etat!=='faite'; });
+  const faites=PROPOS.filter(function(p){ return p.etat==='faite'; }).slice(0,6);
+  const nH=vivantes.filter(function(p){ return p.source==='heberge'; })
+                   .reduce(function(a,p){ return a+(p.demandee||1); },0);
+  let h='<div class="sect" style="margin-top:34px"><b>Ici, au centre</b>'+
+        '<em>'+(vivantes.length?vivantes.length+' proposition'+(vivantes.length>1?'s':''):'rien de noté')+'</em></div>';
+  h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Ce qu’on pourrait faire '+
+     '<b>sur place</b>. On note d’où ça vient — un hébergé, un éduc, l’équipe — parce que '+
+     'la même idée ne pèse pas pareil selon qui la demande. '+
+     '<b>Ce n’est pas un programme :</b> noter une envie n’engage personne à l’animer.'+
+     (nH>1?' <b>'+nH+' demandes viennent des hébergés.</b>':'')+'</div>';
+  if(PROP_PANNE){
+    h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:12px"><b>Carnet illisible</b>'+
+       '<p>Ce n’est pas qu’il est vide : la base a refusé de répondre.</p>'+
+       '<p class="insc">'+esc(PROP_PANNE)+'</p></div>';
+  } else if(!PROPOS.length){
+    h+='<div class="cal-vide" style="margin-top:10px">'+(PROP_CHARGE
+      ? 'Rien de noté. La prochaine fois que quelqu’un dit « on pourrait… », c’est ici.'
+      : 'Chargement…')+'</div>';
+  } else {
+    /* Les vivantes d'abord, les plus demandées en tête (le tri vient de la base). */
+    h+=vivantes.map(propCarte).join('');
+    if(faites.length) h+='<div class="ghead" style="margin-top:16px">Déjà faites</div>'+
+      faites.map(propCarte).join('');
+  }
+  h+='<details class="acform" style="margin-top:14px"><summary>Noter une proposition</summary>'+
+    '<div class="acg">'+
+      '<input id="propTxt" placeholder="Quoi ? * — ex. un atelier couture le mercredi">'+
+      '<input id="propNote" placeholder="Ce qu’il faudrait — matériel, durée, combien de gens">'+
+      '<div class="propc"><span class="passl-t">Ça vient de qui ?</span>'+
+        '<div class="fchips">'+PROP_SOURCES.map(function(s){
+          return '<button class="fchip'+(PROP_SOURCE===s.k?' on':'')+'" onclick="propSourceChoix(\''+s.k+'\')">'+
+            esc(s.l)+'</button>';
+        }).join('')+'</div></div>'+
+      '<button class="acok" onclick="propAjouter()">Noter la proposition</button>'+
+      '<p class="achint">Si quelqu’un redemande la même chose, ne la note pas deux fois : '+
+      'appuie sur <b>Demandé encore</b> sur la ligne qui existe. C’est le compte qui rend '+
+      'la demande visible. <b>Jamais de nom d’hébergé</b> — on note que ça a été demandé, '+
+      'pas par qui.</p>'+
+    '</div></details>';
+  return h;
+}
+
 /* Le programme encodé, et le formulaire pour l'alimenter (administration seulement). */
 function activitesHTML(){
   const peut=peutEcrireActivites();
@@ -13469,7 +13654,11 @@ function vTicket(){
 
   /* LE CALENDRIER DU MOIS, rapatrié le 08/08/2026 : « ces prochains jours » ne
      répond pas à « qu'est-ce qu'il y a le 17 ? ». La grille, si. */
-  h+='<div class="imprligne">'+boutonImprimer()+'</div>'+agCalendrierHTML()+activitesHTML();
+  /* Sortir d'abord (le calendrier et le programme des assos), puis « Ici, au centre » :
+     ce sont les deux blocs de la page « s'occuper » — où emmener quelqu'un, et ce
+     qu'on peut lancer sur place sans sortir. */
+  h+='<div class="imprligne">'+boutonImprimer()+'</div>'+agCalendrierHTML()+activitesHTML()
+    +propositionsHTML();
 
   /* ── 1. C'EST GRATUIT ─────────────────────────────────────────────── */
   h+='<div class="actbloc gratuit">'+
@@ -13940,6 +14129,8 @@ async function loadProfile(){
     // La passation : chargée ici pour que la pastille de Ma liste sache déjà, en
     // arrivant, que l'équipe d'avant a laissé quelque chose.
     try{ await loadPassations(); }catch(e){}
+    // Le carnet des propositions d'activités au centre.
+    try{ await loadPropositions(); }catch(e){}
     // Ses check-lists du jour, et ce qui est déjà coché aujourd'hui.
     try{ await loadListes(); }catch(e){}
     // Ce qu'elle a lu dans les formations, et où elle en est dans les jeux.
