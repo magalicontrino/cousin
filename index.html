@@ -301,6 +301,15 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:#73716b}
 /* Le picto météo porte un width:100% en style en ligne : sans !important il gonfle
    et fait 170 px de haut dans la ligne de date. */
+/* Le prochain bus, à côté de la météo. Le numéro de ligne dans un carré noir, comme
+   sur les poteaux d'arrêt — c'est ce qu'on cherche des yeux. */
+.busL{display:inline-flex;align-items:baseline;gap:5px;margin-left:auto;
+  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:var(--enc2)}
+.busL b{font-family:'Eastman',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:0;
+  background:var(--noir);color:#f2eee6;padding:2px 5px}
+.busL em{font-style:normal;color:#a8a5a0}
+/* Quand le bus est là, la météo ne colle plus au bord : c'est le bus qui pousse. */
+.busL + .meteoL{margin-left:12px}
 .meteoL svg,.meteoL .pico{width:14px!important;height:14px!important;flex:none}
 .meteoL b{font-weight:600;color:var(--noir)}
 .meteoL em{font-style:normal}
@@ -5227,7 +5236,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v424';
+const APP_VERSION = 'v425';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8015,7 +8024,9 @@ function render(){
      déjà (on coche une tâche, la météo se charge) : on ne touche à rien. */
   if(current.view==='home' && VUE_AVANT!=='home') JEUI=jeuDepart();
   VUE_AVANT=current.view;
-  if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); }
+  /* Le bus ne se charge QUE depuis l'accueil — c'est le seul endroit où il s'affiche,
+     et le quota anonyme de la STIB est de 100 appels par jour pour tout le centre. */
+  if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
   else if(current.view==='fiche') view.innerHTML=vFiche(BYSID[current.sid]);
   else if(current.view==='centre') view.innerHTML=vCentre();
@@ -8335,6 +8346,75 @@ function meteoMot(code){
     95:['Orage','pluie'],96:['Orage et grêle','pluie'],99:['Orage et grêle','pluie']};
   return t[code]||['—','nuage'];
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PROCHAIN BUS (Mag, 08/08/2026) — 89 direction Gare Centrale, Prince de Liège
+
+   ═══ CE QUE J'AVAIS ANNONCÉ ET QUI ÉTAIT FAUX ═══
+   Je lui avais dit qu'il fallait un compte, une clé, et un intermédiaire pour la
+   cacher. Vérification faite, les trois sont tombés :
+   ① `opendata.stib-mivb.be` A DÉMÉNAGÉ — tout redirige vers le portail belge
+     data.belgianmobility.io. L'adresse où je l'envoyais s'ouvrir un compte n'existe
+     plus.
+   ② L'API RÉPOND SANS CLÉ (quota anonyme : 100 appels par jour, 10 par minute).
+   ③ Elle envoie `Access-Control-Allow-Origin: *` : le navigateur l'appelle en
+     direct. Pas de fonction Supabase, pas de secret à ranger.
+
+   ⚠ LE NUMÉRO D'ARRÊT N'EST PAS CELUI DU CATALOGUE. Les arrêts statiques portent une
+   lettre — Prince de Liège vers Gare Centrale, c'est « 2748B » — mais le flux temps
+   réel, lui, ne connaît que « 2748 ». Cherché avec la lettre, on ne trouve rien : ni
+   erreur, ni message, juste une liste vide. Vérifié sur les deux jeux de données.
+
+   ⚠ ET LA DIRECTION EST CONTRE-INTUITIVE : la STIB appelle « Suburb » le sens qui va
+   vers GARE CENTRALE, et « City » celui qui va vers Westland Shopping. J'ai pris le
+   sens sur la destination réelle des passages, pas sur ce mot-là.
+
+   ⚠ LE QUOTA COMMANDE LE RESTE. 100 appels par jour se partagent par adresse
+   internet : au centre, tout le monde sort par la même. On appelle donc SEULEMENT
+   depuis l'accueil, une fois par minute au plus, et jamais quand l'écran est éteint.
+   Si ça dépasse un jour, il faudra un compte gratuit — sur le portail Azure du
+   nouveau site, plus sur l'ancienne adresse.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const BUS={arret:'2748', ligne:'89', vers:'Gare Centrale'};
+const BUS_URL='https://api-management-discovery-production.azure-api.net/api/datasets/'+
+  'stibmivb/rt/WaitingTimes?where='+encodeURIComponent("pointid='"+BUS.arret+"' and lineid='"+BUS.ligne+"'");
+var BUSH=null;               /* {t, minutes:[4,17]} */
+async function chargerBus(){
+  if(BUSH && (Date.now()-BUSH.t) < 60000) return;          /* une fois par minute au plus */
+  if(document.hidden) return;                              /* écran éteint : on n'appelle pas */
+  try{
+    const r=await fetch(BUS_URL);
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    const rec=(d.results||[])[0];
+    if(!rec) throw 0;
+    const p=(typeof rec.passingtimes==='string')?JSON.parse(rec.passingtimes):rec.passingtimes;
+    const mn=(p||[]).map(function(x){
+      return Math.round((new Date(x.expectedArrivalTime)-Date.now())/60000);
+    }).filter(function(m){ return m>=0 && m<90; });
+    BUSH={t:Date.now(), minutes:mn.slice(0,2)};
+  }catch(e){
+    /* ⚠ ON EFFACE PLUTÔT QUE DE GARDER. Un horaire de bus périmé est pire que pas
+       d'horaire : on descend pour un bus qui est déjà passé. En cas de panne, de
+       quota dépassé ou de réseau coupé, la ligne disparaît, tout simplement. */
+    BUSH=null;
+  }
+  if(current && current.view==='home') render();
+}
+/* ⚠ SANS CECI, LE BUS PEUT NE JAMAIS ARRIVER. `chargerBus()` renonce quand l'écran
+   est éteint — c'est voulu, on n'use pas le quota pour une poche. Mais si l'app a été
+   ouverte dans cet état, plus rien ne redemande ensuite : on rallume, et la ligne
+   reste vide sans raison visible. On repasse donc à l'allumage. */
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && current && current.view==='home') chargerBus();
+});
+function busLigne(){
+  if(!BUSH || !BUSH.minutes.length) return '';
+  const m=BUSH.minutes;
+  const dit=function(x){ return x<=0?'à l’arrêt':(x+' min'); };
+  return '<span class="busL" title="'+esc(BUS.ligne+' vers '+BUS.vers)+'">'+
+    '<b>'+esc(BUS.ligne)+'</b>'+esc(dit(m[0]))+
+    (m[1]!==undefined?'<em>puis '+esc(dit(m[1]))+'</em>':'')+'</span>';
+}
 async function chargerMeteo(){
   /* Pas plus d'un appel par heure : la météo ne change pas à la minute. */
   if(METEO && (Date.now()-METEO.t) < 3600000) return;
@@ -8407,7 +8487,7 @@ function vHome(){
   }catch(e){ return ''; } })();
 
   let h='<div class="home-top">'+
-    '<div class="hdate">'+esc(dateTxt)+meteoLigne()+'</div>'+
+    '<div class="hdate">'+esc(dateTxt)+busLigne()+meteoLigne()+'</div>'+
     /* Sans prénom, tout tient sur une ligne : pas de ligne vide sous « Bonjour ». */
     '<div class="hbonj">'+(nomAffiche()
       ? '<span>Bonjour'+bonjourPicto(0)+'</span><span>'+esc(nomAffiche())+bonjourPicto(1)+'</span>'
