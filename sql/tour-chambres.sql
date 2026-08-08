@@ -47,9 +47,27 @@ create table if not exists public.tour_bacs (
   regle_le    timestamptz,                       -- quand c'est rentré dans l'ordre : la ligne se ferme
   regle_par   text,
   note        text,                              -- « deux bacs sous le lit », si besoin
+  -- ═══ LE JOURNAL (ajouté le 08/08/2026) ═══
+  -- Mag : « Avec tous les commentaires que les éducateurs ou les travailleurs ont
+  -- faits. Par exemple, madame a trois bacs, plus quatre sacs, plus deux sacs
+  -- plastiques, elle a été prévenue deux fois. »
+  --
+  -- Une chambre ne porte donc pas UNE remarque et UN avertissement : elle porte une
+  -- SUITE de gestes, chacun signé et daté. « Prévenue deux fois » est un fait qui
+  -- pèse quand il faut décider de jeter — il disparaissait si le deuxième
+  -- avertissement écrasait le premier.
+  --
+  -- Une liste de {le, par, type, txt}. `type` vaut « prevenu » ou « note ».
+  -- ⚠ `prevenu_le` reste le PREMIER avertissement, et c'est de lui que court le
+  -- délai : prévenir une deuxième fois ne remet pas le compteur à zéro, sinon on
+  -- pourrait avertir indéfiniment sans que rien ne soit jamais tranché.
+  journal     jsonb       not null default '[]'::jsonb,
   cree_le     timestamptz not null default now(),
   cree_par    text
 );
+
+-- Si la table a été créée avant le journal, cette ligne la rattrape sans rien perdre.
+alter table public.tour_bacs add column if not exists journal jsonb not null default '[]'::jsonb;
 
 -- On lit toujours « ce qui n'est pas réglé, du plus ancien au plus récent » :
 -- c'est le plus ancien avertissement qui devient urgent en premier.
