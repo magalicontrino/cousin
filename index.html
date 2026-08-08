@@ -10347,10 +10347,42 @@ function jxNomTerrain(ter){
   if(ter.t==='met') return 'Métier : '+ter.k;
   return 'Au hasard';
 }
+/* ═══ LES MOTS DU MÉTIER ENTRENT DANS LES JEUX (Mag, 08/08/2026 : « aussi dans jeu,
+   rajouter du vocabulaire ») ═══
+   Le dictionnaire existait déjà — LEXIQUE, « les mots de chez nous » — mais il ne
+   servait qu'à une page qu'on ouvre quand on est déjà bloqué. Or c'est exactement le
+   genre de chose qui s'apprend en jouant : ambulatoire ou résidentiel, réquisitoire,
+   adresse de référence. On ne le lit pas deux fois, on le reconnaît.
+
+   ⚠ LES LEURRES SONT DE VRAIES DÉFINITIONS, celles d'autres mots du dictionnaire.
+   Des leurres inventés seraient trop faciles à écarter, et surtout ils
+   apprendraient quelque chose de faux à qui se trompe. Ici, se tromper fait quand
+   même lire une définition juste.
+   Il faut donc AU MOINS QUATRE mots pour poser une question — sinon on n'a pas de
+   quoi faire trois leurres, et on ne pose rien. */
+function quizVocabulaire(){
+  if(!Array.isArray(LEXIQUE) || LEXIQUE.length<4) return [];
+  const bons=LEXIQUE.filter(function(x){ return x && x.m && x.c; });
+  if(bons.length<4) return [];
+  return bons.map(function(x){
+    const leurres=[];
+    for(let k=1; leurres.length<3 && k<bons.length; k++){
+      const y=bons[(bons.indexOf(x)+k)%bons.length];
+      if(y.c!==x.c && leurres.indexOf(y.c)<0) leurres.push(y.c);
+    }
+    if(leurres.length<3) return null;
+    const opts=qShuffle([x.c].concat(leurres));
+    return { q:'Que veut dire « '+x.m+' » ?', opts:opts, correct:opts.indexOf(x.c),
+             pourquoi:x.d||'' };
+  }).filter(Boolean);
+}
 function jxQuestions(ter, n){
   const doms=jxDoms(ter);
   const g = doms ? quizGen(null, doms) : quizGen('all');
-  return g.qs.slice(0, n||40);
+  /* Le vocabulaire se mélange aux questions du réseau : une partie fait donc alterner
+     « qui fait quoi » et « que veut dire ce mot », ce qui est bien plus proche du vrai
+     travail que deux paquets séparés. */
+  return qShuffle(g.qs.concat(quizVocabulaire())).slice(0, n||40);
 }
 
 /* ── Lancer une partie ─────────────────────────────────────────────── */
