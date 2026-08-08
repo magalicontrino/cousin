@@ -297,19 +297,34 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (hover:hover){ .qz-opt:hover{border-color:#F5D34F} .qz-fiche:hover{background:#1b1b1b;color:#fdfdfc} }
 
 /* ── L'ACCUEIL DU 08/08/2026 : météo réduite, rail du réseau, bande noire des jeux ── */
-.meteoL{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
-  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:#73716b}
+/* La météo devient la seconde pastille. Elle passe en ROUGE quand il y a une alerte
+   — gel, forte pluie, forte chaleur : c'est une alerte, pas une information de plus. */
+.meteoL{display:inline-flex;align-items:center;gap:5px;flex:none;
+  border:1px solid var(--ligne);border-radius:999px;background:#fdfdfc;padding:4px 9px;
+  font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.06em;color:#73716b}
+.meteoL.alerte{border-color:var(--rouge);color:var(--rouge)}
+.meteoL.alerte b{color:var(--rouge)}
 /* Le picto météo porte un width:100% en style en ligne : sans !important il gonfle
    et fait 170 px de haut dans la ligne de date. */
-/* Le prochain bus, à côté de la météo. Le numéro de ligne dans un carré noir, comme
-   sur les poteaux d'arrêt — c'est ce qu'on cherche des yeux. */
-.busL{display:inline-flex;align-items:baseline;gap:5px;margin-left:auto;
-  font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;color:var(--enc2)}
-.busL b{font-family:'Eastman',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:0;
-  background:var(--noir);color:#f2eee6;padding:2px 5px}
+/* ═══ L'EN-TÊTE, IDÉE 3 : DEUX PASTILLES À DROITE (Mag, 08/08/2026) ═══
+   Elle a choisi la 3 parmi les quatre de propositions-entete.html.
+
+   ⚠ LE DÉFAUT D'AVANT ÉTAIT UNE RÈGLE EN TROP, pas un mauvais dessin : le bus ET la
+   météo demandaient tous les deux `margin-left:auto`. Le premier avalait toute la
+   place libre, le second réclamait la même, et à 414 px la ligne se cassait en deux.
+   Un seul `auto` maintenant, sur le groupe des deux pastilles.
+
+   La date peut être rognée si la place manque ; les pastilles, jamais — c'est le bus
+   qui fait sortir maintenant, et la chaleur qui change la journée. */
+.hdate .hbadges{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.busL{display:inline-flex;align-items:center;gap:5px;flex:none;
+  border:1px solid var(--ligne);border-radius:999px;background:#fdfdfc;padding:3px 9px 3px 3px;
+  font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.06em;color:var(--enc2)}
+.busL b{font-family:'Eastman',system-ui,sans-serif;font-size:9.5px;font-weight:700;letter-spacing:0;
+  background:var(--noir);color:#f2eee6;border-radius:999px;padding:2px 6px}
 .busL em{font-style:normal;color:#a8a5a0}
-/* Quand le bus est là, la météo ne colle plus au bord : c'est le bus qui pousse. */
-.busL + .meteoL{margin-left:12px}
+/* La date se laisse rogner, elle seule : elle est la moins urgente des trois. */
+.hdate .hjour{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .meteoL svg,.meteoL .pico{width:14px!important;height:14px!important;flex:none}
 .meteoL b{font-weight:600;color:var(--noir)}
 .meteoL em{font-style:normal}
@@ -939,7 +954,21 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    dépassent de part et d'autre — une à gauche, une à droite — avec de gros arrondis.
    Plus d'éventail penché vers la gauche : c'est la symétrie qui fait la pile.
    Le dé « au hasard » quitte le coin de la pile et passe sous elle. */
-.pile{display:flex;flex-direction:column;align-items:center}
+/* ⚠ LA PILE PREND TOUTE LA LARGEUR QU'ON LUI DONNE, ET PAS CELLE DE SON TEXTE.
+   C'est LE défaut des cartes qui changent de taille sur grand écran (Mag,
+   08/08/2026 : « les tailles sont différentes quand tu swapes… sur le téléphone
+   c'est parfait, c'est sur l'écran »).
+
+   Sans `width:100%`, la pile est un bloc souple sans largeur déclarée : le
+   navigateur la calcule d'après son CONTENU. Et son contenu, c'est la carte — dont
+   le texte change à chaque jeu. La pile faisait donc 250 px pour « Cartes à
+   retourner » et 191 px pour « Chrono 60 s », et la carte, qui vaut 60 % de la pile,
+   suivait : 150 px puis 114 px. Ce n'était pas la carte qui rétrécissait, c'était le
+   sol sous elle.
+
+   Sur téléphone la pile touchait déjà ses 380 px de large dans tous les cas : le
+   calcul par le contenu ne changeait rien, et le défaut restait invisible. */
+.pile{display:flex;flex-direction:column;align-items:center;width:100%}
 .pile .p1,.pile .p2{position:absolute;width:58%;aspect-ratio:3/4;border-radius:20px;
   left:50%;top:0;box-shadow:0 0 0 1.5px rgba(27,27,27,.08)}
 /* Celle de droite dépasse d'un côté, celle de gauche de l'autre. Un tout petit angle
@@ -948,6 +977,10 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .pile .p1{background:#f3cde5;transform:translateX(-50%) translateX(14px) rotate(3deg)}
 .pile .pcarte{position:relative;margin:0;width:60%;aspect-ratio:3/4;border-radius:20px;
   transform:none;
+  /* La carte ne se laisse pas raboter par la colonne. (Ce n'est PAS ce qui causait
+     les tailles inégales — la vraie cause était la largeur de la pile, voir plus
+     haut — mais c'est un garde-fou juste, et il ne coûte rien.) */
+  flex:none;
   background:var(--noir);color:#f2eee6;padding:18px;display:flex;flex-direction:column;text-align:left;border:0;
   /* ⚠ TOUTES LES CARTES ONT LA MÊME TAILLE, TOUJOURS (Mag, 08/08/2026 : « les cartes
      changent de taille quand tu tournes, elles doivent rester la même taille que la
@@ -3253,6 +3286,9 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
               lien:'site.svg', bulb:'astuce.svg',
               book:'formations.svg', chat:'avis.svg', siren:'urgences.svg',
               petition:'petition.svg', cog:'roue.svg', cle:'cle.svg',
+              /* Son picto à elle, déposé le 08/08/2026 pour le bouton de la barre du
+                 haut — il remplace l'icône de lien que j'avais prise en attendant. */
+              partage:'partager.svg',
               juridique:'juridique.svg', addictions:'addictions.svg',
               planning:'planning.svg', accomp:'accompagnement.svg',
               social:'social.svg',
@@ -5251,7 +5287,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v428';
+const APP_VERSION = 'v429';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8007,7 +8043,7 @@ function render(){
   if(pb){ if(!pb.innerHTML) pb.innerHTML='<span class="ic">'+icon('user')+'</span>'; pb.classList.toggle('on',current.view==='profil'); }
   /* Partager : pour tout le monde, à la place de la roue. */
   const ptb=document.getElementById('partbtn');
-  if(ptb){ if(!ptb.innerHTML) ptb.innerHTML='<span class="ic">'+icon('lien')+'</span>';
+  if(ptb){ if(!ptb.innerHTML) ptb.innerHTML='<span class="ic">'+icon('partage')+'</span>';
     ptb.classList.toggle('on',current.view==='partager'); }
   /* La roue de la barre du haut est partie dans Mon profil (voir le commentaire du
      <header>). Son code d'affichage part avec elle : du code qui cherche un bouton
@@ -8429,9 +8465,12 @@ function busLigne(){
   if(!BUSH || !BUSH.minutes.length) return '';
   const m=BUSH.minutes;
   const dit=function(x){ return x<=0?'à l’arrêt':(x+' min'); };
-  return '<span class="busL" title="'+esc(BUS.ligne+' vers '+BUS.vers)+'">'+
-    '<b>'+esc(BUS.ligne)+'</b>'+esc(dit(m[0]))+
-    (m[1]!==undefined?'<em>puis '+esc(dit(m[1]))+'</em>':'')+'</span>';
+  /* En pastille, on ne garde que le PROCHAIN passage : c'est lui qui décide si on
+     part maintenant. Le suivant reste dans l'infobulle — il sert à savoir combien de
+     temps on a si on rate celui-là, pas à décider. */
+  return '<span class="busL" title="'+esc(BUS.ligne+' vers '+BUS.vers+
+      (m[1]!==undefined?' — puis '+dit(m[1]):''))+'">'+
+    '<b>'+esc(BUS.ligne)+'</b>'+esc(dit(m[0]))+'</span>';
 }
 async function chargerMeteo(){
   /* Pas plus d'un appel par heure : la météo ne change pas à la minute. */
@@ -8463,9 +8502,15 @@ function meteoLigne(){
   if(!METEO) return '';
   const [mot,pic]=meteoMot(METEO.code);
   const gel=(METEO.min<=0), pluvieux=(METEO.pluie>=50), chaud=(METEO.max>=28);
-  const al = gel?'Il gèle' : pluvieux?'Pluie' : chaud?'Forte chaleur' : '';
-  return '<span class="meteoL'+(al?' alerte':'')+'">'+meteoPicto(pic)+
-    '<b>'+METEO.temp+'°</b>'+(al?'<em>'+esc(al)+'</em>':'<em>'+esc(mot)+'</em>')+'</span>';
+  /* ⚠ EN PASTILLE, LE MOT EST COURT (idée 3, 08/08/2026). « Forte chaleur » et
+     « Il gèle » tenaient sur une ligne pleine largeur ; dans une pastille posée à
+     côté du bus, ils la font grossir jusqu'à repousser la date hors de l'écran.
+     On garde donc le mot le plus court qui dit la même chose — et on met la phrase
+     entière en `title`, pour qui s'arrête dessus. */
+  const al = gel?'Gel' : pluvieux?'Pluie' : chaud?'Chaleur' : '';
+  const long = gel?'Il gèle' : pluvieux?'Pluie' : chaud?'Forte chaleur' : mot;
+  return '<span class="meteoL'+(al?' alerte':'')+'" title="'+esc(long)+'">'+meteoPicto(pic)+
+    '<b>'+METEO.temp+'°</b>'+(al?'<em>'+esc(al)+'</em>':'')+'</span>';
 }
 function meteoHTML(){
   if(!METEO) return '';
@@ -8505,7 +8550,10 @@ function vHome(){
   }catch(e){ return ''; } })();
 
   let h='<div class="home-top">'+
-    '<div class="hdate">'+esc(dateTxt)+busLigne()+meteoLigne()+'</div>'+
+    /* La date, puis les deux pastilles groupées à droite (idée 3). Le groupe existe
+       même vide : c'est lui qui porte le seul `margin-left:auto` de la ligne. */
+    '<div class="hdate"><span class="hjour">'+esc(dateTxt)+'</span>'+
+      '<span class="hbadges">'+busLigne()+meteoLigne()+'</span></div>'+
     /* Sans prénom, tout tient sur une ligne : pas de ligne vide sous « Bonjour ». */
     '<div class="hbonj">'+(nomAffiche()
       ? '<span>Bonjour'+bonjourPicto(0)+'</span><span>'+esc(nomAffiche())+bonjourPicto(1)+'</span>'
