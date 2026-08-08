@@ -2382,7 +2382,7 @@ body.no-tabs #tabbar{display:none}
 #starbtn .ic{color:#c9940c!important}
 #topbar button.on{background:var(--noir)}
 #starbtn.on .ic{color:var(--jaune)!important}
-#filbtn.on .ic,#listebtn.on .ic,#profilbtn.on .ic,#admbtn.on .ic{color:var(--creme)!important}
+#filbtn.on .ic,#listebtn.on .ic,#profilbtn.on .ic,#partbtn.on .ic{color:var(--creme)!important}
 #filbtn .dot,#listebtn .dot{position:absolute;top:-5px;right:-5px;width:12px;height:12px;border-radius:50%;
   background:var(--rouge);border:2px solid var(--creme)}
 
@@ -3042,8 +3042,14 @@ body.no-tabs #tabbar{display:none}
        recherche, son moteur et son dictionnaire de mots restent entiers dans le
        fichier, et l'adresse #/recherche répond toujours. Remettre la loupe = remettre
        ces deux boutons, rien d'autre. -->
-  <button id="admbtn" onclick="go('#/admin')" aria-label="Paramètres" title="Paramètres"></button>
+  <!-- LA ROUE A QUITTÉ LA BARRE DU HAUT (Mag, 08/08/2026) : « Paramètre, sur phone
+       mets-le dans mon profil et sur écran laisse-le à gauche ». C'est l'échange
+       qu'elle a choisi pour faire de la place à Partager — sept boutons sur 414 px,
+       ça ne tient plus. Les Paramètres sont maintenant DANS Mon profil, et sur grand
+       écran la roue n'a pas bougé du rail de gauche. L'adresse #/admin répond
+       toujours, rien n'est fermé. -->
   <button id="profilbtn" onclick="go('#/profil')" aria-label="Mon profil" title="Mon profil"></button>
+  <button id="partbtn" onclick="go('#/partager')" aria-label="Partager COUSIN" title="Partager COUSIN"></button>
   <!-- LE HAUT-PARLEUR À LA PLACE DE L'AMPOULE (Mag, 08/08/2026) : « à la place de
        l'ampoule, mets le haut-parleur plutôt, comme ça il y aurait Le fil, parce
        qu'il n'est pas là. L'ampoule, tu peux l'enlever. »
@@ -5236,7 +5242,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v426';
+const APP_VERSION = 'v427';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7990,12 +7996,15 @@ function render(){
   if(stb){ if(!stb.innerHTML) stb.innerHTML='<span class="ic">'+icon('star')+'</span>'; stb.classList.toggle('on',current.view==='favoris'); }
   const pb=document.getElementById('profilbtn');
   if(pb){ if(!pb.innerHTML) pb.innerHTML='<span class="ic">'+icon('user')+'</span>'; pb.classList.toggle('on',current.view==='profil'); }
-  const ab=document.getElementById('admbtn');
-  if(ab){ if(!ab.innerHTML) ab.innerHTML='<span class="ic">'+icon('cog')+'</span>'; ab.classList.toggle('on',current.view==='admin');
-    /* La roue n'apparaît que pour qui peut gérer — l'administration ET la coordination
-       depuis le 08/08/2026. Afficher une porte fermée à tout le monde, c'est promettre
-       une pièce qui n'existe pas pour eux. */
-    ab.style.display=vueGestion()?'':'none'; }
+  /* Partager : pour tout le monde, à la place de la roue. */
+  const ptb=document.getElementById('partbtn');
+  if(ptb){ if(!ptb.innerHTML) ptb.innerHTML='<span class="ic">'+icon('lien')+'</span>';
+    ptb.classList.toggle('on',current.view==='partager'); }
+  /* La roue de la barre du haut est partie dans Mon profil (voir le commentaire du
+     <header>). Son code d'affichage part avec elle : du code qui cherche un bouton
+     qui n'existe plus, ça se lit comme s'il marchait encore.
+     La règle qu'il portait n'est pas perdue — « la roue ne s'affiche que pour qui peut
+     gérer » — elle est reprise par le `vueGestion()` de la ligne du profil. */
   const plb=document.getElementById('plusbtn');
   if(plb && !plb.innerHTML) plb.innerHTML='<span class="ic">'+icon('plus')+'</span>';
   /* Le haut-parleur mène au Fil. Plus de pastille rouge : elle disait « il y a du
@@ -9279,6 +9288,18 @@ function vProfil(){
   h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/partager\')">'+
        '<b>Partager COUSIN</b><span class="n">le lien et son QR</span>'+
        '<span class="sg">›</span></button>';
+  /* ═══ LES PARAMÈTRES DESCENDENT ICI SUR TÉLÉPHONE (Mag, 08/08/2026) ═══
+     « Paramètre : sur phone mets-le dans mon profil, et sur écran laisse-le à
+     gauche. » C'est l'échange qu'elle a accepté pour faire de la place à Partager
+     dans la barre du haut — sept boutons sur 414 px, ça ne tient plus.
+     ⚠ Sur grand écran la barre du haut n'existe pas : la roue vit déjà dans le rail
+     de gauche, et elle n'a pas bougé. Cette ligne-ci ne sert donc qu'au téléphone —
+     mais on ne la cache pas sur ordinateur pour autant : une porte de plus vers le
+     même endroit n'a jamais perdu personne. */
+  if(vueGestion())
+    h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/admin\')">'+
+         '<b>Paramètres</b><span class="n">gérer l’équipe et les accès</span>'+
+         '<span class="sg">›</span></button>';
   h+='<button class="acc" style="margin-top:12px" onclick="changerPseudo()">'+
        '<b>Ton pseudo</b><span class="n">'+esc(nomAffiche()||'à choisir')+'</span>'+
        '<span class="sg">›</span></button>'+
