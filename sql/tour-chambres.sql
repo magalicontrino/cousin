@@ -14,6 +14,27 @@
 -- ⚠ AUCUN NOM. Des INITIALES seulement, comme sur les chambres — c'est la règle
 -- de COUSIN et elle vaut ici : ce registre dit qu'on a prévenu quelqu'un, il ne
 -- doit pas dire qui c'est.
+--
+-- ═══ POURQUOI CE REGISTRE EXISTE (Mag, 08/08/2026) ═══
+-- « Le but de ça, c'est de faire une PASSATION ENTRE LES ÉQUIPES. »
+--
+-- Ce n'est donc pas un pense-bête personnel : c'est un relais. Les ÉDUCATEURS
+-- font le tour et notent — ils travaillent en 4-4 (quatre jours de travail,
+-- quatre jours de repos). Les PFO, qui tournent en 7-7, SUPERVISENT et voient
+-- passer les deux équipes d'éducateurs.
+--
+-- LE DÉLAI EST DE TROIS JOURS après l'avertissement : « tant qu'ils fassent le
+-- tri, qu'ils donnent ça à des gens pour ne pas jeter, ou alors qu'ils les
+-- jettent ». Trois jours, ce n'est pas un chiffre rond posé au hasard : il tombe
+-- DANS le cycle de 4 jours de l'équipe qui a prévenu. Celle qui avertit est donc
+-- encore là quand le délai expire — elle n'abandonne pas la décision à la
+-- suivante, et personne n'hérite d'un « à jeter » sans savoir ce qui a été dit.
+--
+-- ⚠ CE QUI SE DÉDUIT, ET CE QUI SE SAISIT. `prevenu_le` est saisi ; l'échéance
+-- (prevenu_le + 3 jours) se CALCULE à l'affichage. Une colonne « à jeter le »
+-- figerait la règle dans chaque ligne : le jour où le délai changerait, les
+-- anciennes lignes garderaient l'ancien. La règle vit dans le code, une seule
+-- fois, et toutes les lignes la suivent.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.tour_bacs (
