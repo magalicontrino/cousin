@@ -5992,6 +5992,23 @@ function urlHref(u){return /^https?:/.test(u||'')?u:('https://'+(u||''))}
 /* Un seul des deux à la fois, et un deuxième clic annule : c'est un filtre, pas un
    réglage qu'on oublie allumé. */
 function filtrerAvis(k){ filt.avis=(filt.avis===k)?null:k; render(); }
+/* ═══ LE PUBLIC D'UNE FICHE EST-IL RÉSERVÉ À UN GENRE ? ═══
+   On lit le champ `public`, écrit à la main fiche par fiche — il n'y a pas de case
+   à cocher pour ça dans le catalogue. La règle est donc volontairement PRUDENTE :
+   on ne répond « femmes » que si le texte parle de femmes ET jamais d'hommes, et
+   l'inverse. Au moindre doute, la fiche est mixte et reste dans la liste — se
+   tromper en RETIRANT une adresse d'une recherche est bien pire que la laisser :
+   on enverrait quelqu'un ailleurs alors que la porte était ouverte. */
+function publicGenre(p){
+  const t=String((p&&p.public)||'').toLowerCase();
+  if(!t) return null;
+  const f=/femme|maternit|enceinte|mère|women/.test(t);
+  const h=/homme|masculin|père/.test(t);
+  if(f&&!h) return 'femmes';
+  if(h&&!f) return 'hommes';
+  return null;                       /* mixte, ou trop ambigu pour trancher */
+}
+function filtrerGenre(k){ filt.pgenre=(filt.pgenre===k)?null:k; render(); }
 function triProximite(arr){
   const rang=p=> p.commune==='Anderlecht'?0 : (!p.commune||p.commune==='Régional / Toutes communes')?1 : 2;
   /* Les fiches conseillées par l'équipe passent DEVANT tout le reste, y compris
@@ -6965,7 +6982,7 @@ function render(){
     if(!nb.innerHTML) nb.innerHTML='<span class="ic">'+icon('feed')+'</span>';
     nb.classList.toggle('on',current.view==='fil');
   }
-  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tag:'Tout',dem:'Toutes',genre:'Tous',famille:'Toutes'};
+  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tag:'Tout',dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
   /* On ARRIVE sur l'accueil : la pile de jeux se remet sur Chrono 60 s. On y était
      déjà (on coche une tâche, la météo se charge) : on ne touche à rien. */
   if(current.view==='home' && VUE_AVANT!=='home') JEUI=jeuDepart();
@@ -9707,6 +9724,33 @@ function vDomaine(key){
       '</div>';
     if(filt.avis==='reco'){ items=items.filter(p=>p.reco); base=base.filter(p=>p.reco); }
     if(filt.avis==='deco'){ items=items.filter(p=>p.deco); base=base.filter(p=>p.deco); }
+  }
+  /* ═══ RÉSERVÉ AUX FEMMES / AUX HOMMES (Mag, 08/08/2026 : « rajoute peut-être dans
+     le tri, mixte ou femme ») ═══
+     Sur tout le catalogue, six fiches seulement sont réservées à un genre — quatre
+     aux femmes, deux aux hommes. Un bouton de tri PERMANENT serait donc vide dans
+     presque tous les domaines, ce qu'interdit la règle d'or de l'app : aucun bouton
+     de tri ne mène à une page vide.
+     Il n'apparaît donc que dans les domaines qui ont vraiment quelque chose à trier,
+     comme « Nos préférés » juste au-dessus. « Mixte » n'a pas son bouton : c'est le
+     cas de 98 % des fiches, et un bouton qui ne retire presque rien ne trie rien —
+     c'est « Toutes » qui joue ce rôle, en retouchant le bouton allumé. */
+  const nFem=base.filter(function(p){ return publicGenre(p)==='femmes'; }).length;
+  const nHom=base.filter(function(p){ return publicGenre(p)==='hommes'; }).length;
+  if(nFem||nHom){
+    chips+='<div class="favrow">'+
+      (nFem?'<button class="favchip'+(filt.pgenre==='femmes'?' on':'')+'" onclick="filtrerGenre(\'femmes\')">'+
+        'Réservé aux femmes<i>'+nFem+'</i></button>':'')+
+      (nHom?'<button class="favchip'+(filt.pgenre==='hommes'?' on':'')+'" onclick="filtrerGenre(\'hommes\')">'+
+        'Réservé aux hommes<i>'+nHom+'</i></button>':'')+
+      '</div>';
+    /* ⚠ `pgenre` et non `genre` : `genre` sert déjà à trier Mail / Note dans les
+       modèles. Deux tris différents sur la même clé finiraient par se marcher
+       dessus le jour où quelqu'un les croisera. */
+    if(filt.pgenre==='femmes'||filt.pgenre==='hommes'){
+      items=items.filter(function(p){ return publicGenre(p)===filt.pgenre; });
+      base=base.filter(function(p){ return publicGenre(p)===filt.pgenre; });
+    }
   }
   /* On relâche la commune AVANT de calculer les sous-catégories : si elle n'existe
      plus dans ce qui reste, la rangée du dessous se calculerait sur un ensemble vide
