@@ -1951,6 +1951,16 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tbjt{font-size:13px;line-height:1.45;color:var(--noir)}
 .tbjl.av .tbjt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#b8342c}
+/* La carte du raccourci, sur l'accueil : elle attend, elle ne surgit pas. */
+.onb-rap{border:1.5px solid var(--noir);background:#fdfdfc;padding:13px 14px;margin:0 0 18px}
+.onb-rap-t{display:flex;align-items:center;gap:9px}
+.onb-rap-t .ic{width:16px;height:16px;flex:none}
+.onb-rap-t b{font-size:14.5px;font-weight:600;line-height:1.25}
+.onb-rap p{font-size:13px;line-height:1.45;color:var(--enc2);margin-top:6px}
+.onb-rap-b{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
+.onb-rap-b .acok{width:auto;padding:9px 15px}
+.onb-rap-x{background:none;border:0;border-radius:0;padding:9px 4px;color:var(--enc2);
+  font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
 /* Un rappel daté, passé et jamais coché : filet rouge. C'est le seul de cette liste
    qui doive crier — le rendez-vous est peut-être en train de se rater. */
 .tache.rapretard{border-left:7px solid var(--rouge)}
@@ -5112,7 +5122,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v414';
+const APP_VERSION = 'v415';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7284,6 +7294,53 @@ function imprimer(){
     }
   }catch(e){}
 
+  /* ═══ LA FEUILLE « AUTOUR D'ICI », AVEC UN QR PAR ADRESSE (08/08/2026) ═══
+     C'est une feuille qu'on DONNE, pas qu'on garde : douches, buanderie, courses pas
+     chères, parcs, transports. Elle part avec quelqu'un qui n'a souvent ni téléphone
+     chargé ni argent, et qui va y aller à pied.
+
+     ⚠ LE QR NE SORT QUE S'IL Y A UNE ADRESSE. Une ligne comme « Les toilettes — au
+     centre » n'a rien à ouvrir : un QR vers nulle part serait une tache d'encre, et
+     une promesse cassée pour la personne qui le scanne.
+
+     Le QR ouvre l'itinéraire DEPUIS LÀ OÙ ELLE EST, en transports — pas depuis le
+     centre : elle a la feuille en main, elle est peut-être déjà partie. */
+  try{
+    if(current && current.view==='quartier'){
+      /* ⚠ ON RÉUTILISE LES HABITS DES FICHES (`pf-f`, `pf-qr`, `pf-l`) AU LIEU D'EN
+         INVENTER. Premier essai avec des classes neuves : la feuille est sortie
+         complètement empilée, les textes les uns sur les autres. La feuille d'aperçu
+         embarque TOUTES les feuilles de style de l'app, et une mise en page en flex
+         improvisée là-dedans se fait manger par la cascade. Ces trois classes-là
+         impriment déjà juste depuis le 08/08 — et en prime la feuille du quartier
+         ressemble maintenant à celle des fiches, ce qui est la même feuille au fond :
+         un endroit, une adresse, un téléphone. */
+      let n=0;
+      const bloc=QUARTIER.map(function(g){
+        return '<div class="pf-g">'+esc(g.grp)+'</div>'+
+          g.lignes.map(function(l){
+            const qr = l.adr ? qrSVG(itiHref(l.adr), 90) : '';
+            if(l.adr) n++;
+            const d=[];
+            if(l.adr) d.push('<span><i>Adresse</i>'+esc(l.adr)+'</span>');
+            if(l.tel) d.push('<span class="tel"><i>Tél</i>'+esc(l.tel)+'</span>');
+            return '<div class="pf-f">'+
+              (qr?'<div class="pf-qr">'+qr+'<span>Scanne pour l’itinéraire<br>depuis là où tu es</span></div>':'')+
+              '<b>'+esc(l.t)+'</b>'+
+              '<p>'+esc(l.d)+'</p>'+
+              (d.length?'<div class="pf-l">'+d.join('')+'</div>':'')+
+            '</div>';
+          }).join('');
+      }).join('');
+      corps='<div class="pf-n">Les adresses utiles autour du centre · '+n+' avec un QR à scanner</div>'+
+        bloc+
+        '<div class="ag-fin">Le QR ouvre l’itinéraire en transports depuis l’endroit où l’on se '+
+        'trouve. <b>Les horaires changent</b> : pour les douches et la buanderie, mieux vaut '+
+        'téléphoner avant de faire le trajet.</div>';
+      t='Autour d’ici';
+    }
+  }catch(e){}
+
   /* LA FEUILLE S'OUVRE D'ABORD DANS UNE PAGE (Mag, 08/08/2026 : « il faut que je
      visualise ce que j'ai avant d'imprimer »). Elle la regarde, et c'est ELLE qui
      décide d'imprimer ou d'enregistrer en PDF. On n'envoie plus rien à l'imprimante
@@ -7348,6 +7405,16 @@ function imprimer(){
          dessinait ses marges avec le padding de .fw — et l'impression le remettait à
          zéro, en ne laissant que la marge par défaut du navigateur. On rend donc les
          marges à la PAGE, la seule chose que l'imprimante respecte. */
+      /* Le seul habit neuf de la feuille du quartier : l'intertitre d'un groupe
+         (« Se laver, laver son linge »). Tout le reste emprunte celui des fiches. */
+      '.pf-g{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;'+
+        'text-transform:uppercase;color:#222;border-bottom:1.5px solid #000;padding-bottom:5px;'+
+        'margin:20px 0 11px;clear:both}'+
+      '.pf-g:first-of-type{margin-top:0}'+
+      /* Le QR flotte à droite : sans ce dégagement, il dépasse sous le filet du bloc
+         quand la description est courte — « Aldi » tient sur une ligne, le QR fait
+         90 px. Vaut aussi pour la feuille des fiches, où ça ne se voyait pas encore. */
+      '.pf-f::after{content:"";display:block;clear:both}'+
       /* ═══ LA FEUILLE DU TOUR ═══ */
       '.tp-l{display:grid;grid-template-columns:58px 1fr;gap:12px;break-inside:avoid;page-break-inside:avoid;'+
         'border-bottom:1px solid #bbb;padding:0 0 9px;margin-bottom:9px}'+
@@ -8186,6 +8253,12 @@ function vHome(){
   const dSam=prochaineDistrib();
   const quandSam=dSam.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   if(onbGarde('colis')) boules.push(['colis','Produits',(prod?prod.quand:quandSam),'#f5c542','goFiche(/produit/i)', !prod]);
+  /* LE RAPPEL DU RACCOURCI (Mag, 07/08/2026 : « de manière aléatoire, je sais pas,
+     mais à plusieurs reprises » tant que ce n'est pas fait). Une CARTE sur l'accueil,
+     pas une fenêtre qui s'ouvre devant : une fenêtre qui surgit pendant qu'on
+     travaille, c'est exactement ce qu'elle avait trouvé insupportable. Une carte
+     attend qu'on la regarde. Une fois tous les dix jours, trois fois au maximum. */
+  h+=onbCarteRaccourci();
   if(boules.length){
     h+='<div class="sect"><b>À faire aujourd\'hui</b><em>'+boules.length+' chose'+(boules.length>1?'s':'')+'</em></div>'+
       '<div class="boules">'+boules.map(function(b){
@@ -13081,6 +13154,30 @@ function onbRelance(){
   ONB.relances=(ONB.relances||0)+1; ONB.derniere=Date.now(); onbSave();
   return true;
 }
+/* ⚠ `onbRelance()` COMPTE en même temps qu'elle répond : appelée à chaque render,
+   elle brûlerait les trois relances en trois redessins de l'accueil. On ne la
+   consulte donc qu'UNE FOIS par ouverture de l'app, et on garde la réponse.
+   (`null` = pas encore demandé, sinon vrai/faux.) */
+let ONB_RELANCE=null;
+function onbRappelRaccourci(){
+  if(ONB_RELANCE===null) ONB_RELANCE=onbRelance();
+  return ONB_RELANCE;
+}
+/* « Plus tard » ne fait que refermer la carte : la relance est déjà comptée et
+   datée, elle ne reviendra pas avant dix jours. */
+function onbRaccourciPlusTard(){ ONB_RELANCE=false; render(); }
+function onbCarteRaccourci(){
+  if(!onbRappelRaccourci()) return '';
+  return '<div class="onb-rap">'+
+    '<div class="onb-rap-t"><span class="ic">'+icon('plus')+'</span>'+
+      '<b>Mets COUSIN sur ton écran d’accueil</b></div>'+
+    '<p>Il s’ouvrira comme une app, sans passer par le navigateur — et il marchera '+
+    'même quand le réseau est mauvais.</p>'+
+    '<div class="onb-rap-b">'+
+      '<button class="acok" onclick="onbRejouer()">Montre-moi comment</button>'+
+      '<button class="onb-rap-x" onclick="onbRaccourciPlusTard()">Plus tard</button>'+
+    '</div></div>';
+}
 
 function vSchemas(){
   const s=schemaTrouve();
@@ -13403,9 +13500,18 @@ function vLinge(){
 }
 function vQuartier(){
   /* AUTOUR D'ICI redessiné (handoff) : le quartier groupé par besoin, en registre. */
+  /* ═══ LA FEUILLE À DONNER, POUR DE VRAI (08/08/2026) ═══
+     La page l'annonçait — « la feuille à donner » — et il n'y avait aucun moyen de
+     l'imprimer. Elle disait « à recopier », ce qui veut dire recopier douze adresses
+     à la main pour chaque personne.
+     Elle s'imprime maintenant, avec UN QR PAR ADRESSE : la personne scanne et son
+     itinéraire s'ouvre depuis là où elle est. C'est le dernier point de la liste des
+     manques de l'ancienne app. */
   let h=heroBandeau('Autour d’ici','Bd Prince de Liège 38','#b28b7a','pin')+
+    '<div class="imprligne">'+boutonImprimer()+'</div>'+
     '<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>La feuille à donner</b>'+
-    '<p>Ce qu’il y a autour du centre, à recopier ou à montrer sur le téléphone.</p></div>';
+    '<p>Ce qu’il y a autour du centre. <b>Imprime-la et donne-la</b> : chaque adresse '+
+    'porte un QR à scanner, et l’itinéraire s’ouvre tout seul.</p></div>';
   QUARTIER.forEach(function(g){
     h+='<div class="sectl">'+esc(g.grp)+'</div><div class="rlist">'+
       g.lignes.map(function(l){
@@ -14141,8 +14247,49 @@ async function initAuth(){
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA VISITE S'OUVRE UNE FOIS, POUR QUI NE L'A JAMAIS VUE (rebranché le 08/08/2026)
+
+   ⚠ CE QUI S'ÉTAIT PASSÉ, ET QU'IL NE FAUT PAS REFAIRE. L'ouverture automatique
+   avait été COUPÉE le 07/08 — Mag : « il arrive alors que je suis connectée, c'est
+   insupportable ». Ce n'était pas un caprice, c'était un bug : `ONB.vu` n'était
+   écrit que par `onbFini()`, donc UNIQUEMENT si on allait jusqu'au dernier écran ou
+   si on cliquait « Passer ». Sortir par le menu (le réflexe normal) ne notait rien,
+   et la visite revenait à CHAQUE ouverture, indéfiniment.
+
+   LA CORRECTION EST ICI, EN UNE LIGNE : on marque `ONB.vu` AU MOMENT DE L'AFFICHER,
+   pas à la sortie. Quoi qu'on fasse ensuite — finir, passer, fermer l'onglet, filer
+   par le rail — elle ne reviendra pas. Elle reste accessible par « Revoir la visite »
+   dans le profil.
+
+   TROIS GARDE-FOUS, pour ne pas tomber devant quelqu'un qui travaille :
+   ① seulement si l'adresse est nue. On arrive souvent par un lien vers une fiche
+     précise, envoyé par un collègue : couper ça serait pire que la boucle.
+   ② jamais en aperçu (Mag regarderait sa propre visite depuis l'œil du rail).
+   ③ jamais si l'app est déjà installée sur l'écran d'accueil — quelqu'un qui l'a
+     installée s'en sert depuis un moment ; la visite n'est plus pour lui.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function onbPeutSOuvrir(){
+  try{
+    if(ONB.vu) return false;
+    if(location.hash && location.hash.replace(/^#\/?/,'')) return false;   /* ① */
+    if(typeof enApercu==='function' && enApercu()) return false;           /* ② */
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return false; /* ③ */
+    return true;
+  }catch(e){ return false; }
+}
+function onbOuvrirUneFois(){
+  if(!onbPeutSOuvrir()) return false;
+  /* ⚠ ICI, ET NULLE PART AILLEURS : marqué À L'AFFICHAGE. C'est toute la réparation. */
+  ONB.vu=true; ONB.le=Date.now(); onbSave();
+  ONB_ETAPE=0;
+  current={view:'bienvenue'};
+  try{ history.replaceState(null,'','#/bienvenue'); }catch(e){}
+  return true;
+}
+
 /* ---------- démarrage ---------- */
-current=parseRoute();
+if(!onbOuvrirUneFois()) current=parseRoute();
 render();
 initAuth();
 </script>
