@@ -1,3 +1,21 @@
+-- ⚠⚠ ÉCARTÉ LE 08/08/2026, LE JOUR MÊME, PAR MAG : « laissons tomber les
+-- accompagnements pour l'instant. Mathilde peut mettre son rappel pour elle-même
+-- dans sa liste perso avec une notification. »
+--
+-- LA TABLE EXISTE dans Supabase (elle a été créée avant qu'elle tranche) mais
+-- L'APP NE S'EN SERT PLUS : tout le code a été retiré d'index.html. Ne pas la
+-- supprimer — elle est vide, elle ne coûte rien, et l'idée peut revenir.
+--
+-- CE QUI A ÉTÉ FAIT À LA PLACE, et qui est plus juste : les rappels perso, qui
+-- existaient déjà, ont reçu UNE DATE FACULTATIVE. Un rappel daté dort jusqu'à son
+-- matin, puis il remonte dans Ma liste et allume la pastille. Pas de nouvelle
+-- table, rien de partagé, aucune pression de remplissage sur les éducs — c'est la
+-- même raison qui lui avait fait écarter l'agenda des activités en juillet.
+--
+-- Le fichier reste ici comme trace de la version partagée, avec sa politique
+-- « un collègue peut cocher un accompagnement partagé », si on y revient un jour.
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- LES ACCOMPAGNEMENTS — demandé par Mag le 08/08/2026, pour Mathilde
 --

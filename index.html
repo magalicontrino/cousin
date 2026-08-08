@@ -1951,9 +1951,17 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tbjt{font-size:13px;line-height:1.45;color:var(--noir)}
 .tbjl.av .tbjt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#b8342c}
-/* Un accompagnement passé et jamais coché : filet rouge à gauche. C'est le seul cas
-   de cette liste où une ligne doit crier — quelqu'un attend peut-être encore. */
-.tache.accretard{border-left:7px solid var(--rouge)}
+/* Un rappel daté, passé et jamais coché : filet rouge. C'est le seul de cette liste
+   qui doive crier — le rendez-vous est peut-être en train de se rater. */
+.tache.rapretard{border-left:7px solid var(--rouge)}
+/* La ligne du jour, sous le champ d'ajout : discrète, parce qu'elle est facultative. */
+.rapjour{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.rapjour label{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2)}
+.rapjour label span{display:block;font-size:8px;color:#a8a5a0;letter-spacing:.1em}
+.rapjour input{flex:1;min-width:150px;font:inherit;font-size:14px;color:var(--noir);
+  background:#f4f3f0;border:1px solid var(--ligne);border-radius:0;padding:10px 12px}
+.rapjour input:focus{outline:0;border-color:var(--noir)}
 .tbact{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .tbact button{flex:none;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:0;padding:8px 12px;
   color:var(--noir);font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:500}
@@ -5104,7 +5112,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v413';
+const APP_VERSION = 'v414';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7722,11 +7730,7 @@ function render(){
      ses DEUX moitiés comptent : les tâches du métier ET les rappels perso. */
   const lb=document.getElementById('listebtn');
   if(lb){
-    /* La pastille compte AUSSI les accompagnements du jour et ceux en retard : ils
-       vivent dans Ma liste, c'est donc ce bouton-là qui doit les annoncer. */
-    const reste=(typeof resteAListe==='function'?resteAListe():0)
-      +(typeof resteRappels==='function'?resteRappels():0)
-      +(typeof accAujourdhui==='function'?(accAujourdhui().length+accEnRetard().length):0);
+    const reste=(typeof resteAListe==='function'?resteAListe():0)+(typeof resteRappels==='function'?resteRappels():0);
     lb.innerHTML='<span class="ic">'+icon('list')+'</span>'+(reste?'<i class="dot"></i>':'');
     lb.classList.toggle('on',current.view==='liste');
   }
@@ -8182,18 +8186,6 @@ function vHome(){
   const dSam=prochaineDistrib();
   const quandSam=dSam.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   if(onbGarde('colis')) boules.push(['colis','Produits',(prod?prod.quand:quandSam),'#f5c542','goFiche(/produit/i)', !prod]);
-  /* ═══ LES ACCOMPAGNEMENTS, « à côté des poubelles et des linges » (Mag, 08/08/2026) ═══
-     ⚠ LA BOULE N'EST LÀ QUE S'IL Y A QUELQUE CHOSE. Contrairement à la clé et aux
-     produits, qui restent en permanence, celle-ci apparaît le jour même — ou tant
-     qu'un accompagnement est en retard. C'est la règle déjà écrite pour les
-     poubelles : un rappel permanent ne rappelle plus rien, et un accompagnement
-     manqué, lui, doit se voir. */
-  const accR=accEnRetard(), accJ=accAujourdhui();
-  if(accR.length || accJ.length){
-    boules.push(['user','Accompagnement',
-      accR.length ? (accR.length+' en retard') : (accJ.length+' aujourd’hui'),
-      accR.length?'#e63329':'#A9C8E8', "go('#/liste')", false, accR.length?'#e63329':'#A9C8E8']);
-  }
   if(boules.length){
     h+='<div class="sect"><b>À faire aujourd\'hui</b><em>'+boules.length+' chose'+(boules.length>1?'s':'')+'</em></div>'+
       '<div class="boules">'+boules.map(function(b){
@@ -8486,7 +8478,7 @@ function vListe(){
       '<button class="acok" style="margin-top:12px;width:auto;padding:11px 18px" onclick="rappelViser()">'+
       '<span class="ic" style="width:14px;height:14px;vertical-align:-2px;margin-right:7px">'+icon('plus')+'</span>'+
       'Me noter une tâche</button></div>'+
-      accompagnementsHTML()+rappelsHTML()+'<div style="height:26px"></div>';
+      rappelsHTML()+'<div style="height:26px"></div>';
 
   if(!miennes.length)
     h+='<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Pas de liste à toi</b>'+
@@ -8520,7 +8512,6 @@ function vListe(){
     h+='<div class="sect" style="margin-top:32px"><b>Les autres listes</b><em>pour jeter un œil</em></div>';
     h+=autres.map(bloc).join('');
   }
-  h+=accompagnementsHTML();
   h+=rappelsHTML();
   h+='<p class="hint" style="margin:18px 0 26px">Ce que tu coches est à toi — personne d’autre ne le voit — '+
      'et tout se décoche tout seul demain matin. Tes rappels, eux, restent.</p>';
@@ -13660,9 +13651,6 @@ async function loadProfile(){
     // Le tour des chambres : chargé ici pour la même raison — la carte du Centre doit
     // pouvoir dire « 2 à trancher » avant qu'on ait ouvert la page.
     try{ await loadTourBacs(); }catch(e){}
-    // Les accompagnements : chargés ici pour que la boule de l'accueil et la pastille
-    // de la barre du haut sachent quoi dire avant qu'on ait ouvert Ma liste.
-    try{ await loadAccompagnements(); }catch(e){}
     // Ses check-lists du jour, et ce qui est déjà coché aujourd'hui.
     try{ await loadListes(); }catch(e){}
     // Ce qu'elle a lu dans les formations, et où elle en est dans les jeux.
@@ -13856,168 +13844,6 @@ function rappelsSauver(){
   if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
 }
 function rappelFait(r){ return r && r.faitLe===todayStr(); }
-/* ═══════════════════════════════════════════════════════════════════════════
-   LES ACCOMPAGNEMENTS (Mag, 08/08/2026, pour Mathilde — éducatrice)
-
-   « Elle doit faire des accompagnements, et elle aimerait pouvoir avoir une liste
-   quand elle sait qu'il y a un accompagnement. Elle le note. Comme ça elle les
-   voit dans son application et elle a une notification dans sa liste. Ça pourrait
-   aussi être dans l'accueil, à côté des poubelles et des linges. »
-
-   ⚠ CE N'EST PAS UN NOUVEL ÉCRAN. Ça vit dans MA LISTE DU JOUR, là où elle regarde
-   déjà, et sur l'accueil le jour même. Une page « Mes accompagnements » serait un
-   troisième endroit où penser à aller voir — et c'est comme ça qu'on oublie.
-
-   Ce qui manquait aux rappels perso, c'est UN JOUR. Sans date, un rappel reste au
-   même endroit tous les jours et on cesse de le voir ; avec elle, il remonte tout
-   seul le bon matin, et s'efface de l'accueil quand c'est passé.
-
-   PARTAGÉ OU NON, ELLE CHOISIT À CHAQUE FOIS. Les éducateurs travaillent en 4-4 :
-   si Mathilde est malade le jour du rendez-vous, un rappel qui ne vit que chez elle
-   ne prévient personne — et c'est quelqu'un d'autre qui perd son rendez-vous. Un
-   accompagnement partagé se coche donc AUSSI par un collègue.
-
-   ⚠ AUCUN NOM. Des initiales, comme sur les chambres, et jamais le motif du
-   rendez-vous : la ligne dit qu'il y a un accompagnement, pas de quoi il s'agit.
-   ═══════════════════════════════════════════════════════════════════════════ */
-var ACCOMP=[], ACC_PANNE='', ACC_CHARGE=false;
-var ACC_PARTAGE=false;      /* le choix en cours dans le formulaire : privé par défaut */
-
-async function loadAccompagnements(){
-  if(!sb){ ACC_CHARGE=true; return; }
-  try{
-    /* On remonte 7 jours en arrière : un accompagnement d'hier qu'on n'a pas coché
-       ne doit pas disparaître en silence — c'est justement celui-là qu'il faut voir. */
-    const d=new Date(); d.setDate(d.getDate()-7);
-    const {data,error}=await sb.from('accompagnements').select('*')
-      .gte('quand', agIso(d)).order('quand').limit(300);
-    if(error) throw error;
-    ACCOMP=data||[]; ACC_PANNE='';
-  }catch(e){ ACCOMP=[]; ACC_PANNE=(e&&e.message)||String(e); }
-  ACC_CHARGE=true;
-}
-function accMien(a){ return !!(a && PROFILE && a.uid && a.uid===PROFILE.uid); }
-function accFait(a){ return !!(a && a.fait_le); }
-function accAujourdhui(){
-  const j=agIso(new Date());
-  return ACCOMP.filter(function(a){ return a.quand===j && !accFait(a); });
-}
-/* Ce qui est passé et jamais coché. C'est le seul cas où une ligne doit crier. */
-function accEnRetard(){
-  const j=agIso(new Date());
-  return ACCOMP.filter(function(a){ return a.quand<j && !accFait(a); });
-}
-function accAVenir(){
-  const j=agIso(new Date());
-  return ACCOMP.filter(function(a){ return a.quand>j && !accFait(a); });
-}
-function accPartageChoix(v){ ACC_PARTAGE=v; render(); }
-async function accAjouter(){
-  const v=function(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; };
-  const quoi=v('accQuoi'), quand=v('accQuand');
-  if(!quoi || !quand){ toast('Il faut au moins quoi, et quel jour'); return; }
-  if(!sb){ toast('Pas de connexion'); return; }
-  try{
-    const {error}=await sb.from('accompagnements').insert({
-      quoi:quoi.slice(0,140), quand:quand, heure:v('accHeure')||null,
-      initiales:v('accIni').slice(0,14)||null, ou:v('accOu')||null,
-      partage:ACC_PARTAGE, par:nomAffiche() });
-    if(error) throw error;
-    ['accQuoi','accQuand','accHeure','accIni','accOu'].forEach(function(id){
-      const e=document.getElementById(id); if(e) e.value=''; });
-    ACC_PARTAGE=false;                 /* le suivant repart en privé */
-    await loadAccompagnements(); render(); toast('Noté ✓');
-  }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
-}
-async function accCocher(id){
-  const a=ACCOMP.find(function(x){ return String(x.id)===String(id); });
-  if(!a || !sb) return;
-  const fait=accFait(a);
-  try{
-    const {error}=await sb.from('accompagnements')
-      .update(fait?{fait_le:null,fait_par:null}:{fait_le:new Date().toISOString(),fait_par:nomAffiche()})
-      .eq('id',a.id);
-    if(error) throw error;
-    await loadAccompagnements(); render();
-  }catch(e){ toast('Modification refusée'); }
-}
-function accRetirer(id){
-  const a=ACCOMP.find(function(x){ return String(x.id)===String(id); });
-  if(!a) return;
-  cousinConfirme('Retirer cet accompagnement ?', a.quoi, async function(){
-    try{ const {error}=await sb.from('accompagnements').delete().eq('id',a.id);
-      if(error) throw error;
-      await loadAccompagnements(); render();
-    }catch(e){ toast('Suppression refusée'); }
-  }, {ok:'Retirer', danger:true});
-}
-function accJourFr(iso){
-  const j=agIso(new Date());
-  if(iso===j) return 'aujourd’hui';
-  const dem=new Date(); dem.setDate(dem.getDate()+1);
-  if(iso===agIso(dem)) return 'demain';
-  try{ return new Date(iso+'T12:00:00').toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}); }
-  catch(e){ return iso; }
-}
-function accLigne(a, retard){
-  const ok=accFait(a), mien=accMien(a);
-  return '<div class="tache'+(ok?' faite':'')+(retard?' accretard':'')+'">'+
-    '<button class="cas" onclick="accCocher(\''+a.id+'\')" aria-label="Cocher">'+
-      (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
-    '<span class="tx" onclick="accCocher(\''+a.id+'\')" style="cursor:pointer">'+
-      '<b>'+esc(a.quoi)+(a.initiales?' · '+esc(a.initiales):'')+'</b>'+
-      '<em>'+esc(accJourFr(a.quand))+(a.heure?' · '+esc(a.heure):'')+
-        (a.ou?' · '+esc(a.ou):'')+
-        (a.partage?' · toute l’équipe'+(mien?'':' — de '+esc(String(a.par||'').split(/\s+/)[0])):'')+
-      '</em></span>'+
-    (mien?'<button class="fsup sup" onclick="accRetirer(\''+a.id+'\')">Retirer</button>':'')+
-  '</div>';
-}
-/* Le bloc dans Ma liste : le retard d'abord, aujourd'hui ensuite, la suite après. */
-function accompagnementsHTML(){
-  const retard=accEnRetard(), auj=accAujourdhui(), suite=accAVenir().slice(0,10);
-  let h='<div class="sect" style="margin-top:34px"><b>Mes accompagnements</b>'+
-        '<em>'+(auj.length?auj.length+' aujourd’hui':(retard.length||suite.length?'rien aujourd’hui':'rien de prévu'))+'</em></div>';
-  h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Note-le quand tu le sais : '+
-     'il remontera tout seul le bon jour, ici et sur l’accueil. '+
-     '<b>Des initiales seulement</b> — jamais le nom, jamais le motif du rendez-vous.</div>';
-  if(ACC_PANNE){
-    h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:12px"><b>Liste illisible</b>'+
-       '<p>Ce n’est pas qu’elle est vide : la base a refusé de répondre.</p>'+
-       '<p class="insc">'+esc(ACC_PANNE)+'</p></div>';
-  } else {
-    if(retard.length) h+='<div class="ghead" style="margin-top:14px">En retard '+
-      '<span style="color:var(--rouge)">'+retard.length+'</span></div>'+
-      '<div class="rlist">'+retard.map(function(a){ return accLigne(a,true); }).join('')+'</div>';
-    if(auj.length) h+='<div class="ghead" style="margin-top:14px">Aujourd’hui</div>'+
-      '<div class="rlist">'+auj.map(function(a){ return accLigne(a,false); }).join('')+'</div>';
-    if(suite.length) h+='<div class="ghead" style="margin-top:14px">Ensuite</div>'+
-      '<div class="rlist">'+suite.map(function(a){ return accLigne(a,false); }).join('')+'</div>';
-    if(!retard.length && !auj.length && !suite.length)
-      h+='<div class="cal-vide" style="margin-top:10px">'+(ACC_CHARGE?'Rien de noté pour l’instant.':'Chargement…')+'</div>';
-  }
-  /* LE FORMULAIRE. « Quoi » et « quel jour » suffisent : tout le reste est
-     facultatif, parce qu'une ligne courte notée vaut mieux qu'une ligne complète
-     qu'on n'a pas eu le temps d'écrire. */
-  h+='<details class="acform" style="margin-top:14px"><summary>Noter un accompagnement</summary>'+
-    '<div class="acg">'+
-      '<input id="accQuoi" placeholder="Quoi ? * — ex. accompagnement au CPAS">'+
-      '<div class="acduo"><input id="accQuand" type="date" placeholder="Quel jour *">'+
-        '<input id="accHeure" placeholder="Heure (10:00)"></div>'+
-      '<input id="accIni" maxlength="14" placeholder="Initiales — ex. M.D.">'+
-      '<input id="accOu" placeholder="Où ? — ex. CPAS d’Anderlecht">'+
-      '<div class="chdep" style="margin:2px 0 0">'+
-        '<button class="chdep-b'+(ACC_PARTAGE?'':' on')+'" onclick="accPartageChoix(false)">'+
-          '<b>Pour moi</b><em>personne d’autre ne le voit</em></button>'+
-        '<button class="chdep-b'+(ACC_PARTAGE?' on':'')+'" onclick="accPartageChoix(true)">'+
-          '<b>Toute l’équipe</b><em>quelqu’un peut prendre le relais</em></button>'+
-      '</div>'+
-      '<button class="acok" onclick="accAjouter()">Noter</button>'+
-      '<p class="achint">En 4-4, un accompagnement que toi seule vois saute si tu es '+
-      'malade ce jour-là. Partage-le dès qu’un collègue devrait pouvoir le reprendre.</p>'+
-    '</div></details>';
-  return h;
-}
 /* Amener au champ d'ajout et y mettre le curseur — c'est le geste, pas un écran de
    plus. Sur téléphone le clavier s'ouvre donc tout seul. */
 function rappelViser(){
@@ -14026,12 +13852,63 @@ function rappelViser(){
   try{ i.scrollIntoView({block:'center', behavior:'smooth'}); }catch(e){ i.scrollIntoView(); }
   setTimeout(function(){ i.focus(); }, 220);
 }
+/* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
+   « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
+   notification. »
+
+   C'est la version simple de l'idée des accompagnements, et c'est la bonne : pas de
+   nouvelle table, pas de partage à régler, rien qui mette la pression à l'équipe.
+   Elle note son accompagnement comme n'importe quel rappel — mais avec UN JOUR.
+
+   ⚠ POURQUOI LA DATE CHANGE TOUT. Sans elle, un rappel reste au même endroit tous
+   les jours : on le voit lundi, on le voit encore vendredi, et on cesse de le voir.
+   Avec elle, il dort jusqu'à son matin, puis il remonte et il compte dans la
+   pastille de la barre du haut. Un rappel daté à demain ne réclame rien aujourd'hui.
+
+   La date reste FACULTATIVE : un rappel sans date se comporte exactement comme
+   avant. On n'oblige personne à savoir quand.
+
+   ⚠ « Notification » veut dire ICI la pastille rouge sur le bouton de Ma liste,
+   dans l'app. Pas une notification du téléphone : COUSIN n'en envoie pas, et
+   promettre le contraire ferait rater des rendez-vous. */
+function rappelQuand(r){ return (r && r.quand) || ''; }
+function rappelDu(r){        /* -1 en retard · 0 aujourd'hui · 1 plus tard · null sans date */
+  const q=rappelQuand(r); if(!q) return null;
+  const j=agIso(new Date());
+  return q<j ? -1 : (q===j ? 0 : 1);
+}
+/* Un rappel « réclame » aujourd'hui s'il n'a pas de date, ou si son jour est arrivé. */
+function rappelDu2(r){ const d=rappelDu(r); return d===null || d<=0; }
+function rappelQuandFr(iso){
+  if(!iso) return '';
+  const j=agIso(new Date()); if(iso===j) return 'aujourd’hui';
+  const dem=new Date(); dem.setDate(dem.getDate()+1);
+  if(iso===agIso(dem)) return 'demain';
+  try{ return new Date(iso+'T12:00:00').toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}); }
+  catch(e){ return iso; }
+}
 function rappelAjouter(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
-  MESRAPPELS.push({id:'r'+Date.now(), texte:t.slice(0,120)});
-  rappelsSauver(); i.value=''; render();
+  const q=document.getElementById('rapQuand');
+  const quand=(q&&q.value)||'';
+  MESRAPPELS.push(quand?{id:'r'+Date.now(), texte:t.slice(0,120), quand:quand}
+                       :{id:'r'+Date.now(), texte:t.slice(0,120)});
+  rappelsSauver(); i.value=''; if(q) q.value=''; render();
   setTimeout(function(){ const c=document.getElementById('rapTxt'); if(c) c.focus(); },30);
+}
+/* Changer ou retirer le jour d'un rappel déjà écrit. */
+function rappelDater(id){
+  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
+  cousinDemande('Quel jour ?',
+    'Écris la date au format 2026-08-11. Laisse vide pour que le rappel n’ait pas de jour '+
+    'et reste tous les jours dans ta liste.',
+    r.quand||'', function(v){
+      v=(v||'').trim();
+      if(v && !/^\d{4}-\d{2}-\d{2}$/.test(v)){ toast('Il faut la forme 2026-08-11'); return; }
+      if(v) r.quand=v; else delete r.quand;
+      rappelsSauver(); render();
+    });
 }
 function rappelCocher(id){
   const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
@@ -14044,7 +13921,13 @@ function rappelRetirer(id){
     MESRAPPELS=MESRAPPELS.filter(x=>x.id!==id); rappelsSauver(); render();
   }, {ok:'Retirer', danger:true});
 }
-function resteRappels(){ return MESRAPPELS.filter(function(r){ return !rappelFait(r); }).length; }
+/* ⚠ LA PASTILLE NE COMPTE QUE CE QUI RÉCLAME AUJOURD'HUI. Un rappel daté à mardi
+   ne doit rien allumer lundi — sinon la pastille est allumée en permanence, et une
+   pastille toujours allumée, on cesse de la voir. C'est la même règle que les
+   poubelles et les produits. */
+function resteRappels(){
+  return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu2(r); }).length;
+}
 /* Le bloc « Mes rappels », affiché sous la liste du travail. */
 function rappelsHTML(){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
@@ -14057,21 +13940,50 @@ function rappelsHTML(){
        anneauProg(tot?fait/tot:0,'#5b8fd4')+
        '<span style="flex:1;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;'+
        'text-transform:uppercase;color:#8b8984">'+(tot-fait?(tot-fait)+' à faire':'Tout est fait ✓')+'</span></div>';
-    h+='<div class="rlist">'+MESRAPPELS.map(function(r){
-      const ok=rappelFait(r);
-      return '<div class="tache'+(ok?' faite':'')+'">'+
+    /* ═══ RANGÉS PAR JOUR (08/08/2026) ═══
+       Ce qui est passé et jamais coché d'abord : c'est le seul qui doive crier,
+       parce que le rendez-vous est peut-être en train de se rater. Puis le jour même,
+       puis ce qui vient — et à la fin ceux qui n'ont pas de jour, qui sont là tous
+       les jours et ne réclament rien de particulier. */
+    const ligne=function(r){
+      const ok=rappelFait(r), d=rappelDu(r);
+      return '<div class="tache'+(ok?' faite':'')+((!ok&&d===-1)?' rapretard':'')+'">'+
         '<button class="cas" onclick="rappelCocher(\''+r.id+'\')" aria-label="Cocher">'+
           (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
-        '<span class="tx" onclick="rappelCocher(\''+r.id+'\')" style="cursor:pointer"><b>'+esc(r.texte)+'</b></span>'+
+        '<span class="tx" onclick="rappelCocher(\''+r.id+'\')" style="cursor:pointer">'+
+          '<b>'+esc(r.texte)+'</b>'+
+          (r.quand?'<em>'+esc(rappelQuandFr(r.quand))+'</em>':'')+'</span>'+
+        '<button class="fsup" onclick="rappelDater(\''+r.id+'\')" title="Mettre ou changer le jour">'+
+          (r.quand?'Le jour':'Un jour')+'</button>'+
         '<button class="fsup sup" onclick="rappelRetirer(\''+r.id+'\')">Retirer</button>'+
       '</div>';
-    }).join('')+'</div>';
+    };
+    const groupe=function(titre, liste, couleur){
+      if(!liste.length) return '';
+      return '<div class="ghead" style="margin-top:14px">'+titre+
+        (couleur?' <span style="color:'+couleur+'">'+liste.length+'</span>':'')+'</div>'+
+        '<div class="rlist">'+liste.map(ligne).join('')+'</div>';
+    };
+    const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
+    const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand).localeCompare(String(b.quand)); });
+    const faits=MESRAPPELS.filter(rappelFait);
+    h+= groupe('En retard', parJour(-1), 'var(--rouge)')
+      + groupe('Aujourd’hui', parJour(0).concat(parJour(null)))
+      + groupe('Plus tard', aVenir)
+      + groupe('Faits', faits);
   }
+  /* LA LIGNE D'AJOUT : le texte, et le jour à côté. Le jour reste FACULTATIF —
+     on écrit d'abord, on date si on sait. */
   h+='<div class="chadd" style="margin-top:12px">'+
        '<input id="rapTxt" type="text" placeholder="Ce que tu ne veux pas oublier…" autocomplete="off" '+
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<button class="chaddbtn" onclick="rappelAjouter()">Ajouter</button>'+
-     '</div>';
+     '</div>'+
+     '<div class="rapjour"><label for="rapQuand">Pour quel jour ?<span>facultatif</span></label>'+
+       '<input id="rapQuand" type="date"></div>'+
+     '<p class="hint" style="margin:8px 0 0">Un rappel <b>avec un jour</b> dort jusqu’à '+
+     'son matin, puis il remonte ici et la pastille rouge s’allume sur le bouton de ta '+
+     'liste. Sans jour, il reste là tous les jours.</p>';
   return h;
 }
 
