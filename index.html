@@ -5220,7 +5220,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v420';
+const APP_VERSION = 'v421';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -6752,7 +6752,10 @@ function vChambres(){
       '<button class="chdep-b'+(CH_DEPART==='nettoyer'?' on':'')+'" onclick="chDepart(\'nettoyer\')">'+
         '<b>Déjà vide</b><em>on passe au nettoyage</em></button>'+
     '</div>'+
-    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Des initiales. Jamais le nom complet.</b> C\'est pour savoir quel lit débarrasser quand la chambre est à deux.</span></div>'+
+    /* ⚠ LE PRÉNOM EST REVENU (Mag, 08/08/2026 : « les prénoms on peut mettre »). En
+       raccourcissant ce texte une heure plus tôt, j'avais laissé « des initiales »
+       tout court — plus sévère que sa règle. Raccourcir ne doit pas durcir. */
+    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Initiales, ou prénom et première lettre du nom. Jamais le nom de famille.</b> C\'est pour savoir quel lit débarrasser quand la chambre est à deux.</span></div>'+
     (encours.length?'<div class="ghead">En cours <span style="color:var(--enc2)">'+encours.length+'</span></div>'+encours.map(chCard).join(''):'')+
     (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
     (!CHAMBRES.length?(chambresLoaded
@@ -7212,7 +7215,7 @@ function vTourBacs(){
   h+='<div class="imprligne">'+boutonImprimer()+'</div>';
   h+='<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span>'+
     '<b>Trois bacs par chambre, c’est le droit</b> — on note ce qu’il y a <b>en trop</b>. '+
-    'Des initiales, <b>jamais le nom complet</b>.</span></div>';
+    'Initiales ou prénom, <b>jamais le nom de famille</b>.</span></div>';
   /* LE FORMULAIRE : numéro, initiales, combien en trop, et le seul vrai choix —
      est-ce qu'on a prévenu la personne, oui ou non. Le reste attendra. */
   h+='<div class="tbadd">'+
@@ -13426,20 +13429,26 @@ function vBienvenue(){
     h+='<div class="onb-e rouge">'+pas(2,6)+
       '<div class="onb-sur">Confidentialité</div>'+
       '<div class="onb-t">Une seule<br>règle</div>'+
-      /* ⚠ PLUS AUCUN PRÉNOM, MÊME EN CONTRE-EXEMPLE (Mag, 08/08/2026 : « changer
-         dedans la carte, le nom des gens, parler de confidentialité »).
-         L'écran disait « Mohamed est parti, préviens Nadia ». Écrire la règle « aucun
-         nom » avec deux vrais prénoms — dont un qui désigne un hébergé — c'est la
-         casser dans la phrase même qui l'énonce. Et « Mohamed » n'est pas un prénom
-         neutre ici : le donner en exemple de ce qu'on ne doit pas écrire, dans une
-         maison qui accueille des personnes en exil, ça se remarque.
-         Les crochets disent la même chose et ne nomment personne. */
-      '<p>Aucun nom dans COUSIN. Ni celui d’une personne hébergée, ni celui d’une '+
-      'collègue. Ni dans le fil, ni dans les notes, ni sur les chambres.</p>'+
+      /* ⚠ LA RÈGLE CORRIGÉE (Mag, 08/08/2026 : « les prénoms on peut mettre »).
+         L'écran disait « AUCUN nom dans COUSIN, ni celui d'une personne hébergée, ni
+         celui d'une collègue ». C'était plus strict que sa règle à elle — et surtout
+         l'app se contredisait elle-même : chaque coche des chambres porte le prénom
+         de qui l'a faite, le fil aussi, la passation aussi. Une règle que l'outil
+         enfreint à chaque écran, on cesse de la croire, y compris là où elle compte.
+
+         La vraie règle, la sienne, tenait déjà sur l'écran des chambres : LE PRÉNOM
+         OUI, LE NOM DE FAMILLE JAMAIS. C'est celle-là, et une seule pour toute l'app.
+
+         ⚠ Le contre-exemple ne nomme toujours personne — les crochets disent la même
+         chose sans écrire un vrai nom dans la page qui l'interdit. */
+      '<p><b>Jamais de nom de famille.</b> Le prénom, oui : le tien, celui d’un '+
+      'collègue. Pour une personne hébergée, ses <b>initiales</b> ou son <b>prénom et '+
+      'la première lettre de son nom</b>.</p>'+
       '<div class="onb-ex ok"><i>✓</i>« Le monsieur de la 214 est parti »</div>'+
-      '<div class="onb-ex non"><i>✕</i>« [prénom] est parti, préviens [prénom] »</div>'+
-      '<p style="margin-top:12px">La chambre, l’étage, le métier : ça suffit toujours '+
-      'à se comprendre entre nous. Un nom, lui, reste écrit et se retrouve.</p>'+
+      '<div class="onb-ex ok"><i>✓</i>« Chambre 312 — M.D. · prévenue par Sofia »</div>'+
+      '<div class="onb-ex non"><i>✕</i>« [prénom] [NOM DE FAMILLE] est parti »</div>'+
+      '<p style="margin-top:12px">La chambre, l’étage, le métier : ça suffit à se '+
+      'comprendre entre nous. Un nom de famille, lui, reste écrit et se retrouve.</p>'+
       '<button class="onb-b" onclick="onbAller(3)">Compris</button></div>';
   }
 
@@ -14201,8 +14210,13 @@ async function markSeen(user){
 /* ---------- QUI TU ES ---------- */
 let PROFILE=null, profileLoaded=false;
 let MES_LISTES=[], CHECKLISTS=[], DONE={};
-const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage'};
-const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','médical-rez','médical-2e','polyvalent-jour','polyvalent-nuit'];
+/* « Médical — Nuit » ajoutée le 08/08/2026 : les infirmiers de nuit n'avaient aucune
+   liste à eux — il n'y a qu'une seule infirmière la nuit, au 2e étage, de 21 h 30 à
+   22 h 30. Mag : « fais une médicale ». Les listes des AS du matin et du soir sont
+   annoncées mais pas encore dictées : elles apparaîtront le jour où elles auront
+   leurs tâches, une liste vide n'a rien à montrer. */
+const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage','médical-nuit':'Médical — Nuit','as-matin':'Assistants sociaux — Matin','as-soir':'Assistants sociaux — Soir'};
+const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','médical-rez','médical-2e','médical-nuit','as-matin','as-soir','polyvalent-jour','polyvalent-nuit'];
 function listeRank(k){const i=LISTE_ORDER.indexOf(k);return i<0?99:i}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 /* Le métier suffit à deviner la liste quand personne ne l'a attribuée à la main. */
