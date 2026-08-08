@@ -5236,7 +5236,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v425';
+const APP_VERSION = 'v426';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -9492,6 +9492,7 @@ function cadreTelephone(){
    ⚠ On mesure la place AVANT d'avoir réduit : sinon la mesure dépendrait du réglage
    précédent et la taille sautillerait à chaque passage. */
 const TEL_H=836;                       /* 812 de haut + les 2 × 12 px de la coque */
+const TEL_L=438;                       /* 414 de large + les 2 × 12 px de la coque */
 function ajusterCadre(){
   const z=document.getElementById('telzoom'); if(!z) return;
   z.style.transform='none'; z.style.height='auto';        // on repart de la taille réelle
@@ -9501,8 +9502,27 @@ function ajusterCadre(){
      alors même que le téléphone tient : Mag verrait une barre de défilement pour rien. */
   const v=document.getElementById('view');
   const padBas=v?(parseFloat(getComputedStyle(v).paddingBottom)||0):0;
-  const dispo=window.innerHeight-haut-sousLeTel-padBas;
-  const k=Math.max(.35,Math.min(1,dispo/TEL_H));
+  const dispoH=window.innerHeight-haut-sousLeTel-padBas;
+  /* ═══ IL PREND TOUTE LA HAUTEUR, MAINTENANT (Mag, 08/08/2026) ═══
+     « Ça doit prendre quand même tout l'espace. C'est un peu trop petit. Faut pas que
+     ça dépasse, mais faut pas non plus que ce soit trop petit, donc ça s'adapte à la
+     hauteur. En largeur, au prorata de la hauteur, pour que ça garde la forme d'un
+     téléphone. »
+
+     ⚠ LE PLAFOND ÉTAIT À 1 : le zoom ne savait que RÉTRÉCIR. Sur un grand écran, le
+     téléphone restait à sa taille de départ au milieu du vide. Le plafond part.
+
+     ⚠ MAIS LA LARGEUR COMMANDE AUSSI. Grandi à la seule hauteur, le téléphone
+     déborderait de sa colonne sur un écran bas et large. On prend donc le plus petit
+     des deux rapports — c'est ce qui garde sa FORME : une seule échelle pour les deux
+     côtés, jamais un téléphone étiré.
+
+     La limite de 1,7 n'est pas de la prudence : au-delà, on regarde une maquette
+     grossie, plus un téléphone — les caractères deviennent plus gros que dans la
+     vraie app, et l'aperçu se met à mentir sur ce qui est lisible. */
+  const colonne=z.parentElement;
+  const dispoL=(colonne?colonne.getBoundingClientRect().width:window.innerWidth)-24;
+  const k=Math.max(.35, Math.min(dispoH/TEL_H, dispoL/TEL_L, 1.7));
   z.style.transform='scale('+k+')';
   z.style.height=Math.round(TEL_H*k)+'px';                /* pas de trou sous le téléphone */
 }
