@@ -11735,22 +11735,74 @@ function jxQuiItems(ter,n){
     return {p:p.id, nom:p.nom, opts, correct:opts.indexOf(p.nom), ind};
   }).filter(x=>x.opts.length===4);
 }
-/* ── Vrai ou faux : une affirmation, deux boutons ───────────────────── */
+/* ── Vrai ou faux : une affirmation, deux boutons ─────────────────────
+   ═══ REFAIT LE 08/08/2026, PARCE QUE LES QUESTIONS ÉTAIENT ININTELLIGIBLES ═══
+   Mag : « tes questions, c'est n'importe quoi, t'es trop inventif. Pose des questions
+   plus pragmatiques pour tester notre connaissance du réseau, c'est tout. Juste
+   demande si c'est un centre d'accueil ou un centre d'hébergement, surtout les
+   conditions d'entrée. Ne fais pas de jeu de mots. »
+
+   CE QUI N'ALLAIT PAS. L'affirmation était fabriquée en collant le NOM d'une fiche
+   à sa DESCRIPTION. Or la description est une phrase écrite pour être lue DANS la
+   fiche, en contexte : sortie de là, « Le Chant d'Oiseau : on la pose à TOUT LE
+   MONDE, pas seulement à qui a l'air handicapé » ne veut plus rien dire, et surtout
+   ça ne teste rien — on ne joue pas pour reconnaître un style d'écriture.
+
+   CE QU'ON DEMANDE MAINTENANT : les trois faits qui décident si on envoie quelqu'un
+   là ou ailleurs. À QUI ça s'adresse (les conditions d'entrée, celles qu'elle cite en
+   premier), OÙ c'est, et DE QUOI ça relève. Un faux est fabriqué en prenant la vraie
+   valeur d'une AUTRE fiche : la réponse ne peut pas se deviner à l'allure de la
+   phrase, il faut connaître le réseau.
+   ⚠ On vérifie que le leurre dit bien autre chose que la vérité — deux services qui
+   accueillent « tout public » donneraient une affirmation VRAIE présentée comme
+   fausse, et le jeu apprendrait le contraire de ce qu'il faut savoir. */
 function jxVfItems(ter,n){
   const doms=jxDoms(ter);
-  let pool=DATA.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau && p.desc && p.desc.length>15);
+  let pool=DATA.filter(p=>p.nom && DOM[p.domaine] && DOM[p.domaine].reseau);
   if(doms) pool=pool.filter(p=>doms.includes(p.domaine));
-  const autres=DATA.filter(p=>p.desc && p.desc.length>15);
-  return qShuffle(pool).slice(0,n).map((p,idx)=>{
-    const vrai = idx%2===0;
-    let phrase;
-    if(vrai){ phrase='« '+p.nom+' » : '+qTrim(p.desc,120); }
-    else{
-      const x=qShuffle(autres.filter(a=>a.nom!==p.nom && a.desc!==p.desc))[0];
-      phrase='« '+p.nom+' » : '+qTrim(x?x.desc:'',120);
+  const communes=[...new Set(DATA.map(p=>p.commune).filter(c=>c && !/régional|toutes communes|hors bruxelles/i.test(c)))];
+  const publics=[...new Set(DATA.map(p=>p.public).filter(x=>x && x.length>4))];
+  const nettoie=function(s){ return String(s||'').replace(/\s+/g,' ').trim(); };
+
+  /* Les trois formes, dans l'ordre où on s'en sert sur le terrain. */
+  const formes=[
+    { k:'public',
+      possible:p=>p.public && p.public.length>4,
+      dit:(p,v)=>'« '+p.nom+' » s’adresse à : '+qTrim(v,110)+'.',
+      vraieValeur:p=>nettoie(p.public),
+      leurre:p=>qShuffle(publics.filter(x=>nettoie(x)!==nettoie(p.public)))[0] },
+    { k:'commune',
+      possible:p=>p.commune && !/régional|toutes communes/i.test(p.commune),
+      dit:(p,v)=>'« '+p.nom+' », c’est à '+v+'.',
+      vraieValeur:p=>nettoie(p.commune),
+      leurre:p=>qShuffle(communes.filter(c=>nettoie(c)!==nettoie(p.commune)))[0] },
+    { k:'domaine',
+      possible:p=>DOM[p.domaine] && DOM[p.domaine].label,
+      dit:(p,v)=>'« '+p.nom+' », on le range dans « '+v+' ».',
+      vraieValeur:p=>DOM[p.domaine].label,
+      leurre:p=>{ const d=qShuffle(Object.keys(DOM).filter(k=>DOM[k].reseau && DOM[k].label && k!==p.domaine))[0];
+                  return d?DOM[d].label:''; } }
+  ];
+
+  const items=[];
+  qShuffle(pool).forEach(function(p,idx){
+    if(items.length>=n) return;
+    /* On privilégie les conditions d'entrée : c'est ce qu'elle veut faire réviser.
+       Les deux autres formes prennent le relais quand la fiche n'a pas de public. */
+    const dispo=formes.filter(f=>f.possible(p));
+    if(!dispo.length) return;
+    const f = dispo[0].k==='public' && idx%3!==2 ? dispo[0] : qShuffle(dispo)[0];
+    const vraieV=f.vraieValeur(p);
+    if(!vraieV) return;
+    const vrai = items.length%2===0;
+    let valeur=vraieV;
+    if(!vrai){
+      valeur=f.leurre(p);
+      if(!valeur || nettoie(valeur)===nettoie(vraieV)) return;   /* leurre inutilisable */
     }
-    return {src:p.id, phrase, vrai, vraie:qTrim(p.desc,140), nom:p.nom};
+    items.push({src:p.id, phrase:f.dit(p,valeur), vrai, vraie:qTrim(vraieV,140), nom:p.nom});
   });
+  return items;
 }
 /* ── La question du jour : la même pour tout le monde, elle change à minuit ── */
 /* La question du jour doit être LA MÊME pour tout le monde et NE PAS BOUGER d'un
@@ -11998,7 +12050,19 @@ function quizCorrection(Q){
   const bonne = Q.opts[Q.correct];
   const choisie = (typeof JEU!=='undefined' && JEU && JEU.picked!==undefined && JEU.picked!==null)
                   ? JEU.picked : (typeof QZ!=='undefined' && QZ ? QZ.picked : -1);
-  const juste = choisie===Q.correct;
+  /* ⚠ LE CADRE ÉTAIT ROUGE MÊME QUAND ON AVAIT BON (Mag, 08/08/2026 : « t'as
+     l'impression que c'est faux parce qu'il y a beaucoup plus de rouge »).
+
+     La cause : ici on compare la réponse choisie au NUMÉRO de la bonne option. Ça
+     marche pour le quiz et pour la question du jour, où `picked` est un index. Mais
+     au Vrai ou faux, `picked` vaut `true` ou `false` — et `true === 0` est faux. Donc
+     TOUTE réponse au Vrai ou faux, juste ou non, tombait dans le cadre rouge « ce
+     n'était pas ça », juste sous un « Bien vu ! » vert. L'écran se contredisait, et
+     c'est le rouge qu'on croit — il y en avait dix fois plus.
+
+     Un jeu qui n'est pas noté à l'index passe donc maintenant sa réponse lui-même,
+     par `Q.juste`. On ne devine plus. */
+  const juste = (typeof Q.juste==='boolean') ? Q.juste : (choisie===Q.correct);
   let dedans = '<div class="qc-rep"><span class="qc-lab">La bonne réponse</span><b>'+esc(bonne)+'</b></div>';
   if(Q.pourquoi) dedans += '<p class="qc-txt">'+esc(Q.pourquoi)+'</p>';
   if(p){
@@ -12363,7 +12427,7 @@ function jxJeuHTML(){
       <div class="quiz-q">${esc(it.phrase)}</div>
       ${JEU.answered
         ? `<div class="quiz-corr" style="border-left:4px solid ${juste?'#6cb392':'#e63329'}"><b>${juste?'Bien vu !':'Raté'}</b><br>${it.vrai?'C’était vrai.':'C’était faux — en réalité : '+esc(it.vraie)}</div>
-           ${quizCorrection({src:it.src, opts:[it.vraie], correct:0})}
+           ${quizCorrection({src:it.src, opts:[it.vraie], correct:0, juste:juste})}
            <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`
         : `<div class="jx-vf"><button class="jx-vrai" onclick="jxRepVf(true)">✓ Vrai</button><button class="jx-faux" onclick="jxRepVf(false)">✕ Faux</button></div>`}
     </div>`;
