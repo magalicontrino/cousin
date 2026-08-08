@@ -523,6 +523,21 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .acform summary{cursor:pointer;list-style:none;font-family:ui-monospace,monospace;font-size:10px;
   letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center}
 .acform summary::-webkit-details-marker{display:none}
+/* ── LA PASSATION : le haut en couleur, le réveil en rouge (Mag, 08/08/2026) ──
+   « Mets le haut en couleur et les réveils en rouge. » Le bandeau bleu dit qu'on
+   passe la main ; le rouge est réservé au réveil, parce qu'un réveil raté ne se
+   rate pas à moitié — quelqu'un ne se lève pas à l'heure. */
+#view .acform.pass{border-color:#A9C8E8}
+.acform.pass summary{background:#A9C8E8;color:var(--noir);margin:-12px -13px 12px;
+  padding:11px 13px;border-radius:5px 5px 0 0}
+/* Le commentaire d'un réveil : en clair sous le texte, pas en petites capitales —
+   c'est une phrase qu'on lit à 5 h du matin. */
+.tache .tx em.passcom{font-family:'Eastman',system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:0;text-transform:none;color:var(--enc2);line-height:1.4;margin-top:4px}
+.acform.pass .chdep-b.rev{border-color:var(--rouge)}
+.acform.pass .chdep-b.rev b{color:var(--rouge)}
+.acform.pass .chdep-b.rev.on{background:var(--rouge);border-color:var(--rouge)}
+.acform.pass .chdep-b.rev.on b,.acform.pass .chdep-b.rev.on em{color:#fff}
 .acform summary::after{content:'+';margin-left:auto;font-size:17px;line-height:1}
 .acform[open] summary::after{content:'–'}
 .acg{display:flex;flex-direction:column;gap:8px;margin-top:12px}
@@ -5046,7 +5061,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v438';
+const APP_VERSION = 'v439';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -14248,7 +14263,9 @@ let MES_LISTES=[], CHECKLISTS=[], DONE={};
    tâches pour les Aide S du matin » — l'a détrompé. Corrigé avant que le mauvais
    métier n'apparaisse devant l'équipe. Les clés sont renommées en même temps : aucune
    tâche ne les portait encore, c'était le dernier moment où c'était gratuit. */
-const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage','médical-nuit':'Médical — Nuit','aide-soignant-matin':'Aide-soignants — Matin','aide-soignant-soir':'Aide-soignants — Soir'};
+const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage','médical-nuit':'Médical — Nuit',/* « J'avais fait aide-soignante matin et jour » — pas soir. Corrigé le 08/08/2026 ;
+   la clé garde son nom (les tâches y sont déjà rangées), seul le libellé change. */
+'aide-soignant-matin':'Aide-soignants — Matin','aide-soignant-soir':'Aide-soignants — Jour'};
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','médical-rez','médical-2e','médical-nuit','aide-soignant-matin','aide-soignant-soir','polyvalent-jour','polyvalent-nuit'];
 function listeRank(k){const i=LISTE_ORDER.indexOf(k);return i<0?99:i}
 /* La liste actuellement montrée dans Ma liste. Gardée dans le téléphone : on ouvre
@@ -14704,17 +14721,23 @@ function passTri(liste){
 }
 function passPourChoix(k){ PASS_POUR=k; render(); }
 function passGenreChoix(g){ PASS_GENRE=g; render(); }
+/* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
+   note le soir, pour le lendemain matin. */
+function passDemain(){ const d=new Date(); d.setDate(d.getDate()+1); return agIso(d); }
 async function passAjouter(){
   const v=function(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; };
   const texte=v('passTxt');
   if(!texte){ const e=document.getElementById('passTxt'); if(e) e.focus(); return; }
   if(!sb){ toast('Pas de connexion'); return; }
   const l={texte:texte.slice(0,300), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
-  if(PASS_GENRE==='reveil'){ l.heure=v('passHeure')||null; l.chambre=v('passCh')||null; }
+  if(PASS_GENRE==='reveil'){
+    l.heure=v('passHeure')||null; l.chambre=v('passCh')||null;
+    l.jour=v('passJour')||null; l.commentaire=v('passCom')||null;
+  }
   try{
     const {error}=await sb.from('passations').insert(l);
     if(error) throw error;
-    ['passTxt','passHeure','passCh'].forEach(function(id){
+    ['passTxt','passHeure','passCh','passCom'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
     await loadPassations(); render(); toast('Passée ✓');
   }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
@@ -14752,9 +14775,17 @@ function passLigne(p, mienne){
       '<b>'+(rev?'<span class="passh">'+esc(p.heure||'heure ?')+'</span>':'')+
         (rev&&p.chambre?'<span class="passch">'+esc(p.chambre)+'</span>':'')+
         esc(p.texte)+'</b>'+
+      /* Le commentaire du réveil, sous le texte : c'est ce qui explique le geste
+         (« frapper fort, il n'entend pas »), et ça ne tient pas sur la même ligne. */
+      (p.commentaire?'<em class="passcom">'+esc(p.commentaire)+'</em>':'')+
       '<em>'+(rev?'Réveil':'Passation')+
         (mienne?' · pour '+esc(LISTE_LABELS[p.pour]||p.pour):(qui?' · de '+esc(qui):''))+
-        (p.jour!==agIso(new Date())?' · '+esc(p.jour):'')+
+        /* ⚠ LE JOUR S'ÉCRIT EN TOUTES LETTRES, et seulement s'il n'est pas
+           aujourd'hui. Cette ligne existait déjà mais lisait une colonne qui
+           n'existait pas : elle affichait un « · » suivi de rien, sur chaque ligne.
+           Un réveil noté le samedi pour le dimanche se lisait comme un réveil pour
+           tout de suite — c'est ce qu'elle a demandé de corriger. */
+        (p.jour&&p.jour!==agIso(new Date())?' · '+esc(rappelQuandFr(p.jour)):'')+
         (ok&&quiFait?' · fait par '+esc(quiFait):'')+'</em></span>'+
     (passMienne(p)?'<button class="fsup sup" onclick="passRetirer(\''+p.id+'\')">Retirer</button>':'')+
   '</div>';
@@ -14783,7 +14814,7 @@ function passationsHTML(){
   }
   /* LE FORMULAIRE : le texte, À QUI, et le genre. Les deux boutons qu'elle demande. */
   const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
-  h+='<details class="acform" style="margin-top:14px"><summary>Passer quelque chose</summary>'+
+  h+='<details class="acform pass" style="margin-top:14px"><summary>Passer quelque chose</summary>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
       '<div class="passl"><span class="passl-t">À qui ?</span>'+
@@ -14794,15 +14825,21 @@ function passationsHTML(){
       '<div class="chdep" style="margin:2px 0 0">'+
         '<button class="chdep-b'+(PASS_GENRE==='passation'?' on':'')+'" onclick="passGenreChoix(\'passation\')">'+
           '<b>Une passation</b><em>une info à transmettre</em></button>'+
-        '<button class="chdep-b'+(PASS_GENRE==='reveil'?' on':'')+'" onclick="passGenreChoix(\'reveil\')">'+
+        '<button class="chdep-b rev'+(PASS_GENRE==='reveil'?' on':'')+'" onclick="passGenreChoix(\'reveil\')">'+
           '<b>Un réveil</b><em>quelqu’un à réveiller</em></button>'+
       '</div>'+
       /* L'heure et la chambre n'apparaissent QUE pour un réveil : une passation n'a
          pas d'heure, et deux champs vides à remplir font hésiter pour rien. */
+      /* ⚠ UN RÉVEIL PORTE UN JOUR (Mag, 08/08/2026 : « pour le réveil il faut un jour,
+         une heure et un commentaire »). Il n'y avait que l'heure : un réveil noté le
+         samedi soir pour le dimanche matin se lisait comme un réveil pour tout de
+         suite. Le jour est pré-rempli à demain — c'est le cas de loin le plus
+         fréquent, on note le soir pour le lendemain. */
       (PASS_GENRE==='reveil'
-        ? '<div class="acduo"><input id="passHeure" placeholder="À quelle heure ? — 05:30">'+
-          '<input id="passCh" placeholder="N° de chambre">'+
-          '</div>'
+        ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
+          '<input id="passHeure" placeholder="À quelle heure ? — 05:30"></div>'+
+          '<div class="acduo"><input id="passCh" placeholder="N° de chambre">'+
+          '<input id="passCom" placeholder="Un commentaire"></div>'
         : '')+
       '<button class="acok" onclick="passAjouter()">Passer à l’équipe</button>'+
       '<p class="achint">Les réveils sortent en premier, rangés par heure.</p>'+
