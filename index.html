@@ -1956,6 +1956,13 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tbjt{font-size:13px;line-height:1.45;color:var(--noir)}
 .tbjl.av .tbjt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#b8342c}
+/* La question du jour de reprise : encadrée, mais pas rouge. Le rouge est réservé
+   aux tâches elles-mêmes, une fois qu'on a répondu oui. */
+.cyc{border:1.5px solid var(--noir);background:#fdfdfc;padding:13px 14px;margin-top:16px}
+.cyc b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
+.cyc p{font-size:13px;line-height:1.45;color:var(--enc2);margin-top:6px}
+.cyc .acok{width:auto;padding:9px 15px;margin-top:11px}
+
 /* ── LES TROIS RYTHMES D'UNE LISTE ──
    Un intertitre discret par bloc. Le rouge n'est PAS permanent : il ne sort que le
    jour où la personne reprend son cycle. Un rouge de tous les jours n'alerte plus. */
@@ -5220,7 +5227,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v421';
+const APP_VERSION = 'v422';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8805,11 +8812,24 @@ function vListe(){
   };
 
   /* Le bouton de reprise, en tête : on appuie dessus le premier jour du cycle. Il
-     disparaît le jour où c'est déjà dit — un bouton qui ne fait plus rien encombre. */
-  if(!enReprise())
-    h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
-       '<button class="imprbtn" onclick="jeReprends()">'+
-       '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
+     disparaît le jour où c'est déjà dit — un bouton qui ne fait plus rien encombre.
+     ⚠ LES JOURS DE DÉBUT DE CYCLE, IL DEVIENT UNE QUESTION, pas un bouton perdu au
+     milieu : l'app sait qu'un 4-4 ou un 7-7 repart aujourd'hui, elle le dit et elle
+     demande. Elle ne coche pas à la place des gens — le même jour est une reprise
+     pour une équipe et un premier jour de repos pour l'autre. */
+  if(!enReprise()){
+    const cy=cyclesDuJour();
+    if(cy.length)
+      h+='<div class="cyc"><b>Un nouveau '+cy.map(function(c){ return esc(c.nom); }).join(' et un nouveau ')+
+         ' commence aujourd’hui.</b>'+
+         '<p>Si c’est ton premier jour, dis-le : les tâches de reprise passeront en rouge, '+
+         'tout en haut de ta liste.</p>'+
+         '<button class="acok" onclick="jeReprends()">Oui, je reprends aujourd’hui</button></div>';
+    else
+      h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
+         '<button class="imprbtn" onclick="jeReprends()">'+
+         '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
+  }
   if(miennes.length)
     h+='<div class="sect" style="margin-top:22px"><b>Le travail</b><em>la liste de ton rôle</em></div>';
   h+=miennes.map(bloc).join('');
@@ -14504,6 +14524,33 @@ async function toggleTache(id){
    ⚠ LA DEVINETTE NE S'IMPOSE JAMAIS À LA MAIN : si quelqu'un a appuyé sur le bouton,
    c'est sa date qui gagne. Une app qui corrige ce qu'on vient de lui dire, on cesse
    de lui parler. */
+/* ═══ LES DEUX CYCLES DU CENTRE (Mag, 08/08/2026) ═══
+   « Demain un nouveau 4/4 commence, et jeudi prochain le nouveau 7/7. »
+   Dit un samedi 8 août 2026 : le 4-4 repart le dimanche 9, le 7-7 le jeudi 13.
+   De là, tous les débuts suivants se calculent — un 4-4 revient tous les 8 jours
+   (4 travaillés + 4 de repos), un 7-7 tous les 14.
+
+   ⚠ CE JOUR-LÀ N'EST PAS UNE REPRISE POUR TOUT LE MONDE, et c'est pourquoi l'app
+   PROPOSE au lieu de décider. Les équipes alternent : quand l'une entame ses quatre
+   jours, l'autre entame ses quatre jours de repos. Le même 9 août est donc une
+   reprise pour les uns et un premier jour de congé pour les autres. Cocher tout le
+   monde d'office mettrait des tâches rouges devant des gens qui ne travaillent pas.
+
+   ⚠ SI LE PLANNING CHANGE, C'EST ICI QU'ON CORRIGE — une seule date par cycle. */
+const CYCLES=[
+  {k:'4-4', nom:'4-4', debut:'2026-08-09', periode:8},
+  {k:'7-7', nom:'7-7', debut:'2026-08-13', periode:14}
+];
+/* Quels cycles commencent le jour dit. */
+function cyclesDuJour(iso){
+  const j=iso||todayStr();
+  return CYCLES.filter(function(c){
+    try{
+      const d=Math.round((new Date(j+'T12:00:00')-new Date(c.debut+'T12:00:00'))/86400000);
+      return d>=0 && d%c.periode===0;
+    }catch(e){ return false; }
+  });
+}
 const REPRISE_K='lux_reprise', VU_K='lux_derniere_ouverture';
 function repriseLe(){ try{ return localStorage.getItem(REPRISE_K)||''; }catch(e){ return ''; } }
 function reprisePoser(iso){ try{ localStorage.setItem(REPRISE_K, iso); }catch(e){} }
