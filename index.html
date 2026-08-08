@@ -1425,8 +1425,13 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tour{display:flex;align-items:center;gap:13px;padding:13px 2px;border-bottom:1px solid #dcdad5}
 .tour i{width:14px;height:14px;flex:none}
 .tour b{flex:1;font-size:15.5px;font-weight:500}
-.tour em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
-  text-transform:uppercase;color:#8b8984}
+/* LE JOUR ET LES CHAMBRES, PLUS VISIBLES (Mag, 08/08/2026 : « plus visible stp,
+   1 tout petit peu plus gras »). C'est l'information qu'on vient chercher sur cette
+   page — quel jour, quelles chambres — et elle était écrite en gris pâle, en 9 px,
+   plus discrète que le nom de l'étage. Un point de taille, un cran de graisse, et le
+   gris passe à l'encre : juste ce qu'il faut pour qu'on le lise en passant. */
+.tour em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:#4a4844;font-weight:500}
 .msg{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:15px;color:var(--noir)}
 /* ÉPINGLÉ : crème à gros filet doré, pas une dalle noire — la carte noire faisait
    sévère et assombrissait tout le haut du fil (Mag, 06/08/2026). */
@@ -1951,6 +1956,36 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tbjt{font-size:13px;line-height:1.45;color:var(--noir)}
 .tbjl.av .tbjt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#b8342c}
+/* ── LES AUTRES LISTES, REPLIÉES ──
+   Un volet fermé, en gris : il est là, il ne réclame rien. Une ligne au lieu de
+   trente. Ouvert, son contenu recule d'un cran pour qu'on voie bien qu'on est
+   « chez les autres ». */
+.autrl{margin-top:30px;border:1px solid var(--ligne);background:#f4f3f0}
+.autrl>summary{list-style:none;cursor:pointer;padding:13px 14px;display:flex;
+  align-items:baseline;gap:10px;flex-wrap:wrap}
+.autrl>summary::-webkit-details-marker{display:none}
+.autrl>summary::after{content:'+';margin-left:auto;font-size:17px;font-weight:500;color:var(--enc2)}
+.autrl[open]>summary::after{content:'−'}
+.autrl>summary b{font-size:13.5px;font-weight:600;color:var(--enc2)}
+.autrl>summary span{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:#a8a5a0}
+.autrl>summary em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;color:#a8a5a0}
+.autrl[open]>summary b{color:var(--noir)}
+.autrl-c{padding:0 12px 14px;opacity:.82}
+
+/* ── LA PASSATION ──
+   Un réveil se lit à l'heure, pas au texte : l'heure vient donc DEVANT, en chiffres
+   d'imprimerie, et la chambre juste après. */
+.passh{display:inline-block;font-family:ui-monospace,monospace;font-size:12.5px;font-weight:700;
+  letter-spacing:.04em;background:var(--noir);color:#f2eee6;padding:2px 7px;margin-right:8px}
+.passch{display:inline-block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  background:rgba(27,27,27,.09);padding:3px 7px;margin-right:8px}
+.tache.passrev{border-left:7px solid #f8763f}
+.passl{margin:2px 0 0}
+.passl-t{display:block;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2);margin-bottom:7px}
+
 /* La carte du raccourci, sur l'accueil : elle attend, elle ne surgit pas. */
 .onb-rap{border:1.5px solid var(--noir);background:#fdfdfc;padding:13px 14px;margin:0 0 18px}
 .onb-rap-t{display:flex;align-items:center;gap:9px}
@@ -5122,7 +5157,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v415';
+const APP_VERSION = 'v416';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -7307,36 +7342,45 @@ function imprimer(){
      centre : elle a la feuille en main, elle est peut-être déjà partie. */
   try{
     if(current && current.view==='quartier'){
-      /* ⚠ ON RÉUTILISE LES HABITS DES FICHES (`pf-f`, `pf-qr`, `pf-l`) AU LIEU D'EN
-         INVENTER. Premier essai avec des classes neuves : la feuille est sortie
-         complètement empilée, les textes les uns sur les autres. La feuille d'aperçu
-         embarque TOUTES les feuilles de style de l'app, et une mise en page en flex
-         improvisée là-dedans se fait manger par la cascade. Ces trois classes-là
-         impriment déjà juste depuis le 08/08 — et en prime la feuille du quartier
-         ressemble maintenant à celle des fiches, ce qui est la même feuille au fond :
-         un endroit, une adresse, un téléphone. */
-      let n=0;
+      /* ⚠ ON RÉUTILISE LES HABITS DES FICHES (`pf-f`, `pf-l`) AU LIEU D'EN INVENTER.
+         Premier essai avec des classes neuves : la feuille est sortie complètement
+         empilée, les textes les uns sur les autres. La feuille d'aperçu embarque
+         TOUTES les feuilles de style de l'app, et une mise en page en flex improvisée
+         là-dedans se fait manger par la cascade. */
+      /* ⚠ UN PLAN D'ENSEMBLE, PLUS DES QR PARTOUT (Mag, 08/08/2026 : « fais plutôt un
+         petit plan d'ensemble que des QR code sur chaque lieu »). Huit QR, c'était
+         huit taches d'encre et une feuille qui ne montrait rien : on ne voyait pas
+         que l'Aldi est à côté et que la Pede est loin. Le plan le montre d'un coup
+         d'œil, et il marche sans téléphone — ce qui est le cas le plus courant. */
       const bloc=QUARTIER.map(function(g){
         return '<div class="pf-g">'+esc(g.grp)+'</div>'+
           g.lignes.map(function(l){
-            const qr = l.adr ? qrSVG(itiHref(l.adr), 90) : '';
-            if(l.adr) n++;
             const d=[];
+            const rp=quartierRepere(l.t);
             if(l.adr) d.push('<span><i>Adresse</i>'+esc(l.adr)+'</span>');
             if(l.tel) d.push('<span class="tel"><i>Tél</i>'+esc(l.tel)+'</span>');
+            /* ⚠ PAS `esc()` SUR UN NOMBRE : esc fait `(s||'').replace(…)`, et un
+               nombre n'a pas de .replace — ça lève, et le `catch` du bloc avalait
+               l'erreur en silence. La feuille repartait alors sur une simple copie de
+               l'écran, sans plan et sans numéros, sans qu'un seul message n'apparaisse.
+               C'est la même leçon que les erreurs muettes de Supabase : un catch vide
+               transforme une panne en « il ne s'est rien passé ». */
+            if(rp) d.push('<span><i>À pied</i>'+rp.min+' min · '+esc(rp.dir)+'</span>');
             return '<div class="pf-f">'+
-              (qr?'<div class="pf-qr">'+qr+'<span>Scanne pour l’itinéraire<br>depuis là où tu es</span></div>':'')+
+              (rp?'<span class="pf-num">'+rp.n+'</span>':'')+
               '<b>'+esc(l.t)+'</b>'+
               '<p>'+esc(l.d)+'</p>'+
               (d.length?'<div class="pf-l">'+d.join('')+'</div>':'')+
             '</div>';
           }).join('');
       }).join('');
-      corps='<div class="pf-n">Les adresses utiles autour du centre · '+n+' avec un QR à scanner</div>'+
+      corps=quartierPlanSVG()+
+        '<div class="pf-n">Les adresses utiles autour du centre</div>'+
         bloc+
-        '<div class="ag-fin">Le QR ouvre l’itinéraire en transports depuis l’endroit où l’on se '+
-        'trouve. <b>Les horaires changent</b> : pour les douches et la buanderie, mieux vaut '+
-        'téléphoner avant de faire le trajet.</div>';
+        '<div class="ag-fin"><b>Le plan est un schéma, pas une carte :</b> il donne la '+
+        'direction et le temps de marche, pas le tracé des rues. <b>Les horaires '+
+        'changent</b> — pour les douches et la buanderie, téléphoner avant de faire le '+
+        'trajet, surtout si c’est loin.</div>';
       t='Autour d’ici';
     }
   }catch(e){}
@@ -7405,6 +7449,16 @@ function imprimer(){
          dessinait ses marges avec le padding de .fw — et l'impression le remettait à
          zéro, en ne laissant que la marge par défaut du navigateur. On rend donc les
          marges à la PAGE, la seule chose que l'imprimante respecte. */
+      /* ═══ LE PLAN D'ENSEMBLE ═══ */
+      '.qplan{break-inside:avoid;page-break-inside:avoid;border:1.5px solid #000;padding:12px 12px 8px;'+
+        'margin-bottom:18px}'+
+      '.qplan svg{display:block;width:100%;max-width:520px;margin:0 auto}'+
+      '.qplan p{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;'+
+        'text-transform:uppercase;color:#555;text-align:center;margin-top:6px}'+
+      /* Le numéro qui relie une adresse à son point sur le plan. */
+      '.pf-num{float:left;width:20px;height:20px;border:1.6px solid #000;border-radius:50%;'+
+        'font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;text-align:center;'+
+        'line-height:17px;margin:1px 9px 0 0}'+
       /* Le seul habit neuf de la feuille du quartier : l'intertitre d'un groupe
          (« Se laver, laver son linge »). Tout le reste emprunte celui des fiches. */
       '.pf-g{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;'+
@@ -7797,7 +7851,11 @@ function render(){
      ses DEUX moitiés comptent : les tâches du métier ET les rappels perso. */
   const lb=document.getElementById('listebtn');
   if(lb){
-    const reste=(typeof resteAListe==='function'?resteAListe():0)+(typeof resteRappels==='function'?resteRappels():0);
+    /* La pastille compte AUSSI ce que l'équipe d'avant a laissé : une passation qu'on
+       ne voit pas est une passation qui n'a pas eu lieu. */
+    const reste=(typeof resteAListe==='function'?resteAListe():0)
+      +(typeof resteRappels==='function'?resteRappels():0)
+      +(typeof passPourMoi==='function'?passPourMoi().filter(function(p){ return !passFait(p); }).length:0);
     lb.innerHTML='<span class="ic">'+icon('list')+'</span>'+(reste?'<i class="dot"></i>':'');
     lb.classList.toggle('on',current.view==='liste');
   }
@@ -8581,10 +8639,24 @@ function vListe(){
   if(miennes.length)
     h+='<div class="sect" style="margin-top:22px"><b>Le travail</b><em>la liste de ton rôle</em></div>';
   h+=miennes.map(bloc).join('');
+  /* ═══ LES AUTRES LISTES SE REPLIENT (Mag, 08/08/2026) ═══
+     « De ma vue admin, pour les notes des autres, je voudrais que ce soit plus mis
+     en discret, parce que là je m'y perds dans mes propres listes. »
+
+     Elle a accès à toutes les listes de tous les rôles : dépliées à la suite des
+     siennes, ça faisait des dizaines de tâches qui ne sont pas les siennes, et sa
+     propre liste se noyait dedans. Elles sont maintenant DERRIÈRE UN VOLET FERMÉ,
+     avec leur nombre — on les ouvre quand on veut jeter un œil, et le reste du temps
+     elles tiennent en une ligne. Rien n'est retiré : c'est le même contenu, replié. */
   if(autres.length){
-    h+='<div class="sect" style="margin-top:32px"><b>Les autres listes</b><em>pour jeter un œil</em></div>';
-    h+=autres.map(bloc).join('');
+    const nT=autres.reduce(function(a,g){ return a+g.taches.length; },0);
+    h+='<details class="autrl"><summary>'+
+       '<b>Les autres listes</b>'+
+       '<span>'+autres.length+' rôle'+(autres.length>1?'s':'')+' · '+nT+' tâche'+(nT>1?'s':'')+'</span>'+
+       '<em>pour jeter un œil</em></summary>'+
+       '<div class="autrl-c">'+autres.map(bloc).join('')+'</div></details>';
   }
+  h+=passationsHTML();
   h+=rappelsHTML();
   h+='<p class="hint" style="margin:18px 0 26px">Ce que tu coches est à toi — personne d’autre ne le voit — '+
      'et tout se décoche tout seul demain matin. Tes rappels, eux, restent.</p>';
@@ -13498,6 +13570,114 @@ function vLinge(){
     '<span class="ic">'+icon('compass')+'</span>La fiche complète</button>';
   return h+'<div style="height:26px"></div>';
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PLAN D'ENSEMBLE DU QUARTIER (Mag, 08/08/2026 : « fais plutôt un petit plan
+   d'ensemble que des QR code sur chaque lieu »)
+
+   ⚠⚠ À FAIRE VÉRIFIER PAR QUELQU'UN QUI CONNAÎT LE QUARTIER. Les directions et les
+   temps de marche ci-dessous sont MES ESTIMATIONS, faites d'après les adresses. Je
+   n'ai pas mesuré les trajets. Sur une feuille qu'on donne à quelqu'un qui va y
+   aller À PIED et souvent sans argent, une direction fausse coûte une heure de
+   marche pour rien — c'est exactement l'erreur qu'on a corrigée sur la fiche
+   WAKA UP. Tout est réuni ICI, dans une seule table : une correction = une ligne.
+
+   `a`   = l'angle, en degrés, 0 = le nord, comme une boussole.
+   `r`   = l'éloignement, de 1 (à côté) à 4 (loin).
+   `min` = le temps de marche, en minutes.
+   Le plan est un SCHÉMA : il dit « c'est par là, et c'est à peu près à cette
+   distance ». Il ne dit pas par quelles rues passer, et la feuille l'écrit.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const QUARTIER_PLAN=[
+  {t:'Arrêt Marius Renard', a:  0, r:1, min:1,  dir:'devant le centre'},
+  {t:'Aldi',                a: 20, r:1, min:5,  dir:'vers le nord'},
+  {t:'Parc du Peterbos',    a:215, r:2, min:12, dir:'vers le sud-ouest'},
+  {t:'Parc Astrid',         a:325, r:2, min:15, dir:'vers le nord-ouest'},
+  {t:'Parc Crickx',         a: 40, r:3, min:28, dir:'vers le nord-est'},
+  {t:'DoucheFLUX',          a: 50, r:3, min:30, dir:'vers le nord-est'},
+  {t:'Parc de la Pede',     a:275, r:4, min:35, dir:'vers l’ouest'}
+];
+function quartierRepere(titre){
+  const i=QUARTIER_PLAN.findIndex(function(x){ return x.t===titre; });
+  if(i<0) return null;
+  return Object.assign({n:i+1}, QUARTIER_PLAN[i]);
+}
+function quartierPlanSVG(){
+  /* ⚠ LA LARGEUR EST GÉNÉREUSE EXPRÈS : les étiquettes des lieux à l'ouest sortaient
+     du cadre et « Parc de la Pede » s'imprimait « c de la Pede ». Le dessin occupe le
+     milieu, les marges servent aux mots. */
+  const W=660, H=400, cx=W/2, cy=H/2;
+  const anneaux=[62, 108, 152, 192];     /* r=1 → r=4 */
+  let g='';
+  /* Les anneaux de distance, et leur légende posée sur l'axe du nord. */
+  anneaux.forEach(function(rr,i){
+    g+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rr+'" fill="none" stroke="#bbb" '+
+       'stroke-width="1" stroke-dasharray="3 4"/>';
+  });
+  /* La flèche du nord, en haut à droite : sans elle, un schéma de directions ne veut
+     rien dire. */
+  g+='<g transform="translate('+(W-38)+',30)">'+
+     '<path d="M0 16 L0 -14 M0 -14 L-5 -6 M0 -14 L5 -6" stroke="#000" stroke-width="1.6" fill="none"/>'+
+     '<text x="0" y="30" text-anchor="middle" font-family="ui-monospace,monospace" '+
+     'font-size="9" fill="#000">N</text></g>';
+  /* ═══ ON PLACE, PUIS ON DÉCHEVAUCHE ═══
+     Deux lieux dans la même direction et à la même distance — l'arrêt de bus et
+     l'Aldi, ou Crickx et DoucheFLUX — posaient leurs deux étiquettes au même endroit :
+     les noms s'imprimaient l'un sur l'autre et on ne lisait ni l'un ni l'autre.
+     On calcule donc d'abord toutes les positions, puis on écarte VERTICALEMENT les
+     étiquettes trop proches du même côté. Les POINTS, eux, ne bougent pas : c'est la
+     direction qui est l'information, elle ne se déplace pas pour faire joli. */
+  /* ⚠ L'ÉTIQUETTE S'ÉLOIGNE DU CENTRE, elle ne se pose pas simplement « à droite ».
+     Posée à droite du point, l'étiquette de l'arrêt de bus tombait pile sur le rond
+     de l'Aldi, qui est dessiné après et la recouvrait. En la poussant vers
+     l'EXTÉRIEUR, dans l'axe de sa propre direction, elle s'écarte du milieu — là où
+     tous les points se serrent — au lieu de traverser le dessin. */
+  const pts=QUARTIER_PLAN.map(function(p,i){
+    const rad=(p.a-90)*Math.PI/180, rr=anneaux[p.r-1];
+    const x=cx+Math.cos(rad)*rr, y=cy+Math.sin(rad)*rr;
+    const dehors=rr+26;
+    const lx=cx+Math.cos(rad)*dehors, ly=cy+Math.sin(rad)*dehors;
+    return {p:p, n:i+1, x:x, y:y, droite:(Math.cos(rad)>=0), lx:lx, ly:ly};
+  });
+  ['droite','gauche'].forEach(function(cote){
+    const l=pts.filter(function(q){ return cote==='droite'?q.droite:!q.droite; })
+               .sort(function(a,b){ return a.ly-b.ly; });
+    for(let k=1;k<l.length;k++){
+      if(l[k].ly-l[k-1].ly < 24) l[k].ly=l[k-1].ly+24;   /* deux lignes + un souffle */
+    }
+  });
+  /* Les traits d'abord, puis TOUS les ronds, puis TOUS les textes : sans cet ordre,
+     le rond du lieu suivant se dessine par-dessus l'étiquette du précédent. */
+  pts.forEach(function(q){
+    g+='<line x1="'+cx+'" y1="'+cy+'" x2="'+q.x.toFixed(1)+'" y2="'+q.y.toFixed(1)+'" '+
+       'stroke="#000" stroke-width="0.8" opacity="0.35"/>';
+  });
+  pts.forEach(function(q){
+    g+='<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="11" fill="#fff" stroke="#000" stroke-width="1.6"/>';
+    g+='<text x="'+q.x.toFixed(1)+'" y="'+(q.y+3.6).toFixed(1)+'" text-anchor="middle" '+
+       'font-family="ui-monospace,monospace" font-size="10.5" font-weight="700" fill="#000">'+q.n+'</text>';
+  });
+  pts.forEach(function(q){
+    const anc=q.droite?'start':'end';
+    /* Le liseré blanc derrière le texte : sur du papier blanc il ne se voit pas, mais
+       il efface le trait pointillé qui passerait dessous. */
+    const halo='stroke="#fff" stroke-width="3" paint-order="stroke" ';
+    g+='<text x="'+q.lx.toFixed(1)+'" y="'+(q.ly-4).toFixed(1)+'" text-anchor="'+anc+'" '+halo+
+       'font-family="ui-monospace,monospace" font-size="9.5" font-weight="600" fill="#000">'+
+       esc(q.p.t)+'</text>';
+    g+='<text x="'+q.lx.toFixed(1)+'" y="'+(q.ly+7).toFixed(1)+'" text-anchor="'+anc+'" '+halo+
+       'font-family="ui-monospace,monospace" font-size="8.5" fill="#444">'+q.p.min+' min à pied</text>';
+  });
+  /* LE CENTRE, dessiné en dernier pour rester au-dessus des traits. */
+  g+='<circle cx="'+cx+'" cy="'+cy+'" r="16" fill="#000"/>'+
+     '<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-family="ui-monospace,monospace" '+
+     'font-size="9.5" font-weight="700" fill="#fff">ICI</text>'+
+     '<text x="'+cx+'" y="'+(cy+34)+'" text-anchor="middle" font-family="ui-monospace,monospace" '+
+     'font-size="8.5" fill="#000">Bd Prince de Liège 38</text>';
+  return '<div class="qplan">'+
+    '<svg viewBox="0 0 '+W+' '+H+'" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
+    '<p>Chaque cercle est une distance de marche. Les numéros renvoient à la liste '+
+    'ci-dessous.</p></div>';
+}
 function vQuartier(){
   /* AUTOUR D'ICI redessiné (handoff) : le quartier groupé par besoin, en registre. */
   /* ═══ LA FEUILLE À DONNER, POUR DE VRAI (08/08/2026) ═══
@@ -13510,8 +13690,8 @@ function vQuartier(){
   let h=heroBandeau('Autour d’ici','Bd Prince de Liège 38','#b28b7a','pin')+
     '<div class="imprligne">'+boutonImprimer()+'</div>'+
     '<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>La feuille à donner</b>'+
-    '<p>Ce qu’il y a autour du centre. <b>Imprime-la et donne-la</b> : chaque adresse '+
-    'porte un QR à scanner, et l’itinéraire s’ouvre tout seul.</p></div>';
+    '<p>Ce qu’il y a autour du centre. <b>Imprime-la et donne-la</b> : elle porte un '+
+    '<b>petit plan d’ensemble</b> — ce qui est à côté, ce qui est loin, et de quel côté.</p></div>';
   QUARTIER.forEach(function(g){
     h+='<div class="sectl">'+esc(g.grp)+'</div><div class="rlist">'+
       g.lignes.map(function(l){
@@ -13757,6 +13937,9 @@ async function loadProfile(){
     // Le tour des chambres : chargé ici pour la même raison — la carte du Centre doit
     // pouvoir dire « 2 à trancher » avant qu'on ait ouvert la page.
     try{ await loadTourBacs(); }catch(e){}
+    // La passation : chargée ici pour que la pastille de Ma liste sache déjà, en
+    // arrivant, que l'équipe d'avant a laissé quelque chose.
+    try{ await loadPassations(); }catch(e){}
     // Ses check-lists du jour, et ce qui est déjà coché aujourd'hui.
     try{ await loadListes(); }catch(e){}
     // Ce qu'elle a lu dans les formations, et où elle en est dans les jeux.
@@ -13958,6 +14141,174 @@ function rappelViser(){
   try{ i.scrollIntoView({block:'center', behavior:'smooth'}); }catch(e){ i.scrollIntoView(); }
   setTimeout(function(){ i.focus(); }, 220);
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA PASSATION (Mag, 08/08/2026)
+
+   « Dans la liste de notes pour les PFO de journée, il devrait y avoir un bouton où
+   on pourrait dire à qui on doit faire la passation. À l'équipe de nuit, c'est très
+   important. Dans l'équipe de nuit, parfois c'est juste une passation, parfois c'est
+   des réveils. Donc c'est bien de pouvoir affiner ça. »
+
+   DEUX CHOSES À AFFINER, et c'est tout :
+   — À QUI : une clé de rôle (`pour`), les mêmes que les check-lists. Ça tombe donc
+     dans la liste des bonnes personnes sans rien réorganiser.
+   — QUOI : une **passation** (une info à transmettre) ou un **réveil** (aller
+     réveiller une chambre). Un réveil porte une HEURE et une CHAMBRE.
+
+   ⚠ POURQUOI SÉPARER LES DEUX À L'ÉCRAN. Une passation se lit en arrivant ; un
+   réveil se fait à 5 h 30 et pas à 7 h. Mélangés, le réveil devient une ligne parmi
+   d'autres et se rate. Les réveils sortent donc d'abord, rangés PAR HEURE — c'est un
+   horaire, pas une liste de courses.
+
+   ⚠ C'EST CELUI QUI REÇOIT QUI COCHE, pas celui qui écrit : la PFO de jour est
+   rentrée dormir. D'où la politique ouverte en écriture sur la coche.
+
+   ⚠ AUCUN NOM : numéro de chambre et initiales, comme sur les chambres. Et jamais
+   le motif — on va réveiller la 312 à 5 h 30, on ne dit pas pourquoi.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var PASSATIONS=[], PASS_PANNE='', PASS_CHARGE=false;
+var PASS_POUR='pfo-nuit';      /* à qui : l'équipe de nuit d'abord, c'est le cas courant */
+var PASS_GENRE='passation';    /* passation ou réveil */
+
+async function loadPassations(){
+  if(!sb){ PASS_CHARGE=true; return; }
+  try{
+    /* Hier ET aujourd'hui : l'équipe de nuit arrive le soir et finit le lendemain
+       matin — sa passation est écrite « hier » de son point de vue. */
+    const h=new Date(); h.setDate(h.getDate()-1);
+    const {data,error}=await sb.from('passations').select('*')
+      .gte('jour', agIso(h)).order('jour',{ascending:false}).limit(200);
+    if(error) throw error;
+    PASSATIONS=data||[]; PASS_PANNE='';
+  }catch(e){ PASSATIONS=[]; PASS_PANNE=(e&&e.message)||String(e); }
+  PASS_CHARGE=true;
+}
+function passFait(p){ return !!(p && p.fait_le); }
+function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid); }
+/* Ce qui m'est adressé : les passations dont le rôle est dans MES listes. */
+function passPourMoi(){
+  const m=MES_LISTES||[];
+  return PASSATIONS.filter(function(p){ return m.indexOf(p.pour)>=0; });
+}
+function passEcrites(){ return PASSATIONS.filter(passMienne); }
+/* Les réveils d'abord, par heure. Une heure vide part à la fin — mieux vaut la voir
+   en dernier que de la voir écraser l'ordre de celles qui en ont une. */
+function passTri(liste){
+  return liste.slice().sort(function(a,b){
+    if((a.genre==='reveil')!==(b.genre==='reveil')) return a.genre==='reveil'?-1:1;
+    if(a.genre==='reveil') return String(a.heure||'99:99').localeCompare(String(b.heure||'99:99'));
+    return String(b.cree_le).localeCompare(String(a.cree_le));
+  });
+}
+function passPourChoix(k){ PASS_POUR=k; render(); }
+function passGenreChoix(g){ PASS_GENRE=g; render(); }
+async function passAjouter(){
+  const v=function(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; };
+  const texte=v('passTxt');
+  if(!texte){ const e=document.getElementById('passTxt'); if(e) e.focus(); return; }
+  if(!sb){ toast('Pas de connexion'); return; }
+  const l={texte:texte.slice(0,300), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
+  if(PASS_GENRE==='reveil'){ l.heure=v('passHeure')||null; l.chambre=v('passCh')||null; }
+  try{
+    const {error}=await sb.from('passations').insert(l);
+    if(error) throw error;
+    ['passTxt','passHeure','passCh'].forEach(function(id){
+      const e=document.getElementById(id); if(e) e.value=''; });
+    await loadPassations(); render(); toast('Passée ✓');
+  }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
+}
+async function passCocher(id){
+  const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
+  if(!p || !sb) return;
+  const fait=passFait(p);
+  try{
+    const {error}=await sb.from('passations')
+      .update(fait?{fait_le:null,fait_par:null}:{fait_le:new Date().toISOString(),fait_par:nomAffiche()})
+      .eq('id',p.id);
+    if(error) throw error;
+    await loadPassations(); render();
+  }catch(e){ toast('Modification refusée'); }
+}
+function passRetirer(id){
+  const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  cousinConfirme('Retirer cette passation ?', p.texte, async function(){
+    try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
+      if(error) throw error;
+      await loadPassations(); render();
+    }catch(e){ toast('Suppression refusée'); }
+  }, {ok:'Retirer', danger:true});
+}
+function passLigne(p, mienne){
+  const ok=passFait(p), rev=(p.genre==='reveil');
+  const qui=String(p.par||'').trim().split(/\s+/)[0];
+  const quiFait=String(p.fait_par||'').trim().split(/\s+/)[0];
+  return '<div class="tache'+(ok?' faite':'')+(rev&&!ok?' passrev':'')+'">'+
+    '<button class="cas" onclick="passCocher(\''+p.id+'\')" aria-label="Cocher">'+
+      (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+    '<span class="tx" onclick="passCocher(\''+p.id+'\')" style="cursor:pointer">'+
+      '<b>'+(rev?'<span class="passh">'+esc(p.heure||'heure ?')+'</span>':'')+
+        (rev&&p.chambre?'<span class="passch">'+esc(p.chambre)+'</span>':'')+
+        esc(p.texte)+'</b>'+
+      '<em>'+(rev?'Réveil':'Passation')+
+        (mienne?' · pour '+esc(LISTE_LABELS[p.pour]||p.pour):(qui?' · de '+esc(qui):''))+
+        (p.jour!==agIso(new Date())?' · '+esc(p.jour):'')+
+        (ok&&quiFait?' · fait par '+esc(quiFait):'')+'</em></span>'+
+    (passMienne(p)?'<button class="fsup sup" onclick="passRetirer(\''+p.id+'\')">Retirer</button>':'')+
+  '</div>';
+}
+function passationsHTML(){
+  const pour=passTri(passPourMoi()), ecrites=passTri(passEcrites());
+  const reste=pour.filter(function(p){ return !passFait(p); }).length;
+  let h='<div class="sect" style="margin-top:34px"><b>La passation</b>'+
+        '<em>'+(reste?reste+' pour toi':(pour.length?'tout est fait ✓':'rien pour toi'))+'</em></div>';
+  h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Ce que l’équipe qui part '+
+     'laisse à celle qui arrive. <b>C’est celui qui reçoit qui coche</b> — pas celui qui a '+
+     'écrit, il est rentré. Numéro de chambre et initiales, <b>jamais le nom</b>.</div>';
+  if(PASS_PANNE){
+    h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:12px"><b>Passation illisible</b>'+
+       '<p>Ce n’est pas qu’elle est vide : la base a refusé de répondre.</p>'+
+       '<p class="insc">'+esc(PASS_PANNE)+'</p></div>';
+  } else {
+    if(pour.length) h+='<div class="ghead" style="margin-top:14px">Pour toi'+
+      (reste?' <span style="color:var(--enc2)">'+reste+'</span>':'')+'</div>'+
+      '<div class="rlist">'+pour.map(function(p){ return passLigne(p,false); }).join('')+'</div>';
+    if(ecrites.length) h+='<div class="ghead" style="margin-top:14px">Ce que tu as passé</div>'+
+      '<div class="rlist">'+ecrites.map(function(p){ return passLigne(p,true); }).join('')+'</div>';
+    if(!pour.length && !ecrites.length)
+      h+='<div class="cal-vide" style="margin-top:10px">'+
+         (PASS_CHARGE?'Rien à passer, rien de reçu.':'Chargement…')+'</div>';
+  }
+  /* LE FORMULAIRE : le texte, À QUI, et le genre. Les deux boutons qu'elle demande. */
+  const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
+  h+='<details class="acform" style="margin-top:14px"><summary>Passer quelque chose</summary>'+
+    '<div class="acg">'+
+      '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
+      '<div class="passl"><span class="passl-t">À qui ?</span>'+
+        '<div class="fchips">'+roles.map(function(k){
+          return '<button class="fchip'+(PASS_POUR===k?' on':'')+'" onclick="passPourChoix(\''+esc(k)+'\')">'+
+            esc(LISTE_LABELS[k]||k)+'</button>';
+        }).join('')+'</div></div>'+
+      '<div class="chdep" style="margin:2px 0 0">'+
+        '<button class="chdep-b'+(PASS_GENRE==='passation'?' on':'')+'" onclick="passGenreChoix(\'passation\')">'+
+          '<b>Une passation</b><em>une info à transmettre</em></button>'+
+        '<button class="chdep-b'+(PASS_GENRE==='reveil'?' on':'')+'" onclick="passGenreChoix(\'reveil\')">'+
+          '<b>Un réveil</b><em>quelqu’un à réveiller</em></button>'+
+      '</div>'+
+      /* L'heure et la chambre n'apparaissent QUE pour un réveil : une passation n'a
+         pas d'heure, et deux champs vides à remplir font hésiter pour rien. */
+      (PASS_GENRE==='reveil'
+        ? '<div class="acduo"><input id="passHeure" placeholder="À quelle heure ? — 05:30">'+
+          '<input id="passCh" placeholder="N° de chambre">'+
+          '</div>'
+        : '')+
+      '<button class="acok" onclick="passAjouter()">Passer à l’équipe</button>'+
+      '<p class="achint">Les réveils sortent en premier, rangés par heure : un réveil se '+
+      'fait à 5 h 30 et pas à 7 h. Mélangé au reste, il se rate.</p>'+
+    '</div></details>';
+  return h;
+}
+
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
    notification. »
