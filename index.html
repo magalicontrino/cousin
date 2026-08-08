@@ -11315,9 +11315,12 @@ async function ajouterActivite(){
     const { error } = await sb.from('activites').insert({
       asso:asso, titre:titre, jour:jour, debut:v('acDebut')||null, fin:v('acFin')||null,
       lieu:v('acLieu')||null, adresse:v('acAdr')||null, inscription:v('acInsc')||null,
+      /* `null` et non '' quand on n'a pas répondu : la colonne n'accepte que
+         mixte / femmes / hommes, et NULL veut dire « pas encore dit ». */
+      pour_qui:v('acQui')||null,
       ajoute_par:(PROFILE&&(PROFILE.nom||PROFILE.email))||'' });
     if(error) throw error;
-    ['acTitre','acJour','acDebut','acFin','acLieu','acAdr','acInsc'].forEach(function(id){
+    ['acTitre','acJour','acDebut','acFin','acLieu','acAdr','acInsc','acQui'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
     await loadActivites(); render(); toast('Ajoutée ✓');
   }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
@@ -11442,6 +11445,17 @@ function activitesHTML(){
       +'<input id="acLieu" placeholder="Le lieu">'
       +'<input id="acAdr" placeholder="L’adresse">'
       +'<input id="acInsc" placeholder="Inscription (comment, avant quand)">'
+      /* POUR QUI (08/08/2026) — c'est ce champ qui donnera sa couleur au calendrier,
+         et surtout c'est lui qui empêchera d'envoyer un homme à une activité réservée
+         aux femmes. « Je ne sais pas encore » est le choix par défaut ET une vraie
+         réponse : mieux vaut une activité grise qu'un « mixte » affirmé à tort —
+         c'est l'erreur qu'on vient de corriger sur la fiche WAKA UP. */
+      +'<select id="acQui" style="font:inherit;font-size:14px;padding:11px;border:1px solid var(--ligne);background:#f4f3f0;width:100%">'
+        +'<option value="">Pour qui ? — je ne sais pas encore</option>'
+        +'<option value="mixte">Mixte — tout le monde</option>'
+        +'<option value="femmes">Réservé aux femmes</option>'
+        +'<option value="hommes">Réservé aux hommes</option>'
+      +'</select>'
       +'<button class="acok" onclick="ajouterActivite()">Ajouter au programme</button>'
       +'<p class="achint">L’association, l’activité et la date sont obligatoires. Tout le reste est facultatif — mieux vaut une ligne courte que rien.</p>'
       +'</div></details>';
