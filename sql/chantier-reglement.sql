@@ -48,3 +48,26 @@ insert into public.chantier(bloc, titre, detail, ordre) values
 
 -- ── PASSÉ DANS SUPABASE LE 08/08/2026 ────────────────────────────────────────
 -- « Success. No rows returned ».
+
+-- ═══ LE LENDEMAIN (09/08/2026), MAG A RÉPONDU À PRESQUE TOUT ═══
+-- Passé dans Supabase le 09/08 (updates + inserts, vérifié : 10 lignes, 3 cochées) :
+--   · id 59 rentrée   → COCHÉE : 21 h 30 ; présences en chambre vers 22 h ;
+--                       pas là = absent ; trois absences = désencodé.
+--   · id 61 étages    → COCHÉE : le 3e et le 6e (le « 5e » était un lapsus).
+--   · id 62 vol       → COCHÉE : trois mois en général, cas par cas — mais la page
+--                       et la feuille disent juste « c'est une sanction ».
+--   · id 63 il manque → réduit à : l'argent et les objets de valeur. Le reste est
+--                       réglé : visites NON (centre anonyme), photos/réseaux NON,
+--                       animaux NON, ménage = chacun sa chambre, parler = service
+--                       social, équipes soir et nuit.
+--   · id 58 petit déj → reste OUVERTE : « je pense, mais je ne suis pas sûre ».
+--
+-- Et trois lignes NOUVELLES, nées de la feuille imprimable qu'elle a demandée
+-- (« on la remettra aux hébergés, l'important en rouge, une page si possible ») :
+--   · 680 relire la feuille — avec MES ajouts déclarés : pied Urgences 112 ·
+--         Police 101, phrase « la date des produits est annoncée dans le centre »,
+--         tableau des jours du linge recopié de l'app.
+--   · 690 les horaires des infirmeries (en haut, en bas) — je ne les ai pas ; la
+--         feuille a deux cases rouges « à compléter » en attendant.
+--   · 700 les pictos de la feuille — « on verra les pictos ensemble après » :
+--         rien n'est dessiné sans elle.
