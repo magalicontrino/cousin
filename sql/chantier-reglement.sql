@@ -26,6 +26,10 @@ insert into public.chantier(bloc, titre, detail, ordre) values
    'Règlement — le découcher : 10 jours par mois ET 3 nuits d''affilée ?',
    'Dicté : « 10 jours et 3 jours d''affilée, et 10 jours au total, mais pas au bout de trois nuits ». Trois chiffres pour deux règles — et à partir de quand le désencodage ?', 630),
 
+  -- ⚠ TRANCHÉ PAR MAG LE 09/08/2026, quelques heures après la dictée : « c'est 6e
+  -- étage et troisième étage, je me suis trompée ». Le « 5e » était un lapsus.
+  -- La ligne a été renommée et cochée dans la base (update du 09/08), la page dit
+  -- maintenant « Le 3e et le 6e » sans À vérifier.
   ('Ça attend tes collègues',
    'Règlement — l''étage des femmes : le 3e, le 5e, ou les deux ?',
    'Dicté : « au troisième étage, au cinquième étage, c''est l''étage des femmes ».', 640),
