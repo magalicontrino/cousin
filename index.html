@@ -1533,7 +1533,7 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .acc .n{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .acc .sg{font-size:19px}
 .accin{padding-left:14px;display:flex;flex-direction:column;gap:8px;margin-top:8px}
-/* La petite étoile devant « Tes étoiles », dans le profil. Le doré est celui de
+/* La petite étoile devant « Tes favoris », dans le profil. Le doré est celui de
    l'étoile pleine des fiches : c'est le même objet, il porte la même couleur. */
 .role b .ic.etp{width:15px;height:15px;color:#c9940c;margin-right:7px;vertical-align:-2px}
 /* ═══ LES TROIS GROUPES DE L'ADMIN (Mag, 08/08/2026) ═══
@@ -1562,6 +1562,21 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    qui doit se voir, pas celui entre deux boutons du même groupe. */
 .admg .acc{margin-top:8px}
 .admg .acc:first-of-type{margin-top:0}
+/* ── « Qui est venu » : une personne par ligne, empilée ──
+   L'adresse en haut sur toute la largeur, le délai en dessous. Sur grand écran la
+   liste passe en colonnes, mais chaque case garde ses deux étages : c'est ça qui
+   rend la lecture possible, pas la largeur. */
+.vlist{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}
+@media (min-width:900px){ .vlist{grid-template-columns:repeat(2,1fr)} }
+.venu{border:1px solid var(--ligne);border-radius:6px;padding:9px 11px;background:#fdfdfc;min-width:0}
+.venu b{display:block;font-size:14px;font-weight:500;line-height:1.25;
+  overflow-wrap:anywhere}                       /* une adresse longue coupe où il faut */
+.venu em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:#8b8984;margin-top:4px}
+/* Jamais entré : la case s'efface, mais le nom reste NOIR — c'est justement celui
+   qu'on cherche dans cette liste. Griser le nom l'aurait rendu illisible. */
+.venu.pas{background:transparent;border-style:dashed}
+.venu.pas em{color:#b4b2a9}
 .badge{display:inline-flex;font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;
   letter-spacing:.14em;text-transform:uppercase;background:#f6e7a8;color:var(--noir);padding:3px 8px;border-radius:999px}
 
@@ -2524,8 +2539,18 @@ body.no-tabs #tabbar{display:none}
   @media (hover:hover){
     #tabbar .railprinc button:not(.on):hover{
       border-left-color:var(--c);background:rgba(242,238,230,.07);transform:translateX(6px)}
-    #tabbar .railsec button:hover{
+    /* ⚠ `:not(.on)` — LE BOUTON ACTIF DEVENAIT ILLISIBLE AU SURVOL (Mag, 08/08/2026 :
+       « au survol on ne sait pas lire le texte »). Le bouton actif porte un fond CRÈME
+       et un texte NOIR. Le survol, lui, repeignait le fond en blanc à 7 % — donc en
+       noir, sur le rail noir — sans toucher à la couleur du texte : on se retrouvait
+       avec du noir sur du noir, juste sur la page où l'on se trouve. Le rail principal
+       avait déjà ce garde-fou ; le rail du bas ne l'avait pas.
+       ⚠ `.vueon` (l'œil allumé quand on regarde l'app comme quelqu'un d'autre) porte
+       lui aussi un fond à lui : même raison, on ne le survole pas non plus. */
+    #tabbar .railsec button:not(.on):not(.vueon):hover{
       border-left-color:#f2eee6;background:rgba(242,238,230,.07);transform:translateX(6px);opacity:1}
+    /* L'actif garde son fond ; il glisse quand même, pour répondre au geste. */
+    #tabbar .railsec button.on:hover,#tabbar .railsec button.vueon:hover{transform:translateX(6px)}
   }
   #tabbar .railprinc button:not(.on):active,#tabbar .railsec button:active{transform:translateX(6px) scale(.98)}
 
@@ -2963,7 +2988,7 @@ body.no-tabs #tabbar{display:none}
   <!-- Le « + » : une idée, une erreur repérée. Sur TOUS les écrans, pour TOUT LE MONDE
        (validé par Mag le 06/08/2026) — c'est souvent le terrain qui voit l'erreur en premier. -->
   <button id="plusbtn" onclick="ouvrirIdee()" aria-label="Une suggestion" title="Une suggestion"></button>
-  <button id="starbtn" onclick="go('#/favoris')" aria-label="Tes étoiles" title="Tes étoiles"></button>
+  <button id="starbtn" onclick="go('#/favoris')" aria-label="Tes favoris" title="Tes favoris"></button>
 </header>
 
 <!-- LES FENÊTRES DE COUSIN — elles remplacent les boîtes grises du navigateur, qui
@@ -8069,7 +8094,12 @@ function couleurPictoJeu(j){
    j'ai regardé dans les réseaux. Ni sur le téléphone, ni sur l'écran. »
    Ce n'est donc pas seulement l'affichage qui part : plus rien n'est compté (voir
    `noterVue`, qui n'enregistre plus et efface ce qui traînait). À sa place, sur
-   l'accueil, ce sont « Tes étoiles » — les fiches choisies, pas les fiches subies. */
+   l'accueil, ce sont « Tes favoris » — les fiches choisies, pas les fiches subies.
+   ⚠ Renommé « Tes favoris » le 08/08/2026 (Mag : « au lieu de mettre tes étoiles,
+   mets tes favoris »). L'étoile reste le GESTE — on touche une étoile sur une fiche —
+   mais le mot de la page est celui que tout le monde emploie déjà, et c'est celui
+   qu'affichait déjà le titre de la page (« Favoris »). L'app se disait deux mots
+   différents pour le même endroit. */
 /* ═══ LES DEUX FORMES DU BONJOUR CHANGENT CHAQUE JOUR (Mag, 08/08/2026 : « sois un
    peu créatif, on trouve des pictos dans le même type ») ═══
    Rien de dessiné pour l'occasion : ce sont SES pictos, ceux du dossier picto/, qui
@@ -8571,7 +8601,7 @@ function vHome(){
     }).join('');
     h+='<button class="etbar" onclick="go(\'#/favoris\')">'+
         '<span class="ic et" style="color:#c9940c">'+icon('star')+'</span>'+
-        '<b>Tes étoiles</b>'+
+        '<b>Tes favoris</b>'+
         '<span class="ap">'+ap+'</span>'+
         '<span class="n">'+favs.length+'</span>'+
         '<span class="ch">›</span></button>';
@@ -8702,8 +8732,37 @@ function vCentre(){
        dans l'Admin sous « Ajouter quelqu'un » (on autorise l'adresse, on envoie le
        lien dans la foulée), et dans Mon profil pour que tout le monde puisse le
        partager — pas seulement l'administration. */
-    ['Gestion du centre', nCentreFiches()+' fiches','centre','blanc',null,'#1b1b1b',"go('#/d/centre')"],
+    /* « GESTION DU CENTRE » N'EST PLUS ICI (Mag, 08/08/2026) : « la gestion du centre,
+       ça devrait être dans Quotidien du centre ». Elle est descendue en carte dans
+       « Le quotidien », plus bas — c'est le fonctionnement de la maison, pas un outil
+       qu'on sort pour accompagner quelqu'un. */
     ['Autour d’ici','Le quartier','pin','blanc',null,'#1b1b1b',"go('#/quartier')"]
+  ];
+
+  /* ═══ TROIS FAMILLES PLUTÔT QU'UNE LISTE DE ONZE (Mag, 08/08/2026) ═══
+     « Je trouve que les outils de l'équipe, y a trop de choses. Faudra encore scinder
+     en deux. Les démarches, tout ce qui va avec — mails, notes, schémas, protocole :
+     c'est tout ce qui a un rapport avec le travail direct. Et ensuite il y a le
+     reste : dictionnaire, formation. Il y a le côté éduc : les sorties et les
+     activités, ça devrait être ensemble. »
+
+     Elle a choisi la proposition 1 sur quatre (propositions/centre-groupes.html) :
+     TROIS INTERTITRES, la même barre que « Le quotidien » juste en dessous. Aucune
+     tuile ne change de couleur ni de taille — c'était l'argument, et c'est le seul
+     rangement qui n'apprend rien de nouveau à personne.
+
+     ⚠ « AUTOUR D'ICI » EST UN CHOIX DE MA PART, pas le sien : elle ne l'a pas cité.
+     Il est avec l'éduc parce qu'on va au quartier POUR une sortie. À redemander.
+     ⚠ UNE FAMILLE VIDE NE S'ÉCRIT PAS. Le groupe D ne voit ni Protocole, ni
+     Démarches, ni Mails et notes : sans ce garde-fou, il lirait un titre
+     « Le travail avec la personne » suivi d'une seule tuile — ou de rien. */
+  const FAMILLES=[
+    {n:'Le travail avec la personne', s:'Ce qu’on fait POUR quelqu’un', c:'#A9C8E8',
+     k:['Protocole','Démarches','Mails et notes','Les schémas à donner']},
+    {n:'Ce qu’on propose', s:'Ce qu’on fait AVEC quelqu’un', c:'#f8763f',
+     k:['Éduc','Activités','Autour d’ici']},
+    {n:'Apprendre', s:'Pour toi, quand tu as le temps', c:'#b28b7a',
+     k:['Formations','Le dictionnaire']}
   ];
 
   let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', false)+
@@ -8717,15 +8776,27 @@ function vCentre(){
        protocole, activités, gestion du centre, autour d'ici — est visible par tout le
        monde (« y'a pas de raison qu'ils n'apprennent pas »). Les jeux et le quiz, eux,
        n'ont jamais été filtrés : ils vivent à l'accueil et dans Quoi de neuf. */
-    '<div class="sectc"><b><i style="background:#b28b7a"></i>Les outils de l’équipe</b>'+
-      '<em>'+(voitOutilsCentre()?'Toute l’équipe':'Vue D')+'</em></div>'+
-    '<div class="ogrid">'+
-      (voitOutilsCentre()?outils:outils.filter(function(o){ return OUTILS_CACHES_D.indexOf(o[0])<0; }))
-      .map(function(o){
-        return '<button class="otile '+o[3]+'"'+(o[4]?' style="background:'+o[4]+'"':'')+' onclick="'+o[6]+'">'+
-          '<b>'+esc(o[0])+'</b><em>'+esc(o[1])+'</em>'+
-          '<span class="ic" style="color:'+o[5]+'">'+icon(o[2])+'</span></button>';
-      }).join('')+'</div>';
+    '';
+
+  const visibles = voitOutilsCentre()
+    ? outils
+    : outils.filter(function(o){ return OUTILS_CACHES_D.indexOf(o[0])<0; });
+  const tuile=function(o){
+    return '<button class="otile '+o[3]+'"'+(o[4]?' style="background:'+o[4]+'"':'')+' onclick="'+o[6]+'">'+
+      '<b>'+esc(o[0])+'</b><em>'+esc(o[1])+'</em>'+
+      '<span class="ic" style="color:'+o[5]+'">'+icon(o[2])+'</span></button>';
+  };
+  let premiere=true;
+  FAMILLES.forEach(function(f){
+    const dedans=f.k.map(function(nom){
+      return visibles.find(function(o){ return o[0]===nom; });
+    }).filter(Boolean);
+    if(!dedans.length) return;                    /* famille vide : pas de titre en l'air */
+    h+='<div class="sectc"><b><i style="background:'+f.c+'"></i>'+esc(f.n)+'</b>'+
+       '<em>'+esc(premiere && !voitOutilsCentre() ? 'Vue D' : f.s)+'</em></div>'+
+       '<div class="ogrid">'+dedans.map(tuile).join('')+'</div>';
+    premiere=false;
+  });
 
   /* LE QUOTIDIEN */
   h+='<div class="sectc"><b><i style="background:#6cb392"></i>Le quotidien</b><em>Aujourd’hui</em></div>'+
@@ -8757,6 +8828,15 @@ function vCentre(){
     '<span class="ic" style="color:#f5c542">'+icon('colis')+'</span>'+
     '<span class="tx"><b>Distribution des produits'+(produitsJour()?' — '+produitsJour().quand:'')+'</b>'+
     '<em>'+esc(distTxt)+'</em></span>'+
+    '<span class="chv">›</span></button>'+
+  /* GESTION DU CENTRE, descendue des outils le 08/08/2026 (Mag : « la gestion du
+     centre, ça devrait être dans Quotidien du centre »). Elle a raison : les autres
+     tuiles là-haut servent à accompagner QUELQU'UN — ici c'est le fonctionnement de
+     la maison, comme le linge et les poubelles. Elle est en dernier parce qu'elle est
+     la seule de cette section qui ne dépend pas du jour. */
+  '<button class="qcarte" onclick="go(\'#/d/centre\')">'+
+    '<span class="ic" style="color:#A9C8E8">'+icon('home')+'</span>'+
+    '<span class="tx"><b>Gestion du centre</b><em>'+nCentreFiches()+' fiches</em></span>'+
     '<span class="chv">›</span></button>'+
   '</div><div style="height:26px"></div>';
   return h;
@@ -9195,7 +9275,7 @@ function vProfil(){
       '<span class="tx"><b>'+esc(PRENOM||'Sans prénom')+'</b><em>Sur cet appareil</em></span></div>'+
       '<div class="fsavoir" style="margin-top:18px"><b><span class="ic">'+icon('bulb')+'</span>Pas connectée</b>'+
       '<p>COUSIN n’arrive pas à joindre la base pour l’instant. Ton métier, tes badges et tes '+
-      'étoiles reviendront dès que tu seras à nouveau en ligne.</p></div>'+
+      'favoris reviendront dès que tu seras à nouveau en ligne.</p></div>'+
       '<div style="height:26px"></div>';
   }
 
@@ -9274,10 +9354,10 @@ function vProfil(){
           à une fiche qui existe encore. En comptant FAVS.size on annonçait « 1 fiche »
           alors que la page disait « aucun favori » — une étoile posée sur une fiche
           depuis retirée du catalogue reste dans la liste sans rien ouvrir. */
-       /* Une étoile devant « Tes étoiles » (Mag, 08/08/2026) — la même que celle qu'on
+       /* Une étoile devant « Tes favoris » (Mag, 08/08/2026) — la même que celle qu'on
           touche sur les fiches et que celle du rail, dans le même doré : trois endroits
           différents, un seul signe, sinon on ne fait pas le rapprochement. */
-       '<button class="role ouvre" onclick="go(\'#/favoris\')"><b><span class="ic etp">'+icon('star')+'</span>Tes étoiles</b><span class="n">'+nFavosVivants()+' fiche'+(nFavosVivants()>1?'s':'')+'</span><span class="sg">›</span></button>'+
+       '<button class="role ouvre" onclick="go(\'#/favoris\')"><b><span class="ic etp">'+icon('star')+'</span>Tes favoris</b><span class="n">'+nFavosVivants()+' fiche'+(nFavosVivants()>1?'s':'')+'</span><span class="sg">›</span></button>'+
      '</div>'+
      '<div class="fsrc" style="text-align:left;padding:12px 0 0">Ton nom et ton adresse viennent de ton '+
      'compte Google. Ton métier et tes listes, c’est Mag qui les règle dans l’Admin.</div>';
@@ -9532,7 +9612,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes étoiles',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
 }
@@ -9821,7 +9901,7 @@ function boiteClasser(id){
    ══════════════════════════════════════════════════════════════════════════ */
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
-const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes étoiles', liste:'Ma liste',
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
   profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', linge:'Le linge', centre:'Le centre',
@@ -10149,25 +10229,47 @@ function vAdmin(){
     return vb-va;
   });
   const recents=venus.filter(function(m){ return m.derniere_connexion||m.dernier_login; }).length;
-  /* ⚠ « QUI EST VENU » EST RANGÉ AVEC « L'ÉQUIPE » (Mag, 08/08/2026) : « c'est en fait
-     tous les gens qui sont inscrits ? Dans ce cas-là, ça avec l'équipe. » Oui — ce sont
-     exactement les mêmes personnes, la même table, seulement triées par dernière
-     visite. Deux boutons éloignés donnaient l'impression de deux listes différentes. */
+  /* ⚠ « QUI EST VENU » A CHANGÉ DEUX FOIS DE PLACE LE 08/08/2026, et la deuxième est
+     la bonne : d'abord rangé avec « L'équipe » (« c'est en fait tous les gens qui sont
+     inscrits ? »), puis mis à part avec les statistiques (« Qui est venu devrait être
+     avec Statistiques, encore à part, en dernier »). Ce sont bien les mêmes personnes,
+     mais ce n'est pas la même question : « L'équipe », c'est le registre — qui en fait
+     partie, quel métier, quelles listes. Ici on ne règle rien, on MESURE. */
   sVenus+='<button class="acc'+(ADM_SECTION==='venus'?' open':'')+'" onclick="admSection(\'venus\')">'+
      '<b>Qui est venu</b><span class="n">'+recents+' sur '+mem.length+' déjà entrés</span>'+
      '<span class="sg">'+(ADM_SECTION==='venus'?'⌄':'›')+'</span></button>';
   if(ADM_SECTION==='venus'){
-    sVenus+='<div class="rlist">'+venus.map(function(m){
+    /* ═══ LA LISTE ÉTAIT ILLISIBLE (Mag, 08/08/2026 : « trie d'une manière plus
+       claire, c'est illisible ») ═══
+       Une adresse de 34 caractères et « il y a 15 jours · session » se disputaient la
+       MÊME LIGNE : les deux se cassaient en trois morceaux chacun, et sur trois
+       colonnes ça donnait un mur de bouillie. Deux corrections, et aucune n'est
+       décorative :
+       ① la ligne s'EMPILE — l'adresse d'abord, le délai en dessous, chacun sur toute
+         la largeur. Personne ne se coupe plus.
+       ② on TRIE EN DEUX TAS avec leur compte, au lieu d'un dégradé continu du plus
+         récent au jamais-venu. La vraie question de cette page est « qui n'est jamais
+         entré ? » : il faut pouvoir la lire sans parcourir toute la liste. */
+    const venusOui=venus.filter(function(m){ return m.derniere_connexion||m.dernier_login; });
+    const venusNon=venus.filter(function(m){ return !(m.derniere_connexion||m.dernier_login); });
+    const ligne=function(m){
       const q=depuis(m.derniere_connexion)||depuis(m.dernier_login);
       const sess=!m.derniere_connexion&&m.dernier_login;
-      return '<div class="role"'+(q?'':' style="opacity:.5"')+'>'+
-        '<b>'+esc(m.nom||m.email)+'</b>'+
-        '<span class="n">'+(q? esc(q)+(sess?' · session':'')+(m.visites?' · '+m.visites+' visites':'')
-                             : 'jamais entré')+'</span></div>';
-    }).join('')+'</div>'+
-    '<div class="fsrc" style="text-align:left;padding:10px 0 0">« Session » veut dire : la dernière fois '+
+      const bas=q ? esc(q)+(sess?' · session':'')+(m.visites?' · '+m.visites+' visite'+(m.visites>1?'s':''):'')
+                  : 'jamais entré';
+      return '<div class="venu'+(q?'':' pas')+'">'+
+        '<b>'+esc(m.nom||m.email)+'</b><em>'+bas+'</em></div>';
+    };
+    sVenus+='<div class="accin">';
+    if(venusOui.length)
+      sVenus+='<div class="sectl">Déjà entrés — '+venusOui.length+'</div>'+
+              '<div class="vlist">'+venusOui.map(ligne).join('')+'</div>';
+    if(venusNon.length)
+      sVenus+='<div class="sectl" style="margin-top:16px">Jamais entrés — '+venusNon.length+'</div>'+
+              '<div class="vlist">'+venusNon.map(ligne).join('')+'</div>';
+    sVenus+='<div class="fsrc" style="text-align:left;padding:10px 0 0">« Session » veut dire : la dernière fois '+
     'que la personne a retapé son compte Google. Ça n’arrive qu’une fois de temps en temps — ce n’est pas '+
-    'la dernière fois qu’elle a ouvert COUSIN.</div>';
+    'la dernière fois qu’elle a ouvert COUSIN.</div></div>';
   }
 
   /* --- L'équipe --- */
@@ -10286,14 +10388,20 @@ function vAdmin(){
     gOutil+='<button class="acc" onclick="go(\'#/modeles\')">'+
        '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
        '<span class="sg">›</span></button>';
-    gOutil+='<button class="acc" onclick="go(\'#/stats\')">'+
+    /* LES STATISTIQUES REJOIGNENT « QUI EST VENU » (Mag, 08/08/2026 : « Qui est venu
+       devrait être avec Statistiques, encore à part, en dernier »). Les deux répondent
+       à la même question — est-ce que l'app sert, et à qui — et aucune des deux ne se
+       règle : on les regarde. Elles n'avaient donc rien à faire dans l'atelier, entre
+       le chantier et les modèles, qui sont du travail à faire. */
+    sVenus+='<button class="acc" onclick="go(\'#/stats\')">'+
        '<b>Statistiques</b><span class="n">où l’équipe passe son temps</span>'+
        '<span class="sg">›</span></button>';
   }
 
-  /* ═══ ON POSE LES TROIS GROUPES ═══
+  /* ═══ ON POSE LES QUATRE GROUPES ═══
      L'ordre suit le chemin réel d'une personne dans COUSIN : elle demande à entrer,
-     puis elle fait partie de l'équipe, et le reste est l'atelier de Mag.
+     puis elle fait partie de l'équipe, puis vient l'atelier de Mag — et tout en bas,
+     à part, ce qui se regarde sans se régler.
      Un groupe vide ne s'écrit pas : une coordination qui n'est pas administratrice
      ne verrait sinon qu'un titre et une barre de couleur sans rien dessous. */
   const groupe=function(couleur,titre,sous,dedans){
@@ -10302,8 +10410,10 @@ function vAdmin(){
       '<div class="admgt"><b>'+titre+'</b><em>'+sous+'</em></div>'+dedans+'</div>';
   };
   h+=groupe('#f8763f','Les accès','qui a le droit d’entrer',gAcces);
-  h+=groupe('#5b8fd4','L’équipe','qui en fait partie',gEquipe+sVenus);
+  h+=groupe('#5b8fd4','L’équipe','qui en fait partie',gEquipe);
   h+=groupe('#2f8f5b','Ton atelier','ton travail à toi',gOutil);
+  /* EN DERNIER, ET À PART : ce qu'on regarde sans rien y régler. */
+  h+=groupe('#8b8984','Ce que ça donne','qui vient, et où l’équipe passe son temps',sVenus);
 
   /* LA SECTION « LE CATALOGUE » A ÉTÉ RETIRÉE LE 08/08/2026, le jour même où je
      l'avais ajoutée. Trois boutons — exporter en fichier COUSIN, exporter pour un
@@ -14375,7 +14485,7 @@ function renderTabs(){
      doublure dans ce rail, sinon il est invisible sur ordinateur. */
   const S=[['@idee','Une suggestion','plus','#fd8fd0'],
            ['#/liste','Ma liste du jour','list'],
-           ['#/favoris','Tes étoiles','star'],['#/fil','Le fil','feed'],
+           ['#/favoris','Tes favoris','star'],['#/fil','Le fil','feed'],
            ['#/partager','Partager COUSIN','partage'],
            ['#/profil','Profil','user']]
           .concat(vueAdmin()?[['#/admin','Admin','cog']]:[])
@@ -14455,7 +14565,7 @@ function signInGoogle(){
    La confirmation passe par la fenêtre de COUSIN, jamais par celle du navigateur. */
 function signOutCousin(){
   cousinConfirme('Se déconnecter',
-    'Tu devras repasser par ton compte Google pour revenir. Tes étoiles et tes listes sont gardées dans la base : elles te reviendront à la prochaine connexion.',
+    'Tu devras repasser par ton compte Google pour revenir. Tes favoris et tes listes sont gardées dans la base : elles te reviendront à la prochaine connexion.',
     signOutVraiment, {ok:'Se déconnecter', danger:true});
 }
 async function signOutVraiment(){
