@@ -1956,6 +1956,20 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .tbjt{font-size:13px;line-height:1.45;color:var(--noir)}
 .tbjl.av .tbjt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:#b8342c}
+/* ── LES TROIS RYTHMES D'UNE LISTE ──
+   Un intertitre discret par bloc. Le rouge n'est PAS permanent : il ne sort que le
+   jour où la personne reprend son cycle. Un rouge de tous les jours n'alerte plus. */
+.rythme{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--enc2);margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--ligne)}
+.rythme:empty{display:none}
+.rythme.sem{color:#5b8fd4;border-bottom-color:#5b8fd4}
+.rythme.rouge{color:#fff;background:var(--rouge);border-bottom:0;padding:6px 9px;margin-top:6px}
+/* La tâche de reprise, le jour de la reprise : filet rouge, on ne peut pas la rater. */
+.tache.repr{border-color:var(--rouge)}
+.tache.repr .tx em{color:var(--rouge)}
+.tache .tx em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:8.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:3px}
+
 /* ── LES AUTRES LISTES, REPLIÉES ──
    Un volet fermé, en gris : il est là, il ne réclame rien. Une ligne au lieu de
    trente. Ouvert, son contenu recule d'un cran pour qu'on voie bien qu'on est
@@ -5206,7 +5220,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v418';
+const APP_VERSION = 'v419';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8756,15 +8770,45 @@ function vListe(){
        (fait?'<button class="badge" style="background:#f6f5f3;border:1px solid #dcdad5" '+
          'onclick="resetListe(\''+esc(g.liste)+'\')">Tout décocher</button>':'')+
        '</div>';
-    s+='<div class="rlist">'+g.taches.map(function(t){
-      const ok=!!DONE[t.id];
-      return '<button class="tache'+(ok?' faite':'')+'" onclick="toggleTache(\''+t.id+'\')">'+
+    /* ═══ TROIS RYTHMES, TROIS BLOCS (Mag, 08/08/2026) ═══
+       « À la reprise » d'abord et en rouge le jour où on reprend son 4-4 ou son 7-7 :
+       c'est le seul moment où ces tâches-là existent, et elles doivent sauter aux
+       yeux avant le reste. Les autres jours, elles redescendent tout en bas et
+       redeviennent grises — sinon on cesse de les voir.
+       ⚠ Un bloc vide ne s'affiche pas : un titre au-dessus de rien fait croire à une
+       panne. */
+    const ligne=function(t){
+      const ok=!!DONE[t.id], r=rythmeDe(t);
+      return '<button class="tache'+(ok?' faite':'')+(r==='reprise'&&enReprise()&&!ok?' repr':'')+
+        '" onclick="toggleTache(\''+t.id+'\')">'+
         '<span class="cas">'+(ok?'<span class="ic">'+icon('check')+'</span>':'')+'</span>'+
-        '<span class="tx"><b>'+esc(t.tache)+'</b></span></button>';
-    }).join('')+'</div>';
+        '<span class="tx"><b>'+esc(t.tache)+'</b>'+
+          (r==='semaine'?'<em>au cours de la semaine</em>':'')+
+          (r==='reprise'?'<em>'+(enReprise()?'à faire en reprenant':'quand tu reprends ton cycle')+'</em>':'')+
+        '</span></button>';
+    };
+    const parRythme=function(r){ return g.taches.filter(function(t){ return rythmeDe(t)===r; }); };
+    const jour=parRythme('jour'), sem=parRythme('semaine'), rep=parRythme('reprise');
+    const groupe=function(titre, liste, cl){
+      if(!liste.length) return '';
+      return '<div class="rythme'+(cl?' '+cl:'')+'">'+esc(titre)+'</div>'+
+             '<div class="rlist">'+liste.map(ligne).join('')+'</div>';
+    };
+    const blocReprise=groupe(enReprise()?'À faire en reprenant':'À la reprise de ton cycle',
+                             rep, enReprise()?'rouge':'');
+    if(enReprise()) s+=blocReprise;
+    s+= groupe(sem.length?'Aujourd’hui':'', jour, '')
+      + groupe('Au cours de la semaine', sem, 'sem');
+    if(!enReprise()) s+=blocReprise;
     return s;
   };
 
+  /* Le bouton de reprise, en tête : on appuie dessus le premier jour du cycle. Il
+     disparaît le jour où c'est déjà dit — un bouton qui ne fait plus rien encombre. */
+  if(!enReprise())
+    h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
+       '<button class="imprbtn" onclick="jeReprends()">'+
+       '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
   if(miennes.length)
     h+='<div class="sect" style="margin-top:22px"><b>Le travail</b><em>la liste de ton rôle</em></div>';
   h+=miennes.map(bloc).join('');
@@ -14367,32 +14411,108 @@ async function chargerReglages(){
    tâche et par jour). Demain, tout est décoché tout seul : c'est la date qui fait ça,
    personne n'a à remettre la liste à zéro le matin. */
 let listesLoaded=false;
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE RYTHME D'UNE TÂCHE (Mag, 08/08/2026)
+
+   « Il y a des tâches journalières, mais c'est surtout sur la semaine aussi. Dans
+   la liste de tâches, il y a ce qui est à faire au cours de la semaine et ce qui
+   est à faire tous les jours. Comment on peut s'indiquer ça ? »
+
+   ⚠ LE VRAI PROBLÈME N'ÉTAIT PAS LA COULEUR. Les coches se remettaient à zéro
+   chaque nuit — toutes. Une tâche « de la semaine » se serait donc redécochée tous
+   les matins, et personne n'aurait su si elle avait été faite. Une couleur sur une
+   coche qui s'efface, c'est de la décoration.
+
+   LA SOLUTION, sans toucher à la table des coches : une coche est enregistrée sur
+   une DATE. Il suffit de changer la date sur laquelle on la pose.
+     'jour'    → la coche se pose sur AUJOURD'HUI    → elle tombe à minuit
+     'semaine' → la coche se pose sur LE LUNDI       → elle tient jusqu'au lundi suivant
+     'reprise' → la coche se pose sur LE JOUR DE REPRISE de la personne
+   Rien d'autre à faire : la remise à zéro se fait toute seule, par le calendrier.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function lundiDeLaSemaine(d){
+  const x=d?new Date(d):new Date(); x.setHours(12,0,0,0);
+  x.setDate(x.getDate()-((x.getDay()+6)%7));   /* la semaine commence lundi */
+  return agIso(x);
+}
+/* Le jour où la personne a repris son cycle. Voir `repriseLe()` plus bas. */
+function cleDuRythme(r){
+  if(r==='semaine') return lundiDeLaSemaine();
+  if(r==='reprise') return repriseLe()||todayStr();
+  return todayStr();
+}
+function rythmeDe(t){ return (t&&t.rythme)||'jour'; }
 async function loadListes(){
   listesLoaded=false; CHECKLISTS=[]; DONE={};
   if(!sb) { listesLoaded=true; return; }
   let cl=[];
-  try{ const {data}=await sb.from('checklists').select('id,liste,tache,ordre').order('ordre'); cl=data||[]; }catch(e){}
+  try{ const {data}=await sb.from('checklists').select('id,liste,tache,ordre,rythme').order('ordre'); cl=data||[]; }catch(e){}
   const groups={},order=[];
   cl.forEach(t=>{ if(!groups[t.liste]){groups[t.liste]=[];order.push(t.liste);} groups[t.liste].push(t); });
   // On voit toutes les listes auxquelles la base donne accès, mais les siennes d'abord.
   CHECKLISTS=order.map(k=>({liste:k,taches:groups[k],mienne:MES_LISTES.indexOf(k)>=0}))
                   .sort((a,b)=>(b.mienne-a.mienne)||(listeRank(a.liste)-listeRank(b.liste)));
+  /* ⚠ ON LIT LES TROIS DATES D'UN COUP, puis on ne garde, pour chaque tâche, que la
+     coche posée sur SA date à elle. Sans ce filtre, une tâche quotidienne cochée
+     lundi ressortirait cochée toute la semaine. */
   try{
-    const {data:done}=await sb.from('checklist_faites').select('tache_id').eq('jour',todayStr());
-    (done||[]).forEach(d=>DONE[d.tache_id]=true);
+    const cles=[todayStr(), lundiDeLaSemaine(), repriseLe()].filter(Boolean);
+    const {data:done}=await sb.from('checklist_faites').select('tache_id,jour').in('jour',cles);
+    const parTache={}; cl.forEach(function(t){ parTache[t.id]=cleDuRythme(rythmeDe(t)); });
+    (done||[]).forEach(function(d){ if(parTache[d.tache_id]===d.jour) DONE[d.tache_id]=true; });
   }catch(e){}
   listesLoaded=true;
+}
+/* La date sur laquelle poser la coche d'une tâche donnée. */
+function cleTache(id){
+  let r='jour';
+  (CHECKLISTS||[]).forEach(function(g){ g.taches.forEach(function(t){ if(t.id===id) r=rythmeDe(t); }); });
+  return cleDuRythme(r);
 }
 async function toggleTache(id){
   const on=!DONE[id];
   if(on) DONE[id]=true; else delete DONE[id];
   render();                                    // la coche répond tout de suite
   if(!sb||!PROFILE||!PROFILE.uid) return;
+  const jour=cleTache(id);
   try{
-    if(on) await sb.from('checklist_faites').upsert({user_id:PROFILE.uid,tache_id:id,jour:todayStr()},{onConflict:'user_id,tache_id,jour'});
-    else   await sb.from('checklist_faites').delete().match({user_id:PROFILE.uid,tache_id:id,jour:todayStr()});
+    if(on) await sb.from('checklist_faites').upsert({user_id:PROFILE.uid,tache_id:id,jour:jour},{onConflict:'user_id,tache_id,jour'});
+    else   await sb.from('checklist_faites').delete().match({user_id:PROFILE.uid,tache_id:id,jour:jour});
   }catch(e){ toast('Pas enregistré'); }
 }
+/* ═══ LE DÉBUT DE CYCLE — 4-4 ET 7-7 (Mag, 08/08/2026) ═══
+   « Surtout en début de 7-7 et de 4-4, il faut vraiment que ça devienne au-dessus,
+   vraiment rouge. »
+
+   L'app ne connaît le cycle de personne, et il n'est pas le même pour tout le monde.
+   Elle a choisi LES DEUX moyens :
+   ① elle DEVINE — trois jours sans ouvrir COUSIN, c'est un retour de repos ;
+   ② et un bouton « Je reprends aujourd'hui » permet de le dire ou de la corriger.
+
+   ⚠ LA DEVINETTE NE S'IMPOSE JAMAIS À LA MAIN : si quelqu'un a appuyé sur le bouton,
+   c'est sa date qui gagne. Une app qui corrige ce qu'on vient de lui dire, on cesse
+   de lui parler. */
+const REPRISE_K='lux_reprise', VU_K='lux_derniere_ouverture';
+function repriseLe(){ try{ return localStorage.getItem(REPRISE_K)||''; }catch(e){ return ''; } }
+function reprisePoser(iso){ try{ localStorage.setItem(REPRISE_K, iso); }catch(e){} }
+/* Est-ce qu'on est dans les 24 h qui suivent une reprise ? */
+function enReprise(){ return repriseLe()===todayStr(); }
+function jeReprends(){
+  cousinConfirme('Tu reprends aujourd’hui ?',
+    'Les tâches de reprise passeront en rouge, tout en haut de ta liste, pour aujourd’hui.',
+    function(){ reprisePoser(todayStr()); loadListes().then(render); }, {ok:'Oui, je reprends'});
+}
+(function devinerLaReprise(){
+  try{
+    const auj=todayStr(), vu=localStorage.getItem(VU_K)||'';
+    localStorage.setItem(VU_K, auj);
+    if(!vu || vu===auj) return;
+    /* Trois jours ou plus sans ouvrir l'app : on suppose un retour de repos — sauf
+       si la personne a déjà posé une reprise plus récente à la main. */
+    const ecart=Math.round((new Date(auj+'T12:00:00')-new Date(vu+'T12:00:00'))/86400000);
+    if(ecart>=3 && repriseLe()<vu) reprisePoser(auj);
+  }catch(e){}
+})();
 async function resetListe(nom){
   const g=CHECKLISTS.find(x=>x.liste===nom); if(!g) return;
   const ids=g.taches.filter(t=>DONE[t.id]).map(t=>t.id);
