@@ -1119,7 +1119,13 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .onb-pas3{margin-bottom:18px}
 .onb-pas3 div{display:flex;gap:13px;padding:11px 0;border-bottom:1px solid rgba(242,238,230,.2)}
 .onb-pas3 div:last-child{border-bottom:0}
-.onb-pas3 b{flex:none;width:26px;height:26px;border-radius:50%;background:#f2eee6;color:var(--noir);
+/* ⚠ LE SÉLECTEUR VISAIT TOUS LES <b>, Y COMPRIS CEUX DU TEXTE (Mag, 08/08/2026 :
+   « c'est illisible »). Le numéro de l'étape est un <b> dans une pastille ronde — et
+   les mots mis en gras DANS la phrase (« Partager », « Sur l'écran d'accueil »,
+   « Ajouter ») recevaient le même habillage : chacun devenait une pastille de 26 px
+   qui écrasait son propre texte. Le `>` limite la règle au <b> qui est ENFANT DIRECT
+   de la ligne, c'est-à-dire au numéro. */
+.onb-pas3 > div > b{flex:none;width:26px;height:26px;border-radius:50%;background:#f2eee6;color:var(--noir);
   display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
 .onb-pas3 span{font-size:14.5px;line-height:1.45}
 @media (max-width:400px){ .onb-t{font-size:33px} }
@@ -1460,6 +1466,13 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .acc{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:13px 14px;
   display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--noir)}
 .acc.open{background:var(--noir);color:#f2eee6}
+/* Les Paramètres, en tête du profil et en couleur (Mag, 08/08/2026 : « en évidence,
+   genre en couleur »). Le doré est celui de la roue de l'ancienne app — la couleur
+   qu'elle associe déjà à « gérer ». Le texte reste noir : sur du doré, du crème ne
+   se lirait pas, et cette page se consulte parfois d'un coup d'œil rapide. */
+.acc.param{background:#f5c542;border-color:var(--noir)}
+.acc.param b{font-weight:600}
+.acc.param .n{opacity:.85}
 .acc b{flex:0 0 auto;font-size:15.5px;font-weight:500;min-width:0}
 .acc .n{flex:1;text-align:right}
 .acc .n{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1964,6 +1977,21 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .cyc b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
 .cyc p{font-size:13px;line-height:1.45;color:var(--enc2);margin-top:6px}
 .cyc .acok{width:auto;padding:9px 15px;margin-top:11px}
+
+/* ── LE CHOIX DE LA LISTE : un déroulant (Mag, 08/08/2026) ──
+   Les pastilles débordaient de l'écran ; ce qui dépasse ne se voit pas. Le
+   déroulant tient sur une ligne quel que soit le nombre de listes, et les montre
+   toutes d'un coup quand on l'ouvre. Le point ● devant les siennes. */
+.lsel{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
+.lsel label{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2);flex:none}
+.lsel select{flex:1;min-width:0;font:inherit;font-size:14.5px;font-weight:500;color:var(--noir);
+  background:#fdfdfc;border:1.5px solid var(--noir);border-radius:6px;padding:11px 12px;
+  -webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--noir) 50%),linear-gradient(135deg,var(--noir) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.lsel select:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
 
 /* ── LES TROIS RYTHMES D'UNE LISTE ──
    Un intertitre discret par bloc. Le rouge n'est PAS permanent : il ne sort que le
@@ -5018,7 +5046,7 @@ SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(T
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
-const APP_VERSION = 'v437';
+const APP_VERSION = 'v438';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -8733,25 +8761,38 @@ function vListe(){
          '<button class="imprbtn" onclick="jeReprends()">'+
          '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
   }
-  if(miennes.length)
-    h+='<div class="sect" style="margin-top:22px"><b>Le travail</b><em>la liste de ton rôle</em></div>';
-  h+=miennes.map(bloc).join('');
-  /* ═══ LES AUTRES LISTES SE REPLIENT (Mag, 08/08/2026) ═══
-     « De ma vue admin, pour les notes des autres, je voudrais que ce soit plus mis
-     en discret, parce que là je m'y perds dans mes propres listes. »
+  /* ═══ UNE SEULE LISTE À LA FOIS (Mag, 08/08/2026) ═══
+     « Je suis PFO au jour, donc je ne veux pas avoir la liste nuit. Mais je dois
+     pouvoir voir toutes les autres listes aussi — que la mienne soit en évidence.
+     Que je puisse mettre en évidence chaque liste, sinon c'est trop brouillon pour
+     travailler : je dois pouvoir avoir une vue sur chaque, de manière individuelle. »
 
-     Elle a accès à toutes les listes de tous les rôles : dépliées à la suite des
-     siennes, ça faisait des dizaines de tâches qui ne sont pas les siennes, et sa
-     propre liste se noyait dedans. Elles sont maintenant DERRIÈRE UN VOLET FERMÉ,
-     avec leur nombre — on les ouvre quand on veut jeter un œil, et le reste du temps
-     elles tiennent en une ligne. Rien n'est retiré : c'est le même contenu, replié. */
-  if(autres.length){
-    const nT=autres.reduce(function(a,g){ return a+g.taches.length; },0);
-    h+='<details class="autrl"><summary>'+
-       '<b>Les autres listes</b>'+
-       '<span>'+autres.length+' rôle'+(autres.length>1?'s':'')+' · '+nT+' tâche'+(nT>1?'s':'')+'</span>'+
-       '<em>pour jeter un œil</em></summary>'+
-       '<div class="autrl-c">'+autres.map(bloc).join('')+'</div></details>';
+     Avant : ses listes dépliées l'une sous l'autre, puis un volet pour celles des
+     autres. Dix tâches à faire défiler alors qu'on n'en fait qu'une par service.
+     Maintenant : UN CHOIX EN HAUT, une seule liste montrée dessous. Les siennes
+     portent un point et viennent en tête ; les autres suivent, à un doigt de là.
+     ⚠ Rien n'est caché : toutes les listes auxquelles la base lui donne accès sont
+     dans le choix. C'est l'affichage qui se concentre, pas les droits. */
+  if(CHECKLISTS.length){
+    const ordre=miennes.concat(autres);
+    /* La liste montrée : son dernier choix s'il tient encore, sinon la sienne. */
+    let vue=ordre.find(function(g){ return g.liste===LISTE_VUE; }) || ordre[0];
+    h+='<div class="sect" style="margin-top:22px"><b>Le travail</b>'+
+       '<em>'+(vue.mienne?'ta liste':'la liste d’un autre rôle')+'</em></div>';
+    /* ⚠ UN DÉROULANT, PAS DES PASTILLES (Mag, 08/08/2026 : « j'aime pas ça, plutôt
+       un truc déroulant »). Les pastilles débordaient de l'écran et il fallait les
+       faire défiler du doigt pour découvrir qu'il en existait d'autres : on ne voit
+       pas ce qu'on ne fait pas défiler. Un déroulant montre TOUT d'un coup, et tient
+       sur une ligne quel que soit le nombre de listes.
+       Chaque ligne porte ce qui reste à faire — on choisit en connaissance de cause. */
+    h+='<div class="lsel"><label for="selListe">La liste</label>'+
+      '<select id="selListe" onchange="listeVoir(this.value)">'+ordre.map(function(g){
+        const reste=g.taches.filter(function(t){ return !DONE[t.id]; }).length;
+        return '<option value="'+esc(g.liste)+'"'+(g.liste===vue.liste?' selected':'')+'>'+
+          (g.mienne?'\u25CF ':'')+esc(LISTE_LABELS[g.liste]||g.liste)+
+          (reste?' — '+reste+' à faire':' — tout est fait')+'</option>';
+      }).join('')+'</select></div>';
+    h+=bloc(vue);
   }
   h+=passationsHTML();
   h+=rappelsHTML();
@@ -9093,7 +9134,18 @@ function vProfil(){
          '<i></i>'+esc(x.t)+'</button>';
      }).join('')+'</div>';
 
-  h+='<button class="acc" style="margin-top:18px" onclick="onbRejouer()">'+
+  /* ═══ LES PARAMÈTRES EN TÊTE, ET EN COULEUR (Mag, 08/08/2026) ═══
+     « Mets les paramètres en haut et en évidence quand je suis dans le profil, genre
+     en couleur. » Ils étaient troisièmes, entre le partage et le pseudo, habillés
+     comme tout le reste — or c'est la porte qu'elle pousse le plus souvent, et la
+     seule de cette page qui mène ailleurs qu'à un réglage personnel.
+     Le doré est celui de la roue de l'ancienne app : c'est la couleur qu'elle
+     associe déjà à « gérer ». */
+  if(vueGestion())
+    h+='<button class="acc param" style="margin-top:18px" onclick="go(\'#/admin\')">'+
+         '<b>Paramètres</b><span class="n">gérer l’équipe et les accès</span>'+
+         '<span class="sg">›</span></button>';
+  h+='<button class="acc" style="margin-top:12px" onclick="onbRejouer()">'+
        '<b>Revoir la visite</b><span class="n">'+(ONB.raccourci?'et le raccourci':'et l’ajouter à l’écran d’accueil')+'</span>'+
        '<span class="sg">›</span></button>';
   /* PARTAGER COUSIN, arrivé du Centre le 08/08/2026 : ici tout le monde y a accès,
@@ -9110,10 +9162,7 @@ function vProfil(){
      de gauche, et elle n'a pas bougé. Cette ligne-ci ne sert donc qu'au téléphone —
      mais on ne la cache pas sur ordinateur pour autant : une porte de plus vers le
      même endroit n'a jamais perdu personne. */
-  if(vueGestion())
-    h+='<button class="acc" style="margin-top:12px" onclick="go(\'#/admin\')">'+
-         '<b>Paramètres</b><span class="n">gérer l’équipe et les accès</span>'+
-         '<span class="sg">›</span></button>';
+
   h+='<button class="acc" style="margin-top:12px" onclick="changerPseudo()">'+
        '<b>Ton pseudo</b><span class="n">'+esc(nomAffiche()||'à choisir')+'</span>'+
        '<span class="sg">›</span></button>'+
@@ -14202,6 +14251,18 @@ let MES_LISTES=[], CHECKLISTS=[], DONE={};
 const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage','médical-nuit':'Médical — Nuit','aide-soignant-matin':'Aide-soignants — Matin','aide-soignant-soir':'Aide-soignants — Soir'};
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','médical-rez','médical-2e','médical-nuit','aide-soignant-matin','aide-soignant-soir','polyvalent-jour','polyvalent-nuit'];
 function listeRank(k){const i=LISTE_ORDER.indexOf(k);return i<0?99:i}
+/* La liste actuellement montrée dans Ma liste. Gardée dans le téléphone : on ouvre
+   l'app vingt fois par jour, et repartir chaque fois sur une autre liste que celle
+   qu'on suit, c'est un clic de plus vingt fois. */
+const LISTE_VUE_K='lux_liste_vue';
+let LISTE_VUE=''; try{ LISTE_VUE=localStorage.getItem(LISTE_VUE_K)||''; }catch(e){}
+function listeVoir(k){
+  LISTE_VUE=k; try{ localStorage.setItem(LISTE_VUE_K,k); }catch(e){}
+  render();
+  /* On remonte en haut du bloc : sinon, en changeant de liste depuis le bas d'une
+     longue liste, on atterrit au milieu de la nouvelle sans savoir où on est. */
+  try{ const c=document.querySelector('.lsel'); if(c) c.scrollIntoView({block:'nearest'}); }catch(e){}
+}
 /* `todayStr` était écrite DEUX FOIS, à 6 000 lignes d'écart, mot pour mot pareil.
    Sans dégât ici — mais le jour où l'une des deux aurait changé (un fuseau, un format),
    la seconde définition aurait écrasé la première en silence et la moitié de l'app
@@ -15033,6 +15094,22 @@ async function initAuth(){
        automatique est coupé. Pour le rebrancher un jour POUR LES NOUVEAUX SEULEMENT,
        il faudra d'abord corriger la cause : marquer `ONB.vu` à l'AFFICHAGE et pas à
        la sortie — sinon la boucle revient avec. */
+    /* ═══ ET C'EST ICI QUE LA VISITE S'OUVRE (corrigé le 08/08/2026) ═══
+       « Pourquoi je ne la vois pas quand je me déconnecte et me reconnecte ? J'ai vu
+       des gens se connecter aujourd'hui qui ne la voyaient pas. En fait, personne ne
+       la voit. »
+
+       Elle avait raison, et c'était MA faute du matin même. J'avais rebranché la
+       visite AU DÉMARRAGE du fichier — donc avant la connexion. À ce moment-là, le
+       portail de connexion couvre tout l'écran : la visite se dessinait DERRIÈRE lui,
+       personne ne la voyait… et `ONB.vu` était quand même marqué « vue ». Elle était
+       donc consommée, une fois pour toutes, sans avoir jamais été montrée.
+
+       ⚠ LA LEÇON : marquer « vu » à l'affichage ne vaut que si l'affichage est
+       VISIBLE. Ici il ne l'était pas. On attend donc que le portail soit refermé et
+       le profil chargé — c'est le premier instant où la personne voit vraiment
+       quelque chose. */
+    onbOuvrirUneFois();
     render();
   });
 }
@@ -15079,7 +15156,10 @@ function onbOuvrirUneFois(){
 }
 
 /* ---------- démarrage ---------- */
-if(!onbOuvrirUneFois()) current=parseRoute();
+/* ⚠ LA VISITE NE S'OUVRE PLUS ICI. Au démarrage, le portail de connexion couvre
+   l'écran : elle se serait dessinée derrière lui, invisible, et se serait marquée
+   « vue » quand même. Elle s'ouvre maintenant après la connexion, dans initAuth(). */
+current=parseRoute();
 render();
 initAuth();
 </script>
