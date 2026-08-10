@@ -11675,7 +11675,11 @@ const RAT_MAX    = 60;   // au-delà, les plus vieilles s'effacent
 const RAT_PAQUET = 10;   // ce qu'une séance de rattrapage repose à la fois
 
 function ratListe(){ if(!Array.isArray(JXS.rat)) JXS.rat=[]; return JXS.rat; }
-function ratCompte(){ return ratListe().length; }
+/* ⚠ ON NE COMPTE QUE CE QU'ON PEUT VRAIMENT REPOSER (09/08/2026). Le compteur du
+   bouton « Rattrapage · 2 » comptait TOUTE la liste, entrées abîmées comprises :
+   il promettait deux questions que le jeu ne savait pas ouvrir. Un compteur qui
+   annonce ce qui n'existe pas, c'est ce qui fait croire à un bouton mort. */
+function ratCompte(){ return ratListe().filter(ratValide).length; }
 function ratOu(q){ return ratListe().findIndex(function(x){ return x.q===q; }); }
 
 /* Raté : la question entre au panier, ou son compteur repart de zéro. */
@@ -11699,14 +11703,35 @@ function ratJuste(Q){
   if(l[i].n>=RAT_SORTIE) l.splice(i,1);
   jxSave();
 }
+/* Une entrée du panier n'est utilisable que si elle porte encore ses réponses.
+   ⚠ POURQUOI CETTE VÉRIFICATION EXISTE (Mag, 09/08/2026 : « le bouton ne fonctionne
+   pas, je ne sais pas aller au rattrapage »). Le panier vit dans le téléphone et
+   survit aux mises à jour de l'app : il contient donc des questions écrites par des
+   versions PLUS ANCIENNES, dont certaines sans `opts`. `e.opts[e.correct]` sur une
+   entrée pareille lève une exception, `jxJouer` meurt en silence — et le bouton ne
+   fait RIEN. Pas de message, pas de page : le clic tombe dans le vide.
+   On ne fait donc plus confiance au contenu du panier. */
+function ratValide(e){
+  return !!(e && e.q && Array.isArray(e.opts) && e.opts.length>1
+            && typeof e.correct==='number' && e.opts[e.correct]!==undefined);
+}
 /* Le paquet à reposer : les plus anciennes d'abord. Les réponses sont REMÉLANGÉES
    à chaque fois — sinon on retiendrait « c'était la troisième » au lieu du sens. */
 function ratPaquet(){
-  return ratListe().slice(0, RAT_PAQUET).map(function(e){
+  return ratListe().filter(ratValide).slice(0, RAT_PAQUET).map(function(e){
     const bonne=e.opts[e.correct];
     const opts=qShuffle(e.opts.slice());
     return { q:e.q, opts:opts, correct:opts.indexOf(bonne), src:e.src, pourquoi:e.pourquoi };
   });
+}
+/* Le ménage : on jette les entrées abîmées, une fois, et on le DIT. Une question
+   qu'on ne peut plus reposer ne sert à rien — mais elle gonflait le compteur, et
+   c'est ce compteur qui promettait un rattrapage qui n'arrivait jamais. */
+function ratNettoyer(){
+  const l=ratListe(), bonnes=l.filter(ratValide);
+  const jetees=l.length-bonnes.length;
+  if(jetees){ JXS.rat=bonnes; jxSave(); }
+  return jetees;
 }
 
 /* LE POINT DE PASSAGE UNIQUE : les 8 jeux appellent ceci à chaque réponse.
@@ -11844,7 +11869,19 @@ function jxJouer(k, ter){
   jxStop();
   if(type==='equipe'){ JEU={type:'equipe',terrain:terrain||{t:'tout'},equipe:null}; go('#/quiz'); jxLireEquipe(); return; }
   if(type==='rat'){
+    /* ⚠ ON NE PART JAMAIS AVEC UN PAQUET VIDE (09/08/2026). Avant, on ouvrait la
+       page quoi qu'il arrive : avec zéro question elle ne montrait rien, et le
+       bouton avait l'air cassé. Maintenant on fait le ménage d'abord, et si le
+       panier ne contient plus rien de jouable on le DIT au lieu de s'ouvrir sur
+       du vide. Le compteur est remis d'aplomb dans la foulée. */
+    const jetees=ratNettoyer();
     const p=ratPaquet();
+    if(!p.length){
+      render();   /* le compteur du bouton retombe à sa vraie valeur */
+      toast(jetees ? 'Ces questions dataient d’une ancienne version — panier remis à zéro'
+                   : 'Ton panier est vide : rien à rattraper');
+      return;
+    }
     JEU={type:'rat',terrain:{t:'rat'},qs:p,i:0,score:0,answered:false,picked:-1,journal:[]};
     go('#/quiz'); return;
   }
