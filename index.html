@@ -284,6 +284,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .qz-pqt{font-size:13.5px;color:#1b1b1b;line-height:1.5;margin-top:5px}
 .qz-fiche{margin-top:11px;width:100%;border:1.5px solid #1b1b1b;border-radius:7px;padding:9px;
   color:#1b1b1b;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+/* Le chevron de Mag, retourné, pour les boutons qui AVANCENT. On ne dessine pas un
+   second chevron : c'est le même trait, à l'envers — sinon les deux finiraient par
+   ne plus se ressembler. */
+.ic.rot180{transform:rotate(180deg)}
 .qz-suite{width:100%;background:#F5D34F;color:#1b1b1b;border:0;border-radius:10px;padding:14px;
   margin-top:12px;font-size:15px;font-weight:500}
 @media (hover:hover){ .qz-opt:hover{border-color:#F5D34F} .qz-fiche:hover{background:#1b1b1b;color:#fdfdfc} }
@@ -827,8 +831,12 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    ⚠ ET LA DIFFÉRENCE ALLUMÉ / ÉTEINT DOIT SE VOIR. Elle passe par TROIS choses en
    même temps, pas une seule — l'épaisseur (6 px contre 2,5), l'éclat du fuchsia
    (plein contre atténué) et le halo, qui n'existe que le jour de la collecte. */
-.boule .rond.deg{border:6px solid #E8308A;background:var(--noir);
-  box-shadow:0 0 0 3px rgba(232,48,138,.22)}
+/* ⚠ ÉPAISSI LE 10/08/2026 (Mag : « le contour du picto poubelle pas assez gros
+   quand il est actif »). 6 px se perdaient à côté de l'anneau du linge ; le halo
+   passe de 3 à 4 px et le trait à 8 — le jour de la collecte, c'est la boule qui
+   doit se voir de plus loin, c'est la seule qui a une heure limite. */
+.boule .rond.deg{border:8px solid #E8308A;background:var(--noir);
+  box-shadow:0 0 0 4px rgba(232,48,138,.28)}
 /* Au repos : le fuchsia reste — on le voit toujours — mais fin, éteint et sans halo.
    À côté d'une boule allumée, il n'y a pas d'hésitation possible. */
 .boule.dort .rond.deg{border:2.5px solid rgba(232,48,138,.5);background:var(--noir);
@@ -867,8 +875,14 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
    pour qu'il se voie — bac clair, recyclage sombre. Son dessin reste le sien. */
 .boule .rond img.picoc{width:30px;height:30px;filter:invert(1)}
 .boule b{font-family:ui-monospace,monospace;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;text-align:center;color:var(--noir)}
-.boule em{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;
-  text-transform:uppercase;color:#8b8984;text-align:center}
+/* ⚠ 8,5 px EN CAPITALES ESPACÉES, C'ÉTAIT ILLISIBLE (Mag : « pas assez voyant, les
+   fonts je pense »). Cette ligne porte l'information qui décide de la journée —
+   l'étage et les chambres du linge, la couleur des sacs. On monte à 10 px, on serre
+   l'interlettrage et on fonce le gris : c'est une consigne, pas une légende. */
+.boule em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;
+  line-height:1.35;text-transform:uppercase;color:#5f5e59;text-align:center}
+/* Sur la boule ALLUMÉE, la ligne passe en noir et en gras : c'est celle qu'on lit. */
+.boule:not(.dort) em{color:var(--noir);font-weight:600}
 /* La pile de cartes du quiz */
 /* Les proportions du design (carte 200 sur 358 de large) tenues en pourcentages :
    la pile garde le même équilibre sur un petit comme sur un grand téléphone.
@@ -6922,8 +6936,14 @@ function tbDateFr(iso){
         .toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}); }
   catch(e){ return iso; }
 }
+/* ⚠ TROIS AU MAXIMUM (Mag, 09/08/2026 : « ici on note 3 bacs en champ maximum,
+   sauf exception »). Le compteur montait jusqu'à 20 — un chiffre qu'on ne peut pas
+   noter sans se tromper, et qui ne veut rien dire : au-delà de trois bacs en trop,
+   ce n'est plus un excédent à signaler, c'est une situation à traiter autrement.
+   Le plafond est donc TB_DUS, comme le droit lui-même. « Sauf exception » se note
+   dans la précision juste en dessous — en toutes lettres, là où ça se lit. */
 function tbCompteur(d){
-  TB_BACS=Math.max(1,Math.min(20,TB_BACS+d)); render();
+  TB_BACS=Math.max(1,Math.min(TB_DUS,TB_BACS+d)); render();
 }
 function tbPrevChoix(v){ TB_PREV=v; render(); }
 async function tbAjouter(){
@@ -7227,9 +7247,10 @@ function vTourBacs(){
       '<span class="tbcpt-t">Bacs en trop<br>au-delà des '+TB_DUS+' dus</span>'+
       '<button onclick="tbCompteur(-1)"'+(TB_BACS<=1?' disabled':'')+' aria-label="Un bac de moins">−</button>'+
       '<span class="tbcpt-n">'+TB_BACS+'</span>'+
-      '<button onclick="tbCompteur(1)" aria-label="Un bac de plus">+</button>'+
+      '<button onclick="tbCompteur(1)"'+(TB_BACS>=TB_DUS?' disabled':'')+' aria-label="Un bac de plus">+</button>'+
     '</div>'+
     '<input id="tbNote" type="text" placeholder="Une précision (facultatif) — ex. deux bacs sous le lit" autocomplete="off">'+
+    (TB_BACS>=TB_DUS?'<div class="fsrc" style="text-align:left;padding:6px 0 0">Trois, c’est le maximum qu’on note ici. Au-delà, écris-le dans la précision ci-dessus et préviens la coordination.</div>':'')+
   '</div>'+
   '<div class="chdep">'+
     '<span class="chdep-t">On a</span>'+
@@ -8479,7 +8500,37 @@ function vHome(){
   /* 31 JOURS et non 15 : les 24 musées gratuits tombent le 1er dimanche du mois.
      Sur quinze jours, on les rate un mois sur deux — en août Mag ne voyait que deux
      sorties alors que le catalogue en compte 28 (08/08/2026). */
-  const sorties=auj.length?auj:agendaProchains(31).slice(0,6);
+  /* ═══ LES ACTIVITÉS DATÉES ENTRENT AUSSI DANS L'ACCUEIL (Mag, 09/08/2026) ═══
+     « On est le 9 août et je ne vois pas celui du jour. Il faudrait le voir au moins
+     jusqu'à 12 h. »
+
+     La liste de l'accueil ne lisait que les RÈGLES qui se répètent (les musées du
+     premier dimanche, les mercredis…). Les activités que Mag encode elle-même dans
+     la base — WAKA UP et les autres, avec une date précise — n'y apparaissaient
+     jamais : elles n'existaient que sur la page « Ce qui arrive ». Une sortie
+     ajoutée le matin même restait donc invisible là où toute l'équipe regarde.
+
+     ⚠ ET CELLE DU JOUR RESTE JUSQU'À MIDI, pas jusqu'à minuit : à 14 h la sortie de
+     11 h est passée, l'annoncer encore fait sortir quelqu'un pour rien. Après midi
+     on affiche les suivantes. */
+  const activitesDatees=function(){
+    if(!Array.isArray(ACTIVITES) || !ACTIVITES.length) return [];
+    const base=new Date(); base.setHours(0,0,0,0);
+    const midiPasse=new Date().getHours()>=12;
+    return ACTIVITES.map(function(a){
+      const d=new Date(String(a.jour)+'T12:00:00');
+      if(isNaN(d)) return null;
+      const i=Math.round((d-base)/86400000);
+      if(i<0) return null;
+      if(i===0 && midiPasse) return null;      /* celle du jour, jusqu'à midi */
+      return {d:d, i:i, r:{titre:a.titre||a.asso||'Activité',
+                           prix:a.inscription?'Sur inscription':(a.lieu||a.asso||'')}};
+    }).filter(Boolean);
+  };
+  const parDate=function(a,b){ return a.d-b.d; };
+  const toutesSorties=agendaProchains(31).concat(activitesDatees()).sort(parDate);
+  const aujTout=toutesSorties.filter(function(x){ return x.i===0; });
+  const sorties=aujTout.length?aujTout:toutesSorties.slice(0,6);
   const d=new Date(), l=LINGE[d.getDay()], col=prochaineCollecte();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   /* Une question tirée des vraies questions du quiz, pour la carte du jour. */
@@ -8512,7 +8563,13 @@ function vHome(){
   let boules=[];   /* `let` : la liste est réordonnée plus bas (les actives devant) */
   /* Ce qui a été décoché à l'onboarding ne s'affiche plus ici (onbGarde). Rien de
      coché = tout est montré : personne ne perd de boule pour avoir sauté l'écran. */
-  if(l && onbGarde('linge')) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e',"go('#/linge')"]);
+  /* ⚠ LES CHAMBRES, PAS SEULEMENT L'ÉTAGE (Mag, 09/08/2026 : « sur le raccourci
+     linge préciser les chambres de l'étage, pas assez voyant »). « 3E ÉTAGE » tout
+     seul oblige à ouvrir la page pour savoir lesquelles — alors que le linge se fait
+     chambre par chambre. On écrit donc « 3e étage · 312 → 322 » quand on les a. */
+  if(l && onbGarde('linge'))
+    boules.push(['linge','Linge', l.etage+(l.chambres?' · '+l.chambres:''),
+                 LINGE_COUL[l.etage]||'#6fb08e', "go('#/linge')"]);
   /* La CLÉ est TOUJOURS là, même quand la liste est vide (Mag, 06/08/2026 : « il y a
      toujours des trucs à changer ») — c'est aussi par elle qu'on ajoute une chambre. */
   if(onbGarde('cle')) boules.push(['cle','Chambres',(chEnCours()?chEnCours()+' en cours':'Rien en cours'),'#f0efed','go(\'#/chambres\')',
@@ -8695,6 +8752,29 @@ function vHome(){
      Quatre sorties dans une liste, ça se lit ; quatre sorties dans un rail, il faut
      savoir qu'il y en a d'autres à droite. */
   const favs=DATA.filter(p=>FAVS.has(p.sid));
+
+  /* LES SORTIES — une liste, la date à gauche. La première est pleine : c'est la
+     prochaine, celle qui arrive. */
+  if(sorties.length){
+    h+='<div class="sect"><b>Sorties '+(aujTout.length?'aujourd\'hui':'ces prochains jours')+'</b>'+
+       '<em>'+sorties.length+'</em></div>'+
+      '<div class="sortl">'+sorties.slice(0,4).map(function(x,i){
+        const r=x.r||{};
+        const j=JOURS_L[x.d.getDay()].slice(0,3);
+        return '<button class="sort-i'+(i===0?' on':'')+'" onclick="go(\'#/ticket\')">'+
+          '<span class="d"><em>'+esc(j)+'</em><b>'+x.d.getDate()+'</b></span>'+
+          '<span class="tx"><b>'+esc(r.titre||'Sortie')+'</b>'+
+            '<em>'+esc(r.prix||r.lieu||'')+'</em></span></button>';
+      }).join('')+'</div>'+
+      '<button class="lienbas plein" onclick="go(\'#/ticket\')">'+
+        '<span class="ic">'+icon('ticket')+'</span>Tout l’agenda culture</button>';
+  }
+
+  /* ⚠ LES FAVORIS SONT DESCENDUS SOUS LA CULTURE (Mag, 09/08/2026 : « les favoris,
+     tu peux les mettre après culture, c'est moins important »). Ils étaient juste
+     sous les boules, en pleine zone de ce qui presse — or une étoile, on va la
+     chercher quand on en a besoin ; une sortie du jour, il faut la voir sans la
+     chercher. L'ordre de l'accueil suit l'urgence, pas l'affection. */
   if(favs.length){
     /* L'aperçu : une pastille par fiche, à la couleur de son domaine, qui se
        chevauchent comme des jetons. Deux au maximum — au-delà on ne distingue plus
@@ -8708,23 +8788,6 @@ function vHome(){
         '<span class="ap">'+ap+'</span>'+
         '<span class="n">'+favs.length+'</span>'+
         '<span class="ch">›</span></button>';
-  }
-
-  /* LES SORTIES — une liste, la date à gauche. La première est pleine : c'est la
-     prochaine, celle qui arrive. */
-  if(sorties.length){
-    h+='<div class="sect"><b>Sorties '+(auj.length?'aujourd\'hui':'ces prochains jours')+'</b>'+
-       '<em>'+sorties.length+'</em></div>'+
-      '<div class="sortl">'+sorties.slice(0,4).map(function(x,i){
-        const r=x.r||{};
-        const j=JOURS_L[x.d.getDay()].slice(0,3);
-        return '<button class="sort-i'+(i===0?' on':'')+'" onclick="go(\'#/ticket\')">'+
-          '<span class="d"><em>'+esc(j)+'</em><b>'+x.d.getDate()+'</b></span>'+
-          '<span class="tx"><b>'+esc(r.titre||'Sortie')+'</b>'+
-            '<em>'+esc(r.prix||r.lieu||'')+'</em></span></button>';
-      }).join('')+'</div>'+
-      '<button class="lienbas plein" onclick="go(\'#/ticket\')">'+
-        '<span class="ic">'+icon('ticket')+'</span>Tout l’agenda culture</button>';
   }
 
   /* MA LISTE DU JOUR — les tâches se cochent ICI, plus besoin d'ouvrir la page.
@@ -12819,9 +12882,14 @@ function vQuiz(){
     const p=Q.src?DATA.find(x=>x.id===Q.src):null;
     h+='<div class="fsavoir"><b><span class="ic">'+icon('bulb')+'</span>'+(QZ.picked===Q.correct?'Bien vu !':'La bonne réponse')+'</b>'+
       '<p>'+esc(Q.opts[Q.correct])+(Q.exp?'\n\n'+esc(Q.exp):'')+'</p></div>'+
+      /* ⚠ LA FLÈCHE POINTAIT À GAUCHE (Mag, 09/08/2026 : « la flèche de suivant n'est
+         pas dans le bon sens »). Le picto `chevron` est celui du RETOUR — il regarde
+         vers la gauche partout ailleurs, et c'est très bien comme ça. Ici il annonçait
+         donc « on recule » sur le bouton qui avance. On garde SON dessin, retourné à
+         180°, et on le passe APRÈS le mot : on lit « Suivante → », pas « ← Suivante ». */
       (p?'<div class="fboutons"><button class="fbtn" onclick="quizFiche(\''+Q.src+'\')"><span class="ic">'+icon('compass')+'</span>Voir la fiche</button>'+
-      '<button class="fbtn plein" style="background:#f5c542" onclick="quizNext()"><span class="ic">'+icon('chevron')+'</span>Suivante</button></div>'
-      :'<div class="fboutons"><span></span><button class="fbtn plein" style="background:#f5c542" onclick="quizNext()"><span class="ic">'+icon('chevron')+'</span>Suivante</button></div>');
+      '<button class="fbtn plein" style="background:#f5c542" onclick="quizNext()">Suivante<span class="ic rot180">'+icon('chevron')+'</span></button></div>'
+      :'<div class="fboutons"><span></span><button class="fbtn plein" style="background:#f5c542" onclick="quizNext()">Suivante<span class="ic rot180">'+icon('chevron')+'</span></button></div>');
   }
   return h+'<div style="height:30px"></div>';
 }
@@ -15067,7 +15135,14 @@ let MES_LISTES=[], CHECKLISTS=[], DONE={};
    tâches pour les Aide S du matin » — l'a détrompé. Corrigé avant que le mauvais
    métier n'apparaisse devant l'équipe. Les clés sont renommées en même temps : aucune
    tâche ne les portait encore, c'était le dernier moment où c'était gratuit. */
-const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Rez','médical-2e':'Médical — 2e étage','médical-nuit':'Médical — Nuit',/* « J'avais fait aide-soignante matin et jour » — pas soir. Corrigé le 08/08/2026 ;
+/* ⚠ LES LISTES MÉDICALES ÉTAIENT MAL NOMMÉES (Mag, 09/08/2026). On lisait
+   « Médical », « Médical — Rez », « Médical — 2e étage », « Médical — Nuit » : le
+   premier ne disait ni où ni quand, et rien ne disait que les trois autres étaient
+   des postes de JOUR sauf le dernier. Sa correction : « il y a médical nuit,
+   médical jour au deuxième et médical jour au rez-de-chaussée ».
+   ⚠ LES CLÉS NE BOUGENT PAS ('médical-rez'…) : les tâches y sont rangées dans la
+   base et les personnes y sont rattachées. Seuls les libellés changent. */
+const LISTE_LABELS={'pfo-jour':'PFO — Jour','pfo-nuit':'PFO — Nuit','médical':'Médical — toutes','polyvalent-jour':'Polyvalent — Jour','polyvalent-nuit':'Polyvalent — Nuit','médical-rez':'Médical — Jour · rez','médical-2e':'Médical — Jour · 2e étage','médical-nuit':'Médical — Nuit',/* « J'avais fait aide-soignante matin et jour » — pas soir. Corrigé le 08/08/2026 ;
    la clé garde son nom (les tâches y sont déjà rangées), seul le libellé change. */
 'aide-soignant-matin':'Aide-soignants — Matin','aide-soignant-soir':'Aide-soignants — Jour'};
 const LISTE_ORDER=['pfo-jour','pfo-nuit','médical','médical-rez','médical-2e','médical-nuit','aide-soignant-matin','aide-soignant-soir','polyvalent-jour','polyvalent-nuit'];
