@@ -1536,11 +1536,17 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 /* La ligne « X masquée(s) » sous les boules de l'accueil. Discrète — c'est une
    explication, pas une alerte : rien n'est cassé, c'est un réglage. Mais elle est
    CLIQUABLE et mène droit au profil, là où ça se remet. */
-.boules-masq{display:block;width:100%;text-align:left;margin-top:10px;padding:9px 12px;
-  border:1px dashed var(--ligne);border-radius:6px;background:transparent;
-  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;
-  text-transform:uppercase;color:#8b8984;cursor:pointer}
-@media (hover:hover){ .boules-masq:hover{border-color:var(--noir);color:var(--noir)} }
+/* ⚠ CE N'EST PLUS UN PANNEAU GRIS, C'EST UN BOUTON QUI RÉPARE. En pointillés pâles
+   il se lisait comme une note de bas de page — or c'est la seule chose à toucher
+   quand l'app a l'air cassée. Trait plein, texte noir, et le verbe (« les
+   remettre ») en gras devant l'explication. */
+.boules-masq{display:block;width:100%;text-align:left;margin-top:10px;padding:11px 13px;
+  border:1.5px solid var(--noir);border-radius:6px;background:#fdfdfc;cursor:pointer;color:var(--noir)}
+.boules-masq b{display:block;font-size:14px;font-weight:600;line-height:1.25}
+.boules-masq em{display:block;font-style:normal;font-family:ui-monospace,monospace;
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#8b8984;margin-top:4px}
+@media (hover:hover){ .boules-masq:hover{background:var(--noir);color:#f2eee6}
+                      .boules-masq:hover em{color:rgba(242,238,230,.7)} }
 /* La petite étoile devant « Tes favoris », dans le profil. Le doré est celui de
    l'étoile pleine des fiches : c'est le même objet, il porte la même couleur. */
 .role b .ic.etp{width:15px;height:15px;color:#c9940c;margin-right:7px;vertical-align:-2px}
@@ -8635,13 +8641,22 @@ function vHome(){
        C'est la même leçon que les erreurs muettes de Supabase : ce qui manque doit
        se dire, et dire OÙ ça se répare. La ligne ne s'affiche que s'il manque
        vraiment quelque chose — sinon elle serait du bruit permanent. */
-    const masquees=ONB_TACHES.filter(function(x){ return !onbGarde(x.k); });
-    if(masquees.length)
-      h+='<button class="boules-masq" onclick="go(\'#/profil\')">'+
-         masquees.length+' masquée'+(masquees.length>1?'s':'')+' : '+
-         esc(masquees.map(function(x){ return x.t.replace(/^Les? /,''); }).join(', '))+
-         ' — les remettre'+'</button>';
   }
+  /* ⚠ LA LIGNE EST SORTIE DU `if(boules.length)` (10/08/2026). Elle était DEDANS :
+     quelqu'un qui a décoché les quatre cases ne voyait donc plus rien du tout —
+     ni boule, ni explication. C'est le seul cas où le message est vraiment
+     indispensable, et c'était justement celui où il ne s'affichait pas.
+     ⚠ ET C'EST UN BOUTON QUI RÉPARE, pas un panneau indicateur (« les pictos sur
+     écran ont disparu !!!! »). L'envoyer au profil pour qu'elle retrouve quatre
+     cases à recocher, c'est lui donner du travail au moment où elle veut juste ses
+     boules. Un geste : on remet tout. Le réglage fin reste dans le profil. */
+  const masquees=ONB_TACHES.filter(function(x){ return !onbGarde(x.k); });
+  if(masquees.length)
+    h+='<button class="boules-masq" onclick="onbToutRemettre()">'+
+       '<b>'+masquees.length+' boule'+(masquees.length>1?'s':'')+' masquée'+(masquees.length>1?'s':'')+
+       ' — les remettre</b>'+
+       '<em>'+esc(masquees.map(function(x){ return x.t.replace(/^Les? /,''); }).join(', '))+
+       ' · tu les avais décochées</em></button>';
 
   /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
      Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
@@ -13855,6 +13870,12 @@ function onbGarde(k){
    s'écrire que d'une seule façon, sinon les deux écrans finissent par se contredire.
    Conséquence assumée : on ne peut pas tout décocher — retirer la dernière fait
    revenir les quatre. Un accueil sans aucune boule ne rendrait service à personne. */
+/* Tout remettre d'un geste, depuis l'accueil. La liste vide veut dire « les quatre »
+   — c'est la seule écriture de « toutes », voir onbToggleTache. */
+function onbToutRemettre(){
+  delete ONB.taches; onbSave(); render();
+  toast('Tes quatre boules sont revenues');
+}
 function onbToggleTache(k){
   let t=(ONB.taches||[]).slice();
   if(!t.length) t=ONB_TACHES.map(function(x){ return x.k; });
