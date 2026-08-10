@@ -8289,7 +8289,15 @@ function render(){
   VUE_AVANT=current.view;
   /* Le bus ne se charge QUE depuis l'accueil — c'est le seul endroit où il s'affiche,
      et le quota anonyme de la STIB est de 100 appels par jour pour tout le centre. */
-  if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
+  /* ═══ EN VUE TÉLÉPHONE, ON NE DESSINE PAS LA PAGE DU DESSOUS ═══
+     L'aperçu remplace entièrement `#view` par le cadre du téléphone. Dessiner
+     d'abord la vraie page, c'était fabriquer un écran complet pour l'effacer trois
+     lignes plus bas — et surtout, ça DÉTRUISAIT l'iframe à chaque redessin, donc
+     l'app à l'intérieur redémarrait de zéro. D'où le cadre vide et le tremblement.
+     On saute donc tout le bloc : la barre « Voir comme » et le cadre, plus bas,
+     suffisent. */
+  if(APERCU_TEL){ /* rien à dessiner ici : le cadre s'en charge plus bas */ }
+  else if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
   else if(current.view==='fiche') view.innerHTML=vFiche(BYSID[current.sid]);
   else if(current.view==='centre') view.innerHTML=vCentre();
@@ -8329,7 +8337,32 @@ function render(){
      le cadre du téléphone À LA PLACE de la page. */
   const ap=document.getElementById('apercu');
   if(ap) ap.innerHTML=barreApercu();
-  if(APERCU_TEL){ view.innerHTML=cadreTelephone(); setTimeout(ajusterCadre,0); }
+  /* ═══ L'APERÇU NE SE RECONSTRUIT PLUS À CHAQUE REDESSIN (Mag, 10/08/2026) ═══
+     « Ça fait des trucs étranges quand je mets en vue téléphone dans l'Admin… ça
+     tremble même quand tu vas sur des boutons. »
+
+     ⚠ LA CAUSE : on réécrivait `view.innerHTML` à CHAQUE render(). Or cet HTML
+     contient une IFRAME — la réécrire ne la met pas à jour, elle en fabrique une
+     NEUVE, qui recharge l'app entière depuis zéro. D'où le cadre vide (on regardait
+     un démarrage permanent) et le tremblement (chaque survol de bouton qui
+     déclenche un render relançait le chargement). Et depuis qu'on recharge les
+     tables partagées, les render() sont plus fréquents : le défaut est devenu
+     permanent au lieu d'être occasionnel.
+
+     ⚠ ON NE TOUCHE À L'IFRAME QUE SI SON ADRESSE A VRAIMENT CHANGÉ. Tant que c'est
+     le même écran et le même métier regardé, elle continue sa vie — on se contente
+     de réajuster sa taille. C'est aussi ce qui permet de NAVIGUER DEDANS sans être
+     ramené à l'accueil au premier clic. */
+  if(APERCU_TEL){
+    const url=apercuTelUrl();
+    const cadre=view.querySelector('.telcadre iframe');
+    if(!cadre || cadre.getAttribute('data-url')!==url){
+      view.innerHTML=cadreTelephone();
+      const nouv=view.querySelector('.telcadre iframe');
+      if(nouv) nouv.setAttribute('data-url',url);
+    }
+    setTimeout(ajusterCadre,0);
+  }
 }
 
 /* ---------- accueil ---------- */
@@ -9982,12 +10015,21 @@ function barreApercu(){
     (APERCU_GRP?'<em>Une seule règle est décidée à ce jour : le groupe D ne voit ni les outils de l’équipe ni l’Admin — mais il garde les formations, les jeux et le quiz.</em>':'')+
   '</div>';
 }
-/* Le cadre du téléphone : l'app se rouvre dedans, à 390 px de large. */
-function cadreTelephone(){
-  const url=location.pathname+'?apercu=tel'
+/* L'adresse de l'aperçu, sortie de `cadreTelephone` pour qu'on puisse la COMPARER
+   avant de décider de refabriquer l'iframe — c'est elle qui dit si quelque chose a
+   changé pour de bon (l'écran regardé, le groupe, le métier).
+   ⚠ LE HASH N'EN FAIT PLUS PARTIE. Il servait à ouvrir l'aperçu sur la page où on
+   était — mais il change dès qu'on navigue DANS le téléphone, et l'iframe se
+   refabriquait alors toute seule, ramenant l'aperçu à son point de départ à chaque
+   clic. On l'ouvre donc sur l'accueil, et on navigue dedans librement. */
+function apercuTelUrl(){
+  return location.pathname+'?apercu=tel'
     +(APERCU_GRP?'&grp='+encodeURIComponent(APERCU_GRP):'')
-    +(APERCU_METIER?'&met='+encodeURIComponent(APERCU_METIER):'')
-    +(location.hash||'#/');
+    +(APERCU_METIER?'&met='+encodeURIComponent(APERCU_METIER):'');
+}
+/* Le cadre du téléphone : l'app se rouvre dedans, à 414 px de large. */
+function cadreTelephone(){
+  const url=apercuTelUrl();
   return '<div class="teltest"><div class="telzoom" id="telzoom"><div class="telcadre">'+
     '<iframe src="'+esc(url)+'" title="Aperçu téléphone"></iframe></div></div>'+
     '<p>C’est exactement ce que voit un téléphone. Navigue dedans comme sur le tien.</p></div>';
@@ -15472,7 +15514,14 @@ const ECRANS_PARTAGES={
   passation: ['passations'],
   fil:       ['feed'],
   liste:     ['listes'],
-  home:      ['chambres','listes'],   /* l'accueil affiche les deux compteurs */
+  /* ⚠ L'ACCUEIL EST VOLONTAIREMENT ABSENT (Mag, 10/08/2026 : « la carte tremble et
+     le clic ne fonctionne plus »). Il y était pour rafraîchir ses deux compteurs —
+     mais chaque rechargement termine par un render(), et un render() sur l'accueil
+     REFABRIQUE la pile de jeux. Résultat : la carte sautait, et le clic tombait
+     dans le vide parce que la carte touchée n'existait plus au moment du relâchement.
+     Un compteur un peu vieux sur l'accueil ne coûte rien ; un bouton qui ne répond
+     pas fait croire que l'app est cassée. Les écrans où la fraîcheur compte VRAIMENT
+     — les chambres, les bacs, la passation — la gardent. */
   centre:    ['listes'],
   ticket:    ['activites'],
   admin:     ['admin','chantier'],
