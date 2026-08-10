@@ -8361,7 +8361,10 @@ function render(){
       const nouv=view.querySelector('.telcadre iframe');
       if(nouv) nouv.setAttribute('data-url',url);
     }
+    /* Deux temps : tout de suite pour éviter un saut visible, et à la frame
+       suivante pour mesurer une mise en page réellement calculée. */
     setTimeout(ajusterCadre,0);
+    requestAnimationFrame(function(){ requestAnimationFrame(ajusterCadre); });
   }
 }
 
@@ -10052,6 +10055,13 @@ function ajusterCadre(){
      place disponible, ni plus ni moins, et ça reste juste quel que soit l'écran. */
   const boite=z.parentElement;                            // .teltest, le calque
   const b=boite?boite.getBoundingClientRect():{width:window.innerWidth,height:window.innerHeight};
+  /* ⚠ ON NE MESURE PAS UN CALQUE QUI N'EXISTE PAS ENCORE (10/08/2026). Appelée trop
+     tôt — juste après un render, avant que le navigateur ait posé la mise en page —
+     la fonction lisait une hauteur de 0, calculait une échelle négative et retombait
+     sur le plancher de 0,35 : le téléphone s'affichait minuscule en haut de l'écran,
+     alors que le calque, lui, était correct. On repasse à la frame suivante plutôt
+     que de figer une taille fausse. */
+  if(!b.height || !b.width){ requestAnimationFrame(ajusterCadre); return; }
   const sousLeTel=24;                                     // la phrase d'explication + le petit écart
   const dispoH=b.height-sousLeTel;
   /* ═══ IL PREND TOUTE LA HAUTEUR, MAINTENANT (Mag, 08/08/2026) ═══
