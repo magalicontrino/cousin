@@ -8224,6 +8224,11 @@ window.addEventListener('hashchange',()=>{
   scrollMem[keyOf(current)]=window.scrollY;
   current=parseRoute(); render();
   window.scrollTo(0,scrollMem[keyOf(current)]||0);
+  /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
+     montrait l'état du monde au moment de son ouverture — et une collègue qui
+     désencodait une chambre restait invisible pendant des heures. Défini plus bas :
+     on ne fait rien tant que la fonction n'existe pas encore. */
+  if(typeof rafraichirEnArrivant==='function') rafraichirEnArrivant(current.view);
 });
 
 function keyOf(r){return r.view+(r.key||r.sid||'')}
@@ -15429,6 +15434,77 @@ document.addEventListener('visibilitychange',function(){
   _derniereVisite=Date.now();
   envoiMuet(sb.rpc('touch_connexion'));
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CE QU'UNE COLLÈGUE COCHE DOIT FINIR PAR ARRIVER (Mag, 09/08/2026)
+
+   « Ici quand ma collègue clique sur désencoder, je ne le vois pas chez moi. »
+
+   ⚠ CE N'ÉTAIT PAS UN BUG DES CHAMBRES : L'APP NE RECHARGEAIT RIEN, JAMAIS.
+   Les tables partagées — les chambres, le tour des bacs, la passation, le fil, les
+   check-lists — étaient lues UNE SEULE FOIS, au démarrage. Ensuite l'écran montrait
+   l'état du monde à l'instant où l'app avait été ouverte, et il le montrait encore
+   huit heures plus tard. Deux collègues sur la même chambre voyaient donc chacune
+   un passé différent, et chacune croyait que l'autre n'avait rien fait. Sur un
+   registre qui sert à SE PASSER LE TRAVAIL, c'est la panne la plus grave possible :
+   elle ne se voit pas, elle ne dit rien, et elle fait refaire ce qui est déjà fait.
+
+   ═══ POURQUOI À L'ALLUMAGE, ET PAS EN TEMPS RÉEL ═══
+   Supabase sait pousser les changements en direct. Ç'aurait été plus élégant — et
+   nettement plus lourd : il faut l'activer table par table (publication, replica
+   identity), garder une connexion ouverte en permanence, et gérer les reconnexions.
+   Or le geste réel de l'équipe n'est pas de fixer l'écran en attendant une coche :
+   c'est de ranger son téléphone, faire quelque chose, et le ressortir. On recharge
+   donc au moment où on REGARDE — c'est là que ça compte, et ça ne coûte rien quand
+   l'écran est éteint.
+
+   ⚠ ON NE RECHARGE QUE CE QUE L'ÉCRAN MONTRE. Tout recharger à chaque allumage
+   ferait une dizaine de requêtes pour une poche sortie trois secondes.
+   ⚠ ET PAS PLUS D'UNE FOIS PAR 20 SECONDES : sur ordinateur, passer d'un onglet à
+   l'autre déclenche l'événement en rafale.
+   ═══════════════════════════════════════════════════════════════════════════ */
+let _dernierRafraichi=0;
+/* Quelles tables font vivre quel écran. Une vue absente d'ici n'a rien de partagé
+   à relire — l'accueil, le réseau, les fiches ne dépendent que du catalogue. */
+const ECRANS_PARTAGES={
+  chambres:  ['chambres'],
+  tourbacs:  ['tourbacs'],
+  passation: ['passations'],
+  fil:       ['feed'],
+  liste:     ['listes'],
+  home:      ['chambres','listes'],   /* l'accueil affiche les deux compteurs */
+  centre:    ['listes'],
+  ticket:    ['activites'],
+  admin:     ['admin','chantier'],
+  chantier:  ['chantier']
+};
+function rafraichirPartage(force){
+  if(!sb || !PROFILE) return;
+  if(!force && Date.now()-_dernierRafraichi < 20000) return;
+  _dernierRafraichi=Date.now();
+  const quoi=ECRANS_PARTAGES[current&&current.view]||[];
+  /* ⚠ CHAQUE CHARGEUR SE DÉBROUILLE SEUL, ET SON ÉCHEC NE DOIT PAS EMPÊCHER LES
+     AUTRES : ils lisent déjà `.error` et gardent leur message de panne. On ne fait
+     que les rappeler — surtout pas réécrire la gestion d'erreur ici. */
+  const app=function(nom,fn){ if(quoi.indexOf(nom)>=0 && typeof fn==='function'){ try{ fn(); }catch(e){} } };
+  app('chambres',   typeof loadChambres==='function'?loadChambres:null);
+  app('tourbacs',   typeof loadTourBacs==='function'?loadTourBacs:null);
+  app('passations', typeof loadPassations==='function'?loadPassations:null);
+  app('feed',       typeof loadFeed==='function'?loadFeed:null);
+  app('listes',     typeof loadListes==='function'?loadListes:null);
+  app('activites',  typeof loadActivites==='function'?loadActivites:null);
+  app('chantier',   typeof loadChantier==='function'?loadChantier:null);
+  app('admin',      typeof loadAdmin==='function'?loadAdmin:null);
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible') rafraichirPartage(false);
+});
+/* Et en ARRIVANT sur un écran partagé : on vient souvent d'y aller exprès pour
+   voir où en est l'équipe. `force` saute le délai des 20 secondes — ce clic-là est
+   une question, elle mérite une réponse fraîche. */
+function rafraichirEnArrivant(vue){
+  if(ECRANS_PARTAGES[vue]) rafraichirPartage(true);
+}
 
 async function loadProfile(){
   profileLoaded=false;
