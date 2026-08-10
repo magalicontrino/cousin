@@ -1533,6 +1533,14 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .acc .n{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .acc .sg{font-size:19px}
 .accin{padding-left:14px;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+/* La ligne « X masquée(s) » sous les boules de l'accueil. Discrète — c'est une
+   explication, pas une alerte : rien n'est cassé, c'est un réglage. Mais elle est
+   CLIQUABLE et mène droit au profil, là où ça se remet. */
+.boules-masq{display:block;width:100%;text-align:left;margin-top:10px;padding:9px 12px;
+  border:1px dashed var(--ligne);border-radius:6px;background:transparent;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:#8b8984;cursor:pointer}
+@media (hover:hover){ .boules-masq:hover{border-color:var(--noir);color:var(--noir)} }
 /* La petite étoile devant « Tes favoris », dans le profil. Le doré est celui de
    l'étoile pleine des fiches : c'est le même objet, il porte la même couleur. */
 .role b .ic.etp{width:15px;height:15px;color:#c9940c;margin-right:7px;vertical-align:-2px}
@@ -8593,6 +8601,24 @@ function vHome(){
           '<span class="'+rondCl+'"'+anneau+'>'+dedans+'</span>'+
           '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
       }).join('')+'</div>';
+    /* ═══ QUAND UNE BOULE MANQUE, L'APP LE DIT (Mag, 10/08/2026 : « il manque les
+       pictos sur écran ») ═══
+       Elle n'en voyait que deux sur quatre, et l'app avait l'air cassée. Elle ne
+       l'était pas : les deux autres étaient MASQUÉES par son propre réglage — les
+       cases de « À faire aujourd'hui », décochées un jour dans la visite, souvent
+       sans le vouloir (la bascule a longtemps été buguée, et depuis que la visite
+       revient à chaque connexion on repasse devant cet écran très souvent).
+
+       ⚠ UN RÉGLAGE INVISIBLE QUI CACHE DES CHOSES EST INDISCERNABLE D'UNE PANNE.
+       C'est la même leçon que les erreurs muettes de Supabase : ce qui manque doit
+       se dire, et dire OÙ ça se répare. La ligne ne s'affiche que s'il manque
+       vraiment quelque chose — sinon elle serait du bruit permanent. */
+    const masquees=ONB_TACHES.filter(function(x){ return !onbGarde(x.k); });
+    if(masquees.length)
+      h+='<button class="boules-masq" onclick="go(\'#/profil\')">'+
+         masquees.length+' masquée'+(masquees.length>1?'s':'')+' : '+
+         esc(masquees.map(function(x){ return x.t.replace(/^Les? /,''); }).join(', '))+
+         ' — les remettre'+'</button>';
   }
 
   /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
@@ -8801,16 +8827,18 @@ function vCentre(){
      Démarches, ni Mails et notes : sans ce garde-fou, il lirait un titre
      « Le travail avec la personne » suivi d'une seule tuile — ou de rien. */
   const FAMILLES=[
-    /* ⚠ « AUTOUR D'ICI » A CHANGÉ DE FAMILLE (Mag, 08/08/2026) : « en fait Autour
-       d'ici, ça devrait être avec Le travail avec la personne, parce qu'on va lui
-       donner ça à son arrivée en même temps, le règlement par exemple ». Je l'avais
-       mis avec l'éduc en me disant qu'on va au quartier POUR une sortie ; elle range
-       par MOMENT, pas par thème — et le plan du quartier, c'est un papier qu'on met
-       dans la main de quelqu'un le premier jour, comme le règlement. */
+    /* ⚠ « AUTOUR D'ICI » A CHANGÉ DEUX FOIS DE FAMILLE, ET C'EST LA DEUXIÈME QUI
+       COMPTE. Le 08/08 elle le voulait avec « Le travail avec la personne » (« on va
+       lui donner ça à son arrivée en même temps, le règlement par exemple ») ; le
+       10/08, devant la tuile, elle a tranché autrement : « mets ça dans éduc ».
+       Les deux lectures se tiennent — le quartier est un papier qu'on remet le
+       premier jour, ET l'endroit où on emmène quelqu'un se promener. C'est la
+       DERNIÈRE qui fait foi : ne pas le redéplacer sans le lui redemander.
+       Le règlement, lui, reste bien avec le travail avec la personne. */
     {n:'Le travail avec la personne', s:'Ce qu’on fait POUR quelqu’un', c:'#A9C8E8',
-     k:['Protocole','Démarches','Mails et notes','Les schémas à donner','Le règlement','Autour d’ici']},
+     k:['Protocole','Démarches','Mails et notes','Les schémas à donner','Le règlement']},
     {n:'Ce qu’on propose', s:'Ce qu’on fait AVEC quelqu’un', c:'#f8763f',
-     k:['Éduc','Activités']},
+     k:['Éduc','Activités','Autour d’ici']},
     {n:'Apprendre', s:'Pour toi, quand tu as le temps', c:'#b28b7a',
      k:['Formations','Le dictionnaire']}
   ];
@@ -9510,7 +9538,7 @@ let APERCU_TEL=false, APERCU_GRP=null, APERCU_METIER='';
 const GROUPE_DE_METIER={
   'Admin':'A',
   'Coordination':'B',
-  'Travailleur social':'C','Médical':'C','Éducateur':'C','Psychologue':'C',
+  'Travailleur social':'C','Médecin':'C','Médical':'C','Éducateur':'C','Psychologue':'C',
   'Infirmier':'C','Aide-soignant':'C',
   'Travaux / Maintenance':'C','Logistique':'C',
   'Polyvalent':'D','Agent entretien':'D','Responsable punaise':'D','Article 60':'D',
@@ -9689,8 +9717,24 @@ async function envoyerIdee(){
 /* ---------- L'ADMIN : l'équipe et les demandes d'accès ----------
    Réservée à l'administration. Rien n'est inventé ici : tout vient de la base. */
 /* Les métiers en entier — c'est cette liste qu'on voit dans le menu de l'Admin. */
-const EQUIPES=["Travailleur social","Médical","Éducateur","Psychologue","Infirmier",
-               "Aide-soignant","Polyvalent","Coordination",
+/* ⚠ « MÉDECIN » AJOUTÉ LE 10/08/2026, pour Andrea Falconeri — « c'est l'unique
+   médecin du centre ». Il existait bien un métier « Médical », mais il servait à
+   TOUT le pôle soignant : le médecin y était rangé avec les infirmiers et les
+   aides-soignants, et il aurait reçu leurs check-lists. Or il est SEUL à faire ce
+   qu'il fait — une liste partagée à une personne n'est pas une liste d'équipe.
+   « Médical » reste en place : on ne renomme pas un métier auquel des collègues
+   sont déjà rattachés. */
+/* ⚠ « MÉDICAL » A ÉTÉ RETIRÉ LE 10/08/2026 (Mag : « infi ou médical mais pas les
+   deux, mets plutôt infis »). Les deux existaient côte à côte et voulaient dire la
+   même chose : personne ne savait lequel choisir, et l'équipe se retrouvait coupée
+   en deux listes pour un seul métier. Il ne reste donc que « Infirmier ».
+   ⚠ Les personnes déjà rangées en « Médical » sont basculées en « Infirmier » dans
+   la base (voir sql/metiers-infirmier.sql) — sans ça elles perdraient leur métier
+   et leurs check-lists d'un coup.
+   ⚠ « Médical » reste dans GROUPE_DE_METIER, en secours : une ligne oubliée quelque
+   part ne doit pas retomber dans le groupe par défaut. */
+const EQUIPES=["Travailleur social","Médecin","Infirmier","Aide-soignant",
+               "Éducateur","Psychologue","Polyvalent","Coordination",
                "Agent entretien","Travaux / Maintenance","Logistique","Responsable punaise",
                "Article 60","Admin"];
 let ADMIN={members:[],requests:[]}, adminLoaded=false, ADM_OUVERT=null, ADM_SECTION=null;
