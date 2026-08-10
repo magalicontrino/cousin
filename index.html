@@ -601,6 +601,18 @@ img.picoc{width:24px;height:24px;object-fit:contain;background:none}
 .ic svg,.ic .pico,.ic img{width:100%!important;height:100%!important}
 
 #view{max-width:1080px;margin:0 auto;padding:0 var(--pad);animation:vin .22s ease}
+/* ═══ L'ANIMATION D'ENTRÉE CASSAIT L'APERÇU TÉLÉPHONE (10/08/2026) ═══
+   `vin` anime un `transform` sur #view. Or UN ANCÊTRE TRANSFORMÉ TRANSFORME AUSSI
+   LE SENS DE `position:fixed` : l'enfant fixe cesse d'être calé sur la fenêtre et
+   se cale sur cet ancêtre. Le calque de l'aperçu, censé faire 1024 × 880, mesurait
+   donc 428 × 156 — la taille de son propre contenu — et le téléphone se dessinait
+   minuscule en haut de l'écran. Rien n'était faux dans le calcul : c'est la
+   référence qui avait changé sous ses pieds.
+   ⚠ Le piège est invisible en test : l'animation dure 0,22 s, après quoi le
+   transform revient à `none` et tout redevient normal. On ne le voit donc QUE si on
+   mesure pendant l'animation — c'est-à-dire exactement au moment où l'app le fait.
+   Quand l'aperçu est ouvert, #view ne s'anime plus. */
+body.en-apercu #view{animation:none;transform:none}
 @keyframes vin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ---- accueil : logo + titre original ---- */
@@ -8241,6 +8253,9 @@ function setFilt(k,v){filt[k]=v;render();window.scrollTo(0,0)}
 const view=document.getElementById('view');
 function render(){
   document.body.classList.toggle('no-tabs',current.view==='fiche');
+  /* Voir `body.en-apercu #view` : tant que l'aperçu est ouvert, #view ne doit porter
+     AUCUN transform, sinon le calque fixe du téléphone se recale sur lui. */
+  document.body.classList.toggle('en-apercu',!!APERCU_TEL);
   document.body.classList.toggle('at-home',current.view==='home');
   /* La loupe a été retirée le 08/08/2026 (« on la retravaillera plus tard ») : son
      bouton n'existe plus dans la page, et le code qui allait le chercher part avec.
