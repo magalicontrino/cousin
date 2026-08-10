@@ -8503,7 +8503,7 @@ function vHome(){
   /* À FAIRE AUJOURD'HUI — les boules. EN PREMIER, juste sous la météo (Mag,
      06/08/2026 : « c'est vraiment le truc à avoir en première »). Le linge, les
      poubelles et les chambres, c'est le travail du jour ; les jeux viennent après. */
-  const boules=[];
+  let boules=[];   /* `let` : la liste est réordonnée plus bas (les actives devant) */
   /* Ce qui a été décoché à l'onboarding ne s'affiche plus ici (onbGarde). Rien de
      coché = tout est montré : personne ne perd de boule pour avoir sauté l'écran. */
   if(l && onbGarde('linge')) boules.push(['linge','Linge',l.etage,LINGE_COUL[l.etage]||'#6fb08e',"go('#/linge')"]);
@@ -8549,8 +8549,30 @@ function vHome(){
      travaille, c'est exactement ce qu'elle avait trouvé insupportable. Une carte
      attend qu'on la regarde. Une fois tous les dix jours, trois fois au maximum. */
   h+=onbCarteRaccourci();
+  /* ═══ CE QUI RÉCLAME PASSE DEVANT (Mag, 10/08/2026) ═══
+     « Les actifs doivent toujours être en premier dans la liste. »
+
+     L'ordre était FIXE — linge, chambres, poubelles, produits — quel que soit le
+     jour. Un mardi, on lisait donc « Chambres · rien en cours » et « Produits ·
+     samedi 5 septembre » AVANT les poubelles à sortir le soir même. L'œil part de
+     la gauche : il tombait d'abord sur ce qui ne demande rien.
+
+     `b[5]` dit « celle-ci dort ». Les réveillées passent devant, les endormies
+     suivent — et à l'intérieur de chaque groupe, l'ordre d'origine ne bouge pas.
+     ⚠ TRI STABLE OBLIGATOIRE, et c'est pour ça qu'on passe par un index : sans lui,
+     le linge et les poubelles pourraient échanger leur place d'un rendu à l'autre
+     sans raison visible, et on chercherait sa boule à un endroit différent chaque
+     matin. Une liste qui se réordonne toute seule, on cesse de s'y fier. */
+  boules = boules
+    .map(function(b,i){ return {b:b, i:i}; })
+    .sort(function(x,y){ return (x.b[5]?1:0)-(y.b[5]?1:0) || x.i-y.i; })
+    .map(function(o){ return o.b; });
   if(boules.length){
-    h+='<div class="sect"><b>À faire aujourd\'hui</b><em>'+boules.length+' chose'+(boules.length>1?'s':'')+'</em></div>'+
+    /* Le compte annonce ce qui RÉCLAME, pas le nombre de ronds dessinés : « 4 choses »
+       un jour où trois dorment, c'était une promesse d'ennui. */
+    const actives=boules.filter(function(b){ return !b[5]; }).length;
+    h+='<div class="sect"><b>À faire aujourd\'hui</b><em>'+
+       (actives ? actives+' chose'+(actives>1?'s':'') : 'rien qui presse')+'</em></div>'+
       '<div class="boules">'+boules.map(function(b){
         /* Le bac de Mag garde son recyclage : ici il se creuse à la couleur du rond noir. */
         const dedans=(b[0]==='poubelle')
