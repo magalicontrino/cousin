@@ -6848,6 +6848,96 @@ function rafraichirTourBacs(){
     if(sig!==_tbSignature){ _tbSignature=sig; if(current.view==='tourbacs') render(); }
   });
 }
+/* ═══ LA PASSATION SUR PAPIER — UNE LIGNE PAR CHAMBRE (10/08/2026) ═══
+   « S'il y a une quinzaine de chambres à faire, ça fait trop long à imprimer, trouve
+   une solution pour que ce soit vraiment plus concis. Le but, c'est de faire une
+   passation. »
+
+   Ce que l'écran montre et que le papier n'a PAS besoin de porter : l'historique des
+   avertissements successifs, les boutons, les explications. Ce que l'équipe qui
+   arrive doit lire d'un coup d'œil : la chambre, qui, combien en trop, depuis quand,
+   et COMBIEN DE JOURS IL RESTE. Le reste est du bruit sur du papier.
+
+   ⚠ CE QUI PRESSE EST EN HAUT ET EN GRAS : le tri de l'écran est conservé, et les
+   chambres dont le délai est passé portent la mention en noir plein. Une passation
+   se lit debout, entre deux équipes — elle doit se hiérarchiser à l'œil.
+   ⚠ AUCUN NOM DE FAMILLE : la feuille reprend `initiales` telle quelle, et le
+   rappel de la règle est imprimé en tête. Une feuille se perd plus facilement qu'un
+   écran. */
+function imprimerTour(){
+  const ouvertes=TOURBACS.filter(tbOuverte).slice().sort(function(a,b){
+    return (tbEtat(a).rang-tbEtat(b).rang) ||
+           String(a.prevenu_le||a.cree_le).localeCompare(String(b.prevenu_le||b.cree_le));
+  });
+  const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
+  const lignes=ouvertes.map(function(a){
+    const e=tbEtat(a), j=tbJoursRestants(a);
+    const reste = (j===null) ? 'pas encore prévenu'
+                : (j<0 ? 'délai passé de '+(-j)+' j'
+                : (j===0 ? 'dernier jour' : 'encore '+j+' j'));
+    const presse = (j!==null && j<=0);
+    return '<tr'+(presse?' class="presse"':'')+'>'+
+      '<td class="ch">'+esc(a.numero||'—')+'</td>'+
+      '<td>'+esc(a.initiales||'—')+'</td>'+
+      '<td class="n">'+(a.bacs||1)+'</td>'+
+      /* La date courte, fabriquée ici : `quandFr` écrit « il y a trois jours », ce qui
+         n'a plus de sens sur une feuille imprimée qu'on relira demain. */
+      '<td>'+esc(a.prevenu_le?a.prevenu_le.slice(8,10)+'/'+a.prevenu_le.slice(5,7):'—')+'</td>'+
+      '<td class="r">'+esc(reste)+'</td>'+
+      '<td class="no">'+esc(a.note||'')+'</td>'+
+      '<td class="sig"></td></tr>';
+  }).join('');
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Le tour des chambres — passation</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;font-size:11px;'+
+      'text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
+    'h1{font-size:20px;text-transform:uppercase;letter-spacing:-.01em}'+
+    '.sous{font-size:12px;color:#555;margin:3px 0 8px}'+
+    '.regle{border-left:4px solid #1b1b1b;padding:6px 10px;margin-bottom:10px;font-size:12px;line-height:1.4}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{text-align:left;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#666;'+
+      'border-bottom:2px solid #1b1b1b;padding:0 5px 4px}'+
+    'td{border-bottom:1px solid #ddd;padding:6px 5px;font-size:12.5px;vertical-align:top}'+
+    'tr{break-inside:avoid;page-break-inside:avoid}'+
+    'td.ch{font-weight:700;font-size:14px;white-space:nowrap}'+
+    'td.n{text-align:center;font-weight:700}'+
+    'td.r{white-space:nowrap;font-size:11.5px}'+
+    'td.no{color:#555;font-size:11.5px}'+
+    /* La colonne de droite reste VIDE : c'est là qu'on signe en reprenant la ligne. */
+    'td.sig{width:22mm;border-left:1px solid #ddd}'+
+    'tr.presse td{background:#fdeeed}'+
+    'tr.presse td.ch,tr.presse td.r{color:#c41f1f;font-weight:700}'+
+    '.vide{padding:14px 0;font-size:13px;color:#555}'+
+    '.pied{margin-top:14px;padding-top:8px;border-top:1px solid #ccc;font-size:11px;color:#666}'+
+    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:12mm 14mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>La passation — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg">'+
+    '<h1>Le tour des chambres</h1>'+
+    '<div class="sous">'+esc(jour)+' · '+ouvertes.length+' chambre'+(ouvertes.length>1?'s':'')+' en cours</div>'+
+    '<div class="regle"><b>Trois bacs par chambre, c’est le droit</b> — on note ce qu’il y a '+
+      '<b>en trop</b>. Initiales ou prénom, <b>jamais le nom de famille</b>.</div>'+
+    (ouvertes.length
+      ? '<table><thead><tr><th>Ch.</th><th>Qui</th><th>En trop</th><th>Prévenu</th>'+
+        '<th>Il reste</th><th>Précision</th><th>Repris par</th></tr></thead><tbody>'+lignes+'</tbody></table>'
+      : '<div class="vide">Aucune chambre en cours. Rien à passer à l’équipe suivante.</div>')+
+    '<div class="pied">Les lignes en rouge sont à trancher aujourd’hui. '+
+      'La dernière colonne est là pour signer quand on reprend la chambre.</div>'+
+    '</div></body></html>');
+  w.document.close();
+}
 function tbOuverte(a){ return !a.regle_le; }
 /* Combien de jours il reste avant qu'on puisse jeter. null = pas encore prévenu,
    0 = c'est aujourd'hui le dernier jour, négatif = le délai est passé. */
@@ -7232,7 +7322,13 @@ function vTourBacs(){
     (presse?'<span class="pastille" style="background:#e63329">'+presse+' À TRANCHER</span>'
            :'<span class="pastille" style="background:#f8763f">'+ouvertes.length+' EN COURS</span>')+
     '</div>';
-  h+='<div class="imprligne">'+boutonImprimer()+'</div>';
+  /* ⚠ SON IMPRESSION À ELLE, PAS LA COPIE DE L'ÉCRAN (Mag, 09/08/2026 : « s'il y a
+     une quinzaine de chambres à faire, ça fait trop long à imprimer — le but, c'est
+     de faire une passation »). Le bouton générique recopie la page : chaque chambre
+     y prend un pavé avec son historique, et quinze chambres font cinq feuilles que
+     personne ne relit. On passe par une feuille dédiée : UNE LIGNE PAR CHAMBRE. */
+  h+='<div class="imprligne"><button class="fbtn" onclick="imprimerTour()">'+
+     '<span class="ic">'+icon('list')+'</span>La passation — imprimer</button></div>';
   h+='<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span>'+
     '<b>Trois bacs par chambre, c’est le droit</b> — on note ce qu’il y a <b>en trop</b>. '+
     'Initiales ou prénom, <b>jamais le nom de famille</b>.</span></div>';
