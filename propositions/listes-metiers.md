@@ -137,14 +137,30 @@ confirmer une seule fois — à décider avec elle.
 2. Entretien mi-parcours · `reprise`
 3. Vérifier les nuits d'absence (justifié ou non) · `jour`
 
-### À ajouter (dicté le 11/08/2026)
-- **Comparer le nombre de résidents entre la liste étage et Kairos** · `reprise`
-  Ses mots : « en début de 7/7 ». Le rythme `reprise` est fait exactement pour ça —
-  la tâche se pose sur le jour où la personne reprend son cycle, et elle passe en
-  rouge en haut de sa liste ce jour-là (bouton « Je reprends »).
+### À ajouter (dicté le 11/08/2026, puis précisé par elle)
+- **Comparer les présences entre Kioskup et la liste étage** · `reprise`
 
-  **🕓 À lui demander : dans quelle liste ?** Jour, nuit, ou les deux ? Le 7/7 est
-  le cycle des PFO, mais l'app a deux listes séparées.
+  **Deux fois par cycle** : « c'est en début de [7/7] et en fin de 7/7 ».
+
+  **⚠ DEUX CHOSES À LUI FAIRE CONFIRMER AVANT DE POSER LA LIGNE :**
+  1. **Le nom de l'outil.** Elle a écrit **« kairos »** la première fois, puis
+     **« Kioskup »** la seconde. Ce sont deux mots trop différents pour trancher à
+     sa place — et un nom de logiciel faux dans une check-list rend la ligne
+     incompréhensible. **Lui demander l'orthographe exacte.**
+  2. **Dans quelle liste ?** Jour, nuit, ou les deux ? Le 7/7 est le cycle des PFO,
+     mais l'app a deux listes séparées.
+
+  **⚠ ET UN MANQUE DE L'APP.** Les rythmes existants sont `jour`, `semaine`,
+  `reprise`. **Il n'y a rien pour « en fin de cycle ».** `reprise` pose la tâche au
+  PREMIER jour du 7/7 — la moitié « fin de 7/7 » ne peut donc pas s'exprimer telle
+  quelle. Deux façons de faire, à choisir avec elle :
+  - **Sans rien coder** : une seule ligne en `reprise`, dont le TEXTE dit « en début
+    et en fin de 7/7 ». On la voit le premier jour, on sait qu'il y en aura une
+    deuxième. Imparfait : rien ne la rappellera le dernier jour.
+  - **En codant un quatrième rythme `fin-de-cycle`** : l'app connaît déjà la date
+    de reprise de la personne (`repriseLe()`) et la longueur des cycles
+    (`cyclesDuJour()`), donc elle peut savoir quel jour le cycle se termine. C'est
+    du travail, mais c'est la seule façon que la tâche apparaisse le bon jour.
 
 ⚠ Rappel du bouton PFO ci-dessous : la liste PFO ne doit contenir que ce que le PFO
 a **en plus** du travailleur social.
