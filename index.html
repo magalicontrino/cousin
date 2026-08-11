@@ -2720,6 +2720,15 @@ body.no-tabs #tabbar{display:none}
   /* 1. Les cartes et pavés : ils se soulèvent, cerclés d'un trait net */
   .rc:hover,.fmod:hover,.pile .pcarte:hover{transform:translateY(-3px);box-shadow:0 0 0 1.5px var(--noir)}
   .rc.noir:hover,.fmod.noir:hover,.pile .pcarte:hover{box-shadow:0 0 0 1.5px var(--noir),0 6px 0 -3px rgba(27,27,27,.18)}
+  /* ⚠ SUR LA BANDE NOIRE, LE LISERÉ DE SURVOL DISPARAISSAIT (Mag, 11/08/2026 : « au
+     survol il n'y a plus de bord sur la carte »). La règle du dessus donne à toutes
+     les cartes un trait NOIR au survol — parfait sur le fond crème, invisible sur le
+     fond noir des jeux, où la carte porte justement un liseré CRÈME au repos. Au
+     survol, on remplaçait donc du blanc visible par du noir sur du noir : le bord
+     avait l'air de s'effacer au moment précis où on le désigne.
+     Ici on GARDE le liseré crème, on l'épaissit d'un demi-pixel, et on ajoute
+     l'ombre portée — le soulèvement se lit sans que le contour parte. */
+  .zjeux .pile .pcarte:hover{box-shadow:0 0 0 4px #f0efed,0 8px 0 -3px rgba(0,0,0,.35)}
 
   /* 2. Les lignes et les rangées : elles glissent vers la droite */
   .frow2:hover,.unum:hover,.tache:hover,.role:hover,.acc:hover,.msg:hover,
@@ -9003,21 +9012,9 @@ function vHome(){
        se dire, et dire OÙ ça se répare. La ligne ne s'affiche que s'il manque
        vraiment quelque chose — sinon elle serait du bruit permanent. */
   }
-  /* ⚠ LA LIGNE EST SORTIE DU `if(boules.length)` (10/08/2026). Elle était DEDANS :
-     quelqu'un qui a décoché les quatre cases ne voyait donc plus rien du tout —
-     ni boule, ni explication. C'est le seul cas où le message est vraiment
-     indispensable, et c'était justement celui où il ne s'affichait pas.
-     ⚠ ET C'EST UN BOUTON QUI RÉPARE, pas un panneau indicateur (« les pictos sur
-     écran ont disparu !!!! »). L'envoyer au profil pour qu'elle retrouve quatre
-     cases à recocher, c'est lui donner du travail au moment où elle veut juste ses
-     boules. Un geste : on remet tout. Le réglage fin reste dans le profil. */
-  const masquees=ONB_TACHES.filter(function(x){ return !onbGarde(x.k); });
-  if(masquees.length)
-    h+='<button class="boules-masq" onclick="onbToutRemettre()">'+
-       '<b>'+masquees.length+' boule'+(masquees.length>1?'s':'')+' masquée'+(masquees.length>1?'s':'')+
-       ' — les remettre</b>'+
-       '<em>'+esc(masquees.map(function(x){ return x.t.replace(/^Les? /,''); }).join(', '))+
-       ' · tu les avais décochées</em></button>';
+  /* Le bouton « X boules masquées — les remettre » est parti avec le réglage
+     (11/08/2026) : plus rien ne peut être masqué, il n'y a donc plus rien à
+     remettre. Voir `onbGarde`. */
 
   /* LES JEUX — une pile de cartes qu'on fait défiler au doigt (Mag, 06/08/2026).
      Une carte par jeu : on glisse vers la gauche ou la droite pour changer,
@@ -9845,23 +9842,11 @@ function vProfil(){
      '<div class="fsrc" style="text-align:left;padding:12px 0 0">Ton nom et ton adresse viennent de ton '+
      'compte Google. Ton métier et tes listes, c’est Mag qui les règle dans l’Admin.</div>';
 
-  /* ══ LES BOULES DE L'ACCUEIL, RÉGLABLES ICI (07/08/2026) ══
-     Mag : « pourquoi les produits ne sont pas là ? ». Ils avaient disparu de « À faire
-     aujourd'hui » parce qu'ils avaient été décochés à l'onboarding — un écran vu une
-     fois, des mois plus tôt, et jamais rouvert depuis. Le réglage existait donc, mais
-     il n'était atteignable QU'EN REFAISANT toute la visite : personne ne peut deviner
-     ça, et en attendant on croit à une panne. Un réglage qui décide de ce qu'on voit
-     tous les jours doit se changer là où on va le chercher — dans son profil. */
-  const tCoch=ONB.taches||[];
-  h+='<div class="sect" style="margin-top:22px"><b>À faire aujourd’hui</b><em>'+
-       (tCoch.length?tCoch.length+' sur '+ONB_TACHES.length:'toutes')+'</em></div>'+
-     '<div class="fsrc" style="text-align:left;padding:0 0 10px">Ce qui s’allume sur ton accueil. '+
-     'Rien de coché = tout est montré.</div>'+
-     '<div class="onb-ch">'+ONB_TACHES.map(function(x){
-       const on=!tCoch.length||tCoch.indexOf(x.k)>=0;
-       return '<button class="onb-c'+(on?' on':'')+'" onclick="onbToggleTache(\''+x.k+'\')">'+
-         '<i></i>'+esc(x.t)+'</button>';
-     }).join('')+'</div>';
+  /* ⚠ LES QUATRE CASES « À FAIRE AUJOURD'HUI » ONT ÉTÉ RETIRÉES DU PROFIL le
+     11/08/2026, en même temps que le réglage lui-même (voir `onbGarde`). Elles
+     décidaient des boules de l'accueil ; les boules sont maintenant là d'office.
+     Les laisser aurait été pire que les enlever : quatre cases qu'on coche et qui
+     ne changent rien, c'est ce qui fait douter de tout le reste de la page. */
 
   h+='<button class="fbtn" style="width:100%;margin-top:18px" onclick="signOutCousin()">'+
        '<span class="ic">'+icon('cle')+'</span>Se déconnecter</button>'+
@@ -14240,11 +14225,21 @@ const ONB_TACHES=[
 ];
 /* Rien de coché = TOUT est montré. C'est le comportement d'avant l'onboarding :
    personne ne perd de boule parce qu'il a sauté l'écran. */
-function onbGarde(k){
-  const t=ONB.taches;
-  if(!t || !t.length) return true;
-  return t.indexOf(k)>=0;
-}
+/* ═══ LES QUATRE BOULES SONT LÀ D'OFFICE (Mag, 11/08/2026) ═══
+   « Je veux qu'ils soient là d'office. Retire ce bouton. »
+
+   ⚠ CE RÉGLAGE A COÛTÉ PLUS QU'IL N'A SERVI. Il permettait de masquer les boules
+   qui ne concernent pas son métier — bonne idée sur le papier. En pratique : la
+   bascule a été buguée (un geste effaçait trois boules sur quatre, réparé le 08/08),
+   le réglage vit dans le TÉLÉPHONE et pas dans le compte, donc il diffère d'un
+   appareil à l'autre — Mag avait quatre boules sur son téléphone et deux sur son
+   ordinateur — et surtout on le décoche sans le vouloir en repassant dans la visite.
+   Résultat : trois fois en deux jours, elle a cru que l'app était cassée.
+
+   Un réglage qui fait croire à une panne coûte plus cher que le confort qu'il offre.
+   La fonction reste, elle répond toujours OUI : le reste du code n'a pas à savoir
+   que le choix a disparu. */
+function onbGarde(k){ return true; }
 /* ⚠ LE BUG QUI FAISAIT « SAUTER LES PRODUITS » (corrigé le 08/08/2026).
    Liste vide veut dire TOUTES les boules — c'est ce que les deux écrans affichent :
    quatre cases cochées. Mais la bascule, elle, partait de la liste VIDE. Décocher
@@ -14304,7 +14299,7 @@ function vBienvenue(){
 
   /* ── 1 · L'app se présente ── */
   if(E===0){
-    h+='<div class="onb-e noir">'+pas(0,6)+
+    h+='<div class="onb-e noir">'+pas(0,5)+
       '<div class="onb-t">Salut,<br>je suis<br>Cousin</div>'+
       '<p>Ton collègue de poche. Je connais le réseau, les démarches et le tour du linge. '+
       'Deux minutes et on se connaît.</p>'+
@@ -14314,7 +14309,7 @@ function vBienvenue(){
 
   /* ── 2 · Les quatre boutons ── */
   else if(E===1){
-    h+='<div class="onb-e">'+pas(1,6)+
+    h+='<div class="onb-e">'+pas(1,5)+
       '<div class="onb-sur">Le bas de l’écran</div>'+
       '<div class="onb-t noirt">Tout tient<br>en quatre</div>'+
       '<div class="onb-l">'+
@@ -14328,7 +14323,7 @@ function vBienvenue(){
 
   /* ── 3 · La règle ── */
   else if(E===2){
-    h+='<div class="onb-e rouge">'+pas(2,6)+
+    h+='<div class="onb-e rouge">'+pas(2,5)+
       '<div class="onb-sur">Confidentialité</div>'+
       '<div class="onb-t">Une seule<br>règle</div>'+
       /* ⚠ LA RÈGLE CORRIGÉE (Mag, 08/08/2026 : « les prénoms on peut mettre »).
@@ -14354,33 +14349,20 @@ function vBienvenue(){
       '<button class="onb-b" onclick="onbAller(3)">Compris</button>'+onbPied(2)+'</div>';
   }
 
-  /* ── 4 · Ta journée ──
-     ⚠ LES QUATRE CASES SONT COCHÉES AU DÉPART. Cet écran affichait l'inverse — tout
-     décoché, « coche ce qui te concerne » — alors que la liste vide veut dire TOUTES
-     les boules, et que Mon profil, lui, les montrait cochées. Deux écrans, deux
-     lectures du même réglage : en touchant une case ici, on en voyait trois autres
-     s'allumer toutes seules (Mag, 08/08/2026 : « l'onboarding ne fonctionne pas »).
-     C'est le même `on` que dans le profil, et le même verbe : on DÉCOCHE. */
-  else if(E===3){
-    const t=ONB.taches||[];
-    h+='<div class="onb-e">'+pas(3,6)+
-      '<div class="onb-sur">Ta journée</div>'+
-      '<div class="onb-t noirt">Ta journée<br>ressemble<br>à quoi ?</div>'+
-      '<div class="onb-ch">'+ONB_TACHES.map(function(x){
-        const on=!t.length||t.indexOf(x.k)>=0;
-        return '<button class="onb-c'+(on?' on':'')+'" onclick="onbToggleTache(\''+x.k+'\')">'+
-          '<i></i>'+esc(x.t)+'</button>';
-      }).join('')+'</div>'+
-      '<p class="onb-p">Tout est coché : tu auras les quatre boules sur ton accueil. '+
-      '<b>Décoche ce qui ne te concerne pas</b> — et ça se change quand tu veux, dans ton profil.</p>'+
-      '<button class="onb-b" onclick="onbAller(4)">Continuer</button>'+onbPied(3)+'</div>';
-  }
+  /* ── 4 · L'ÉCRAN « TA JOURNÉE » A ÉTÉ RETIRÉ (Mag, 11/08/2026) ──
+     Il demandait « ta journée ressemble à quoi ? » et servait à décocher des boules
+     de l'accueil. Le réglage n'existe plus (voir `onbGarde`) : les quatre boules sont
+     là d'office. Un écran qui pose une question sans effet est pire qu'un écran de
+     moins — surtout dans une visite qu'on refait à chaque connexion.
+     ⚠ LA VISITE PASSE DONC DE 6 À 5 ÉCRANS. Les numéros affichés (`pas(n,5)`) et les
+     sauts (`onbAller`) ont été renumérotés en conséquence — sinon on aurait un écran
+     « 5 sur 6 » suivi de rien, ou un « Suivant » qui tombe dans le vide. */
 
   /* ── 5 · C'est prêt : les deux encadrés, avec le jeu entre les deux ── */
-  else if(E===4){
+  else if(E===3){
     const t=ONB.taches||[];
     const gardees=ONB_TACHES.filter(function(x){ return !t.length || t.indexOf(x.k)>=0; });
-    h+='<div class="onb-e">'+pas(4,6)+
+    h+='<div class="onb-e">'+pas(3,5)+
       '<div class="onb-sur">C’est prêt</div>'+
       '<div class="onb-t noirt">Commence<br>par là</div>'+
 
@@ -14403,12 +14385,12 @@ function vBienvenue(){
 
       /* Le second encadré, « En tête de ton réseau », est parti le 08/08/2026 avec
          le comptage des fiches ouvertes. L'étape se termine donc sur le jeu. */
-      '<button class="onb-b" onclick="onbAller(5)">Dernière chose</button>'+onbPied(4)+'</div>';
+      '<button class="onb-b" onclick="onbAller(4)">Dernière chose</button>'+onbPied(3)+'</div>';
   }
 
   /* ── 6 · Le raccourci ── */
   else {
-    h+='<div class="onb-e noir">'+pas(5,6)+
+    h+='<div class="onb-e noir">'+pas(4,5)+
       '<div class="onb-sur">Dernière chose</div>'+
       '<div class="onb-t">Garde-moi<br>sous la main</div>'+
       '<p>COUSIN n’est pas dans le magasin d’applications. On l’ajoute soi-même à '+
@@ -14423,7 +14405,7 @@ function vBienvenue(){
       '</div>'+
       '<button class="onb-b jaune" onclick="onbRaccourciFait()">C’est ajouté</button>'+
       '<button class="onb-s" onclick="onbFini()">Plus tard — tu me le rappelleras</button>'+
-      onbPied(5)+'</div>';
+      onbPied(4)+'</div>';
   }
 
   return h+'</div>';
@@ -14434,15 +14416,17 @@ function vBienvenue(){
    l'app fait vraiment. Réservée à l'administration — ce n'est pas un écran d'équipe. */
 function vBienvenueTout(){
   if(!(PROFILE&&PROFILE.admin)) { onbRejouer(); return ''; }
+  /* Cinq écrans depuis le 11/08/2026 : « Ta journée » est parti avec le réglage des
+     boules (voir `onbGarde`). */
   const titres=['1 · L’app se présente','2 · Les quatre boutons','3 · La règle',
-                '4 · Ta journée','5 · C’est prêt','6 · Le raccourci'];
+                '4 · C’est prêt','5 · Le raccourci'];
   const garde=ONB_ETAPE;
   let h=heroBandeau('L’onboarding','Les six écrans, un par un','#A9C8E8','ecran',true);
   h+='<div class="obt-i">Ce que voit quelqu’un qui ouvre COUSIN <b>pour la première fois</b>, '+
      'juste après s’être connecté avec Google. Une seule fois : ensuite, ça ne revient plus.<br>'+
      'Les boutons ne marchent pas ici — c’est une planche pour regarder.</div>';
   h+='<div class="obt-g">';
-  for(let i=0;i<6;i++){
+  for(let i=0;i<5;i++){
     ONB_ETAPE=i;
     h+='<div class="obt-c"><div class="obt-n">'+titres[i]+'</div>'+
        '<div class="obt-tel"><div class="obt-no">'+vBienvenue()+'</div></div></div>';
