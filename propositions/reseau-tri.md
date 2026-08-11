@@ -1,0 +1,148 @@
+# Ranger le réseau — proposition du 11/08/2026
+
+Demandé par Mag : « fais un tri dans les réseaux. Communication, hébergement… fais
+une proposition de design et de façon de trier. » Et, juste avant : « différencie
+bien les centres de jour des hébergements de nuit ».
+
+**⚠ RIEN N'EST APPLIQUÉ.** C'est une proposition. Le catalogue n'a pas bougé.
+
+---
+
+## Ce qu'il y a aujourd'hui — 350 fiches, 21 tiroirs
+
+| Tiroir | Fiches |  | Tiroir | Fiches |
+|---|---|---|---|---|
+| Assuétudes | **76** | | Handicap | 14 |
+| Planning | 30 | | Étrangers | 15 |
+| Social | 30 | | Démarches | 19 |
+| Urgences | 30 | | Mails | 17 |
+| Maisons | 28 | | Formations | 18 |
+| Médical | 18 | | Culture | 8 |
+| LGBT | 8 | | Éducatif | 7 |
+| Santé mentale | 7 | | Méthodes | 6 |
+| Centre | 6 | | Juridique | 5 |
+| Logement | 5 | | Famille | 2 |
+| Accompagnement | **1** | | | |
+
+### Les quatre défauts
+
+**1. Un tiroir écrase tous les autres.** « Assuétudes » contient **76 fiches — une
+fiche sur cinq**. Et ce ne sont pas 76 services de drogue : il y a là-dedans toutes
+les cliniques psychiatriques, l'hépatite C, le tabac, le jeu, les écrans, les
+équipes mobiles. Personne ne parcourt 76 lignes. On abandonne avant.
+
+**2. Des tiroirs qui ne servent à rien.** Accompagnement en a **1**. Famille en a
+**2**, et l'une des deux est un doublon de la Croix-Rouge. Juridique **5**,
+Logement **5**. Un tiroir qu'on ouvre pour trouver une fiche fait perdre le geste.
+
+**3. Des outils de travail rangés avec des adresses.** Mails types (17), Formations
+(18), Méthodes (6), Le centre (6) = **47 fiches qui ne sont pas des endroits où
+envoyer quelqu'un.** Un modèle de mail n'a rien à faire à côté d'un asile de nuit.
+
+**4. Le même besoin coupé en deux.** « Maisons » (28) et « Logement » (5) parlent
+tous les deux d'un toit. « Santé mentale » (7) et la moitié d'« Assuétudes »
+parlent de la même chose. Et surtout — sa remarque d'aujourd'hui — **dormir ce soir
+et passer la journée sont mélangés dans le même tiroir.**
+
+---
+
+## La proposition — on range par LE BESOIN, pas par le métier de l'asso
+
+La question n'est jamais « c'est quel type d'association ? ». Elle est toujours
+« **qu'est-ce qu'il lui faut, là, maintenant ?** »
+
+### Étape 1 — sortir du réseau ce qui n'est pas une adresse (47 fiches)
+
+Mails types · Formations · Méthodes · Le centre → **« Nos outils »**, ailleurs dans
+l'app. Le réseau retombe à **~300 fiches**, et il ne contient plus que des endroits
+où on peut envoyer quelqu'un.
+
+### Étape 2 — les tiroirs, par besoin
+
+| Tiroir proposé | Ce qu'on y met | ≈ |
+|---|---|---|
+| **Dormir** | Maisons + Logement, réunis | 33 |
+| **Manger, se laver, s'habiller** | DoucheFLUX, Petits Riens, Restos du Cœur… | ~6 |
+| **Se soigner** | Maisons médicales, infirmiers, MIA, Médecins du Monde | ~20 |
+| **Consommer — réduction des risques** | MASS, comptoirs, GATE, Lama, Modus Vivendi, Médibus | ~25 |
+| **Se sevrer, se poser** | Cliniques, post-cures, hôpitaux de jour | ~25 |
+| **Tête et esprit** | Santé mentale + ce qui vient d'Assuétudes | ~30 |
+| **Corps et sexualité** | Plannings, IST, Aquarelle | 30 |
+| **Violences** | CPVS, SOS Viol, CPVCF, EVA, Garance, Écoute VC | ~7 |
+| **Argent, droits, CPAS** | Social + Démarches | ~45 |
+| **Papiers et séjour** | Étrangers | 15 |
+| **Handicap** | inchangé | 14 |
+| **LGBTQI+** | inchangé | 8 |
+| **Apprendre, jeunesse, familles** | Éducatif + Famille + alphabétisation | ~10 |
+| **Sortir, culture** | inchangé | 8 |
+| **En cas d'urgence** | 101, 112, urgences des hôpitaux, gardes | ~25 |
+
+Aucun tiroir ne dépasse 45 fiches, et **le tiroir à une seule fiche disparaît**.
+
+### Étape 3 — l'étiquette qui manque le plus : JOUR ou NUIT
+
+Sa demande du 11/08. Dans « Dormir », quatre choses sont aujourd'hui indistinctes :
+
+| Étiquette | Ce que ça veut dire | Exemples |
+|---|---|---|
+| **NUIT** | on y dort ce soir | Pierre d'Angle (48 lits) |
+| **URGENCE** | quelques jours, le temps de souffler | Ariane (3 × 7 jours), Albatros |
+| **SÉJOUR** | on y reste des semaines ou des mois | Les Trois Pommiers, Georges Motte |
+| **JOUR** | ouvert la journée, **on n'y dort pas** | DoucheFLUX, L'Orée, Enaden |
+| **ORIENTATION** | ils ne logent pas, ils cherchent une place | Bruss'help, PILS |
+
+⚠ Les lieux **JOUR** ne sont pas dans « Maisons » aujourd'hui : ils sont éparpillés
+dans Social et Assuétudes. Quelqu'un qui cherche « où passer la journée » ne les
+trouve nulle part ensemble.
+
+Le risque est concret : envoyer quelqu'un à 19 h dans un lieu qui ferme à 17 h.
+
+### Étape 4 — les doublons
+
+**23 paires de fiches partagent un numéro de téléphone.** Certaines sont normales
+(deux services d'une même maison). Beaucoup sont de vrais doublons, avec chaque
+fois une version riche et une version pauvre :
+
+- **La M.A.S.S.** (horaires + l'avertissement du jeudi) vs **M.A.S.S. de Bruxelles** (sans horaires)
+- **SAMPAS** — deux fois, une fiche de 816 signes et une de 121
+- **Croix-Rouge RLF** — deux fois, l'une avec Bruxelles, l'autre avec Namur
+- Free Clinic · Ex Aequo / Ex Æquo · Modus Vivendi (×3) · Similes · Ariane ·
+  Pierre d'Angle · Infor-Drogues · Petits Riens · SASB · WOPS · CPVCF
+
+À trancher une par une avec elle : on garde la riche, on verse ce que l'autre a en
+plus, on retire.
+
+---
+
+## Le design
+
+Trois façons de le montrer. **À choisir par Mag.**
+
+**A. Les tiroirs, en pavés — comme aujourd'hui, mais 15 au lieu de 21.**
+Le moins de changement. On garde le geste que l'équipe connaît.
+
+**B. Trois grandes portes, puis les tiroirs derrière.**
+`CE SOIR` (dormir, manger, urgence) · `SA SANTÉ` (soigner, consommer, tête,
+corps) · `SES DROITS` (argent, papiers, handicap, violences).
+Plus court à l'écran, mais un geste de plus pour arriver à la fiche.
+
+**C. On garde les tiroirs et on ajoute les étiquettes.**
+Le plus petit pas : on ne bouge aucun tiroir, on pose seulement NUIT / JOUR /
+SÉJOUR / URGENCE / ORIENTATION sur les fiches d'hébergement. Ça règle sa demande
+d'aujourd'hui sans rien casser d'autre.
+
+**Ma suggestion : C d'abord, puis A.** L'étiquette JOUR/NUIT répond à un vrai
+danger et se pose en une fois. Le retri des tiroirs, lui, change les habitudes de
+35 personnes — il mérite d'être fait une seule fois, bien, quand elle aura tranché
+les mots.
+
+---
+
+## Ce que j'attends d'elle
+
+1. Le principe : ranger **par besoin** plutôt que par type d'association — oui ou non ?
+2. Sortir les mails, formations, méthodes et « le centre » du réseau — oui ou non ?
+3. Les mots des étiquettes : **NUIT · JOUR · SÉJOUR · URGENCE · ORIENTATION** —
+   ce sont les siens qui comptent, pas les miens.
+4. Le design : A, B ou C ?
+5. Les doublons : je sors la liste des 23 et on tranche ?
