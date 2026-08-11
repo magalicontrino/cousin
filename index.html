@@ -759,15 +759,45 @@ body.en-apercu #view{animation:none;transform:none}
    le menu, et il reste ouvert par-dessus la page qu'on essaie de lire. */
 .mh-bg{position:fixed;inset:0;z-index:78;display:none;background:transparent}
 .mh-bg.on{display:block}
-.mh{position:fixed;top:calc(var(--top-h, 56px) + 6px);right:10px;z-index:79;display:none;
-  flex-direction:column;min-width:212px;padding:6px;border-radius:10px;
-  background:#fdfdfc;border:1.5px solid var(--noir);box-shadow:0 10px 30px rgba(27,27,27,.22)}
-.mh.on{display:flex}
-.mh button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
-  padding:11px 12px;border:0;border-radius:6px;background:transparent;color:var(--noir);
-  font-family:inherit;font-size:15px;font-weight:500;cursor:pointer}
-.mh button .ic{width:19px;height:19px;flex:none}
-@media (hover:hover){ .mh button:hover{background:#f0efed} }
+/* ⚠ PLUS GRAND, PLUS LARGE, ET IL SE DÉPLIE (Mag, 11/08/2026 : « fais-le avec un
+   petit effet quand même, et qu'ils soient un peu plus grands et plus longs et plus
+   larges »). Un menu qui apparaît d'un coup a l'air d'un bug d'affichage ; un menu
+   qui tombe de son bouton dit d'où il vient. L'animation part du COIN HAUT DROIT,
+   c'est-à-dire des trois points qu'on vient de toucher.
+   Les lignes montent à 17 px et 15 px de haut de padding : on les vise du pouce en
+   marchant, pas à la souris posée. */
+.mh{position:fixed;top:calc(var(--top-h, 56px) + 8px);right:10px;z-index:79;display:none;
+  flex-direction:column;min-width:270px;max-width:calc(100vw - 20px);padding:8px;border-radius:14px;
+  background:#fdfdfc;border:1.5px solid var(--noir);box-shadow:0 14px 40px rgba(27,27,27,.26);
+  transform-origin:top right}
+.mh.on{display:flex;animation:mhOuvre .17s cubic-bezier(.22,1,.36,1)}
+@keyframes mhOuvre{
+  from{opacity:0;transform:scale(.9) translateY(-8px)}
+  to{opacity:1;transform:none}
+}
+.mh button{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  padding:15px 14px;border:0;border-radius:9px;background:transparent;color:var(--noir);
+  font-family:inherit;font-size:17px;font-weight:500;cursor:pointer}
+.mh button .ic{width:23px;height:23px;flex:none}
+/* Chaque ligne arrive avec un cheveu de retard sur la précédente : le menu se
+   déroule au lieu de se poser en bloc. */
+.mh.on button{animation:mhLigne .22s both cubic-bezier(.22,1,.36,1)}
+.mh.on button:nth-child(1){animation-delay:.02s}
+.mh.on button:nth-child(2){animation-delay:.05s}
+.mh.on button:nth-child(3){animation-delay:.08s}
+.mh.on button:nth-child(4){animation-delay:.11s}
+.mh.on button:nth-child(5){animation-delay:.14s}
+@keyframes mhLigne{ from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:none} }
+/* Un trait fin entre les lignes : à cette taille, sans lui, elles se confondent. */
+.mh button + button{border-top:1px solid var(--ligne);border-radius:0 0 9px 9px}
+@media (hover:hover){ .mh button:hover{background:var(--noir);color:#f2eee6} }
+.mh button:active{background:#f0efed}
+/* ⚠ `prefers-reduced-motion` : certains téléphones du centre sont réglés là-dessus,
+   et une animation qu'on n'a pas demandée donne le tournis. Le menu s'ouvre alors
+   sans effet — il reste parfaitement utilisable. */
+@media (prefers-reduced-motion:reduce){
+  .mh.on,.mh.on button{animation:none}
+}
 /* Sur grand écran, le rail de gauche porte déjà ces quatre entrées, écrites :
    le menu ferait doublon. */
 @media (min-width:900px){ #menubtn{display:none} .mh,.mh-bg{display:none!important} }
@@ -3125,7 +3155,6 @@ body.no-tabs #tabbar{display:none}
        ça ne tient plus. Les Paramètres sont maintenant DANS Mon profil, et sur grand
        écran la roue n'a pas bougé du rail de gauche. L'adresse #/admin répond
        toujours, rien n'est fermé. -->
-  <button id="profilbtn" onclick="go('#/profil')" aria-label="Mon profil" title="Mon profil"></button>
   <!-- LE HAUT-PARLEUR À LA PLACE DE L'AMPOULE (Mag, 08/08/2026) : « à la place de
        l'ampoule, mets le haut-parleur plutôt, comme ça il y aurait Le fil, parce
        qu'il n'est pas là. L'ampoule, tu peux l'enlever. »
@@ -3140,16 +3169,19 @@ body.no-tabs #tabbar{display:none}
   <!-- ═══ LES QUATRE AUTRES PASSENT DANS UN MENU (Mag, 11/08/2026) ═══
        « Mets un menu contextuel en haut à droite pour les icônes. »
        Six pictos muets sur 414 px, c'est une rangée qu'on ne déchiffre pas : rien
-       n'est écrit, tout se ressemble, et on tape au hasard. Les DEUX qu'on ouvre
-       vingt fois par jour restent dehors — Mon profil et Ma liste du jour ; les
-       quatre autres passent derrière les trois points, AVEC LEUR NOM ÉCRIT. Un menu
-       où c'est écrit se lit plus vite qu'une rangée de dessins qu'il faut deviner. -->
+       n'est écrit, tout se ressemble, et on tape au hasard. Il n'en reste qu'UN
+       dehors — Ma liste du jour, celle qu'on ouvre vingt fois par jour et qui porte
+       une pastille quand il reste quelque chose à faire. Tout le reste, Mon profil
+       compris (sa demande du 11/08), passe derrière les trois points AVEC SON NOM
+       ÉCRIT. Un menu où c'est écrit se lit plus vite qu'une rangée de dessins qu'il
+       faut deviner. -->
   <button id="menubtn" onclick="menuHaut()" aria-label="Le reste" title="Le reste"></button>
 </header>
 
 <!-- Le menu des trois points. Fermé par défaut, il se replie au moindre clic à côté. -->
 <div id="menuHautBg" class="mh-bg" onclick="menuHautFermer()"></div>
 <div id="menuHaut" class="mh">
+  <button onclick="menuHautAller('#/profil')"><span class="ic" data-ic="user"></span>Mon profil</button>
   <button onclick="menuHautAller('#/fil')"><span class="ic" data-ic="feed"></span>Le fil</button>
   <button onclick="menuHautAller('#/favoris')"><span class="ic" data-ic="star"></span>Tes favoris</button>
   <button onclick="menuHautAller('#/partager')"><span class="ic" data-ic="partage"></span>Partager COUSIN</button>
@@ -8354,8 +8386,8 @@ function render(){
      ⚠ Ne PAS renommer `stb` en « sb » : c'est le nom du lien vers la base (Supabase). */
   const stb=document.getElementById('starbtn');
   if(stb){ if(!stb.innerHTML) stb.innerHTML='<span class="ic">'+icon('star')+'</span>'; stb.classList.toggle('on',current.view==='favoris'); }
-  const pb=document.getElementById('profilbtn');
-  if(pb){ if(!pb.innerHTML) pb.innerHTML='<span class="ic">'+icon('user')+'</span>'; pb.classList.toggle('on',current.view==='profil'); }
+  /* Mon profil a quitté la barre du haut le 11/08/2026 : il est dans le menu des
+     trois points, avec son nom. Le rail de gauche le garde sur grand écran. */
   /* Partager : pour tout le monde, à la place de la roue. */
   const ptb=document.getElementById('partbtn');
   if(ptb){ if(!ptb.innerHTML) ptb.innerHTML='<span class="ic">'+icon('partage')+'</span>';
