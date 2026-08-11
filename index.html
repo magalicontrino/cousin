@@ -757,44 +757,66 @@ body.en-apercu #view{animation:none;transform:none}
    l'intérêt de l'avoir sorti de la rangée de pictos.
    ⚠ Le voile derrière n'est pas décoratif : sans lui, un clic à côté ne referme pas
    le menu, et il reste ouvert par-dessus la page qu'on essaie de lire. */
-.mh-bg{position:fixed;inset:0;z-index:78;display:none;background:transparent}
-.mh-bg.on{display:block}
-/* ⚠ PLUS GRAND, PLUS LARGE, ET IL SE DÉPLIE (Mag, 11/08/2026 : « fais-le avec un
-   petit effet quand même, et qu'ils soient un peu plus grands et plus longs et plus
-   larges »). Un menu qui apparaît d'un coup a l'air d'un bug d'affichage ; un menu
-   qui tombe de son bouton dit d'où il vient. L'animation part du COIN HAUT DROIT,
-   c'est-à-dire des trois points qu'on vient de toucher.
-   Les lignes montent à 17 px et 15 px de haut de padding : on les vise du pouce en
-   marchant, pas à la souris posée. */
-.mh{position:fixed;top:calc(var(--top-h, 56px) + 8px);right:10px;z-index:79;display:none;
-  flex-direction:column;min-width:270px;max-width:calc(100vw - 20px);padding:8px;border-radius:14px;
-  background:#fdfdfc;border:1.5px solid var(--noir);box-shadow:0 14px 40px rgba(27,27,27,.26);
-  transform-origin:top right}
-.mh.on{display:flex;animation:mhOuvre .17s cubic-bezier(.22,1,.36,1)}
+/* Le voile FLOUTE la page au lieu de rester transparent : le menu est au milieu de
+   l'écran, il faut que le reste s'efface derrière lui, sinon on lit deux choses à
+   la fois. Le fondu est court — on ne fait pas attendre pour un menu.
+   ⚠ `-webkit-` en plus : Safari sur iPhone ne connaît toujours que celui-là, et
+   c'est le navigateur de la moitié de l'équipe. */
+.mh-bg{position:fixed;inset:0;z-index:78;display:none;background:rgba(27,27,27,.28);
+  -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+.mh-bg.on{display:block;animation:mhVoile .19s ease}
+@keyframes mhVoile{ from{opacity:0} to{opacity:1} }
+/* ═══ LE MENU AU CENTRE, SUR UN FOND FLOUTÉ (Mag, 11/08/2026) ═══
+   « Tu peux écrire plus petit, c'est juste que je voulais qu'il y ait plus d'espace.
+   Mets-le au centre de la page, et floute le cadre. »
+
+   ⚠ CE QU'ELLE CORRIGE : j'avais lu « plus grand » comme « plus gros caractères ».
+   Elle demandait de l'AIR, pas de la taille — ce n'est pas la même chose. Le texte
+   redescend à 15,5 px, et c'est l'espace autour qui augmente : des lignes hautes,
+   respirées, qu'on vise sans effort.
+
+   ⚠ ET IL VIENT AU MILIEU. Collé en haut à droite, il pendait du bouton et se
+   battait avec la page qui continuait de vivre derrière. Au centre, sur un fond
+   flouté, il n'y a plus qu'une chose à regarder — c'est ce qu'on attend d'un menu
+   qu'on vient d'ouvrir exprès. */
+.mh{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:79;display:none;
+  flex-direction:column;width:min(310px,calc(100vw - 48px));padding:14px;border-radius:18px;
+  background:#fdfdfc;border:1.5px solid var(--noir);box-shadow:0 24px 60px rgba(27,27,27,.3)}
+.mh.on{display:flex;animation:mhOuvre .19s cubic-bezier(.22,1,.36,1)}
 @keyframes mhOuvre{
-  from{opacity:0;transform:scale(.9) translateY(-8px)}
-  to{opacity:1;transform:none}
+  from{opacity:0;transform:translate(-50%,-50%) scale(.94)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}
 }
-.mh button{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
-  padding:15px 14px;border:0;border-radius:9px;background:transparent;color:var(--noir);
-  font-family:inherit;font-size:17px;font-weight:500;cursor:pointer}
-.mh button .ic{width:23px;height:23px;flex:none}
-/* Chaque ligne arrive avec un cheveu de retard sur la précédente : le menu se
-   déroule au lieu de se poser en bloc. */
+.mh button{display:flex;align-items:center;gap:15px;width:100%;text-align:left;
+  padding:16px 14px;border:0;border-radius:11px;background:transparent;color:var(--noir);
+  font-family:inherit;font-size:15.5px;font-weight:500;cursor:pointer}
+.mh button .ic{width:20px;height:20px;flex:none}
+/* Chaque ligne arrive avec un cheveu de retard : le menu se déroule au lieu de se
+   poser en bloc. */
 .mh.on button{animation:mhLigne .22s both cubic-bezier(.22,1,.36,1)}
-.mh.on button:nth-child(1){animation-delay:.02s}
-.mh.on button:nth-child(2){animation-delay:.05s}
-.mh.on button:nth-child(3){animation-delay:.08s}
-.mh.on button:nth-child(4){animation-delay:.11s}
-.mh.on button:nth-child(5){animation-delay:.14s}
-@keyframes mhLigne{ from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:none} }
-/* Un trait fin entre les lignes : à cette taille, sans lui, elles se confondent. */
-.mh button + button{border-top:1px solid var(--ligne);border-radius:0 0 9px 9px}
-@media (hover:hover){ .mh button:hover{background:var(--noir);color:#f2eee6} }
-.mh button:active{background:#f0efed}
-/* ⚠ `prefers-reduced-motion` : certains téléphones du centre sont réglés là-dessus,
-   et une animation qu'on n'a pas demandée donne le tournis. Le menu s'ouvre alors
-   sans effet — il reste parfaitement utilisable. */
+.mh.on button:nth-child(1){animation-delay:.03s}
+.mh.on button:nth-child(2){animation-delay:.06s}
+.mh.on button:nth-child(3){animation-delay:.09s}
+.mh.on button:nth-child(4){animation-delay:.12s}
+.mh.on button:nth-child(5){animation-delay:.15s}
+@keyframes mhLigne{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+/* Un filet TRÈS pâle : à cette hauteur de ligne, il sépare sans découper. */
+.mh button + button{border-top:1px solid #ece9e4}
+/* ⚠ L'EFFET DE SURVOL (Mag, 11/08/2026 : « mets un effet sur les boutons quand tu
+   passes dessus, un petit effet »). Trois choses infimes qui, ensemble, donnent
+   l'impression que la ligne vient à toi : elle glisse de 3 px vers la droite, le
+   picto grossit un peu, et le fond noir arrive en fondu. Rien qui saute — un menu
+   n'est pas un jeu, il doit juste répondre.
+   ⚠ La transition est sur le BOUTON, pas seulement au survol : sans ça l'effet
+   partirait d'un coup sec quand la souris s'en va. */
+.mh button{transition:background .15s ease,color .15s ease,transform .15s cubic-bezier(.22,1,.36,1)}
+.mh button .ic{transition:transform .15s cubic-bezier(.22,1,.36,1)}
+@media (hover:hover){
+  .mh button:hover{background:var(--noir);color:#f2eee6;transform:translateX(3px)}
+  .mh button:hover .ic{transform:scale(1.14)}
+}
+/* Au doigt, il n'y a pas de survol : on répond à l'appui, en enfonçant la ligne. */
+.mh button:active{background:var(--noir);color:#f2eee6;transform:scale(.98)}
 @media (prefers-reduced-motion:reduce){
   .mh.on,.mh.on button{animation:none}
 }
