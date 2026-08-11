@@ -121,6 +121,36 @@ confirmer une seule fois — à décider avec elle.
 
 ---
 
+## 3. PFO (`pfo-jour` / `pfo-nuit`)
+
+### Déjà dans la base — PFO Jour (7)
+1. Entretien mi-parcours · `reprise`
+2. Créer le rapport (2 jours) · `jour`
+3. Vérifier les nuits d'absence · `jour`
+4. Désencoder les +3 jours d'absence · `jour`
+5. Mettre A VIDER sur la liste étage · `jour`
+6. Mettre A NETTOYER sur la liste étage · `jour`
+7. Vérifier le nombre de LAM · `jour`
+
+### Déjà dans la base — PFO Nuit (3)
+1. Présence · `jour`
+2. Entretien mi-parcours · `reprise`
+3. Vérifier les nuits d'absence (justifié ou non) · `jour`
+
+### À ajouter (dicté le 11/08/2026)
+- **Comparer le nombre de résidents entre la liste étage et Kairos** · `reprise`
+  Ses mots : « en début de 7/7 ». Le rythme `reprise` est fait exactement pour ça —
+  la tâche se pose sur le jour où la personne reprend son cycle, et elle passe en
+  rouge en haut de sa liste ce jour-là (bouton « Je reprends »).
+
+  **🕓 À lui demander : dans quelle liste ?** Jour, nuit, ou les deux ? Le 7/7 est
+  le cycle des PFO, mais l'app a deux listes séparées.
+
+⚠ Rappel du bouton PFO ci-dessous : la liste PFO ne doit contenir que ce que le PFO
+a **en plus** du travailleur social.
+
+---
+
 ## Le bouton PFO (Mag, 11/08/2026)
 
 **Ce qu'elle demande.** Un travailleur social garde SA liste de TS. Le jour où il
