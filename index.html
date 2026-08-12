@@ -1053,7 +1053,14 @@ body.en-apercu #view{animation:none;transform:none}
    l'étage et les chambres du linge, la couleur des sacs. On monte à 10 px, on serre
    l'interlettrage et on fonce le gris : c'est une consigne, pas une légende. */
 .boule em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;
-  line-height:1.35;text-transform:uppercase;color:#5f5e59;text-align:center}
+  line-height:1.35;text-transform:uppercase;color:#5f5e59;text-align:center;
+  /* ⚠ `balance` répartit les mots également entre les deux lignes au lieu de remplir
+     la première et de laisser un orphelin en dessous. C'est ce qui fait la différence
+     entre « 2E ÉTAGE · 201 → / 222 » et deux lignes qui se regardent. */
+  text-wrap:balance}
+/* Le retour à la ligne posé à la place du « · ». Un span vide qui force la coupure :
+   on garde ainsi le texte intact pour la recherche et la lecture à voix haute. */
+.boule em .br{display:block;height:0}
 /* Sur la boule ALLUMÉE, la ligne passe en noir et en gras : c'est celle qu'on lit. */
 .boule:not(.dort) em{color:var(--noir);font-weight:600}
 /* La pile de cartes du quiz */
@@ -9442,7 +9449,11 @@ function vHome(){
      donc, grisée, avec la date du prochain samedi : on sait toujours quand c'est. */
   const prod=produitsJour();
   const dSam=prochaineDistrib();
-  const quandSam=dSam.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
+  /* ⚠ « SAMEDI 5 SEPTEMBRE » PRENAIT TROIS LIGNES (Mag, 12/08/2026 : « tu peux mettre
+     samedi 5 du 9, comme ça c'est fait qu'une ligne — ou alors samedi, et la date en
+     dessous »). C'est sa deuxième proposition : le jour sur la première ligne, la
+     date en chiffres sur la seconde. Le « · » fait la coupure, comme partout ailleurs. */
+  const quandSam=JOURS_L[dSam.getDay()]+' · '+dSam.getDate()+'/'+(dSam.getMonth()+1);
   if(onbGarde('colis')) boules.push(['colis','Produits',(prod?prod.quand:quandSam),'#f5c542','goFiche(/produit/i)', !prod]);
   /* LE RAPPEL DU RACCOURCI (Mag, 07/08/2026 : « de manière aléatoire, je sais pas,
      mais à plusieurs reprises » tant que ce n'est pas fait). Une CARTE sur l'accueil,
@@ -9527,7 +9538,19 @@ function vHome(){
             : ' style="box-shadow:'+(memeQueLeFond?'0 0 0 2px #f0efed,0 0 0 6px '+cAnneau:'0 0 0 4px '+cAnneau)+'"';
         return '<button class="boule'+(dort?' dort':'')+'" onclick="'+b[4]+'">'+
           '<span class="'+rondCl+'"'+anneau+'>'+dedans+'</span>'+
-          '<b>'+esc(b[1])+'</b><em>'+esc(b[2])+'</em></button>';
+          /* ⚠ DEUX LIGNES VOULUES, PAS UN RETOUR SUBI (Mag, 12/08/2026 : « quand tu
+             mets deuxième étage, retour à la ligne 222. Il faut que ce soit bien
+             centré et que ça soit joli. Pour les poubelles c'est la même chose :
+             noir, et à la ligne jeudi soir »).
+             Le texte se coupait où il pouvait — « 2E ÉTAGE · 201 → » sur une ligne,
+             « 222 » toute seule en dessous. C'était laid, et surtout ça cassait
+             l'information en plein milieu.
+             Maintenant le « · » DEVIENT le retour à la ligne : ce qui est à gauche du
+             point tient la première ligne, ce qui est à droite la seconde. Rien
+             d'autre à faire — le point était déjà là, dans toutes les boules. */
+          '<b>'+esc(b[1])+'</b><em>'+
+            String(b[2]||'').split(' · ').map(esc).join('<span class="br"></span>')+
+          '</em></button>';
       }).join('')+'</div>';
     /* ═══ QUAND UNE BOULE MANQUE, L'APP LE DIT (Mag, 10/08/2026 : « il manque les
        pictos sur écran ») ═══
