@@ -9345,8 +9345,16 @@ function vHome(){
        permanence : un vendredi soir, les poubelles déjà parties le matin, elle disait
        encore « Noir » comme si c'était à faire. La couleur ne suffit pas — ce qu'on
        veut savoir, c'est si c'est ce soir ou lundi. */
+    /* ⚠ b[7] = « elle porte encore sa couleur » (Mag, 12/08/2026 : « mets les boutons
+       actifs en premier, TOUJOURS »). La poubelle est la seule boule qui garde son
+       anneau de couleur même quand la sortie n'est pas pour ce soir — c'est voulu,
+       c'est la seule qui annonce un jour précis. Mais le tri, lui, ne regardait que
+       b[5] (« elle dort ») : un mardi, une poubelle à l'anneau magenta se retrouvait
+       DERRIÈRE « Chambres · rien en cours », qui, elle, n'annonce rien du tout.
+       On voyait donc une boule allumée en troisième position — exactement ce qu'elle
+       vient de me montrer. b[7] répare le décalage entre ce qu'on VOIT et l'ordre. */
     boules.push(['poubelle','Poubelles',sacsTexte(col.sacs)+' · '+col.court,
-      (cs==='#242424'?'#f0efed':cs), 'goFiche(/poubelle/i)', !col.urgent, cs]);
+      (cs==='#242424'?'#f0efed':cs), 'goFiche(/poubelle/i)', !col.urgent, cs, true]);
   }
   /* LES PRODUITS, avec le linge, les poubelles et la clé — sa demande du 08/08/2026.
      La boule n'apparaît que quand la distribution est là : un rappel permanent ne
@@ -9379,9 +9387,14 @@ function vHome(){
      le linge et les poubelles pourraient échanger leur place d'un rendu à l'autre
      sans raison visible, et on chercherait sa boule à un endroit différent chaque
      matin. Une liste qui se réordonne toute seule, on cesse de s'y fier. */
+  /* ⚠ « TOUJOURS » (Mag, 12/08/2026). Une boule passe devant si elle réclame quelque
+     chose (b[5] faux) OU si elle porte encore sa couleur (b[7]) : ce sont les deux
+     façons d'être ALLUMÉE À L'ŒIL, et c'est l'œil qu'on suit ici, pas la logique
+     interne. Les éteintes suivent, dans leur ordre d'origine. */
+  const endormie=function(b){ return b[5] && !b[7]; };
   boules = boules
     .map(function(b,i){ return {b:b, i:i}; })
-    .sort(function(x,y){ return (x.b[5]?1:0)-(y.b[5]?1:0) || x.i-y.i; })
+    .sort(function(x,y){ return (endormie(x.b)?1:0)-(endormie(y.b)?1:0) || x.i-y.i; })
     .map(function(o){ return o.b; });
   if(boules.length){
     /* Le compte annonce ce qui RÉCLAME, pas le nombre de ronds dessinés : « 4 choses »
@@ -11747,13 +11760,12 @@ function vReseau(){
 }
 
 /* ---------- rail de catégories ---------- */
-function rail(active){
-  const isTool=DOM[active]&&(DOM[active].method||DOM[active].isFormation||DOM[active].isMail||DOM[active].isDem);
-  const list=DOMAINES.filter(d=>d.key!=='urgences'&&(isTool?(d.method||d.isFormation||d.isMail||d.isDem):d.reseau));
-  return '<div class="rail">'+list.map(d=>
-    '<button class="'+(d.key===active?'on':'')+'" onclick="go(\'#/d/'+d.key+'\')">'+
-    '<span class="ic" style="color:'+(d.key===active?'#f2eee6':dc(d.key))+'">'+icon(d.ic)+'</span>'+esc(d.short)+'</button>').join('')+'</div>';
-}
+/* `rail(active)` — la rangée horizontale des autres domaines — a été SUPPRIMÉE le
+   12/08/2026 (Mag : « retire le slide avec les boutons réseaux », « et ce sur chaque
+   page de réseau »). Elle s'affichait en tête de chaque page de domaine, au-dessus
+   des filtres, et personne n'a demandé à la remettre. Si elle revenait un jour, la
+   chose à ne pas refaire : ne pas empiler deux rangées de boutons qui n'ont pas le
+   même effet — l'une qui change de page, l'autre qui filtre celle où l'on est. */
 
 /* ---------- vue domaine ---------- */
 function chipRow(name,values,activeVal,allLabel){
@@ -12036,7 +12048,7 @@ function vDomaine(key){
     const dems=DEMARCHES.filter(t=>items.some(p=>p.demarche===t));
     const pp=DATA.find(p=>p.domaine==='formations' && /Premiers pas/i.test(p.nom));
     return heroBandeau(d.label, dems.length+' démarches', dc(key), d.ic)+
-      rail(key)+
+      /* Le rail est parti d'ici aussi — « et ce sur chaque page de réseau » (Mag). */
       '<div class="cards" style="display:flex;flex-direction:column">'+dems.map(t=>{
         const n=items.filter(p=>p.demarche===t).length;
         return '<div class="fcard" role="button" tabindex="0" onclick="setFilt(\'dem\',\''+esc(t).replace(/'/g,"\\'")+'\')">'+
@@ -12150,7 +12162,15 @@ function vDomaine(key){
      en visite ou qu'on donne à quelqu'un qui n'a pas l'app. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
     '<div class="imprligne">'+boutonImprimer()+'</div>'+
-    rail(key)+chips+
+    /* ⚠ LE RAIL DES AUTRES DOMAINES A ÉTÉ RETIRÉ (Mag, 12/08/2026 : « retire le slide
+       avec les boutons réseaux »). C'était une rangée horizontale — Médical, Social,
+       Accompagnement, Jeunesse… — posée entre le titre du domaine et les filtres de
+       la page. Deux rangées de boutons l'une sur l'autre, qui ne font pas la même
+       chose : celle du haut CHANGE de domaine, celle du bas FILTRE le domaine où on
+       est. Sur un téléphone, on lit les deux comme un seul jeu de boutons, et le
+       filtre qu'on cherche est celui qu'on ne voit pas. Pour changer de domaine, on
+       revient au Réseau — c'est un geste, et il est clair. */
+    chips+
     '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
     (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
