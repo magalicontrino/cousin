@@ -965,6 +965,9 @@ body.en-apercu #view{animation:none;transform:none}
 .boule{flex:1 1 0;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:8px;background:transparent;border:0;padding:0}
 .boule .rond{width:64px;height:64px;border-radius:50%;background:var(--noir);display:flex;align-items:center;justify-content:center}
 .boule .rond .ic{width:30px;height:30px}
+/* Les bacs du jour, alignés dans le rond : un par sac (Mag, 12/08/2026). Ils sont
+   serrés — trois bacs doivent tenir dans les 48 px que laisse l'anneau fuchsia. */
+.sacspic{display:flex;align-items:center;justify-content:center;gap:2px;line-height:0}
 /* Ce qui n'a rien à faire aujourd'hui : plus de rond noir, un trait fin et un picto
    gris. Ça reste cliquable et lisible, mais ça ne réclame plus le regard
    (idée de Mag, 08/08/2026 : « griser un peu ceux qui sont inactifs »). */
@@ -3119,10 +3122,26 @@ body.no-tabs #tabbar{display:none}
     font-weight:500; cursor:pointer}
   .jx-vrai{background:#c9e7d5; color:#1f5c38}
   .jx-faux{background:#f3b4ad; color:#8a2318}
+  /* Après la réponse, les deux boutons restent et se lisent (Mag, 12/08/2026).
+     Celui qu'on n'a pas touché s'efface : ce qui reste net, c'est son propre geste
+     et la bonne réponse. */
+  .jx-vf.fige button{display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:16px 8px; opacity:.42; cursor:default}
+  .jx-vf.fige button.choisie,.jx-vf.fige button.bonne{opacity:1}
+  .jx-vf.fige button.choisie{box-shadow:0 0 0 3px #1b1b1b}
+  .jx-vf.fige em{font-style:normal; font-family:ui-monospace,monospace; font-size:9.5px;
+    font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    background:#1b1b1b; color:#f2eee6; border-radius:99px; padding:3px 8px}
+  .jx-vf.fige i{font-style:normal; font-family:ui-monospace,monospace; font-size:9.5px;
+    font-weight:700; letter-spacing:.1em; text-transform:uppercase; opacity:.75}
   /* Progression */
   .eq-carte{background:#1b1b1b; color:#f2eee6; border-radius:20px; padding:26px 18px; text-align:center; margin-bottom:12px}
   .eq-gros{font-size:64px; font-weight:900; line-height:1; color:#f5c542; letter-spacing:-.03em}
   .eq-sous{font-size:13.5px; font-weight:500; color:#c3bcae; margin-top:8px}
+  /* Pas de chiffre d'équipe à montrer : l'invitation prend la place, sans explication
+     (Mag, 12/08/2026 — « juste l'essentiel »). */
+  .eq-pousse b{display:block; font-size:26px; font-weight:800; letter-spacing:-.02em; color:#f5c542}
+  .eq-pousse p{font-size:13.5px; font-weight:500; color:#c3bcae; margin-top:8px; line-height:1.45}
   .pourq{font-size:12.5px; color:var(--enc2); font-weight:400; line-height:1.5; margin:12px 2px 0}
   .jx-prog{background:#fdfdfc; border:1px solid var(--ligne); border-radius:18px; padding:14px 15px; margin-top:12px}
   .jx-prog h4{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--enc2); margin:0 0 11px}
@@ -6605,9 +6624,14 @@ const POUB_COUL={noire:'#242424',jaune:'#f5c518',bleue:'#2f6fed'};
 function prochaineCollecte(){
   const now=new Date(), d=now.getDay();
   /* Le matin même : les sacs sont déjà dehors, on vérifie, le camion passe avant midi. */
+  /* ⚠ SOUS LA BOULE, JUSTE LE JOUR (Mag, 12/08/2026 : « au lieu de mettre dehors ce
+     matin, mets juste le jour où la poubelle passe »). « Dehors ce matin » décrivait
+     un état, pas un repère : on ne savait pas quel jour on était en train de lire.
+     La phrase complète, elle, reste sur la grande carte du bas — c'est là qu'il y a
+     la place de dire le passage avant midi. */
   if(POUBELLES[d] && now.getHours()<12)
     return {sacs:POUBELLES[d], quand:'dehors ce matin, passage avant midi',
-            court:'dehors ce matin', urgent:true};
+            court:JOURS[d].toLowerCase(), urgent:true};
   for(let i=1;i<=7;i++){
     const j=(d+i)%7;
     if(POUBELLES[j]){
@@ -6666,6 +6690,27 @@ function pictoPoubelle(bac,reserve,taille){
   return '<svg viewBox="0 0 15.22 18.339" width="'+(taille||30)+'" height="'+h+'" '+
     'style="flex:none;display:inline-block;vertical-align:middle" aria-hidden="true">'+
     POUB_TRACES.split('%B%').join(bac||'#1D1C1D').split('%R%').join(reserve||'#ffffff')+'</svg>';
+}
+/* ═══ AUTANT DE PETITES POUBELLES QUE DE SACS (Mag, 12/08/2026) ═══
+   « Quand il y a trois poubelles, mets trois petites poubelles dans le picto ;
+   quand il n'y en a qu'une, une seule. »
+
+   La boule dessinait TOUJOURS un seul bac, à la couleur du premier sac, et les
+   couleurs se lisaient en toutes lettres dessous — « Noir · Jaune · Bleu · dehors
+   ce matin », quatre lignes de texte sous un rond de 64 px. Le mercredi ressemblait
+   donc au lundi tant qu'on n'avait pas lu la légende.
+
+   Maintenant le nombre se COMPTE au lieu de se lire : un bac par sac, chacun à sa
+   couleur. Le noir passe en crème — un bac noir sur le rond noir n'existerait pas.
+   Le texte des couleurs peut alors disparaître : le dessin le dit déjà. */
+function pictoSacs(sacs,large){
+  const n=(sacs&&sacs.length)||1;
+  /* Le rond noir fait 64 px, moins 8 px d'anneau de chaque côté : 48 px pour tout
+     mettre. Trois bacs de 14 px avec leurs 2 px d'air tiennent dans 46. */
+  const t=large||(n>=3?14:n===2?20:30);
+  return '<span class="sacspic">'+sacs.map(function(s){
+    return pictoPoubelle(s.c==='noire'?'#f0efed':POUB_COUL[s.c],'#1b1b1b',t);
+  }).join('')+'</span>';
 }
 const POUB_NOM={noire:'Noir',jaune:'Jaune',bleue:'Bleu'};
 function sacsTexte(sacs){return sacs.map(x=>POUB_NOM[x.c]||x.l).join(' · ')}
@@ -8626,7 +8671,31 @@ function itiHref(adr){return 'https://www.google.com/maps/dir/?api=1&origin='+en
 /* ---------- navigation ---------- */
 let current={view:'home'};
 let scrollMem={};
-function go(hash){location.hash=hash}
+/* ═══ ON ARRIVE TOUJOURS EN HAUT D'UN ÉCRAN (Mag, 12/08/2026) ═══
+   « Chaque fois que je clique, ça ne commence pas en haut de page. C'est énervant
+   parce qu'on ne voit pas le début, on ne sait pas où on est. »
+
+   `scrollMem` retient la hauteur de défilement de chaque écran, pour qu'un RETOUR
+   retombe là où on avait laissé la liste. C'était juste — mais c'était appliqué à
+   TOUTES les arrivées, y compris quand on ouvre un écran depuis un bouton. On
+   atterrissait donc à la hauteur de la fois précédente : les jeux commençaient à la
+   troisième carte, le quiz au milieu d'une question. Sans le titre, on ne sait plus
+   sur quelle page on est — c'est exactement ce qu'elle décrit.
+
+   La règle est maintenant celle du sens de marche :
+     · on CLIQUE quelque part (`go`) → c'est une arrivée, on est en haut ;
+     · on fait RETOUR (bouton du navigateur, geste de côté) → c'est un retour, on
+       retrouve sa place dans la liste qu'on avait quittée.
+   `NAV_CLIC` distingue les deux : `go()` le lève, le `hashchange` le consomme. Un
+   `hashchange` qui arrive sans lui ne peut venir que de l'historique.
+
+   ⚠ ET ON COUPE LA RESTAURATION DU NAVIGATEUR (`scrollRestoration='manual'`) :
+   Chrome repositionne lui-même la page sur une navigation de hash, APRÈS notre
+   `scrollTo`. Tant qu'il gardait la main, il défaisait la correction sans rien dire —
+   c'est la raison pour laquelle le problème revenait par endroits. */
+let NAV_CLIC=false;
+try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
+function go(hash){ NAV_CLIC=true; location.hash=hash; }
 function parseRoute(){
   const h=decodeURIComponent(location.hash.replace(/^#\/?/,''));
   if(!h) return {view:'home'};
@@ -8666,8 +8735,14 @@ function parseRoute(){
 }
 window.addEventListener('hashchange',()=>{
   scrollMem[keyOf(current)]=window.scrollY;
+  const parClic=NAV_CLIC; NAV_CLIC=false;
   current=parseRoute(); render();
-  window.scrollTo(0,scrollMem[keyOf(current)]||0);
+  /* Arrivée par un clic : en haut, toujours. Retour par l'historique : à sa place. */
+  window.scrollTo(0, parClic ? 0 : (scrollMem[keyOf(current)]||0));
+  /* ⚠ ET UNE SECONDE FOIS AU RENDU SUIVANT. Le rendu peut encore grandir juste
+     après (polices, images, cartes qui se déplient) et le navigateur en profite pour
+     replacer la page. Un `scrollTo` unique se faisait annuler une fois sur trois. */
+  if(parClic) requestAnimationFrame(function(){ window.scrollTo(0,0); });
   /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
      montrait l'état du monde au moment de son ouverture — et une collègue qui
      désencodait une chambre restait invisible pendant des heures. Défini plus bas :
@@ -9329,7 +9404,12 @@ function vHome(){
        permanence : un vendredi soir, les poubelles déjà parties le matin, elle disait
        encore « Noir » comme si c'était à faire. La couleur ne suffit pas — ce qu'on
        veut savoir, c'est si c'est ce soir ou lundi. */
-    boules.push(['poubelle','Poubelles',sacsTexte(col.sacs)+' · '+col.court,
+    /* ⚠ LES COULEURS NE SONT PLUS ÉCRITES (Mag, 12/08/2026 : « le texte est trop
+       long »). Elles étaient dites deux fois — une fois par le picto, une fois en
+       toutes lettres — et la légende débordait sur quatre lignes. Le picto dessine
+       maintenant un bac par sac, à sa couleur : il ne reste sous la boule que le
+       jour, qui est le seul mot qu'on ne peut pas dessiner. */
+    boules.push(['poubelle','Poubelles',col.court,
       (cs==='#242424'?'#f0efed':cs), 'goFiche(/poubelle/i)', !col.urgent, cs]);
   }
   /* LES PRODUITS, avec le linge, les poubelles et la clé — sa demande du 08/08/2026.
@@ -9376,7 +9456,7 @@ function vHome(){
       '<div class="boules">'+boules.map(function(b){
         /* Le bac de Mag garde son recyclage : ici il se creuse à la couleur du rond noir. */
         const dedans=(b[0]==='poubelle')
-          ? pictoPoubelle(b[3],'#1b1b1b',30)
+          ? pictoSacs(col.sacs)
           : (b[3]?'<span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span>':b[0]);
         /* L'ANNEAU DE COULEUR — choix « 2 » de Mag, 08/08/2026. Ses pictos et ses ronds
            noirs ne bougent pas : on ajoute juste un anneau à la couleur du jour autour,
@@ -12777,11 +12857,19 @@ function quizVocabulaire(){
   const bons=LEXIQUE.filter(function(x){ return x && x.m && x.c; });
   if(bons.length<4) return [];
   return bons.map(function(x){
-    const leurres=[];
-    for(let k=1; leurres.length<3 && k<bons.length; k++){
-      const y=bons[(bons.indexOf(x)+k)%bons.length];
-      if(y.c!==x.c && leurres.indexOf(y.c)<0) leurres.push(y.c);
-    }
+    /* ⚠ LES LEURRES NE SONT PLUS LES MOTS VOISINS (12/08/2026, après le « Housing
+       First » signalé par Mag). On prenait les trois entrées SUIVANTES du lexique —
+       or un lexique est rangé par thème : juste après « Housing First » viennent
+       « Maraude », « Asile de nuit » et « Maison d'accueil ». Les leurres étaient
+       donc, par construction, les définitions les plus proches de la bonne, au point
+       d'être défendables : « un hébergement où l'on reste, avec un accompagnement
+       social » n'a rien de faux pour du Housing First, et l'app le barrait en rouge.
+       Tirés au hasard dans tout le lexique, les leurres redeviennent ce qu'ils
+       doivent être : de vraies définitions, mais d'autre chose. */
+    const leurres=qShuffle(bons.filter(function(y){ return y.c!==x.c; }))
+      .map(function(y){ return y.c; })
+      .filter(function(c,i,t){ return t.indexOf(c)===i; })
+      .slice(0,3);
     if(leurres.length<3) return null;
     const opts=qShuffle([x.c].concat(leurres));
     return { q:'Que veut dire « '+x.m+' » ?', opts:opts, correct:opts.indexOf(x.c),
@@ -12798,10 +12886,31 @@ function jxQuestions(ter, n){
 }
 
 /* ── Lancer une partie ─────────────────────────────────────────────── */
+/* ═══ UNE PARTIE COMMENCE EN HAUT DE LA PAGE (Mag, 12/08/2026) ═══
+   « Quand j'ai cliqué sur Rattrapage, la page n'était pas tout en haut. »
+
+   Deux causes, et il fallait les deux :
+
+   1. LA MÉMOIRE DE DÉFILEMENT. `scrollMem` retient où on en était sur chaque écran
+      pour qu'un retour arrière retombe au bon endroit — très bien pour une liste,
+      absurde pour une partie : on rouvrait le quiz à la hauteur où on l'avait quitté
+      la fois d'avant, c'est-à-dire au milieu d'une question qui n'existe plus. Une
+      nouvelle partie n'a pas de passé : on remet la mémoire du quiz à zéro.
+
+   2. LE HASH QUI NE CHANGE PAS. Depuis l'écran de fin ou le rattrapage, on est DÉJÀ
+      sur #/quiz : `location.hash='#/quiz'` ne déclenche alors aucun `hashchange`,
+      donc ni rendu ni remontée. La partie suivante s'affichait à la faveur d'un
+      autre rendu, à la hauteur d'avant. On redessine et on remonte à la main. */
+function jxAller(){
+  scrollMem['quiz']=0;
+  const dejaLa = current && current.view==='quiz';
+  go('#/quiz');
+  if(dejaLa){ render(); jxHaut(); }
+}
 function jxJouer(k, ter){
   const type = k || JXCHOIX.jeu, terrain = ter || JXCHOIX.terrain;
   jxStop();
-  if(type==='equipe'){ JEU={type:'equipe',terrain:terrain||{t:'tout'},equipe:null}; go('#/quiz'); jxLireEquipe(); return; }
+  if(type==='equipe'){ JEU={type:'equipe',terrain:terrain||{t:'tout'},equipe:null}; jxAller(); jxLireEquipe(); return; }
   if(type==='rat'){
     /* ⚠ ON NE PART JAMAIS AVEC UN PAQUET VIDE (09/08/2026). Avant, on ouvrait la
        page quoi qu'il arrive : avec zéro question elle ne montrait rien, et le
@@ -12817,20 +12926,20 @@ function jxJouer(k, ter){
       return;
     }
     JEU={type:'rat',terrain:{t:'rat'},qs:p,i:0,score:0,answered:false,picked:-1,journal:[]};
-    go('#/quiz'); return;
+    jxAller(); return;
   }
-  if(type==='roue'){ JEU={type,terrain,phase:'roue',angle:0,tourne:false}; go('#/quiz'); return; }
-  if(type==='qui'){ JEU={type,terrain,items:jxQuiItems(terrain,12),i:0,niveau:1,score:0,answered:false,picked:-1}; go('#/quiz'); return; }
-  if(type==='vf'){ JEU={type,terrain,items:jxVfItems(terrain,14),i:0,score:0,answered:false,picked:null}; go('#/quiz'); return; }
-  if(type==='jour'){ JEU={type,terrain:{t:'tout'},q:jxQuestionDuJour(),answered:!!jxJourFait(),picked:-1}; go('#/quiz'); return; }
-  if(type==='flip'){ JEU={type,terrain,qs:jxQuestions(terrain,20),i:0,retourne:false}; go('#/quiz'); return; }
+  if(type==='roue'){ JEU={type,terrain,phase:'roue',angle:0,tourne:false}; jxAller(); return; }
+  if(type==='qui'){ JEU={type,terrain,items:jxQuiItems(terrain,12),i:0,niveau:1,score:0,answered:false,picked:-1}; jxAller(); return; }
+  if(type==='vf'){ JEU={type,terrain,items:jxVfItems(terrain,14),i:0,score:0,answered:false,picked:null}; jxAller(); return; }
+  if(type==='jour'){ JEU={type,terrain:{t:'tout'},q:jxQuestionDuJour(),answered:!!jxJourFait(),picked:-1}; jxAller(); return; }
+  if(type==='flip'){ JEU={type,terrain,qs:jxQuestions(terrain,20),i:0,retourne:false}; jxAller(); return; }
   /* `recAvant` = le record AVANT cette partie. On le met de côté au départ parce
      que jxRecord() l'écrase dès qu'on fait mieux : sans ça, l'écran de fin
      annoncerait toujours un record égal au score du jour. */
-  if(type==='serie'){ JEU={type,terrain,qs:jxQuestions(terrain,40),i:0,serie:0,answered:false,picked:-1,fini:false,recAvant:(JXS.rec&&JXS.rec.serie)||0}; go('#/quiz'); return; }
+  if(type==='serie'){ JEU={type,terrain,qs:jxQuestions(terrain,40),i:0,serie:0,answered:false,picked:-1,fini:false,recAvant:(JXS.rec&&JXS.rec.serie)||0}; jxAller(); return; }
   if(type==='chrono'){
     JEU={type,terrain,qs:jxQuestions(terrain,60),i:0,score:0,answered:false,picked:-1,reste:60,fini:false,recAvant:(JXS.rec&&JXS.rec.chrono)||0};
-    go('#/quiz');
+    jxAller();
     jxChronoTic();
     return;
   }
@@ -12838,7 +12947,7 @@ function jxJouer(k, ter){
   /* DIX QUESTIONS PAR PARTIE (choix de Mag, 08/08/2026). Personne n'allait au bout
      de soixante ; et le rattrapage marche mieux sur des parties courtes et refaites. */
   JEU={type:'quiz',terrain,qs:jxQuestions(terrain,10),i:0,score:0,answered:false,picked:-1};
-  go('#/quiz');
+  jxAller();
 }
 function jxDe(){
   const j=JEUX.filter(x=>x.k!=='equipe'), tous=DOMAINES.filter(d=>d.reseau);
@@ -12998,7 +13107,17 @@ function jxSuivante(){
   if(JEU.qs && JEU.i>=JEU.qs.length && JEU.type==='serie'){ JEU.qs=JEU.qs.concat(jxQuestions(JEU.terrain,30)); }
   /* Le chrono reprend là où il s'était arrêté : le temps de lecture n'est pas compté. */
   if(JEU.type==='chrono' && !JEU.fini) jxChronoTic();
-  render();
+  render(); jxHaut();
+}
+/* ⚠ UNE QUESTION SUIVANTE EST UNE ARRIVÉE, ELLE AUSSI (Mag, 12/08/2026 : « je suis
+   là aussi quand je suis dans le jeu, j'arrive là, je n'arrive pas en haut »).
+   Ces écrans-là ne changent pas de hash — c'est le même #/quiz du début à la fin de
+   la partie — donc la remontée du routeur ne les concernait pas. On restait à la
+   hauteur de la correction précédente, qui est basse : la question suivante
+   s'affichait au-dessus de l'écran, hors de vue. */
+function jxHaut(){
+  window.scrollTo(0,0);
+  requestAnimationFrame(function(){ window.scrollTo(0,0); });
 }
 /* Les deux flèches en rond du bandeau. Dessinées ici plutôt que prises dans les
    pictos : aucun n'exprimait « retourner », et celui-ci doit se lire à 15 px. */
@@ -13049,7 +13168,7 @@ function jxRepVf(rep){
   if(juste) JEU.score++;
   jxNote(it.src, juste); jxVu(vfNormalise(it), rep?0:1, juste); render();
 }
-function jxSuivanteItem(){ if(!JEU) return; JEU.i++; JEU.answered=false; JEU.picked=null; JEU.niveau=1; render(); }
+function jxSuivanteItem(){ if(!JEU) return; JEU.i++; JEU.answered=false; JEU.picked=null; JEU.niveau=1; render(); jxHaut(); }
 function jxRepJour(i){
   if(!JEU || JEU.answered || !JEU.q) return;
   const juste = i===JEU.q.correct;
@@ -13441,8 +13560,32 @@ function jxJeuHTML(){
     const e=JEU.equipe;
     let bloc;
     if(e===null) bloc = `<div class="jx-vide">Je compte…</div>`;
-    else if(e==='hors-ligne') bloc = `<div class="jx-vide">Hors ligne — je ne peux pas lire le compteur de l'équipe. Le tien est juste en dessous.</div>`;
-    else if(e==='absente') bloc = `<div class="jx-vide">Le compteur partagé n'est pas encore branché : il attend une table dans la base. En attendant, voilà le tien.</div>`;
+    /* ═══ PAS DE CHIFFRE ? ALORS ON DONNE UNE RAISON DE JOUER (Mag, 12/08/2026) ═══
+       « Ici c'est marqué hors ligne, je peux pas voir le jeu de l'équipe. Si tu sais
+       pas le voir, ne le mets pas. Fais plutôt un message pour motiver l'équipe,
+       genre "joue en équipe" pour avoir des points, et aussi pourquoi on ne voit pas
+       le jeu de l'équipe. »
+
+       « Hors ligne — je ne peux pas lire le compteur » était un message d'ERREUR posé
+       à la place du contenu : la plus grande carte de l'écran ne disait que ce qui ne
+       marchait pas, et rien de ce qu'on venait y chercher. Or il n'y a rien de cassé
+       à réparer côté téléphone — le compteur commun n'est simplement pas encore
+       branché à la base. Un état d'attente n'est pas une panne, et surtout il ne
+       justifie pas de vider l'écran.
+
+       ⚠ ET PAS D'EXPLICATION À LA PLACE (sa correction, dans la foulée) : « je ne veux
+       pas qu'il y ait à chaque fois des trucs explicatifs, je veux juste l'essentiel,
+       sinon ça fait trop de détails et trop d'informations. » Un paragraphe qui
+       raconte pourquoi la base n'est pas branchée est un problème de développeur
+       affiché à quelqu'un qui voulait jouer. La carte ne garde donc que l'essentiel :
+       l'invitation, et ce qu'elle rapporte. Les deux états — « hors-ligne » faute de
+       réseau, « absente » faute de table — n'ont aucune raison de se distinguer aux
+       yeux de qui joue : dans les deux cas il n'y a pas de chiffre commun à montrer,
+       et dans les deux cas les points comptent quand même. */
+    else if(e==='hors-ligne' || e==='absente') bloc = `<div class="eq-pousse">
+        <b>Joue en équipe</b>
+        <p>Chaque bonne réponse ajoute un point au compteur commun.</p>
+      </div>`;
     else bloc = `<div class="eq-gros">${e.justes}</div>
       <div class="eq-sous">bonne${e.justes>1?'s':''} réponse${e.justes>1?'s':''} cette semaine, à ${e.gens>1?e.gens+' ':''}${e.gens>1?'':'une personne'}${e.gens>1?'personnes':''}</div>`;
     return `<div class="pf-wrap">
@@ -13557,7 +13700,22 @@ function jxJeuHTML(){
     return `<div class="pf-wrap">${jxTete('vf','Question '+(JEU.i+1)+' sur '+JEU.items.length+' · '+JEU.score+' point'+(JEU.score>1?'s':''))}
       <div class="quiz-q">${esc(it.phrase)}</div>
       ${JEU.answered
-        ? `<div class="quiz-corr" style="border-left:4px solid ${juste?'#6cb392':'#e63329'}"><b>${juste?'Bien vu !':'Raté'}</b><br>${it.vrai?'C’était vrai.':'C’était faux — en réalité : '+esc(it.vraie)}</div>
+        /* ═══ ON RELIT SA PROPRE RÉPONSE (Mag, 12/08/2026) ═══
+           « Si j'ai cliqué un peu au hasard et qu'après j'arrive sur la réponse, je ne
+           sais plus si j'avais marqué vrai ou faux. »
+
+           L'écran ne disait que le résultat — « Bien vu ! » ou « Raté » — et le verdict
+           sans la réponse ne veut rien dire : on ne sait plus de quoi on est félicité.
+           Les deux boutons RESTENT donc à l'écran, à leur place, et se marquent :
+           celui qu'on a touché porte « TA RÉPONSE », celui qui était juste porte une
+           coche. On retrouve son geste là où on l'a fait, pas dans une phrase. */
+        ? `<div class="jx-vf fige">
+             <button class="jx-vrai${it.vrai?' bonne':''}${JEU.picked===true?' choisie':''}" disabled>
+               <span>✓ Vrai</span>${JEU.picked===true?'<em>Ta réponse</em>':''}${it.vrai?'<i>La bonne</i>':''}</button>
+             <button class="jx-faux${!it.vrai?' bonne':''}${JEU.picked===false?' choisie':''}" disabled>
+               <span>✕ Faux</span>${JEU.picked===false?'<em>Ta réponse</em>':''}${!it.vrai?'<i>La bonne</i>':''}</button>
+           </div>
+           <div class="quiz-corr" style="border-left:4px solid ${juste?'#6cb392':'#e63329'}"><b>${juste?'Bien vu !':'Raté'}</b><br>Tu as répondu <b>${JEU.picked===true?'VRAI':'FAUX'}</b> — la phrase était <b>${it.vrai?'VRAIE':'FAUSSE'}</b>.${it.vrai?'':'<br>En réalité : '+esc(it.vraie)}</div>
            ${quizCorrection({src:it.src, opts:[it.vraie], correct:0, juste:juste})}
            <button class="quiz-next" onclick="jxSuivanteItem()">Suivant</button>${jxRetourHub()}`
         : `<div class="jx-vf"><button class="jx-vrai" onclick="jxRepVf(true)">✓ Vrai</button><button class="jx-faux" onclick="jxRepVf(false)">✕ Faux</button></div>`}
@@ -14534,8 +14692,20 @@ const LEXIQUE=[
   d:"Le mot vient du médical et il s'emploie beaucoup à l'oral : « il n'est pas compliant ».\n\n⚠ IL DIT CE QU'ON CONSTATE, JAMAIS POURQUOI. Chez nous, ne pas prendre son traitement tient presque toujours aux conditions de vie, pas à la volonté : pas de frigo pour l'insuline, rien pour avaler les comprimés, un traitement volé ou perdu, des horaires impossibles quand on est dehors toute la journée, une notice qu'on ne sait pas lire, ou des effets secondaires qu'on n'a pas osé dire.\n\n« Non compliant » écrit dans un dossier suit la personne longtemps, et se lit comme un reproche là où il n'y a qu'un obstacle. On dit plutôt OBSERVANCE ou ADHÉSION — et surtout, on cherche l'obstacle avant d'écrire le mot."},
  {m:"Réduction des risques", c:"Réduire les dommages sans exiger l'arrêt de la consommation.",
   d:"Matériel stérile, information, testing. Ça ne remplace pas un sevrage : ça garde la personne en vie et en lien."},
- {m:"Housing First", c:"On donne d'abord un logement, sans condition préalable.",
-  d:"Le contraire de l'escalier classique où il fallait « mériter » le logement en réglant d'abord le reste."},
+ /* ⚠ RÉÉCRIT LE 12/08/2026 (Mag : « là en fait c'est faux — on ne te demande pas une
+    traduction en anglais, on te demande de regarder dans les réseaux »).
+    La question tombait sur « On donne d'abord un logement, sans condition préalable »
+    contre « Un hébergement où l'on reste, avec un accompagnement social » (maison
+    d'accueil) — et cette seconde réponse était marquée FAUSSE alors qu'elle n'a rien
+    de faux pour le Housing First : c'est bien un logement ACCOMPAGNÉ, et on y reste.
+    Une question dont la mauvaise réponse est vraie apprend quelque chose de faux.
+    La définition dit donc maintenant ce qui distingue VRAIMENT les deux — un logement
+    À SOI contre un hébergement en établissement — et l'explication renvoie aux
+    opérateurs du réseau, là où se trouve la vraie réponse.
+    Contenu repris de la fiche « Housing First à Bruxelles — les 5 opérateurs » du
+    domaine Logement, relevée sur smes.be et housingfirstbelgium.be le 11/08/2026. */
+ {m:"Housing First", c:"Un logement à soi d'abord, sans condition préalable — l'accompagnement suit, à domicile.",
+  d:"⚠ IL N'Y A RIEN À TRADUIRE : ce n'est pas un mot de vocabulaire, c'est une FAÇON DE FAIRE, et elle a des noms dans le réseau. À Bruxelles elle est portée par des opérateurs — voir la fiche « Housing First à Bruxelles — les 5 opérateurs » dans Logement. Ce n'est pas une porte où l'on frappe : on passe par l'un d'eux, pas par un guichet central.\n\n⚠ CE QUI LE DISTINGUE, CE N'EST PAS L'ACCOMPAGNEMENT. Il y en a un, et il est intensif : ce sont bien des logements accompagnés. Ce qui change, c'est L'ORDRE. On ne demande pas à la personne d'avoir arrêté de boire, de consommer, ou d'être « prête » pour mériter un toit — le logement vient en premier, le reste se travaille depuis là. C'est le contraire de l'escalier classique.\n\nÀ NE PAS CONFONDRE AVEC UNE MAISON D'ACCUEIL : là, on est hébergé dans un établissement agréé ; ici, on a son propre logement.\n\nLe maintien en logement à Bruxelles est proche de 90 % — c'est ce chiffre qui a convaincu.\n\nSource : la fiche du réseau, relevée sur smes.be et housingfirstbelgium.be le 11/08/2026."},
  {m:"Maraude", c:"Une équipe qui va vers les gens dans la rue, plutôt que de les attendre.",
   d:"Travail de rue. DIOGENES en fait, Infirmiers de rue aussi."},
  {m:"Asile de nuit", c:"Un abri pour la nuit, sans condition, à reprendre chaque soir.",
