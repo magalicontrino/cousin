@@ -102,18 +102,45 @@ C'est le point de départ : ne pas redicter ce qui est déjà là.
 
 ## ⚠ Ce que la lecture fait apparaître — 4 points à trancher avec elle
 
-1. **« Entretien mi-parcours » est dans CINQ listes** (PFO jour, PFO nuit, médical-rez,
-   médical-2e, médical-nuit), toujours en `reprise`. Est-ce la même chose partout ?
-   Si oui c'est une ligne commune à tout le monde, et il faut décider une bonne fois
-   qui la porte — pas la recopier dans chaque liste qu'on écrira.
+1. **« Entretien mi-parcours » — ✅ RÉPONDU le 13/08/2026.** Ses mots : « c'est **tous
+   les travailleurs sociaux et tous les médicaux**. Pour ce qui est des PFO aussi. »
+
+   **Donc SEPT listes la portent** : `ts`, les trois `médical-*`, `médical`, et les
+   deux `pfo-*`. Aujourd'hui elle est dans cinq — et **elle manque chez les TS**,
+   alors qu'ils y ont droit.
+
+   ⚠ **C'est exactement le piège des doublons du catalogue** : sept copies de la même
+   phrase, et le jour où on change le mot, il faut penser aux sept. Deux façons :
+   - **① La recopier dans les sept listes.** Rien à coder, on pose sept lignes. Mais
+     sept endroits à corriger le jour où ça bouge, et rien ne garantit qu'elles
+     resteront identiques (c'est ce qui est arrivé à la Croix-Rouge).
+   - **② Une ligne « pour tout le monde », écrite UNE fois.** Une liste `tous` dans la
+     base, dont les tâches viennent s'ajouter en haut de la liste de chacun. Une
+     ligne dans la base, une seule à corriger, et personne ne peut la rater. Il faut
+     coder l'ajout — c'est petit.
+     **Ma suggestion : ②.** Et cette liste `tous` servira sûrement à autre chose
+     ensuite (les consignes qui valent pour toute la maison).
+   🕓 **En attente de son numéro.**
+
+   ✅ **Et le bouton PFO est reconfirmé** (13/08) : « un PFO peut être un autre PFO le
+   lendemain, donc il faut pouvoir se mettre PFO pour avoir la liste adéquate. »
+   Voir la section « Le bouton PFO » plus bas.
 
 2. **Deux listes n'ont QUE cette ligne** : `médical-rez` et `médical-nuit`. Elles sont
    donc vides en pratique. Un infirmier de nuit qui ouvre sa liste voit une seule
    tâche, qui n'est pas de son service — il n'ouvrira plus.
 
-3. **Le nom et la clé se contredisent chez les aide-soignants** : la clé est
-   `aide-soignant-soir`, l'étiquette affichée est « Aide-soignants — **Jour** ».
-   L'un des deux ment. À trancher avant d'écrire quoi que ce soit dedans.
+3. **Les aide-soignants — ✅ RÉPONDU le 13/08/2026** : « l'équipe **du matin** et
+   l'équipe **de jour** ». Donc **l'étiquette affichée est la bonne**, et il n'y a
+   pas d'équipe du soir.
+   ⚠ **C'est la CLÉ qui trompe** : elle s'appelle `aide-soignant-soir` alors que la
+   liste est celle du **jour**. Personne ne voit la clé à l'écran — mais celui qui
+   ouvrira la base dans six mois lira « soir » et croira à une équipe qui n'existe
+   pas. **Ne pas la renommer à la légère** : la clé est recopiée dans
+   `allowed_emails.listes` de chaque personne, et la renommer sans mettre à jour ces
+   lignes ferait disparaître la liste de tout le monde d'un coup. Soit on la laisse
+   avec un commentaire, soit on la renomme **et** on met à jour les accès dans la
+   même opération. 🕓 À décider quand on posera tout.
 
 4. **Deux lignes disent la même chose chez Polyvalent — Jour** : la 6 (« Contrôler le
    retour du matériel avant départ — talkies, clés voitures, clés coordi… ») et la 7
@@ -213,7 +240,45 @@ confirmer une seule fois — à décider avec elle.
 
 ---
 
-## 3. PFO (`pfo-jour` / `pfo-nuit`)
+## 3. Médical (`médical` · `médical-rez` · `médical-2e` · `médical-nuit`)
+
+### ✅ LA STRUCTURE, dictée le 13/08/2026
+« Pour les médicaux, il y a **deux étages**. Et au **rez-de-chaussée, il n'y a que
+l'équipe du jour**. Au **deuxième étage, il y a l'équipe du jour ET de la nuit**. »
+
+Donc trois services, pas quatre :
+
+| Où | Jour | Nuit |
+|---|---|---|
+| **Rez-de-chaussée** | ✅ | — *il n'y a personne* |
+| **2e étage** | ✅ | ✅ |
+
+**⚠ CE QUE ÇA CORRIGE.** La liste s'appelle aujourd'hui « **Médical — Nuit** », comme
+s'il y avait une nuit partout. Il n'y en a qu'une, et elle est **au 2e étage**.
+→ Proposé : la renommer « **Médical — 2e étage · Nuit** », en face de « Médical — 2e
+étage · Jour ». La clé `médical-nuit` peut rester telle quelle (personne ne la voit),
+c'est l'étiquette qui compte.
+Sans ça, un infirmier du rez cherche sa liste de nuit — et elle n'existe pas.
+🕓 **À confirmer par elle.**
+
+### Ce qu'il y a aujourd'hui
+- **Médical — toutes** (2) : Pharmacie · Encoder les transports
+- **Rez · Jour** (1) : *rien que* l'entretien mi-parcours
+- **2e · Jour** (3) : demander les PM / TTT manquants · entretien mi-parcours ·
+  vérifier les réquisitoires le week-end pour la semaine (`semaine`)
+- **Nuit** (1) : *rien que* l'entretien mi-parcours
+
+→ Deux des trois services n'ont **aucune tâche à eux**.
+
+### 🕓 À dicter — ce qu'il reste à savoir
+- **Rez · Jour** : que fait l'équipe du rez, dans l'ordre de la journée ?
+- **2e · Nuit** : que fait l'infirmier de nuit ? (c'est le plus vide de tous)
+- **Médical — toutes** : « Pharmacie » et « Encoder les transports » — est-ce que ça
+  vaut pour les trois services, ou est-ce que c'est du rez ?
+
+---
+
+## 4. PFO (`pfo-jour` / `pfo-nuit`)
 
 ### Déjà dans la base — PFO Jour (7)
 1. Entretien mi-parcours · `reprise`
