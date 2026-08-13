@@ -462,8 +462,30 @@ dans un mois ».
 *(Vérifié au passage : Charlotte Dorval (psychologue) et Charlotte Doyen (travailleuse
 sociale) sont bien **deux personnes différentes**, pas un doublon.)*
 - **Éducateurs (4)** : Imed Kenzari · Gaith Boubes · Ellie Moreaux · Mathilde Lona
-- **Polyvalents (3)** : Nordine Azeroual · Younes Armarchouh → jour ou nuit ?
-  (Anisse Assihout a déjà `polyvalent-jour`)
+#### Polyvalents — dicté le 13/08/2026
+
+| Personne | Dicté | Liste |
+|---|---|---|
+| Anisse Assihout | *(déjà en base)* | `polyvalent-jour` |
+| Nordine Azeroual | **jour** | `polyvalent-jour` |
+| Younes Armarchouh | **jour** | `polyvalent-jour` |
+
+**🕓 ⚠ ET UNE PHRASE À FAIRE CONFIRMER — « du matin, du jour et de la nuit ».**
+Sa dictée finit par ces mots, sur les polyvalents. Si je l'entends bien, **il y a
+TROIS services de polyvalents, pas deux** — et l'app n'en connaît que deux
+(`polyvalent-jour`, `polyvalent-nuit`). Il manquerait donc **« Polyvalent — Matin »**.
+
+C'est très plausible : **les aide-soignants sont déjà découpés en Matin / Jour**, donc
+la maison tourne bien avec un service du matin distinct.
+
+⚠ **Ne rien créer avant qu'elle confirme.** Et si c'est bien trois, il faut lui
+redemander les trois personnes : **elles ont toutes les trois été dictées « jour »**,
+ce qui voudrait dire que le matin et la nuit n'ont personne — donc que la question
+n'a pas été comprise dans le même sens des deux côtés.
+⚠ À vérifier aussi : la liste **Polyvalent — Jour** commence par « Mise en place du
+petit-déjeuner » et « Accompagnement petit-déjeuner jusqu'à 07h45 ». **C'est un
+travail du matin.** Si un service du matin existe, ces lignes-là sont peut-être à lui,
+pas à celui du jour.
 - **Travailleurs sociaux (10)** : Afaf Aboulkhir · Charlotte Doyen · Fouad Roughou ·
   Selma Sefiani · Yaszakis
 
