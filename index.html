@@ -8650,7 +8650,7 @@ function imprimerMaListe(){
      un rappel sans date est là tous les jours et n'annonce rien. */
   const rap=MESRAPPELS.filter(function(r){ return !rappelFait(r); });
   if(rap.length){
-    corps+=titre('Ma liste à moi')+'<table>'+rap.map(function(r){
+    corps+=titre('Ma liste perso')+'<table>'+rap.map(function(r){
       const j=rappelDu(r);
       const q=(j===-1?'en retard':(j===0?'aujourd’hui':''));
       return '<tr'+(j===-1?' class="presse"':'')+'>'+case_()+'<td colspan="3">'+esc(r.texte||'')+
@@ -10315,6 +10315,18 @@ function vListe(){
   h+='<div class="imprligne">'+boutonImprimer('maliste')+'</div>';
 
   if(!listesLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+
+  /* ═══ LA GARDE PFO (Mag, 13/08/2026) ═══
+     Elle ne se règle plus dans l'Admin : on la prend le matin, on la rend le soir.
+     ⚠ IL EST TOUT EN HAUT, ET IL DOIT Y RESTER. Il était d'abord placé plus bas,
+     avec le bouton de reprise de cycle — mais deux `return` anticipés le sautaient
+     quand la personne n'avait aucune liste. Or c'est EXACTEMENT le cas de tous les
+     travailleurs sociaux aujourd'hui : le bouton n'apparaissait donc pour personne.
+     Trouvé en l'essayant, pas en le relisant.
+     ⚠ Il ne s'affiche pas pour tout le monde : proposer la garde PFO à un infirmier
+     ou à un polyvalent n'aurait aucun sens. Seuls ceux dont le métier peut la
+     prendre le voient — les travailleurs sociaux, et l'administration. */
+  if(PROFILE && (PROFILE.admin || /social|^ts$/i.test(PROFILE.equipe||''))) h+=pfoBlocHTML();
 
   const miennes=CHECKLISTS.filter(g=>g.mienne), autres=CHECKLISTS.filter(g=>!g.mienne);
 
@@ -17038,7 +17050,10 @@ async function loadProfile(){
        et l'administration voir toutes les listes (c'est utile ailleurs), mais ici on ne
        garde que les siennes : celles qu'on lui a attribuées, sinon celles que son métier
        implique. */
-    MES_LISTES=(listes&&listes.length)?listes.slice():(pfo?['pfo-jour','pfo-nuit']:deriveListes(equipe));
+    /* ⚠ Passe par majMesListes() : c'est lui qui ajoute la garde PFO du jour si la
+       personne s'est déclarée ce matin. Ne pas remettre l'affectation directe ici,
+       sinon la garde disparaît à chaque rechargement du profil. */
+    majMesListes();
     // Son prénom vient maintenant de son compte Google : plus besoin de le taper.
     const p1=(nom||'').trim().split(/\s+/)[0]||'';
     if(p1){ PRENOM=p1.slice(0,24); try{ localStorage.setItem(PKEY,PRENOM); }catch(e){} }
@@ -17300,6 +17315,100 @@ function cyclesDuJour(iso){
 const REPRISE_K='lux_reprise', VU_K='lux_derniere_ouverture';
 function repriseLe(){ try{ return localStorage.getItem(REPRISE_K)||''; }catch(e){ return ''; } }
 function reprisePoser(iso){ try{ localStorage.setItem(REPRISE_K, iso); }catch(e){} }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA GARDE PFO — ON NE L'EST PAS, ON LE DEVIENT LE MATIN (Mag, 13/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ses mots : « PFO par PFO, ça peut changer souvent. C'est peut-être mieux que tous
+   les TS soient un peu égaux, et que le PFO ait une petite liste à côté. Si tu
+   décrètes que tu es PFO, tu peux voir la liste — elle se déroule, elle s'active.
+   Sinon elle ne s'active pas. »
+
+   ⚠ CECI REMPLACE LA RÈGLE DU 11/08 (« le PFO est attitré, il a sa liste en
+   permanence »). Ce n'est pas un revirement de confort : la séance du 13/08 l'a
+   prouvé en direct. On a cherché dix minutes qui était PFO, pour découvrir qu'une
+   personne était marquée PFO à tort et que le vrai PFO n'avait aucun compte.
+   Un attribut figé dans la base PRÉTEND décrire une chose qui change toutes les
+   semaines : il est faux la plupart du temps, et personne ne pense à le corriger.
+   La bonne question n'est pas « qui EST PFO ? » mais « qui l'est AUJOURD'HUI ? » —
+   et seule la personne qui prend la garde le sait, au moment où elle la prend.
+
+   ⚠ ÇA S'ÉTEINT TOUT SEUL LA NUIT, comme les cases à cocher. On garde donc UNE DATE,
+   pas un booléen : « PFO le 13/08 » ne dit rien du 14. Sa règle du 11/08, qui elle
+   reste vraie : « on doit l'allumer, tous les matins il faut le mettre ».
+
+   ⚠ JOUR OU NUIT : l'app ne peut pas le deviner (les deux gardes existent le même
+   jour), donc le bouton DEMANDE. Validé par elle le 13/08 : « oui ».
+
+   Rien n'est écrit en base : c'est un réglage du téléphone, comme la reprise de
+   cycle juste au-dessus. Personne d'autre n'a besoin de le savoir. */
+const PFO_K='lux_pfo_jour';
+/* Renvoie 'pfo-jour', 'pfo-nuit' ou '' — et seulement si c'est daté d'aujourd'hui. */
+function gardePFO(){
+  try{
+    const v=(localStorage.getItem(PFO_K)||'').split('|');
+    return (v[0]===todayStr() && (v[1]==='pfo-jour'||v[1]==='pfo-nuit')) ? v[1] : '';
+  }catch(e){ return ''; }
+}
+function gardePFOPoser(cle){
+  try{
+    if(cle) localStorage.setItem(PFO_K, todayStr()+'|'+cle);
+    else localStorage.removeItem(PFO_K);
+  }catch(e){}
+  /* On recharge : `mienne` se recalcule sur MES_LISTES, qui vient de changer. */
+  majMesListes(); loadListes().then(render);
+}
+/* MES_LISTES = ce que la base lui donne + la garde du jour si elle s'est déclarée.
+   ⚠ On ne touche pas à PROFILE.listes : la garde n'est pas un droit, c'est un choix
+   du matin. Le lendemain, MES_LISTES redevient ce qu'elle était toute seule. */
+function majMesListes(){
+  if(!PROFILE) return;
+  const base=(PROFILE.listes&&PROFILE.listes.length)
+    ? PROFILE.listes.slice()
+    : (PROFILE.pfo?['pfo-jour','pfo-nuit']:deriveListes(PROFILE.equipe));
+  const g=gardePFO();
+  if(g && base.indexOf(g)<0) base.push(g);
+  MES_LISTES=base;
+}
+/* ⚠ LE CHOIX SE DÉROULE DANS LA PAGE, PAS DANS UNE FENÊTRE. Ses mots : « elle se
+   déroule, elle s'active ». Une fenêtre modale demanderait de lire, viser, valider —
+   pour un geste qu'on refait tous les matins. Ici : un bouton, deux choix, fini.
+   Même forme que le bouton « Je reprends mon cycle » juste à côté : deux gestes du
+   matin, deux boutons qui se ressemblent. */
+let PFO_DEMANDE=false;
+function jePrendsPFO(){ PFO_DEMANDE=true; render(); }
+function pfoAnnuler(){ PFO_DEMANDE=false; render(); }
+function pfoChoisir(cle){ PFO_DEMANDE=false; gardePFOPoser(cle); }
+function jeRendsPFO(){
+  cousinConfirme('Tu rends la garde PFO ?',
+    'La liste PFO disparaîtra de la tienne. Ce que tu as déjà coché reste coché.',
+    function(){ gardePFOPoser(''); }, {ok:'Oui, je la rends'});
+}
+/* Le bloc affiché en tête de Ma liste. Trois états : rien, on demande, on l'est. */
+function pfoBlocHTML(){
+  const g=gardePFO();
+  if(g){
+    return '<div class="cyc pfo-on"><b>Tu as la garde PFO '+
+      (g==='pfo-nuit'?'de nuit':'de jour')+' aujourd’hui.</b>'+
+      '<p>Sa liste s’est ajoutée à la tienne. Elle s’éteindra cette nuit toute seule.</p>'+
+      '<button class="acok" onclick="jeRendsPFO()">Je rends la garde</button></div>';
+  }
+  if(PFO_DEMANDE){
+    return '<div class="cyc"><b>Tu prends quelle garde ?</b>'+
+      '<p>La liste PFO s’ajoutera à la tienne, pour aujourd’hui seulement.</p>'+
+      '<div class="chdep" style="margin:2px 0 0">'+
+        '<button class="chdep-b" onclick="pfoChoisir(\'pfo-jour\')">'+
+          '<b>De jour</b><em>la liste PFO du jour</em></button>'+
+        '<button class="chdep-b" onclick="pfoChoisir(\'pfo-nuit\')">'+
+          '<b>De nuit</b><em>la liste PFO de nuit</em></button>'+
+      '</div>'+
+      '<button class="lienbas" style="margin-top:10px" onclick="pfoAnnuler()">Laisse tomber</button>'+
+      '</div>';
+  }
+  return '<div class="imprligne" style="justify-content:flex-start;margin-top:10px">'+
+    '<button class="imprbtn" onclick="jePrendsPFO()">'+
+    '<span class="ic">'+icon('cle')+'</span>Je prends la garde PFO aujourd’hui</button></div>';
+}
 /* Est-ce qu'on est dans les 24 h qui suivent une reprise ? */
 function enReprise(){ return repriseLe()===todayStr(); }
 function jeReprends(){
@@ -17642,13 +17751,16 @@ function resteRappels(){
    qui s'affiche est réécrit. */
 function carteMaListe(){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
+  /* ⚠ PAS UN MOT D'EXPLICATION ICI (Mag, 13/08/2026 : « retire tout blabla », « il
+     faut que ce soit le plus clair possible, le plus concis possible »).
+     Il y avait trois lignes qui expliquaient que la liste est personnelle et qu'elle
+     suit le téléphone. On le lit une fois, jamais deux — et ensuite ça occupe le
+     tiers de la carte, tous les jours, au-dessus du champ où on veut écrire.
+     ⚠ Le nom aussi vient d'elle : « marque MA LISTE PERSO ». */
   return '<div class="mlfais">'+
-    '<div class="mlfais-t"><b>Ma liste à moi</b>'+
+    '<div class="mlfais-t"><b>Ma liste perso</b>'+
       '<em>'+(tot? fait+' / '+tot+' faites' : 'rien pour l’instant')+'</em></div>'+
     '<div class="mlfais-c">'+
-      '<p>Celle que tu te fais toi-même, à côté des tâches de ton métier. '+
-      'Ces lignes sont à toi : personne dans l’équipe ne les voit, et elles te '+
-      'suivent d’un téléphone à l’autre.</p>'+
       rappelsHTML(true)+
     '</div></div>';
 }
@@ -17656,10 +17768,9 @@ function rappelsHTML(enCarte){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
   let h='';
   if(!enCarte){
-    h+='<div class="sect" style="margin-top:34px"><b>Ma liste à moi</b>'+
+    /* Même nettoyage que dans la carte : le titre, le compte, et rien d'autre. */
+    h+='<div class="sect" style="margin-top:34px"><b>Ma liste perso</b>'+
        '<em>'+(tot? fait+' / '+tot : 'rien pour l’instant')+'</em></div>';
-    h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Celles-là sont à toi : tu les écris, '+
-       'et personne dans l’équipe ne les voit. Elles te suivent d’un téléphone à l’autre.</div>';
   }
   if(tot){
     h+='<div style="display:flex;align-items:center;gap:14px;padding:14px 2px 4px">'+
@@ -17705,10 +17816,14 @@ function rappelsHTML(enCarte){
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<button class="chaddbtn" onclick="rappelAjouter()">Ajouter</button>'+
      '</div>'+
+     /* ⚠ LA PHRASE D'EXPLICATION EST RETIRÉE (Mag, 13/08/2026). Elle disait ce que
+        fait une date : le rappel remonte le matin venu et allume la pastille. C'est
+        vrai, et ça reste vrai — mais ça se découvre en une fois, et ça encombrait la
+        carte tous les jours ensuite. Le mot « facultatif » suffit : il dit la seule
+        chose qu'on a besoin de savoir avant d'écrire.
+        ⚠ Ne pas la remettre « pour être clair » : c'est elle qui l'a fait retirer. */
      '<div class="rapjour"><label for="rapQuand">Pour quel jour ?<span>facultatif</span></label>'+
-       '<input id="rapQuand" type="date"></div>'+
-     '<p class="hint" style="margin:8px 0 0">Un rappel <b>avec un jour</b> remonte le matin '+
-     'venu et allume la pastille. <b>Sans jour</b>, il reste là tous les jours.</p>';
+       '<input id="rapQuand" type="date"></div>';
   return h;
 }
 
