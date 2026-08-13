@@ -445,15 +445,19 @@ l'ajoute d'office aux huit et on ne repose plus la question.
 | Paul Baykonday | **jour** | `aide-soignant-soir` *(la clé dit soir, l'étiquette dit Jour)* |
 | `fallypaulbay@yahoo.fr` | — | 🕓 **à trancher — voir ci-dessous** |
 
-**⚠ IL Y A DEUX COMPTES PAUL, ET C'EST PROBABLEMENT LA MÊME PERSONNE.**
-`paul.baykonday@samusocial.be` et `fallypaulbay@yahoo.fr` : tous les deux
-aide-soignants, tous les deux actifs, tous les deux sans liste. L'un est l'adresse du
-travail, l'autre une adresse personnelle — **exactement comme Magali, qui a trois
-adresses dans la table**. Elle a dit « paul jour » au singulier.
-→ **À lui demander** : est-ce bien le même Paul ? Si oui, **les deux comptes doivent
-recevoir la liste** (sinon il ne la voit que selon l'adresse avec laquelle il se
-connecte ce jour-là — et c'est précisément le genre de panne qu'on ne comprend pas).
-Si c'est un vieux compte, le couper.
+**✅ LES DEUX COMPTES PAUL SONT LE MÊME HOMME** (confirmé le 13/08/2026).
+`paul.baykonday@samusocial.be` et `fallypaulbay@yahoo.fr`. **Il utilise le yahoo pour
+l'instant : il a perdu le mot de passe de son adresse du travail.**
+→ **Les DEUX reçoivent `aide-soignant-soir`.** Ce n'est pas une précaution : si on ne
+sert que l'adresse du travail, il ouvre l'app et ne voit aucune liste — et il n'a
+aucun moyen de comprendre pourquoi.
+⚠ **Ce que ça coûte quand même** : deux comptes pour un seul homme, donc **ce qu'il
+coche d'un côté ne se voit pas de l'autre** (`checklist_faites` est rangé par
+compte). C'est supportable tant qu'il n'en utilise qu'un.
+→ **Rappel posé dans son chantier le 13/08/2026** (ligne 108, bloc « Ça attend tes
+collègues ») : à partir du **13/09/2026**, lui redemander de récupérer son mot de
+passe, puis **couper le compte yahoo**. Elle l'a demandé elle-même : « rappelle-moi
+dans un mois ».
 
 *(Vérifié au passage : Charlotte Dorval (psychologue) et Charlotte Doyen (travailleuse
 sociale) sont bien **deux personnes différentes**, pas un doublon.)*
@@ -467,14 +471,50 @@ sociale) sont bien **deux personnes différentes**, pas un doublon.)*
 **Lic** qui est PFO. » → mettre `pfo = false` sur `leontine.pyot@samusocial.be`.
 Elle garde son métier de travailleuse sociale.
 
-**⚠ ET « LIC » N'EXISTE PAS DANS L'APPLICATION.** J'ai relu les 35 adresses : aucune
-ne ressemble à Lic (la seule qui contient ces trois lettres est `theclick.bxl`, qui
-est la logistique). Donc **le vrai PFO n'a pas de compte** — ou il est là sous un
-prénom que je ne reconnais pas.
-→ **À lui demander : le nom complet de Lic, et son adresse.** C'est un ajout dans
-l'Admin, pas une correction. Tant qu'il n'est pas créé, il ne voit rien du tout.
-⚠ Conséquence : marquer Léontine `pfo=false` **sans** créer Lic ferait passer les PFO
-de 5 à 4 comptes, dont un qui n'est pas le bon. Faire les deux dans le même geste.
+**C'est LOÏC**, et **il n'a pas encore reçu l'application** (13/08/2026). Il n'a donc
+aucun compte — ce n'était pas une erreur de saisie, il n'a simplement jamais été créé.
+
+# 🔑 LE CHANGEMENT DE FOND DU 13/08/2026 — PERSONNE N'EST « PFO » DANS LA BASE
+
+Ses mots : « **PFO par PFO, ça peut changer souvent.** Donc c'est peut-être mieux que
+**tous les TS soient un peu égaux**, et que le PFO ait une petite liste à côté. Si tu
+**décrètes que tu es PFO**, tu peux voir la liste — elle se déroule, elle s'active.
+Sinon elle ne s'active pas. »
+
+**⚠ CECI REMPLACE LA RÈGLE DU 11/08.** Ce jour-là on avait dit l'inverse : « le PFO
+est attitré et payé, il a sa liste en permanence ; le bouton n'est qu'un dépannage ».
+Elle a changé d'avis, et elle a raison — la suite de la séance l'a prouvé :
+
+- **On a passé dix minutes sur qui est PFO**, pour découvrir que **Léontine était
+  marquée PFO à tort** et que **le vrai PFO, Loïc, n'a pas de compte du tout**.
+- Un attribut `pfo` figé dans la base **prétend décrire quelque chose qui bouge toutes
+  les semaines**. Il sera faux la plupart du temps, et personne ne pensera à le
+  corriger — c'est exactement ce qui vient de se passer.
+- La bonne question n'est pas « qui EST PFO ? » mais « **qui l'est aujourd'hui ?** ».
+  Seule la personne qui prend la garde le sait, et elle est là au bon moment pour le
+  dire.
+
+**Ce que ça donne :**
+1. **Tous les travailleurs sociaux sont égaux** — même liste `ts`, personne n'a de
+   statut en plus.
+2. **La liste PFO est une liste à côté**, qui ne s'affiche pas par défaut.
+3. **On se déclare PFO pour la journée** : la liste s'ouvre et se déroule. Sinon,
+   rien.
+4. **Ça s'éteint tout seul la nuit** (sa règle du 11/08, qui elle reste vraie : « on
+   doit l'allumer, tous les matins il faut le mettre »).
+
+**Ce que ça simplifie, et qui compte** : Loïc n'a plus besoin d'un réglage particulier.
+Le jour où il reçoit l'application, il est travailleur social comme les autres, et il
+appuie sur le bouton quand il prend la garde. **Plus personne à tenir à jour.**
+
+→ `allowed_emails.pfo` ne commande donc plus rien pour les listes. On le laisse en
+place (d'autres endroits s'en servent peut-être), mais **il ne décide plus qui voit la
+liste PFO**. Et la correction de Léontine devient sans objet : plus personne n'est PFO
+dans la base.
+
+**🕓 LA SEULE QUESTION QUI RESTE : jour ou nuit ?** Il y a deux listes PFO. Quand
+quelqu'un se déclare, l'app ne peut pas deviner s'il prend la garde de jour ou de
+nuit. Proposé : le bouton demande, en deux mots — **« PFO aujourd'hui : jour · nuit »**.
 - **Les autres (7)** : Laura Campeert (coordination) · Andrea Falconeri (médecin) ·
   Charlotte Dorval et Ysaline Pinchart (psychologues) · Luis Rodrigues et Theclick Bxl
   (logistique) · Gandi12 (admin).
