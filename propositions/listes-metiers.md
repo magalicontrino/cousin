@@ -9,6 +9,32 @@ liste. On prépare ici, on pose d'un coup à la fin. (Sa consigne du 11/08/2026 
 **Rythmes possibles** : `jour` (tous les jours) · `semaine` (une fois par semaine) ·
 `reprise` (à chaque reprise, comme l'entretien mi-parcours).
 
+## ⚠⚠ À QUOI SERVENT CES LISTES — sa phrase du 13/08/2026, à relire avant d'en écrire une
+
+« **Ce n'est pas pour surveiller**, c'est plutôt une aide qu'on a. Pour quand on a des
+polyvalents, **pour qu'ils sachent les tâches**. Le médecin, il est autonome, les
+psychologues aussi, les coordinateurs **savent très bien ce qu'ils ont à faire**. Les
+listes, je crois que c'est plutôt que **les gens la fassent eux-mêmes** — ils
+proposeront au fur et à mesure. »
+
+**Trois conséquences, et elles commandent tout le reste :**
+
+1. **Une liste sert à celui qui ne sait pas encore.** Un polyvalent qui arrive, un
+   remplaçant, quelqu'un qui prend un service qu'il ne fait pas d'habitude. Pas à
+   celui qui fait le même métier depuis dix ans.
+2. **Un métier autonome n'a pas de liste, et ce n'est pas un manque.** Médecin,
+   psychologues, coordination, logistique : **rien, et c'est voulu.** Ne pas leur en
+   écrire une « pour être complet » — ce serait de la surveillance déguisée.
+3. **Les listes viendront des gens eux-mêmes**, au fur et à mesure. Notre travail
+   n'est pas d'inventer le travail des autres : c'est de tenir l'outil prêt pour le
+   jour où quelqu'un dicte la sienne.
+
+⚠ **J'avais l'ordre des priorités à l'envers.** Je répétais que « les 8 infirmiers
+n'ont rien, c'est le gros trou ». Selon sa phrase, ce n'est pas ça : les infirmiers
+savent ce qu'ils ont à faire. **Le cœur, ce sont les polyvalents** — et c'est
+exactement pour ça que ce sont les deux seules listes vraiment écrites (7 et 11
+lignes) alors que tout le reste est une amorce. Ce n'était pas un hasard.
+
 ---
 
 ## Où on en est
@@ -537,8 +563,14 @@ dans la base.
 **🕓 LA SEULE QUESTION QUI RESTE : jour ou nuit ?** Il y a deux listes PFO. Quand
 quelqu'un se déclare, l'app ne peut pas deviner s'il prend la garde de jour ou de
 nuit. Proposé : le bouton demande, en deux mots — **« PFO aujourd'hui : jour · nuit »**.
-- **Les autres (7)** : Laura Campeert (coordination) · Andrea Falconeri (médecin) ·
-  Charlotte Dorval et Ysaline Pinchart (psychologues) · Luis Rodrigues et Theclick Bxl
-  (logistique) · Gandi12 (admin).
-  **Ma suggestion : pas de liste** pour la coordination et les psychologues — même
-  raisonnement que pour les travailleurs sociaux.
+#### ✅ Les 7 autres — TRANCHÉ le 13/08/2026 : AUCUNE LISTE, et c'est définitif
+
+Laura Campeert (coordination) · Andrea Falconeri (médecin) · Charlotte Dorval et
+Ysaline Pinchart (psychologues) · Luis Rodrigues et Theclick Bxl (logistique) ·
+Gandi12 (admin). **« Laisse comme ça. »**
+
+Ce n'est pas un trou à combler plus tard : ces métiers sont **autonomes**, ils savent
+ce qu'ils ont à faire. Si l'un d'eux veut une liste, **il la proposera lui-même** —
+et en attendant, chacun a déjà « Ma liste à moi » pour ses propres rappels.
+⚠ **Ne jamais leur écrire une liste « pour être complet ».** Voir la règle en tête de
+ce document : ce n'est pas un outil de surveillance.
