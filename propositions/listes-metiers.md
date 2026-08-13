@@ -120,7 +120,14 @@ C'est le point de départ : ne pas redicter ce qui est déjà là.
      coder l'ajout — c'est petit.
      **Ma suggestion : ②.** Et cette liste `tous` servira sûrement à autre chose
      ensuite (les consignes qui valent pour toute la maison).
-   🕓 **En attente de son numéro.**
+
+   ### ✅ ELLE A CHOISI ② LE 13/08/2026 — « pour tout le monde »
+   Une seule ligne dans la base, qui s'ajoute à la liste de chacun. **Une phrase, un
+   endroit à corriger.** C'est le code qui la distribue, pas la recopie.
+   → À construire : une liste de clé **`tous`** dont les tâches viennent se poser en
+   tête de chaque liste de métier. Le reste (rythme `reprise`, l'ordre) ne change pas.
+   ⚠ Une fois faite, **retirer les cinq copies existantes** (les deux PFO et les trois
+   Médical), sinon la ligne apparaîtra deux fois chez eux.
 
    ✅ **Et le bouton PFO est reconfirmé** (13/08) : « un PFO peut être un autre PFO le
    lendemain, donc il faut pouvoir se mettre PFO pour avoir la liste adéquate. »
@@ -266,11 +273,11 @@ Donc trois services, pas quatre :
 
 **⚠ CE QUE ÇA CORRIGE.** La liste s'appelle aujourd'hui « **Médical — Nuit** », comme
 s'il y avait une nuit partout. Il n'y en a qu'une, et elle est **au 2e étage**.
-→ Proposé : la renommer « **Médical — 2e étage · Nuit** », en face de « Médical — 2e
-étage · Jour ». La clé `médical-nuit` peut rester telle quelle (personne ne la voit),
-c'est l'étiquette qui compte.
+→ **✅ VALIDÉ PAR ELLE le 13/08/2026 (« ok ») : la liste devient « Médical — 2e étage ·
+Nuit »**, en face de « Médical — 2e étage · Jour ». La clé `médical-nuit` **ne bouge
+pas** (personne ne la voit, et la renommer casserait les accès de chacun) : c'est
+`LISTE_LABELS` qu'on change, dans `index.html`.
 Sans ça, un infirmier du rez cherche sa liste de nuit — et elle n'existe pas.
-🕓 **À confirmer par elle.**
 
 ### Ce qu'il y a aujourd'hui
 - **Médical — toutes** (2) : Pharmacie · Encoder les transports
@@ -310,12 +317,22 @@ Sans ça, un infirmier du rez cherche sa liste de nuit — et elle n'existe pas.
 
   **Deux fois par cycle** : « c'est en début de [7/7] et en fin de 7/7 ».
 
-  **1. Le nom de l'outil — ✅ TRANCHÉ le 13/08/2026 : c'est KAIROS.**
-  Elle avait dicté « kairos », puis « Kioskup », et je lui ai reposé la question deux
-  fois. Sa réponse : **« Kioskup, ça n'a aucun rapport. »** On écrit donc **Kairos**.
-  Ligne retenue : **« Comparer les présences entre Kairos et la liste étage »**.
-  *(Si jamais l'orthographe exacte du logiciel diffère, c'est un mot à corriger, pas
-  la ligne — mais ne pas y revenir sans raison : elle a répondu deux fois.)*
+  **1. ✅ TRANCHÉ le 13/08/2026 — et ce n'était pas les présences.**
+  Le nom d'abord : elle avait dicté « kairos » puis « Kioskup ». Sa réponse :
+  **« Kioskup, ça n'a aucun rapport. »** → c'est **KAIROS**.
+
+  Puis elle a corrigé la ligne elle-même : **« retire la tâche. En fait, sur la liste,
+  ce que je voulais mettre, c'est comparaison, absence, Kairos et liste étage. »**
+
+  → **Ce n'est pas « comparer les PRÉSENCES », c'est comparer les ABSENCES.**
+  Ligne retenue : **« Comparer les absences entre Kairos et la liste étage »**.
+  ⚠ La ligne dictée le 11/08 (présences / « Kioskup ») est **annulée**, pas amendée.
+
+  **Pourquoi la nuance compte.** Les trois autres lignes d'absence du PFO le disent :
+  *Vérifier les nuits d'absence* · *Désencoder les +3 jours d'absence* (Jour) et
+  *Vérifier les nuits d'absence, justifié ou non* (Nuit). Le travail du PFO porte sur
+  **qui n'est PAS là** — c'est ce qui déclenche le désencodage et libère un lit.
+  Comparer les présences aurait fait chercher dans l'autre sens.
 
   **2. Dans quelle liste ? 🕓 TOUJOURS SANS RÉPONSE** — posée le 11/08 et le 13/08,
   elle est passée à côté les deux fois. Jour, nuit, ou les deux ?
