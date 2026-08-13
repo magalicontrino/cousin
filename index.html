@@ -4641,7 +4641,9 @@ const SAMPLE = [
   ])}
 
   <div class="f-note">${icon('note')} <b>Source.</b> ulysse-ssm.be, page « Automne 2026 — nouveaux modules de formation du Réseau Santé Mentale en Exil », relevée le 07/08/2026. Programme organisé par le <b>Réseau Santé Mentale en Exil</b> avec le soutien de la COCOF. Dates, horaires, lieux et tarifs recopiés tels quels — <b>vérifier auprès de Cihan Gunes avant de payer</b> : un programme peut bouger.</div>
-</div>`, "Santé mentale"),
+</div>`, "Santé mentale",
+    /* Le 24/11/2026 est la dernière séance. Le 25, la fiche s'efface d'elle-même. */
+    "2026-11-24"),
 
   formation("Décrire une plaie dans une note — la méthode des soignants",
     "Six choses à écrire, toujours dans le même ordre, et un exemple rédigé. Plus l'erreur qui fait perdre une semaine.",[],
@@ -5579,8 +5581,11 @@ function memo(dom,nom,desc,site,memoTxt){
 }
 /* Fiche « formation » : `page` = HTML riche (cartes/schéma) affiché à l'ouverture ;
    `metiers` = groupes de travailleurs concernés (filtre). Vide = pour tout le monde. */
-function formation(nom,desc,metiers,page,theme){
-  const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.page=page; o.metiers=metiers||[]; o.theme=theme||""; return o;
+/* `perime` (facultatif, 'AAAA-MM-JJ') : une formation qui est un PROGRAMME DATÉ et
+   non un repère permanent s'efface toute seule le lendemain. Voir la construction
+   de DATA. */
+function formation(nom,desc,metiers,page,theme,perime){
+  const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.page=page; o.metiers=metiers||[]; o.theme=theme||""; if(perime) o.perime=perime; return o;
 }
 /* ═══ LE BOUTON QUI MÈNE D'UNE FORMATION À UNE FICHE DU RÉSEAU (08/08/2026) ═══
    Ces deux fonctions doivent rester DANS CE SCRIPT-CI, avec `formation()` : les
@@ -6927,7 +6932,20 @@ function norm(p){
     horaires:'',notes:'',demarche:'',ou:'',comment:'',attention:'',delai:'',memo:'',page:'',objet:'',corps:'',
     famille:'',genre:'',theme:'',guideKey:'',metiers:[],keywords:[],tags:[]},p);
 }
-const DATA = SAMPLE.map(norm);
+/* ═══ LES FICHES QUI SE PÉRIMENT TOUTES SEULES (Mag, 13/08/2026 : « sinon programme
+   de le retirer ») ═══
+   Presque toutes les fiches sont des repères permanents. Quelques-unes sont des
+   PROGRAMMES DATÉS : passé la dernière séance, elles ne rendent plus service, elles
+   mentent — et personne ne pense à aller les enlever six mois plus tard.
+   Une fiche peut donc porter `perime:'AAAA-MM-JJ'` : le lendemain de ce jour-là,
+   elle disparaît du catalogue toute seule, partout à la fois (réseau, loupe,
+   favoris, feuilles imprimées) — il n'y a qu'un seul endroit où DATA se construit.
+   ⚠ Elle disparaît de l'AFFICHAGE, elle reste dans le code : on veut pouvoir la
+   remplacer par le programme suivant sans tout réécrire. */
+const DATA = SAMPLE.map(norm).filter(function(p){
+  if(!p.perime) return true;
+  return todayStr() <= p.perime;
+});
 /* ═══ QUELLE FORMATION SE RATTACHE À QUELLE FICHE (08/08/2026) ═══
    Le chemin manquant : une fiche du réseau ramène maintenant vers ce qu'on peut
    apprendre à son sujet. La table est ICI, en un seul endroit, plutôt qu'un
@@ -8537,9 +8555,291 @@ function imprimer(){
       (corps||src.innerHTML)+'</div></body></html>');
   w.document.close();
 }
+/* ═══ LA FEUILLE DE MA LISTE (Mag, 13/08/2026 : « Imprimer Ma liste / fais ça ») ═══
+   Le bouton existait déjà, mais il passait par `imprimer()`, qui RECOPIE L'ÉCRAN :
+   sortaient sur le papier le menu déroulant des listes, l'anneau d'avancement, le
+   bouton « Je reprends mon cycle » et le formulaire « Passer quelque chose ». Des
+   boutons imprimés ne se cliquent pas — c'était une photocopie, pas une feuille.
+
+   Ici on refabrique la feuille à partir des données, comme pour le tour des chambres :
+   · ON N'IMPRIME QUE CE QU'IL RESTE À FAIRE. C'est sa règle du 13/08 (« il devrait
+     s'éliminer ce que tu as déjà coché ») — une feuille qu'on emporte à 7 h sert à
+     savoir ce qui reste, pas à relire ce qui est fait. Le compte des faites est
+     rappelé en tête pour qu'on ne croie pas à un oubli.
+   · TOUTES SES LISTES, pas seulement celle affichée : à l'écran on en regarde une à
+     la fois parce que c'est plus clair ; sur papier on veut sa journée entière.
+   · LES RÉVEILS EN PREMIER ET PAR HEURE — même règle qu'à l'écran. Un réveil à 5 h 30
+     mélangé aux infos se rate ([[cousin-passation-nuit]]).
+   · CASES CARRÉES VIDES, UNE SEULE ENCRE : on coche au stylo. Et gros caractères,
+     marges dans @page — certains de l'équipe lisent mal. */
+function imprimerMaListe(){
+  const d=new Date();
+  const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
+             ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
+  const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
+
+  /* Ses listes à elle ; si son rôle n'en a aucune, celle qu'elle regarde. */
+  let groupes=(CHECKLISTS||[]).filter(function(g){ return g.mienne; });
+  if(!groupes.length && CHECKLISTS && CHECKLISTS.length){
+    const vue=CHECKLISTS.find(function(g){ return g.liste===LISTE_VUE; });
+    groupes=vue?[vue]:[CHECKLISTS[0]];
+  }
+
+  /* Le compte porte sur TOUT (tâches + rappels), comme l'aperçu de l'accueil. */
+  let tot=0, faites=0;
+  groupes.forEach(function(g){ (g.taches||[]).forEach(function(t){ tot++; if(DONE[t.id]) faites++; }); });
+  MESRAPPELS.forEach(function(r){ tot++; if(rappelFait(r)) faites++; });
+
+  const case_=function(){ return '<td class="cc"><span class="bx"></span></td>'; };
+  const titre=function(t, cl){ return '<h2'+(cl?' class="'+cl+'"':'')+'>'+esc(t)+'</h2>'; };
+
+  let corps='';
+
+  /* ── LA PASSATION ── ce qui est arrivé de l'équipe d'avant et n'est pas coché. */
+  const pour=(typeof passPourMoi==='function'?passTri(passPourMoi()):[])
+               .filter(function(p){ return !passFait(p); });
+  const reveils=pour.filter(function(p){ return p.genre==='reveil'; });
+  const infos=pour.filter(function(p){ return p.genre!=='reveil'; });
+
+  if(reveils.length){
+    corps+=titre('Les réveils','rouge')+'<table>'+reveils.map(function(p){
+      return '<tr>'+case_()+
+        '<td class="h">'+esc(p.heure||'heure ?')+'</td>'+
+        '<td class="ch">'+esc(p.chambre||'—')+'</td>'+
+        '<td>'+esc(p.texte||'')+
+          (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+'</td></tr>';
+    }).join('')+'</table>';
+  }
+  if(infos.length){
+    corps+=titre('La passation')+'<table>'+infos.map(function(p){
+      return '<tr>'+case_()+'<td colspan="3">'+esc(p.texte||'')+
+        (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+'</td></tr>';
+    }).join('')+'</table>';
+  }
+
+  /* ── LE TRAVAIL ── par liste, puis par rythme. Un bloc vide ne s'écrit pas :
+     un titre au-dessus de rien fait croire qu'il manque quelque chose. */
+  groupes.forEach(function(g){
+    const restent=(g.taches||[]).filter(function(t){ return !DONE[t.id]; });
+    if(!restent.length) return;
+    corps+=titre(LISTE_LABELS[g.liste]||g.liste);
+    const par=function(r){ return restent.filter(function(t){ return rythmeDe(t)===r; }); };
+    const bloc=function(nom, liste, cl){
+      if(!liste.length) return '';
+      return '<div class="ry'+(cl?' '+cl:'')+'">'+esc(nom)+'</div><table>'+
+        liste.map(function(t){ return '<tr>'+case_()+'<td colspan="3">'+esc(t.tache)+'</td></tr>'; }).join('')+
+        '</table>';
+    };
+    /* Le jour de reprise, ces tâches-là passent devant : c'est le seul jour où
+       elles existent. Les autres jours elles referment la liste. */
+    const rep=bloc(enReprise()?'À faire en reprenant':'À la reprise de ton cycle',
+                   par('reprise'), enReprise()?'rouge':'');
+    if(enReprise()) corps+=rep;
+    corps+=bloc('Aujourd’hui', par('jour'))+bloc('Au cours de la semaine', par('semaine'),'sem');
+    if(!enReprise()) corps+=rep;
+  });
+
+  /* ── MA LISTE À MOI ── ses rappels. Le jour n'est écrit que s'il presse :
+     un rappel sans date est là tous les jours et n'annonce rien. */
+  const rap=MESRAPPELS.filter(function(r){ return !rappelFait(r); });
+  if(rap.length){
+    corps+=titre('Ma liste à moi')+'<table>'+rap.map(function(r){
+      const j=rappelDu(r);
+      const q=(j===-1?'en retard':(j===0?'aujourd’hui':''));
+      return '<tr'+(j===-1?' class="presse"':'')+'>'+case_()+'<td colspan="3">'+esc(r.texte||'')+
+        (q?'<span class="com">'+esc(q)+'</span>':'')+'</td></tr>';
+    }).join('')+'</table>';
+  }
+
+  if(!corps) corps='<p class="vide">Rien à faire sur cette feuille : tout est coché.</p>';
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Ma liste — '+esc(jour)+'</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;font-size:11px;'+
+      'text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
+    'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
+    '.sous{font-size:14px;color:#444;margin:4px 0 2px}'+
+    '.compte{font-size:12px;color:#666;margin-bottom:12px}'+
+    'h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#1b1b1b;'+
+      'border-bottom:2px solid #1b1b1b;padding-bottom:4px;margin:20px 0 2px}'+
+    'h2.rouge{color:#c41f1f;border-color:#c41f1f}'+
+    '.ry{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666;margin:10px 0 2px}'+
+    '.ry.rouge{color:#c41f1f}'+
+    'table{width:100%;border-collapse:collapse}'+
+    /* Gros caractères : la feuille se lit d'un coup d'œil, debout, dans un couloir. */
+    'td{border-bottom:1px solid #ddd;padding:9px 5px;font-size:15px;line-height:1.35;vertical-align:top}'+
+    'tr{break-inside:avoid;page-break-inside:avoid}'+
+    /* La case reste VIDE, une seule encre : on coche au stylo. */
+    'td.cc{width:11mm;padding-top:10px}'+
+    '.bx{display:block;width:6mm;height:6mm;border:1.6px solid #1b1b1b;border-radius:1px}'+
+    'td.h{width:20mm;font-weight:700;font-size:17px;white-space:nowrap}'+
+    'td.ch{width:22mm;font-weight:700;white-space:nowrap}'+
+    '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
+    'tr.presse td{background:#fdeeed}'+
+    '.libre{margin-top:22px;border-top:1px solid #ccc;padding-top:10px}'+
+    '.libre span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666}'+
+    '.libre i{display:block;border-bottom:1px solid #ddd;height:11mm}'+
+    '.vide{padding:18px 0;font-size:15px;color:#555}'+
+    '.pied{margin-top:14px;padding-top:8px;border-top:1px solid #ccc;font-size:11px;color:#666}'+
+    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Ma liste — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg">'+
+      '<h1>Ma liste</h1>'+
+      '<p class="sous">'+esc(jour)+(qui?' · '+esc(qui):'')+'</p>'+
+      '<p class="compte">'+(tot
+         ? faites+' sur '+tot+' déjà faites — elles ne sont pas sur la feuille.'
+         : 'Aucune tâche pour l’instant.')+'</p>'+
+      corps+
+      /* De quoi noter en route : ce qu'on retient dans un couloir se perd si on n'a
+         pas la place de l'écrire tout de suite. */
+      '<div class="libre"><span>Ce qu’on note en route</span>'+
+        '<i></i><i></i><i></i><i></i><i></i></div>'+
+      '<p class="pied">COUSIN · feuille imprimée le '+
+        esc(new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'}))+
+        ' · aucun nom d’hébergé, initiales et numéros de chambre seulement.</p>'+
+    '</div></body></html>');
+  w.document.close();
+}
+
+/* ═══ PRINT — LES FEUILLES QU'ON RÉIMPRIME TOUT LE TEMPS (Mag, 13/08/2026) ═══
+   « C'est dans Centre, Gestion du centre, feuillet imprimé. Tu marques Print comme
+   titre. Et en effet, là, on mettra des choses à imprimer parce que souvent on doit
+   imprimer les mêmes choses. »
+
+   C'est un TIROIR À FEUILLES VIERGES, et c'est ce qui le distingue des autres
+   impressions de l'app : ailleurs (Ma liste, le tour des chambres, une fiche) on
+   imprime des DONNÉES, l'état d'aujourd'hui. Ici on imprime un FORMULAIRE VIDE
+   qu'on remplit au stylo — la feuille ne change pas d'un jour à l'autre, c'est bien
+   pour ça qu'on la réimprime. Ne pas mélanger les deux dans cette page.
+
+   ⚠ Une feuille d'ici part au mur ou dans un classeur : jamais de nom d'hébergé
+   pré-imprimé, ce sont des cases à remplir à la main. */
+const PRINT_FEUILLES=[
+  {k:'congelateur', nom:'Feuille congélateur',
+   sous:'Traitement des punaises · −40°, 24 h',
+   det:'Deux fiches, une par congélateur. À remplir au stylo : nom / chambre, date de '+
+       'dépôt, contenu (bacs ou sacs), heure, et l’heure de sortie prévue.',
+   pages:'2 pages · A4 paysage', pi:'note', act:'imprimerCongelateur()'}
+];
+
+function vPrint(){
+  let h=heroBandeau('Print','Les feuilles à réimprimer','#A9C8E8','note',true);
+  h+='<div class="fsrc" style="text-align:left;padding:14px 2px 0">'+
+     'Les feuilles vierges qu’on réimprime souvent, toujours les mêmes. '+
+     'On les sort, on les remplit à la main.</div>';
+  h+='<div class="cards" style="display:flex;flex-direction:column">'+
+    PRINT_FEUILLES.map(function(f){
+      return '<div class="fcard" role="button" tabindex="0" onclick="'+f.act+'">'+
+        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon(f.pi)+'</span></span>'+
+        '<span class="tx"><b>'+esc(f.nom)+'</b><small>'+esc(f.sous)+'</small>'+
+          '<em style="display:block;margin-top:5px;font-style:normal;color:#5f5e5a;'+
+          'font-size:12.5px;line-height:1.35">'+esc(f.det)+'</em>'+
+          '<small style="display:block;margin-top:5px;font-family:ui-monospace,monospace;'+
+          'font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8984">'+
+          esc(f.pages)+'</small></span>'+
+        '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
+    }).join('')+'</div>';
+  return h;
+}
+
+/* La feuille congélateur, telle qu'elle l'a dessinée (validée le 13/08/2026 :
+   « oui, c'est la bonne fiche congélateur, c'est parfait »).
+   ⚠ NE PAS LA « RANGER » AU STYLE DE L'APP : c'est SON dessin, en Calibri, en A4
+   PAYSAGE. Le format paysage n'est pas décoratif — les six champs tiennent alors sur
+   une page, avec de vraies lignes larges où écrire à la main. */
+function imprimerCongelateur(){
+  const page=function(n){
+    const champ=function(pic, lab, corps){
+      return '<div><div class="lab">'+pic+'<span>'+lab+'</span></div>'+corps+'</div>';
+    };
+    const icNom='<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">'+
+      '<circle cx="8" cy="4" r="3"></circle><path d="M2 15c0-3.3 2.7-6 6-6s6 2.7 6 6z"></path></svg>';
+    const icCal='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">'+
+      '<rect x="1.5" y="2.5" width="13" height="12" rx="1"></rect><path d="M1.5 6h13M5 1.5v2M11 1.5v2"></path></svg>';
+    const icBac='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">'+
+      '<rect x="1.5" y="5.5" width="13" height="9" rx="1"></rect>'+
+      '<path d="M1.5 8.5h13M8 5.5v9M8 5.5C6 5.5 4.5 4.6 4.5 3.4S6.5 1.6 8 5.5zM8 5.5c2 0 3.5-.9 3.5-2.1S9.5 1.6 8 5.5z"></path></svg>';
+    const icHor='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">'+
+      '<circle cx="8" cy="8.5" r="6"></circle><path d="M8 5v3.5l2.5 1.5"></path></svg>';
+    const icSab='<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">'+
+      '<path d="M3 1h10v1.5c0 2.5-4 3.7-4 5.5s4 3 4 5.5V15H3v-1.5c0-2.5 4-3.7 4-5.5S3 5 3 2.5z"></path></svg>';
+    const jjmmaa='<div class="t"></div><span>/</span><div class="t"></div><span>/</span><div class="t"></div>';
+    return '<section class="pg">'+
+      '<h1>Congélateur '+n+' : -40°<span class="esp"></span>temps de traitement conseillé 24h</h1>'+
+      '<div class="grille">'+
+        '<div class="col">'+
+          champ(icNom,'Nom / Chambre :','<div class="trait"></div>')+
+          champ(icCal,'Date de dépôt :','<div class="duo">'+jjmmaa+'</div>')+
+        '</div>'+
+        '<div class="col">'+
+          champ(icBac,'Contenu (nombre de bac ou sac) :','<div class="trait"></div>')+
+          champ(icHor,'Heure :','<div class="duo" style="gap:10px"><div class="t28"></div>'+
+            '<span class="h">h</span><div class="t28"></div></div>')+
+        '</div>'+
+      '</div>'+
+      '<div><div class="lab bas">'+icSab+'<span>Date / heure de sortie prévue :</span></div>'+
+        '<div class="duo bas">'+jjmmaa+'<div class="vide"></div>'+
+        '<div class="t"></div><span class="h">h</span><div class="t"></div></div></div>'+
+    '</section>';
+  };
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Feuille congélateur — punaises</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:Calibri,"Segoe UI",Helvetica,Arial,sans-serif;background:#e8e7e4;color:#000}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;'+
+      'background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;'+
+      'font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    /* A4 PAYSAGE : 297 × 210 mm. */
+    '.pg{width:297mm;height:210mm;margin:22px auto;padding:16mm 18mm;background:#fff;'+
+      'box-shadow:0 2px 14px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:14mm}'+
+    '@media(max-width:320mm){ .pg{width:auto;max-width:100%;height:auto;margin:12px;padding:9mm} }'+
+    'h1{text-align:center;font-size:24pt;font-weight:600;letter-spacing:-.01em;white-space:nowrap}'+
+    'h1 .esp{display:inline-block;width:14mm}'+
+    '.grille{display:grid;grid-template-columns:1fr 1fr;column-gap:20mm;row-gap:22mm;font-size:15pt}'+
+    '.col{display:flex;flex-direction:column;gap:14mm}'+
+    '.lab{display:flex;align-items:center;gap:6px;font-weight:600}'+
+    '.lab svg{flex:none}'+
+    '.trait{margin-top:16mm;border-bottom:2px dotted #000;width:78%}'+
+    '.duo{margin-top:16mm;display:flex;align-items:flex-end;gap:8px}'+
+    '.duo .t{border-bottom:2px dotted #000;width:24mm}'+
+    '.duo .t28{border-bottom:2px dotted #000;width:28mm}'+
+    '.duo .vide{width:16mm}'+
+    '.h{font-size:11pt}.bas{font-size:15pt}'+
+    '@media print{.bar{display:none}body{background:#fff}'+
+      '.pg{width:100%;height:auto;margin:0;padding:0;box-shadow:none;break-after:page;page-break-after:always}'+
+      '.pg:last-child{break-after:auto;page-break-after:auto}'+
+      '@page{size:A4 landscape;margin:16mm 18mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Feuille congélateur — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    page(1)+page(2)+
+    '</body></html>');
+  w.document.close();
+}
+
 /* Le bouton, posé partout où une page vaut la peine d'être emportée sur papier. */
-function boutonImprimer(){
-  return '<button class="imprbtn" onclick="imprimer()" title="Imprimer ou enregistrer en PDF">'+
+function boutonImprimer(quoi){
+  const act=(quoi==='maliste')?'imprimerMaListe()':'imprimer()';
+  return '<button class="imprbtn" onclick="'+act+'" title="Imprimer ou enregistrer en PDF">'+
     icon('note')+'<span>Imprimer</span></button>';
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
@@ -8804,6 +9104,7 @@ function parseRoute(){
   if(seg[0]==='liste') return {view:'liste'};
   if(seg[0]==='chambres') return {view:'chambres'};
   if(seg[0]==='tourbacs') return {view:'tourbacs'};
+  if(seg[0]==='print') return {view:'print'};
   if(seg[0]==='linge') return {view:'linge'};
   if(seg[0]==='recherche') return {view:'recherche'};
   if(seg[0]==='reseau') return {view:'reseau'};
@@ -8904,6 +9205,7 @@ function render(){
   else if(current.view==='liste') view.innerHTML=vListe();
   else if(current.view==='chambres'){ view.innerHTML=vChambres(); rafraichirChambres(); }
   else if(current.view==='tourbacs'){ view.innerHTML=vTourBacs(); rafraichirTourBacs(); }
+  else if(current.view==='print') view.innerHTML=vPrint();
   else if(current.view==='linge') view.innerHTML=vLinge();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
   else if(current.view==='jeux') view.innerHTML=vJeux();
@@ -10003,7 +10305,7 @@ function vListe(){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   let h=heroBandeau('Ma liste', dateTxt, '#A9C8E8','list');
-  h+='<div class="imprligne">'+boutonImprimer()+'</div>';
+  h+='<div class="imprligne">'+boutonImprimer('maliste')+'</div>';
 
   if(!listesLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
 
@@ -12355,6 +12657,16 @@ function vDomaine(key){
        revient au Réseau — c'est un geste, et il est clair. */
     chips+
     '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
+    /* PRINT en tête de « Gestion du centre » (Mag, 13/08/2026). Ce n'est pas une fiche
+       du réseau — c'est le tiroir des feuilles vierges qu'on réimprime tout le temps.
+       Il passe devant parce qu'on vient ici pour ça, pas au bout d'une liste. */
+    (key==='centre'
+      ? '<div class="fcard" role="button" tabindex="0" onclick="go(\'#/print\')">'+
+        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon('note')+'</span></span>'+
+        '<span class="tx"><b>Print</b><small>Les feuilles à réimprimer — '+
+        PRINT_FEUILLES.length+' pour l’instant</small></span>'+
+        '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>'
+      : '')+
     (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
     '</div>';
