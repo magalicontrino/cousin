@@ -146,3 +146,58 @@ les mots.
    ce sont les siens qui comptent, pas les miens.
 4. Le design : A, B ou C ?
 5. Les doublons : je sors la liste des 23 et on tranche ?
+
+---
+
+# ✅ SA DÉCISION — 13/08/2026 : **A + les étiquettes**
+
+Après avoir vu les maquettes (`reseau-3.html`, puis `reseau-d.html`) :
+
+> « Revenons au point d'avant : **prendre la solution 1**, y compter dedans les lieux,
+> **mais quand même des étiquettes**. Jour, nuit… parce que c'est bien qu'on sache.
+> **C'est un petit rappel.** »
+
+→ **On garde A** : les 15 tiroirs rangés par besoin, chacun avec son compte de fiches.
+→ **On ajoute C** : les étiquettes.
+→ **On abandonne les trois grandes portes** de la proposition D. Elle les a écartées
+en connaissance de cause, après les avoir vues. Ne pas les reproposer.
+
+**⚠ « C'est un petit rappel »** — ses mots, et ils fixent le rôle des étiquettes :
+elles ne rangent pas, elles **rappellent** au moment de lire la fiche. Elles doivent
+donc rester discrètes. Ce n'est pas un filtre de plus.
+
+## ⚠⚠ CE QUE LE TEST A MONTRÉ — ON NE PEUT PAS ÉTIQUETER AUTOMATIQUEMENT
+
+Essai fait le 13/08/2026 sur les 359 fiches, en cherchant les mots dans le nom, la
+description, les notes et les horaires. Résultat **inutilisable tel quel** :
+
+| Étiquette devinée | Fiches | Le problème |
+|---|---|---|
+| NUIT | 33 | à peu près correct |
+| JOUR | 33 | **faux positifs** : « Croix-Rouge de Belgique », « ANAÏS » ne sont pas des accueils de jour |
+| **URGENCE** | **141** | **absurde** — le mot « permanence » et « sans rendez-vous » sont partout |
+| ORIENTATION | 58 | trop large |
+| *(aucune)* | **169** | presque la moitié du catalogue |
+| *(plusieurs)* | 53 | à trancher une par une |
+
+**Étiqueter à la machine remplirait le catalogue d'étiquettes fausses** — et une
+étiquette fausse est pire que pas d'étiquette : elle est faite pour qu'on lui fasse
+confiance sans lire.
+
+## La règle à suivre — c'est la sienne, du matin même
+
+Celle qu'elle a posée pour le PMR : **trois états, jamais deux.** *Étiqueté* ·
+*explicitement pas concerné* · **« on ne sait pas »**. Et surtout : **ne jamais
+déduire une étiquette d'une absence d'information.**
+
+## Donc, le plan proposé
+
+**① D'abord les certaines seulement** — celles où la donnée le dit sans ambiguïté :
+le domaine `urgenceheb` (hébergement d'urgence → **NUIT**), les `maisons` d'accueil
+(→ **SÉJOUR**), et les accueils de jour identifiés à la main (DoucheFLUX, L'Orée,
+La Fontaine, Wops de jour, Centre de jour Enaden → **JOUR**).
+Une quarantaine de fiches, toutes justes. **Le reste reste vide, et c'est honnête.**
+
+**② Le reste se remplit à l'usage**, par l'équipe — comme le dictionnaire de la loupe
+et comme le PMR. Une étiquette posée par quelqu'un qui connaît le lieu vaut mieux que
+trois cents posées par une expression régulière.
