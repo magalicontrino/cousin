@@ -437,13 +437,44 @@ transports) va-t-elle à TOUS les infirmiers en plus de leur étage ?** Si oui, 
 l'ajoute d'office aux huit et on ne repose plus la question.
 
 #### Le reste de l'équipe — 🕓 en attente de sa dictée
-- **Aide-soignants (3)** : Karima Boukricha · Paul Baykonday · Fallypaulbay →
-  Matin ou Jour ?
+#### Aide-soignants — dicté le 13/08/2026
+
+| Personne | Dicté | Liste |
+|---|---|---|
+| Karima Boukricha | **matin** | `aide-soignant-matin` |
+| Paul Baykonday | **jour** | `aide-soignant-soir` *(la clé dit soir, l'étiquette dit Jour)* |
+| `fallypaulbay@yahoo.fr` | — | 🕓 **à trancher — voir ci-dessous** |
+
+**⚠ IL Y A DEUX COMPTES PAUL, ET C'EST PROBABLEMENT LA MÊME PERSONNE.**
+`paul.baykonday@samusocial.be` et `fallypaulbay@yahoo.fr` : tous les deux
+aide-soignants, tous les deux actifs, tous les deux sans liste. L'un est l'adresse du
+travail, l'autre une adresse personnelle — **exactement comme Magali, qui a trois
+adresses dans la table**. Elle a dit « paul jour » au singulier.
+→ **À lui demander** : est-ce bien le même Paul ? Si oui, **les deux comptes doivent
+recevoir la liste** (sinon il ne la voit que selon l'adresse avec laquelle il se
+connecte ce jour-là — et c'est précisément le genre de panne qu'on ne comprend pas).
+Si c'est un vieux compte, le couper.
+
+*(Vérifié au passage : Charlotte Dorval (psychologue) et Charlotte Doyen (travailleuse
+sociale) sont bien **deux personnes différentes**, pas un doublon.)*
 - **Éducateurs (4)** : Imed Kenzari · Gaith Boubes · Ellie Moreaux · Mathilde Lona
 - **Polyvalents (3)** : Nordine Azeroual · Younes Armarchouh → jour ou nuit ?
   (Anisse Assihout a déjà `polyvalent-jour`)
 - **Travailleurs sociaux (10)** : Afaf Aboulkhir · Charlotte Doyen · Fouad Roughou ·
-  Selma Sefiani · Yaszakis · Leontine Pyot
+  Selma Sefiani · Yaszakis
+
+**⚠ LÉONTINE PYOT EST MARQUÉE PFO À TORT** (13/08/2026) : « Léontine est TS, c'est
+**Lic** qui est PFO. » → mettre `pfo = false` sur `leontine.pyot@samusocial.be`.
+Elle garde son métier de travailleuse sociale.
+
+**⚠ ET « LIC » N'EXISTE PAS DANS L'APPLICATION.** J'ai relu les 35 adresses : aucune
+ne ressemble à Lic (la seule qui contient ces trois lettres est `theclick.bxl`, qui
+est la logistique). Donc **le vrai PFO n'a pas de compte** — ou il est là sous un
+prénom que je ne reconnais pas.
+→ **À lui demander : le nom complet de Lic, et son adresse.** C'est un ajout dans
+l'Admin, pas une correction. Tant qu'il n'est pas créé, il ne voit rien du tout.
+⚠ Conséquence : marquer Léontine `pfo=false` **sans** créer Lic ferait passer les PFO
+de 5 à 4 comptes, dont un qui n'est pas le bon. Faire les deux dans le même geste.
 - **Les autres (7)** : Laura Campeert (coordination) · Andrea Falconeri (médecin) ·
   Charlotte Dorval et Ysaline Pinchart (psychologues) · Luis Rodrigues et Theclick Bxl
   (logistique) · Gandi12 (admin).
