@@ -17982,10 +17982,18 @@ function passPourMoi(){
 function passEcrites(){ return PASSATIONS.filter(passMienne); }
 /* Les réveils d'abord, par heure. Une heure vide part à la fin — mieux vaut la voir
    en dernier que de la voir écraser l'ordre de celles qui en ont une. */
+/* ⚠ L'ORDRE EST CELUI DE LA NUIT, pas celui de l'écriture (étendu le 13/08/2026).
+   Réveils d'abord et par heure — un réveil se fait à 5 h 30 et pas à 7 h, mélangé aux
+   infos il se rate. Puis « à jeun », par heure aussi : c'est une heure à partir de
+   laquelle la personne ne mange plus, donc ça se lit avant le petit-déjeuner. Puis
+   les sorties de centre. Les infos en dernier : elles n'ont pas d'horaire. */
+const PASS_RANG={reveil:0, ajeun:1, sortie:2, passation:3};
 function passTri(liste){
   return liste.slice().sort(function(a,b){
-    if((a.genre==='reveil')!==(b.genre==='reveil')) return a.genre==='reveil'?-1:1;
-    if(a.genre==='reveil') return String(a.heure||'99:99').localeCompare(String(b.heure||'99:99'));
+    const ra=(PASS_RANG[a.genre]!==undefined?PASS_RANG[a.genre]:3);
+    const rb=(PASS_RANG[b.genre]!==undefined?PASS_RANG[b.genre]:3);
+    if(ra!==rb) return ra-rb;
+    if(ra<=1) return String(a.heure||'99:99').localeCompare(String(b.heure||'99:99'));
     return String(b.cree_le).localeCompare(String(a.cree_le));
   });
 }
@@ -18000,9 +18008,15 @@ async function passAjouter(){
   if(!texte){ const e=document.getElementById('passTxt'); if(e) e.focus(); return; }
   if(!sb){ toast('Pas de connexion'); return; }
   const l={texte:texte.slice(0,300), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
-  if(PASS_GENRE==='reveil'){
-    l.heure=v('passHeure')||null; l.chambre=v('passCh')||null;
-    l.jour=v('passJour')||null; l.commentaire=v('passCom')||null;
+  /* Chaque genre porte les champs qui le concernent, et rien d'autre (13/08/2026).
+     Le jour et le commentaire valent pour les trois genres datés — une sortie de
+     centre a une DATE LIMITE, c'est même tout son sujet. */
+  const g=passGenreDe(PASS_GENRE);
+  if(PASS_GENRE!=='passation'){
+    if(g.heure)   l.heure=v('passHeure')||null;
+    if(g.chambre) l.chambre=v('passCh')||null;
+    l.jour=v('passJour')||null;
+    l.commentaire=v('passCom')||null;
   }
   try{
     const {error}=await sb.from('passations').insert(l);
@@ -18034,21 +18048,46 @@ function passRetirer(id){
     }catch(e){ toast('Suppression refusée'); }
   }, {ok:'Retirer', danger:true});
 }
+/* ═══ QUATRE GENRES, PAS DEUX (Mag, 13/08/2026) ═══
+   « Il faut pouvoir cocher quand c'est un réveil, c'est très important, et noter
+   pourquoi. Quand quelqu'un doit être à jeun aussi. Ça peut être aussi une sortie de
+   centre — quelqu'un qui doit sortir ce jour-là, qui a été mis dehors par exemple, à
+   une date limite. Donc en fait trois boutons : un réveil, médical à jeun, sortie de
+   centre. Et info. Je devrais juste cliquer sur un des quatre, noter une petite
+   remarque, et c'est fait. »
+
+   ⚠ L'ORDRE N'EST PAS ALPHABÉTIQUE, IL EST CHRONOLOGIQUE : réveil (5 h 30), à jeun
+   (le matin), sortie (dans la journée), info (n'importe quand). C'est l'ordre dans
+   lequel la nuit se déroule, donc celui dans lequel on lit la feuille.
+   ⚠ « À jeun » porte une heure comme le réveil : un patient à jeun, c'est une heure
+   à partir de laquelle il ne mange plus — sans elle, la consigne ne veut rien dire. */
+const PASS_GENRES=[
+  {k:'reveil',   l:'Un réveil',       court:'Réveil',           s:'quelqu’un à réveiller',     c:'#e63329', heure:true,  chambre:true},
+  {k:'ajeun',    l:'Médical à jeun',  court:'À jeun',           s:'il ne doit plus manger',    c:'#5b8fd4', heure:true,  chambre:true},
+  {k:'sortie',   l:'Sortie de centre',court:'Sortie de centre', s:'il doit quitter le centre', c:'#c9940c', heure:false, chambre:true},
+  {k:'passation',l:'Une info',        court:'Info',             s:'à transmettre, sans plus',  c:'#1b1b1b', heure:false, chambre:false}
+];
+function passGenreDe(k){ return PASS_GENRES.find(function(g){ return g.k===k; })||PASS_GENRES[3]; }
+
 function passLigne(p, mienne){
-  const ok=passFait(p), rev=(p.genre==='reveil');
+  const ok=passFait(p), g=passGenreDe(p.genre), rev=(p.genre!=='passation');
   const qui=String(p.par||'').trim().split(/\s+/)[0];
   const quiFait=String(p.fait_par||'').trim().split(/\s+/)[0];
   return '<div class="tache'+(ok?' faite':'')+(rev&&!ok?' passrev':'')+'">'+
     '<button class="cas" onclick="passCocher(\''+p.id+'\')" aria-label="Cocher">'+
       (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
     '<span class="tx" onclick="passCocher(\''+p.id+'\')" style="cursor:pointer">'+
-      '<b>'+(rev?'<span class="passh">'+esc(p.heure||'heure ?')+'</span>':'')+
-        (rev&&p.chambre?'<span class="passch">'+esc(p.chambre)+'</span>':'')+
+      /* L'heure ne s'affiche que là où elle veut dire quelque chose — un réveil et
+         un « à jeun » en ont une, une sortie et une info non. Avant, tout ce qui
+         n'était pas une info affichait « heure ? », y compris quand la question ne
+         se posait pas. */
+      '<b>'+((g.heure)?'<span class="passh" style="background:'+g.c+'">'+esc(p.heure||'heure ?')+'</span>':'')+
+        (g.chambre&&p.chambre?'<span class="passch">'+esc(p.chambre)+'</span>':'')+
         esc(p.texte)+'</b>'+
       /* Le commentaire du réveil, sous le texte : c'est ce qui explique le geste
          (« frapper fort, il n'entend pas »), et ça ne tient pas sur la même ligne. */
       (p.commentaire?'<em class="passcom">'+esc(p.commentaire)+'</em>':'')+
-      '<em>'+(rev?'Réveil':'Passation')+
+      '<em>'+esc(g.court)+
         (mienne?' · pour '+esc(LISTE_LABELS[p.pour]||p.pour):(qui?' · de '+esc(qui):''))+
         /* ⚠ LE JOUR S'ÉCRIT EN TOUTES LETTRES, et seulement s'il n'est pas
            aujourd'hui. Cette ligne existait déjà mais lisait une colonne qui
@@ -18060,6 +18099,94 @@ function passLigne(p, mienne){
     (passMienne(p)?'<button class="fsup sup" onclick="passRetirer(\''+p.id+'\')">Retirer</button>':'')+
   '</div>';
 }
+/* ═══ LA PASSATION SUR PAPIER (Mag, 13/08/2026) ═══
+   « Il faut qu'on puisse imprimer la passation pour l'équipe de nuit. Je dois pouvoir
+   l'imprimer pour leur donner. » Et la phrase qui commande tout :
+   « L'idée de cette application, c'est SURTOUT pour pouvoir imprimer les passations et
+   les remettre EN MAIN PROPRE, parce qu'on ne fait pas confiance à ceux qui ne vont
+   pas aller sur l'application. »
+
+   ⚠ CETTE FEUILLE EST LE LIVRABLE, pas l'écran. Elle doit tenir debout toute seule
+   dans un couloir, à 22 h, sans téléphone.
+   ⚠ Les réveils EN PREMIER et par heure — c'est un horaire, pas une liste de courses.
+   ⚠ AUCUN NOM : numéro de chambre et initiales, comme partout ailleurs. */
+function imprimerPassation(pour){
+  const cle=pour||PASS_POUR;
+  const liste=passTri(PASSATIONS.filter(function(p){ return p.pour===cle; }));
+  const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
+  const qui=LISTE_LABELS[cle]||cle;
+
+  const bloc=function(g){
+    const l=liste.filter(function(p){ return (p.genre||'passation')===g.k; });
+    if(!l.length) return '';
+    return '<h2'+(g.k==='reveil'?' class="rouge"':'')+'>'+esc(g.court)+'</h2><table>'+
+      l.map(function(p){
+        const fait=passFait(p);
+        return '<tr'+(fait?' class="fait"':'')+'>'+
+          '<td class="cc"><span class="bx"></span></td>'+
+          (g.heure?'<td class="h">'+esc(p.heure||'—')+'</td>':'')+
+          (g.chambre?'<td class="ch">'+esc(p.chambre||'—')+'</td>':'')+
+          '<td'+(!g.heure&&!g.chambre?' colspan="3"':'')+'>'+esc(p.texte||'')+
+            (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+
+            (p.jour&&p.jour!==agIso(new Date())?'<span class="com">pour le '+esc(rappelQuandFr(p.jour))+'</span>':'')+
+          '</td></tr>';
+      }).join('')+'</table>';
+  };
+  const corps=PASS_GENRES.map(bloc).join('') ||
+    '<p class="vide">Rien à passer pour cette équipe.</p>';
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Passation — '+esc(qui)+'</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;'+
+      'background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;'+
+      'font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
+    'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
+    '.sous{font-size:14px;color:#444;margin:4px 0 14px}'+
+    'h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;'+
+      'border-bottom:2px solid #1b1b1b;padding-bottom:4px;margin:20px 0 2px}'+
+    'h2.rouge{color:#c41f1f;border-color:#c41f1f}'+
+    'table{width:100%;border-collapse:collapse}'+
+    /* Gros caractères : on lit ça debout, dans un couloir, à 22 h. */
+    'td{border-bottom:1px solid #ddd;padding:9px 5px;font-size:15px;line-height:1.35;vertical-align:top}'+
+    'tr{break-inside:avoid;page-break-inside:avoid}'+
+    'td.cc{width:11mm;padding-top:10px}'+
+    '.bx{display:block;width:6mm;height:6mm;border:1.6px solid #1b1b1b;border-radius:1px}'+
+    'td.h{width:20mm;font-weight:700;font-size:17px;white-space:nowrap}'+
+    'td.ch{width:22mm;font-weight:700;white-space:nowrap}'+
+    '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
+    'tr.fait td{color:#8b8984;text-decoration:line-through}'+
+    '.libre{margin-top:22px;border-top:1px solid #ccc;padding-top:10px}'+
+    '.libre span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666}'+
+    '.libre i{display:block;border-bottom:1px solid #ddd;height:11mm}'+
+    '.vide{padding:18px 0;font-size:15px;color:#555}'+
+    '.pied{margin-top:14px;padding-top:8px;border-top:1px solid #ccc;font-size:11px;color:#666}'+
+    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>La passation — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg">'+
+      '<h1>Passation</h1>'+
+      '<p class="sous">Pour <b>'+esc(qui)+'</b> · '+esc(jour)+'</p>'+
+      corps+
+      '<div class="libre"><span>Ce qui s’est passé pendant la nuit</span>'+
+        '<i></i><i></i><i></i><i></i><i></i></div>'+
+      '<p class="pied">COUSIN · imprimé le '+
+        esc(new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'long',year:'numeric'}))+
+        ' · initiales et numéros de chambre seulement, jamais de nom.</p>'+
+    '</div></body></html>');
+  w.document.close();
+}
+
 function passationsHTML(){
   const pour=passTri(passPourMoi()), ecrites=passTri(passEcrites());
   const reste=pour.filter(function(p){ return !passFait(p); }).length;
@@ -18067,7 +18194,17 @@ function passationsHTML(){
         '<em>'+(reste?reste+' pour toi':(pour.length?'tout est fait ✓':'rien pour toi'))+'</em></div>';
   h+='<div class="fsrc" style="text-align:left;padding:10px 0 0">Ce que l’équipe qui part '+
      'laisse à celle qui arrive. <b>C’est celui qui reçoit qui coche.</b> '+
-     'Initiales et numéro de chambre, <b>jamais le nom</b>.</div>';
+     'Initiales et numéro de chambre, <b>jamais le nom</b>.</div>'+
+     /* ⚠ LE BOUTON D'IMPRESSION EST EN HAUT, PAS EN BAS. C'est la raison d'être de
+        cet écran (« l'idée de cette application, c'est surtout pour pouvoir imprimer
+        les passations et les remettre en main propre ») — pas une option qu'on
+        découvre après avoir tout fait défiler.
+        On imprime la liste de l'équipe CHOISIE dans « À qui ? » juste en dessous :
+        une feuille par équipe, c'est comme ça qu'on la remet. */
+     '<div class="imprligne" style="justify-content:flex-start;margin-top:12px">'+
+     '<button class="imprbtn" onclick="imprimerPassation()">'+
+     '<span class="ic">'+icon('note')+'</span>Imprimer pour '+
+     esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</button></div>';
   if(PASS_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:12px"><b>Passation illisible</b>'+
        '<p>Ce n’est pas qu’elle est vide : la base a refusé de répondre.</p>'+
@@ -18092,22 +18229,31 @@ function passationsHTML(){
           return '<button class="fchip'+(PASS_POUR===k?' on':'')+'" onclick="passPourChoix(\''+esc(k)+'\')">'+
             esc(LISTE_LABELS[k]||k)+'</button>';
         }).join('')+'</div></div>'+
-      '<div class="chdep" style="margin:2px 0 0">'+
-        '<button class="chdep-b'+(PASS_GENRE==='passation'?' on':'')+'" onclick="passGenreChoix(\'passation\')">'+
-          '<b>Une passation</b><em>une info à transmettre</em></button>'+
-        '<button class="chdep-b rev'+(PASS_GENRE==='reveil'?' on':'')+'" onclick="passGenreChoix(\'reveil\')">'+
-          '<b>Un réveil</b><em>quelqu’un à réveiller</em></button>'+
+      /* ═══ LES QUATRE BOUTONS (Mag, 13/08/2026) ═══
+         « Je devrais juste cliquer sur un des quatre, noter une petite remarque, et
+         ça fait une [ligne]. » Deux par rangée : quatre sur une seule ligne, les mots
+         seraient coupés sur un téléphone. */
+      '<div class="chdep pass4" style="margin:2px 0 0">'+
+        PASS_GENRES.map(function(g){
+          return '<button class="chdep-b'+(PASS_GENRE===g.k?' on':'')+'" '+
+            'onclick="passGenreChoix(\''+g.k+'\')" '+
+            'style="'+(PASS_GENRE===g.k?'border-color:'+g.c:'')+'">'+
+            '<b'+(PASS_GENRE===g.k?' style="color:'+g.c+'"':'')+'>'+esc(g.l)+'</b>'+
+            '<em>'+esc(g.s)+'</em></button>';
+        }).join('')+
       '</div>'+
-      /* L'heure et la chambre n'apparaissent QUE pour un réveil : une passation n'a
-         pas d'heure, et deux champs vides à remplir font hésiter pour rien. */
-      /* ⚠ UN RÉVEIL PORTE UN JOUR (Mag, 08/08/2026 : « pour le réveil il faut un jour,
-         une heure et un commentaire »). Il n'y avait que l'heure : un réveil noté le
-         samedi soir pour le dimanche matin se lisait comme un réveil pour tout de
-         suite. Le jour est pré-rempli à demain — c'est le cas de loin le plus
-         fréquent, on note le soir pour le lendemain. */
-      (PASS_GENRE==='reveil'
+      /* Les champs suivent le genre choisi : on ne montre que ce qui a un sens.
+         ⚠ UN JOUR SUR LES TROIS GENRES DATÉS, pas seulement le réveil (08/08 pour le
+         réveil, étendu le 13/08). Un réveil noté le samedi soir pour le dimanche se
+         lisait comme un réveil pour tout de suite ; une SORTIE DE CENTRE, elle, n'est
+         quasiment que sa date limite. Le jour est pré-rempli à demain — c'est le cas
+         de loin le plus fréquent, on note le soir pour le lendemain. */
+      (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
-          '<input id="passHeure" placeholder="À quelle heure ? — 05:30"></div>'+
+          (passGenreDe(PASS_GENRE).heure
+            ? '<input id="passHeure" placeholder="'+
+              (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'">'
+            : '<input id="passHeure" placeholder="Une heure ? (facultatif)">')+'</div>'+
           '<div class="acduo"><input id="passCh" placeholder="N° de chambre">'+
           '<input id="passCom" placeholder="Un commentaire"></div>'
         : '')+
