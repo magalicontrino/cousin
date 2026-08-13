@@ -940,6 +940,9 @@ body.en-apercu #view{animation:none;transform:none}
 .avance .pts i.on{background:#0a3a44}
 
 /* Les tâches se cochent depuis l'accueil. Faite : barrée, sur fond vert pâle. */
+.tachfini{border:1.5px solid #6cb392;border-radius:12px;background:#f2faf6;padding:14px 15px;text-align:center}
+.tachfini b{display:block;font-size:16px}
+.tachfini em{font-style:normal;font-size:13px;color:#57554f}
 .tachl{padding-top:10px}
 .tach-i{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
   background:#fdfdfc;border:1.5px solid var(--noir);border-radius:8px;padding:12px 14px;
@@ -9766,18 +9769,30 @@ function vHome(){
     const faites=taches.filter(function(t){ return t.fait; }).length;
     /* Ce qui reste d'abord, ce qui est fait ensuite : on ouvre l'app pour ce qu'il
        reste à faire, pas pour s'admirer. Quatre lignes, le reste est dans la page. */
-    const ordre=taches.filter(function(t){ return !t.fait; }).concat(taches.filter(function(t){ return t.fait; }));
+    /* ⚠ CE QUI EST COCHÉ DISPARAÎT (Mag, 13/08/2026) : « il devrait s'éliminer ce que
+       tu as déjà coché, pour que la tâche de travail soit minimisée au fur et à
+       mesure. C'est beaucoup plus positif et agréable. »
+       Avant, les faites restaient là, barrées, poussées derrière les autres : sur un
+       aperçu de quatre lignes, trois pouvaient être des tâches déjà finies — on
+       ouvrait l'accueil et on voyait surtout du travail rayé. Maintenant la liste
+       RACCOURCIT : elle ne montre que ce qu'il reste.
+       ⚠ LE COMPTE ET LES POINTS RESTENT, eux : c'est là qu'on voit ce qu'on a
+       abattu. On enlève le rappel du travail fait, pas la récompense. */
+    const ordre=taches.filter(function(t){ return !t.fait; });
     h+='<div class="sect"><b>Ma liste</b><em>'+faites+' / '+taches.length+' faites</em></div>'+
       '<div class="avance"><b>'+faites+' sur '+taches.length+' faites</b>'+
         '<span class="pts">'+taches.slice(0,8).map(function(t,i){
           return '<i class="'+(i<faites?'on':'')+'"></i>';
         }).join('')+'</span></div>'+
-      '<div class="tachl">'+ordre.slice(0,4).map(function(t){
+      '<div class="tachl">'+(ordre.length?ordre.slice(0,4).map(function(t){
         const act=(t.f==='r'?'rappelCocher':'toggleTache')+'(\''+String(t.id).replace(/'/g,"\\'")+'\')';
         return '<button class="tach-i'+(t.fait?' ok':'')+'" onclick="'+act+'">'+
           '<span class="cx">'+(t.fait?'✓':'')+'</span>'+
           '<span class="tx"><b>'+esc(t.txt)+'</b><em>'+esc(t.sous||'')+'</em></span></button>';
-      }).join('')+'</div>';
+      }).join('')
+      /* Une liste vide n'est pas un écran vide : c'est une bonne nouvelle, et elle
+         se dit. */
+      :'<div class="tachfini"><b>Tout est fait.</b><em>Il ne reste rien pour aujourd’hui.</em></div>')+'</div>';
   }
   h+='<button class="lienbas plein" onclick="go(\'#/liste\')"><span class="ic">'+icon('list')+
      '</span>Toutes les tâches</button>';
