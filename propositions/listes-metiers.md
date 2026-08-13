@@ -310,13 +310,20 @@ Sans ça, un infirmier du rez cherche sa liste de nuit — et elle n'existe pas.
 
   **Deux fois par cycle** : « c'est en début de [7/7] et en fin de 7/7 ».
 
-  **⚠ DEUX CHOSES À LUI FAIRE CONFIRMER AVANT DE POSER LA LIGNE :**
-  1. **Le nom de l'outil.** Elle a écrit **« kairos »** la première fois, puis
-     **« Kioskup »** la seconde. Ce sont deux mots trop différents pour trancher à
-     sa place — et un nom de logiciel faux dans une check-list rend la ligne
-     incompréhensible. **Lui demander l'orthographe exacte.**
-  2. **Dans quelle liste ?** Jour, nuit, ou les deux ? Le 7/7 est le cycle des PFO,
-     mais l'app a deux listes séparées.
+  **1. Le nom de l'outil — ✅ TRANCHÉ le 13/08/2026 : c'est KAIROS.**
+  Elle avait dicté « kairos », puis « Kioskup », et je lui ai reposé la question deux
+  fois. Sa réponse : **« Kioskup, ça n'a aucun rapport. »** On écrit donc **Kairos**.
+  Ligne retenue : **« Comparer les présences entre Kairos et la liste étage »**.
+  *(Si jamais l'orthographe exacte du logiciel diffère, c'est un mot à corriger, pas
+  la ligne — mais ne pas y revenir sans raison : elle a répondu deux fois.)*
+
+  **2. Dans quelle liste ? 🕓 TOUJOURS SANS RÉPONSE** — posée le 11/08 et le 13/08,
+  elle est passée à côté les deux fois. Jour, nuit, ou les deux ?
+  **Ma suggestion si elle ne tranche pas : les DEUX.** Comparer les présences est un
+  contrôle de cohérence — il ne sert que s'il est fait au moment où l'on prend et où
+  l'on rend le service. Et c'est justement ce qu'elle a dicté : « en début de 7/7 et
+  en fin de 7/7 ». Le mettre dans une seule des deux listes revient à ne le faire
+  qu'une fois sur deux.
 
   **⚠ ET UN MANQUE DE L'APP.** Les rythmes existants sont `jour`, `semaine`,
   `reprise`. **Il n'y a rien pour « en fin de cycle ».** `reprise` pose la tâche au
