@@ -3603,6 +3603,11 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
               lien:'site.svg', bulb:'astuce.svg',
               book:'formations.svg', chat:'avis.svg', siren:'urgences.svg',
               petition:'petition.svg', cog:'roue.svg', cle:'cle.svg',
+              /* Le picto imprimante (Mag, 13/08/2026 : « un picto print »). Le dessin
+                 existait dans picto/ et ne servait que dans le panneau des sorties ;
+                 partout ailleurs on affichait une feuille de papier, qui dit
+                 « document » et pas « imprimer ». Maintenant les deux se distinguent. */
+              imprimer:'imprimer.svg',
               /* Son picto à elle, déposé le 08/08/2026 pour le bouton de la barre du
                  haut — il remplace l'icône de lien que j'avais prise en attendant. */
               partage:'partager.svg',
@@ -6908,7 +6913,10 @@ const DOMAINES = [
   {key:"santementale",label:"Santé mentale",       short:"Santé",     ic:"mind",     reseau:true},
   {key:"handicap",    label:"Handicap",            short:"Handicap",  ic:"handicap", reseau:true},
   {key:"logement",    label:"Logement",            short:"Logement",  ic:"home",     reseau:true},
-  {key:"planning",    label:"Planning familial",   short:"Planning",  ic:"planning", reseau:true, byCommune:true},
+  /* ⚠ « Planning familial » EN ENTIER SUR LA TUILE (Mag, 13/08/2026). Le raccourci
+     « Planning » ne veut rien dire tout seul : c'est un mot de calendrier avant
+     d'être un mot de santé. On lit le nom du service, pas son abréviation. */
+  {key:"planning",    label:"Planning familial",   short:"Planning familial",  ic:"planning", reseau:true, byCommune:true},
   /* ═══ DEUX PORTES POUR L'HÉBERGEMENT (Mag, 08/08/2026) ═══
      « Décider si l'urgence et les maisons d'accueil doivent se distinguer » →
      « oui c'est différent ». Elle a choisi deux boutons séparés dans le Réseau.
@@ -8776,11 +8784,11 @@ const PRINT_FEUILLES=[
    sous:'Traitement des punaises · −40°, 24 h',
    det:'Deux fiches, une par congélateur. À remplir au stylo : nom / chambre, date de '+
        'dépôt, contenu (bacs ou sacs), heure, et l’heure de sortie prévue.',
-   pages:'2 pages · A4 paysage', pi:'note', act:'imprimerCongelateur()'}
+   pages:'2 pages · A4 paysage', pi:'imprimer', act:'imprimerCongelateur()'}
 ];
 
 function vPrint(){
-  let h=heroBandeau('Print','Les feuilles à réimprimer','#A9C8E8','note',true);
+  let h=heroBandeau('Print','Les feuilles à réimprimer','#A9C8E8','imprimer',true);
   h+='<div class="fsrc" style="text-align:left;padding:14px 2px 0">'+
      'Les feuilles vierges qu’on réimprime souvent, toujours les mêmes. '+
      'On les sort, on les remplit à la main.</div>';
@@ -8899,7 +8907,7 @@ function imprimerCongelateur(){
 function boutonImprimer(quoi){
   const act=(quoi==='maliste')?'imprimerMaListe()':'imprimer()';
   return '<button class="imprbtn" onclick="'+act+'" title="Imprimer ou enregistrer en PDF">'+
-    icon('note')+'<span>Imprimer</span></button>';
+    icon('imprimer')+'<span>Imprimer</span></button>';
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove('show'),1800)}
@@ -12766,7 +12774,7 @@ function vDomaine(key){
        Il passe devant parce qu'on vient ici pour ça, pas au bout d'une liste. */
     (key==='centre'
       ? '<div class="fcard" role="button" tabindex="0" onclick="go(\'#/print\')">'+
-        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon('note')+'</span></span>'+
+        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon('imprimer')+'</span></span>'+
         '<span class="tx"><b>Print</b><small>Les feuilles à réimprimer — '+
         PRINT_FEUILLES.length+' pour l’instant</small></span>'+
         '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>'
@@ -16535,6 +16543,18 @@ function actPanneau(){
         (l.adr?'<button class="actgo" onclick="window.open(\''+itiHref(l.adr)+'\',\'_blank\')">Y aller</button>':'')+
       '</div>';
     }).join('');
+    /* ═══ LE PLAN ET L'IMPRESSION (Mag, 13/08/2026) ═══
+       « Les parcs aux alentours c'est bien, mais mets aussi la map » — et un bouton
+       print. Le plan est celui d'« Autour d'ici » : un schéma de directions et de
+       temps de marche depuis le centre, qui marche SANS TÉLÉPHONE. C'est le cas le
+       plus courant, et c'est pour ça qu'il compte plus qu'un lien vers une carte en
+       ligne : une liste d'adresses ne dit pas que l'un est à côté et l'autre loin.
+       ⚠ Ses directions et ses temps restent des ESTIMATIONS à faire vérifier — la
+       feuille imprimée le dit elle-même. */
+    corps+='<div class="parcplan">'+quartierPlanSVG()+
+      '<p class="hint">Direction et temps de marche depuis le centre. '+
+      '<b>Estimés</b> — à faire vérifier par quelqu’un du quartier.</p></div>';
+    pied='<button class="actimpr" onclick="imprimerParcs()">'+P('imprimer')+'Imprimer les parcs et le plan</button>';
   } else {
     const r=actListe(), gr=actGrouper(r.items);
     sur=gr.length+' sortie'+(gr.length>1?'s':'');
@@ -16668,6 +16688,57 @@ function quartierRepere(titre){
   if(i<0) return null;
   return Object.assign({n:i+1}, QUARTIER_PLAN[i]);
 }
+/* La feuille des parcs : la liste ET le plan sur la même page (Mag, 13/08/2026).
+   Les deux ensemble, parce qu'ils ne disent pas la même chose — la liste donne les
+   adresses, le plan dit lequel est à côté et lequel est loin. Sur une feuille qu'on
+   remet à quelqu'un qui part à pied, la deuxième information vaut la première. */
+function imprimerParcs(){
+  const g=(QUARTIER||[]).find(function(x){ return /parcs/i.test(x.grp||''); });
+  const lignes=(g?g.lignes:[]);
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Les parcs aux alentours</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;'+
+      'background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;'+
+      'font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
+    'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
+    '.sous{font-size:13px;color:#444;margin:4px 0 14px}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:12px}'+
+    /* Gros caractères : la feuille se lit debout, dehors. */
+    'td{border-bottom:1px solid #ddd;padding:9px 5px;font-size:15px;line-height:1.35;vertical-align:top}'+
+    'td.n{width:9mm;font-weight:700}'+
+    'td .a{display:block;font-size:13px;color:#555;margin-top:2px}'+
+    '.plan{text-align:center;margin-top:6px;break-inside:avoid;page-break-inside:avoid}'+
+    '.plan svg{max-width:150mm;height:auto}'+
+    '.pied{margin-top:12px;padding-top:8px;border-top:1px solid #ccc;font-size:11.5px;color:#666}'+
+    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Les parcs — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg"><h1>Les parcs aux alentours</h1>'+
+    '<p class="sous">À pied depuis le centre · gratuit · '+lignes.length+' parcs</p>'+
+    (lignes.length?'<table>'+lignes.map(function(l,i){
+      return '<tr><td class="n">'+(i+1)+'</td><td><b>'+esc(l.t)+'</b>'+
+        (l.d?' — '+esc(l.d):'')+
+        (l.adr?'<span class="a">'+esc(l.adr)+'</span>':'')+'</td></tr>';
+    }).join('')+'</table>':'<p>Aucun parc dans la liste.</p>')+
+    '<div class="plan">'+quartierPlanSVG()+'</div>'+
+    '<p class="pied">Le plan donne la <b>direction</b> et le <b>temps de marche</b> '+
+    'depuis le centre, pas le tracé des rues. Ces valeurs sont <b>estimées</b> et '+
+    'restent à faire vérifier par quelqu’un du quartier.</p>'+
+    '</div></body></html>');
+  w.document.close();
+}
+
 function quartierPlanSVG(){
   /* ⚠ LA LARGEUR EST GÉNÉREUSE EXPRÈS : les étiquettes des lieux à l'ouest sortaient
      du cadre et « Parc de la Pede » s'imprimait « c de la Pede ». Le dessin occupe le
