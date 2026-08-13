@@ -142,10 +142,21 @@ C'est le point de départ : ne pas redicter ce qui est déjà là.
    avec un commentaire, soit on la renomme **et** on met à jour les accès dans la
    même opération. 🕓 À décider quand on posera tout.
 
-4. **Deux lignes disent la même chose chez Polyvalent — Jour** : la 6 (« Contrôler le
-   retour du matériel avant départ — talkies, clés voitures, clés coordi… ») et la 7
-   (« Vérification des clés avant départ — voiture, coordi, talkies, téléphones… »).
-   On coche deux fois le même geste. En garder une.
+4. **Polyvalent — Jour : deux lignes pour le même geste — ✅ TRANCHÉ le 13/08/2026.**
+   Ses mots : « il y a deux choses qui disent la même chose, **retire-en une** » —
+   elle m'a laissé choisir laquelle.
+
+   - ❌ **À retirer** : *Contrôler le retour du matériel avant départ (talkies, clés
+     voitures, clés coordi…)*
+   - ✅ **À garder** : *Vérification des clés avant départ (voiture, coordi, talkies,
+     téléphones…)*
+
+   **Pourquoi celle-là.** Elle est **mot pour mot** la ligne 1 de Polyvalent — Nuit
+   (« Vérification des clés — voiture, coordi, talkies, téléphones… »). Les deux
+   équipes font le même contrôle, chacune au bout de son service : en gardant la même
+   phrase des deux côtés, celui qui passe du jour à la nuit reconnaît son geste sans
+   le relire. Et sa parenthèse est la plus complète des deux — elle est la seule à
+   citer les **téléphones**.
 
 ---
 
