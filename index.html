@@ -2300,6 +2300,22 @@ body.en-apercu #view{animation:none;transform:none}
 }
 
 /* ---- les chambres (rapatrié de l'app principale, habillé Lux) ---- */
+/* ═══ CE QUE L'ÉQUIPE SAIT D'UN LIEU (13/08/2026) ═══
+   Volontairement discret : ses mots pour les étiquettes étaient « c'est un petit
+   rappel ». Le bloc vient APRÈS les coordonnées et les boutons d'action — on ouvre
+   une fiche pour un numéro de téléphone, pas pour lire des commentaires. */
+.avisbloc{border:1px solid var(--ligne);border-radius:12px;padding:14px;background:#fdfdfc}
+.avisetq{display:flex;flex-wrap:wrap;gap:6px}
+.avisl{border-left:3px solid var(--ligne);padding:2px 0 2px 11px;margin-bottom:11px}
+.avisl b{font-size:14px}
+.avisl em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;
+  letter-spacing:.1em;color:#8b8984;margin-left:7px}
+.avisl p{font-size:14.5px;line-height:1.45;margin-top:2px}
+.avisl.mien{border-left-color:var(--noir);margin-top:12px}
+/* La pastille d'étiquette : petite, en capitales, lisible sans lire. */
+.etqp{display:inline-block;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:#fff;
+  padding:3px 8px;border-radius:4px;vertical-align:1px}
 .chadd{display:flex;gap:8px;margin:10px 0 10px}
 .chadd input{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;
   border:1px solid var(--ligne);border-radius:0;padding:11px 12px}
@@ -9276,7 +9292,10 @@ function render(){
   if(APERCU_TEL){ /* rien à dessiner ici : le cadre s'en charge plus bas */ }
   else if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
-  else if(current.view==='fiche') view.innerHTML=vFiche(BYSID[current.sid]);
+  else if(current.view==='fiche'){ view.innerHTML=vFiche(BYSID[current.sid]);
+    /* Les avis arrivent après : la fiche s'affiche tout de suite, sans attendre la
+       base. Le bloc dit « Chargement… » puis se remplit tout seul. */
+    if(BYSID[current.sid] && BYSID[current.sid].domaine!=='mails') rafraichirAvis(current.sid); }
   else if(current.view==='centre') view.innerHTML=vCentre();
   else if(current.view==='admin'){ view.innerHTML=vAdmin(); rafraichirAdmin(); }
   else if(current.view==='profil') view.innerHTML=vProfil();
@@ -12833,6 +12852,153 @@ function poubellesTableau(){
     'c\'est le seul jour avec le jaune et le bleu.</span></div>';
   return h;
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   CE QUE L'ÉQUIPE SAIT D'UN LIEU (Mag, 13/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   « Je trouve ça chouette qu'on puisse mettre une appréciation des collègues à
+   chaque fois. »
+
+   ⚠ IL N'Y A QUE DU POSITIF, ET C'EST SA DÉCISION. Je l'avais avertie qu'un avis
+   négatif sur une association NOMMÉE, dans un outil que 35 personnes lisent et qui
+   s'imprime, peut sortir du centre. Sa réponse : « non, on mettra juste en priorité
+   ceux qui sont notés positivement ». Le classement fait le travail à la place du
+   pouce baissé, et le risque disparaît avec lui.
+   ⚠ Ceci REMPLACE sa demande du 08/08 (« et aussi ceux qu'on déconseille »).
+   Ne pas rouvrir le côté négatif sans elle.
+
+   ⚠ C'EST SIGNÉ, elle l'a choisi — comme les chambres, la passation et le fil.
+
+   ⚠ ET C'EST ICI QUE VIT L'ÉTIQUETTE (jour · nuit · séjour · urgence · orientation).
+   Essayé le 13/08 : deviner les étiquettes à la machine est inutilisable — « urgence »
+   en attrapait 141 sur 359, parce que « permanence » et « sans rendez-vous » sont
+   partout. La machine ne sait pas si un lieu ferme le soir ; la collègue qui y est
+   allée, si. VIDE VEUT DIRE « on ne sait pas », et c'est une réponse valable :
+   sa règle des trois états, jamais deux, jamais déduite d'un blanc. */
+let AVIS=[], AVIS_SID='', AVIS_ETQ=null, AVIS_CHARGE=false;
+
+const ETQ_LABELS={
+  nuit:       ['Nuit',        'On y dort'],
+  jour:       ['Jour',        'On n’y dort pas'],
+  sejour:     ['Séjour',      'Pour des semaines'],
+  urgence:    ['Urgence',     'Tout de suite, sans rendez-vous'],
+  orientation:['Orientation', 'Ils ne logent pas, ils cherchent une place']
+};
+/* ⚠ Le jaune validé (#f5c542) ne se lit pas en petit sur du blanc : l'étiquette
+   « jour » porte donc un jaune plus foncé. Exception assumée, ce texte-là seulement. */
+const ETQ_COUL={nuit:'#1b1b1b', jour:'#c9940c', sejour:'#5b8fd4',
+                urgence:'#e63329', orientation:'#7a5c4e'};
+
+function monAvis(){
+  return AVIS.find(function(a){ return PROFILE && a.uid===PROFILE.uid; })||null;
+}
+async function loadAvis(sid){
+  AVIS=[]; AVIS_CHARGE=false; AVIS_SID=sid;
+  if(!sb||!sid) { AVIS_CHARGE=true; return; }
+  /* ⚠ On lit `.error` : sb.rpc et sb.from ne LÈVENT pas. Sans ça, une panne
+     s'afficherait comme « personne n'a encore rien dit », ce qui est un mensonge. */
+  const r=await sb.from('avis').select('*').eq('sid',sid).order('cree_le',{ascending:false});
+  AVIS_CHARGE=true;
+  if(r.error){ AVIS=[]; return; }
+  AVIS=r.data||[];
+  const m=monAvis(); AVIS_ETQ=m?m.etiquette:null;
+}
+function rafraichirAvis(sid){
+  loadAvis(sid).then(function(){
+    const z=document.getElementById('aviszone');
+    if(z && current && current.view==='fiche' && current.sid===sid) z.innerHTML=avisCorpsHTML(sid);
+  });
+}
+function avisEtq(cle){ AVIS_ETQ=(AVIS_ETQ===cle)?null:cle;
+  const z=document.getElementById('aviszone'); if(z) z.innerHTML=avisCorpsHTML(AVIS_SID); }
+
+async function avisEnregistrer(sid){
+  const i=document.getElementById('avisTxt');
+  const texte=((i&&i.value)||'').trim();
+  /* Une étiquette seule vaut un avis : savoir qu'un lieu ferme le soir est déjà
+     un renseignement, même sans phrase. */
+  if(!texte && !AVIS_ETQ){ if(i) i.focus(); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  const r=await sb.from('avis').upsert({
+    sid:sid, uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'',
+    texte:texte.slice(0,400), etiquette:AVIS_ETQ
+  },{onConflict:'sid,uid'}).select();
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  if(i) i.value='';
+  toast('Merci, c’est noté');
+  rafraichirAvis(sid);
+}
+function avisRetirer(id, sid){
+  cousinConfirme('Retirer ton avis ?','Il disparaîtra pour toute l’équipe.',
+    async function(){
+      const r=await sb.from('avis').delete().eq('id',id);
+      if(r.error){ toast('Pas retiré'); return; }
+      AVIS_ETQ=null; rafraichirAvis(sid);
+    },{ok:'Retirer',danger:true});
+}
+/* La pastille d'étiquette, telle qu'elle s'affiche partout. */
+function etqPastille(cle){
+  if(!cle||!ETQ_LABELS[cle]) return '';
+  return '<span class="etqp" style="background:'+ETQ_COUL[cle]+'">'+esc(ETQ_LABELS[cle][0])+'</span>';
+}
+/* L'étiquette d'une fiche = celle que l'équipe a posée le plus souvent. */
+function etqDeLaFiche(){
+  const n={};
+  AVIS.forEach(function(a){ if(a.etiquette) n[a.etiquette]=(n[a.etiquette]||0)+1; });
+  let best=null, bn=0;
+  Object.keys(n).forEach(function(k){ if(n[k]>bn){ bn=n[k]; best=k; } });
+  return best;
+}
+function avisCorpsHTML(sid){
+  if(!AVIS_CHARGE) return '<p class="hint">Chargement…</p>';
+  const mien=monAvis();
+  let h='';
+  const etq=etqDeLaFiche();
+  if(etq) h+='<div style="margin-bottom:10px">'+etqPastille(etq)+
+    '<span class="hint" style="margin-left:8px">'+esc(ETQ_LABELS[etq][1])+'</span></div>';
+
+  const autres=AVIS.filter(function(a){ return !PROFILE || a.uid!==PROFILE.uid; })
+                   .filter(function(a){ return (a.texte||'').trim(); });
+  if(autres.length){
+    h+='<div class="rlist">'+autres.map(function(a){
+      const j=(a.cree_le||'').slice(8,10)+'/'+(a.cree_le||'').slice(5,7);
+      return '<div class="avisl"><b>'+esc(a.auteur_nom||'une collègue')+'</b>'+
+        '<em>'+esc(j)+'</em><p>'+esc(a.texte)+'</p></div>';
+    }).join('')+'</div>';
+  }
+
+  /* LE FORMULAIRE. L'étiquette d'abord : c'est le geste le plus court, et le plus
+     utile quand on n'a rien à raconter. */
+  h+='<div class="avisetq">'+Object.keys(ETQ_LABELS).map(function(k){
+      return '<button class="fchip'+(AVIS_ETQ===k?' on':'')+'" onclick="avisEtq(\''+k+'\')" '+
+        'style="'+(AVIS_ETQ===k?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
+        esc(ETQ_LABELS[k][0])+'</button>';
+    }).join('')+'</div>';
+  h+='<div class="chadd" style="margin-top:10px">'+
+     '<input id="avisTxt" type="text" maxlength="400" autocomplete="off" '+
+     'placeholder="'+(mien?'Modifier ce que tu as écrit…':'Ce qu’il faut savoir de ce lieu…')+'" '+
+     'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avisEnregistrer(\''+sid+'\');}">'+
+     '<button class="chaddbtn" onclick="avisEnregistrer(\''+sid+'\')">'+(mien?'Modifier':'Poser')+'</button>'+
+     '</div>';
+  if(mien){
+    h+='<div class="avisl mien"><b>Toi</b>'+
+       (mien.texte?'<p>'+esc(mien.texte)+'</p>':'<p class="hint">Tu as posé une étiquette, sans phrase.</p>')+
+       '<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">Retirer mon avis</button></div>';
+  }
+  /* ⚠ LA RÈGLE, AFFICHÉE. Elle n'est pas décorative : c'est elle qui fait qu'un avis
+     sert encore dans six mois. Un fait se vérifie, un jugement non. */
+  h+='<p class="hint" style="margin-top:10px">On écrit ce qu’on a <b>constaté</b>, '+
+     'pas ce qu’on en pense — « ils ne prennent plus les hommes seuls depuis juin », '+
+     'et <b>jamais le nom d’un hébergé</b>. C’est signé.</p>';
+  return h;
+}
+function avisBlocHTML(p){
+  return '<div class="f-h" style="margin-top:24px">Ce que l’équipe sait de ce lieu</div>'+
+    '<div id="aviszone" class="avisbloc">'+
+    (AVIS_SID===p.sid && AVIS_CHARGE ? avisCorpsHTML(p.sid) : '<p class="hint">Chargement…</p>')+
+    '</div>';
+}
+
 function vFiche(p){
   /* LA FICHE redessinée d'après le handoff Claude Design (06/08/2026) :
      carte d'en-tête à bande de couleur (retour + pastille du domaine + étoile),
@@ -12973,6 +13139,9 @@ function vFiche(p){
     (p.formation?'<div class="f-h" style="margin-top:22px">Se former là-dessus</div>'+
       '<div class="fboutons n1">'+ficheBtn(p.formation,p.formationTxt||'La formation')+'</div>':'')+
     boutons+
+    /* ⚠ PAS SUR LES MODÈLES DE MAILS : « ce que l'équipe sait de ce LIEU » n'a
+       aucun sens sous un canevas de mail, et une étiquette jour/nuit encore moins. */
+    (p.domaine!=='mails' ? avisBlocHTML(p) : '')+
     '<div style="height:26px"></div>';
 }
 function ctabar(t1,t2,ic,label,action,col){
