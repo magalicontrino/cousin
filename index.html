@@ -14304,6 +14304,21 @@ async function propEtat(id, etat){
     await loadPropositions(); render();
   }catch(e){ toast('Modification refusée'); }
 }
+/* Corriger le texte d'une proposition sans la perdre : le compteur de demandes, la
+   source et la date restent, seul le libellé change. */
+function propModifier(id){
+  const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  cousinDemande('Modifier la proposition',
+    'Corrige le texte. Le nombre de fois qu’elle a été demandée ne change pas.',
+    p.texte||'', async function(txt){
+      txt=(txt||'').trim(); if(!txt || txt===p.texte) return;
+      try{ const {error}=await sb.from('propositions').update({texte:txt.slice(0,300)}).eq('id',p.id);
+        if(error) throw error;
+        await loadPropositions(); render(); toast('Proposition modifiée');
+      }catch(e){ toast('Modification refusée'); }
+    });
+}
 function propRetirer(id){
   const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -14335,6 +14350,11 @@ function propCarte(p){
       (p.etat==='idee'?'<button onclick="propEtat(\''+p.id+'\',\'essayer\')">À essayer</button>':'')+
       (p.etat!=='faite'?'<button onclick="propEtat(\''+p.id+'\',\'faite\')">On l’a faite</button>'
                        :'<button onclick="propEtat(\''+p.id+'\',\'idee\')">Remettre à voir</button>')+
+      /* ⚠ MODIFIER, PAS SEULEMENT RETIRER (Mag, 13/08/2026 : « retirer ou modifier —
+         même modifiée »). Une proposition mal formulée, ou dont le détail a changé,
+         n'avait qu'une issue : la supprimer et la retaper. On perdait au passage le
+         compteur de demandes et l'historique. Maintenant on la corrige sur place. */
+      (mienne?'<button class="doux" onclick="propModifier(\''+p.id+'\')">Modifier</button>':'')+
       (mienne?'<button class="doux" onclick="propRetirer(\''+p.id+'\')">Retirer</button>':'')+
     '</div>'+
   '</div>';
