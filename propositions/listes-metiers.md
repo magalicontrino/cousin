@@ -396,5 +396,56 @@ Relevé le 11/08/2026 : **29 personnes sur 35 n'ont aucune liste attachée.**
 Les listes sont donc invisibles pour presque toute la maison. Une fois les contenus
 prêts, il faut passer par **Admin → chaque personne → cocher ses listes**.
 
-### À ajouter
-_(en attente de sa dictée)_
+### La dictée des accès — commencée le 13/08/2026
+
+**Relevé ce jour dans `allowed_emails` : 35 personnes actives, 30 sans aucune liste.**
+Seuls Boutaher Tahiri, Yasmina Abettiou et Magali ont `pfo-jour`/`pfo-nuit`, et
+Anisse Assihout a `polyvalent-jour`. ⚠ **Leontine Pyot est PFO mais n'a aucune liste**
+— probablement un oubli, à lui confirmer.
+
+⚠ **Rien n'est encore écrit** : on pose tout d'un coup, comme pour les tâches.
+⚠ **`allowed_emails.nom` est VIDE pour tout le monde** — le prénom affiché vient du
+compte Google. Les noms ci-dessous sont reconstitués depuis l'adresse mail.
+
+#### Infirmiers (8) — dicté le 13/08/2026
+
+| Personne | Service dicté | Liste |
+|---|---|---|
+| Amélie Viguier | 2e · jour | `médical-2e` |
+| Elfine Hachemane | 2e · **jour** | `médical-2e` |
+| Elisa Delme | 2e · **jour** | `médical-2e` |
+| Imene Cherfaoui | **rez · jour** | `médical-rez` |
+| Nadia Draoui | **rez · jour** | `médical-rez` |
+| Patrick Omari | 2e · jour | `médical-2e` |
+| Marthe Byakolo | **nuit** | `médical-nuit` (= 2e étage · nuit) |
+| Vianne Maketa | **« gestion équipe infi »** | 🕓 **à trancher** |
+
+**⚠ Vianne Maketa n'est pas un service, c'est un rôle.** Elle encadre l'équipe
+infirmière. Deux façons, à lui demander :
+- elle reçoit **les trois listes** (`médical-rez`, `médical-2e`, `médical-nuit`) pour
+  voir ce que fait chacun — mais sa propre liste devient un empilement de 3 services ;
+- ou elle a **sa propre liste** (`médical-gestion`, à écrire), et elle peut consulter
+  les autres par le déroulant, comme tout le monde.
+**Ma suggestion : la seconde.** L'app montre déjà toutes les listes dans le déroulant
+— elle n'a pas besoin qu'on les lui empile pour aller les regarder. Et son travail à
+elle (encadrement, plannings, commandes ?) n'est écrit nulle part aujourd'hui.
+⚠ Voir aussi `sql/referent.sql` : « Référent·e infis & aide-soignant·es » a déjà
+existé comme rôle à part entière. C'est peut-être elle.
+
+**🕓 QUESTION POSÉE, SANS RÉPONSE : « Médical — toutes » (Pharmacie · Encoder les
+transports) va-t-elle à TOUS les infirmiers en plus de leur étage ?** Si oui, on
+l'ajoute d'office aux huit et on ne repose plus la question.
+
+#### Le reste de l'équipe — 🕓 en attente de sa dictée
+- **Aide-soignants (3)** : Karima Boukricha · Paul Baykonday · Fallypaulbay →
+  Matin ou Jour ?
+- **Éducateurs (4)** : Imed Kenzari · Gaith Boubes · Ellie Moreaux · Mathilde Lona
+- **Polyvalents (3)** : Nordine Azeroual · Younes Armarchouh → jour ou nuit ?
+  (Anisse Assihout a déjà `polyvalent-jour`)
+- **Travailleurs sociaux (10)** : Afaf Aboulkhir · Charlotte Doyen · Fouad Roughou ·
+  Selma Sefiani · Yaszakis · Leontine Pyot
+- **Les autres (7)** : Laura Campeert (coordination) · Andrea Falconeri (médecin) ·
+  Charlotte Dorval et Ysaline Pinchart (psychologues) · Luis Rodrigues et Theclick Bxl
+  (logistique) · Gandi12 (admin).
+  **Ma suggestion : pas de liste** pour la coordination et les psychologues — même
+  raisonnement que pour les travailleurs sociaux.
