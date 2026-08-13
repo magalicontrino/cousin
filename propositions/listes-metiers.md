@@ -30,6 +30,98 @@ liste. On prépare ici, on pose d'un coup à la fin. (Sa consigne du 11/08/2026 
 
 ---
 
+# LE CONTENU RÉEL DE LA BASE — relevé le 13/08/2026
+
+Lu directement dans `CHECKLISTS`, app connectée en admin. **41 tâches en tout.**
+C'est le point de départ : ne pas redicter ce qui est déjà là.
+
+### PFO — Jour (`pfo-jour`) — 7
+1. Entretien mi-parcours · `reprise`
+2. Créer le rapport (2 jours) · `jour`
+3. Vérifier les nuits d'absence · `jour`
+4. Désencoder les +3 jours d'absence · `jour`
+5. Mettre A VIDER sur la liste étage · `jour`
+6. Mettre A NETTOYER sur la liste étage · `jour`
+7. Vérifier le nombre de LAM · `jour`
+
+### PFO — Nuit (`pfo-nuit`) — 3
+1. Présence · `jour`
+2. Entretien mi-parcours · `reprise`
+3. Vérifier les nuits d'absence (justifié ou non) · `jour`
+
+### Travailleur social (`ts`) — 2
+1. **Parc — 11 h** · `jour` → ⚠ **à retirer**, décidé le 11/08, pas encore fait
+2. Vérifier que la cuisine est bien en duo · `jour`
+
+### Éducateur (`educ`) — 1
+1. Vérifier que la cuisine est bien en duo · `jour`
+
+### Médical — toutes (`médical`) — 2
+1. Pharmacie · `jour`
+2. Encoder les transports · `jour`
+
+### Médical — Jour · rez (`médical-rez`) — 1
+1. Entretien mi-parcours · `reprise`
+
+### Médical — Jour · 2e étage (`médical-2e`) — 3
+1. Vous pouvez demander les PM, les TTT manquants · `jour`
+2. Entretien mi-parcours · `reprise`
+3. Vérifier les réquisitoires le week-end pour la semaine · `semaine`
+
+### Médical — Nuit (`médical-nuit`) — 1
+1. Entretien mi-parcours · `reprise`
+
+### Aide-soignants — Matin (`aide-soignant-matin`) — 1
+1. Toilettes · `jour`
+
+### Aide-soignants — Jour (`aide-soignant-soir`) — 2
+1. Les entrants · `jour`
+2. Les protocoles · `jour`
+
+### Polyvalent — Jour (`polyvalent-jour`) — 7
+1. Rondes & présence · `jour`
+2. Mise en place du petit-déjeuner · `jour`
+3. Préparation café et thé (2 cafés + 1 thé) · `jour`
+4. Recharger le petit-déjeuner (lait, confiture, pain…) · `jour`
+5. Accompagnement petit-déjeuner jusqu'à 07h45 · `jour`
+6. Contrôler le retour du matériel avant départ (talkies, clés voitures, clés coordi…) · `jour`
+7. Vérification des clés avant départ (voiture, coordi, talkies, téléphones…) · `jour`
+
+### Polyvalent — Nuit (`polyvalent-nuit`) — 11
+1. Vérification des clés (voiture, coordi, talkies, téléphones…) · `jour`
+2. Briefing et note des infos du jour avec le travailleur social · `jour`
+3. Tour du bâtiment (stocks, garage, -1) · `jour`
+4. Lancement du lavage du linge (10 sacs/nuit) · `jour`
+5. Sortie poubelle & rangement garage · `jour`
+6. Rangement du stock (affaires des hébergés) · `jour`
+7. Rangement du linge de lit sale dans les chariots · `jour`
+8. Ravitaillement de la fontaine à eau · `jour`
+9. Rangement réfectoire & jardin · `jour`
+10. Distribution du linge de lit aux étages · `jour`
+11. Changer les sacs de linge aux étages & descendre au -1 · `jour`
+
+## ⚠ Ce que la lecture fait apparaître — 4 points à trancher avec elle
+
+1. **« Entretien mi-parcours » est dans CINQ listes** (PFO jour, PFO nuit, médical-rez,
+   médical-2e, médical-nuit), toujours en `reprise`. Est-ce la même chose partout ?
+   Si oui c'est une ligne commune à tout le monde, et il faut décider une bonne fois
+   qui la porte — pas la recopier dans chaque liste qu'on écrira.
+
+2. **Deux listes n'ont QUE cette ligne** : `médical-rez` et `médical-nuit`. Elles sont
+   donc vides en pratique. Un infirmier de nuit qui ouvre sa liste voit une seule
+   tâche, qui n'est pas de son service — il n'ouvrira plus.
+
+3. **Le nom et la clé se contredisent chez les aide-soignants** : la clé est
+   `aide-soignant-soir`, l'étiquette affichée est « Aide-soignants — **Jour** ».
+   L'un des deux ment. À trancher avant d'écrire quoi que ce soit dedans.
+
+4. **Deux lignes disent la même chose chez Polyvalent — Jour** : la 6 (« Contrôler le
+   retour du matériel avant départ — talkies, clés voitures, clés coordi… ») et la 7
+   (« Vérification des clés avant départ — voiture, coordi, talkies, téléphones… »).
+   On coche deux fois le même geste. En garder une.
+
+---
+
 ## 1. Travailleur social (`ts`)
 
 ### ✅ ARRÊTÉ — la liste TS tient en une ligne
