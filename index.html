@@ -15811,7 +15811,12 @@ function actPorte(k){ return ACT_PORTES.find(function(x){ return x.k===k; }); }
 function actListe(){
   /* On prend TOUT (y compris les sorties pour enfants, que le filtre par défaut
      écarte) : c'est la porte ouverte qui trie. */
-  const tout=agendaProchains(31, function(){ return true; }).concat(activitesDatees())
+  /* ⚠ PAS D'ENFANTS (Mag, 13/08/2026 : « enlève le Ludobox si c'est que pour les
+     enfants… ça crée trop de contenu pour un truc qu'on n'utilisera pas. On n'a pas
+     d'enfants dans le centre, on n'a pas de familles non plus — que des hommes, des
+     femmes ou des trucs mixtes »). On écarte donc ce qui vise les enfants : ça allège
+     la page ET la feuille imprimée. */
+  const tout=agendaProchains(31, function(r){ return !r.enfants; }).concat(activitesDatees())
     .sort(function(a,b){ return a.d-b.d; });
   const q=actPorte(ACT_PAN);
   return {q:q||{l:''}, tout:tout, items:(q&&q.f)?tout.filter(q.f):[]};
@@ -15897,57 +15902,76 @@ function imprimerSorties(){
   const groupes=actGrouper(r.items);
   const MAX=25, coupe=Math.max(0, groupes.length-MAX);
   const blocs=groupes.slice(0,MAX).map(function(g){
-    const x=g.x, a=x.r||{};
+    const x=g.x, a=x.r||{}, pi=actPicto(a.titre);
     const bouts=[];
     if(a.lieu) bouts.push(esc(a.lieu));
     if(a.adr)  bouts.push('<b>'+esc(a.adr)+'</b>');
-    if(x.asso) bouts.push(esc(x.asso));
-    const att=[];
-    if(ACT_INSC(x)) att.push('<b>Inscription obligatoire</b> — appeler avant, il peut être trop tard le jour même.');
-    else if(ACT_GRATUIT(x)) att.push('<b>Gratuit, on entre sans rien demander.</b>');
-    if(x.pourQui==='femmes') att.push('<b>Réservé aux femmes.</b> Un homme sera refusé à la porte.');
-    if(x.pourQui==='hommes') att.push('<b>Réservé aux hommes.</b>');
-    return '<div class="bl">'+
-      '<div class="dt">'+esc(actQuandGroupe(g))+'</div>'+
-      '<h3>'+esc(a.titre||'Sortie')+'</h3>'+
-      (bouts.length?'<div class="l">'+bouts.join('<br>')+'</div>':'')+
-      (a.tel?'<div class="tel">'+esc(a.tel)+'</div>':'')+
-      (a.sous?'<div class="l">'+esc(a.sous)+'</div>':'')+
-      (att.length?'<div class="att">'+att.join('<br>')+'</div>':'')+
-      '<div class="ln"></div></div>';
+    const jf=actQuandGroupe(g), m=/(\d{1,2})/.exec(jf);
+    return '<div class="ca">'+
+      '<div class="h" style="background:'+(pi?pi.c:'#f0efed')+'">'+
+        (pi?'<span class="tu" style="background:#fff"><img src="picto/'+pi.f+'.svg" alt=""></span>':'')+
+        '<span class="dt"><span class="j">'+esc(JOURS_L[x.d.getDay()])+'</span>'+
+          '<span class="n">'+x.d.getDate()+'/'+(x.d.getMonth()+1)+'</span></span>'+
+      '</div>'+
+      '<div class="b"><h3>'+esc(a.titre||'Sortie')+'</h3>'+
+        (bouts.length?'<div class="l">'+bouts.join('<br>')+'</div>':'')+
+        (a.tel?'<div class="tel">'+esc(a.tel)+'</div>':'')+
+        '<div class="l" style="margin-top:6px">'+esc(jf)+'</div>'+
+        (ACT_INSC(x)?'<div class="att">Inscription obligatoire — appeler avant</div>':'')+
+        (x.pourQui==='femmes'?'<div class="att">Réservé aux femmes</div>':'')+
+        '<div class="ln"></div>'+
+      '</div></div>';
   }).join('');
   const w=window.open('','_blank'); if(!w) return;
+  /* ═══ LA FEUILLE REFAITE (Mag, 13/08/2026) ═══
+     « La page impression, tu penses bien que ça ne va pas. Un peu inimprimable. Tu
+     pourrais quand même mettre une petite touche de couleur. Et surtout beaucoup
+     beaucoup beaucoup d'espace, c'est immonde. Schématise, fais un truc vraiment joli
+     et agréable. »
+     Avant : des blocs de texte collés les uns aux autres, une seule encre, rien pour
+     accrocher l'œil. Maintenant : DES CARTES, deux par ligne, chacune avec son picto
+     dans une pastille de couleur, une grosse date, et de l'air partout.
+     ⚠ `print-color-adjust` : sans lui, les aplats sautent à l'impression. */
   w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
     '<title>'+esc(r.q.l)+' — COUSIN</title><style>'+
-    '@page{margin:16mm 14mm}'+
-    'body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#000;margin:0;font-size:15px;line-height:1.45}'+
-    '.ent{border-bottom:3px solid #000;padding-bottom:11px;margin-bottom:18px}'+
-    '.k{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#555}'+
-    'h2{font-size:27px;line-height:1.05;margin:6px 0 4px}'+
-    '.d{font-family:ui-monospace,monospace;font-size:11px;color:#555}'+
-    '.bl{border-bottom:1px solid #bbb;padding:15px 0;page-break-inside:avoid;break-inside:avoid}'+
-    '.bl:last-of-type{border-bottom:0}'+
-    '.dt{font-family:ui-monospace,monospace;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}'+
-    'h3{font-size:21px;line-height:1.15;margin:4px 0 7px}'+
-    '.l{font-size:15px;line-height:1.6}'+
-    '.tel{font-size:19px;font-weight:700;margin-top:3px}'+
-    '.att{margin-top:7px;border-left:4px solid #000;padding-left:11px;font-size:14.5px}'+
-    '.ln{margin-top:11px;border-bottom:1px dotted #999;height:20px}'+
-    '.pied{margin-top:20px;padding-top:10px;border-top:1px solid #999;font-size:12px;color:#555}'+
-    '.bar{display:flex;gap:8px;margin-bottom:16px}'+
-    '.bar button{font:inherit;font-size:14px;padding:9px 14px;border:1px solid #000;background:#fff;cursor:pointer}'+
-    '.bar button.ok{background:#000;color:#fff}'+
+    '@page{size:A4;margin:14mm}'+
+    '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1b1b1b;font-size:15px;line-height:1.5}'+
+    '.ent{border-bottom:3px solid #1b1b1b;padding-bottom:14px;margin-bottom:26px}'+
+    '.k{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#8b8984}'+
+    'h2{font-size:34px;line-height:1.02;margin:8px 0 6px}'+
+    '.d{font-family:ui-monospace,monospace;font-size:11px;color:#73716b}'+
+    '.g{display:grid;grid-template-columns:1fr 1fr;gap:20px}'+
+    '.ca{border:2px solid #1b1b1b;border-radius:18px;padding:0;overflow:hidden;'+
+      'page-break-inside:avoid;break-inside:avoid;display:flex;flex-direction:column}'+
+    '.ca .h{display:flex;align-items:center;gap:14px;padding:16px 18px;min-height:96px}'+'.ca .dt{margin-left:auto;text-align:right;min-width:0}'+
+    '.ca .tu{flex:none;width:62px;height:62px;border:2px solid #1b1b1b;border-radius:16px;'+
+      'display:flex;align-items:center;justify-content:center}'+
+    '.ca .tu img{width:36px;height:36px}'+
+    '.ca .dt .j{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#57554f}'+
+    '.ca .dt .n{font-size:27px;font-weight:700;line-height:1;white-space:nowrap;display:block}'+'.ca .dt .j{display:block}'+
+    '.ca .b{padding:16px 18px 20px;background:#fff;flex:1}'+
+    '.ca h3{font-size:21px;line-height:1.15;margin-bottom:10px}'+
+    '.ca .l{font-size:14.5px;line-height:1.7;color:#3d3b37}'+
+    '.ca .l b{color:#1b1b1b}'+
+    '.ca .tel{font-size:20px;font-weight:700;margin-top:4px}'+
+    '.ca .att{margin-top:12px;border:2px solid #e8308a;border-radius:11px;padding:9px 12px;'+
+      'font-family:ui-monospace,monospace;font-size:10px;font-weight:700;letter-spacing:.1em;'+
+      'text-transform:uppercase;color:#e8308a}'+
+    '.ca .ln{margin-top:14px;border-bottom:1px dotted #b4b2a9;height:26px}'+
+    '.pied{margin-top:28px;padding-top:12px;border-top:2px solid #1b1b1b;font-size:12px;color:#73716b}'+
+    '.bar{display:flex;gap:8px;margin-bottom:22px}'+
+    '.bar button{font:inherit;font-size:14px;padding:10px 16px;border:2px solid #1b1b1b;background:#fff;border-radius:10px;cursor:pointer}'+
+    '.bar button.ok{background:#1b1b1b;color:#fff}'+
     '@media print{.bar{display:none}}'+
     '</style></head><body>'+
     '<div class="bar"><button onclick="window.close()">Fermer</button>'+
     '<button class="ok" onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>'+
     '<div class="ent"><div class="k">COUSIN · Sorties</div><h2>'+esc(r.q.l)+'</h2>'+
-    '<div class="d">'+r.items.length+' sortie'+(r.items.length>1?'s':'')+' · liste imprimée le '+esc(auj)+'</div></div>'+
-    (blocs||'<p>Rien pour cette question aujourd’hui.</p>')+
-    (coupe?'<div class="att" style="margin-top:14px;border-left:4px solid #000;padding-left:11px">'+
-      '<b>Et '+coupe+' autre'+(coupe>1?'s':'')+' sortie'+(coupe>1?'s':'')+' que cette feuille ne montre pas.</b><br>'+
-      ''+
-      'La liste entière est dans COUSIN, page Activités.</div>':'')+
+    '<div class="d">'+groupes.length+' sortie'+(groupes.length>1?'s':'')+' · liste imprimée le '+esc(auj)+'</div></div>'+
+    (blocs?'<div class="g">'+blocs+'</div>':'<p>Rien pour cette question aujourd’hui.</p>')+
+    (coupe?'<div class="pied"><b>Et '+coupe+' autre'+(coupe>1?'s':'')+' sortie'+(coupe>1?'s':'')+
+      ' que cette feuille ne montre pas.</b> La liste entière est dans COUSIN.</div>':'')+
     '<div class="pied">Imprimé depuis COUSIN — les horaires changent, vérifier avant d’envoyer quelqu’un.</div>'+
     '</body></html>');
   w.document.close();
