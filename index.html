@@ -2128,6 +2128,13 @@ body.en-apercu #view{animation:none;transform:none}
   letter-spacing:.12em;text-transform:uppercase;color:#8b8984;text-decoration:underline;padding:8px}
 
 /* ---- LES FENÊTRES DE COUSIN (à la place de celles du navigateur) ---- */
+/* La croix de fermeture du bloc PFO : elle ferme, elle ne propose rien. */
+.pfo-pop{position:relative}
+.pfo-pop .pfo-x{position:absolute;top:10px;right:10px;width:30px;height:30px;
+  border:1px solid var(--noir);border-radius:50%;background:none;cursor:pointer;
+  font-size:14px;line-height:1;color:var(--noir);padding:0}
+.pfo-pop .pfo-x:hover{background:var(--noir);color:var(--creme)}
+.pfo-pop b{padding-right:36px}
 .popbg{position:fixed;inset:0;z-index:9999;background:rgba(27,27,27,.5);display:none;
   align-items:center;justify-content:center;padding:20px}
 .popbg.on{display:flex}
@@ -10401,18 +10408,18 @@ function vListe(){
      milieu : l'app sait qu'un 4-4 ou un 7-7 repart aujourd'hui, elle le dit et elle
      demande. Elle ne coche pas à la place des gens — le même jour est une reprise
      pour une équipe et un premier jour de repos pour l'autre. */
+  /* ⚠ LE GRAND ENCART « UN NOUVEAU 7-7 COMMENCE AUJOURD'HUI » EST RETIRÉ (Mag,
+     13/08/2026 : « retire ça »). Il s'affichait tout seul les jours de début de
+     cycle, en gros, au-dessus de la liste — pour poser une question à laquelle on
+     répond une fois. Les autres jours il n'était pas là : on ne pouvait pas
+     l'apprendre, donc il surprenait à chaque fois.
+     Le bouton discret, lui, RESTE : il ne dérange personne et il permet de le dire
+     ou de le corriger n'importe quel jour. La devinette automatique (trois jours
+     sans ouvrir l'app = retour de repos) continue de marcher toute seule. */
   if(!enReprise()){
-    const cy=cyclesDuJour();
-    if(cy.length)
-      h+='<div class="cyc"><b>Un nouveau '+cy.map(function(c){ return esc(c.nom); }).join(' et un nouveau ')+
-         ' commence aujourd’hui.</b>'+
-         '<p>Si c’est ton premier jour, dis-le : les tâches de reprise passeront en rouge, '+
-         'tout en haut de ta liste.</p>'+
-         '<button class="acok" onclick="jeReprends()">Oui, je reprends aujourd’hui</button></div>';
-    else
-      h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
-         '<button class="imprbtn" onclick="jeReprends()">'+
-         '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
+    h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
+       '<button class="imprbtn" onclick="jeReprends()">'+
+       '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
   }
   /* ═══ UNE SEULE LISTE À LA FOIS (Mag, 08/08/2026) ═══
      « Je suis PFO au jour, donc je ne veux pas avoir la liste nuit. Mais je dois
@@ -10440,10 +10447,14 @@ function vListe(){
        Chaque ligne porte ce qui reste à faire — on choisit en connaissance de cause. */
     h+='<div class="lsel"><label for="selListe">La liste</label>'+
       '<select id="selListe" onchange="listeVoir(this.value)">'+ordre.map(function(g){
-        const reste=g.taches.filter(function(t){ return !DONE[t.id]; }).length;
         return '<option value="'+esc(g.liste)+'"'+(g.liste===vue.liste?' selected':'')+'>'+
           (g.mienne?'\u25CF ':'')+esc(LISTE_LABELS[g.liste]||g.liste)+
-          (reste?' — '+reste+' à faire':' — tout est fait')+'</option>';
+          /* ⚠ PLUS DE « — 3 à faire » DANS LE NOM DE LA LISTE (Mag, 13/08/2026 :
+             « retire 1 à faire »). Le compte est déjà écrit deux fois juste en
+             dessous — dans le titre de section et dans l'anneau. Trois fois le même
+             chiffre, dont un collé au nom de la liste, ça allongeait chaque ligne
+             sans rien apprendre. */
+          '</option>';
       }).join('')+'</select></div>';
     h+=bloc(vue);
   }
@@ -17394,20 +17405,32 @@ function pfoBlocHTML(){
       '<button class="acok" onclick="jeRendsPFO()">Je rends la garde</button></div>';
   }
   if(PFO_DEMANDE){
-    return '<div class="cyc"><b>Tu prends quelle garde ?</b>'+
-      '<p>La liste PFO s’ajoutera à la tienne, pour aujourd’hui seulement.</p>'+
+    /* ⚠ UNE CROIX, PAS « LAISSE TOMBER » (Mag, 13/08/2026). Le bouton texte prenait
+       toute la largeur et pesait autant que les deux vrais choix — on hésitait entre
+       trois boutons alors qu'il n'y en a que deux. La croix ferme, elle ne propose
+       rien. */
+    return '<div class="cyc pfo-pop">'+
+      '<button class="pfo-x" onclick="pfoAnnuler()" aria-label="Fermer">✕</button>'+
+      '<b>Tu remplaces le PFO aujourd’hui ?</b>'+
+      '<p>Sa liste s’ajoutera à la tienne, pour aujourd’hui seulement.</p>'+
       '<div class="chdep" style="margin:2px 0 0">'+
         '<button class="chdep-b" onclick="pfoChoisir(\'pfo-jour\')">'+
           '<b>De jour</b><em>la liste PFO du jour</em></button>'+
         '<button class="chdep-b" onclick="pfoChoisir(\'pfo-nuit\')">'+
           '<b>De nuit</b><em>la liste PFO de nuit</em></button>'+
-      '</div>'+
-      '<button class="lienbas" style="margin-top:10px" onclick="pfoAnnuler()">Laisse tomber</button>'+
-      '</div>';
+      '</div></div>';
   }
+  /* ⚠ LE BOUTON NE DIT PLUS « JE PRENDS LA GARDE », IL DIT « JE REMPLACE » (Mag,
+     13/08/2026) : « il ne faudrait pas devoir remettre PFO tous les jours quand on
+     est PFO de base. Il faut être attitré de base. Si tu dois le faire, c'est que tu
+     remplaces le PFO parce qu'il est en congé. »
+     Le PFO titulaire garde donc sa liste en permanence (elle vient de ses accès), et
+     ce bouton ne sert qu'au remplaçant, pour la journée. Le code le faisait déjà —
+     c'est le mot qui mentait, et un mot qui ment fait appuyer les mauvaises
+     personnes tous les matins. */
   return '<div class="imprligne" style="justify-content:flex-start;margin-top:10px">'+
     '<button class="imprbtn" onclick="jePrendsPFO()">'+
-    '<span class="ic">'+icon('cle')+'</span>Je prends la garde PFO aujourd’hui</button></div>';
+    '<span class="ic">'+icon('cle')+'</span>Je remplace le PFO aujourd’hui</button></div>';
 }
 /* Est-ce qu'on est dans les 24 h qui suivent une reprise ? */
 function enReprise(){ return repriseLe()===todayStr(); }
@@ -17823,7 +17846,14 @@ function rappelsHTML(enCarte){
         chose qu'on a besoin de savoir avant d'écrire.
         ⚠ Ne pas la remettre « pour être clair » : c'est elle qui l'a fait retirer. */
      '<div class="rapjour"><label for="rapQuand">Pour quel jour ?<span>facultatif</span></label>'+
-       '<input id="rapQuand" type="date"></div>';
+       '<input id="rapQuand" type="date"></div>'+
+     /* ⚠ UNE SEULE PHRASE, ET C'EST CELLE-LÀ (Mag, 13/08/2026 : « marque juste comme
+        phrase après que cette page est personnelle et qu'elle n'est pas vue par les
+        équipes »). Tout le reste a été retiré. Ce n'est pas de la décoration : c'est
+        la seule chose qu'on a besoin de savoir avant d'écrire quelque chose sur soi
+        ou sur sa journée dans un outil que l'équipe utilise. */
+     '<p class="hint" style="margin:10px 0 0">Cette liste est personnelle : '+
+     'l’équipe ne la voit pas.</p>';
   return h;
 }
 
