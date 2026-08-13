@@ -30,8 +30,17 @@ create table if not exists public.avis (
   -- trois états (posée pour le PMR le 13/08). On ne déduit JAMAIS d'un blanc.
   etiquette   text        null,
   cree_le     timestamptz not null default now(),
+  -- ⚠ « manger » et « sieste » ajoutées le 13/08/2026, à sa demande : « je voudrais
+  -- aussi dans le réseau un endroit où on peut manger la journée, pour faire des
+  -- siestes. Et ça peut être juste en mettant une étiquette en plus. »
+  -- Elles sont bien SÉPARÉES de « jour » : un accueil de jour n'est pas forcément un
+  -- endroit où l'on mange, et presque aucun ne laisse dormir. Quelqu'un qui sort d'un
+  -- asile de nuit à 7 h n'a nulle part où se poser jusqu'au soir — c'est le trou de
+  -- la journée, et aucun tiroir ne le montre.
+  -- (Sur une base déjà créée : drop puis add de la contrainte. Fait le 13/08/2026.)
   constraint avis_etiquette_connue check (
-    etiquette is null or etiquette in ('jour','nuit','sejour','urgence','orientation')
+    etiquette is null or etiquette in
+      ('jour','nuit','manger','sieste','sejour','urgence','orientation')
   ),
   -- Un avis par personne et par fiche : on modifie le sien, on n'en empile pas dix.
   constraint avis_un_par_personne unique (sid, uid)
