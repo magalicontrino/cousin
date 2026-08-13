@@ -14324,10 +14324,17 @@ function propModifier(id){
     'Corrige le texte. Le nombre de fois qu’elle a été demandée ne change pas.',
     p.texte||'', async function(txt){
       txt=(txt||'').trim(); if(!txt || txt===p.texte) return;
-      try{ const {error}=await sb.from('propositions').update({texte:txt.slice(0,300)}).eq('id',p.id);
+      /* ⚠ LA PANNE DOIT SE DIRE (leçon des erreurs Supabase muettes) : « Modification
+         refusée » ne disait pas POURQUOI, et Mag a cru que ça n'arrivait pas dans la
+         base. On affiche maintenant le message réel — c'est lui qui permet de réparer. */
+      try{
+        if(!sb) { toast('Pas de connexion à la base'); return; }
+        const {data,error}=await sb.from('propositions').update({texte:txt.slice(0,300)})
+          .eq('id',p.id).select('id');
         if(error) throw error;
+        if(!data || !data.length){ toast('Refusé par la base — tu n’as pas le droit de modifier celle-ci'); return; }
         await loadPropositions(); render(); toast('Proposition modifiée');
-      }catch(e){ toast('Modification refusée'); }
+      }catch(e){ toast('Échec : '+((e&&e.message)||e)); }
     });
 }
 function propRetirer(id){
