@@ -1543,6 +1543,23 @@ body.en-apercu #view{animation:none;transform:none}
    prise par la catégorie, et deux codes couleur sur la même carte se disputent.
    Comme ils sont rangés les uns à la suite des autres, les paquets sautent aux yeux. */
 .unum.ures-chirec{border-width:3px}
+/* ═══ ET UN PETIT COIN DE COULEUR (Mag, 13/08/2026) ═══
+   « Pour différencier les groupes, on pourrait mettre un petit coin de couleur
+   identique par groupe. En haut à droite. »
+   L'épaisseur du trait marchait quand les hôpitaux se suivaient — mais dès qu'on
+   déplie une seule catégorie, il n'y a plus de voisin à qui se comparer, et un trait
+   « un peu plus épais » ne dit plus rien tout seul. Le coin, lui, se lit sur une carte
+   isolée.
+   ⚠ Un TRIANGLE dans l'angle, pas une pastille : il n'occupe aucune place dans la
+   ligne, donc il ne pousse ni le nom ni le numéro — et sur un téléphone, la place à
+   droite est prise par le numéro, qui est ce qu'on vient chercher. */
+.unum{position:relative;overflow:hidden}
+.unum.ures-chirec::after,.unum.ures-iris::after,.unum.ures-hub::after{
+  content:'';position:absolute;top:0;right:0;width:18px;height:18px;
+  clip-path:polygon(100% 0, 0 0, 100% 100%)}
+.unum.ures-chirec::after{background:#6fc7d9}
+.unum.ures-iris::after{background:#6cb392}
+.unum.ures-hub::after{background:#b28b7a}
 .unum{border-radius:6px;background:#fdfdfc;border:1.5px solid var(--noir);padding:12px 13px;
   display:flex;align-items:center;gap:12px;color:var(--noir)}
 .unum>.ic{width:20px;height:20px;flex:none}
@@ -13306,10 +13323,39 @@ function urgencesListHTML(){
     const hay=p.nom+' '+(p.desc||'');
     for(let i=0;i<URG_CATS.length;i++){ if(URG_CATS[i].re.test(hay)){ buckets[i].list.push(p); used.add(p); break; } }
   });
+  /* ═══ CEUX QUI SONT DANS DEUX CATÉGORIES À LA FOIS (Mag, 13/08/2026) ═══
+     « Drogue et alcool, pourquoi tu ne mets pas Transit ? » — elle avait raison, et
+     ajouter « transit » au mot-clé n'aurait RIEN changé : la boucle du dessus s'arrête
+     à la première catégorie qui matche, et « Hébergement d'urgence » passe avant.
+     Transit serait donc resté exactement où il était.
+
+     Or Transit est vraiment les deux : c'est un service assuétudes, ET il prend une
+     demande d'hébergement 24 h/24 sur recommandation d'un professionnel — ce qu'on
+     cherche justement à 2 h du matin. Le forcer dans un seul tiroir, c'est le cacher
+     à celle qui cherche dans l'autre.
+
+     ⚠ Liste EXPLICITE et courte, volontairement. Rendre le classement multiple pour
+     tout le monde ferait réapparaître les mêmes numéros dans trois sections, et une
+     liste d'urgences qui se répète, on cesse de la lire. */
+  const URG_AUSSI=[{re:/transit/i, cat:"Drogue & alcool"}];
+  URG_AUSSI.forEach(function(x){
+    const b=buckets.find(function(k){ return k.label===x.cat; }); if(!b) return;
+    /* ⚠ ON NE MARQUE PAS `used` ICI, ET C'EST LE POINT DÉLICAT. `used` sert à
+       fabriquer « Équipes mobiles » (tout ce qui n'est tombé nulle part). Le marquer
+       ferait SORTIR la fiche de sa section d'origine au lieu de l'ajouter à une
+       seconde — testé : « Équipe de liaison (Transit) » disparaissait des équipes
+       mobiles. Or c'est exactement ce qu'on cherche à éviter. */
+    items.forEach(function(p){
+      if(x.re.test(p.nom) && b.list.indexOf(p)<0) b.list.push(p);
+    });
+  });
   const autres=items.filter(p=>!used.has(p));
   /* « Autres » ne disait rien du tout (Mag, 08/08/2026 : « il faut qu'il y ait un
      titre, sinon on ne sait pas ce que c'est »). */
-  if(autres.length) buckets.push({label:"Aller vers · équipes mobiles",list:autres});
+  /* ⚠ « Aller vers · » retiré (Mag, 13/08/2026 : « retire aller vers »). C'était du
+     jargon de métier posé devant le seul mot qui parle — et sur un titre de section
+     qu'on lit en cherchant vite, les trois premiers mots comptent. */
+  if(autres.length) buckets.push({label:"Équipes mobiles",list:autres});
   const nonEmpty=buckets.filter(b=>b.list.length);
   let vitalHtml='', rows='';
   nonEmpty.forEach((b,idx)=>{
