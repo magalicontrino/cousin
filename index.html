@@ -12437,7 +12437,24 @@ function rechercher(q, tolerant){
     /* CE QUE L'ÉQUIPE PRÉFÈRE PASSE DEVANT — même règle que le tri des domaines :
        l'avis d'un collègue qui y a envoyé quelqu'un vaut mieux qu'un bon score. */
     if(f.p.reco) total+=60;
-    if(f.p.deco) total-=80;
+    /* ═══ ET MAINTENANT LES AVIS ÉCRITS DEPUIS L'APP (Mag, 13/08/2026) ═══
+       « On mettra juste en priorité ceux qui sont notés positivement. » C'était sa
+       réponse quand je l'ai avertie du danger d'un avis négatif sur une association
+       nommée : elle a supprimé le pouce baissé et confié le travail au CLASSEMENT.
+       C'est donc ici que sa décision prend effet — sans ça, la boîte d'avis qu'on
+       vient de construire ne servait qu'à lire.
+
+       ⚠ LE PREMIER AVIS PÈSE LOURD, LES SUIVANTS PEU : +55 pour le premier, +8 par
+       avis en plus, plafonné à +95. Une fiche dont une collègue dit « j'y ai envoyé
+       quelqu'un, ça a marché » doit passer devant une fiche muette — mais dix avis
+       ne doivent pas écraser une fiche qui correspond mieux à ce qu'on cherche.
+       Le plafond garde `reco` (+60) et les maisons médicales (+35) dans le jeu.
+
+       ⚠ LE MALUS `deco` (−80) EST RETIRÉ. Il n'a jamais servi (aucune fiche
+       déconseillée), et surtout il contredit sa décision du 13/08 : il n'y a QUE du
+       positif. Ne pas le remettre sans elle. */
+    const nAvis=(typeof AVIS_N!=='undefined' && AVIS_N[f.p.sid])||0;
+    if(nAvis) total+=Math.min(95, 55+(nAvis-1)*8);
     /* Maisons médicales et CPAS remontent : Mag, 07/08/2026 — « on travaille
        beaucoup avec les maisons médicales et les CPAS ». À score égal, c'est
        presque toujours ça qu'on cherchait. */
@@ -13024,6 +13041,22 @@ function poubellesTableau(){
    sa règle des trois états, jamais deux, jamais déduite d'un blanc. */
 let AVIS=[], AVIS_SID='', AVIS_ETQ=null, AVIS_CHARGE=false;
 
+/* ═══ LE COMPTE D'AVIS PAR FICHE, POUR LE CLASSEMENT (Mag, 13/08/2026) ═══
+   « On mettra juste en priorité ceux qui sont notés positivement. »
+   On lit UNE FOIS la liste des sid commentés — pas les textes, juste les sid — et on
+   compte. C'est une requête minuscule, et elle sert à toute la recherche ensuite.
+   ⚠ Si la lecture échoue, AVIS_N reste vide et le classement se comporte comme
+   avant : un avis manquant ne doit jamais faire disparaître une fiche. */
+let AVIS_N={};
+async function loadAvisComptes(){
+  if(!sb) return;
+  const r=await sb.from('avis').select('sid');
+  if(r.error){ AVIS_N={}; return; }
+  const n={};
+  (r.data||[]).forEach(function(a){ n[a.sid]=(n[a.sid]||0)+1; });
+  AVIS_N=n;
+}
+
 /* ⚠ « MANGER » ET « SIESTE » AJOUTÉES LE 13/08/2026, à sa demande : « je voudrais
    aussi dans le réseau un endroit où on peut manger la journée, pour faire des
    siestes. Et ça peut être juste en mettant une étiquette en plus. »
@@ -13083,6 +13116,9 @@ async function avisEnregistrer(sid){
   if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
   if(i) i.value='';
   toast('Merci, c’est noté');
+  /* On recompte : la fiche doit remonter dans la recherche tout de suite, pas au
+     prochain démarrage de l'app. */
+  loadAvisComptes();
   rafraichirAvis(sid);
 }
 function avisRetirer(id, sid){
@@ -17593,6 +17629,9 @@ async function loadProfile(){
     if(!_visiteComptee){ _visiteComptee=true; _derniereVisite=Date.now(); envoiMuet(sb.rpc('touch_connexion')); }
     // Ses étoiles : elles vivent en base, elles la suivent d'un téléphone à l'autre.
     try{ await loadFavoris(); }catch(e){}
+    /* Le compte des avis, pour que la recherche fasse remonter ce que l'équipe a
+       noté. Silencieux : s'il échoue, le classement reste celui d'avant. */
+    try{ await loadAvisComptes(); }catch(e){}
     // Les chambres en cours : chargées ici pour que le compte s'affiche sur l'accueil
     // et dans le Centre, sans avoir à ouvrir la page.
     try{ await loadChambres(); }catch(e){}
