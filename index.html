@@ -2701,6 +2701,16 @@ body.en-apercu #view{animation:none;transform:none}
 .porte{display:flex;align-items:center;gap:9px;border-bottom:2px solid var(--noir);
   padding-bottom:5px;margin:22px 0 11px}
 .porte:first-child{margin-top:10px}
+/* Les petits tiroirs en boutons : ils gardent leur picto et leur compte, mais ne
+   prennent plus la place d'un tiroir a 44 fiches. */
+.dbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.dbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--noir);
+  border-radius:999px;background:#f6f5f3;color:var(--noir);padding:9px 14px 9px 11px;
+  font-family:ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer}
+.dbtn .ic{width:20px;height:20px;flex:none}
+.dbtn i{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;
+  color:var(--enc2);font-weight:500}
 .porte b{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;font-weight:600}
 /* ═══ LES BOUTONS DU RÉSEAU, VERSION C (Mag, 13/08/2026) ═══
@@ -12928,7 +12938,12 @@ function vReseau(){
        sont des lieux où l'on est reçu sans avoir à s'expliquer.
        Ce qui reste ensemble ici a un vrai point commun : ce sont des gens vers qui
        on envoie quelqu'un pour être ACCOMPAGNÉ, pas pour obtenir un service. */
-    {t:'Être accompagné', d:['accompagnement','famille','lgbt']},
+    /* ⚠ EN BOUTONS, PAS EN TUILES (Mag, 13/08/2026 : « tu peux les sortir tous et
+       les mettre comme bouton »). Ces trois tiroirs font 1, 2 et 8 fiches : un
+       carré de la même taille que « Se sevrer » et ses 44 fiches promettait autant
+       et donnait dix fois moins. En boutons, ils tiennent sur deux lignes et on les
+       lit d'un coup d'œil — sans disparaître pour autant. */
+    {t:'Être accompagné', d:['accompagnement','famille','lgbt'], boutons:true},
     {t:'S’occuper, apprendre', d:['culture','educatif']}
   ];
   /* Chaque porte, puis ses tuiles. Un domaine oublié dans PORTES n'est pas perdu :
@@ -12936,13 +12951,20 @@ function vReseau(){
   const places={};
   PORTES.forEach(function(p){ p.d.forEach(function(k){ places[k]=1; }); });
   const oublies=reseau.filter(function(x){ return !places[x.key]; });
-  const section=function(titre, cles){
+  const section=function(titre, cles, boutons){
     const t=cles.map(function(k){ return reseau.find(function(x){ return x.key===k; }); }).filter(Boolean);
     if(!t.length) return '';
-    return '<div class="porte"><b>'+esc(titre)+'</b></div>'+
-      '<div class="dgrid res">'+t.map(function(x){ return tile(x,true); }).join('')+'</div>';
+    const corps = boutons
+      ? '<div class="dbtns">'+t.map(function(x){
+          const n=fichesDe(x.key).length;
+          return '<button class="dbtn" onclick="go(\'#/d/'+x.key+'\')">'+
+            '<span class="ic">'+icon(x.ic)+'</span>'+esc(x.short||x.label)+
+            '<i>'+n+'</i></button>';
+        }).join('')+'</div>'
+      : '<div class="dgrid res">'+t.map(function(x){ return tile(x,true); }).join('')+'</div>';
+    return '<div class="porte"><b>'+esc(titre)+'</b></div>'+corps;
   };
-  const grille=PORTES.map(function(p){ return section(p.t, p.d); }).join('')+
+  const grille=PORTES.map(function(p){ return section(p.t, p.d, p.boutons); }).join('')+
     (oublies.length? section('Le reste', oublies.map(function(x){ return x.key; })) : '');
   return '<div class="home-title" style="margin-top:10px">'+
       '<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url(picto/ico-demidisques.svg);mask-image:url(picto/ico-demidisques.svg)"></span><svg class="deco deco-arc" viewBox="0 0 60 31" fill="none"><path d="M2 30 A28 28 0 0 1 58 30" stroke="#e63329" stroke-width="4.6"/><path d="M6.6 30 A23.4 23.4 0 0 1 53.4 30" stroke="#f8763f" stroke-width="4.6"/><path d="M11.2 30 A18.8 18.8 0 0 1 48.8 30" stroke="#f5c542" stroke-width="4.6"/><path d="M15.8 30 A14.2 14.2 0 0 1 44.2 30" stroke="#6cb392" stroke-width="4.6"/><path d="M20.4 30 A9.6 9.6 0 0 1 39.6 30" stroke="#2f6fd0" stroke-width="4.6"/><path d="M25 30 A5 5 0 0 1 35 30" stroke="#a05fd0" stroke-width="4.6"/></svg></span>'+
