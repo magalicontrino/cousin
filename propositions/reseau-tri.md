@@ -201,3 +201,73 @@ Une quarantaine de fiches, toutes justes. **Le reste reste vide, et c'est honnê
 **② Le reste se remplit à l'usage**, par l'équipe — comme le dictionnaire de la loupe
 et comme le PMR. Une étiquette posée par quelqu'un qui connaît le lieu vaut mieux que
 trois cents posées par une expression régulière.
+
+---
+
+# LA RÉPARTITION RÉELLE — calculée le 13/08/2026 sur les 362 fiches
+
+Elle a demandé « tu fais un tri différent pour les réseaux ? ». Avant de déplacer
+quoi que ce soit, voici ce que ça donne vraiment.
+
+## ✅ 238 fiches se rangent TOUTES SEULES
+
+Sans juger, sans lire : le domaine actuel suffit.
+
+| Nouveau tiroir | Fiches | Vient de |
+|---|---|---|
+| Argent, droits, CPAS | **62** | Social · Démarches · Juridique · Accompagnement |
+| Dormir | 36 | Maisons d'accueil · Logement |
+| En cas d'urgence | 30 | Urgences |
+| Corps et sexualité | 30 | Planning familial |
+| Se soigner | 18 | Médical |
+| Papiers et séjour | 15 | Droit des étrangers |
+| Handicap | 14 | Handicap |
+| Jeunesse et familles | 9 | Éducatif · Retrouver sa famille |
+| LGBTQI+ | 8 | LGBTQI+ |
+| Sortir, culture | 8 | Activités & culture |
+| Tête et esprit | 8 | Santé mentale |
+
+## ✅ 48 fiches SORTENT du réseau
+
+Formations (19) · Mails et notes types (17) · Protocole (6) · Gestion du centre (6).
+Ce ne sont pas des adresses où envoyer quelqu'un — elles vivent déjà dans le Centre.
+
+## ⚠ DEUX PROBLÈMES, ET IL FAUT QU'ELLE TRANCHE
+
+### 1. « Argent, droits, CPAS » ferait 62 fiches
+C'est plus que les 45 qu'on s'était fixés, et à peine mieux qu'Assuétudes aujourd'hui.
+**Proposé : en sortir les 19 CPAS**, qui ont déjà leur bouton replié. Ça donne
+**CPAS (19)** et **Argent et droits (43)**. Ça fait 16 tiroirs au lieu de 15 — et ça
+colle à ce qu'elle dit depuis le début : « on travaille beaucoup avec les CPAS ».
+
+### 2. Les 76 fiches d'Assuétudes — c'est LE travail
+Elles ne se rangent pas toutes seules. Mais elles ont des sous-catégories, et
+c'est solide. Répartition proposée :
+
+| Sous-catégorie actuelle | → Nouveau tiroir | Fiches |
+|---|---|---|
+| Consultations & suivi | **Se sevrer, se poser** | 26 |
+| Hôpitaux & cliniques | **Se sevrer, se poser** | 17 |
+| Alcool | **Se sevrer, se poser** | 7 |
+| Hébergement & cure | **Se sevrer, se poser** | 7 |
+| Proches & entraide | **Tête et esprit** | 19 |
+| Prévention & écoute | **Tête et esprit** | 9 |
+| Jeu & écrans | **Tête et esprit** | 3 |
+| Réduction des risques | **Consommer — réduction des risques** | 8 |
+| Tabac | **Se soigner** | 2 |
+| Justice & prison | **Argent et droits** | 6 |
+| Pour les pros | sort du réseau (outil) | 2 |
+| Femmes | à placer à la main | 1 |
+| *(sans sous-catégorie)* | à placer à la main | 3 |
+
+⚠ « Se sevrer, se poser » ferait alors **57 fiches** — trop gros à son tour. Il
+faudra probablement le couper en deux : *Consultations et suivi* d'un côté,
+*Cliniques et cures* de l'autre.
+
+## 🕓 CE QUI EST DEMANDÉ
+
+1. **Les 19 CPAS sortent-ils dans leur propre tiroir ?** (je le recommande)
+2. **La répartition des 76 ci-dessus, elle la valide ?**
+3. Et si oui : **on coupe « Se sevrer » en deux** ?
+
+**Rien ne bouge tant qu'elle n'a pas répondu.**
