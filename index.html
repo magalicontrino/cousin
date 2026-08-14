@@ -5902,11 +5902,18 @@ const HEBERG_URGENCE=[
    un `src` — et il peut n'en prendre qu'une partie, via `garde`. C'est ce qui permet
    aux deux portes de l'hébergement de partager les mêmes fiches sans qu'aucune ne
    change de `sid`. */
+/* ⚠ `src` ACCEPTE MAINTENANT PLUSIEURS DOMAINES (13/08/2026). C'est ce qui permet de
+   ranger le réseau SANS déplacer une seule fiche — et il faut absolument que ce soit
+   sans les déplacer : le `sid` vaut « seed-<domaine>-<nom> », donc changer le domaine
+   d'une fiche change son identifiant, et ce jour-là TOUTES les étoiles, TOUS les avis
+   et TOUTES les statistiques posés dessus pointent dans le vide, sans un message.
+   Un tiroir est donc une VUE sur des fiches qui, elles, ne bougent pas. */
 function fichesDe(key){
   const d=DOM[key]; if(!d) return [];
   const src=d.src||key;
+  const sources=Array.isArray(src)?src:[src];
   return DATA.filter(function(p){
-    return p.domaine===src && (!d.garde || d.garde(p));
+    return sources.indexOf(p.domaine)>=0 && (!d.garde || d.garde(p));
   });
 }
 (function assignSids(){
@@ -7023,8 +7030,23 @@ function allerFiche(nom){
    mais chaque domaine reçoit sa teinte douce et son encre, façon palette feutrée. */
 const DOMAINES = [
   {key:"demarches",   label:"Démarches",           short:"Démarches", ic:"demarche", byCommune:true, isDem:true},
-  {key:"medical",     label:"Médical",             short:"Médical",   ic:"medical",  byCommune:true, reseau:true},
-  {key:"social",      label:"Social",              short:"Social",    ic:"social",   reseau:true},
+  /* ═══ LES DEUX PORTES QU'ELLE POUSSE EN PREMIER (Mag, 13/08/2026) ═══
+     « On travaille beaucoup avec les maisons médicales et les CPAS » — dit et redit
+     depuis le 07/08. Elles étaient noyées : les CPAS parmi 37 fiches de Social, les
+     maisons médicales parmi 18 de Médical. Les voilà sur l'écran d'accueil du réseau.
+     ⚠ CE SONT DES VUES : `src` pointe vers le domaine d'origine et `garde` filtre.
+     Aucune fiche ne change de domaine, donc aucun `sid` ne change, donc aucune étoile
+     ni aucun avis ne se perd. C'est la seule façon sûre de ranger ce réseau. */
+  {key:"cpas",        label:"CPAS",                short:"CPAS",      ic:"musee",     reseau:true,
+   src:"social", garde:function(p){ return estCpas(p); }},
+  {key:"mmed",        label:"Maisons médicales",   short:"Maisons médicales", ic:"medical", reseau:true,
+   src:"medical", garde:function(p){ return estMaisonMedicale(p); }},
+  /* Médical et Social ne montrent plus ce qui est parti dans les deux tiroirs
+     ci-dessus : sans ça, les mêmes fiches apparaîtraient deux fois. */
+  {key:"medical",     label:"Médical",             short:"Médical",   ic:"user",     byCommune:true, reseau:true,
+   garde:function(p){ return !estMaisonMedicale(p); }},
+  {key:"social",      label:"Social",              short:"Social",    ic:"social",   reseau:true,
+   garde:function(p){ return !estCpas(p); }},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
   /* « Jeunesse » et non « Enfants » : c'est le mot du secteur, et il couvre aussi les
      ados et les jeunes adultes, que « enfants » laissait dehors (Mag, 07/08/2026). */
@@ -7084,7 +7106,39 @@ const DOMAINES = [
   {key:"maisons",     label:"Maisons d'accueil",   short:"Maisons d'accueil", ic:"home",
     reseau:true, byCommune:true, garde:function(p){ return !p.urgence; }},
   {key:"lgbt",        label:"LGBTQI+",             short:"LGBTQI+",   ic:"rainbow",  reseau:true},
-  {key:"addictions",  label:"Drogues & addictions",short:"Addictions",ic:"addictions", reseau:true},
+  /* ═══ ASSUÉTUDES COUPÉ EN TROIS (Mag, 13/08/2026) ═══
+     76 fiches — une sur cinq — dans un seul tiroir que personne ne parcourt. Et ce
+     n'étaient pas 76 services de drogue : les cliniques psychiatriques, l'hépatite C,
+     le tabac, le jeu et les écrans y étaient aussi.
+     Le découpage suit LES SOUS-CATÉGORIES QUI EXISTENT DÉJÀ dans les fiches — pas mon
+     jugement. C'est la seule base solide : essayé le 13/08, deviner à la machine
+     donnait 141 « urgences » sur 359.
+     ⚠ Là encore ce sont des VUES : les fiches gardent le domaine `addictions`, donc
+     leur `sid` ne bouge pas et rien ne se perd. */
+  {key:"consommer",   label:"Consommer — réduire les risques", short:"Réduire les risques",
+   ic:"addictions", reseau:true, src:"addictions",
+   garde:function(p){ return (p.tags||[]).indexOf('Réduction des risques')>=0; }},
+  {key:"sevrer",      label:"Se sevrer, se poser", short:"Se sevrer", ic:"building", reseau:true,
+   src:"addictions",
+   /* ⚠ « Réduction des risques » GAGNE quand une fiche porte les deux étiquettes.
+      Trouvé en testant : Tremplin apparaissait dans les deux tiroirs. Une fiche dans
+      deux tiroirs, c'est une fiche qu'on croit avoir lue alors qu'on l'a vue ailleurs
+      — et c'est le défaut qu'on est en train de corriger. La réduction des risques
+      passe devant parce que c'est le geste le plus urgent : on y va sans vouloir
+      arrêter, et c'est ce qui distingue vraiment ces lieux-là. */
+   garde:function(p){ const t=p.tags||[];
+     if(t.indexOf('Réduction des risques')>=0) return false;
+     return t.indexOf('Consultations & suivi')>=0 || t.indexOf('Hôpitaux & cliniques')>=0
+         || t.indexOf('Alcool')>=0 || t.indexOf('Hébergement & cure')>=0 || t.indexOf('Tabac')>=0; }},
+  /* Ce qui reste d'Assuétudes : les proches, la prévention, l'écoute, le jeu et les
+     écrans, la prison — et les trois fiches sans sous-catégorie. Le tiroir garde son
+     nom : ce sont bien des questions d'assuétude, mais ce ne sont pas des lieux de
+     soin, et c'est ce qui les distingue des deux au-dessus. */
+  {key:"addictions",  label:"Drogues & addictions",short:"Addictions",ic:"chat",       reseau:true,
+   garde:function(p){ const t=p.tags||[];
+     return !(t.indexOf('Réduction des risques')>=0 || t.indexOf('Consultations & suivi')>=0
+       || t.indexOf('Hôpitaux & cliniques')>=0 || t.indexOf('Alcool')>=0
+       || t.indexOf('Hébergement & cure')>=0 || t.indexOf('Tabac')>=0); }},
   {key:"urgences",    label:"Urgences",            short:"Urgences",  ic:"siren"},
   {key:"methodes",    label:"Protocole",           short:"Protocole", ic:"clipboard", method:true},
   {key:"formations",  label:"Formations",          short:"Formations",ic:"book",     isFormation:true},
