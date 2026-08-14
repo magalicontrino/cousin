@@ -7107,16 +7107,27 @@ const DOMAINES = [
      ⚠ CE SONT DES VUES : `src` pointe vers le domaine d'origine et `garde` filtre.
      Aucune fiche ne change de domaine, donc aucun `sid` ne change, donc aucune étoile
      ni aucun avis ne se perd. C'est la seule façon sûre de ranger ce réseau. */
+  /* ═══ MANGER, SE LAVER, S'HABILLER (Mag, 13/08/2026 : « on avait parlé de faire
+     dormir, manger… ») ═══
+     C'est le premier besoin de la journée et il n'avait aucun tiroir : ces fiches
+     étaient noyées dans « Social », entre les CPAS et l'administratif. Quelqu'un qui
+     a faim ne cherche pas dans « Social ».
+     ⚠ LA LISTE EST EXPLICITE, pas devinée par mots-clés : testé le 13/08, une
+     expression régulière attrapait aussi les soins infirmiers à domicile et dix
+     maisons d'accueil qui mentionnent les repas. On nomme les fiches une par une —
+     c'est relisible d'un coup, et ça se corrige en ajoutant une ligne. */
+  {key:"manger",      label:"Manger, se laver",    short:"Manger, se laver", ic:"linge", reseau:true,
+   src:"social", garde:function(p){ return MANGER_LAVER.indexOf(p.nom)>=0; }},
   {key:"cpas",        label:"CPAS",                short:"CPAS",      ic:"musee",     reseau:true,
    src:"social", garde:function(p){ return estCpas(p); }},
   {key:"mmed",        label:"Maisons médicales",   short:"Maisons médicales", ic:"medical", reseau:true,
    src:"medical", garde:function(p){ return estMaisonMedicale(p); }},
   /* Médical et Social ne montrent plus ce qui est parti dans les deux tiroirs
      ci-dessus : sans ça, les mêmes fiches apparaîtraient deux fois. */
-  {key:"medical",     label:"Médical",             short:"Médical",   ic:"user",     byCommune:true, reseau:true,
+  {key:"medical",     label:"Se soigner",          short:"Se soigner",ic:"user",     byCommune:true, reseau:true,
    garde:function(p){ return !estMaisonMedicale(p); }},
-  {key:"social",      label:"Social",              short:"Social",    ic:"social",   reseau:true,
-   garde:function(p){ return !estCpas(p); }},
+  {key:"social",      label:"Argent et droits",    short:"Argent, droits", ic:"social", reseau:true,
+   garde:function(p){ return !estCpas(p) && MANGER_LAVER.indexOf(p.nom)<0; }},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
   /* « Jeunesse » et non « Enfants » : c'est le mot du secteur, et il couvre aussi les
      ados et les jeunes adultes, que « enfants » laissait dehors (Mag, 07/08/2026). */
@@ -7125,7 +7136,7 @@ const DOMAINES = [
      c'est le mot que l'équipe emploie (Mag, 06/08/2026). */
   {key:"culture",     label:"Activités & culture", short:"Activités", ic:"ticket",   reseau:true, byCommune:true},
   {key:"juridique",   label:"Juridique",           short:"Juridique", ic:"juridique",reseau:true},
-  {key:"etrangers",   label:"Droit des étrangers", short:"Étrangers", ic:"globe",    reseau:true},
+  {key:"etrangers",   label:"Papiers et séjour",   short:"Papiers, séjour", ic:"globe", reseau:true},
   /* RETROUVER SA FAMILLE — son propre bouton dans le Réseau, demandé par Mag le
      07/08/2026 après une vraie situation au centre : l'équipe cherchait qui aide à
      retrouver un proche et ne savait pas où regarder. Elle a insisté pour que ça ait
@@ -7136,7 +7147,7 @@ const DOMAINES = [
   /* « Famille » tout court se confondait avec « Enfants & familles », juste au-dessus.
      Le mot-titre de la case dit donc l'action : RECHERCHE FAMILLE. */
   {key:"famille",     label:"Retrouver sa famille",short:"Recherche famille", ic:"jenquete", reseau:true},
-  {key:"santementale",label:"Santé mentale",       short:"Santé",     ic:"mind",     reseau:true},
+  {key:"santementale",label:"Tête et esprit",      short:"Tête et esprit", ic:"mind", reseau:true},
   {key:"handicap",    label:"Handicap",            short:"Handicap",  ic:"handicap", reseau:true},
   /* ⚠ La CLÉ, pas la maison : « home » est allé aux Maisons d'accueil, et surtout
      un logement à soi, ce sont des clés qu'on reçoit. Trois tuiles parlaient de
@@ -7171,7 +7182,7 @@ const DOMAINES = [
      côte à côte avec le même dessin.
      La distinction est celle qu'elle fait tout le temps : UN LIT POUR CE SOIR
      contre UNE MAISON OÙ L'ON RESTE. */
-  {key:"urgenceheb",  label:"Hébergement d'urgence", short:"Urgence héberg.", ic:"bed",
+  {key:"urgenceheb",  label:"Dormir ce soir",      short:"Dormir ce soir", ic:"bed",
     reseau:true, byCommune:true, src:"maisons", garde:function(p){ return !!p.urgence; }},
   {key:"maisons",     label:"Maisons d'accueil",   short:"Maisons d'accueil", ic:"home",
     reseau:true, byCommune:true, garde:function(p){ return !p.urgence; }},
@@ -7537,6 +7548,17 @@ function estMaisonMedicale(p){
      "CPAS d'Anderlecht": ["Goujonissimo — maison médicale"],
    Le lien marche dans les deux sens tout seul — la fiche de la maison médicale
    affichera les CPAS correspondants sans qu'on les recopie. */
+/* Les fiches du tiroir « Manger, se laver ». À compléter au fil des ajouts. */
+const MANGER_LAVER=[
+  "DoucheFLUX",
+  "Les Petits Riens",
+  "Les Petits Riens — donner des objets",
+  "Restos du Cœur — le resto mobile à Anderlecht",
+  "Solidarité Grands Froids — se vêtir",
+  "Solidarité Grands Froids — donner des vêtements",
+  "La Fontaine — accueil de jour (Ordre de Malte)"
+];
+
 const CPAS_MM={};
 
 /* Les maisons médicales d'un CPAS, et l'inverse. */
