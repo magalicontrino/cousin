@@ -7378,6 +7378,77 @@ DATA.forEach(p=>{
    on les replie derrière un seul bouton. */
 let cpasOuvert=false;
 function estCpas(p){ return /^CPAS\b/i.test(p.nom||''); }
+function estMaisonMedicale(p){
+  return /maison m[ée]dicale/i.test((p.nom||'')+' '+((p.tags||[]).join(' ')));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUEL CPAS ENVOIE VERS QUELLE MAISON MÉDICALE (Mag, 13/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Sa demande : « s'il y a un hébergé qui arrive et qui est au CPAS d'Anderlecht,
+   je sais à quelle maison médicale il faut le diriger. Donc au fur et à mesure,
+   j'aimerais qu'avec l'équipe on puisse dire : voilà, il est attitré à cette maison
+   médicale. Comme ça on ne doit pas chercher. »
+
+   ⚠⚠ CE QU'ON NE NOTE PAS, ET C'EST LE POINT LE PLUS IMPORTANT.
+   « Il est attitré » se rapporte à une PERSONNE. Noter ça ici mettrait une donnée
+   MÉDICALE ET NOMINATIVE dans un outil que 35 personnes lisent et qui s'imprime.
+   C'est plus grave qu'un nom sur une chambre, et c'est interdit par la règle de la
+   maison. La solution garde son geste et jette le risque :
+   ON NOTE LE CPAS, PAS LA PERSONNE.
+   Un CPAS travaille avec certaines maisons médicales — c'est stable, c'est partagé,
+   et ça ne concerne personne en particulier. Quelqu'un arrive, il est au CPAS
+   d'Anderlecht : on ouvre la fiche du CPAS, elle donne la réponse. Zéro recherche,
+   zéro donnée personnelle.
+
+   ⚠ LA TABLE EST VIDE EXPRÈS. Je n'ai AUCUNE information sur les accords entre les
+   CPAS et les maisons médicales — ça ne se publie nulle part, ça se sait par
+   téléphone et par expérience. C'est exactement ce que l'équipe sait et que je ne
+   sais pas. L'inventer serait envoyer quelqu'un au mauvais endroit avec une carte
+   médicale qui n'y vaut rien.
+   → En attendant, l'app le DIT et renvoie vers la boîte d'avis, qui marche déjà.
+
+   POUR REMPLIR : le nom du CPAS tel qu'il est écrit dans le catalogue, puis les noms
+   exacts des maisons médicales. Exemple, le jour où on le saura :
+     "CPAS d'Anderlecht": ["Goujonissimo — maison médicale"],
+   Le lien marche dans les deux sens tout seul — la fiche de la maison médicale
+   affichera les CPAS correspondants sans qu'on les recopie. */
+const CPAS_MM={};
+
+/* Les maisons médicales d'un CPAS, et l'inverse. */
+function mmDuCpas(nom){ return CPAS_MM[nom]||[]; }
+function cpasDeLaMM(nom){
+  return Object.keys(CPAS_MM).filter(function(c){ return (CPAS_MM[c]||[]).indexOf(nom)>=0; });
+}
+/* Le bloc affiché sur la fiche. Il ne s'affiche QUE sur un CPAS ou une maison
+   médicale : ailleurs, il n'aurait rien à dire. */
+function lienCpasMMHTML(p){
+  const cpas=estCpas(p), mm=estMaisonMedicale(p);
+  if(!cpas && !mm) return '';
+  const liste=cpas?mmDuCpas(p.nom):cpasDeLaMM(p.nom);
+  const titre=cpas?'Où les envoyer se soigner':'Les CPAS qui envoient ici';
+  let h='<div class="f-h" style="margin-top:22px">'+titre+'</div>';
+  if(liste.length){
+    h+='<div class="fboutons n1">'+liste.map(function(n){
+      const f=DATA.find(function(x){ return x.nom===n; });
+      return f?'<button class="fbtn" onclick="go(\'#/f/'+f.sid+'\')">'+esc(n)+'</button>'
+              :'<span class="fbtn" style="opacity:.6">'+esc(n)+' — fiche absente</span>';
+    }).join('')+'</div>';
+  } else {
+    /* ⚠ ON DIT QU'ON NE SAIT PAS. Un bloc vide laisserait croire qu'il n'y a pas
+       d'accord, alors qu'on ne l'a simplement jamais noté. */
+    h+='<div class="fsrc" style="text-align:left;padding:8px 2px 0">'+
+       (cpas
+         ? 'Personne n’a encore noté avec quelle maison médicale ce CPAS travaille. '+
+           '<b>Si tu le sais, écris-le juste en dessous</b> — ça servira à toute l’équipe, '+
+           'et on n’aura plus à chercher.'
+         : 'Personne n’a encore noté quels CPAS envoient ici. <b>Si tu le sais, '+
+           'écris-le juste en dessous.</b>')+
+       '<br><br>⚠ On note ce que fait <b>le CPAS</b>, jamais à quelle maison médicale '+
+       'une personne est attitrée : ça, ça reste dans son dossier.</div>';
+  }
+  return h;
+}
 function toggleCpas(){ cpasOuvert=!cpasOuvert; render(); }
 function grpCpas(list){
   return '<div class="grp">'+
@@ -13381,6 +13452,9 @@ function vFiche(p){
     (p.formation?'<div class="f-h" style="margin-top:22px">Se former là-dessus</div>'+
       '<div class="fboutons n1">'+ficheBtn(p.formation,p.formationTxt||'La formation')+'</div>':'')+
     boutons+
+    /* Le lien CPAS ↔ maison médicale, juste AVANT la boîte d'avis : quand il est
+       vide, il renvoie vers elle — les deux doivent donc se suivre. */
+    lienCpasMMHTML(p)+
     /* ⚠ PAS SUR LES MODÈLES DE MAILS : « ce que l'équipe sait de ce LIEU » n'a
        aucun sens sous un canevas de mail, et une étiquette jour/nuit encore moins. */
     (p.domaine!=='mails' ? avisBlocHTML(p) : '')+
