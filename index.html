@@ -2701,6 +2701,12 @@ body.en-apercu #view{animation:none;transform:none}
 .porte{display:flex;align-items:center;gap:9px;border-bottom:2px solid var(--noir);
   padding-bottom:5px;margin:22px 0 11px}
 .porte:first-child{margin-top:10px}
+/* Les six portes en boutons : la rangee qu on lit en arrivant. */
+.dportes{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 4px}
+.dporte{border:1.5px solid var(--noir);border-radius:999px;background:#f6f5f3;color:var(--noir);
+  padding:9px 14px;font-family:ui-monospace,monospace;font-size:11px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.dporte.on{background:var(--noir);color:var(--creme)}
 /* Les petits tiroirs en boutons : ils gardent leur picto et leur compte, mais ne
    prennent plus la place d'un tiroir a 44 fiches. */
 .dbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
@@ -12929,7 +12935,12 @@ function vReseau(){
        sous « Tenir le coup » — Mag a dit non, et elle avait raison : ce titre-là
        laisse entendre qu'il s'agit de serrer les dents. Elle rejoint donc les autres
        tiroirs d'assuétude, à leur place. */
-    {t:'Se soigner', d:['medical','mmed','sevrer','consommer','addictions','santementale','planning','handicap']},
+    /* ⚠ LA PORTE DIT « SA SANTÉ », LA TUILE GARDE « SE SOIGNER » (choix ② de Mag,
+       13/08/2026). Le mot servait deux fois — on lisait « Se soigner → Se soigner »,
+       ce qui n'aide personne. C'est la seule porte qui nomme un thème plutôt qu'un
+       geste, et c'est assumé : ici il y a huit tiroirs très différents, et aucun
+       verbe ne les couvre tous sans mentir. */
+    {t:'Sa santé', d:['medical','mmed','sevrer','consommer','addictions','santementale','planning','handicap']},
     {t:'Ses droits, son argent', d:['cpas','social','etrangers','juridique']},
     /* ⚠ ET « TENIR LE COUP » DISPARAÎT. C'était un fourre-tout déguisé en besoin :
        on y avait mis les assuétudes, l'accompagnement, la recherche de famille ET
@@ -12938,12 +12949,7 @@ function vReseau(){
        sont des lieux où l'on est reçu sans avoir à s'expliquer.
        Ce qui reste ensemble ici a un vrai point commun : ce sont des gens vers qui
        on envoie quelqu'un pour être ACCOMPAGNÉ, pas pour obtenir un service. */
-    /* ⚠ EN BOUTONS, PAS EN TUILES (Mag, 13/08/2026 : « tu peux les sortir tous et
-       les mettre comme bouton »). Ces trois tiroirs font 1, 2 et 8 fiches : un
-       carré de la même taille que « Se sevrer » et ses 44 fiches promettait autant
-       et donnait dix fois moins. En boutons, ils tiennent sur deux lignes et on les
-       lit d'un coup d'œil — sans disparaître pour autant. */
-    {t:'Être accompagné', d:['accompagnement','famille','lgbt'], boutons:true},
+    {t:'Être accompagné', d:['accompagnement','famille','lgbt']},
     {t:'S’occuper, apprendre', d:['culture','educatif']}
   ];
   /* Chaque porte, puis ses tuiles. Un domaine oublié dans PORTES n'est pas perdu :
@@ -12964,16 +12970,33 @@ function vReseau(){
       : '<div class="dgrid res">'+t.map(function(x){ return tile(x,true); }).join('')+'</div>';
     return '<div class="porte"><b>'+esc(titre)+'</b></div>'+corps;
   };
-  const grille=PORTES.map(function(p){ return section(p.t, p.d, p.boutons); }).join('')+
-    (oublies.length? section('Le reste', oublies.map(function(x){ return x.key; })) : '');
+  /* ═══ LES SIX PORTES SONT DES BOUTONS (Mag, 13/08/2026 : « fais un bouton
+     s'occuper aussi, et un ses droits… tu comprends ») ═══
+     C'est ça, ses « cinq ou six entrées » : on arrive, on voit six mots, on en
+     choisit un, et on ne voit plus que ses tiroirs. Les intertitres ne suffisaient
+     pas — ils annonçaient sans trier, il fallait quand même tout faire défiler.
+     ⚠ « TOUT » RESTE EN PREMIER ET RESTE LE DÉFAUT : celle qui sait où elle va ne
+     doit pas payer un clic pour arriver là où elle arrivait avant. */
+  const rp=(typeof RESEAU_PORTE!=='undefined')?RESEAU_PORTE:'';
+  const boutons='<div class="dportes">'+
+    '<button class="dporte'+(rp?'':' on')+'" onclick="reseauPorte(\'\')">Tout</button>'+
+    PORTES.map(function(p,i){
+      return '<button class="dporte'+(rp===String(i)?' on':'')+'" onclick="reseauPorte(\''+i+'\')">'+
+        esc(p.t)+'</button>';
+    }).join('')+'</div>';
+
+  const grille= rp!=='' && PORTES[rp]
+    ? section(PORTES[rp].t, PORTES[rp].d, PORTES[rp].boutons)
+    : PORTES.map(function(p){ return section(p.t, p.d, p.boutons); }).join('')+
+      (oublies.length? section('Le reste', oublies.map(function(x){ return x.key; })) : '');
   return '<div class="home-title" style="margin-top:10px">'+
-      '<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url(picto/ico-demidisques.svg);mask-image:url(picto/ico-demidisques.svg)"></span><svg class="deco deco-arc" viewBox="0 0 60 31" fill="none"><path d="M2 30 A28 28 0 0 1 58 30" stroke="#e63329" stroke-width="4.6"/><path d="M6.6 30 A23.4 23.4 0 0 1 53.4 30" stroke="#f8763f" stroke-width="4.6"/><path d="M11.2 30 A18.8 18.8 0 0 1 48.8 30" stroke="#f5c542" stroke-width="4.6"/><path d="M15.8 30 A14.2 14.2 0 0 1 44.2 30" stroke="#6cb392" stroke-width="4.6"/><path d="M20.4 30 A9.6 9.6 0 0 1 39.6 30" stroke="#2f6fd0" stroke-width="4.6"/><path d="M25 30 A5 5 0 0 1 35 30" stroke="#a05fd0" stroke-width="4.6"/></svg></span>'+
+      '<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url(picto/ico-demidisques.svg);mask-image:url(picto/ico-demidisques.svg)"></span></span>'+
       '<span class="tl">Cherchez<span class="pico deco-fleur" style="-webkit-mask-image:url(picto/ico-fleur.svg);mask-image:url(picto/ico-fleur.svg)"></span></span>'+
-      /* Les deux boutons carrés (fil, mobiliser) sont restés à l'ACCUEIL (Mag, 05/08/2026). */
       '<span class="tl last"><span class="tl-txt">Qu<span class="tdo"></span>i<span style="margin-left:.16em">?</span></span></span></div>'+
-    grille+
-    '<div style="height:20px"></div>';
+    boutons+grille+'<div style="height:20px"></div>';
 }
+var RESEAU_PORTE='';
+function reseauPorte(i){ RESEAU_PORTE=i; render(); window.scrollTo(0,0); }
 
 /* ---------- rail de catégories ---------- */
 /* `rail(active)` — la rangée horizontale des autres domaines — a été SUPPRIMÉE le
