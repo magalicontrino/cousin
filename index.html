@@ -13345,7 +13345,11 @@ function chipRow(name,values,activeVal,allLabel){
    plutôt que d'en dessiner un deuxième : deux panneaux qui montent différemment dans
    la même app, ça se remarque tout de suite. */
 var FICHE_PAN='';
-function fichePan(sid){ FICHE_PAN=sid; render(); }
+function fichePan(sid){ FICHE_PAN=sid; render();
+  /* Le panneau s'ouvre TOUT DE SUITE et le bloc de l'équipe se remplit après :
+     attendre la base avant d'afficher la fiche ferait patienter pour rien. */
+  if(sid) rafraichirAvis(sid);
+}
 function fichePanFermer(){ FICHE_PAN=''; render(); }
 function fichePanHTML(){
   if(!FICHE_PAN) return '';
@@ -13378,6 +13382,16 @@ function fichePanHTML(){
         ligne('Mail', p.mail)+
         ligne('Site', p.site)+
         (p.notes?'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>À savoir</b><p>'+esc(p.notes)+'</p></div>':'')+
+        /* ═══ CE QUE L'ÉQUIPE SAIT — DANS LE PANNEAU AUSSI (Mag, 15/08/2026) ═══
+           Sa question : « comment je rajoute une notification positive et un
+           commentaire ? » Elle le cherchait ICI, et il n'y était pas : le bloc
+           n'existait que sur la page de la fiche entière. Le commentaire au-dessus
+           de ce panneau promettait pourtant « ce que l'équipe sait » depuis le
+           13/08 — il n'avait jamais été branché.
+           ⚠ Pas de conflit d'identifiant : le panneau ne s'ouvre que depuis le
+           Réseau et depuis une page de domaine, jamais par-dessus la fiche entière.
+           Il n'y a donc jamais deux blocs d'avis à l'écran en même temps. */
+        avisBlocHTML(p)+
         '<div style="height:14px"></div>'+
       '</div>'+
       '<div class="actpied fpied">'+
@@ -13931,7 +13945,9 @@ async function loadAvis(sid){
 function rafraichirAvis(sid){
   loadAvis(sid).then(function(){
     const z=document.getElementById('aviszone');
-    if(z && current && current.view==='fiche' && current.sid===sid) z.innerHTML=avisCorpsHTML(sid);
+    /* Deux endroits possibles maintenant : la fiche entière, ET le panneau. */
+    if(z && (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid)))
+      z.innerHTML=avisCorpsHTML(sid);
   });
 }
 function avisEtq(cle){ AVIS_ETQ=(AVIS_ETQ===cle)?null:cle;
