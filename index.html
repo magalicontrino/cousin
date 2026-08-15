@@ -7225,8 +7225,42 @@ const DOMAINES = [
      ci-dessus : sans ça, les mêmes fiches apparaîtraient deux fois. */
   {key:"medical",     label:"Se soigner",          short:"Se soigner",ic:"user",     byCommune:true, reseau:true,
    garde:function(p){ return !estMaisonMedicale(p); }},
-  {key:"social",      label:"Argent et droits",    short:"Argent, droits", ic:"social", reseau:true,
-   garde:function(p){ return !estCpas(p) && MANGER_LAVER.indexOf(p.nom)<0; }},
+  {key:"social",      label:"Faire ses démarches", short:"Faire ses démarches", ic:"social", reseau:true,
+   garde:function(p){ return !estCpas(p) && MANGER_LAVER.indexOf(p.nom)<0
+     && VIOLENCES.indexOf(p.nom)<0 && REPERES.indexOf(p.nom)<0; }},
+  /* ⚠ LES VIOLENCES PUISENT DANS SOCIAL ET DANS URGENCES : la moitié des fiches
+     étaient rangées comme des numéros d'urgence, l'autre comme des services sociaux.
+     Quelqu'un qui cherche où envoyer une femme ne va pas chercher à deux endroits. */
+  {key:"violences",   label:"Violences",           short:"Violences", ic:"alert", reseau:true,
+   src:["social","urgences"],
+   garde:function(p){ return VIOLENCES.indexOf(p.nom)>=0; }},
+  /* ═══ OÙ IL Y A UN SERVICE SOCIAL (Mag, 13/08/2026) ═══
+     « On doit pouvoir aiguiller les gens vers des services sociaux. Mets tous les
+     endroits où il y a un service social — même s'il y a des doubles, ce n'est pas
+     grave — comme les centres de jour ou n'importe quoi. »
+
+     ⚠ CE TIROIR EST VOLONTAIREMENT LARGE, et c'est elle qui l'a demandé. Il traverse
+     TOUS les domaines : une maison d'accueil, une maison médicale, un centre de jour
+     et une asbl LGBTQI+ peuvent tous avoir une assistante sociale. La question n'est
+     pas « quel type de service est-ce ? » mais « est-ce qu'on peut y accompagner
+     quelqu'un pour ses papiers ? ».
+     Les doublons avec les autres tiroirs sont donc NORMAUX ici — un même lieu répond
+     à deux besoins, et celui qui cherche un service social ne cherche pas dans
+     « Maisons d'accueil ».
+
+     ⚠ LE FILTRE EST UN MOT-CLÉ, ce qui est risqué (leçon du 13/08 : deviner à la
+     machine donnait 141 « urgences »). Ici c'est acceptable parce qu'elle a demandé
+     de RATISSER LARGE et accepté les doubles — mais la liste est à relire avec
+     l'équipe, et une fiche qui n'a pas de service social doit en sortir. */
+  {key:"servsoc",     label:"Où il y a un service social", short:"Un service social",
+   ic:"user", reseau:true,
+   src:["social","maisons","medical","etrangers","addictions","lgbt","handicap","santementale","accompagnement","planning","educatif"],
+   garde:function(p){
+     return /service social|assistant[e]? social|permanence sociale|accompagnement social|aide administrative|accueil social/i
+       .test((p.desc||'')+' '+(p.notes||'')+' '+p.nom);
+   }},
+  {key:"reperes",     label:"Annuaires et guides", short:"Annuaires, guides", ic:"book", reseau:true,
+   src:"social", garde:function(p){ return REPERES.indexOf(p.nom)>=0; }},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
   /* « Jeunesse » et non « Enfants » : c'est le mot du secteur, et il couvre aussi les
      ados et les jeunes adultes, que « enfants » laissait dehors (Mag, 07/08/2026). */
@@ -7281,10 +7315,16 @@ const DOMAINES = [
      côte à côte avec le même dessin.
      La distinction est celle qu'elle fait tout le temps : UN LIT POUR CE SOIR
      contre UNE MAISON OÙ L'ON RESTE. */
+  /* ⚠ NE GARDE QUE LES ENDROITS OÙ L'ON DORT. Voir ORIENTATION plus haut. */
+  {key:"orientation", label:"Qui cherche une place pour vous", short:"Qui cherche une place",
+   ic:"compass", reseau:true, src:["maisons","urgences","social"],
+   garde:function(p){ return ORIENTATION.indexOf(p.nom)>=0; }},
   {key:"urgenceheb",  label:"Dormir ce soir",      short:"Dormir ce soir", ic:"bed",
-    reseau:true, byCommune:true, src:"maisons", garde:function(p){ return !!p.urgence; }},
+    reseau:true, byCommune:true, src:"maisons",
+    garde:function(p){ return !!p.urgence && ORIENTATION.indexOf(p.nom)<0; }},
   {key:"maisons",     label:"Maisons d'accueil",   short:"Maisons d'accueil", ic:"home",
-    reseau:true, byCommune:true, garde:function(p){ return !p.urgence; }},
+    reseau:true, byCommune:true,
+    garde:function(p){ return !p.urgence && ORIENTATION.indexOf(p.nom)<0; }},
   {key:"lgbt",        label:"LGBTQI+",             short:"LGBTQI+",   ic:"rainbow",  reseau:true},
   /* ═══ ASSUÉTUDES COUPÉ EN TROIS (Mag, 13/08/2026) ═══
      76 fiches — une sur cinq — dans un seul tiroir que personne ne parcourt. Et ce
@@ -7684,7 +7724,60 @@ const MANGER_LAVER=[
   "Poverello — repas chauds, Bruxelles centre",
   "Chez Nous / Bij Ons — accueil de jour",
   "Opération Thermos — repas du soir (hiver)",
-  "Restojet — Montfort Center, repas de midi"
+  "Restojet — Montfort Center, repas de midi",
+  /* ⚠ Rapatriées d'« Argent et droits » le 13/08/2026 : la Croix-Rouge y fait des
+     colis, des épiceries sociales et des vestiboutiques ; les points d'eau et les
+     toilettes, c'est le besoin le plus élémentaire qui soit. Ni l'un ni l'autre
+     n'avait quoi que ce soit à faire dans un tiroir d'argent. */
+  "Croix-Rouge de Belgique",
+  "Boire et aller aux toilettes — les points gratuits"
+];
+
+/* ═══ « ARGENT ET DROITS » ÉTAIT DEVENU LE TIROIR-POUBELLE (Mag, 13/08/2026) ═══
+   Ses mots : « le Syndicat des immenses, c'est plutôt l'information ou l'action…
+   Argent et droits ne devrait pas exister, il devrait y avoir un truc de démarches
+   administratives et juridiques. Réfléchis un peu plus, parce que ce n'est pas
+   normal. » Elle avait raison : sur douze fiches, cinq n'avaient rien à y faire —
+   la prévention des violences conjugales, un annuaire, un guide de poche, la
+   Croix-Rouge et les points d'eau. C'est le défaut qu'on corrige depuis ce matin,
+   revenu par la porte de derrière : un tiroir nommé si large qu'il attire tout. */
+const VIOLENCES=[
+  "CPVCF – Centre de Prévention des Violences Conjugales et Familiales",
+  "Garance asbl",
+  "SOS Viol",
+  "CPVS — Violences sexuelles (24h/24)",
+  "EVA – cellule police violences intrafamiliales et sexuelles",
+  "Écoute Violences Conjugales (violences conjugales / VC)",
+  "Violences sexuelles – ligne d'écoute"
+];
+/* Ceux qui ne donnent pas un service mais disent OÙ ALLER. Ce ne sont pas des
+   adresses où envoyer quelqu'un : ce sont nos outils à nous, et ceux qu'on donne. */
+const REPERES=[
+  "Bruxelles Social (social.brussels)",
+  "Le Bon Plan (DUNE) — le guide de poche à donner",
+  "Fédération des Services Sociaux"
+];
+
+/* ═══ ILS NE LOGENT PAS, ILS CHERCHENT UNE PLACE (Mag, 13/08/2026) ═══
+   Sa capture montrait « DORMIR CE SOIR — 1 fiche », et cette fiche était la
+   Plateforme Informative de la Strada, dont le public est « travailleurs sociaux ».
+   Ses mots : « ça n'a aucun sens ». Elle avait raison, et le défaut n'était pas le
+   tri : c'était le CONTENU du tiroir.
+
+   Sur neuf fiches, quatre n'étaient pas des endroits où dormir — une plateforme
+   d'information pour professionnels, deux portes d'entrée qui orientent, un service
+   d'aide. Mélangées aux cinq vrais lieux, elles rendaient les filtres absurdes :
+   filtrer « hommes » sur un annuaire ne veut rien dire.
+
+   C'est l'étiquette ORIENTATION de la proposition du 11/08, devenue un tiroir : ils
+   ne logent pas, ils cherchent une place. On les appelle EN PREMIER, mais on n'y
+   envoie personne dormir. */
+const ORIENTATION=[
+  "Plateforme Informative de la Strada (PILS)",
+  "Bruss'help – Cellule d'orientation",
+  "Bruss'help – orientation hébergement",
+  "CAW Huis Brussel — la porte d'entrée néerlandophone",
+  "CAW Archipel"
 ];
 
 const CPAS_MM={};
@@ -12981,7 +13074,7 @@ function vReseau(){
      ⚠ L'ordre des portes suit la journée de quelqu'un qui arrive : dormir, manger,
      se soigner, ses droits, ce qui l'aide à tenir, et le reste. */
   const PORTES=[
-    {t:'Dormir', d:['urgenceheb','maisons','logement']},
+    {t:'Dormir', d:['urgenceheb','maisons','logement','orientation']},
     {t:'Manger, se laver', d:['manger']},
     /* ⚠ « ADDICTIONS » EST UNE QUESTION DE SOIN, pas de volonté. Elle était rangée
        sous « Tenir le coup » — Mag a dit non, et elle avait raison : ce titre-là
@@ -12993,7 +13086,9 @@ function vReseau(){
        geste, et c'est assumé : ici il y a huit tiroirs très différents, et aucun
        verbe ne les couvre tous sans mentir. */
     {t:'Sa santé', d:['medical','mmed','sevrer','consommer','addictions','santementale','planning','handicap']},
-    {t:'Ses droits, son argent', d:['cpas','social','etrangers','juridique']},
+    {t:'Ses droits, ses papiers', d:['cpas','social','servsoc','etrangers','juridique']},
+    {t:'Violences',           d:['violences']},
+    {t:'Annuaires et guides', d:['reperes']},
     /* ⚠ ET « TENIR LE COUP » DISPARAÎT. C'était un fourre-tout déguisé en besoin :
        on y avait mis les assuétudes, l'accompagnement, la recherche de famille ET
        LGBTQI+. Ranger LGBTQI+ sous « tenir le coup », c'est laisser entendre qu'être
