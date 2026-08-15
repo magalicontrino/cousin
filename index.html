@@ -7210,8 +7210,11 @@ const DOMAINES = [
      expression régulière attrapait aussi les soins infirmiers à domicile et dix
      maisons d'accueil qui mentionnent les repas. On nomme les fiches une par une —
      c'est relisible d'un coup, et ça se corrige en ajoutant une ligne. */
-  {key:"manger",      label:"Manger, se laver",    short:"Manger, se laver", ic:"linge", reseau:true,
-   src:"social", garde:function(p){ return MANGER_LAVER.indexOf(p.nom)>=0; }},
+  /* ⚠ DEUX TIROIRS DEPUIS LE 15/08/2026 (« C'est 2 pas 1 »). Voir MANGER et LAVER. */
+  {key:"manger",      label:"Manger",              short:"Manger", ic:"colis", reseau:true,
+   src:"social", garde:function(p){ return MANGER.indexOf(p.nom)>=0; }},
+  {key:"laver",       label:"Se laver, se vêtir",  short:"Se laver, se vêtir", ic:"linge", reseau:true,
+   src:"social", garde:function(p){ return LAVER.indexOf(p.nom)>=0; }},
   /* ⚠ CE TIROIR PUISE DANS DEUX DOMAINES : les accueils de jour sont rangés moitié
      dans Social, moitié dans Assuétudes. C'est pour ça que `src` accepte une liste. */
   {key:"journee",     label:"Passer la journée",   short:"Passer la journée", ic:"clock", reseau:true,
@@ -7755,26 +7758,48 @@ const PASSER_LA_JOURNEE=[
   "Hôpital de jour le Quotidien (Fond'Roy)"
 ];
 
-/* Les fiches du tiroir « Manger, se laver ». À compléter au fil des ajouts. */
-const MANGER_LAVER=[
-  "DoucheFLUX",
-  "Les Petits Riens",
-  "Les Petits Riens — donner des objets",
+/* ═══ « MANGER, SE LAVER » SE COUPE EN DEUX (Mag, 15/08/2026) ═══
+   Capture du bouton à l'appui, quatre mots : « C'est 2 pas 1. »
+   Elle a raison, et c'est la même faute que le tiroir d'argent : un titre qui
+   énumère deux besoins est un titre qui n'en nomme aucun. Quelqu'un qui cherche
+   une douche n'a rien à faire dans une liste de repas — et l'inverse est vrai.
+   ⚠ AUCUNE FICHE NE BOUGE : les deux listes ci-dessous sont des VUES, le domaine
+   des fiches reste « social » et leur `sid` ne change pas (étoiles et avis
+   restent accrochés). MANGER_LAVER continue d'exister, en somme des deux — c'est
+   lui qui empêche ces fiches de réapparaître dans « Un service social ». */
+const MANGER=[
   "Restos du Cœur — le resto mobile à Anderlecht",
-  "Solidarité Grands Froids — se vêtir",
-  "Solidarité Grands Froids — donner des vêtements",
-  "La Fontaine — accueil de jour (Ordre de Malte)",
   "Poverello — repas chauds, Bruxelles centre",
-  "Chez Nous / Bij Ons — accueil de jour",
   "Opération Thermos — repas du soir (hiver)",
   "Restojet — Montfort Center, repas de midi",
-  /* ⚠ Rapatriées d'« Argent et droits » le 13/08/2026 : la Croix-Rouge y fait des
-     colis, des épiceries sociales et des vestiboutiques ; les points d'eau et les
-     toilettes, c'est le besoin le plus élémentaire qui soit. Ni l'un ni l'autre
-     n'avait quoi que ce soit à faire dans un tiroir d'argent. */
-  "Croix-Rouge de Belgique",
-  "Boire et aller aux toilettes — les points gratuits"
+  /* Accueil de jour, mais c'est le REPAS qu'on y cherche (« repas, accompagnement
+     psychosocial, activités »). */
+  "Chez Nous / Bij Ons — accueil de jour",
+  /* ⚠ Rapatriée d'« Argent et droits » le 13/08/2026 : colis alimentaires et
+     épiceries sociales — rien à faire dans un tiroir d'argent. */
+  "Croix-Rouge de Belgique"
 ];
+/* ⚠ SE LAVER **ET SE VÊTIR** — parce qu'il fallait bien poser les vêtements
+   quelque part et qu'ils ne sont pas de la nourriture. Elle a demandé DEUX
+   boutons, j'en fais deux : les Petits Riens et Solidarité Grands Froids sont donc
+   ici, avec les douches. Si elle préfère un troisième bouton « Se vêtir », c'est
+   une ligne à déplacer — les quatre fiches concernées sont marquées ci-dessous. */
+const LAVER=[
+  "DoucheFLUX",
+  /* « Douche, lessive, soins infirmiers, pédicure, coiffeur » — c'est un lieu où
+     l'on se lave, pas où l'on mange. */
+  "La Fontaine — accueil de jour (Ordre de Malte)",
+  /* Le besoin le plus élémentaire qui soit, lui aussi rapatrié le 13/08/2026. */
+  "Boire et aller aux toilettes — les points gratuits",
+  /* ↓ LES QUATRE FICHES « VÊTEMENTS » ↓ */
+  "Les Petits Riens",
+  "Les Petits Riens — donner des objets",
+  "Solidarité Grands Froids — se vêtir",
+  "Solidarité Grands Froids — donner des vêtements"
+];
+/* La somme des deux. ⚠ Sert de garde à « Un service social » : toute fiche ajoutée
+   à MANGER ou à LAVER en sort automatiquement, il n'y a rien à tenir à jour ici. */
+const MANGER_LAVER=MANGER.concat(LAVER);
 
 /* ═══ « ARGENT ET DROITS » ÉTAIT DEVENU LE TIROIR-POUBELLE (Mag, 13/08/2026) ═══
    Ses mots : « le Syndicat des immenses, c'est plutôt l'information ou l'action…
@@ -13122,7 +13147,8 @@ function vReseau(){
   const ORDRE_RESEAU=[
     /* Les six que l'équipe pousse en premier, dans l'ordre de la journée */
     'urgenceheb',    /* Dormir ce soir */
-    'manger',        /* Manger, se laver */
+    'manger',        /* Manger */
+    'laver',         /* Se laver, se vêtir */
     'medical',       /* Se soigner */
     'cpas',
     'mmed',          /* Maisons médicales */
@@ -13168,7 +13194,8 @@ function vReseau(){
        il ne dit pas qui a le droit d'y aller. */
     {t:'Violences · femmes', d:['violences']},
     {t:'Dormir', d:['urgenceheb','maisons','logement','orientation']},
-    {t:'Manger, se laver', d:['manger']},
+    {t:'Manger',            d:['manger']},
+    {t:'Se laver, se vêtir', d:['laver']},
     /* ⚠ « ADDICTIONS » EST UNE QUESTION DE SOIN, pas de volonté. Elle était rangée
        sous « Tenir le coup » — Mag a dit non, et elle avait raison : ce titre-là
        laisse entendre qu'il s'agit de serrer les dents. Elle rejoint donc les autres
