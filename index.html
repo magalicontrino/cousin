@@ -2360,6 +2360,24 @@ body.en-apercu #view{animation:none;transform:none}
    rappel ». Le bloc vient APRÈS les coordonnées et les boutons d'action — on ouvre
    une fiche pour un numéro de téléphone, pas pour lire des commentaires. */
 .avisbloc{border:1px solid var(--ligne);border-radius:12px;padding:14px;background:#fdfdfc}
+/* « Conseillée par l'équipe » — le bloc de proposition et d'approbation.
+   ⚠ Il reprend le jaune du liseré déjà posé sur les fiches conseillées : c'est le
+   même objet, il doit avoir la même couleur des deux côtés. */
+.conseilbloc{margin-top:14px;padding-top:12px;border-top:1px dashed var(--ligne)}
+.conseilok{display:flex;gap:9px;align-items:flex-start;background:#fffdf3;
+  border-left:5px solid var(--jaune);border-radius:8px;padding:10px 12px}
+.conseilok .ic{width:16px;height:16px;flex:none;margin-top:2px}
+.conseilok b{display:block;font-size:14.5px}
+.conseilok em{font-style:normal;display:block;font-size:14px;line-height:1.4;color:#4a4844;margin-top:2px}
+.conseilok i{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:#8b8984;margin-top:5px}
+.conseilatt{border-left:3px solid var(--ligne);padding:2px 0 2px 11px}
+.conseilatt b{font-size:14px}
+.conseilatt em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:10px;
+  letter-spacing:.1em;color:#8b8984;margin-top:1px}
+.conseilatt p{font-size:14.5px;line-height:1.45;margin-top:4px}
+/* Depuis combien de temps ça dort : rouge après 30 jours, et seulement là. */
+.conseilvieux{color:#e63329;font-weight:700}
 .avisetq{display:flex;flex-wrap:wrap;gap:6px}
 .avisl{border-left:3px solid var(--ligne);padding:2px 0 2px 11px;margin-bottom:11px}
 .avisl b{font-size:14px}
@@ -7577,7 +7595,7 @@ function triProximite(arr){
      qu'une adresse proche (Mag, 08/08/2026). */
   /* Les conseillées passent devant ; les déconseillées ne remontent jamais, mais on
      ne les enterre pas non plus : elles gardent leur place de proximité. */
-  const note=p=> (p.reco?-1:0)+(p.deco?1:0);
+  const note=p=> (estConseille(p)?-1:0)+(p.deco?1:0);
   return arr.slice().sort((a,b)=> note(a)-note(b) || rang(a)-rang(b) || a.nom.localeCompare(b.nom,'fr'));
 }
 /* ÉTIQUETTES (06/08/2026) — proposées par Claude, relues fiche par fiche par Claude
@@ -12555,6 +12573,37 @@ function vAdmin(){
     gAcces+='</div>';
   }
 
+  /* ═══ LA FILE DES LIEUX PROPOSÉS (Mag, 15/08/2026) ═══
+     « Tout le monde peut poser, mais c'est la coordination qui doit approuver. »
+     Rangée à côté des demandes d'accès parce que c'est la même chose : quelqu'un
+     attend une réponse de nous.
+     ⚠ LES PLUS VIEILLES EN PREMIER — c'est une file d'attente, pas un fil
+     d'actualité. Et rien ne se périme tout seul : au-delà de 30 jours la ligne
+     passe en rouge, et c'est tout. C'est quelqu'un qui tranche, pas le calendrier. */
+  const consAtt=conseilsEnAttente();
+  gAcces+='<button class="acc'+(ADM_SECTION==='cons'?' open':'')+'" onclick="admSection(\'cons\')">'+
+     '<b>Lieux proposés</b><span class="n">'+(consAtt.length?consAtt.length+' à relire':'aucun')+'</span>'+
+     '<span class="sg">'+(ADM_SECTION==='cons'?'⌄':'›')+'</span></button>';
+  if(ADM_SECTION==='cons'){
+    gAcces+='<div class="rlist">';
+    if(!consAtt.length) gAcces+='<div class="role"><b style="font-weight:500;color:#8b8984">Rien à relire.</b></div>';
+    consAtt.forEach(function(c){
+      const pf=BYSID[c.sid], j=conseilJours(c);
+      gAcces+='<div class="msg"><div class="top"><span class="tx">'+
+        '<b>'+esc(pf?pf.nom:c.sid)+'</b><em>'+esc(c.propose_nom||'une collègue')+' · '+
+        '<span class="'+(j>30?'conseilvieux':'')+'">en attente depuis '+j+' jour'+(j>1?'s':'')+'</span>'+
+        '</em></span></div>'+
+        (c.texte?'<p>'+esc(c.texte)+'</p>':'')+
+        '<div class="chadd" style="margin-top:8px">'+
+          '<input id="conseilMotif" type="text" maxlength="160" autocomplete="off" '+
+          'placeholder="Une raison — obligatoire pour refuser">'+
+          '<button class="chaddbtn" onclick="conseilTrancher(\''+c.sid+'\',\'ok\')">Approuver</button></div>'+
+        '<div class="fcbas"><button class="ann" onclick="conseilTrancher(\''+c.sid+'\',\'refus\')">Refuser</button></div>'+
+      '</div>';
+    });
+    gAcces+='</div>';
+  }
+
   /* --- QUI EST VENU : la même liste, mais rangée par dernière visite --- */
   const venus=mem.slice().sort(function(a,b){
     const va=new Date(a.derniere_connexion||a.dernier_login||0).getTime();
@@ -13038,7 +13087,7 @@ function rechercher(q, tolerant){
     }
     /* CE QUE L'ÉQUIPE PRÉFÈRE PASSE DEVANT — même règle que le tri des domaines :
        l'avis d'un collègue qui y a envoyé quelqu'un vaut mieux qu'un bon score. */
-    if(f.p.reco) total+=60;
+    if(estConseille(f.p)) total+=60;
     /* ═══ ET MAINTENANT LES AVIS ÉCRITS DEPUIS L'APP (Mag, 13/08/2026) ═══
        « On mettra juste en priorité ceux qui sont notés positivement. » C'était sa
        réponse quand je l'ai avertie du danger d'un avis négatif sur une association
@@ -13089,12 +13138,12 @@ function rechAfficher(){
 function rechCarte(p){
   const c=dc(p.domaine), d=DOM[p.domaine]||{};
   const bas=[d.label, (p.commune&&p.commune!=='Régional / Toutes communes')?p.commune:''].filter(Boolean).join(' · ');
-  return '<div class="frow2'+(p.reco?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" '+
+  return '<div class="frow2'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" '+
     'onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
     '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
     '<span class="tx"><b>'+esc(p.nom)+'</b>'+(bas?'<em>'+esc(bas)+'</em>':'')+
       (p.tel?'<span class="rechtel">'+esc(p.tel)+'</span>':'<span class="rechtel vide">Pas de numéro dans cette fiche</span>')+
-      (p.reco?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>':'')+
+      (estConseille(p)?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>':'')+
       (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>':'')+'</span>'+
     heartBtn(p.sid)+'</div>';
 }
@@ -13420,11 +13469,11 @@ function fcard(p){
     cond?'<span class="fr2c">'+esc(cond.length>90?cond.slice(0,88)+'…':cond)+'</span>':'',
     (!cond&&p.horaires)?'<span class="fr2h">'+esc((p.horaires||'').split('\n')[0].slice(0,70))+'</span>':''
   ].filter(Boolean).join('');
-  return '<div class="frow2'+(p.reco?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
+  return '<div class="frow2'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
     '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
     '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+
-      (p.reco?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
-        (p.recoTxt?'<span class="recopq">'+esc(p.recoTxt)+'</span>':''):'')+
+      (estConseille(p)?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
+        (conseilTexte(p)?'<span class="recopq">'+esc(conseilTexte(p))+'</span>':''):'')+
       (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>'+
         (p.decoTxt?'<span class="recopq">'+esc(p.decoTxt)+'</span>':''):'')+det+'</span>'+
     (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
@@ -13728,7 +13777,7 @@ function vDomaine(key){
      « Nos préférés » n'est pas une sous-catégorie de plus : c'est un AVIS sur le lieu,
      et il vaut pour tout le domaine. Il passe donc en premier, et ce sont les rangées
      du dessous (sous-catégories, communes) qui se recalculent sur les préférés. */
-  const nReco=base.filter(function(p){ return p.reco; }).length;
+  const nReco=base.filter(function(p){ return estConseille(p); }).length;
   const nDeco=base.filter(function(p){ return p.deco; }).length;
   if(nReco||nDeco){
     chips+='<div class="favrow">'+
@@ -13742,7 +13791,7 @@ function vDomaine(key){
       (nDeco?'<button class="favchip deco'+(filt.avis==='deco'?' on':'')+'" onclick="filtrerAvis(\'deco\')">'+
         '<span class="ic">'+icon('alert')+'</span>Déconseillés<i>'+nDeco+'</i></button>':'')+
       '</div>';
-    if(filt.avis==='reco'){ items=items.filter(p=>p.reco); base=base.filter(p=>p.reco); }
+    if(filt.avis==='reco'){ items=items.filter(estConseille); base=base.filter(estConseille); }
     if(filt.avis==='deco'){ items=items.filter(p=>p.deco); base=base.filter(p=>p.deco); }
   }
   /* ═══ RÉSERVÉ AUX FEMMES / AUX HOMMES (Mag, 08/08/2026 : « rajoute peut-être dans
@@ -13907,6 +13956,159 @@ async function loadAvisComptes(){
   AVIS_N=n;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   « CONSEILLÉE PAR L'ÉQUIPE » — PROPOSÉE PAR TOUS, APPROUVÉE PAR LA COORDINATION
+   ═══════════════════════════════════════════════════════════════════════════
+   Mag, 15/08/2026 : « tout le monde peut poser. Mais c'est la coordination qui
+   doit approuver. » Puis, sur mes quatre questions restées ouvertes : « fais le
+   plus logique ». Voici donc ce que j'ai tranché, et pourquoi — à relire avec
+   l'équipe, chaque point se change en une ligne.
+
+   ① QUI VOIT UNE PROPOSITION EN ATTENTE ? La coordination, et celui qui l'a
+     proposée. PERSONNE D'AUTRE. Un « conseillé » affiché à tous AVANT d'être
+     vérifié agit déjà comme un conseil — on enverrait quelqu'un sur la foi d'une
+     recommandation que personne n'a relue. C'est réglé dans la base elle-même
+     (la policy de lecture), pas seulement à l'écran.
+   ② AU BOUT DE COMBIEN DE TEMPS ÇA SE PÉRIME ? Jamais. Une proposition qui
+     s'efface toute seule, c'est le travail d'une collègue jeté sans que personne
+     ne le sache. À la place, la file d'attente montre les PLUS VIEILLES EN
+     PREMIER et signale celles qui traînent depuis plus de 30 jours. Ce n'est pas
+     le temps qui tranche, c'est quelqu'un.
+   ③ SI C'EST REFUSÉ ? Le refus porte un NOM et une RAISON — la raison est
+     obligatoire, on ne peut pas refuser en silence. Celui qui a proposé la lit
+     sur la fiche. Un refus muet, dans une équipe, se lit comme un mépris.
+   ④ PEUT-ON DÉ-CONSEILLER ? NON. C'est sa règle du 13/08 (« que du positif »),
+     écrite dans sql/avis.sql : « ne pas rouvrir la colonne sans elle ». Un « à
+     éviter » signé sur une association nommée, dans un outil que 35 personnes
+     lisent et qui s'imprime, peut sortir du centre. Ce qui existe à la place :
+     la coordination RETIRE un conseil qui n'est plus vrai. Le `deco` du code
+     reste inutilisé, exprès.
+
+   ⚠ LES TROIS FICHES CONSEILLÉES EN DUR NE BOUGENT PAS (Goujonissimo, Centre de
+   Santé du Miroir, Médecine pour le Peuple) : `reco()` continue de marcher, la
+   base ne fait que s'ajouter par-dessus. */
+let CONSEILS={};
+async function loadConseils(){
+  if(!sb) return;
+  const r=await sb.from('conseils').select('*');
+  /* ⚠ On lit `.error` : sb.from ne lève pas. Sans ça une panne s'afficherait
+     comme « aucun lieu conseillé », ce qui est un mensonge. */
+  if(r.error){ CONSEILS={}; return; }
+  const m={}; (r.data||[]).forEach(function(c){ m[c.sid]=c; }); CONSEILS=m;
+}
+function conseilDe(p){ return p&&p.sid?(CONSEILS[p.sid]||null):null; }
+/* Le drapeau qui s'affiche : celui du code, OU un conseil approuvé. */
+function estConseille(p){
+  const c=conseilDe(p);
+  return !!(p.reco || (c && c.etat==='ok'));
+}
+function conseilTexte(p){
+  const c=conseilDe(p);
+  if(c && c.etat==='ok' && (c.texte||'').trim()) return c.texte;
+  return p.recoTxt||'';
+}
+function conseilsEnAttente(){
+  return Object.keys(CONSEILS).map(function(k){ return CONSEILS[k]; })
+    .filter(function(c){ return c.etat==='attente'; })
+    /* Les plus vieilles en premier : c'est la file d'attente, pas un fil d'actualité. */
+    .sort(function(a,b){ return String(a.propose_le||'').localeCompare(String(b.propose_le||'')); });
+}
+function conseilJours(c){
+  try{ return Math.floor((Date.now()-new Date(c.propose_le).getTime())/86400000); }catch(e){ return 0; }
+}
+
+/* Le bloc « conseiller ce lieu », sous la boîte d'avis. Il change de visage selon
+   où en est la proposition — et selon qui regarde. */
+function conseilBlocHTML(sid){
+  const c=CONSEILS[sid]||null;
+  const gere=(typeof peutGerer==='function') && peutGerer();
+  const moi=!!(c && PROFILE && c.propose_uid===PROFILE.uid);
+  let h='<div class="conseilbloc">';
+
+  if(c && c.etat==='ok'){
+    h+='<div class="conseilok"><span class="ic">'+icon('star')+'</span>'+
+       '<span><b>Conseillée par l’équipe</b>'+
+       (c.texte?'<em>'+esc(c.texte)+'</em>':'')+
+       '<i>Approuvée par '+esc(c.tranche_nom||'la coordination')+'</i></span></div>';
+    if(gere) h+='<button class="lienbas" onclick="conseilRetirer(\''+sid+'\')">Retirer ce conseil</button>';
+    return h+'</div>';
+  }
+
+  if(c && c.etat==='attente'){
+    /* ⚠ Personne d'autre ne voit ce bloc : la base ne renvoie même pas la ligne. */
+    h+='<div class="conseilatt"><b>Proposée comme « conseillée »</b>'+
+       '<em>Par '+esc(c.propose_nom||'une collègue')+' · en attente depuis '+conseilJours(c)+' jour'+(conseilJours(c)>1?'s':'')+'</em>'+
+       (c.texte?'<p>'+esc(c.texte)+'</p>':'')+'</div>';
+    if(gere) h+=conseilVerdictHTML(sid);
+    else if(moi) h+='<p class="hint">La coordination doit l’approuver avant qu’elle s’affiche pour l’équipe.</p>';
+    return h+'</div>';
+  }
+
+  if(c && c.etat==='refus'){
+    if(moi||gere) h+='<div class="conseilatt"><b>Pas retenue</b>'+
+      '<em>Par '+esc(c.tranche_nom||'la coordination')+'</em>'+
+      (c.motif?'<p>'+esc(c.motif)+'</p>':'')+'</div>';
+    if(moi) h+='<button class="lienbas" onclick="conseilRelancer(\''+sid+'\')">Proposer à nouveau</button>';
+    return h+'</div>';
+  }
+
+  /* Rien encore : tout le monde peut proposer. */
+  h+='<div class="chadd" style="margin-top:12px">'+
+     '<input id="conseilTxt" type="text" maxlength="160" autocomplete="off" '+
+     'placeholder="La conseiller à l’équipe — pourquoi ?" '+
+     'onkeydown="if(event.key===\'Enter\'){event.preventDefault();conseilProposer(\''+sid+'\');}">'+
+     '<button class="chaddbtn" onclick="conseilProposer(\''+sid+'\')">Conseiller</button></div>'+
+     '<p class="hint">La coordination l’approuve avant qu’elle s’affiche pour l’équipe.</p>';
+  return h+'</div>';
+}
+function conseilVerdictHTML(sid){
+  return '<div class="chadd" style="margin-top:8px">'+
+    '<input id="conseilMotif" type="text" maxlength="160" autocomplete="off" '+
+    'placeholder="Une raison — obligatoire pour refuser">'+
+    '<button class="chaddbtn" onclick="conseilTrancher(\''+sid+'\',\'ok\')">Approuver</button></div>'+
+    '<button class="lienbas" onclick="conseilTrancher(\''+sid+'\',\'refus\')">Refuser</button>';
+}
+async function conseilProposer(sid){
+  const i=document.getElementById('conseilTxt');
+  const t=((i&&i.value)||'').trim();
+  if(!t){ if(i) i.focus(); toast('Dis en un mot pourquoi'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  const r=await sb.from('conseils').upsert({
+    sid:sid, texte:t.slice(0,160), propose_uid:PROFILE.uid,
+    propose_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  },{onConflict:'sid'}).select();
+  if(r.error){ toast('Pas envoyé — '+r.error.message); return; }
+  toast('Proposée — la coordination va la relire');
+  await loadConseils(); rafraichirAvis(sid); render();
+}
+async function conseilTrancher(sid, etat){
+  const i=document.getElementById('conseilMotif');
+  const motif=((i&&i.value)||'').trim();
+  /* ⚠ UN REFUS SANS RAISON N'EST PAS UN REFUS, C'EST UN SILENCE. */
+  if(etat==='refus' && !motif){ if(i) i.focus(); toast('Une raison, même courte'); return; }
+  if(!sb){ toast('Pas connectée'); return; }
+  const r=await sb.from('conseils').update({
+    etat:etat, motif:motif||null, tranche_le:new Date().toISOString(),
+    tranche_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
+  }).eq('sid',sid).select();
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  toast(etat==='ok'?'Approuvée':'Refusée, la raison est notée');
+  await loadConseils(); rafraichirAvis(sid); render();
+}
+function conseilRetirer(sid){
+  cousinConfirme('Retirer ce conseil ?','La fiche ne portera plus l’étoile de l’équipe.',
+    async function(){
+      const r=await sb.from('conseils').delete().eq('sid',sid);
+      if(r.error){ toast('Pas retiré'); return; }
+      await loadConseils(); rafraichirAvis(sid); render();
+    },{ok:'Retirer',danger:true});
+}
+async function conseilRelancer(sid){
+  const r=await sb.from('conseils').delete().eq('sid',sid);
+  if(r.error){ toast('Pas possible'); return; }
+  await loadConseils(); rafraichirAvis(sid); render();
+}
+
 /* ⚠ « MANGER » ET « SIESTE » AJOUTÉES LE 13/08/2026, à sa demande : « je voudrais
    aussi dans le réseau un endroit où on peut manger la journée, pour faire des
    siestes. Et ça peut être juste en mettant une étiquette en plus. »
@@ -14037,6 +14239,7 @@ function avisCorpsHTML(sid){
      plus la règle non plus. Une seule phrase se retient. */
   h+='<p class="hint" style="margin-top:10px">On écrit ce qu’on a <b>constaté</b>, '+
      'pas ce qu’on en pense.</p>';
+  h+=conseilBlocHTML(sid);
   return h;
 }
 function avisBlocHTML(p){
@@ -18489,6 +18692,11 @@ async function loadProfile(){
     /* Le compte des avis, pour que la recherche fasse remonter ce que l'équipe a
        noté. Silencieux : s'il échoue, le classement reste celui d'avant. */
     try{ await loadAvisComptes(); }catch(e){}
+    /* Les lieux conseillés par l'équipe, comme les comptes d'avis : au démarrage,
+       une fois. ⚠ Si la table n'existe pas encore, `loadConseils` met simplement
+       la liste à vide — les trois fiches conseillées EN DUR continuent de porter
+       leur étoile, et rien ne casse. */
+    try{ await loadConseils(); }catch(e){}
     // Les chambres en cours : chargées ici pour que le compte s'affiche sur l'accueil
     // et dans le Centre, sans avoir à ouvrir la page.
     try{ await loadChambres(); }catch(e){}
