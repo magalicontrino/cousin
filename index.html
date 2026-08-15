@@ -2707,6 +2707,28 @@ body.en-apercu #view{animation:none;transform:none}
   padding:9px 14px;font-family:ui-monospace,monospace;font-size:11px;font-weight:600;
   letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .dporte.on{background:var(--noir);color:var(--creme)}
+/* Le panneau d une fiche : meme mecanique que celui des Activites. */
+.fpan .actpt .rd{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;color:var(--noir)}
+.fpan .actpt .rd .ic{width:19px;height:19px}
+.fpcond{font-size:15px;line-height:1.45;font-weight:500;margin:10px 0 0;padding-left:11px;
+  border-left:3px solid var(--noir)}
+.fpdesc{font-size:14.5px;line-height:1.45;color:#4a4844;margin:10px 0 0}
+.fpl{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #eae6de;font-size:14.5px}
+.fpl em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:#8b8984;flex:none;width:74px;padding-top:3px}
+.fpl span{flex:1;min-width:0}
+.fpied{display:flex;gap:8px;padding:10px 14px 14px}
+.fpb{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1.5px solid var(--noir);border-radius:10px;background:#fdfdfc;color:var(--noir);
+  padding:12px 8px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;text-decoration:none;cursor:pointer}
+.fpb .ic{width:16px;height:16px}
+.fpb.plein{background:var(--noir);color:var(--creme)}
+/* Les details ajoutes sur la carte de liste. */
+.fr2c{display:block;font-size:13px;line-height:1.35;color:var(--noir);font-weight:500;margin-top:4px}
+.fr2h{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;
+  color:#8b8984;margin-top:4px}
 /* Les petits tiroirs en boutons : ils gardent leur picto et leur compte, mais ne
    prennent plus la place d'un tiroir a 44 fiches. */
 .dbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
@@ -12970,6 +12992,20 @@ function vReseau(){
   const section=function(titre, cles, boutons){
     const t=cles.map(function(k){ return reseau.find(function(x){ return x.key===k; }); }).filter(Boolean);
     if(!t.length) return '';
+    /* ⚠ UNE SEULE BRANCHE → ON MONTRE LES LIEUX (Mag, 13/08/2026 : « mets directement
+       les lieux ici vu qu'il n'y a qu'une branche, non ? »). Elle avait raison :
+       « Accompagnement → Accompagnement → 1 fiche », c'était le même mot trois fois
+       pour atteindre un seul endroit. Quand une porte n'ouvre que sur un tiroir, la
+       tuile ne dit rien de plus que le bouton — on saute directement aux fiches.
+       ⚠ Seulement quand une porte est CHOISIE : dans la vue « Tout », déplier les
+       fiches de ces portes-là déséquilibrerait la page. */
+    if(rp!=='' && t.length===1){
+      const l=triProximite(fichesDe(t[0].key));
+      return '<div class="porte"><b>'+esc(titre)+'</b></div>'+
+        '<div class="cards" style="border-top:0;padding-top:4px">'+
+        (l.length? l.map(fcard).join('')
+                 : '<div class="empty"><b>Rien ici pour l\'instant</b></div>')+'</div>';
+    }
     const corps = boutons
       ? '<div class="dbtns">'+t.map(function(x){
           const n=fichesDe(x.key).length;
@@ -13003,7 +13039,7 @@ function vReseau(){
       '<span class="tl">Vous<span class="pico deco-disq" style="-webkit-mask-image:url(picto/ico-demidisques.svg);mask-image:url(picto/ico-demidisques.svg)"></span></span>'+
       '<span class="tl">Cherchez<span class="pico deco-fleur" style="-webkit-mask-image:url(picto/ico-fleur.svg);mask-image:url(picto/ico-fleur.svg)"></span></span>'+
       '<span class="tl last"><span class="tl-txt">Qu<span class="tdo"></span>i<span style="margin-left:.16em">?</span></span></span></div>'+
-    boutons+grille+'<div style="height:20px"></div>';
+    boutons+grille+fichePanHTML()+'<div style="height:20px"></div>';
 }
 var RESEAU_PORTE='';
 function reseauPorte(i){ RESEAU_PORTE=i; render(); window.scrollTo(0,0); }
@@ -13024,18 +13060,81 @@ function chipRow(name,values,activeVal,allLabel){
     values.map(v=>'<button class="chip'+(activeVal===v?' on':'')+'" onclick="setFilt(\''+name+'\',\''+esc(v).replace(/'/g,"\\'")+'\')">'+esc(v)+'</button>').join('')+
   '</div>';
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PANNEAU QUI MONTE DU BAS, SUR UNE FICHE (Mag, 13/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   « Fais plutôt une pop-up qui glisse du bas vers le haut pour les infos. »
+
+   Elle avait déjà validé ce geste sur la page Activités (« ici, c'est parfait ») :
+   on reste dans sa liste, on jette un œil, on referme. Ouvrir une page entière
+   faisait perdre l'endroit où l'on était — et pour vérifier un horaire ou un numéro,
+   c'était trois gestes au lieu d'un.
+
+   ⚠ LE PANNEAU NE REMPLACE PAS LA FICHE : il donne ce qui décide d'y aller (les
+   conditions, le téléphone, l'adresse, les horaires) et un bouton pour ouvrir la
+   fiche entière. Tout ce qui est long — les notes, l'avis de l'équipe, les
+   étiquettes — reste dans la fiche.
+   ⚠ On réutilise EXACTEMENT les styles du panneau des Activités (.actvoile, .actpan)
+   plutôt que d'en dessiner un deuxième : deux panneaux qui montent différemment dans
+   la même app, ça se remarque tout de suite. */
+var FICHE_PAN='';
+function fichePan(sid){ FICHE_PAN=sid; render(); }
+function fichePanFermer(){ FICHE_PAN=''; render(); }
+function fichePanHTML(){
+  if(!FICHE_PAN) return '';
+  const p=BYSID[FICHE_PAN]; if(!p) return '';
+  const d=DOM[p.domaine]||{}, c=dc(p.domaine);
+  const tel=(p.tel||'').replace(/\s/g,'');
+  const ligne=function(lab,val){ return val?'<div class="fpl"><em>'+lab+'</em><span>'+esc(val)+'</span></div>':''; };
+  return '<div class="actvoile" onclick="fichePanFermer()"></div>'+
+    '<div class="actpan fpan" role="dialog" aria-label="'+esc(p.nom)+'">'+
+      '<div class="actpoi"></div>'+
+      '<div class="actpt">'+
+        '<span class="rd" style="background:'+c+';flex:none"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
+        '<span class="t"><em>'+esc(d.short||d.label||'')+'</em><b>'+esc(p.nom)+'</b></span>'+
+        '<button class="actx" onclick="fichePanFermer()" aria-label="Fermer">\u2715</button></div>'+
+      '<div class="actcorps">'+
+        /* Les conditions d'abord : c'est ce qui décide d'y aller ou pas. */
+        (p.conditions?'<p class="fpcond">'+esc(p.conditions)+'</p>':'')+
+        (p.desc?'<p class="fpdesc">'+esc(p.desc)+'</p>':'')+
+        ligne('Où', p.adr)+
+        ligne('Quand', p.horaires)+
+        ligne('Pour qui', p.public)+
+        ligne('Téléphone', p.tel)+
+      '</div>'+
+      '<div class="actpied fpied">'+
+        (tel?'<a class="fpb tel" href="tel:'+esc(tel)+'">'+icon('phone')+'Appeler</a>':'')+
+        (p.adr?'<button class="fpb" onclick="window.open(\''+itiHref(p.adr)+'\',\'_blank\')">'+icon('pin')+'Y aller</button>':'')+
+        '<button class="fpb plein" onclick="fichePanFermer();go(\'#/f/'+p.sid+'\')">La fiche entière</button>'+
+      '</div>'+
+    '</div>';
+}
+
 function fcard(p){
   /* Ligne de fiche redessinée (handoff) : carte cerclée, rond de couleur du domaine,
      nom, public en écriture machine, étoile au bout. */
   const d=DOM[p.domaine]||{}, c=dc(p.domaine);
   const sub=[p.commune&&p.commune!=='Régional / Toutes communes'?p.commune:'',p.public].filter(Boolean).join(' · ')||(p.desc||'').split('\n')[0];
-  return '<div class="frow2'+(p.reco?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')" style="margin-bottom:10px">'+
+  /* ═══ PLUS DE DÉTAILS SUR LA CARTE (Mag, 13/08/2026) ═══
+     Avant : le nom, la commune, le public. On devait ouvrir la fiche pour savoir si
+     c'était seulement ouvert le matin, ou s'il fallait appeler avant. Maintenant la
+     carte porte AUSSI ce qui décide d'y aller ou pas : les conditions d'entrée, les
+     horaires, et l'étiquette posée par l'équipe.
+     ⚠ Les conditions sont coupées à 90 signes : la carte reste une carte. Le reste
+     est dans le panneau qui monte, à un doigt de là. */
+  const etq=(typeof AVIS_N!=='undefined' && p.etq)?etqPastille(p.etq):'';
+  const cond=(p.conditions||'').trim();
+  const det=[
+    cond?'<span class="fr2c">'+esc(cond.length>90?cond.slice(0,88)+'…':cond)+'</span>':'',
+    (!cond&&p.horaires)?'<span class="fr2h">'+esc((p.horaires||'').split('\n')[0].slice(0,70))+'</span>':''
+  ].filter(Boolean).join('');
+  return '<div class="frow2'+(p.reco?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
     '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
     '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+
       (p.reco?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
         (p.recoTxt?'<span class="recopq">'+esc(p.recoTxt)+'</span>':''):'')+
       (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>'+
-        (p.decoTxt?'<span class="recopq">'+esc(p.decoTxt)+'</span>':''):'')+'</span>'+
+        (p.decoTxt?'<span class="recopq">'+esc(p.decoTxt)+'</span>':''):'')+det+'</span>'+
     (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
     heartBtn(p.sid)+'</div>';
 }
@@ -13342,7 +13441,12 @@ function vDomaine(key){
   if(nReco||nDeco){
     chips+='<div class="favrow">'+
       (nReco?'<button class="favchip'+(filt.avis==='reco'?' on':'')+'" onclick="filtrerAvis(\'reco\')">'+
-        '<span class="ic">'+icon('star')+'</span>Nos préférés<i>'+nReco+'</i></button>':'')+
+        /* ⚠ « CONSEILLÉ PAR L'ÉQUIPE », PAS « NOS PRÉFÉRÉS » (Mag, 13/08/2026 :
+           « note plutôt conseillé par l'équipe, et fais ça pour tout le réseau »).
+           « Préféré » dit un goût ; « conseillé par l'équipe » dit qui le dit et
+           pourquoi on peut s'y fier. Sur une fiche qu'on ouvre pour envoyer
+           quelqu'un quelque part, ce n'est pas la même promesse. */
+        '<span class="ic">'+icon('star')+'</span>Conseillé par l’équipe<i>'+nReco+'</i></button>':'')+
       (nDeco?'<button class="favchip deco'+(filt.avis==='deco'?' on':'')+'" onclick="filtrerAvis(\'deco\')">'+
         '<span class="ic">'+icon('alert')+'</span>Déconseillés<i>'+nDeco+'</i></button>':'')+
       '</div>';
@@ -13433,7 +13537,7 @@ function vDomaine(key){
       : '')+
     (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
-    '</div>';
+    '</div>'+fichePanHTML();
 }
 
 /* ---------- fiche ---------- */
