@@ -7225,7 +7225,11 @@ const DOMAINES = [
      ci-dessus : sans ça, les mêmes fiches apparaîtraient deux fois. */
   {key:"medical",     label:"Se soigner",          short:"Se soigner",ic:"user",     byCommune:true, reseau:true,
    garde:function(p){ return !estMaisonMedicale(p); }},
-  {key:"social",      label:"Faire ses démarches", short:"Faire ses démarches", ic:"social", reseau:true,
+  /* ⚠ « FAIRE SES DÉMARCHES » RENOMMÉ (Mag, 13/08/2026 : « faire cette démarche, je
+     ne comprends pas ce que c'est »). Le tiroir contenait exactement ce qu'elle
+     cherchait — les CASG et le SASB — mais sous un nom qui ne disait rien à personne.
+     Il rejoint donc le tiroir du service social, qui est le vrai sujet. */
+  {key:"social",      label:"Un service social, sans être hébergé", short:"Un service social", ic:"social", reseau:true,
    /* Ne reste ici que ce qui aide vraiment à FAIRE une démarche. */
    garde:function(p){ return !estCpas(p) && MANGER_LAVER.indexOf(p.nom)<0
      && VIOLENCES.indexOf(p.nom)<0 && REPERES.indexOf(p.nom)<0
@@ -7263,13 +7267,27 @@ const DOMAINES = [
      machine donnait 141 « urgences »). Ici c'est acceptable parce qu'elle a demandé
      de RATISSER LARGE et accepté les doubles — mais la liste est à relire avec
      l'équipe, et une fiche qui n'a pas de service social doit en sortir. */
-  {key:"servsoc",     label:"Où il y a un service social", short:"Un service social",
+  /* ═══ CE QU'ELLE CHERCHE VRAIMENT (Mag, 13/08/2026) ═══
+     « Je veux les endroits où tu peux aller LE JOUR, MÊME SI TU N'EN FAIS PAS
+     PARTIE — tu peux rentrer, voir le service social, et ressortir. »
+
+     ⚠ ÇA INVALIDE MA PREMIÈRE VERSION. J'avais sorti 39 fiches « qui ont un service
+     social » — mais SEIZE étaient des maisons d'accueil, dont le service social est
+     réservé à LEURS résidents. Y envoyer quelqu'un qui n'y est pas hébergé, c'est
+     l'envoyer se faire refouler. Le critère n'est donc pas « ont-ils une assistante
+     sociale ? » mais « peut-on y entrer sans être inscrit ? ».
+     Les maisons d'accueil sortent. Ce qui reste : des lieux ouverts. */
+  {key:"servsoc",     label:"Un service social, sans être hébergé", short:"Un service social",
    ic:"user", reseau:true,
-   src:["social","maisons","medical","etrangers","addictions","lgbt","handicap","santementale","accompagnement","planning","educatif"],
+   src:["social","medical","etrangers","addictions","lgbt","handicap","santementale","accompagnement"],
    garde:function(p){
+     if(VA_VERS.indexOf(p.nom)>=0 || AGIR.indexOf(p.nom)>=0) return false;
      return /service social|assistant[e]? social|permanence sociale|accompagnement social|aide administrative|accueil social/i
        .test((p.desc||'')+' '+(p.notes||'')+' '+p.nom);
    }},
+  {key:"francais",    label:"Apprendre le français", short:"Apprendre le français",
+   ic:"book", reseau:true, src:"etrangers",
+   garde:function(p){ return FRANCAIS.indexOf(p.nom)>=0; }},
   {key:"reperes",     label:"Annuaires et guides", short:"Annuaires, guides", ic:"book", reseau:true,
    src:"social", garde:function(p){ return REPERES.indexOf(p.nom)>=0; }},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
@@ -7796,6 +7814,23 @@ const ORIENTATION=[
    fiches, trois n'y avaient rien à faire : HOBO est un centre de jour, Includo va
    vers les gens dans le métro, le Syndicat des immenses est un groupe d'action.
    Un tiroir se remplit de travers tant qu'on ne dit pas ce qu'il N'EST PAS. */
+/* ═══ APPRENDRE LE FRANÇAIS (Mag, 13/08/2026 : « s'occuper apprendre, mais les
+   cours de français aussi, même s'il y a des doublons ») ═══
+   Ils étaient rangés dans « Papiers et séjour », parce qu'ils s'adressent à des
+   personnes étrangères. Mais quelqu'un qui cherche une occupation pour la journée
+   ne va pas chercher dans « papiers » — et un cours de français, c'est d'abord
+   sortir de sa chambre, voir du monde, avoir un rendez-vous dans la semaine.
+   ⚠ Ils restent AUSSI dans « Papiers et séjour » : elle a dit que les doublons ne
+   la dérangeaient pas ici, et elle a raison — on les cherche des deux côtés.
+   ⚠ Liste explicite : un mot-clé « français » attrapait aussi les interprètes en
+   langue des signes et une formation sur le double diagnostic. */
+const FRANCAIS=[
+  "Lire et Écrire — Centre Alpha d'Anderlecht",
+  "Lire et Écrire — Centre Alpha de Molenbeek",
+  "BAPA BXL — parcours d'accueil et cours de français gratuits",
+  "Proforal — français et insertion professionnelle"
+];
+
 const VA_VERS=["Includo — les équipes de la STIB dans le métro"];
 const AGIR=["Syndicat des immenses"];
 
@@ -13105,7 +13140,8 @@ function vReseau(){
        geste, et c'est assumé : ici il y a huit tiroirs très différents, et aucun
        verbe ne les couvre tous sans mentir. */
     {t:'Sa santé', d:['medical','mmed','sevrer','consommer','addictions','santementale','planning','handicap']},
-    {t:'Ses droits, ses papiers', d:['cpas','social','servsoc','etrangers','juridique']},
+    {t:'Un service social',    d:['servsoc','social','cpas']},
+    {t:'Ses papiers, ses droits', d:['etrangers','juridique']},
     {t:'Ils vont vers les gens', d:['vavers']},
     {t:'Se faire entendre',    d:['agir']},
     {t:'Violences',           d:['violences']},
@@ -13129,7 +13165,7 @@ function vReseau(){
     {t:'Recherche famille', d:['famille']},
     {t:'LGBTQI+',           d:['lgbt']},
     {t:'Passer la journée',    d:['journee']},
-    {t:'S’occuper, apprendre', d:['culture','educatif']}
+    {t:'S’occuper, apprendre', d:['culture','educatif','francais']}
   ];
   /* Chaque porte, puis ses tuiles. Un domaine oublié dans PORTES n'est pas perdu :
      il sort dans une dernière section « Le reste ». */
