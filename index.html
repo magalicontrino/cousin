@@ -2414,14 +2414,25 @@ body.en-apercu #view{animation:none;transform:none}
 /* Depuis combien de temps ça dort : rouge après 30 jours, et seulement là. */
 .conseilvieux{color:#e63329;font-weight:700}
 .avisetq{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-/* Le OK des étiquettes (18/08/2026). Il est NOIR et PLEIN, comme « Poser » : c'est
-   le même geste — envoyer quelque chose — donc il doit se ressembler. Et il tombe
-   au bout de la rangée qu'il valide, pas ailleurs : un bouton loin de ce qu'il
-   valide ne se rattache à rien. */
-.etqok{border-radius:999px;padding:6px 16px;background:var(--noir);color:#f4f3f1;
-  font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.14em;
+/* ═══ LE COMMENTAIRE ET SON ENVOI (18/08/2026) ═══
+   Le champ prend toute la largeur, et le bouton est SOUS lui, également pleine
+   largeur. C'est le cœur de la correction : tant que le bouton était collé à droite
+   du champ, il avait l'air de n'appartenir qu'à lui — alors qu'il envoie aussi les
+   étiquettes. Sous les deux, il les couvre tous les deux.
+   ⚠ `.off` le masque au lieu de le retirer : `avisTape()` n'a qu'une classe à
+   basculer, et on ne redessine pas le bloc pendant qu'on écrit — sinon le curseur
+   saute au milieu du mot. */
+.avistxt{width:100%;border:0;background:#f2f1ef;padding:13px 14px;font-size:15px;
+  font-family:inherit;color:var(--noir);outline:0;margin-top:10px}
+.avistxt::placeholder{color:#8b8984}
+.avisenv{display:block;width:100%;margin-top:8px;background:var(--noir);color:#f4f3f1;
+  border-radius:6px;padding:13px;font-family:ui-monospace,monospace;font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;font-weight:600;
   transition:background .14s ease,box-shadow .14s ease}
-@media (hover:hover){ .etqok:hover{background:#333;box-shadow:0 0 0 1.5px var(--noir)} }
+.avisenv.off{display:none}
+@media (hover:hover){ .avisenv:hover{background:#333;box-shadow:0 0 0 1.5px var(--noir)} }
+/* La phrase que disent les étiquettes cochées. */
+.etqdit{font-size:14.5px;line-height:1.4;margin-top:8px}
 .avisl{border-left:3px solid var(--ligne);padding:2px 0 2px 11px;margin-bottom:11px}
 .avisl b{font-size:14px}
 .avisl em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;
@@ -3100,9 +3111,19 @@ body.no-tabs #tabbar{display:none}
 .qcard:active{transform:scale(.99)}
 .qcard .ic{width:19px;height:19px;color:var(--jaune)}
 
+/* ⚠ LE MESSAGE DE CONFIRMATION PASSAIT DERRIÈRE LE PANNEAU (Mag, 18/08/2026 :
+   « il y a eu un message de confirmation, mais c'était en dessous, dans le flou…
+   on ne le voit pas »).
+   Il était à z-index:80, le panneau d'une fiche à 89 et son voile à 88 : tout ce
+   qu'on confirmait DEPUIS une fiche s'affichait dessous, derrière le flou. Ça
+   valait pour TOUTES les actions du panneau, pas seulement les étiquettes — on
+   croyait que rien ne s'était passé.
+   ⚠ `white-space:nowrap` partait aussi : une phrase un peu longue sortait de
+   l'écran par les deux côtés. Elle tient maintenant sur deux lignes s'il le faut. */
 #toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 12px);transform:translate(-50%,16px);
   background:var(--noir);color:#f4f3f1;font-size:14px;font-weight:500;border-radius:0;
-  padding:10px 20px;opacity:0;pointer-events:none;transition:all .22s ease;z-index:80;white-space:nowrap}
+  padding:10px 20px;opacity:0;pointer-events:none;transition:all .22s ease;z-index:9995;
+  max-width:min(92vw,420px);text-align:center;line-height:1.35}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media(min-width:760px){
@@ -14632,7 +14653,7 @@ async function loadAvis(sid){
      SQL `avis-plusieurs-etiquettes.sql` n'est pas passé, `etiquettes` n'existe pas
      et vaut `undefined` : sans ce repli, toutes les étiquettes déjà posées
      disparaîtraient de l'écran le temps que la base rattrape. */
-  const m=monAvis(); AVIS_ETQS=etqsDe(m);
+  const m=monAvis(); AVIS_ETQS=etqsDe(m); AVIS_TAPE=false;
 }
 /* Les étiquettes d'un avis, quelle que soit la forme dans laquelle elles sont
    stockées. Un seul endroit qui sait lire les deux — à supprimer le jour où
@@ -14675,33 +14696,20 @@ function avisEtqChange(){
   const m=monAvis(), av=etqsDe(m).slice().sort(), ap=AVIS_ETQS.slice().sort();
   return av.join('|')!==ap.join('|');
 }
-async function avisEtqOk(sid){
-  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
-  const m=monAvis();
-  const champs={etiquettes:AVIS_ETQS.slice(), etiquette:AVIS_ETQS[0]||null};
-  let r;
-  if(m){
-    /* On MODIFIE la ligne existante : le texte de la personne n'est pas touché. */
-    r=await sb.from('avis').update(champs).eq('id',m.id).select();
-  } else {
-    r=await sb.from('avis').insert(Object.assign({
-      sid:sid, uid:PROFILE.uid,
-      auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', texte:''
-    },champs)).select();
-  }
-  if(r.error && /etiquettes/.test(r.error.message||'')){
-    delete champs.etiquettes;
-    r=m ? await sb.from('avis').update(champs).eq('id',m.id).select()
-        : await sb.from('avis').insert(Object.assign({
-            sid:sid, uid:PROFILE.uid,
-            auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', texte:''
-          },champs)).select();
-  }
-  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
-  toast('C’est noté');
-  loadAvisComptes();
-  rafraichirAvis(sid);
+/* A-t-on tapé quelque chose dans le commentaire ? Sert uniquement à décider si le
+   bouton d'envoi se montre. On ne redessine PAS le bloc — on allume le bouton. */
+let AVIS_TAPE=false;
+function avisTape(){
+  const i=document.getElementById('avisTxt');
+  const plein=!!(((i&&i.value)||'').trim());
+  if(plein===AVIS_TAPE) return;
+  AVIS_TAPE=plein;
+  const b=document.querySelector('.avisenv');
+  if(b) b.classList.toggle('off', !(plein || avisEtqChange()));
 }
+/* (La fonction `avisEtqOk()` — l'ancien bouton « OK » réservé aux étiquettes — a
+   été retirée le 18/08/2026 : les étiquettes et le commentaire partent maintenant
+   ensemble par `avisEnregistrer()`. Voir le commentaire du bouton d'envoi.) */
 async function avisEnregistrer(sid){
   const i=document.getElementById('avisTxt');
   const texte=((i&&i.value)||'').trim();
@@ -14733,7 +14741,17 @@ async function avisEnregistrer(sid){
   }
   if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
   if(i) i.value='';
-  toast(repli ? 'Noté — une seule étiquette pour l’instant' : 'Merci, c’est noté');
+  AVIS_TAPE=false;
+  /* ⚠ DIRE CE QUI SE PASSE ENSUITE (Mag, 18/08/2026 : « il faut un message aussi
+     pour dire que ça doit passer en confirmation de la modération »).
+     ⚠ ET LE DIRE JUSTE. Ce qu'on écrit est visible par l'équipe TOUT DE SUITE — ce
+     n'est pas retenu en attente. Mais ça entre dans la file « Messages à ranger »,
+     où la coordination le vérifie et le classe. Écrire « en attente de validation »
+     serait faux et ferait croire que personne ne le voit encore ; ne rien dire
+     laisserait croire que ça part dans le vide. « La coordination va le relire »
+     dit exactement ce qui va arriver. */
+  toast(repli ? 'Noté — une seule étiquette pour l’instant'
+              : 'C’est noté. La coordination va le relire.');
   /* On recompte : la fiche doit remonter dans la recherche tout de suite, pas au
      prochain démarrage de l'app. */
   loadAvisComptes();
@@ -14809,7 +14827,6 @@ function avisCorpsHTML(sid){
         'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
         esc(ETQ_LABELS[k][0])+'</button>';
     }).join('')+
-    (avisEtqChange()?'<button class="etqok" onclick="avisEtqOk(\''+sid+'\')">OK</button>':'')+
     '</div>'+
     /* ═══ DIRE EN TOUTES LETTRES CE QU'ON VIENT DE DIRE (Mag, 18/08/2026 : « si on
        veut juste dire c'est pour dormir, c'est pas clair ») ═══
@@ -14823,19 +14840,32 @@ function avisCorpsHTML(sid){
     (AVIS_ETQS.length
       ? '<p class="etqdit">'+esc(AVIS_ETQS.map(function(k){ return ETQ_LABELS[k][1]; }).join(' · '))+'</p>'
       : '');
-  h+='<div class="chadd" style="margin-top:10px">'+
-     '<input id="avisTxt" type="text" maxlength="400" autocomplete="off" '+
-     /* « de ce lieu » disait déjà le titre juste au-dessus (18/08/2026). */
-     /* ⚠ « MODIFIER » SEULEMENT S'IL Y A QUELQUE CHOSE À MODIFIER (Mag, 18/08/2026 :
-        « ça non plus je ne comprends pas »). Le code regardait si la personne avait
-        un AVIS, pas si elle avait écrit un TEXTE. Quelqu'un qui venait de poser une
-        étiquette — sans une ligne — se voyait proposer « Modifier ce que tu as
-        écrit… » devant un champ vide. Le mot promettait un passé qui n'existait
-        pas. */
-     'placeholder="'+(mien&&mien.texte?'Modifier ce que tu as écrit…':'Ce qu’il faut savoir…')+'" '+
-     'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avisEnregistrer(\''+sid+'\');}">'+
-     '<button class="chaddbtn" onclick="avisEnregistrer(\''+sid+'\')">'+(mien&&mien.texte?'Modifier':'Poser')+'</button>'+
-     '</div>';
+  /* ═══ UN SEUL BOUTON POUR TOUT LE BLOC (Mag, 18/08/2026) ═══
+     Ses mots : « si je mets juste sieste et que je mets OK, j'ai encore un truc à
+     écrire… si je ne veux pas écrire le commentaire mais que je veux envoyer tout
+     ce que j'ai à dire, comment je fais ? »
+     CE QUI N'ALLAIT PAS : il y avait DEUX gestes d'envoi — un « OK » pour les
+     étiquettes, un « Poser » pour la phrase. On cochait Sieste, on validait, et un
+     champ vide avec son bouton restait planté là : impossible de savoir si on avait
+     fini. Deux boutons pour un seul geste, c'est un de trop.
+     CE QUE ÇA DEVIENT : les étiquettes et le commentaire partent ENSEMBLE, avec un
+     seul bouton, en bas, sur toute la largeur — il appartient visiblement au bloc
+     entier, plus au seul champ de texte.
+     ⚠ LE COMMENTAIRE EST FACULTATIF, ET LE CHAMP LE DIT LUI-MÊME (« si tu veux »).
+     Une étiquette seule est une réponse complète : on peut envoyer sans écrire un
+     mot. C'était exactement sa question.
+     ⚠ LE BOUTON N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À ENVOYER — une étiquette
+     changée, ou du texte. Sinon il inviterait à appuyer dans le vide. */
+  h+='<input class="avistxt" id="avisTxt" type="text" maxlength="400" autocomplete="off" '+
+     'oninput="avisTape()" '+
+     'placeholder="'+(mien&&mien.texte?'Modifier ton commentaire…':'Un commentaire, si tu veux…')+'" '+
+     'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avisEnregistrer(\''+sid+'\');}">';
+  /* ⚠ LE BOUTON EST TOUJOURS DANS LA PAGE, seulement masqué par une classe — et
+     `avisTape()` ne fait que l'allumer ou l'éteindre. Redessiner le bloc à chaque
+     lettre tapée ferait perdre le curseur au milieu du mot. */
+  h+='<button class="avisenv'+((avisEtqChange()||AVIS_TAPE)?'':' off')+'" '+
+     'onclick="avisEnregistrer(\''+sid+'\')">'+
+     (mien&&mien.texte?'Enregistrer':'Envoyer')+'</button>';
   /* ⚠ « SANS PHRASE » DISAIT CE QU'ON N'AVAIT PAS FAIT (18/08/2026). Quelqu'un qui
      voulait juste dire « c'est pour dormir » avait fini son travail — et l'écran lui
      répondait « tu as posé une étiquette, SANS PHRASE », comme s'il manquait quelque
