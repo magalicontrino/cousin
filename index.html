@@ -14273,6 +14273,11 @@ function conseilBlocHTML(sid){
   const c=CONSEILS[sid]||null;
   const gere=(typeof peutGerer==='function') && peutGerer();
   const moi=!!(c && PROFILE && c.propose_uid===PROFILE.uid);
+  /* ⚠ RIEN À DIRE → RIEN DU TOUT, PAS MÊME UN TRAIT (18/08/2026). Depuis que le
+     champ de proposition a quitté la fiche, ce bloc est vide dans l'immense
+     majorité des cas. Le `.conseilbloc` porte un trait pointillé en haut : sans ce
+     retour, chaque fiche se terminait par un trait qui ne séparait plus rien. */
+  if(!c) return '';
   let h='<div class="conseilbloc">';
 
   if(c && c.etat==='ok'){
@@ -14299,25 +14304,30 @@ function conseilBlocHTML(sid){
     if(moi||gere) h+='<div class="conseilatt"><b>Pas retenue</b>'+
       '<em>Par '+esc(c.tranche_nom||'la coordination')+'</em>'+
       (c.motif?'<p>'+esc(c.motif)+'</p>':'')+'</div>';
-    if(moi) h+='<button class="lienbas" onclick="conseilRelancer(\''+sid+'\')">Proposer à nouveau</button>';
+    /* ⚠ « PROPOSER À NOUVEAU » NE VOULAIT PLUS RIEN DIRE (18/08/2026) : le champ de
+       proposition a quitté la fiche, donc le bouton menait à un écran vide. Il fait
+       ce qu'il fait vraiment — effacer le refus pour ne plus l'avoir sous les yeux.
+       Un lieu qu'on veut reproposer passe maintenant par un message, comme le reste. */
+    if(moi) h+='<button class="lienbas" onclick="conseilRelancer(\''+sid+'\')">Effacer ce refus</button>';
     return h+'</div>';
   }
 
-  /* Rien encore : tout le monde peut proposer. */
-  h+='<div class="chadd" style="margin-top:12px">'+
-     '<input id="conseilTxt" type="text" maxlength="160" autocomplete="off" '+
-     /* ⚠ « POURQUOI LA CONSEILLER ? », ET RIEN DE PLUS (Mag, 18/08/2026).
-        Il y avait « La conseiller à l'équipe — pourquoi ? » sous un titre qui dit
-        déjà « ce que L'ÉQUIPE sait de ce lieu », puis une ligne « la coordination
-        l'approuve avant qu'elle s'affiche pour l'équipe ». Ses mots : « tu n'as pas
-        besoin de mettre la coordination — tu mets juste un encart où on peut écrire
-        et mettre Conseiller ».
-        Elle a raison sur les deux : le circuit d'approbation ne change RIEN au geste
-        qu'on est en train de faire ([[infos qui ne servent pas]]), et celle qui
-        propose l'apprendra de toute façon à l'écran suivant. */
-     'placeholder="Pourquoi la conseiller ?" '+
-     'onkeydown="if(event.key===\'Enter\'){event.preventDefault();conseilProposer(\''+sid+'\');}">'+
-     '<button class="chaddbtn" onclick="conseilProposer(\''+sid+'\')">Conseiller</button></div>';
+  /* ═══ PLUS DE CHAMP « POURQUOI LA CONSEILLER » SUR LA FICHE (Mag, 18/08/2026) ═══
+     Ses mots, devant les deux champs empilés : « je ne comprends pas pourquoi il y
+     en a 2 ». Ils se ressemblaient trait pour trait — même cadre gris, même bouton
+     noir — et rien à l'écran ne disait lequel faisait quoi. Le premier notait tout
+     de suite pour l'équipe, le second partait en attente chez la coordination :
+     deux circuits opposés sous la même apparence.
+     ⚠ CE N'EST PAS UNE FONCTION PERDUE, C'EST LA MÊME EN MIEUX. Depuis ce matin, la
+     page de tri (Admin → « Messages à ranger ») fait exactement ce travail, et elle
+     le fait mieux : on LIT le message avant d'en faire un conseil. Avant, on
+     approuvait un texte sans savoir d'où il sortait.
+     Le chemin devient donc : on écrit ce qu'on sait → la coordination le lit dans
+     la file → elle clique « Conseiller ce lieu » si ça vaut le coup.
+     ⚠ TOUT LE RESTE DU CIRCUIT VIT ENCORE : `conseilProposer()` n'est simplement
+     plus appelé depuis la fiche. Les propositions déjà en attente s'affichent
+     toujours, s'approuvent et se refusent comme avant — rien n'est resté en rade.
+     Remettre le champ, si elle change d'avis, tient en trois lignes. */
   return h+'</div>';
 }
 function conseilVerdictHTML(sid){
@@ -14327,6 +14337,13 @@ function conseilVerdictHTML(sid){
     '<button class="chaddbtn" onclick="conseilTrancher(\''+sid+'\',\'ok\')">Approuver</button></div>'+
     '<button class="lienbas" onclick="conseilTrancher(\''+sid+'\',\'refus\')">Refuser</button>';
 }
+/* ⚠ PLUS APPELÉE NULLE PART DEPUIS LE 18/08/2026, et je l'écris franchement plutôt
+   que de laisser croire le contraire : le champ « Pourquoi la conseiller » a quitté
+   la fiche, et c'est la page de tri qui fait passer un lieu en « conseillé ».
+   On la garde parce que remettre le champ tiendrait en trois lignes — mais si dans
+   quelques semaines personne n'a redemandé ce champ, elle part avec lui. Une
+   fonction gardée « au cas où » qui traîne des mois, ça finit par ressembler à du
+   code vivant. */
 async function conseilProposer(sid){
   const i=document.getElementById('conseilTxt');
   const t=((i&&i.value)||'').trim();
