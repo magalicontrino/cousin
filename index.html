@@ -14024,7 +14024,9 @@ function poubellesTableau(){
    partout. La machine ne sait pas si un lieu ferme le soir ; la collègue qui y est
    allée, si. VIDE VEUT DIRE « on ne sait pas », et c'est une réponse valable :
    sa règle des trois états, jamais deux, jamais déduite d'un blanc. */
-let AVIS=[], AVIS_SID='', AVIS_ETQ=null, AVIS_CHARGE=false;
+/* ⚠ AVIS_ETQS EST UNE LISTE DEPUIS LE 18/08/2026 (avant : `AVIS_ETQ`, une seule).
+   Sa remarque : « on pourrait faire une sieste et manger en même temps ». */
+let AVIS=[], AVIS_SID='', AVIS_ETQS=[], AVIS_CHARGE=false;
 
 /* ═══ LE COMPTE D'AVIS PAR FICHE, POUR LE CLASSEMENT (Mag, 13/08/2026) ═══
    « On mettra juste en priorité ceux qui sont notés positivement. »
@@ -14237,7 +14239,19 @@ async function loadAvis(sid){
   AVIS_CHARGE=true;
   if(r.error){ AVIS=[]; return; }
   AVIS=r.data||[];
-  const m=monAvis(); AVIS_ETQ=m?m.etiquette:null;
+  /* ⚠ ON LIT LA LISTE, MAIS ON SAIT RETOMBER SUR L'ANCIENNE COLONNE. Tant que le
+     SQL `avis-plusieurs-etiquettes.sql` n'est pas passé, `etiquettes` n'existe pas
+     et vaut `undefined` : sans ce repli, toutes les étiquettes déjà posées
+     disparaîtraient de l'écran le temps que la base rattrape. */
+  const m=monAvis(); AVIS_ETQS=etqsDe(m);
+}
+/* Les étiquettes d'un avis, quelle que soit la forme dans laquelle elles sont
+   stockées. Un seul endroit qui sait lire les deux — à supprimer le jour où
+   l'ancienne colonne `etiquette` sera retirée pour de bon. */
+function etqsDe(a){
+  if(!a) return [];
+  if(Array.isArray(a.etiquettes)) return a.etiquettes.slice();
+  return a.etiquette ? [a.etiquette] : [];
 }
 function rafraichirAvis(sid){
   loadAvis(sid).then(function(){
@@ -14247,24 +14261,49 @@ function rafraichirAvis(sid){
       z.innerHTML=avisCorpsHTML(sid);
   });
 }
-function avisEtq(cle){ AVIS_ETQ=(AVIS_ETQ===cle)?null:cle;
-  const z=document.getElementById('aviszone'); if(z) z.innerHTML=avisCorpsHTML(AVIS_SID); }
+/* ⚠ ON COCHE ET ON DÉCOCHE, SANS CHASSER LES AUTRES (18/08/2026). Avant, poser une
+   étiquette effaçait la précédente : un accueil de jour où l'on mange devait
+   choisir, et l'autre information était perdue.
+   ⚠ Cliquer n'envoie RIEN : c'est son choix explicite (« je veux un bouton pour
+   les étiquettes »). Tant qu'on n'a pas appuyé sur Poser, rien ne part. */
+function avisEtq(cle){
+  const i=AVIS_ETQS.indexOf(cle);
+  if(i<0) AVIS_ETQS.push(cle); else AVIS_ETQS.splice(i,1);
+  const z=document.getElementById('aviszone'); if(z) z.innerHTML=avisCorpsHTML(AVIS_SID);
+}
 
 async function avisEnregistrer(sid){
   const i=document.getElementById('avisTxt');
   const texte=((i&&i.value)||'').trim();
   /* Une étiquette seule vaut un avis : savoir qu'un lieu ferme le soir est déjà
      un renseignement, même sans phrase. */
-  if(!texte && !AVIS_ETQ){ if(i) i.focus(); return; }
+  if(!texte && !AVIS_ETQS.length){ if(i) i.focus(); return; }
   if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
-  const r=await sb.from('avis').upsert({
+  /* ⚠ ON ÉCRIT LES DEUX COLONNES. `etiquettes` est la nouvelle (une liste),
+     `etiquette` l'ancienne (une seule) — on y remet la première, pour que rien ne
+     casse si un bout de code ou une requête l'utilise encore. Le jour où plus rien
+     ne la lit, elle se retire en une ligne ici et une dans le SQL. */
+  const ligne={
     sid:sid, uid:PROFILE.uid,
     auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'',
-    texte:texte.slice(0,400), etiquette:AVIS_ETQ
-  },{onConflict:'sid,uid'}).select();
+    texte:texte.slice(0,400),
+    etiquettes:AVIS_ETQS.slice(),
+    etiquette:AVIS_ETQS[0]||null
+  };
+  let r=await sb.from('avis').upsert(ligne,{onConflict:'sid,uid'}).select();
+  /* ⚠ SI LE SQL N'EST PAS ENCORE PASSÉ, la colonne `etiquettes` n'existe pas et
+     Supabase refuse toute la ligne. Plutôt que d'afficher une panne à quelqu'un qui
+     n'y peut rien, on réessaie sans elle : la personne garde son étiquette (la
+     première) et son texte. */
+  let repli=false;
+  if(r.error && /etiquettes/.test(r.error.message||'')){
+    delete ligne.etiquettes;
+    r=await sb.from('avis').upsert(ligne,{onConflict:'sid,uid'}).select();
+    repli=!r.error;
+  }
   if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
   if(i) i.value='';
-  toast('Merci, c’est noté');
+  toast(repli ? 'Noté — une seule étiquette pour l’instant' : 'Merci, c’est noté');
   /* On recompte : la fiche doit remonter dans la recherche tout de suite, pas au
      prochain démarrage de l'app. */
   loadAvisComptes();
@@ -14275,7 +14314,7 @@ function avisRetirer(id, sid){
     async function(){
       const r=await sb.from('avis').delete().eq('id',id);
       if(r.error){ toast('Pas retiré'); return; }
-      AVIS_ETQ=null; rafraichirAvis(sid);
+      AVIS_ETQS=[]; rafraichirAvis(sid);
     },{ok:'Retirer',danger:true});
 }
 /* La pastille d'étiquette, telle qu'elle s'affiche partout. */
@@ -14283,21 +14322,32 @@ function etqPastille(cle){
   if(!cle||!ETQ_LABELS[cle]) return '';
   return '<span class="etqp" style="background:'+ETQ_COUL[cle]+'">'+esc(ETQ_LABELS[cle][0])+'</span>';
 }
-/* L'étiquette d'une fiche = celle que l'équipe a posée le plus souvent. */
-function etqDeLaFiche(){
+/* ⚠ LES ÉTIQUETTES D'UNE FICHE, AU PLURIEL (18/08/2026). Avant, on ne gardait que
+   la plus fréquente — donc d'un lieu où l'on mange ET où l'on peut faire la sieste,
+   l'app n'en disait qu'une, et la seconde n'existait nulle part.
+   On garde le tri PAR FRÉQUENCE : ce que plusieurs collègues ont constaté passe
+   devant ce qu'une seule a noté. À égalité, l'ordre du menu tranche — pas le
+   hasard, sinon la même fiche changerait d'ordre d'un affichage à l'autre. */
+function etqsDeLaFiche(){
   const n={};
-  AVIS.forEach(function(a){ if(a.etiquette) n[a.etiquette]=(n[a.etiquette]||0)+1; });
-  let best=null, bn=0;
-  Object.keys(n).forEach(function(k){ if(n[k]>bn){ bn=n[k]; best=k; } });
-  return best;
+  AVIS.forEach(function(a){ etqsDe(a).forEach(function(e){ n[e]=(n[e]||0)+1; }); });
+  const ordre=Object.keys(ETQ_LABELS);
+  return Object.keys(n).sort(function(a,b){
+    return (n[b]-n[a]) || (ordre.indexOf(a)-ordre.indexOf(b));
+  });
 }
 function avisCorpsHTML(sid){
   if(!AVIS_CHARGE) return '<p class="hint">Chargement…</p>';
   const mien=monAvis();
   let h='';
-  const etq=etqDeLaFiche();
-  if(etq) h+='<div style="margin-bottom:10px">'+etqPastille(etq)+
-    '<span class="hint" style="margin-left:8px">'+esc(ETQ_LABELS[etq][1])+'</span></div>';
+  /* Ce que l'équipe a constaté, en tête : les pastilles, puis ce qu'elles veulent
+     dire. Le sens n'est écrit en toutes lettres QUE s'il n'y en a qu'une — à trois,
+     trois phrases empilées feraient un paragraphe là où on attend un coup d'œil. */
+  const etqs=etqsDeLaFiche();
+  if(etqs.length) h+='<div style="margin-bottom:10px">'+
+    etqs.map(function(e){ return etqPastille(e); }).join(' ')+
+    (etqs.length===1?'<span class="hint" style="margin-left:8px">'+esc(ETQ_LABELS[etqs[0]][1])+'</span>':'')+
+    '</div>';
 
   const autres=AVIS.filter(function(a){ return !PROFILE || a.uid!==PROFILE.uid; })
                    .filter(function(a){ return (a.texte||'').trim(); });
@@ -14312,8 +14362,10 @@ function avisCorpsHTML(sid){
   /* LE FORMULAIRE. L'étiquette d'abord : c'est le geste le plus court, et le plus
      utile quand on n'a rien à raconter. */
   h+='<div class="avisetq">'+Object.keys(ETQ_LABELS).map(function(k){
-      return '<button class="fchip'+(AVIS_ETQ===k?' on':'')+'" onclick="avisEtq(\''+k+'\')" '+
-        'style="'+(AVIS_ETQ===k?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
+      const on=AVIS_ETQS.indexOf(k)>=0;
+      return '<button class="fchip'+(on?' on':'')+'" onclick="avisEtq(\''+k+'\')" '+
+        'aria-pressed="'+(on?'true':'false')+'" '+
+        'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
         esc(ETQ_LABELS[k][0])+'</button>';
     }).join('')+'</div>';
   h+='<div class="chadd" style="margin-top:10px">'+
