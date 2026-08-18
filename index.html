@@ -3608,23 +3608,23 @@ body.no-tabs #tabbar{display:none}
   .reseau-pill:hover{background:#f9f8f5}
   .reseau-pill.active{background:var(--noir);color:white}
   .reseau-grille{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+  @media(min-width:760px){.reseau-grille{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}}
   .reseau-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
-    color:var(--noir);padding-bottom:8px;border-bottom:2px solid var(--noir);margin:12px 0 8px}
+    color:var(--noir);padding-bottom:8px;border-bottom:2px solid var(--noir);margin:12px 0 8px;grid-column:1/-1}
   .reseau-section-label:first-of-type{margin-top:0}
-  .reseau-card{border:1.5px solid var(--noir);border-radius:12px;padding:16px;
-    display:flex;flex-direction:column;justify-content:space-between;min-height:140px;
+  .reseau-legend{font-size:10px;color:var(--gris);margin:6px 0 12px;display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1}
+  .reseau-legend-item{display:flex;align-items:center;gap:4px}
+  .reseau-legend-dot{width:6px;height:6px;border-radius:2px;flex-shrink:0}
+  .reseau-card{border:1.5px solid var(--noir);border-radius:12px;padding:12px;
+    display:flex;flex-direction:column;justify-content:space-between;aspect-ratio:1;
     background:var(--blanc);position:relative;cursor:pointer;transition:background .15s}
   .reseau-card:hover{background:#f9f8f5}
-  .reseau-card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+  .reseau-card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
     line-height:1.2;color:var(--noir)}
-  .reseau-card-icon{position:absolute;bottom:12px;right:12px;width:32px;height:32px;
+  .reseau-card-icon{position:absolute;bottom:8px;right:8px;width:28px;height:28px;
     display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .reseau-icon{width:28px;height:28px;object-fit:contain;filter:saturate(0) brightness(.2)}
-  .reseau-card-etiquettes{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
-  .reseau-etq{display:inline-block;font-family:ui-monospace,monospace;font-size:8px;
-    letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:2px 6px;
-    border-radius:3px;white-space:nowrap}
-  @media(max-width:480px){.reseau-v2{padding:0 12px}.reseau-grille{gap:10px}.reseau-card{min-height:120px;padding:12px}}
+  .reseau-icon{width:24px;height:24px;object-fit:contain;filter:saturate(0) brightness(.2)}
+  @media(max-width:480px){.reseau-v2{padding:0 12px}.reseau-grille{gap:10px}}
 </style>
 </head>
 <body>
@@ -13589,17 +13589,21 @@ function vReseauV2(){
   });
   html+='</div><div class="reseau-grille">';
   RESEAU_V2_SECTIONS.forEach(function(section,sectionIdx){
-    html+='<div class="reseau-section-label" data-section="'+sectionIdx+'" style="grid-column:1/-1">'+esc(section.name)+'</div>';
+    html+='<div class="reseau-section-label" data-section="'+sectionIdx+'">'+esc(section.name)+'</div>';
+    const etqsSection=new Set();
+    for(let i=section.start;i<section.end;i++){
+      RESEAU_V2_CATEGORIES[i].etiquettes.forEach(function(e){etqsSection.add(e)});
+    }
+    const legend='<div class="reseau-legend">'+Array.from(etqsSection).map(function(etq){
+      const cfg=RESEAU_V2_ETIQUETTES[etq];
+      return '<div class="reseau-legend-item"><div class="reseau-legend-dot" style="background:'+cfg.bg+'"></div><span>'+esc(etq)+'</span></div>';
+    }).join('')+'</div>';
+    html+=legend;
     for(let i=section.start;i<section.end;i++){
       const cat=RESEAU_V2_CATEGORIES[i];
-      const e=cat.etiquettes.map(function(etq){
-        const cfg=RESEAU_V2_ETIQUETTES[etq];
-        return '<span class="reseau-etq" style="background:'+cfg.bg+';color:'+cfg.text+'">'+esc(etq)+'</span>';
-      }).join('');
       html+='<div class="reseau-card" data-section="'+sectionIdx+'" onclick="go(\'#/d/'+cat.domaines[0]+'\')">'+
         '<div class="reseau-card-title">'+esc(cat.title)+'</div>'+
-        '<div class="reseau-card-icon"><img src="picto/'+cat.picto+'" alt="" class="reseau-icon"></div>'+
-        '<div class="reseau-card-etiquettes">'+e+'</div></div>';
+        '<div class="reseau-card-icon"><img src="picto/'+cat.picto+'" alt="" class="reseau-icon"></div></div>';
     }
   });
   html+='</div></div>'+fichePanHTML()+'<div style="height:20px"></div>';
@@ -14783,7 +14787,19 @@ function avisCorpsHTML(sid){
         esc(ETQ_LABELS[k][0])+'</button>';
     }).join('')+
     (avisEtqChange()?'<button class="etqok" onclick="avisEtqOk(\''+sid+'\')">OK</button>':'')+
-    '</div>';
+    '</div>'+
+    /* ═══ DIRE EN TOUTES LETTRES CE QU'ON VIENT DE DIRE (Mag, 18/08/2026 : « si on
+       veut juste dire c'est pour dormir, c'est pas clair ») ═══
+       Sept mots en capitales, et rien qui explique ce qu'ils veulent dire. « NUIT »
+       ne dit pas « on y dort », « ORIENTATION » ne dit pas « ils ne logent pas, ils
+       cherchent une place ». On tapait donc un mot en espérant avoir visé juste.
+       Le sens s'écrit maintenant SOUS la rangée, et il suit ce qu'on touche.
+       ⚠ Ce n'est pas une consigne — c'est la phrase qu'on est en train de poser,
+       relue à voix haute. C'est pour ça qu'elle n'apparaît que quand on a choisi
+       quelque chose : sur une rangée vide, elle n'aurait rien à relire. */
+    (AVIS_ETQS.length
+      ? '<p class="etqdit">'+esc(AVIS_ETQS.map(function(k){ return ETQ_LABELS[k][1]; }).join(' · '))+'</p>'
+      : '');
   h+='<div class="chadd" style="margin-top:10px">'+
      '<input id="avisTxt" type="text" maxlength="400" autocomplete="off" '+
      /* « de ce lieu » disait déjà le titre juste au-dessus (18/08/2026). */
@@ -14797,13 +14813,18 @@ function avisCorpsHTML(sid){
      'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avisEnregistrer(\''+sid+'\');}">'+
      '<button class="chaddbtn" onclick="avisEnregistrer(\''+sid+'\')">'+(mien&&mien.texte?'Modifier':'Poser')+'</button>'+
      '</div>';
-  if(mien){
-    h+='<div class="avisl mien"><b>Toi</b>'+
-       /* « une étiquette » quand on en a posé trois, ça sonne faux et ça fait douter
-          de ce qu'on vient de faire (18/08/2026). */
-       (mien.texte?'<p>'+esc(mien.texte)+'</p>'
-                  :'<p class="hint">Tu as posé '+(etqsDe(mien).length>1?etqsDe(mien).length+' étiquettes':'une étiquette')+', sans phrase.</p>')+
+  /* ⚠ « SANS PHRASE » DISAIT CE QU'ON N'AVAIT PAS FAIT (18/08/2026). Quelqu'un qui
+     voulait juste dire « c'est pour dormir » avait fini son travail — et l'écran lui
+     répondait « tu as posé une étiquette, SANS PHRASE », comme s'il manquait quelque
+     chose. Une étiquette seule est une réponse complète.
+     Le gros cadre « Toi » ne sert donc que s'il y a une phrase à montrer. Sinon il
+     reste ce dont on a besoin : de quoi revenir en arrière. */
+  if(mien && mien.texte){
+    h+='<div class="avisl mien"><b>Toi</b><p>'+esc(mien.texte)+'</p>'+
        '<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">Retirer mon avis</button></div>';
+  } else if(mien){
+    h+='<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">'+
+       (etqsDe(mien).length>1?'Retirer mes étiquettes':'Retirer mon étiquette')+'</button>';
   }
   /* ⚠ PLUS AUCUNE CONSIGNE AU-DESSUS DU CHAMP (Mag, 18/08/2026 : « retire ça »).
      L'histoire de ce bloc en trois temps :
