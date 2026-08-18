@@ -14560,13 +14560,24 @@ function avisCorpsHTML(sid){
   if(!AVIS_CHARGE) return '<p class="hint">Chargement…</p>';
   const mien=monAvis();
   let h='';
-  /* Ce que l'équipe a constaté, en tête : les pastilles, puis ce qu'elles veulent
-     dire. Le sens n'est écrit en toutes lettres QUE s'il n'y en a qu'une — à trois,
-     trois phrases empilées feraient un paragraphe là où on attend un coup d'œil. */
+  /* ═══ PLUS DE RÉSUMÉ EN TÊTE QUAND IL RÉPÈTE LE MIEN (Mag, 18/08/2026 : « je ne
+     comprends rien ») ═══
+     Il y avait ici une rangée de pastilles « ce que l'équipe a constaté », posée
+     JUSTE AU-DESSUS de la rangée du formulaire. Quand on est la seule à avoir posé
+     des étiquettes — le cas le plus fréquent — on voyait donc MANGER · SIESTE ·
+     SÉJOUR deux fois de suite, sous deux formes différentes, sans que rien ne dise
+     laquelle était laquelle. De quoi ne plus rien comprendre, et elle avait raison.
+     ⚠ ON NE LE GARDE QUE S'IL APPREND QUELQUE CHOSE : c'est-à-dire si des collègues
+     ont posé des étiquettes que je n'ai pas posées moi-même. Là, il dit vraiment
+     autre chose que la rangée du dessous, et il mérite sa place.
+     ⚠ Le résumé de l'équipe vit de toute façon ailleurs : sur la carte de la fiche,
+     dans les listes (voir `AVIS_ETQ_N`). */
   const etqs=etqsDeLaFiche();
-  if(etqs.length) h+='<div style="margin-bottom:10px">'+
-    etqs.map(function(e){ return etqPastille(e); }).join(' ')+
-    (etqs.length===1?'<span class="hint" style="margin-left:8px">'+esc(ETQ_LABELS[etqs[0]][1])+'</span>':'')+
+  const enPlus=etqs.filter(function(e){ return AVIS_ETQS.indexOf(e)<0; });
+  if(enPlus.length) h+='<div style="margin-bottom:10px">'+
+    enPlus.map(function(e){ return etqPastille(e); }).join(' ')+
+    '<span class="hint" style="margin-left:8px">'+
+      (enPlus.length===1?esc(ETQ_LABELS[enPlus[0]][1]):'posé par l’équipe')+'</span>'+
     '</div>';
 
   const autres=AVIS.filter(function(a){ return !PROFILE || a.uid!==PROFILE.uid; })
@@ -14599,7 +14610,10 @@ function avisCorpsHTML(sid){
      '</div>';
   if(mien){
     h+='<div class="avisl mien"><b>Toi</b>'+
-       (mien.texte?'<p>'+esc(mien.texte)+'</p>':'<p class="hint">Tu as posé une étiquette, sans phrase.</p>')+
+       /* « une étiquette » quand on en a posé trois, ça sonne faux et ça fait douter
+          de ce qu'on vient de faire (18/08/2026). */
+       (mien.texte?'<p>'+esc(mien.texte)+'</p>'
+                  :'<p class="hint">Tu as posé '+(etqsDe(mien).length>1?etqsDe(mien).length+' étiquettes':'une étiquette')+', sans phrase.</p>')+
        '<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">Retirer mon avis</button></div>';
   }
   /* ⚠ PLUS AUCUNE CONSIGNE AU-DESSUS DU CHAMP (Mag, 18/08/2026 : « retire ça »).
