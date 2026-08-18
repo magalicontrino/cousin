@@ -2383,7 +2383,15 @@ body.en-apercu #view{animation:none;transform:none}
 .conseilatt p{font-size:14.5px;line-height:1.45;margin-top:4px}
 /* Depuis combien de temps ça dort : rouge après 30 jours, et seulement là. */
 .conseilvieux{color:#e63329;font-weight:700}
-.avisetq{display:flex;flex-wrap:wrap;gap:6px}
+.avisetq{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+/* Le OK des étiquettes (18/08/2026). Il est NOIR et PLEIN, comme « Poser » : c'est
+   le même geste — envoyer quelque chose — donc il doit se ressembler. Et il tombe
+   au bout de la rangée qu'il valide, pas ailleurs : un bouton loin de ce qu'il
+   valide ne se rattache à rien. */
+.etqok{border-radius:999px;padding:6px 16px;background:var(--noir);color:#f4f3f1;
+  font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.14em;
+  transition:background .14s ease,box-shadow .14s ease}
+@media (hover:hover){ .etqok:hover{background:#333;box-shadow:0 0 0 1.5px var(--noir)} }
 .avisl{border-left:3px solid var(--ligne);padding:2px 0 2px 11px;margin-bottom:11px}
 .avisl b{font-size:14px}
 .avisl em{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;
@@ -14426,6 +14434,47 @@ function avisEtq(cle){
   const z=document.getElementById('aviszone'); if(z) z.innerHTML=avisCorpsHTML(AVIS_SID);
 }
 
+/* ═══ LES ÉTIQUETTES ONT LEUR PROPRE « OK » (Mag, 18/08/2026 : « ici il manque un
+   ok ») ═══
+   Elle avait demandé un bouton pour les étiquettes — et elles partageaient encore
+   celui du texte. On voyait donc une rangée de pastilles qu'on pouvait allumer,
+   sans rien pour dire « c'est bon ». Le seul bouton visible, « Poser », semblait
+   appartenir au champ d'écriture juste en dessous.
+   ⚠ IL N'APPARAÎT QUE SI ON A CHANGÉ QUELQUE CHOSE. Un OK affiché en permanence
+   sur une rangée qu'on n'a pas touchée invite à appuyer pour rien.
+   ⚠ IL N'ÉCRASE PAS LE TEXTE DÉJÀ POSÉ : on n'envoie que les étiquettes. Sans ça,
+   poser une étiquette effacerait la phrase écrite l'autre jour. */
+function avisEtqChange(){
+  const m=monAvis(), av=etqsDe(m).slice().sort(), ap=AVIS_ETQS.slice().sort();
+  return av.join('|')!==ap.join('|');
+}
+async function avisEtqOk(sid){
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  const m=monAvis();
+  const champs={etiquettes:AVIS_ETQS.slice(), etiquette:AVIS_ETQS[0]||null};
+  let r;
+  if(m){
+    /* On MODIFIE la ligne existante : le texte de la personne n'est pas touché. */
+    r=await sb.from('avis').update(champs).eq('id',m.id).select();
+  } else {
+    r=await sb.from('avis').insert(Object.assign({
+      sid:sid, uid:PROFILE.uid,
+      auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', texte:''
+    },champs)).select();
+  }
+  if(r.error && /etiquettes/.test(r.error.message||'')){
+    delete champs.etiquettes;
+    r=m ? await sb.from('avis').update(champs).eq('id',m.id).select()
+        : await sb.from('avis').insert(Object.assign({
+            sid:sid, uid:PROFILE.uid,
+            auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', texte:''
+          },champs)).select();
+  }
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  toast('C’est noté');
+  loadAvisComptes();
+  rafraichirAvis(sid);
+}
 async function avisEnregistrer(sid){
   const i=document.getElementById('avisTxt');
   const texte=((i&&i.value)||'').trim();
@@ -14521,7 +14570,9 @@ function avisCorpsHTML(sid){
         'aria-pressed="'+(on?'true':'false')+'" '+
         'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
         esc(ETQ_LABELS[k][0])+'</button>';
-    }).join('')+'</div>';
+    }).join('')+
+    (avisEtqChange()?'<button class="etqok" onclick="avisEtqOk(\''+sid+'\')">OK</button>':'')+
+    '</div>';
   h+='<div class="chadd" style="margin-top:10px">'+
      '<input id="avisTxt" type="text" maxlength="400" autocomplete="off" '+
      /* « de ce lieu » disait déjà le titre juste au-dessus (18/08/2026). */
