@@ -1484,6 +1484,23 @@ body.en-apercu #view{animation:none;transform:none}
 .favchip.deco.on{background:var(--rouge);color:#fff}
 .favchip.deco.on .ic{color:#fff}
 .favchip.deco.on i{background:#fff;color:var(--rouge)}
+/* ═══ QUI EST REÇU — le picto plutôt que le compteur (choix ③ de Mag, 18/08/2026) ═══
+   « Je n'aime pas du tout ce bouton réservé aux femmes. » Deux torts, et le second
+   était le vrai : il empruntait la classe `.favchip`, donc LE JAUNE DE « CONSEILLÉ
+   PAR L'ÉQUIPE » — une couleur qui veut déjà dire autre chose ailleurs dans l'app.
+   Il a maintenant sa classe à lui, et le dessin qu'elle a choisi : le picto en noir
+   à la place du badge chiffré. On reconnaît le bouton SANS LE LIRE, ce qui compte
+   pour ceux qui lisent mal.
+   ⚠ NE PAS REFONDRE `.favchip` AVEC : les deux boutons d'avis (« Conseillé par
+   l'équipe », « Déconseillé ») gardent leur jaune et leur rouge, qui sont justes. */
+.genrechip{display:inline-flex;align-items:center;gap:10px;border:1.5px solid var(--noir);
+  border-radius:10px;background:#fdfdfc;color:var(--noir);cursor:pointer;
+  padding:9px 14px 9px 11px;font-family:ui-monospace,monospace;font-size:10.5px;
+  font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  transition:background .16s ease,box-shadow .16s ease}
+.genrechip .pico{width:19px;height:19px;flex:none;background:currentColor}
+.genrechip.on{background:var(--noir);color:var(--creme)}
+.genrechip:active{transform:scale(.97)}
 
 /* ── LES PAGES DE FORMATION (08/08/2026) ──────────────────────────────────
    ⚠ CE BLOC N'EXISTAIT PAS. Les quatorze formations écrivent depuis toujours
@@ -2825,6 +2842,7 @@ body.en-apercu #view{animation:none;transform:none}
   .dbtn:hover{background:#fff;box-shadow:0 0 0 1.5px var(--noir)}
   /* Les deux boutons d'avis (« Conseillé par l'équipe », « Réservé aux femmes »). */
   .favchip:not(.on):hover{background:#fff;box-shadow:0 0 0 1.5px var(--noir)}
+  .genrechip:not(.on):hover{box-shadow:0 0 0 1.5px var(--noir)}
   .favchip.deco:not(.on):hover{box-shadow:0 0 0 1.5px var(--rouge)}
 }
 .dbtn{transition:background .16s ease,box-shadow .16s ease}
@@ -3937,6 +3955,10 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
               juridique:'juridique.svg', addictions:'addictions.svg',
               planning:'planning.svg', accomp:'accompagnement.svg',
               social:'social.svg',
+              /* Ton dessin de la femme (12/08/2026). Celui de l'homme est PROVISOIRE
+                 — même trait, mêmes bouts arrondis, en attendant le tien : il est sur
+                 la planche en « à redessiner ». */
+              femme:'femme.svg', homme:'homme.svg',
               /* Ton dessin du handicap, déposé le 01/08/2026 (renommé sans accent : une adresse
                  d'image doit rester simple). Il remplace le dessin provisoire. */
               handicap:'handicap.svg',
@@ -12783,8 +12805,15 @@ function vAdmin(){
         '</div>'+
         /* Sortir de la file sans rien en tirer. En dernier, et en petit : c'est le
            geste qu'on fait le moins, et il ne doit pas se cliquer par erreur. */
-        (touche?'':'<button class="lienbas" onclick="rangerFini('+a.id+')">'+
-          (etqsDe(a).length?'C’est déjà rangé':'Classer sans suite')+'</button>')+
+        /* ⚠ UN SEUL MOT, PAS DEUX (Mag, 18/08/2026 : « il y a classer sans suite,
+           et il y a déjà rangé, explique-moi »).
+           J'avais fait varier le mot selon que le message portait ou non une
+           étiquette — « classer sans suite » quand on n'en tire rien, « c'est déjà
+           rangé » sinon. La nuance était juste, et elle nuisait : deux mots sur un
+           bouton qui fait UNE chose, ça fait chercher la différence entre deux
+           actions qui n'existent pas. Elle l'a demandée, donc c'était raté.
+           Le bouton dit maintenant ce qu'il fait, et rien d'autre. */
+        (touche?'':'<button class="lienbas" onclick="rangerFini('+a.id+')">Ranger sans rien changer</button>')+
         '</div>';
     });
     gAcces+='</div>';
@@ -14174,11 +14203,16 @@ function vDomaine(key){
   const nFem=base.filter(function(p){ return publicGenre(p)==='femmes'; }).length;
   const nHom=base.filter(function(p){ return publicGenre(p)==='hommes'; }).length;
   if(nFem||nHom){
+    /* ⚠ « UNIQUEMENT », PLUS « RÉSERVÉ » (Mag, 18/08/2026). *Réservé* laisse croire
+       qu'une place est gardée pour elle ; *uniquement* dit ce qui est vrai — il n'y
+       a que des femmes dans le bâtiment. Pour quelqu'un qui fuit un conjoint, c'est
+       cette phrase-là qui décide, pas l'autre.
+       ⚠ Le compteur a disparu avec le badge jaune : le picto tient sa place. */
     chips+='<div class="favrow">'+
-      (nFem?'<button class="favchip'+(filt.pgenre==='femmes'?' on':'')+'" onclick="filtrerGenre(\'femmes\')">'+
-        'Réservé aux femmes<i>'+nFem+'</i></button>':'')+
-      (nHom?'<button class="favchip'+(filt.pgenre==='hommes'?' on':'')+'" onclick="filtrerGenre(\'hommes\')">'+
-        'Réservé aux hommes<i>'+nHom+'</i></button>':'')+
+      (nFem?'<button class="genrechip'+(filt.pgenre==='femmes'?' on':'')+'" onclick="filtrerGenre(\'femmes\')">'+
+        icon('femme')+'Femmes uniquement</button>':'')+
+      (nHom?'<button class="genrechip'+(filt.pgenre==='hommes'?' on':'')+'" onclick="filtrerGenre(\'hommes\')">'+
+        icon('homme')+'Hommes uniquement</button>':'')+
       '</div>';
     /* ⚠ `pgenre` et non `genre` : `genre` sert déjà à trier Mail / Note dans les
        modèles. Deux tris différents sur la même clé finiraient par se marcher
@@ -14723,55 +14757,57 @@ function avisTape(){
   const b=document.querySelector('.avisenv');
   if(b) b.classList.toggle('off', !(plein || avisEtqChange()));
 }
-/* (La fonction `avisEtqOk()` — l'ancien bouton « OK » réservé aux étiquettes — a
-   été retirée le 18/08/2026 : les étiquettes et le commentaire partent maintenant
-   ensemble par `avisEnregistrer()`. Voir le commentaire du bouton d'envoi.) */
-async function avisEnregistrer(sid){
-  const i=document.getElementById('avisTxt');
-  const texte=((i&&i.value)||'').trim();
-  /* Une étiquette seule vaut un avis : savoir qu'un lieu ferme le soir est déjà
-     un renseignement, même sans phrase. */
-  if(!texte && !AVIS_ETQS.length){ if(i) i.focus(); return; }
-  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
-  /* ⚠ ON ÉCRIT LES DEUX COLONNES. `etiquettes` est la nouvelle (une liste),
-     `etiquette` l'ancienne (une seule) — on y remet la première, pour que rien ne
-     casse si un bout de code ou une requête l'utilise encore. Le jour où plus rien
-     ne la lit, elle se retire en une ligne ici et une dans le SQL. */
-  const ligne={
-    sid:sid, uid:PROFILE.uid,
-    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'',
-    texte:texte.slice(0,400),
-    etiquettes:AVIS_ETQS.slice(),
-    etiquette:AVIS_ETQS[0]||null
-  };
-  let r=await sb.from('avis').upsert(ligne,{onConflict:'sid,uid'}).select();
-  /* ⚠ SI LE SQL N'EST PAS ENCORE PASSÉ, la colonne `etiquettes` n'existe pas et
-     Supabase refuse toute la ligne. Plutôt que d'afficher une panne à quelqu'un qui
-     n'y peut rien, on réessaie sans elle : la personne garde son étiquette (la
-     première) et son texte. */
-  let repli=false;
-  if(r.error && /etiquettes/.test(r.error.message||'')){
-    delete ligne.etiquettes;
-    r=await sb.from('avis').upsert(ligne,{onConflict:'sid,uid'}).select();
-    repli=!r.error;
+/* ═══ DEUX ENREGISTREMENTS INDÉPENDANTS (Mag, 18/08/2026) ═══
+   « On gardait la sélection et on pouvait aussi, si on voulait, rajouter un
+   commentaire. Il faut pouvoir enregistrer le commentaire, by the way. »
+   ⚠ LE POINT CRUCIAL : chacun n'écrit QUE sa colonne. Poser « Jour » ne doit pas
+   effacer la phrase écrite hier, et enregistrer une phrase ne doit pas défaire les
+   étiquettes. C'est pour ça qu'on fait un `update` ciblé quand la ligne existe, et
+   pas un `upsert` de toute la ligne comme avant : l'upsert réécrivait TOUT, donc
+   chaque geste écrasait l'autre. */
+async function avisEcrire(sid, champs, motDeFin){
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return false; }
+  const m=monAvis();
+  let r;
+  if(m){
+    r=await sb.from('avis').update(champs).eq('id',m.id).select();
+  } else {
+    r=await sb.from('avis').insert(Object.assign({
+      sid:sid, uid:PROFILE.uid,
+      auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'',
+      texte:'', etiquettes:[], etiquette:null
+    },champs)).select();
   }
-  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
-  if(i) i.value='';
-  AVIS_TAPE=false;
-  /* ⚠ DIRE CE QUI SE PASSE ENSUITE (Mag, 18/08/2026 : « il faut un message aussi
-     pour dire que ça doit passer en confirmation de la modération »).
-     ⚠ ET LE DIRE JUSTE. Ce qu'on écrit est visible par l'équipe TOUT DE SUITE — ce
-     n'est pas retenu en attente. Mais ça entre dans la file « Messages à ranger »,
-     où la coordination le vérifie et le classe. Écrire « en attente de validation »
-     serait faux et ferait croire que personne ne le voit encore ; ne rien dire
-     laisserait croire que ça part dans le vide. « La coordination va le relire »
-     dit exactement ce qui va arriver. */
-  toast(repli ? 'Noté — une seule étiquette pour l’instant'
-              : 'C’est noté. La coordination va le relire.');
-  /* On recompte : la fiche doit remonter dans la recherche tout de suite, pas au
-     prochain démarrage de l'app. */
+  /* Repli si le SQL des listes n'est pas passé sur cette base : on garde la
+     première étiquette plutôt que d'afficher une panne à quelqu'un qui n'y peut rien. */
+  if(r.error && /etiquettes/.test(r.error.message||'')){
+    const c2=Object.assign({},champs); delete c2.etiquettes;
+    r = m ? await sb.from('avis').update(c2).eq('id',m.id).select()
+          : await sb.from('avis').insert(Object.assign({
+              sid:sid, uid:PROFILE.uid,
+              auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', texte:''
+            },c2)).select();
+  }
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return false; }
+  toast(motDeFin);
   loadAvisComptes();
   rafraichirAvis(sid);
+  return true;
+}
+/* Le OK de la rangée d'étiquettes. Ne touche PAS au commentaire. */
+async function avisEtqOk(sid){
+  await avisEcrire(sid, {etiquettes:AVIS_ETQS.slice(), etiquette:AVIS_ETQS[0]||null},
+                   'C’est noté. La coordination va le relire.');
+}
+/* Le bouton du commentaire. Ne touche PAS aux étiquettes.
+   ⚠ Un commentaire vidé puis enregistré l'efface — c'est la façon la plus simple
+   de revenir en arrière, et ça ne supprime pas les étiquettes posées à côté. */
+async function avisCommentaire(sid){
+  const i=document.getElementById('avisTxt');
+  const texte=((i&&i.value)||'').trim();
+  const ok=await avisEcrire(sid, {texte:texte.slice(0,400)},
+    texte ? 'C’est noté. La coordination va le relire.' : 'Commentaire retiré');
+  if(ok) AVIS_TAPE=false;
 }
 function avisRetirer(id, sid){
   cousinConfirme('Retirer ton avis ?','Il disparaîtra pour toute l’équipe.',
