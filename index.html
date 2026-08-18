@@ -12072,6 +12072,7 @@ async function loadAdmin(){
       const a=await sb.rpc('gestion_equipe');   ADMIN.members=(a&&a.data)||[];
       const b=await sb.rpc('gestion_demandes'); ADMIN.requests=(b&&b.data)||[];
     }catch(e){}
+    await loadARanger();
     adminLoaded=true; return;
   }
   try{
@@ -12086,6 +12087,7 @@ async function loadAdmin(){
     const {data}=await sb.from('access_requests').select('id,email,mot,cree_le').eq('statut','en_attente').order('cree_le',{ascending:false});
     ADMIN.requests=data||[];
   }catch(e){}
+  await loadARanger();
   /* LES CONNEXIONS D'AVANT NOTRE COMPTEUR. Il n'existe que depuis le 2 août ;
      Supabase, lui, note depuis toujours la dernière ouverture de session. Sans ça,
      l'écran disait « personne ne s'est encore connecté » alors que toute l'équipe
@@ -12664,6 +12666,47 @@ function vAdmin(){
           '<button class="chaddbtn" onclick="conseilTrancher(\''+c.sid+'\',\'ok\')">Approuver</button></div>'+
         '<div class="fcbas"><button class="ann" onclick="conseilTrancher(\''+c.sid+'\',\'refus\')">Refuser</button></div>'+
       '</div>';
+    });
+    gAcces+='</div>';
+  }
+
+  /* ═══ LES MESSAGES À RANGER (Mag, 18/08/2026) ═══
+     La deuxième moitié de « on écrit d'abord, on range après ». Rangée ici, avec
+     les deux autres files : c'est la même nature — quelqu'un a posé quelque chose,
+     et ça attend une décision de nous. */
+  gAcces+='<button class="acc'+(ADM_SECTION==='ranger'?' open':'')+'" onclick="admSection(\'ranger\')">'+
+     '<b>Messages à ranger</b><span class="n">'+(ARANGER.length?ARANGER.length+' en attente':'aucun')+'</span>'+
+     '<span class="sg">'+(ADM_SECTION==='ranger'?'⌄':'›')+'</span></button>';
+  if(ADM_SECTION==='ranger'){
+    gAcces+='<div class="rlist">';
+    if(!ARANGER.length) gAcces+='<div class="role"><b style="font-weight:500;color:#8b8984">Rien à ranger.</b></div>';
+    ARANGER.forEach(function(a){
+      const pf=BYSID[a.sid], posees=etqsDe(a);
+      gAcces+='<div class="msg"><div class="top"><span class="tx">'+
+        '<b>'+esc(pf?pf.nom:a.sid)+'</b>'+
+        '<em>'+esc(a.auteur_nom||'une collègue')+' · '+esc(quandFr(a.cree_le))+'</em></span></div>'+
+        /* Le texte tel quel. On ne le retouche pas : il est signé. */
+        ((a.texte||'').trim()?'<p>'+esc(a.texte)+'</p>'
+                             :'<p class="hint">Pas de phrase — juste une étiquette.</p>')+
+        '<div class="avisetq" style="margin-top:8px">'+
+          Object.keys(ETQ_LABELS).map(function(k){
+            const on=posees.indexOf(k)>=0;
+            return '<button class="fchip'+(on?' on':'')+'" onclick="rangerEtq('+a.id+',\''+k+'\')" '+
+              'aria-pressed="'+(on?'true':'false')+'" '+
+              'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
+              esc(ETQ_LABELS[k][0])+'</button>';
+          }).join('')+
+        '</div>'+
+        /* ⚠ LE MÊME BOUTON, DEUX MOTS DIFFÉRENTS. Il fait la même chose — sortir le
+           message de la file — mais il ne veut pas dire la même chose : « classer
+           sans suite » quand on n'en a rien tiré, « c'est rangé » quand on vient de
+           poser une étiquette. Un seul mot pour les deux ferait dire au geste le
+           contraire de ce qu'on a fait. */
+        '<div class="fcbas">'+
+          '<button class="ann" onclick="rangerFini('+a.id+')">'+
+            (posees.length?'C’est rangé':'Classer sans suite')+'</button>'+
+          '<button class="pub" onclick="rangerConseiller('+a.id+')">Conseiller ce lieu</button>'+
+        '</div></div>';
     });
     gAcces+='</div>';
   }
@@ -14134,6 +14177,77 @@ function conseilTexte(p){
   const c=conseilDe(p);
   if(c && c.etat==='ok' && (c.texte||'').trim()) return c.texte;
   return p.recoTxt||'';
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA PAGE DE TRI — RANGER LES MESSAGES DE L'ÉQUIPE (Mag, 18/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ses mots : « avec toi, Claude, on pourra revoir tous les messages, les vérifier,
+   les mettre dans la bonne case avec la bonne information, et les mettre dans la
+   série de lieux conseillés par l'équipe. »
+
+   L'IDÉE : sur le terrain on ÉCRIT, on ne classe pas. Celle qui note un soir ne
+   doit pas se demander dans quelle case ça va — ce n'est pas son travail, elle est
+   en train de bosser. Le classement se fait ici, après, à tête reposée.
+
+   ⚠ ON CLASSE, ON NE RÉÉCRIT PAS. Un avis est SIGNÉ : si son texte changeait sous
+   la signature de son auteur, la signature ne voudrait plus rien dire. On peut donc
+   poser des étiquettes dessus, en faire un conseil, ou le classer — jamais toucher
+   à la phrase. C'est aussi écrit dans sql/avis-ranger.sql.
+   ⚠ « CLASSER SANS SUITE » N'EFFACE RIEN : le message reste, il sort juste de la
+   file. Le travail d'une collègue ne se jette pas parce qu'il n'entrait dans
+   aucune case. */
+let ARANGER=[];
+async function loadARanger(){
+  ARANGER=[];
+  if(!sb || !vueGestion()) return;
+  /* Les plus vieux d'abord : c'est une file d'attente, pas un fil d'actualité. */
+  let r=await sb.from('avis').select('*').is('range_le',null).order('cree_le',{ascending:true});
+  /* Repli si le SQL de la page de tri n'est pas passé sur cette base : on ne
+     bloque pas l'Admin entière pour une colonne manquante. */
+  if(r.error && /range_le/.test(r.error.message||'')) return;
+  if(r.error) return;
+  ARANGER=r.data||[];
+}
+/* Poser ou retirer une étiquette SUR LE MESSAGE de quelqu'un d'autre. On garde
+   l'avis à son auteur — on ne fait que dire dans quelle case il entre. */
+async function rangerEtq(id, cle){
+  const a=ARANGER.find(function(x){ return x.id===id; }); if(!a) return;
+  const l=etqsDe(a), i=l.indexOf(cle);
+  if(i<0) l.push(cle); else l.splice(i,1);
+  const r=await sb.from('avis').update({etiquettes:l, etiquette:l[0]||null}).eq('id',id).select();
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  a.etiquettes=l; a.etiquette=l[0]||null;
+  loadAvisComptes();
+  render();
+}
+/* Le message sort de la file. `range_par` dit qui l'a rangé : dans deux mois, on
+   saura qui a décidé quoi sans avoir à se le rappeler. */
+async function rangerFini(id){
+  const r=await sb.from('avis').update({
+    range_le:new Date().toISOString(),
+    range_par:(typeof nomAffiche==='function'?nomAffiche():'')||''
+  }).eq('id',id).select();
+  if(r.error){ toast('Pas rangé — '+r.error.message); return; }
+  ARANGER=ARANGER.filter(function(x){ return x.id!==id; });
+  toast('Rangé');
+  render();
+}
+/* Faire passer le lieu dans « conseillés par l'équipe ». C'est la coordination qui
+   le fait ici, donc c'est approuvé d'emblée — inutile de se demander à soi-même
+   l'autorisation. Le texte du conseil reste celui de la collègue : c'est elle qui
+   a vu le lieu, pas nous. */
+async function rangerConseiller(id){
+  const a=ARANGER.find(function(x){ return x.id===id; }); if(!a) return;
+  const r=await sb.from('conseils').upsert({
+    sid:a.sid, texte:(a.texte||'').slice(0,160),
+    propose_uid:a.uid, propose_nom:a.auteur_nom||'une collègue',
+    etat:'ok',
+    tranche_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'',
+    tranche_le:new Date().toISOString()
+  },{onConflict:'sid'}).select();
+  if(r.error){ toast('Pas conseillé — '+r.error.message); return; }
+  await loadConseils();
+  rangerFini(id);
 }
 function conseilsEnAttente(){
   return Object.keys(CONSEILS).map(function(k){ return CONSEILS[k]; })
