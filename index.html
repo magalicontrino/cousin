@@ -2799,6 +2799,10 @@ body.en-apercu #view{animation:none;transform:none}
 .fr2c{display:block;font-size:13px;line-height:1.35;color:var(--noir);font-weight:500;margin-top:4px}
 .fr2h{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;
   color:#8b8984;margin-top:4px}
+/* Les étiquettes de l'équipe sur la carte : posées sur leur propre ligne, sinon
+   elles se collent au nom du lieu et on lit « Le Clos Nuit ». */
+.fr2e{display:block;margin-top:5px}
+.fr2e .etqp{margin-right:4px}
 /* Les petits tiroirs en boutons : ils gardent leur picto et leur compte, mais ne
    prennent plus la place d'un tiroir a 44 fiches. */
 .dbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
@@ -13549,7 +13553,12 @@ function fcard(p){
      horaires, et l'étiquette posée par l'équipe.
      ⚠ Les conditions sont coupées à 90 signes : la carte reste une carte. Le reste
      est dans le panneau qui monte, à un doigt de là. */
-  const etq=(typeof AVIS_N!=='undefined' && p.etq)?etqPastille(p.etq):'';
+  /* ⚠ ON LIT `AVIS_ETQ_N`, PAS `p.etq` (18/08/2026). `p.etq` n'était rempli nulle
+     part : la pastille ne s'est jamais affichée sur une carte depuis qu'elle a été
+     écrite. Deux au maximum — une carte qui porte cinq pastilles ne se lit plus,
+     et les deux premières sont les plus constatées. */
+  const etqs=((typeof AVIS_ETQ_N!=='undefined' && AVIS_ETQ_N[p.sid])||[]).slice(0,2);
+  const etq=etqs.map(function(k){ return etqPastille(k); }).join(' ');
   const cond=(p.conditions||'').trim();
   const det=[
     cond?'<span class="fr2c">'+esc(cond.length>90?cond.slice(0,88)+'…':cond)+'</span>':'',
@@ -13561,7 +13570,12 @@ function fcard(p){
       (estConseille(p)?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
         (conseilTexte(p)?'<span class="recopq">'+esc(conseilTexte(p))+'</span>':''):'')+
       (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>'+
-        (p.decoTxt?'<span class="recopq">'+esc(p.decoTxt)+'</span>':''):'')+det+'</span>'+
+        (p.decoTxt?'<span class="recopq">'+esc(p.decoTxt)+'</span>':''):'')+
+      /* ⚠ ET ON LA POSE VRAIMENT DANS LA CARTE (18/08/2026). La pastille était
+         CALCULÉE juste au-dessus depuis le 13/08 — et jamais collée dans le HTML.
+         Deux moitiés mortes : une variable jamais remplie, et une variable jamais
+         affichée. D'où le sentiment que « poser une étiquette ne sert à rien ». */
+      (etq?'<span class="fr2e">'+etq+'</span>':'')+det+'</span>'+
     (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
     heartBtn(p.sid)+'</div>';
 }
@@ -14035,13 +14049,39 @@ let AVIS=[], AVIS_SID='', AVIS_ETQS=[], AVIS_CHARGE=false;
    ⚠ Si la lecture échoue, AVIS_N reste vide et le classement se comporte comme
    avant : un avis manquant ne doit jamais faire disparaître une fiche. */
 let AVIS_N={};
+/* ═══ ET LES ÉTIQUETTES DE CHAQUE FICHE (18/08/2026) ═══
+   ⚠ C'ÉTAIT UN BOUT DE CODE MORT. La carte d'une fiche (`fcard`) allait chercher
+   `p.etq` pour afficher la pastille « Nuit », « Manger »… — mais `p.etq` n'était
+   REMPLI NULLE PART. Résultat : depuis le 13/08, on posait des étiquettes qui ne
+   se voyaient que dans la fiche ouverte, jamais dans les listes. Le travail de
+   l'équipe ne remontait pas là où on en a besoin, c'est-à-dire en parcourant.
+   On les ramène donc dans la même requête que les comptes — elle lit déjà toute
+   la table, une colonne de plus ne coûte rien. */
+let AVIS_ETQ_N={};
 async function loadAvisComptes(){
   if(!sb) return;
-  const r=await sb.from('avis').select('sid');
-  if(r.error){ AVIS_N={}; return; }
-  const n={};
-  (r.data||[]).forEach(function(a){ n[a.sid]=(n[a.sid]||0)+1; });
+  let r=await sb.from('avis').select('sid,etiquettes,etiquette');
+  /* Repli si le SQL des listes n'est pas passé sur cette base. */
+  if(r.error && /etiquettes/.test(r.error.message||''))
+    r=await sb.from('avis').select('sid,etiquette');
+  if(r.error){ AVIS_N={}; AVIS_ETQ_N={}; return; }
+  const n={}, e={};
+  (r.data||[]).forEach(function(a){
+    n[a.sid]=(n[a.sid]||0)+1;
+    (e[a.sid]=e[a.sid]||{});
+    etqsDe(a).forEach(function(k){ e[a.sid][k]=(e[a.sid][k]||0)+1; });
+  });
   AVIS_N=n;
+  /* Le même tri que dans la fiche : le plus constaté d'abord, puis l'ordre du
+     menu — pour qu'une fiche ne change pas d'ordre d'un écran à l'autre. */
+  const ordre=Object.keys(ETQ_LABELS);
+  const par={};
+  Object.keys(e).forEach(function(sid){
+    par[sid]=Object.keys(e[sid]).sort(function(a,b){
+      return (e[sid][b]-e[sid][a]) || (ordre.indexOf(a)-ordre.indexOf(b));
+    });
+  });
+  AVIS_ETQ_N=par;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

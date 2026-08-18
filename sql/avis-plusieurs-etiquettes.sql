@@ -39,13 +39,12 @@ alter table public.avis add constraint avis_etiquettes_connues check (
   etiquettes <@ array['jour','nuit','manger','sieste','sejour','urgence','orientation']::text[]
 );
 
--- Deux fois la meme etiquette dans la liste n'aurait aucun sens : ce serait dire
--- deux fois la meme chose et fausser tout comptage.
-alter table public.avis drop constraint if exists avis_etiquettes_sans_doublon;
-alter table public.avis add constraint avis_etiquettes_sans_doublon check (
-  array_length(etiquettes,1) is null
-  or array_length(etiquettes,1) = (select count(distinct e) from unnest(etiquettes) e)
-);
+-- ⚠ PAS DE CONTRAINTE « SANS DOUBLON » ICI, ET CE N'EST PAS UN OUBLI.
+-- J'en avais ecrit une, elle etait fausse : PostgreSQL INTERDIT les sous-requetes
+-- dans un CHECK, et verifier qu'une liste n'a pas de doublon en demande une.
+-- Le doublon est donc empeche cote app : `avisEtq()` coche et decoche la meme
+-- etiquette, elle ne peut pas entrer deux fois. Si un jour on veut la garantie
+-- cote base, ce sera un trigger, pas un check.
 
 -- Pour retrouver vite « tous les lieux ou l'on peut manger ».
 create index if not exists avis_etiquettes_idx on public.avis using gin (etiquettes);
