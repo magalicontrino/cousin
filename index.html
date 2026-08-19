@@ -1489,10 +1489,11 @@ body.en-apercu #view{animation:none;transform:none}
    du bouton, qui dit que la question n'est pas celle de la rangée du dessous.
    ⚠ On avait essayé un dessin à part — picto noir, pas de compteur. Écarté : deux
    langues sur la même page se lisent plus mal qu'une seule. */
-.genreligne{margin:14px 0 4px}
-.genreligne > b{display:block;font-family:ui-monospace,monospace;font-size:9.5px;font-weight:500;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--enc2);margin-bottom:7px}
-.genreligne .chips{margin:0;padding:0}
+/* ⚠ LA FEUILLE « OÙ ? » MONTE PLUS HAUT (Mag, 19/08/2026 : « la fenêtre peut monter
+   plus haut »). Sans plancher, elle s'arrêtait à la hauteur de son contenu — dix
+   communes, donc une bande basse qui n'avait pas l'air d'une feuille. */
+#ouBg .partcard{min-height:62vh}
+@media(min-width:760px){ #ouBg .partcard{min-height:0} }
 
 /* ── LES PAGES DE FORMATION (08/08/2026) ──────────────────────────────────
    ⚠ CE BLOC N'EXISTAIT PAS. Les quatorze formations écrivent depuis toujours
@@ -2973,6 +2974,10 @@ body.en-apercu #view{animation:none;transform:none}
 .chip .x{font-style:normal;font-size:11px;line-height:1;opacity:.6}
 .chip.on .x{opacity:.75}
 .chip .fl{font-style:normal;font-size:10px;line-height:1}
+.ouhaut{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ouhaut span{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2)}
+.ouhaut .chip.vider{margin-left:auto}
 .chip.vider{border-style:dashed;color:var(--enc2)}
 .chip.vider::before{display:none}
 .chip.seul{gap:0;padding:7px 9px}
@@ -3787,6 +3792,18 @@ body.no-tabs #tabbar{display:none}
      n'ont ni notre typo ni nos couleurs et affichent l'adresse du site (Mag, 06/08/2026). -->
 <!-- LA FEUILLE DE PARTAGE — elle monte du bas sur téléphone, comme les feuilles du
      système : c'est le geste que tout le monde connaît déjà. -->
+<!-- ═══ « OÙ ? » — LA FEUILLE DES COMMUNES (Mag, 19/08/2026) ═══
+     « Juste un picto avec un petit point de map, et quand on clique ça ouvre la
+     fenêtre vers le bas qui glisse — ça fait comme une application. »
+     Elle emprunte SA CLASSE à la feuille de partage : même glissement, mêmes bords,
+     même voile. Deux feuilles qui montent du bas ne doivent pas monter différemment. -->
+<div id="ouBg" class="partbg" onclick="if(event.target.id==='ouBg')ouFermer()">
+  <div class="partcard">
+    <div class="parttete"><b>Où ?</b>
+      <button onclick="ouFermer()">Fermer</button></div>
+    <div id="ouCorps"></div>
+  </div>
+</div>
 <div id="partBg" class="partbg" onclick="if(event.target.id==='partBg')partageFermer()">
   <div class="partcard" role="dialog" aria-modal="true" aria-label="Partager cette fiche">
     <div class="parttete"><b>Partager</b>
@@ -3981,7 +3998,7 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
               /* Ton dessin de la femme (12/08/2026). Celui de l'homme est PROVISOIRE
                  — même trait, mêmes bouts arrondis, en attendant le tien : il est sur
                  la planche en « à redessiner ». */
-              femme:'femme.svg', homme:'homme.svg',
+              femme:'femme.svg', homme:'homme.svg', ou:'adresse.svg',
               /* Ton dessin du handicap, déposé le 01/08/2026 (renommé sans accent : une adresse
                  d'image doit rester simple). Il remplace le dessin provisoire. */
               handicap:'handicap.svg',
@@ -7825,37 +7842,53 @@ function filtrerTagsTout(){ filt.tags=[]; render(); }
    ⚠ La couleur d'une commune suit SON RANG DANS LA LISTE, pas son nom : elle doit
    être la même sur le bouton déplié et sur la pastille restée dehors, sinon on
    croit avoir choisi autre chose. */
-var COMMUNES_OUVERT=false;
-function communesOuvrir(){ COMMUNES_OUVERT=!COMMUNES_OUVERT; render(); }
 function communeBascule(c){
   const i=filt.communes.indexOf(c);
   if(i<0) filt.communes.push(c); else filt.communes.splice(i,1);
-  render();
+  render(); ouRemplir();
 }
-function communesEffacer(){ filt.communes=[]; render(); }
-function rangCommunes(coms){
-  const choisies=coms.filter(function(c){ return filt.communes.indexOf(c)>=0; });
-  let h='<div class="chips">'+
-    '<button class="chip neutre'+(COMMUNES_OUVERT?' on':'')+'" style="--c:var(--ligne)"'+
-      ' onclick="communesOuvrir()">Où <em class="fl">'+(COMMUNES_OUVERT?'▴':'▾')+'</em></button>';
-  if(!COMMUNES_OUVERT){
-    h+=choisies.map(function(c){
-      return '<button class="chip on" style="--c:'+chipCouleur(coms.indexOf(c))+'"'+
-        ' onclick="communeBascule(\''+esc(c).replace(/'/g,"\\'")+'\')"'+
-        ' aria-label="Enlever '+esc(c)+'">'+esc(c)+' <em class="x">✕</em></button>';
-    }).join('');
-  }
-  if(choisies.length>1)
-    h+='<button class="chip vider" onclick="communesEffacer()" aria-label="Enlever toutes les communes">'+
-       '<em class="x">✕</em> Tout enlever</button>';
-  h+='</div>';
-  if(COMMUNES_OUVERT){
-    h+='<div class="chips">'+coms.map(function(c,i){
+function communesEffacer(){ filt.communes=[]; render(); ouRemplir(); }
+var OU_COMS=[];
+function ouOuvrir(){ document.getElementById('ouBg').classList.add('on'); ouRemplir(); }
+function ouFermer(){ document.getElementById('ouBg').classList.remove('on'); }
+/* La feuille se redessine toute seule à chaque clic : elle vit HORS de `#view`, donc
+   `render()` ne la touche pas. Sans ça, on cochait une commune et la feuille restait
+   figée sur l'état d'avant. */
+function ouRemplir(){
+  const el=document.getElementById('ouCorps'); if(!el) return;
+  const n=filt.communes.length;
+  el.innerHTML=
+    '<div class="ouhaut"><span>'+(n? n+(n>1?' communes choisies':' commune choisie') : 'Toutes les communes')+'</span>'+
+    (n? '<button class="chip vider" onclick="communesEffacer()"><em class="x">✕</em> Tout enlever</button>':'')+'</div>'+
+    '<div class="chips">'+OU_COMS.map(function(c,i){
       return '<button class="chip'+(filt.communes.indexOf(c)>=0?' on':'')+'" style="--c:'+chipCouleur(i)+'"'+
         ' onclick="communeBascule(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
     }).join('')+'</div>';
-  }
-  return h;
+}
+function rangCommunes(coms){
+  OU_COMS=coms;
+  const choisies=coms.filter(function(c){ return filt.communes.indexOf(c)>=0; });
+  /* ⚠ Le picto est SEUL, sans un mot (Mag, 19/08/2026). `aria-label` et `title` sont
+     donc obligatoires : sans eux, ce bouton n'existe pas pour un lecteur d'écran. */
+  /* Rend les BOUTONS seuls : c'est `vDomaine` qui les pose dans la rangée commune
+     avec les deux pictos du public. */
+  /* ⚠ `pic` EST OBLIGATOIRE : c'est elle qui masque le carré de couleur. Sans elle,
+     le bouton affichait la pastille ET le picto — un carré noir collé à la punaise.
+     ⚠ ET CE COMMENTAIRE RESTE AU-DESSUS DU `return`, jamais entre lui et sa valeur :
+     JavaScript referme la ligne tout seul après un `return` isolé, la fonction
+     renvoie `undefined`, et tout ce qui suit devient du code mort — sans la moindre
+     erreur affichée. C'est exactement ce qui a fait disparaître le bouton carte le
+     19/08/2026, et ça ne se voit qu'en essayant, pas en relisant. */
+  return '<button class="chip neutre seul pic'+(choisies.length?' on':'')+'" style="--c:var(--ligne)"'+
+      ' aria-label="Choisir où" title="Où ?" onclick="ouOuvrir()">'+icon('ou')+'</button>'+
+    choisies.map(function(c){
+      return '<button class="chip on" style="--c:'+chipCouleur(coms.indexOf(c))+'"'+
+        ' onclick="communeBascule(\''+esc(c).replace(/'/g,"\\'")+'\')"'+
+        ' aria-label="Enlever '+esc(c)+'">'+esc(c)+' <em class="x">✕</em></button>';
+    }).join('')+
+    (choisies.length>1
+      ? '<button class="chip vider" onclick="communesEffacer()" aria-label="Enlever toutes les communes">'+
+        '<em class="x">✕</em> Tout enlever</button>' : '');
 }
 /* Un clic ajoute la sous-catégorie, un deuxième la retire. On ne remonte PAS en haut
    de page comme le fait `setFilt` : on empile des filtres, on doit garder les yeux
@@ -14369,7 +14402,17 @@ function vDomaine(key){
      comme « Nos préférés » juste au-dessus. « Mixte » n'a pas son bouton : c'est le
      cas de 98 % des fiches, et un bouton qui ne retire presque rien ne trie rien —
      c'est « Toutes » qui joue ce rôle, en retouchant le bouton allumé. */
-  let chipsGenre='', nGenre=0;
+  /* ═══ LES TROIS PICTOS SUR LA MÊME LIGNE (Mag, 19/08/2026) ═══
+     « Le picto map à côté des 2 autres. » La barre du haut devient donc une petite
+     rangée d'outils — femmes, hommes, où — et les communes choisies s'affichent à sa
+     suite. Comme les communes se calculent APRÈS les sous-catégories, on met les deux
+     rangées de côté et on les pose dans le bon ordre à la fin.
+     ⚠ L'INTITULÉ « QUI EST REÇU » DISPARAÎT : il ne couvrait plus les trois boutons.
+     C'est lui qui donnait au picto ♀ son sens de « QUE des femmes » — les
+     `aria-label` et les `title` le portent encore, mais plus le texte à l'écran.
+     ⚠ À vérifier avec l'équipe : si quelqu'un lit ♀ comme « reçoit des femmes »,
+     on a perdu la nuance qu'on venait de réparer. */
+  let chipsGenre='', nGenre=0, rangeeTags='', boutonsOu='';
   const nFem=base.filter(function(p){ return publicGenre(p)==='femmes'; }).length;
   const nHom=base.filter(function(p){ return publicGenre(p)==='hommes'; }).length;
   if(nFem||nHom){
@@ -14432,7 +14475,6 @@ function vDomaine(key){
       (nFem?btGenre('femmes','femme','Femmes uniquement',chipCouleur(0)):'')+
       (nHom?btGenre('hommes','homme','Hommes uniquement',chipCouleur(1)):'');
     nGenre=(nFem?1:0)+(nHom?1:0);
-    chipsGenre='<div class="genreligne"><b>Qui est reçu</b><div class="chips">'+chipsGenre+'</div></div>';
     /* ⚠ `pgenre` et non `genre` : `genre` sert déjà à trier Mail / Note dans les
        modèles. Deux tris différents sur la même clé finiraient par se marcher
        dessus le jour où quelqu'un les croisera. */
@@ -14467,7 +14509,7 @@ function vDomaine(key){
      quand même contenir des adresses de femmes — sans ça, la rangée disparaîtrait
      et le tri « Femmes uniquement » avec elle. */
   if(alltags.length>1 || chipsGenre){
-    chips+=chipsGenre+chipRow('tag',alltags,filt.tags,'Tout',{toutClic:'filtrerTagsTout()'});
+    rangeeTags=chipRow('tag',alltags,filt.tags,'Tout',{toutClic:'filtrerTagsTout()'});
     /* `every` et non `some` : cocher deux sous-catégories RESSERRE la liste. Une
        femme avec un enfant a besoin d'un endroit qui prend les deux, pas d'une liste
        qui mélange les maisons de femmes et les maisons de familles. */
@@ -14478,9 +14520,11 @@ function vDomaine(key){
     const coms=COMMUNES.filter(c=>parTag.some(p=>p.commune===c));
     /* Même relâchement pour la commune, et pour la même raison. */
     filt.communes=filt.communes.filter(function(c){ return coms.indexOf(c)>=0; });
-    if(coms.length>1) chips+=rangCommunes(coms);
+    if(coms.length>1) boutonsOu=rangCommunes(coms);
     if(filt.communes.length) items=items.filter(p=>filt.communes.indexOf(p.commune)>=0);
   }
+  if(chipsGenre||boutonsOu) chips+='<div class="chips">'+chipsGenre+boutonsOu+'</div>';
+  chips+=rangeeTags;
   items=triProximite(items);
   /* Social : les 19 CPAS se replient derrière un seul bouton. */
   let grpHtml='';
