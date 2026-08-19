@@ -7785,7 +7785,15 @@ function publicGenre(p){
 }
 function filtrerGenre(k){ filt.pgenre=(filt.pgenre===k)?null:k; render(); }
 /* Les deux tris partagent une rangée, donc ils partagent son « Tout ». */
-function filtrerPublicTout(){ filt.tag='Tout'; filt.pgenre=null; render(); }
+function filtrerPublicTout(){ filt.tags=[]; filt.pgenre=null; render(); }
+/* Un clic ajoute la sous-catégorie, un deuxième la retire. On ne remonte PAS en haut
+   de page comme le fait `setFilt` : on empile des filtres, on doit garder les yeux
+   sur la rangée pour voir ce qui s'allume et ce qui s'éteint. */
+function basculeTag(v){
+  const i=filt.tags.indexOf(v);
+  if(i<0) filt.tags.push(v); else filt.tags.splice(i,1);
+  render();
+}
 function triProximite(arr){
   const rang=p=> p.commune==='Anderlecht'?0 : (!p.commune||p.commune==='Régional / Toutes communes')?1 : 2;
   /* Les fiches conseillées par l'équipe passent DEVANT tout le reste, y compris
@@ -10198,7 +10206,7 @@ function render(){
     lb.innerHTML='<span class="ic">'+icon('list')+'</span>'+(reste?'<i class="dot"></i>':'');
     lb.classList.toggle('on',current.view==='liste');
   }
-  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tag:'Tout',dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
+  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tags:[],dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
   /* On ARRIVE sur l'accueil : la pile de jeux se remet sur Chrono 60 s. On y était
      déjà (on coche une tâche, la météo se charge) : on ne touche à rien. */
   if(current.view==='home' && VUE_AVANT!=='home') JEUI=jeuDepart();
@@ -13827,19 +13835,28 @@ function chipCouleur(i){ return CHIP_COULEURS[i%CHIP_COULEURS.length]; }
      · `toutOff`   — « Tout » n'est pas allumé, même si CE tri-ci est à zéro
      · `toutClic`  — ce que « Tout » remet à zéro (les deux tris, pas un seul)
    Les appels qui n'en ont pas besoin ne changent pas d'un caractère. */
+/* ⚠ `activeVal` PEUT ÊTRE UN TABLEAU (Mag, 19/08/2026 : « pourquoi pas de choix
+   cumulable ? »). Elle avait raison : rien ne justifiait qu'on ne puisse pas croiser
+   « Femmes » et « Avec enfants ». Quand on passe un tableau, chaque clic AJOUTE ou
+   RETIRE sa valeur au lieu de remplacer la précédente, et « Tout » les annule toutes.
+   Les autres rangées (commune, démarche) continuent de recevoir une chaîne : elles
+   restent à choix unique, parce qu'on n'est pas dans deux communes à la fois. */
 function chipRow(name,values,activeVal,allLabel,opts){
   opts=opts||{};
   const avant=opts.avant||'';
   if(values.length<2 && !avant) return '';
+  const multi=Array.isArray(activeVal);
+  const estOn=function(v){ return multi ? activeVal.indexOf(v)>=0 : activeVal===v; };
   /* « Tout » remet à zéro : il ne porte pas de couleur à lui, il les annule. */
-  const toutOn=(activeVal===allLabel)&&!opts.toutOff;
+  const toutOn=(multi ? !activeVal.length : activeVal===allLabel)&&!opts.toutOff;
   const toutClic=opts.toutClic||("setFilt('"+name+"','"+allLabel+"')");
   return '<div class="chips">'+
     '<button class="chip'+(toutOn?' on':'')+'" style="--c:var(--ligne)" onclick="'+toutClic+'">'+allLabel+'</button>'+
     avant+
     values.map(function(v,i){
-      return '<button class="chip'+(activeVal===v?' on':'')+'" style="--c:'+chipCouleur(i+(opts.decal||0))+'"'+
-        ' onclick="setFilt(\''+name+'\',\''+esc(v).replace(/'/g,"\\'")+'\')">'+esc(v)+'</button>';
+      const q=esc(v).replace(/'/g,"\\'");
+      return '<button class="chip'+(estOn(v)?' on':'')+'" style="--c:'+chipCouleur(i+(opts.decal||0))+'"'+
+        ' onclick="'+(multi?'basculeTag(\''+q+'\')':'setFilt(\''+name+'\',\''+q+'\')')+'">'+esc(v)+'</button>';
     }).join('')+
   '</div>';
 }
@@ -14289,10 +14306,15 @@ function vDomaine(key){
        qu'une place est gardée pour elle ; *uniquement* dit ce qui est vrai — il n'y
        a que des femmes dans le bâtiment. Pour quelqu'un qui fuit un conjoint, c'est
        cette phrase-là qui décide, pas l'autre.
-       ⚠ CES DEUX CHIPS NE DESSINENT PAS LEUR PROPRE RANGÉE : elles sont glissées
+       ⚠ CES DEUX BOUTONS NE DESSINENT PAS LEUR PROPRE RANGÉE : ils sont glissés
        dans celle des sous-catégories, plus bas (« je préfère que ce soit dans la
-       liste avec les autres »). On avait essayé un bouton à part, avec picto — elle
-       n'en a pas voulu : un objet à part demande à être compris à part. */
+       liste avec les autres »). Un objet posé à part demande à être compris à part.
+       ⚠ MAIS ILS NE SONT PAS DES CHIPS POUR AUTANT (choix ③ du 18/08/2026) : dans
+       la rangée, ils portent le picto noir au lieu de la pastille de couleur. Même
+       ligne, dessin différent — parce qu'ils ne répondent pas à la même question
+       que les autres. La chip « Femmes » dit *on y reçoit des femmes* ; ce
+       bouton-ci dit *il n'y a QUE des femmes*. Les deux se croisent dans la même
+       rangée, et c'est voulu : c'est là qu'on se pose les deux questions. */
     chipsGenre=
       /* ⚠ CE N'EST PAS UNE CHIP DE FILTRE (choix ③ de Mag, 18/08/2026) : les chips
          disent « montre-moi ce public », celle-ci dit « ici, il n'y a QUE ce
@@ -14322,17 +14344,20 @@ function vDomaine(key){
   alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
   /* Si la sous-catégorie qu'on lisait n'existe plus dans ce qui reste — on vient de
      cliquer « Nos préférés » — on la relâche au lieu d'afficher une page vide. */
-  if(filt.tag!=='Tout' && alltags.indexOf(filt.tag)<0) filt.tag='Tout';
+  filt.tags=filt.tags.filter(function(t){ return alltags.indexOf(t)>=0; });
   /* ⚠ `|| chipsGenre` : un tiroir peut n'avoir qu'une seule sous-catégorie et
      quand même contenir des adresses de femmes — sans ça, la rangée disparaîtrait
      et le tri « Femmes uniquement » avec elle. */
   if(alltags.length>1 || chipsGenre){
-    chips+=chipRow('tag',alltags,filt.tag,'Tout',
+    chips+=chipRow('tag',alltags,filt.tags,'Tout',
       {avant:chipsGenre, decal:nGenre, toutOff:!!filt.pgenre, toutClic:'filtrerPublicTout()'});
-    if(filt.tag!=='Tout') items=items.filter(p=>p.tags.includes(filt.tag));
+    /* `every` et non `some` : cocher deux sous-catégories RESSERRE la liste. Une
+       femme avec un enfant a besoin d'un endroit qui prend les deux, pas d'une liste
+       qui mélange les maisons de femmes et les maisons de familles. */
+    if(filt.tags.length) items=items.filter(p=>filt.tags.every(t=>p.tags.includes(t)));
   }
   if(d.byCommune){
-    const parTag=(filt.tag==='Tout')?base:base.filter(p=>p.tags.includes(filt.tag));
+    const parTag=filt.tags.length?base.filter(p=>filt.tags.every(t=>p.tags.includes(t))):base;
     const coms=COMMUNES.filter(c=>parTag.some(p=>p.commune===c));
     /* Même relâchement pour la commune, et pour la même raison. */
     if(filt.commune!=='Toutes' && coms.indexOf(filt.commune)<0) filt.commune='Toutes';
@@ -14346,7 +14371,7 @@ function vDomaine(key){
     const cpas=items.filter(estCpas);
     if(cpas.length>3){ items=items.filter(p=>!estCpas(p)); grpHtml=grpCpas(cpas); }
   }
-  if(d.isFormation && filt.tag==='Tout' && filt.commune==='Toutes') return vFormations();
+  if(d.isFormation && !filt.tags.length && filt.commune==='Toutes') return vFormations();
   /* Le bouton d'impression d'une LISTE DE FICHES : c'est la feuille qu'on emporte
      en visite ou qu'on donne à quelqu'un qui n'a pas l'app. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
