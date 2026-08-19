@@ -2940,9 +2940,22 @@ body.en-apercu #view{animation:none;transform:none}
   color:var(--noir);background:#fdfdfc;cursor:pointer}
 .chip::before{content:"";width:9px;height:9px;border-radius:2px;flex:none;
   background:var(--c,var(--noir))}
-/* Le chip choisi prend sa couleur à plein, cerclée de noir : on le voit de loin,
-   et l'encre reste noire — ces teintes sont trop claires pour porter du crème. */
-.chip.on{font-weight:600;background:var(--c,var(--noir));border-color:var(--noir)}
+/* ═══ LE CHIP CHOISI : SA COULEUR, MAIS ÉCLAIRCIE (Mag, 19/08/2026) ═══
+   « Les couleurs qui étaient bien à la base sur le petit carré, elles étaient trop
+   foncées [en aplat]. Quand c'est cliqué, ça doit être plus clair. »
+   Une teinte juste sur un carré de 9 px devient lourde étalée sur tout un bouton :
+   ce n'est pas la couleur qui était fausse, c'est la SURFACE. On la coupe donc de
+   crème à l'état allumé — la teinte reste reconnaissable, l'encre noire respire,
+   et le carré, lui, garde sa densité puisqu'il passe au noir juste en dessous.
+   ⚠ La ligne `background:var(--c)` juste avant n'est PAS un doublon : c'est le
+   repli pour un navigateur qui ne connaît pas `color-mix` — il retrouve alors
+   l'aplat plein d'avant, jamais un bouton transparent.
+   ⚠ `.neutre` s'y soustrait : le bouton « Tout » porte le gris du filet, déjà
+   très clair. L'éclaircir encore l'aurait rendu indistinct du fond. */
+.chip.on{font-weight:600;border-color:var(--noir);
+  background:var(--c,var(--noir));
+  background:color-mix(in srgb, var(--c,var(--noir)) 34%, #fdfdfc)}
+.chip.neutre.on{background:var(--ligne)}
 .chip.on::before{background:var(--noir)}
 .chip:active{transform:scale(.96)}
 /* ═══ LA PASTILLE REMPLACÉE PAR UN PICTO (Mag, 19/08/2026) ═══
@@ -2955,6 +2968,13 @@ body.en-apercu #view{animation:none;transform:none}
 .chip .pico{width:15px;height:15px;flex:none;background:currentColor}
 /* Le bouton qui n'a QUE son dessin : il se resserre en carré et le dessin grossit,
    sinon il flotte dans une boîte taillée pour du texte. */
+/* La croix, et le bouton qui vide la ligne. Le pointillé le distingue d'un filtre :
+   il n'ajoute rien, il retire. */
+.chip .x{font-style:normal;font-size:11px;line-height:1;opacity:.6}
+.chip.on .x{opacity:.75}
+.chip .fl{font-style:normal;font-size:10px;line-height:1}
+.chip.vider{border-style:dashed;color:var(--enc2)}
+.chip.vider::before{display:none}
 .chip.seul{gap:0;padding:7px 9px}
 .chip.seul .pico{width:18px;height:18px}
 
@@ -7791,6 +7811,52 @@ function filtrerPublicTout(){ filt.tags=[]; filt.pgenre=null; render(); }
 /* Les deux rangées sont indépendantes depuis le 19/08/2026 : le « Tout » des
    sous-catégories ne doit plus éteindre « Femmes uniquement », qui vit au-dessus. */
 function filtrerTagsTout(){ filt.tags=[]; render(); }
+/* ═══ LES COMMUNES : LE TIROIR QUI SE DÉPLIE (dessin ② de Mag, 19/08/2026) ═══
+   « À Bruxelles, on ne regarde pas la commune en premier. » Elle prenait pourtant
+   quatre lignes tout en haut, avant les adresses, et n'acceptait qu'un seul choix.
+
+   Replié, il ne reste qu'un bouton — mais les communes DÉJÀ CHOISIES restent
+   dehors, avec leur pastille de couleur et leur croix à elles. On voit donc où on
+   cherche sans rien rouvrir, et on retire une commune sans toucher aux autres.
+
+   ⚠ LA CROIX N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À EFFACER. Une croix posée en
+   permanence sur une ligne où rien n'est coché est un bouton qui ne fait rien —
+   et ceux-là, l'œil finit par ne plus les voir du tout.
+   ⚠ La couleur d'une commune suit SON RANG DANS LA LISTE, pas son nom : elle doit
+   être la même sur le bouton déplié et sur la pastille restée dehors, sinon on
+   croit avoir choisi autre chose. */
+var COMMUNES_OUVERT=false;
+function communesOuvrir(){ COMMUNES_OUVERT=!COMMUNES_OUVERT; render(); }
+function communeBascule(c){
+  const i=filt.communes.indexOf(c);
+  if(i<0) filt.communes.push(c); else filt.communes.splice(i,1);
+  render();
+}
+function communesEffacer(){ filt.communes=[]; render(); }
+function rangCommunes(coms){
+  const choisies=coms.filter(function(c){ return filt.communes.indexOf(c)>=0; });
+  let h='<div class="chips">'+
+    '<button class="chip neutre'+(COMMUNES_OUVERT?' on':'')+'" style="--c:var(--ligne)"'+
+      ' onclick="communesOuvrir()">Où <em class="fl">'+(COMMUNES_OUVERT?'▴':'▾')+'</em></button>';
+  if(!COMMUNES_OUVERT){
+    h+=choisies.map(function(c){
+      return '<button class="chip on" style="--c:'+chipCouleur(coms.indexOf(c))+'"'+
+        ' onclick="communeBascule(\''+esc(c).replace(/'/g,"\\'")+'\')"'+
+        ' aria-label="Enlever '+esc(c)+'">'+esc(c)+' <em class="x">✕</em></button>';
+    }).join('');
+  }
+  if(choisies.length>1)
+    h+='<button class="chip vider" onclick="communesEffacer()" aria-label="Enlever toutes les communes">'+
+       '<em class="x">✕</em> Tout enlever</button>';
+  h+='</div>';
+  if(COMMUNES_OUVERT){
+    h+='<div class="chips">'+coms.map(function(c,i){
+      return '<button class="chip'+(filt.communes.indexOf(c)>=0?' on':'')+'" style="--c:'+chipCouleur(i)+'"'+
+        ' onclick="communeBascule(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
+    }).join('')+'</div>';
+  }
+  return h;
+}
 /* Un clic ajoute la sous-catégorie, un deuxième la retire. On ne remonte PAS en haut
    de page comme le fait `setFilt` : on empile des filtres, on doit garder les yeux
    sur la rangée pour voir ce qui s'allume et ce qui s'éteint. */
@@ -10211,7 +10277,7 @@ function render(){
     lb.innerHTML='<span class="ic">'+icon('list')+'</span>'+(reste?'<i class="dot"></i>':'');
     lb.classList.toggle('on',current.view==='liste');
   }
-  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,commune:'Toutes',tags:[],dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
+  if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,communes:[],tags:[],dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
   /* On ARRIVE sur l'accueil : la pile de jeux se remet sur Chrono 60 s. On y était
      déjà (on coche une tâche, la météo se charge) : on ne touche à rien. */
   if(current.view==='home' && VUE_AVANT!=='home') JEUI=jeuDepart();
@@ -13746,7 +13812,7 @@ function vReseauV2(){
     '<span class="tl last"><span class="tl-txt">Qu<span class="tdo"></span>i<span style="margin-left:.16em">?</span></span></span></div>';
 
   html+='<div class="chips">'+
-    '<button class="chip'+(ray===''?' on':'')+'" style="--c:var(--ligne)" onclick="reseauV2Filter(\'\')">Tout</button>'+
+    '<button class="chip neutre'+(ray===''?' on':'')+'" style="--c:var(--ligne)" onclick="reseauV2Filter(\'\')">Tout</button>'+
     RESEAU_V2_SECTIONS.map(function(sec,i){
       return '<button class="chip'+(ray===String(i)?' on':'')+'" style="--c:'+sec.couleur+'"'+
         ' onclick="reseauV2Filter(\''+i+'\')">'+esc(sec.name)+'</button>';
@@ -13856,7 +13922,7 @@ function chipRow(name,values,activeVal,allLabel,opts){
   const toutOn=(multi ? !activeVal.length : activeVal===allLabel)&&!opts.toutOff;
   const toutClic=opts.toutClic||("setFilt('"+name+"','"+allLabel+"')");
   return '<div class="chips">'+
-    '<button class="chip'+(toutOn?' on':'')+'" style="--c:var(--ligne)" onclick="'+toutClic+'">'+allLabel+'</button>'+
+    '<button class="chip neutre'+(toutOn?' on':'')+'" style="--c:var(--ligne)" onclick="'+toutClic+'">'+allLabel+'</button>'+
     avant+
     values.map(function(v,i){
       const q=esc(v).replace(/'/g,"\\'");
@@ -14378,8 +14444,12 @@ function vDomaine(key){
   /* On relâche la commune AVANT de calculer les sous-catégories : si elle n'existe
      plus dans ce qui reste, la rangée du dessous se calculerait sur un ensemble vide
      et disparaîtrait alors qu'elle a des choses à proposer. */
-  if(filt.commune!=='Toutes' && !base.some(p=>p.commune===filt.commune)) filt.commune='Toutes';
-  const parCommune=(filt.commune==='Toutes')?base:base.filter(p=>p.commune===filt.commune);
+  filt.communes=filt.communes.filter(function(c){ return base.some(p=>p.commune===c); });
+  /* `some` et non `every` : deux communes cochées, c'est « Anderlecht OU Molenbeek ».
+     ⚠ L'inverse des sous-catégories, où cocher deux valeurs RESSERRE (« femmes ET avec
+     enfants »). Ce n'est pas une incohérence : une adresse n'est que dans une commune,
+     donc un « et » entre deux communes ne renverrait jamais rien. */
+  const parCommune=filt.communes.length?base.filter(p=>filt.communes.indexOf(p.commune)>=0):base;
   const ordre=(TAGS_REGLES[key]||[]).map(r=>r[1]);
   let alltags=[...new Set(parCommune.flatMap(p=>p.tags))];
   alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
@@ -14407,9 +14477,9 @@ function vDomaine(key){
     const parTag=filt.tags.length?base.filter(p=>filt.tags.every(t=>p.tags.includes(t))):base;
     const coms=COMMUNES.filter(c=>parTag.some(p=>p.commune===c));
     /* Même relâchement pour la commune, et pour la même raison. */
-    if(filt.commune!=='Toutes' && coms.indexOf(filt.commune)<0) filt.commune='Toutes';
-    if(coms.length>1) chips+=chipRow('commune',coms,filt.commune,'Toutes');
-    if(filt.commune!=='Toutes') items=items.filter(p=>p.commune===filt.commune);
+    filt.communes=filt.communes.filter(function(c){ return coms.indexOf(c)>=0; });
+    if(coms.length>1) chips+=rangCommunes(coms);
+    if(filt.communes.length) items=items.filter(p=>filt.communes.indexOf(p.commune)>=0);
   }
   items=triProximite(items);
   /* Social : les 19 CPAS se replient derrière un seul bouton. */
@@ -14418,7 +14488,7 @@ function vDomaine(key){
     const cpas=items.filter(estCpas);
     if(cpas.length>3){ items=items.filter(p=>!estCpas(p)); grpHtml=grpCpas(cpas); }
   }
-  if(d.isFormation && !filt.tags.length && filt.commune==='Toutes') return vFormations();
+  if(d.isFormation && !filt.tags.length && !filt.communes.length) return vFormations();
   /* Le bouton d'impression d'une LISTE DE FICHES : c'est la feuille qu'on emporte
      en visite ou qu'on donne à quelqu'un qui n'a pas l'app. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
