@@ -2953,6 +2953,10 @@ body.en-apercu #view{animation:none;transform:none}
    la seule ligne où un dessin dit quelque chose qu'un carré ne dira jamais. */
 .chip.pic::before{display:none}
 .chip .pico{width:15px;height:15px;flex:none;background:currentColor}
+/* Le bouton qui n'a QUE son dessin : il se resserre en carré et le dessin grossit,
+   sinon il flotte dans une boîte taillée pour du texte. */
+.chip.seul{gap:0;padding:7px 9px}
+.chip.seul .pico{width:18px;height:18px}
 
 /* ---- listes de fiches : le registre ---- */
 .cards{display:flex;flex-direction:column;gap:0;padding:12px 0 30px}
@@ -7787,7 +7791,6 @@ function filtrerPublicTout(){ filt.tags=[]; filt.pgenre=null; render(); }
 /* Les deux rangées sont indépendantes depuis le 19/08/2026 : le « Tout » des
    sous-catégories ne doit plus éteindre « Femmes uniquement », qui vit au-dessus. */
 function filtrerTagsTout(){ filt.tags=[]; render(); }
-function filtrerGenreTout(){ filt.pgenre=null; render(); }
 /* Un clic ajoute la sous-catégorie, un deuxième la retire. On ne remonte PAS en haut
    de page comme le fait `setFilt` : on empile des filtres, on doit garder les yeux
    sur la rangée pour voir ce qui s'allume et ce qui s'éteint. */
@@ -14342,18 +14345,26 @@ function vDomaine(key){
        de la ligne, une fois au lieu de deux. « Qui est reçu → Femmes » dit déjà qu'il
        n'y a que des femmes. Trois boutons courts, dont deux portent un dessin, se
        lisent d'un coup d'œil ; trois phrases identiques à deux mots près, non. */
+    /* ⚠ DEUX PICTOS, RIEN D'ÉCRIT, ET PAS DE « TOUS » (Mag, 19/08/2026) : « juste le
+       picto, ne marque pas femme, ne marque pas homme, ne marque pas tous. Tous, on
+       le sait, il suffit de désactiver le bouton. »
+       Un troisième bouton pour dire « pas de filtre » n'apprenait rien : l'absence de
+       filtre, c'est l'état d'arrivée de la page. Recliquer sur le bouton allumé
+       l'éteint (voir `filtrerGenre`), et l'intitulé de la ligne porte le sens.
+       ⚠ `aria-label` et `title` restent obligatoires : sans eux, un bouton sans mot
+       n'existe pas pour un lecteur d'écran, et ne se survole pas.
+       ⚠ `--c` RESTE OBLIGATOIRE MÊME SANS PASTILLE : c'est lui qui donne sa couleur
+       au bouton ALLUMÉ (`.chip.on{background:var(--c,var(--noir))}`). Sans lui, la
+       valeur de secours est le noir — et le bouton choisi devenait un rectangle noir
+       vide, picto invisible. Vu à l'écran le 19/08/2026, pas en relisant le code. */
+    const btGenre=function(k,pic,mot,coul){
+      return '<button class="chip pic seul'+(filt.pgenre===k?' on':'')+'" style="--c:'+coul+'"'+
+        ' aria-label="'+mot+'" title="'+mot+'"'+
+        ' onclick="filtrerGenre(\''+k+'\')">'+icon(pic)+'</button>';
+    };
     chipsGenre=
-      '<button class="chip'+(filt.pgenre?'':' on')+'" style="--c:var(--ligne)"'+
-        ' onclick="filtrerGenreTout()">Tous</button>'+
-      /* ⚠ `--c` RESTE OBLIGATOIRE MÊME SANS PASTILLE : c'est lui qui donne sa couleur
-         au bouton ALLUMÉ (`.chip.on{background:var(--c,var(--noir))}`). Sans lui, la
-         valeur de secours est le noir — et le bouton choisi devenait un rectangle
-         noir vide, texte noir sur fond noir, picto invisible. Vu à l'écran le
-         19/08/2026, pas en relisant le code. */
-      (nFem?'<button class="chip pic'+(filt.pgenre==='femmes'?' on':'')+'" style="--c:'+chipCouleur(0)+'"'+
-        ' onclick="filtrerGenre(\'femmes\')">'+icon('femme')+'Femmes</button>':'')+
-      (nHom?'<button class="chip pic'+(filt.pgenre==='hommes'?' on':'')+'" style="--c:'+chipCouleur(1)+'"'+
-        ' onclick="filtrerGenre(\'hommes\')">'+icon('homme')+'Hommes</button>':'');
+      (nFem?btGenre('femmes','femme','Femmes uniquement',chipCouleur(0)):'')+
+      (nHom?btGenre('hommes','homme','Hommes uniquement',chipCouleur(1)):'');
     nGenre=(nFem?1:0)+(nHom?1:0);
     chipsGenre='<div class="genreligne"><b>Qui est reçu</b><div class="chips">'+chipsGenre+'</div></div>';
     /* ⚠ `pgenre` et non `genre` : `genre` sert déjà à trier Mail / Note dans les
