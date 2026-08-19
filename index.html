@@ -13606,29 +13606,69 @@ function vReseau(){
       '<span class="tl last"><span class="tl-txt">Qu<span class="tdo"></span>i<span style="margin-left:.16em">?</span></span></span></div>'+
     boutons+grille+fichePanHTML()+'<div style="height:20px"></div>';
 }
+/* ⚠⚠ UNE LISTE ÉCRITE À LA MAIN PERD DES TIROIRS — ET ÇA S'EST PRODUIT.
+   Le 18/08/2026 au matin, cette liste ne nommait que 17 tiroirs sur 31 : les CPAS,
+   le Planning familial, les Assuétudes, le Service social, Manger, Se laver,
+   Passer la journée… **136 fiches sur 373 n'étaient plus atteignables**, sans un
+   message, sans une page vide — elles avaient simplement disparu de la page.
+   L'ancienne version ne pouvait pas avoir ce défaut : elle terminait par une
+   section « Le reste » qui ramassait tout tiroir non rangé. Je l'avais retirée.
+   ⚠ ELLE EST REVENUE, PLUS BAS DANS `vReseauV2()`, ET ELLE NE DOIT PLUS PARTIR.
+   Tout domaine `reseau:true` absent d'ici ressort dans « Le reste ». Un tiroir mal
+   rangé se voit et se corrige ; un tiroir disparu, non.
+
+   ⚠ UNE CARTE = UN SEUL TIROIR : le clic n'ouvre que `domaines[0]`. Deux tiroirs
+   sur une carte rendaient le second inatteignable — « Se soigner » couvrait medical
+   ET mmed, et les 15 maisons médicales étaient invisibles alors que c'est par là
+   que l'équipe commence toujours.
+
+   ⚠ `picto` est FACULTATIF : sans lui, la carte prend le picto que le domaine porte
+   déjà dans l'app. On ne réinvente pas un dessin pour un tiroir qui en a un. */
 const RESEAU_V2_CATEGORIES=[
-  {title:'Dormir ce soir',domaines:['urgenceheb'],picto:'hebergement.svg',etiquettes:['NUIT']},
+  /* ── Un toit ── */
+  /* ⚠ « Hébergement d'urgence » et non « Dormir ce soir » (Mag, 18/08/2026) : c'est
+     le nom du secteur, celui de l'arrêté, et celui qu'on dit au téléphone. */
+  {title:'Hébergement d\'urgence',domaines:['urgenceheb'],picto:'hebergement.svg',etiquettes:['NUIT','URGENCE']},
   {title:'Maisons d\'accueil',domaines:['maisons'],picto:'accueil.svg',etiquettes:['NUIT','SÉJOUR']},
   {title:'Logement',domaines:['logement'],picto:'logement.svg',etiquettes:['SÉJOUR']},
   {title:'Qui cherche une place',domaines:['orientation'],picto:'cible.svg',etiquettes:['ORIENTATION']},
-  {title:'Se soigner',domaines:['medical','mmed'],picto:'medical.svg',etiquettes:['JOUR']},
+  /* ── Au quotidien ──
+     ⚠ C'est ici que « Passer la journée » réapparaît. Elle demandait le 11/08/2026
+     « les accueils de jour, ils sont où ? » — la réponse était : nulle part ensemble.
+     Ils ont maintenant leur carte, dans la section qui parle de la journée. */
+  {title:'Manger',domaines:['manger'],etiquettes:['JOUR']},
+  {title:'Se laver, se vêtir',domaines:['laver'],etiquettes:['JOUR']},
+  {title:'Passer la journée',domaines:['journee'],etiquettes:['JOUR']},
+  {title:'Maraude',domaines:['vavers'],etiquettes:['JOUR']},
+  /* ── Des soins ── */
+  {title:'Se soigner',domaines:['medical'],picto:'medical.svg',etiquettes:['JOUR']},
+  {title:'Maisons médicales',domaines:['mmed'],picto:'adresse.svg',etiquettes:['JOUR']},
   {title:'Consommer',domaines:['consommer'],picto:'addictions.svg',etiquettes:['JOUR']},
   {title:'Se sevrer',domaines:['sevrer'],picto:'addictions.svg',etiquettes:['SÉJOUR']},
+  {title:'Drogues & addictions',domaines:['addictions'],etiquettes:['JOUR']},
   {title:'Santé mentale',domaines:['santementale'],picto:'sante-mentale.svg',etiquettes:['JOUR','SÉJOUR']},
+  {title:'Planning familial',domaines:['planning'],etiquettes:['JOUR']},
   {title:'Urgences',domaines:['urgences'],picto:'urgences.svg',etiquettes:['URGENCE']},
+  /* ── Des droits ──
+     ⚠ CPAS en tête : avec les maisons médicales, c'est par là que l'équipe
+     commence toujours. Ils étaient purement absents de la page. */
+  {title:'CPAS',domaines:['cpas'],etiquettes:['ORIENTATION']},
+  {title:'Service social',domaines:['servsoc'],etiquettes:['ORIENTATION']},
   {title:'Papiers, séjour',domaines:['etrangers'],picto:'cle.svg',etiquettes:['ORIENTATION']},
+  {title:'Juridique',domaines:['juridique'],etiquettes:['ORIENTATION']},
   {title:'Violences',domaines:['violences'],picto:'femme.svg',etiquettes:['URGENCE','JOUR']},
   {title:'Handicap',domaines:['handicap'],picto:'handicap.svg',etiquettes:['JOUR','SÉJOUR']},
   {title:'LGBTQI+',domaines:['lgbt'],picto:'lgbtqi.svg',etiquettes:['JOUR']},
-  {title:'Jeunesse, familles',domaines:['famille','educatif'],picto:'educatif.svg',etiquettes:['JOUR']},
+  {title:'Familles',domaines:['famille'],etiquettes:['JOUR']},
+  {title:'Apprendre',domaines:['educatif'],picto:'educatif.svg',etiquettes:['JOUR']},
+  {title:'Apprendre le français',domaines:['francais'],etiquettes:['JOUR']},
   {title:'Culture, loisirs',domaines:['culture'],picto:'fete.svg',etiquettes:['JOUR']}
 ];
-/* ⚠ Les couleurs des rayons ne réutilisent AUCUNE couleur d'étiquette : les deux
-   rangées ont le même dessin, c'est la teinte qui dit à laquelle on a affaire. */
 const RESEAU_V2_SECTIONS=[
-  {name:'Un toit',    couleur:'#6fc7d9', start:0, end:4},
-  {name:'Des soins',  couleur:'#6cb392', start:4, end:9},
-  {name:'Des droits', couleur:'#f3c6da', start:9, end:15}
+  {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:4},
+  {name:'Au quotidien', couleur:'#f5c542', start:4,  end:8},
+  {name:'Des soins',    couleur:'#6cb392', start:8,  end:16},
+  {name:'Des droits',   couleur:'#f3c6da', start:16, end:27}
 ];
 const RESEAU_V2_ETIQUETTES={
   'NUIT':{bg:'#1b1b1b',text:'#fdfdfc'},
@@ -13654,6 +13694,17 @@ const RESEAU_V2_ETIQUETTES={
    tiroir. Ne pas les effacer des données en croyant faire du rangement.
    ⚠ Le dessin est celui des chips (`.chips`/`.chip`), pas un troisième bouton à
    nous : « le design du un, mets-le partout ». */
+/* `picto` absent → on prend celui que le domaine porte déjà dans l'app, plutôt que
+   d'en inventer un. `.reseau-icon` habille les deux (image ou masque). */
+function reseauV2Carte(cat){
+  const d=DOMAINES.find(function(x){ return x.key===cat.domaines[0]; });
+  const dessin = cat.picto
+    ? '<img src="picto/'+cat.picto+'" alt="" class="reseau-icon">'
+    : (d && d.ic ? icon(d.ic,'class="reseau-icon"') : '');
+  return '<button class="reseau-card" onclick="go(\'#/d/'+cat.domaines[0]+'\')">'+
+    '<span class="reseau-card-title">'+esc(cat.title)+'</span>'+
+    '<span class="reseau-card-icon">'+dessin+'</span></button>';
+}
 function vReseauV2(){
   const ray=RESEAU_V2_FILTER;
   let html='<div class="reseau-v2">'+
@@ -13674,14 +13725,27 @@ function vReseauV2(){
     if(ray!=='' && ray!==String(si)) return;
     let cartes='';
     for(let k=section.start;k<section.end;k++){
-      const cat=RESEAU_V2_CATEGORIES[k];
-      cartes+='<button class="reseau-card" onclick="go(\'#/d/'+cat.domaines[0]+'\')">'+
-        '<span class="reseau-card-title">'+esc(cat.title)+'</span>'+
-        '<span class="reseau-card-icon"><img src="picto/'+cat.picto+'" alt="" class="reseau-icon"></span></button>';
+      cartes+=reseauV2Carte(RESEAU_V2_CATEGORIES[k]);
     }
     html+='<div class="reseau-section-label" style="border-bottom-color:'+section.couleur+'">'+
       esc(section.name)+'</div>'+cartes;
   });
+
+  /* ═══ LE FILET — il ne doit plus jamais partir ═══
+     Tout tiroir du Réseau qui n'est nommé nulle part au-dessus ressort ici, avec son
+     propre nom et son propre picto. C'est ce qui manquait le 18/08/2026 au matin :
+     sans lui, 14 tiroirs et 136 fiches avaient disparu de la page sans un mot.
+     Si cette section s'affiche, ce n'est pas une panne — c'est une question posée :
+     « où range-t-on celui-là ? ». */
+  const poses={};
+  RESEAU_V2_CATEGORIES.forEach(function(c){ c.domaines.forEach(function(k){ poses[k]=1; }); });
+  const oublies=DOMAINES.filter(function(d){ return d.reseau && !poses[d.key] && fichesDe(d.key).length; });
+  if(oublies.length && ray===''){
+    html+='<div class="reseau-section-label" style="border-bottom-color:#b28b7a">Le reste</div>'+
+      oublies.map(function(d){
+        return reseauV2Carte({title:d.short||d.label, domaines:[d.key]});
+      }).join('');
+  }
   html+='</div></div>'+fichePanHTML()+'<div style="height:20px"></div>';
   return html;
 }
