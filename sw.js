@@ -13,7 +13,7 @@ const ASSETS = ['./', './index.html', './app-classique.html', './manifest.webman
                 './picto/ico-guillemets.svg', './picto/ico-etoile.svg', './picto/site.svg', './picto/ico-demidisques.svg', './picto/ico-fleur.svg',
                 './picto/ico-donut.svg', './picto/astuce.svg',
                 './picto/formations.svg', './picto/avis.svg', './picto/urgences.svg',
-                './picto/petition.svg', './picto/roue.svg', './picto/cle.svg', './picto/imprimer.svg', './picto/juridique.svg', './picto/addictions.svg', './picto/planning.svg', './picto/accompagnement.svg', './picto/social.svg', './picto/lgbtqi.svg', './qrcode.js', './picto/jeu-roue.svg', './picto/jeu-cartes.svg', './picto/jeu-serie.svg', './picto/jeu-chrono.svg', './picto/jeu-enquete.svg', './picto/jeu-cible.svg', './picto/jeu-jour.svg', './picto/jeu-duel.svg', './picto/de.svg', './picto/palette.svg'];
+                './picto/petition.svg', './picto/roue.svg', './picto/cle.svg', './picto/imprimer.svg', './picto/femme.svg', './picto/homme.svg', './picto/juridique.svg', './picto/addictions.svg', './picto/planning.svg', './picto/accompagnement.svg', './picto/social.svg', './picto/lgbtqi.svg', './qrcode.js', './picto/jeu-roue.svg', './picto/jeu-cartes.svg', './picto/jeu-serie.svg', './picto/jeu-chrono.svg', './picto/jeu-enquete.svg', './picto/jeu-cible.svg', './picto/jeu-jour.svg', './picto/jeu-duel.svg', './picto/de.svg', './picto/palette.svg'];
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // la nouvelle version prend la main immédiatement
