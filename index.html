@@ -3888,6 +3888,36 @@ body.no-tabs #tabbar{display:none}
   .reseau-grille{animation:reseauEntre .16s ease}
   @keyframes reseauEntre{ from{opacity:.25} to{opacity:1} }
   @media (prefers-reduced-motion:reduce){ .reseau-grille{animation:none} }
+  /* ═══ LE CONSTAT DE L'ÉQUIPE, EN TÊTE DE FICHE (piste B, 20/08/2026) ═══
+     « B, mais plus joli le mot de l'équipe. » Le cadre doré à fond crème avec sa
+     pastille avait la forme d'un avertissement — or ce n'est pas un danger, c'est
+     ce que des collègues ont constaté sur place. Plus de boîte : un intertitre en
+     petit, la phrase en grand, un filet doré dessous. Ça se lit comme un titre,
+     pas comme une étiquette collée. */
+  .constat{margin:14px 0 6px;padding-bottom:12px;border-bottom:1.5px solid #e0c274}
+  .constat .cl{display:block;font-family:ui-monospace,monospace;font-size:9px;
+    letter-spacing:.18em;text-transform:uppercase;color:#a8863a;margin-bottom:7px}
+  .constat b{display:block;font-size:19px;font-weight:600;line-height:1.25;
+    letter-spacing:-.01em;color:var(--noir)}
+
+  /* ═══ LE CARNET DE L'ÉQUIPE : replié, avec sa tache ═══ */
+  .carnet{border:1.25px solid var(--trait);border-radius:12px;background:#fdfdfc;margin-top:22px}
+  .carnet .ct{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    padding:15px;min-height:52px;color:var(--noir)}
+  .carnet .ct b{flex:1;font-family:ui-monospace,monospace;font-size:10px;font-weight:600;
+    letter-spacing:.18em;text-transform:uppercase}
+  /* La tache : pleine quand il y a quelque chose dedans, un simple cerne quand le
+     carnet est vide. On voit qu'il y a à lire sans l'ouvrir. */
+  /* ⚠ PAS `.tache` : ce nom est déjà pris par les lignes de check-list, qui sont
+     des cartes avec du padding et un contour. La pastille en héritait et devenait
+     un disque de 46 px. Vu à l'écran, pas en relisant le code. */
+  .carnet .ct .cpt{width:11px;height:11px;border-radius:50%;background:#c9940c;flex:none}
+  .carnet .ct .cpt.vide{background:transparent;box-shadow:inset 0 0 0 1.5px #cfccc6}
+  .carnet .ct .n{flex:none;font-family:ui-monospace,monospace;font-size:9.5px;color:var(--enc2)}
+  .carnet .ct .chv{flex:none;font-size:17px;line-height:1}
+  .carnet .cc{padding:4px 15px 15px;border-top:1px solid #eae6de}
+  .carnet.ouvert{background:#fdfdfc}
+
   .reseau-tout{grid-column:1/-1;display:block;width:100%;text-align:center;margin:4px 0 24px;
     border:1.25px solid var(--trait);border-radius:10px;background:#fdfdfc;color:var(--noir);
     padding:14px;font-family:ui-monospace,monospace;font-size:10px;font-weight:500;
@@ -14180,7 +14210,7 @@ function chipRow(name,values,activeVal,allLabel,opts){
    plutôt que d'en dessiner un deuxième : deux panneaux qui montent différemment dans
    la même app, ça se remarque tout de suite. */
 var FICHE_PAN='';
-function fichePan(sid){ FICHE_PAN=sid; figerFond(true); render();
+function fichePan(sid){ FICHE_PAN=sid; CARNET_OUV=false; figerFond(true); render();
   /* Le panneau s'ouvre TOUT DE SUITE et le bloc de l'équipe se remplit après :
      attendre la base avant d'afficher la fiche ferait patienter pour rien. */
   if(sid) rafraichirAvis(sid);
@@ -14207,6 +14237,7 @@ function fichePanHTML(){
          referme sans avoir bougé de place. Le bouton « la fiche entière » n'a plus
          de raison d'être. */
       '<div class="actcorps">'+
+        constatHTML(p)+
         /* Les conditions d'abord : c'est ce qui décide d'y aller ou pas. */
         (p.conditions?'<p class="fpcond">'+esc(p.conditions)+'</p>':'')+
         (p.desc?'<p class="fpdesc">'+esc(p.desc)+'</p>':'')+
@@ -15193,10 +15224,17 @@ function etqsDe(a){
 }
 function rafraichirAvis(sid){
   loadAvis(sid).then(function(){
+    const ici = (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid));
+    if(!ici) return;
+    /* ⚠ LE CONSTAT ET LE CARNET SE REMPLISSENT EN MÊME TEMPS. Le constat vit
+       maintenant EN HAUT de la fiche, loin du carnet : ne rafraîchir que
+       `#aviszone` le laissait vide jusqu'au rendu suivant — et quand le carnet est
+       replié, `#aviszone` n'existe même pas. */
+    const c=document.getElementById('constatzone');
+    if(c && BYSID[sid]) c.outerHTML=constatHTML(BYSID[sid]);
     const z=document.getElementById('aviszone');
-    /* Deux endroits possibles maintenant : la fiche entière, ET le panneau. */
-    if(z && (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid)))
-      z.innerHTML=avisCorpsHTML(sid);
+    if(z) z.innerHTML=avisCorpsHTML(sid);
+    else if(typeof render==='function') render();
   });
 }
 /* ⚠ ON COCHE ET ON DÉCOCHE, SANS CHASSER LES AUTRES (18/08/2026). Avant, poser une
@@ -15457,10 +15495,43 @@ function avisBlocHTML(p){
      ce qu'est ce bloc — un mot posé par l'une, une phrase ajoutée par l'autre, le
      tout rangé ensuite par la coordination. Le mot dit le fonctionnement, pas le
      contenu. Ne pas le « traduire » en français croyant bien faire. */
-  return '<div class="f-h" style="margin-top:24px">Wiki</div>'+
-    '<div id="aviszone" class="avisbloc">'+
-    (AVIS_SID===p.sid && AVIS_CHARGE ? avisCorpsHTML(p.sid) : '<p class="hint">Chargement…</p>')+
+  /* ═══ PISTE B, CHOISIE PAR MAG LE 20/08/2026 ═══
+     Le bloc s'appelait « Wiki » et s'ouvrait en grand, avec ses sept mots en
+     capitales et son formulaire, au milieu d'une page qu'on ouvre pour LIRE. Il se
+     coupe maintenant en deux morceaux qui ne servent pas au même moment :
+     · CE QUE L'ÉQUIPE A CONSTATÉ monte tout en haut de la fiche, en toutes lettres
+       (« On n'y dort pas ») — c'était la dernière chose qu'on voyait ;
+     · LE CARNET DE L'ÉQUIPE reste ici, REPLIÉ, avec une petite tache à droite quand
+       il y a quelque chose dedans. Ses mots : « un titre plus compréhensible, avec
+       une petite tache à droite, et ça doit pouvoir se déployer — sinon il y a trop
+       d'informations ».
+     ⚠ Elle avait dit « nomme-le Wiki » le 18/08 : c'est elle qui rouvre. */
+  const pret = (AVIS_SID===p.sid && AVIS_CHARGE);
+  const nMots = pret ? AVIS.filter(function(a){ return (a.texte||'').trim(); }).length : 0;
+  return '<div class="carnet'+(CARNET_OUV?' ouvert':'')+'">'+
+      '<button class="ct" onclick="carnetBascule()" aria-expanded="'+(CARNET_OUV?'true':'false')+'">'+
+        '<b>Le carnet de l’équipe</b>'+
+        (pret
+          ? '<span class="cpt'+(nMots?'':' vide')+'"></span>'+
+            '<span class="n">'+(nMots ? nMots+' mot'+(nMots>1?'s':'') : 'rien encore')+'</span>'
+          : '<span class="n">Chargement…</span>')+
+        '<span class="chv">'+(CARNET_OUV?'\u2303':'\u203A')+'</span></button>'+
+      (CARNET_OUV
+        ? '<div id="aviszone" class="cc">'+(pret?avisCorpsHTML(p.sid):'<p class="hint">Chargement…</p>')+'</div>'
+        : '')+
     '</div>';
+}
+var CARNET_OUV=false;
+function carnetBascule(){ CARNET_OUV=!CARNET_OUV; render(); }
+/* Ce que l'équipe a CONSTATÉ, en toutes lettres, en tête de fiche. Sept mots en
+   capitales ressemblaient à des filtres ; une phrase se lit. */
+function constatHTML(p){
+  const pret = (AVIS_SID===p.sid && AVIS_CHARGE);
+  const etqs = pret ? etqsDeLaFiche() : [];
+  if(!etqs.length) return '<div id="constatzone"></div>';
+  return '<div id="constatzone"><div class="constat">'+
+    '<span class="cl">L’équipe a constaté</span>'+
+    '<b>'+esc(etqs.map(function(k){ return ETQ_LABELS[k][1]; }).join(' · '))+'</b></div></div>';
 }
 
 function vFiche(p){
@@ -19196,8 +19267,11 @@ function vTicket(){
             la même raison).
             Un mot, un trait fin, et le bouton WhatsApp à côté : c'est LUI qui sert. */
          '<div class="actalerte"><b>Inscription</b>'+
-           '<a href="https://wa.me/32474857825" target="_blank" rel="noopener">'+
-           'Écrire<img src="picto/whatsapp.svg" alt="WhatsApp"></a></div>'+
+           '<a href="https://wa.me/32474857825" target="_blank" rel="noopener" aria-label="Écrire sur WhatsApp">'+
+           /* ⚠ « ÉCRIRE » RETIRÉ (Mag, 20/08/2026). Le picto de WhatsApp dit
+              déjà qu'on y écrit — le mot ne faisait que le répéter. `aria-label`
+              reste : sans lui, un lecteur d'écran n'aurait plus rien à annoncer. */
+           '<img src="picto/whatsapp.svg" alt="Écrire sur WhatsApp"></a></div>'+
          '<button class="acttout" onclick="actOuvrir(\'waka\')">Voir le programme</button>'+
        '</div></div>';
   }
