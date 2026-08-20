@@ -8028,7 +8028,26 @@ const DOMAINES = [
   {key:"methodes",    label:"Protocole",           short:"Protocole", ic:"clipboard", method:true},
   {key:"formations",  label:"Formations",          short:"Formations",ic:"book",     isFormation:true},
   {key:"mails",       label:"Mails et notes types",short:"Mails et notes", ic:"mail", isMail:true},
-  {key:"centre",      label:"Gestion du centre",   short:"Centre",    ic:"centre",   method:true}
+  {key:"centre",      label:"Gestion du centre",   short:"Centre",    ic:"centre",   method:true},
+  /* ═══ COORDONNÉES UTILES (Mag, 20/08/2026) ═══
+     « Dans gestion du centre ne mets que des choses utiles qui ne sont pas déjà dans
+     "le centre" » — puis « mets plutôt coordonnées utiles ».
+     La tuile ouvrait la liste des six fiches du Centre. Or trois d'entre elles — le
+     linge, les poubelles, les produits — ont DÉJÀ leur tuile juste au-dessus, dans
+     la même grille : on cliquait pour retrouver ce qu'on venait de quitter.
+     Ce tiroir ne garde que les trois autres, et elles ont un point commun : ce sont
+     des NUMÉROS À APPELER (l'infirmerie, l'ascenseur en panne, les soins
+     infirmiers extérieurs). D'où le nom.
+     ⚠ Les fiches gardent `domaine:"centre"` : leur bandeau continue d'afficher
+     « CENTRE » en surtitre, et `goFiche()` continue de les trouver. C'est une VUE,
+     pas un déménagement.
+     ⚠ `garde` exclut par le NOM : si quelqu'un ajoute une fiche « produits d'hygiène »
+     un jour, elle tomberait ici par erreur. Le jour où ça arrive, poser une marque
+     explicite sur les fiches qui ont leur propre tuile plutôt que d'allonger ce
+     filtre. */
+  {key:"coord", label:"Coordonnées utiles", short:"Coordonnées", ic:"centre",
+   src:"centre", method:true,
+   garde:function(p){ return !/poubelle|linge|produit/i.test(p.nom); }}
 ];
 const DOM = Object.fromEntries(DOMAINES.map(d=>[d.key,d]));
 /* [encre, fond doux] par domaine — palette feutrée, une teinte par famille. */
@@ -11692,15 +11711,17 @@ function vCentre(){
      tuiles là-haut servent à accompagner QUELQU'UN — ici c'est le fonctionnement de
      la maison, comme le linge et les poubelles. Elle est en dernier parce qu'elle est
      la seule de cette section qui ne dépend pas du jour. */
-  '<button class="qcarte" onclick="go(\'#/d/centre\')">'+
+  '<button class="qcarte" onclick="go(\'#/d/coord\')">'+
     '<span class="ic" style="color:#A9C8E8">'+icon('home')+'</span>'+
-    '<span class="tx"><b>Gestion du centre</b><em>'+nCentreFiches()+' fiches</em></span>'+
+    '<span class="tx"><b>Coordonnées utiles</b><em>'+nCentreFiches()+' fiches</em></span>'+
     '<span class="chv">›</span></button>'+
   '</div><div style="height:26px"></div>';
   return h;
 }
 /* Combien de fiches « gestion du centre » (pour la tuile). */
-function nCentreFiches(){ return DATA.filter(p=>p.domaine==='centre').length; }
+/* On compte ce que la tuile OUVRE VRAIMENT, pas tout le tiroir : annoncer « 6 fiches »
+   pour en montrer 3, c'est le genre de chiffre qui fait douter du reste. */
+function nCentreFiches(){ return fichesDe('coord').length; }
 
 /* MA LISTE DU JOUR — les vraies check-lists de la base, par rôle. */
 function vListe(){
