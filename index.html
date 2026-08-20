@@ -1759,6 +1759,26 @@ body.en-apercu #view{animation:none;transform:none}
 .frow2 .tx b{display:block;font-size:15px;font-weight:600;line-height:1.2}
 .frow2 .tx em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.1em;text-transform:uppercase;color:#8b8984;margin-top:2px}
+/* ── LA CARTE PISTE C : le nom d'abord, puis une vraie ligne de lecture ── */
+.frow2.c3{display:block;border-radius:12px;padding:16px;align-items:stretch}
+.frow2.c3 .nomh{display:flex;align-items:flex-start;gap:10px}
+.frow2.c3 .nomh b{flex:1;font-size:17px;font-weight:600;line-height:1.25;letter-spacing:-.005em}
+.frow2.c3 .nomh .heart{width:26px;height:26px;flex:none;margin:-2px -4px 0 0}
+.frow2.c3 .nomh .heart .ic{width:19px;height:19px}
+/* La ligne qui dit POUR QUI : police de lecture, minuscules, de l'air entre les
+   lignes. C'est la ligne qu'on lit vraiment — elle cesse d'être la plus dure. */
+.frow2.c3 .qui{display:block;font-size:14px;line-height:1.55;color:#57554f;margin-top:8px}
+.frow2.c3 .fr2pl{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.frow2.c3 .fr2p{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;
+  font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--noir)}
+.frow2.c3 .ouc{display:block;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;color:#8b8984;margin-top:10px}
+/* Les conditions et les horaires restent — c'est elle qui les a demandés sur la
+   carte le 13/08 — mais en lecture, pas en capitales. */
+.frow2.c3 .fr2c,.frow2.c3 .fr2h{display:block;font-family:inherit;font-size:13px;
+  line-height:1.45;letter-spacing:0;text-transform:none;color:#8b8984;margin-top:8px}
+.frow2.c3 .fr2e{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 
 /* ---- QUIZ redessiné (handoff) ---- */
 .qtop{padding:16px 0 0;display:flex;align-items:center;gap:12px}
@@ -8199,7 +8219,10 @@ const TAGS_REGLES={
     où un homme ne peut pas entrer. */
  maisons:[
   [/urgence|nuit|hiver/i,'Urgence'],
-  [/famille|enfant/i,'Familles'],
+  /* ⚠ PAS `enfant` TOUT SEUL : « Femmes seules SANS ENFANTS » se retrouvait étiqueté
+     « Familles », et depuis que l'étiquette s'affiche EN COULEUR sur la carte, on
+     lisait le contraire de ce que la fiche dit. */
+  [/famille|avec enfants?/i,'Familles'],
   [/insertion|accompagnement|long/i,'Insertion']]
 };
 DATA.forEach(p=>{
@@ -13965,6 +13988,26 @@ function reseauPorte(i){
    donc la même teinte d'une visite à l'autre, c'est ce qui la rend reconnaissable. */
 const CHIP_COULEURS=['#6fc7d9','#f5c542','#6cb392','#fd8fd0','#a9c8e8','#b28b7a','#e8308a','#f3c6da'];
 function chipCouleur(i){ return CHIP_COULEURS[i%CHIP_COULEURS.length]; }
+/* ═══ UNE COULEUR PAR ÉTIQUETTE, LA MÊME PARTOUT (Mag : « une couleur par valeur,
+   un seul dessin partout ») ═══
+   `chipCouleur` colore par POSITION dans la rangée : la même étiquette changeait de
+   couleur d'un tiroir à l'autre, et changeait encore quand un filtre en retirait une
+   au-dessus d'elle. Impossible d'apprendre « le rose, c'est femmes ».
+   Ici la couleur vient du NOM. Les étiquettes qui comptent sont posées à la main ;
+   les autres tombent sur une case stable de la palette, calculée depuis leurs
+   lettres — jamais une couleur inventée, toujours une des huit validées. */
+const TAG_COULEURS={
+  'Réservé aux femmes':'#f3c6da', 'Réservé aux hommes':'#a9c8e8',
+  'Violences conjugales':'#fd8fd0', 'Avec enfants':'#6cb392', 'Sans enfants':'#6fc7d9',
+  'Familles':'#6cb392', 'Femmes enceintes':'#e8308a', 'Couples':'#a9c8e8',
+  'Sans rendez-vous':'#f5c542', 'Urgence':'#e8308a', 'Insertion':'#b28b7a',
+  'Jeunes 18-24':'#f3c6da', 'Tout public':'#6cb392', 'PMR':'#6fc7d9'
+};
+function tagCouleur(nom){
+  if(TAG_COULEURS[nom]) return TAG_COULEURS[nom];
+  let n=0; for(let i=0;i<nom.length;i++) n=(n*31+nom.charCodeAt(i))>>>0;
+  return CHIP_COULEURS[n%CHIP_COULEURS.length];
+}
 /* `opts` sert à faire cohabiter DEUX tris dans une même rangée (Mag, 18/08/2026 :
    « je préfère que ce soit dans la liste avec les autres ») :
      · `avant`     — des chips déjà rendues, glissées juste après « Tout »
@@ -13992,7 +14035,9 @@ function chipRow(name,values,activeVal,allLabel,opts){
     avant+
     values.map(function(v,i){
       const q=esc(v).replace(/'/g,"\\'");
-      return '<button class="chip'+(estOn(v)?' on':'')+'" style="--c:'+chipCouleur(i+(opts.decal||0))+'"'+
+      /* `opts.coul` : la rangée des étiquettes colore par NOM, pas par position. */
+      const cc=opts.coul ? opts.coul(v) : chipCouleur(i+(opts.decal||0));
+      return '<button class="chip'+(estOn(v)?' on':'')+'" style="--c:'+cc+'"'+
         ' onclick="'+(multi?'basculeTag(\''+q+'\')':'setFilt(\''+name+'\',\''+q+'\')')+'">'+esc(v)+'</button>';
     }).join('')+
   '</div>';
@@ -14095,9 +14140,37 @@ function fcard(p){
     cond?'<span class="fr2c">'+esc(cond.length>90?cond.slice(0,88)+'…':cond)+'</span>':'',
     (!cond&&p.horaires)?'<span class="fr2h">'+esc((p.horaires||'').split('\n')[0].slice(0,70))+'</span>':''
   ].filter(Boolean).join('');
-  return '<div class="frow2'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
-    '<span class="rd" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span></span>'+
-    '<span class="tx"><b>'+esc(p.nom)+'</b>'+(sub?'<em>'+esc(sub)+'</em>':'')+
+  /* ═══ LA CARTE, PISTE C (Mag, 20/08/2026 : « c'est pas aéré, pas très agréable à
+     lire » → cinq écrans posés sur un canvas → « C ») ═══
+     Ce qui fatiguait : la ligne du public était en ÉCRITURE MACHINE, EN CAPITALES,
+     9 px, grise — la ligne la plus longue de la carte et la plus dure à lire. Et le
+     rond de couleur était LE MÊME sur les vingt et une fiches du tiroir : il prenait
+     la place d'un mot sans rien apprendre.
+
+     Maintenant : le NOM prend toute la largeur, seul (plus de nom coupé en trois),
+     le public passe en écriture de lecture avec de l'interligne, et les étiquettes
+     de l'équipe deviennent des PASTILLES DE COULEUR — c'est elles qui disent
+     « réservé aux femmes » d'un coup d'œil, à la place d'une phrase grise. La
+     commune descend en bas, en petit : on la lit quand on la cherche.
+     ⚠ Le rond de domaine ne disparaît pas partout : il reste dans les listes qui
+     MÉLANGENT les domaines (favoris, recherche), où il dit quelque chose. Ici, dans
+     un tiroir, il ne disait rien. */
+  const pastilles=(p.tags||[]).slice(0,3).map(function(t){
+    return '<span class="fr2p" style="background:'+tagCouleur(t)+'">'+esc(t)+'</span>';
+  }).join('');
+  return '<div class="frow2 c3'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
+    '<span class="tx"><span class="nomh"><b>'+esc(p.nom)+'</b>'+heartBtn(p.sid)+'</span>'+
+      /* ⚠ LA LIGNE DE LECTURE EST COUPÉE À 120 SIGNES. Les fiches sans champ
+         « public » retombent sur leur description, et certaines font six lignes —
+         on retombait exactement dans ce qu'on venait de réparer. Le détail complet
+         est dans le panneau, à un doigt de là. */
+      (function(){
+        const q=(p.public||'').trim()||(sub||'').trim();
+        if(!q) return '';
+        return '<span class="qui">'+esc(q.length>120?q.slice(0,118).replace(/[\s,;:.]+$/,'')+'…':q)+'</span>';
+      })()+
+      (pastilles?'<span class="fr2pl">'+pastilles+'</span>':'')+
+      (p.commune&&p.commune!=='Régional / Toutes communes'?'<span class="ouc">'+esc(p.commune)+'</span>':'')+
       (estConseille(p)?'<span class="recolg">'+icon('star')+'Conseillée par l’équipe</span>'+
         (conseilTexte(p)?'<span class="recopq">'+esc(conseilTexte(p))+'</span>':''):'')+
       (p.deco?'<span class="decolg">'+icon('alert')+'L’équipe déconseille</span>'+
@@ -14108,7 +14181,7 @@ function fcard(p){
          affichée. D'où le sentiment que « poser une étiquette ne sert à rien ». */
       (etq?'<span class="fr2e">'+etq+'</span>':'')+det+'</span>'+
     (p.urgent?'<span class="badge" style="background:#f7c1c1">Urgence</span>':'')+
-    heartBtn(p.sid)+'</div>';
+    '</div>';
 }
 
 /* RAPATRIÉ DE L'APP PRINCIPALE (formations) — la recette qui plaisait à Mag :
@@ -14501,7 +14574,7 @@ function vDomaine(key){
      quand même contenir des adresses de femmes — sans ça, la rangée disparaîtrait
      et le tri « Femmes uniquement » avec elle. */
   if(alltags.length>1 || chipsGenre){
-    rangeeTags=chipRow('tag',alltags,filt.tags,'Tout',{toutClic:'filtrerTagsTout()'});
+    rangeeTags=chipRow('tag',alltags,filt.tags,'Tout',{toutClic:'filtrerTagsTout()',coul:tagCouleur});
     /* `every` et non `some` : cocher deux sous-catégories RESSERRE la liste. Une
        femme avec un enfant a besoin d'un endroit qui prend les deux, pas d'une liste
        qui mélange les maisons de femmes et les maisons de familles. */
