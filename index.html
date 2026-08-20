@@ -3476,14 +3476,36 @@ body.no-tabs #tabbar{display:none}
   #tabbar .railsec .lbl{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;
     text-transform:uppercase}
   /* Au survol : un trait de couleur apparaît à gauche ET la ligne glisse vers la
-     droite (mélange des propositions 2 et 3 — Mag, 06/08/2026). L'actif ne bouge pas. */
+     droite (mélange des propositions 2 et 3 — Mag, 06/08/2026). L'actif ne bouge pas.
+
+     ═══ ⚠ CE QUI GLISSE, C'EST LE CONTENU, PAS LE BOUTON (Mag, 21/08/2026) ═══
+     Ses mots : « quand je passe sur les boutons, sur les menus à gauche, ça tremble.
+     Je ne sais plus cliquer. »
+     C'est le clignotement du 18/08, revenu par la porte qu'on lui avait laissée
+     ouverte. Le raisonnement d'alors était FAUX : on avait écrit que le rail ne
+     pouvait pas clignoter « parce que la souris arrive par la droite ». Elle
+     n'arrive pas par la droite — le rail est collé au bord GAUCHE de l'écran, et on
+     descend le long de ce bord. Dans les 6 px de gauche du bouton, le survol
+     déplaçait le bouton hors du curseur → le survol se coupait → il revenait :
+     plusieurs fois par seconde.
+     Et le `:active` était pire : au moment du clic, le bouton se décalait ET
+     rétrécissait de 2 % ; si le doigt ou la souris se retrouvait dehors, le
+     navigateur n'envoyait PAS de clic. D'où « je ne sais plus cliquer ».
+
+     Le remède garde exactement ce qu'elle aime : le glissement est le même à l'œil,
+     mais il porte sur le rond et le mot À L'INTÉRIEUR du bouton. La boîte du bouton,
+     elle, ne bouge plus d'un pixel — donc la zone qu'on vise est fixe.
+     ⚠ NE PAS remettre `transform` sur le bouton lui-même. La règle est maintenant
+     la même partout, sans exception : au survol, RIEN ne se déplace sous le curseur. */
   #tabbar .railprinc button,#tabbar .railsec button{
     border-left:3px solid transparent;padding-left:9px;
-    transition:transform .16s ease,background .16s ease,border-color .16s ease,opacity .16s ease}
+    transition:background .16s ease,border-color .16s ease,opacity .16s ease}
+  #tabbar .railprinc button>*,#tabbar .railsec button>*{transition:transform .16s ease}
   #tabbar .railsec button{opacity:.78}
   @media (hover:hover){
     #tabbar .railprinc button:not(.on):hover{
-      border-left-color:var(--c);background:rgba(242,238,230,.07);transform:translateX(6px)}
+      border-left-color:var(--c);background:rgba(242,238,230,.07)}
+    #tabbar .railprinc button:not(.on):hover>*{transform:translateX(6px)}
     /* ⚠ `:not(.on)` — LE BOUTON ACTIF DEVENAIT ILLISIBLE AU SURVOL (Mag, 08/08/2026 :
        « au survol on ne sait pas lire le texte »). Le bouton actif porte un fond CRÈME
        et un texte NOIR. Le survol, lui, repeignait le fond en blanc à 7 % — donc en
@@ -3502,11 +3524,14 @@ body.no-tabs #tabbar{display:none}
        C'est exactement ce qui n'allait pas avec les cartes de contenu : elles,
        on les survole de partout, bord gauche compris. */
     #tabbar .railsec button:not(.on):not(.vueon):hover{
-      border-left-color:#f2eee6;background:rgba(242,238,230,.07);transform:translateX(6px);opacity:1}
-    /* L'actif garde son fond ; il glisse quand même, pour répondre au geste. */
-    #tabbar .railsec button.on:hover,#tabbar .railsec button.vueon:hover{transform:translateX(6px)}
+      border-left-color:#f2eee6;background:rgba(242,238,230,.07);opacity:1}
+    #tabbar .railsec button:not(.on):not(.vueon):hover>*{transform:translateX(6px)}
+    /* L'actif garde son fond ; son contenu glisse quand même, pour répondre au geste. */
+    #tabbar .railsec button.on:hover>*,#tabbar .railsec button.vueon:hover>*{transform:translateX(6px)}
   }
-  #tabbar .railprinc button:not(.on):active,#tabbar .railsec button:active{transform:translateX(6px) scale(.98)}
+  /* ⚠ À L'APPUI NON PLUS LE BOUTON NE BOUGE, et le `scale(.98)` est parti : c'est lui
+     qui faisait rater le clic. Le contenu s'enfonce, la cible reste où elle est. */
+  #tabbar .railprinc button:not(.on):active>*,#tabbar .railsec button:active>*{transform:translateX(6px) scale(.97)}
 
   /* ---- la barre du haut disparaît : le rail porte déjà le logo et les 8 destinations ---- */
   #topbar{display:none}
@@ -8935,7 +8960,7 @@ function chResume(encours){
 }
 function vChambres(){
   const encours=CHAMBRES.filter(c=>!chambreFinie(c)), finies=CHAMBRES.filter(chambreFinie).slice(0,8);
-  return '<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+  return '<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Chambres</h1><span class="pastille" style="background:#f8763f">'+encours.length+' EN COURS</span></div>'+
     '<div class="chadd">'+
       '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
@@ -9604,7 +9629,7 @@ function vTourBacs(){
   });
   const reglees=TOURBACS.filter(function(a){ return !!a.regle_le; }).slice(0,8);
   const presse=ouvertes.filter(function(a){ const k=tbEtat(a).k; return k==='ajeter'||k==='dernier'; }).length;
-  let h='<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Le tour des chambres</h1>'+
     (presse?'<span class="pastille" style="background:#e63329">'+presse+' À TRANCHER</span>'
            :'<span class="pastille" style="background:#f8763f">'+ouvertes.length+' EN COURS</span>')+
@@ -10640,7 +10665,37 @@ let scrollMem={};
 /* `NAV_CLIC` distingue « j'ouvre quelque chose » de « je reviens ». Voir le
    `hashchange` plus bas : on n'ouvre pas un tiroir au milieu de la page. */
 var NAV_CLIC=false;
-function go(hash){ NAV_CLIC=true; location.hash=hash; }
+function go(hash){ NAV_CLIC=true; NAV_PAS++; location.hash=hash; }
+
+/* ═══ LA FLÈCHE « RETOUR » NE PEUT PAS S'EN REMETTRE À L'HISTORIQUE SEUL ═══
+   (Mag, 21/08/2026 : « quand j'appuie sur le retour, ça ne me fonctionne pas »)
+   `history.back()` ne renvoie quelque part QUE s'il y a un « avant » dans cet
+   onglet. Or on tombe sur une fiche de dix façons qui n'en laissent pas : le
+   raccourci de l'écran d'accueil, un lien envoyé à un collègue, un QR, un favori
+   du navigateur, un onglet rouvert au redémarrage du téléphone. Dans tous ces
+   cas la flèche ne faisait RIEN — et sur téléphone la barre du bas disparaît sur
+   une fiche (`body.no-tabs`) : on était enfermé sur la page, sans aucune sortie.
+   ⚠ C'est pour ça que ça « marche chez moi et pas chez elle » : le bug ne dépend
+   pas de la page, il dépend de la façon dont on y est arrivé.
+   Maintenant : on ne remonte l'historique que si on a soi-même ouvert quelque
+   chose depuis le chargement. Sinon la flèche mène à la page PARENTE — le tiroir
+   de la fiche, le Réseau au-dessus d'un tiroir, l'accueil en dernier recours. */
+var NAV_PAS=0;
+function retour(){
+  /* ⚠ ON NE DÉCOMPTE PAS ICI : c'est le `hashchange` qui le fait, puisqu'un
+     `history.back()` y arrive avec `NAV_CLIC` à faux. Décompter aux deux endroits
+     retirait deux crans pour un seul pas en arrière. */
+  if(NAV_PAS>0){ history.back(); return; }
+  go(retourParent());
+}
+function retourParent(){
+  if(current.view==='fiche'){
+    const p=BYSID[current.sid];
+    if(p && p.domaine && DOM[p.domaine]) return '#/d/'+p.domaine;
+  }
+  if(current.view==='domaine') return '#/reseau';
+  return '#/';
+}
 function parseRoute(){
   const h=decodeURIComponent(location.hash.replace(/^#\/?/,''));
   if(!h) return {view:'home'};
@@ -10680,6 +10735,10 @@ function parseRoute(){
   return {view:'home'};
 }
 window.addEventListener('hashchange',()=>{
+  /* Voir `retour()` : quand le déplacement ne vient PAS d'un `go()`, c'est la flèche
+     du navigateur ou celle du téléphone — on a donc remonté d'un cran, et le compteur
+     doit le savoir, sinon la flèche de l'app finirait par sortir de l'app. */
+  if(!NAV_CLIC) NAV_PAS=Math.max(0,NAV_PAS-1);
   scrollMem[keyOf(current)]=window.scrollY;
   current=parseRoute(); render();
   /* ═══ ON N'OUVRE PAS UN TIROIR AU MILIEU DE LA PAGE (Mag, 20/08/2026) ═══
@@ -10887,7 +10946,7 @@ function tile(d,reseau){
    surtitre + titre + picto d'accent ; la flèche de retour n'apparaît que si on la demande. */
 function heroBandeau(titre, surtitre, couleur, pic, retour, cls){
   return '<div class="hero'+(cls?' '+cls:'')+'">'+
-    (retour!==false?'<button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
+    (retour!==false?'<button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
     '<span class="htx">'+
       (surtitre?'<span class="hsur" style="color:'+couleur+'">'+esc(surtitre)+'</span>':'')+
       '<h1>'+esc(titre)+'</h1></span>'+
@@ -15870,7 +15929,7 @@ function vFiche(p){
       '<i class="bande" style="background:'+c+'"></i>'+
       '<div class="fin">'+
         '<div class="ftop">'+
-          '<button class="frond" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+          '<button class="frond" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
           '<span class="fdom" style="background:'+c+'"><span class="ic">'+icon(fichePicto(p)||d.ic||'compass')+'</span>'+esc(d.short||d.label||'')+'</span>'+
           '<span style="flex:1"></span>'+
           /* LE PARTAGE, EN HAUT À DROITE, TOUJOURS LÀ (Mag, 07/08/2026 — elle a envoyé
@@ -15942,7 +16001,7 @@ function vFavoris(){
      pages simples parce que « la barre et le dock suffisent » — c'était vrai tant
      qu'on n'arrivait aux favoris que par l'étoile, présente partout. Depuis que le
      profil y mène aussi, on pouvait y entrer sans pouvoir revenir d'où on venait. */
-  let h='<div class="subtop"><button class="cbtn" onclick="history.back()" aria-label="Retour">'+
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour">'+
     '<span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1 style="font-size:23px;padding-top:6px">Favoris</h1>'+
     '<span class="count">'+(favs.length||'')+'</span></div>';
