@@ -3971,7 +3971,35 @@ body.no-tabs #tabbar{display:none}
   .reseau-grille{animation:reseauEntre .16s ease}
   @keyframes reseauEntre{ from{opacity:.25} to{opacity:1} }
   @media (prefers-reduced-motion:reduce){ .reseau-grille{animation:none} }
-  /* ═══ LE CONSTAT DE L'ÉQUIPE, EN TÊTE DE FICHE (piste B, 20/08/2026) ═══
+    /* ═══ LES FAMILLES DU CENTRE, DÉPLIANTES (A + les pictos noirs de D) ═══
+     La ligne de famille reprend exactement la forme choisie pour les parcs : rangée
+     claire, rond pastel, chevron dans son propre rond gris. Les portes, dedans,
+     n'ont ni fond ni cadre — juste leur dessin en noir, comme la piste D. */
+  .famz{display:flex;align-items:center;gap:14px;width:100%;text-align:left;color:var(--noir);
+    background:#fdfdfc;border:1.25px solid var(--trait);border-radius:16px;
+    padding:12px 14px;margin-bottom:10px;min-height:70px}
+  .famz .rd{width:44px;height:44px;border-radius:50%;flex:none;
+    display:flex;align-items:center;justify-content:center}
+  .famz .rd .ic{width:21px;height:21px;color:var(--noir)}
+  .famz .tx{flex:1;min-width:0}
+  .famz .tx b{display:block;font-size:16.5px;font-weight:600;line-height:1.2}
+  .famz .tx em{font-style:normal;display:block;font-family:ui-monospace,monospace;font-size:9px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--enc2);margin-top:4px}
+  .famz .chv{flex:none;width:30px;height:30px;border-radius:50%;background:#f2f0ed;
+    display:flex;align-items:center;justify-content:center;font-size:15px;color:#57554f}
+  .famz.ouvert{margin-bottom:0;border-radius:16px 16px 0 0;border-bottom-color:transparent}
+  .famdedans{border:1.25px solid var(--trait);border-top:0;border-radius:0 0 16px 16px;
+    background:#fdfdfc;padding:0 14px 8px;margin-bottom:10px}
+  .famli{display:flex;align-items:center;gap:13px;width:100%;text-align:left;color:var(--noir);
+    padding:14px 0;border-top:1px solid var(--ligne)}
+  .famli .ic{width:21px;height:21px;flex:none}
+  .famli .tx{flex:1;min-width:0}
+  .famli .tx b{display:block;font-size:15.5px;font-weight:600;line-height:1.2}
+  .famli .tx em{font-style:normal;display:block;font-size:13px;line-height:1.4;
+    color:var(--enc2);margin-top:2px}
+  .famli .chv{flex:none;font-size:16px;color:var(--enc2)}
+
+/* ═══ LE CONSTAT DE L'ÉQUIPE, EN TÊTE DE FICHE (piste B, 20/08/2026) ═══
      « B, mais plus joli le mot de l'équipe. » Le cadre doré à fond crème avec sa
      pastille avait la forme d'un avertissement — or ce n'est pas un danger, c'est
      ce que des collègues ont constaté sur place. Plus de boîte : un intertitre en
@@ -11536,6 +11564,9 @@ function vHome(){
 /* La même grande carte Démarches sur l'accueil et dans les outils du Centre. */
 
 
+/* Quelle famille du Centre est ouverte ('' = aucune). Une seule à la fois. */
+var CENTRE_FAM='';
+function centreFam(i){ CENTRE_FAM=(CENTRE_FAM===String(i))?'':String(i); render(); }
 /* La page Centre : les outils de l'équipe, au même endroit. */
 const OUTILS=['centre','methodes','mails','formations'];
 /* Les deux seules tuiles que le groupe D ne voit pas (décidé par Mag le 07/08/2026).
@@ -11666,16 +11697,43 @@ function vCentre(){
      qu'on vient faire le plus souvent. Elle passe juste après la première famille.
      On met donc les familles de côté au lieu de les écrire tout de suite : la
      première est posée ici, les autres attendent après la gestion. */
+  /* ═══ LES FAMILLES SE DÉPLOIENT (Mag, 20/08/2026 : « A, mais aussi j'aime bien
+     les pictos noirs de la D, donc fais un mix ») ═══
+     Avant : onze tuiles colorées empilées sur deux écrans, huit teintes de fond qui
+     ne voulaient rien dire — ni la famille, ni l'urgence, ni la fréquence. On ne
+     lisait pas les mots, on triait des rectangles.
+     Maintenant : TROIS LIGNES au repos. On touche une famille, elle s'ouvre vers le
+     bas ; les autres restent fermées. C'est le geste choisi partout ailleurs
+     aujourd'hui — le wiki de la fiche, le bouton « Où ? », les parcs.
+     LE MIX : la ligne de la famille garde son rond pastel (piste A), et chaque porte
+     dedans porte SON PICTO EN NOIR (piste D) au lieu d'une pastille de couleur.
+     ⚠ La couleur ne sert plus qu'à repérer la famille — un rond, pas un aplat.
+     ⚠ Une seule ouverte à la fois : deux familles dépliées, on refait une page
+     longue, et on a tourné en rond. */
   let premiere=true;
   const familles=[];
-  FAMILLES.forEach(function(f){
+  FAMILLES.forEach(function(f,fi){
     const dedans=f.k.map(function(nom){
       return visibles.find(function(o){ return o[0]===nom; });
     }).filter(Boolean);
     if(!dedans.length) return;                    /* famille vide : pas de titre en l'air */
-    familles.push('<div class="sectc"><b><i style="background:'+f.c+'"></i>'+esc(f.n)+'</b>'+
-       '<em>'+esc(premiere && !voitOutilsCentre() ? 'Vue D' : f.s)+'</em></div>'+
-       '<div class="ogrid">'+dedans.map(tuile).join('')+'</div>');
+    const ouvert=(CENTRE_FAM===String(fi));
+    const sous=(premiere && !voitOutilsCentre()) ? 'Vue D'
+             : dedans.length+' porte'+(dedans.length>1?'s':'');
+    familles.push(
+      '<button class="famz'+(ouvert?' ouvert':'')+'" onclick="centreFam(\''+fi+'\')" '+
+        'aria-expanded="'+(ouvert?'true':'false')+'">'+
+        '<span class="rd" style="background:'+f.c+'"><span class="ic">'+icon(dedans[0][2])+'</span></span>'+
+        '<span class="tx"><b>'+esc(f.n)+'</b><em>'+esc(sous)+'</em></span>'+
+        '<span class="chv">'+(ouvert?'\u2303':'\u203A')+'</span></button>'+
+      (ouvert
+        ? '<div class="famdedans">'+dedans.map(function(o){
+            return '<button class="famli" onclick="'+o[6]+'">'+
+              '<span class="ic">'+icon(o[2])+'</span>'+
+              '<span class="tx"><b>'+esc(o[0])+'</b><em>'+esc(o[1])+'</em></span>'+
+              '<span class="chv">\u203A</span></button>';
+          }).join('')+'</div>'
+        : ''));
     premiere=false;
   });
   h+=familles.length?familles[0]:'';
