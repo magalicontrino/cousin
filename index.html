@@ -3862,6 +3862,20 @@ body.no-tabs #tabbar{display:none}
     letter-spacing:.2em;text-transform:uppercase;color:var(--noir);
     padding-bottom:7px;border-bottom:2px solid var(--noir);margin:14px 0 2px;grid-column:1/-1}
   .reseau-section-label:first-child{margin-top:0}
+  /* Le compte, au bout du titre : c'est le seul mot qui change vraiment quand on
+     touche une pastille, donc il doit se voir. */
+  .reseau-section-label{display:flex;align-items:baseline;gap:10px}
+  .reseau-section-label em{font-style:normal;margin-left:auto;font-size:9px;
+    letter-spacing:.14em;color:#8b8984;font-weight:400}
+  /* La grille s'annonce quand elle change — 160 ms, juste de quoi voir que ça a
+     répondu. Elle se coupe pour qui a demandé moins d'animation. */
+  .reseau-grille{animation:reseauEntre .16s ease}
+  @keyframes reseauEntre{ from{opacity:.25} to{opacity:1} }
+  @media (prefers-reduced-motion:reduce){ .reseau-grille{animation:none} }
+  .reseau-tout{grid-column:1/-1;display:block;width:100%;text-align:center;margin:4px 0 24px;
+    border:1.25px solid var(--trait);border-radius:10px;background:#fdfdfc;color:var(--noir);
+    padding:14px;font-family:ui-monospace,monospace;font-size:10px;font-weight:500;
+    letter-spacing:.16em;text-transform:uppercase}
   .reseau-card{border:1.25px solid var(--trait);border-radius:12px;padding:12px;
     display:flex;flex-direction:column;justify-content:flex-start;aspect-ratio:1;
     background:#fdfdfc;position:relative;cursor:pointer;text-align:left;font-family:inherit}
@@ -13907,15 +13921,31 @@ function vReseauV2(){
         ' onclick="reseauV2Filter(\''+i+'\')">'+esc(sec.name)+'</button>';
     }).join('')+'</div>';
 
-  html+='<div class="reseau-grille">';
+  /* ═══ « LA PAGE NE BOUGE PAS » (Mag, 20/08/2026) ═══
+     Elle touchait une pastille et rien ne se passait à l'œil : la rangée reste où
+     elle est, le titre en dessous change de deux mots, et tout ce qui disparaît
+     était DÉJÀ hors de l'écran. Un geste sans réponse, on le refait, puis on cesse
+     de s'en servir.
+
+     ⚠ CE N'EST PAS UNE NOUVELLE IDÉE : le 18/08 elle avait déjà tranché « pastilles
+     + scroll en douceur au clic ». La réécriture du Réseau (V2) a perdu le scroll en
+     route — `reseauV2Filter` ne faisait plus qu'un `render()`.
+
+     Trois réponses, toutes petites, qui ensemble font que le geste répond :
+     · le titre de la famille annonce COMBIEN de portes elle contient ;
+     · la grille entre en fondu court — quelque chose bouge, sous le doigt ;
+     · la page glisse jusqu'à la rangée (voir `reseauV2Filter`), donc le résultat
+       arrive juste sous les pastilles au lieu d'être quelque part plus bas. */
+  html+='<div class="reseau-grille" id="reseauGrille">';
   RESEAU_V2_SECTIONS.forEach(function(section,si){
     if(ray!=='' && ray!==String(si)) return;
     let cartes='';
     for(let k=section.start;k<section.end;k++){
       cartes+=reseauV2Carte(RESEAU_V2_CATEGORIES[k]);
     }
+    const n=section.end-section.start;
     html+='<div class="reseau-section-label" style="border-bottom-color:'+section.couleur+'">'+
-      esc(section.name)+'</div>'+cartes;
+      esc(section.name)+'<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+cartes;
   });
 
   /* ═══ LE FILET — il ne doit plus jamais partir ═══
@@ -13933,6 +13963,11 @@ function vReseauV2(){
         return reseauV2Carte({title:d.short||d.label, domaines:[d.key]});
       }).join('');
   }
+  /* ⚠ UNE PORTE DE SORTIE, TOUJOURS VISIBLE. Quand une famille est choisie, le reste
+     du réseau n'existe plus à l'écran : il faut pouvoir y revenir sans remonter
+     chercher « Tout » tout en haut. */
+  if(ray!=='') html+='<button class="reseau-tout" onclick="reseauV2Filter(\'\')">'+
+    'Voir tout le réseau</button>';
   html+='</div></div>'+fichePanHTML()+'<div style="height:20px"></div>';
   return html;
 }
@@ -13942,6 +13977,25 @@ var RESEAU_V2_FILTER='';
 function reseauV2Filter(section){
   RESEAU_V2_FILTER=(RESEAU_V2_FILTER===section)?'':section;
   render();
+  /* La page glisse jusqu'à la rangée de pastilles : le résultat se retrouve juste
+     sous les doigts, et le mouvement EST la réponse au geste.
+     ⚠ On vise la rangée, pas le sommet : remonter tout en haut ferait relire le
+     grand titre à chaque clic. Et on ne bouge que s'il y a de quoi bouger. */
+  /* ⚠ ON MESURE APRÈS QUE LE NAVIGATEUR A REFAIT LA PAGE (requestAnimationFrame).
+     Filtrer raccourcit la page : mesurée dans la foulée du `render()`, la position
+     de la rangée était encore celle de l'ancienne hauteur, le navigateur ramenait le
+     défilement au maximum possible, et on atterrissait sur la moitié des pastilles.
+     Vu à l'écran — la deuxième ligne de la rangée passait sous la barre du haut. */
+  requestAnimationFrame(function(){
+    const r=document.querySelector('.reseau-v2 .chips');
+    if(!r) return;
+    /* La barre du haut se mesure au lieu d'être codée en dur : elle grandit de la
+       hauteur de l'encoche sur iPhone, et la rangée passerait dessous. */
+    const bar=document.getElementById('topbar');
+    const marge=(bar?bar.getBoundingClientRect().height:70)+14;
+    const y=r.getBoundingClientRect().top+window.scrollY-marge;
+    if(Math.abs(window.scrollY-y)>8) window.scrollTo({top:Math.max(0,y), behavior:'smooth'});
+  });
 }
 var RESEAU_PORTE='';
 function reseauPorte(i){
