@@ -10454,7 +10454,10 @@ function itiHref(adr){return 'https://www.google.com/maps/dir/?api=1&origin='+en
 /* ---------- navigation ---------- */
 let current={view:'home'};
 let scrollMem={};
-function go(hash){location.hash=hash}
+/* `NAV_CLIC` distingue « j'ouvre quelque chose » de « je reviens ». Voir le
+   `hashchange` plus bas : on n'ouvre pas un tiroir au milieu de la page. */
+var NAV_CLIC=false;
+function go(hash){ NAV_CLIC=true; location.hash=hash; }
 function parseRoute(){
   const h=decodeURIComponent(location.hash.replace(/^#\/?/,''));
   if(!h) return {view:'home'};
@@ -10496,7 +10499,19 @@ function parseRoute(){
 window.addEventListener('hashchange',()=>{
   scrollMem[keyOf(current)]=window.scrollY;
   current=parseRoute(); render();
-  window.scrollTo(0,scrollMem[keyOf(current)]||0);
+  /* ═══ ON N'OUVRE PAS UN TIROIR AU MILIEU DE LA PAGE (Mag, 20/08/2026) ═══
+     « Quand on clique on arrive là et non en haut de la page. »
+     La hauteur de chaque écran est mémorisée (`scrollMem`) pour qu'on retrouve sa
+     place en REVENANT — c'est une bonne chose, et ça ne bouge pas. Mais elle était
+     rendue aussi quand on OUVRAIT : on touchait « Consommer », et le tiroir
+     s'ouvrait à l'endroit où on l'avait quitté la dernière fois, le grand bandeau
+     noir posé par-dessus des cartes. On ne savait plus où on était.
+     Ouvrir un tiroir ou une fiche = commencer en haut. Revenir = retrouver sa
+     place. `NAV_CLIC` fait la différence : `go()` le lève, la flèche « retour » du
+     navigateur ne le lève pas. */
+  const ouvre = NAV_CLIC && (current.view==='domaine' || current.view==='fiche');
+  window.scrollTo(0, ouvre ? 0 : (scrollMem[keyOf(current)]||0));
+  NAV_CLIC=false;
   /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
      montrait l'état du monde au moment de son ouverture — et une collègue qui
      désencodait une chambre restait invisible pendant des heures. Défini plus bas :
@@ -13862,7 +13877,16 @@ const RESEAU_V2_CATEGORIES=[
      ⚠ CPAS en tête : avec les maisons médicales, c'est par là que l'équipe
      commence toujours. Ils étaient purement absents de la page. */
   {title:'CPAS',domaines:['cpas'],etiquettes:['ORIENTATION']},
-  {title:'Service social',domaines:['servsoc'],etiquettes:['ORIENTATION']},
+  /* ═══ LES TROIS SERVICES SOCIAUX N'EN FONT PLUS QU'UN (Mag, 20/08/2026 : « ça,
+     mets-les dans les autres stp ») ═══
+     Trois tiroirs disaient la même chose et se retrouvaient à trois endroits :
+     `servsoc` (22 fiches), `social` (2 : les CASG et Siréas) et `accompagnement`
+     (1 : Les Amis d'Accompagner — « service social de première ligne »). Deux
+     d'entre eux tombaient dans « Le reste », et deux portaient presque le même nom
+     à l'écran (« Service social » / « Un service social ») : on ne savait pas
+     lequel ouvrir.
+     Ils entrent dans la MÊME tuile — 25 fiches, une seule porte. */
+  {title:'Service social',domaines:['servsoc','social','accompagnement'],etiquettes:['ORIENTATION']},
   {title:'Papiers, séjour',domaines:['etrangers'],picto:'cle.svg',etiquettes:['ORIENTATION']},
   {title:'Juridique',domaines:['juridique'],etiquettes:['ORIENTATION']},
   {title:'Violences',domaines:['violences'],picto:'femme.svg',etiquettes:['URGENCE','JOUR']},
@@ -13871,13 +13895,22 @@ const RESEAU_V2_CATEGORIES=[
   {title:'Familles',domaines:['famille'],etiquettes:['JOUR']},
   {title:'Apprendre',domaines:['educatif'],picto:'educatif.svg',etiquettes:['JOUR']},
   {title:'Apprendre le français',domaines:['francais'],etiquettes:['JOUR']},
-  {title:'Culture, loisirs',domaines:['culture'],picto:'fete.svg',etiquettes:['JOUR']}
+  {title:'Culture, loisirs',domaines:['culture'],picto:'fete.svg',etiquettes:['JOUR']},
+  /* Les deux derniers qui tombaient dans « Le reste ». Ils ne sont pas des restes :
+     · Collectifs — le Syndicat des immenses, un groupe de pression des personnes
+       sans chez-soi : c'est bien une affaire de droits, pas un divertissement ;
+     · Annuaires, guides — social.brussels, la Fédération des Services Sociaux et
+       Le Bon Plan : ce sont les portes vers TOUT LE RESTE du réseau bruxellois.
+       Elles vivaient au bas de la page, sous une étiquette qui disait « on n'a pas
+       su où les mettre ». */
+  {title:'Collectifs',domaines:['agir'],etiquettes:['JOUR']},
+  {title:'Annuaires, guides',domaines:['reperes'],etiquettes:['ORIENTATION']}
 ];
 const RESEAU_V2_SECTIONS=[
   {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:4},
   {name:'Au quotidien', couleur:'#f5c542', start:4,  end:8},
   {name:'Des soins',    couleur:'#6cb392', start:8,  end:16},
-  {name:'Des droits',   couleur:'#f3c6da', start:16, end:27}
+  {name:'Des droits',   couleur:'#f3c6da', start:16, end:29}
 ];
 const RESEAU_V2_ETIQUETTES={
   'NUIT':{bg:'#1b1b1b',text:'#fdfdfc'},
