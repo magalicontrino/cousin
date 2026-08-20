@@ -1688,7 +1688,16 @@ body.en-apercu #view{animation:none;transform:none}
 .unum .no{font-size:16px;font-weight:600;flex:none;white-space:nowrap}
 
 /* ---- LE CENTRE redessiné (handoff Claude Design) ---- */
-.cliste{margin:-12px 0 0;position:relative;z-index:1;border-radius:6px;background:#fdfdfc;
+/* ⚠ LA CARTE NE SE GLISSE PLUS SOUS LE BANDEAU (Mag, 20/08/2026 : « la mise en page
+   et le reste… trop compliqué », capture du Linge à l'appui).
+   Elle avait `margin-top:-12px` pour se caler sous le bandeau noir — un joli
+   chevauchement quand la carte est colorée et ombrée. Mais le bandeau est
+   `position:sticky` avec un `z-index` supérieur : il RECOUVRAIT les 12 px du haut,
+   donc le trait de la carte et une partie de « AUJOURD'HUI ». Ça ne se lisait pas
+   comme un empilement, ça se lisait comme un bug — d'autant plus dès qu'on faisait
+   défiler d'un pouce.
+   La carte descend sous le bandeau, avec de l'air. */
+.cliste{margin:14px 0 0;position:relative;z-index:1;border-radius:6px;background:#fdfdfc;
   border:1.25px solid var(--trait);padding:15px;display:flex;align-items:center;gap:14px;width:100%;text-align:left;color:var(--noir)}
 .cliste .tx{flex:1;min-width:0}
 .cliste .sur{display:block;font-family:ui-monospace,monospace;font-size:9.5px;font-weight:500;
@@ -1844,6 +1853,9 @@ body.en-apercu #view{animation:none;transform:none}
   .role.ouvre:hover .n,.role.ouvre:hover .sg{color:rgba(242,238,230,.65)}
 }
 .tour{display:flex;align-items:center;gap:13px;padding:13px 2px;border-bottom:1px solid #dcdad5}
+/* Le jour où l'on est se voit dans la liste : il porte le seul fond de la page. */
+.tour.cejour{background:#f6f5f3;border-radius:6px}
+.tour.cejour b{font-weight:700}
 .tour i{width:14px;height:14px;flex:none}
 .tour b{flex:1;font-size:15.5px;font-weight:500}
 /* LE JOUR ET LES CHAMBRES, PLUS VISIBLES (Mag, 08/08/2026 : « plus visible stp,
@@ -10566,7 +10578,11 @@ window.addEventListener('hashchange',()=>{
      Ouvrir un tiroir ou une fiche = commencer en haut. Revenir = retrouver sa
      place. `NAV_CLIC` fait la différence : `go()` le lève, la flèche « retour » du
      navigateur ne le lève pas. */
-  const ouvre = NAV_CLIC && (current.view==='domaine' || current.view==='fiche');
+  /* ⚠ TOUTES LES PAGES, pas seulement les tiroirs et les fiches (Mag, 20/08 : la
+     page du Linge s'ouvrait à mi-hauteur, la carte « Aujourd'hui » à moitié cachée
+     sous le bandeau noir). Le raisonnement est le même partout : on OUVRE quelque
+     chose, on commence en haut ; on REVIENT, on retrouve sa place. */
+  const ouvre = NAV_CLIC;
   window.scrollTo(0, ouvre ? 0 : (scrollMem[keyOf(current)]||0));
   NAV_CLIC=false;
   /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
@@ -15521,7 +15537,11 @@ function avisBlocHTML(p){
   const nMots = pret ? AVIS.filter(function(a){ return (a.texte||'').trim(); }).length : 0;
   return '<div class="carnet'+(CARNET_OUV?' ouvert':'')+'">'+
       '<button class="ct" onclick="carnetBascule()" aria-expanded="'+(CARNET_OUV?'true':'false')+'">'+
-        '<b>Le carnet de l’équipe</b>'+
+        /* ⚠ LE NOM A FAIT TROIS TOURS (18/08 « nomme-le Wiki » → 20/08 « un titre
+           plus compréhensible » → 20/08 « mets le WIKI de l'équipe »). C'est
+           celui-là : le mot qu'elle emploie, plus les deux mots qui disent QUI
+           l'écrit. Ne pas le rebaptiser sans elle. */
+        '<b>Le wiki de l’équipe</b>'+
         (pret
           ? '<span class="cpt'+(nMots?'':' vide')+'"></span>'+
             '<span class="n">'+(nMots ? nMots+' mot'+(nMots>1?'s':'') : 'rien encore')+'</span>'
@@ -19458,10 +19478,18 @@ function vLinge(){
     (l.chambres?'<em>Chambres '+esc(l.chambres)+'</em>':'')+'</span>'+
     '<span class="ic" style="color:'+(LINGE_COUL[l.etage]||'#1b1b1b')+'">'+icon('linge')+'</span></div>';
   h+='<div class="sect"><b>Le tour de la semaine</b><em>'+Object.keys(LINGE).length+' jours</em></div>';
-  Object.keys(LINGE).forEach(function(k){
+  /* ⚠ LA SEMAINE COMMENCE AUJOURD'HUI (Mag, 20/08/2026). `Object.keys` rend les
+     clés dans l'ordre 0,1,2… — donc DIMANCHE en tête, un jeudi. On lisait une
+     semaine qui commençait trois jours plus tôt, et le jour où l'on est se
+     retrouvait au milieu de la liste. On tourne la roue pour partir d'aujourd'hui :
+     ce qui vient est devant, ce qui est passé n'y est plus. */
+  const ordreJours=[];
+  for(let i=0;i<7;i++){ const k=String((d.getDay()+i)%7); if(LINGE[k]) ordreJours.push(k); }
+  ordreJours.forEach(function(k){
     const x=LINGE[k];
-    h+='<div class="tour"><i style="background:'+(LINGE_COUL[x.etage]||'#8b8984')+'"></i>'+
-      '<b>'+esc(x.etage)+'</b><em>'+esc(jours[k]+(x.chambres?' · '+x.chambres:''))+'</em></div>';
+    const cejour = (Number(k)===d.getDay());
+    h+='<div class="tour'+(cejour?' cejour':'')+'"><i style="background:'+(LINGE_COUL[x.etage]||'#8b8984')+'"></i>'+
+      '<b>'+esc(x.etage)+'</b><em>'+esc((cejour?'Aujourd’hui':jours[k])+(x.chambres?' · '+x.chambres:''))+'</em></div>';
   });
   h+='<button class="fbtn" style="width:100%;margin-top:18px" onclick="goFiche(/linge/i)">'+
     '<span class="ic">'+icon('compass')+'</span>La fiche complète</button>';
