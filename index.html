@@ -1852,6 +1852,9 @@ body.en-apercu #view{animation:none;transform:none}
   .role.ouvre:hover{background:var(--noir);color:#f2eee6}
   .role.ouvre:hover .n,.role.ouvre:hover .sg{color:rgba(242,238,230,.65)}
 }
+/* La phrase que les hébergés viennent demander, posée sous la carte du jour. En
+   écriture de lecture, pas en capitales : c'est une réponse, pas un avertissement. */
+.lingedem{margin:14px 2px 0;font-size:15px;line-height:1.5;color:#57554f}
 .tour{display:flex;align-items:center;gap:13px;padding:13px 2px;border-bottom:1px solid #dcdad5}
 /* Le jour où l'on est se voit dans la liste : il porte le seul fond de la page. */
 .tour.cejour{background:#f6f5f3;border-radius:6px}
@@ -5707,7 +5710,7 @@ const SAMPLE = [
   // CENTRE — infos pratiques du quotidien
   centre("Jour des poubelles","Sortie des poubelles — jours, couleurs et où les déposer.","Le rappel de l'accueil s'allume la veille dès 16 h et le matin de la collecte, aux couleurs des sacs à sortir. Il s'éteint à midi : les sacs sont dehors, le rappel ne sert plus."),
   centre("Distribution des produits","Produits distribués à l'accueil.","Tous les PREMIERS SAMEDIS du mois, à l'accueil.\n\nUn rappel apparaît dans l'app la veille au soir et le jour même."),
-  centre("Draps et linge","Jour de lessive par étage — et changement à la demande.","À LA DEMANDE : les draps se changent tous les jours, il suffit de le demander.\n\nJOUR DE LESSIVE PAR ÉTAGE\nLundi — 1er étage, chambres 101 à 108\nMardi — 1er étage, chambres 113 à 122\nMercredi — 2e étage, chambres 201 à 222\nJeudi — 4e et 5e étage\nVendredi — 5e étage, chambres 501 à 512\nSamedi — 3e étage, chambres 301 à 310\nDimanche — 3e étage, chambres 312 à 322\n\nLe bouton bleu en bas de l'app affiche l'étage du jour."),
+  centre("Draps et linge","Jour de lessive par étage — et changement à la demande.","À LA DEMANDE : les draps se changent tous les jours, il suffit de le demander.\n\nJOUR DE LESSIVE PAR ÉTAGE\nLundi — 1er étage, chambres 101 à 108\nMardi — 1er étage, chambres 113 à 122\nMercredi — 2e étage, chambres 201 à 222\nJeudi — 4e et 5e étage\nVendredi — 5e étage, chambres 501 à 512\nSamedi — 3e étage, chambres 301 à 310\nDimanche — 3e étage, chambres 312 à 322\n\nDans l'app : Centre → Le linge. L'étage du jour est en haut de la page."),
   /* ═══ LES DEUX INFIRMERIES (dicté par Mag le 08/08/2026) ═══
      Ce sont DEUX infirmeries, à deux étages, avec des horaires différents — et
      jusqu'ici l'app n'en disait pas un mot. Envoyer quelqu'un à la mauvaise heure
@@ -19484,6 +19487,12 @@ function vLinge(){
   if(l) h+='<div class="cliste" style="border-color:var(--noir)">'+
     '<span class="tx"><span class="sur">Aujourd’hui</span><b>'+esc(l.etage)+'</b>'+
     (l.chambres?'<em>Chambres '+esc(l.chambres)+'</em>':'')+'</span></div>';
+  /* La phrase vient de la FICHE, pas d'ici : une seule source. Si elle la corrige
+     dans la fiche, la page suit. On prend le premier paragraphe des notes — c'est
+     celui qui commence par « À LA DEMANDE ». */
+  const fLinge=DATA.find(function(x){ return x.domaine==='centre' && /linge/i.test(x.nom); });
+  const aDemande=fLinge ? String(fLinge.notes||'').split('\n\n')[0].trim() : '';
+  if(aDemande) h+='<p class="lingedem">'+esc(aDemande)+'</p>';
   h+='<div class="sect"><b>Le tour de la semaine</b><em>'+Object.keys(LINGE).length+' jours</em></div>';
   /* ⚠ LA SEMAINE COMMENCE AUJOURD'HUI (Mag, 20/08/2026). `Object.keys` rend les
      clés dans l'ordre 0,1,2… — donc DIMANCHE en tête, un jeudi. On lisait une
@@ -19498,8 +19507,20 @@ function vLinge(){
     h+='<div class="tour'+(cejour?' cejour':'')+'"><i style="background:'+(LINGE_COUL[x.etage]||'#8b8984')+'"></i>'+
       '<b>'+esc(x.etage)+'</b><em>'+esc((cejour?'Aujourd’hui':jours[k])+(x.chambres?' · '+x.chambres:''))+'</em></div>';
   });
-  h+='<button class="fbtn" style="width:100%;margin-top:18px" onclick="goFiche(/linge/i)">'+
-    '<span class="ic">'+icon('compass')+'</span>La fiche complète</button>';
+  /* ═══ LA FICHE N'A PLUS DE BOUTON ICI (Mag, 20/08/2026) ═══
+     « Je trouve que la fiche devrait être visible sans devoir faire une action. »
+     J'ai ouvert la fiche « Draps et linge » pour voir ce qu'il y avait derrière ce
+     bouton : UNE phrase utile (« à la demande… »), LE TABLEAU DES JOURS déjà
+     affiché juste au-dessus, et une ligne fausse (« le bouton bleu en bas de
+     l'app » — il n'existe plus). Le bouton faisait donc cliquer pour lire une
+     répétition et une erreur.
+     La phrase utile est remontée en haut, sous la carte du jour ; le bouton part.
+     ⚠ SEULEMENT POUR LE LINGE (« pour linge pour l'instant seulement »). Les
+     chambres, les poubelles et les produits gardent le leur tant qu'on n'a pas
+     regardé, une par une, ce que leur fiche apporte vraiment.
+     ⚠ LA FICHE RESTE VIVANTE : `#/f/…` répond, la loupe et l'impression y mènent.
+     C'est le bouton qui part, pas la fiche — et le jour où quelqu'un y ajoute un
+     vrai paragraphe, il faudra un chemin depuis cette page. */
   return h+'<div style="height:26px"></div>';
 }
 /* ═══════════════════════════════════════════════════════════════════════════
