@@ -1313,6 +1313,17 @@ body.en-apercu #view{animation:none;transform:none}
 .fcarte .fet{width:22px;height:22px;flex:none;background:transparent;border:0;padding:0;color:#b5b3ae}
 .fcarte .fet.on{color:#c9940c}
 .fcarte h1{display:block;font-size:24px;font-weight:700;line-height:1.1;margin-top:14px}
+/* ═══ LE BANDEAU D'UNE FICHE (Centre) ═══
+   ⚠ NI 38 PX NI EN CAPITALES : c'est la taille d'un titre de TIROIR (« LE LINGE »,
+   trois mots). Un nom de fiche peut faire soixante signes — « Centre de prévention
+   des violences conjugales et familiales » aurait rempli l'écran en majuscules. Il
+   garde la graisse et le serrage du bandeau, il perd la casse et le corps. */
+.hero.fiche h1{font-size:clamp(21px,7vw,29px);text-transform:none;
+  letter-spacing:-.02em;line-height:1.1}
+.fintro{padding-top:14px}
+.fintro .fdesc{font-size:15px;line-height:1.45;color:#4a4844;margin:0}
+.fintro .fcond{font-size:15px;line-height:1.45;color:var(--noir);font-weight:500;
+  margin:11px 0 0;padding-left:11px;border-left:3px solid var(--noir)}
 .fcarte .fdesc{font-size:15px;line-height:1.45;color:#4a4844;margin:8px 0 0}
 /* LES CONDITIONS — pas de titre, donc c'est la FORME qui doit dire « lis-moi
    d'abord » : un filet à gauche, l'encre pleine, et un rien plus gras que la
@@ -10827,8 +10838,8 @@ function tile(d,reseau){
 }
 /* Le bandeau noir de titre d'écran (handoff Claude Design, 06/08/2026).
    surtitre + titre + picto d'accent ; la flèche de retour n'apparaît que si on la demande. */
-function heroBandeau(titre, surtitre, couleur, pic, retour){
-  return '<div class="hero">'+
+function heroBandeau(titre, surtitre, couleur, pic, retour, cls){
+  return '<div class="hero'+(cls?' '+cls:'')+'">'+
     (retour!==false?'<button class="cbtn" onclick="history.back()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
     '<span class="htx">'+
       (surtitre?'<span class="hsur" style="color:'+couleur+'">'+esc(surtitre)+'</span>':'')+
@@ -15742,8 +15753,31 @@ function vFiche(p){
 
   /* Le bouton d'impression d'UNE fiche : c'est la feuille qu'on donne à quelqu'un
      pour qu'il puisse s'y rendre sans téléphone (Mag, 08/08/2026). */
-  return '<div class="imprligne">'+boutonImprimer()+'</div>'+
-    '<div class="fcarte">'+
+  /* ═══ LES FICHES DU CENTRE PRENNENT LE BANDEAU NOIR (Mag, 20/08/2026) ═══
+     « Fais la même en-tête que là, mais enlève le PARTAGER et FAVORIS » — puis
+     « retire ça aussi » (la pastille orange « CENTRE ») — puis « en fait, je fais
+     ça pour tout ce qui est dans le centre ».
+     Les pages du Centre (Le linge, Les chambres…) portaient déjà ce bandeau ; leurs
+     FICHES portaient une carte claire à bande de couleur. Deux en-têtes pour la même
+     maison, on ne savait plus si on avait changé d'endroit. C'est le même maintenant.
+     Ce qui part avec : la pastille du domaine (le bandeau porte déjà le mot en
+     surtitre), le partage et l'étoile.
+     ⚠ SEULEMENT LE CENTRE. Les fiches du Réseau gardent leur carte : là-bas
+     l'étoile sert (on met une adresse en favori) et le partage aussi (on envoie une
+     adresse à quelqu'un). Le jour où elle veut le même partout, c'est la condition
+     `estCentre` ci-dessous qu'on retire. */
+  const estCentre = (p.domaine==='centre');
+  /* L'en-tête change, TOUT LE RESTE DE LA FICHE NE BOUGE PAS : les lignes d'infos,
+     le « À savoir », les boutons, le wiki. C'est une seule variable qu'on échange. */
+  const tete = estCentre
+    ? heroBandeau(p.nom, d.short||d.label||'', c, fichePicto(p)||d.ic||'compass', true, 'fiche')+
+      ((p.desc||p.conditions)
+        ? '<div class="fintro">'+
+            (p.desc?'<p class="fdesc">'+esc(p.desc)+'</p>':'')+
+            (p.conditions?'<p class="fcond">'+esc(p.conditions)+'</p>':'')+
+          '</div>'
+        : '')
+    : '<div class="fcarte">'+
       '<i class="bande" style="background:'+c+'"></i>'+
       '<div class="fin">'+
         '<div class="ftop">'+
@@ -15764,7 +15798,8 @@ function vFiche(p){
            parce qu'on les lit AVANT de composer le numéro — sous les coordonnées,
            elles arriveraient trop tard. */
         (p.conditions?'<p class="fcond">'+esc(p.conditions)+'</p>':'')+
-      '</div></div>'+
+      '</div></div>';
+  return '<div class="imprligne">'+boutonImprimer()+'</div>'+tete+
     (infos?'<div class="frows">'+infos+'</div>':'')+
     (body?body:'')+
     (p.notes?'<div class="fsavoir"><b><span class="ic">'+icon('bulb')+'</span>À savoir</b><p>'+esc(p.notes)+'</p></div>':'')+
