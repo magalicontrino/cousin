@@ -1400,7 +1400,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .fdt{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.19em;
   text-transform:uppercase;color:var(--enc2);margin-bottom:2px}
 .fdoc{display:flex;align-items:center;gap:13px;background:#fdfdfc;border:1.25px solid var(--trait);
-  border-radius:14px;padding:12px 14px;color:var(--noir);text-decoration:none;min-height:64px}
+  border-radius:14px;padding:12px 14px;color:var(--noir);text-decoration:none;min-height:64px;
+  /* ⚠ `text-align:left` et `width:100%` : la moitié de ces lignes sont des <button>,
+     qui centrent leur texte par défaut — on avait donc deux alignements dans la même
+     liste selon que la ligne ouvrait un fichier ou lançait une impression. */
+  text-align:left;width:100%}
 .fdoc>.ic{width:38px;height:38px;flex:none;border-radius:50%;background:#e4edf7;
   display:flex;align-items:center;justify-content:center}
 .fdoc>.ic svg,.fdoc>.ic .pico{width:18px!important;height:18px!important}
@@ -19575,30 +19579,63 @@ function tousLesDocs(){
   return out;
 }
 function vRessources(){
+  /* ⚠ « IL MANQUE DES CHOSES » (Mag, 21/08/2026). La page ne montrait que les PDF
+     accrochés aux fiches — donc UNE ligne. Or ce qu'elle appelle une ressource, c'est
+     tout ce qu'on EMPORTE : un dépliant officiel, mais aussi une feuille vierge qu'on
+     sort avant un entretien, ou la feuille qu'on remet à la personne dans sa langue.
+     Trois familles, donc, et elles ne se rangent pas ensemble par hasard :
+       · ce qui vient de l'extérieur et fait autorité (les documents officiels) ;
+       · ce qu'on imprime vierge et qu'on remplit au stylo ;
+       · ce qu'on donne à la personne.
+     ⚠ AUCUNE LISTE RECOPIÉE : les documents viennent des fiches, les feuilles de
+     `PRINT_FEUILLES`. Ajouter une feuille à Print la fait apparaître ici toute seule. */
   const docs=tousLesDocs();
-  let h=heroBandeau('Les ressources', docs.length+(docs.length>1?' documents officiels':' document officiel'),
-                    '#A9C8E8','imprimer');
-  h+='<p class="hint" style="margin:16px 0 0">Les documents officiels tels qu’ils ont été '+
-     'publiés — dépliants, brochures, supports de formation. On les télécharge pour les '+
-     'imprimer ou les montrer en formation.</p>';
+  const nTot=docs.length+PRINT_FEUILLES.length+1;
+  /* ⚠ « Ressources » et pas « Les ressources » : au pluriel avec l'article, le titre
+     passait sous le picto du bandeau en 375 px. */
+  let h=heroBandeau('Ressources', nTot+' à emporter', '#A9C8E8','imprimer');
+  h+='<p class="hint" style="margin:16px 0 0">Tout ce qui se télécharge ou s’imprime : '+
+     'les documents officiels tels qu’ils ont été publiés, les feuilles vierges qu’on '+
+     'remplit au stylo, et la feuille qu’on remet à la personne.</p>';
+
+  /* ① Les documents officiels */
+  h+='<div class="sectc" style="margin-top:26px"><b><i style="background:#A9C8E8"></i>'+
+     'Les documents officiels</b><em>'+(docs.length||'aucun')+'</em></div>';
   if(!docs.length){
-    return h+'<div class="empty" style="margin-top:20px"><b>Rien encore</b>'+
-      '<p>Dépose les fichiers dans le dossier <b>documents/</b> du projet et dis-le-moi : '+
-      'je les accroche à leur fiche, et ils apparaissent ici.</p></div>'+
-      '<div style="height:26px"></div>';
+    h+='<div class="empty"><b>Rien encore</b><p>Dépose les fichiers dans le dossier '+
+       '<b>documents/</b> du projet et dis-le-moi : je les accroche à leur fiche, '+
+       'et ils apparaissent ici.</p></div>';
+  } else {
+    h+='<div class="fdocs">'+docs.map(function(d){
+      return '<a class="fdoc" href="'+esc(d.f)+'" target="_blank" rel="noopener" download>'+
+        '<span class="ic">'+icon('imprimer')+'</span>'+
+        '<span class="tx"><b>'+esc(d.n||'Document')+'</b>'+
+          '<em>'+esc(d.d?('Version du '+d.d):'Date inconnue')+
+          (d.src?' · '+esc(String(d.src).replace(/^https?:\/\//,'').replace(/\/$/,'')):'')+'</em></span>'+
+        '<span class="chv">↓</span></a>'+
+        (d.sid?'<button class="fdoc-fiche" onclick="go(\''+'#/f/'+esc(d.sid)+'\')">'+
+          'La fiche : '+esc(d.fiche)+' ›</button>':'');
+    }).join('')+'</div>';
   }
-  h+='<div class="fdocs" style="margin-top:20px">'+docs.map(function(d){
-    return '<a class="fdoc" href="'+esc(d.f)+'" target="_blank" rel="noopener" download>'+
-      '<span class="ic">'+icon('imprimer')+'</span>'+
-      '<span class="tx"><b>'+esc(d.n||'Document')+'</b>'+
-        '<em>'+esc(d.d?('Version du '+d.d):'Date inconnue')+
-        (d.src?' · '+esc(String(d.src).replace(/^https?:\/\//,'').replace(/\/$/,'')):'')+'</em></span>'+
-      '<span class="chv">↓</span></a>'+
-      /* ⚠ LE CHEMIN VERS LA FICHE COMPTE AUTANT QUE LE FICHIER : un dépliant seul ne
-         dit ni qui appeler ni à quelle heure. La fiche, si. */
-      (d.sid?'<button class="fdoc-fiche" onclick="go(\''+'#/f/'+esc(d.sid)+'\')">'+
-        'La fiche : '+esc(d.fiche)+' ›</button>':'');
+
+  /* ② Les feuilles vierges — la même liste que la page Print, pas une copie */
+  h+='<div class="sectc" style="margin-top:26px"><b><i style="background:#6cb392"></i>'+
+     'Les feuilles à imprimer</b><em>'+PRINT_FEUILLES.length+'</em></div>';
+  h+='<div class="fdocs">'+PRINT_FEUILLES.map(function(f){
+    return '<button class="fdoc" onclick="'+f.act+'">'+
+      '<span class="ic">'+icon(f.pi)+'</span>'+
+      '<span class="tx"><b>'+esc(f.nom)+'</b><em>'+esc(f.sous)+' · '+esc(f.pages)+'</em></span>'+
+      '<span class="chv">↓</span></button>';
   }).join('')+'</div>';
+
+  /* ③ Ce qu'on remet à la personne */
+  h+='<div class="sectc" style="margin-top:26px"><b><i style="background:#f8763f"></i>'+
+     'À remettre à la personne</b><em>1</em></div>';
+  h+='<div class="fdocs"><button class="fdoc" onclick="go(\'#/schemas\')">'+
+      '<span class="ic">'+icon('question')+'</span>'+
+      '<span class="tx"><b>Les schémas à donner</b>'+
+      '<em>Trois questions, puis une feuille A4 dans sa langue · à imprimer</em></span>'+
+      '<span class="chv">›</span></button></div>';
   return h+'<div style="height:26px"></div>';
 }
 /* ═══════════════════════════════════════════════════════════════════════════
