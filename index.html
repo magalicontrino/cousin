@@ -1445,6 +1445,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   text-transform:uppercase;border-bottom:2px solid var(--noir);padding-bottom:7px}
 .accf{display:flex;flex-direction:column;gap:5px}
 .accf>span{font-size:13.5px;line-height:1.35;color:#3a3833}
+/* Le conseil sous une question : il aide à la POSER, il ne se remplit pas. Gris,
+   en italique, plus petit que la question — on doit pouvoir ne pas le lire. */
+.acctip{display:block;font-style:italic;font-size:13px;line-height:1.4;color:var(--enc2);
+  margin:-1px 0 2px}
 .accf input,.accf textarea{font:inherit;font-size:16px;line-height:1.45;color:var(--noir);
   background:#fdfdfc;border:1.25px solid var(--trait);border-radius:10px;padding:10px 12px;
   width:100%;resize:vertical}
@@ -5650,7 +5654,12 @@ const SAMPLE = [
   /* Décision de Mag (30/07/2026) : ça se règle À L'ENTRÉE, pas après la perte —
      après, il n'y a plus rien à activer. On propose, on ne fait pas à la place,
      et on ne note jamais le mot de passe de la personne. */
-  m("Téléphone — à préparer à l'entrée","La localisation s'active AVANT la perte. Après, il n'y a plus rien à activer.",
+  /* ⚠ SORTIE DU PROTOCOLE le 21/08/2026 : le conseil qu'elle portait est maintenant
+     DANS la trame d'accueil, sous la question du GSM — là où il sert. La fiche garde
+     le détail (Android, iPhone, ce qu'on peut faire ensuite) et rejoint l'autre
+     moitié du sujet dans les démarches. Le Protocole redevient ce qu'il est : ce
+     qu'on ouvre quand quelque chose ARRIVE. */
+  mVersDemarches("Téléphone — préparer la localisation","La localisation s'active AVANT la perte. Après, il n'y a plus rien à activer.",
     "POURQUOI À L'ENTRÉE\nUne fois le téléphone perdu ou volé, on ne peut plus rien activer à distance : la localisation doit avoir été mise en route AVANT, sur l'appareil, quand on l'avait encore en main. C'est cinq minutes pendant l'entretien d'accueil, et ça peut éviter de tout perdre — contacts, papiers photographiés, rendez-vous.\n\nSUR UN ANDROID\nL'application « Localiser mon appareil » de Google. Il faut un compte Google connecté sur le téléphone et la localisation activée. On retrouve ensuite l'appareil depuis n'importe quel navigateur, sur android.com/find.\n\nSUR UN IPHONE\nL'application « Localiser » d'Apple. Il faut un identifiant Apple connecté. On retrouve l'appareil sur iCloud.com/find.\n\nCE QU'ON PEUT FAIRE ENSUITE\nVoir où est l'appareil, le faire sonner, l'afficher comme perdu avec un message et un numéro de contact, ou effacer son contenu à distance si tout est perdu.\n\nCOMMENT ON S'Y PREND\nOn explique et on reste à côté : c'est SON téléphone et SON compte. On ne saisit jamais son mot de passe à sa place et on ne le note nulle part. Si la personne n'a pas de compte, on lui propose d'en créer un — c'est elle qui choisit son mot de passe.\n\nTÉLÉPHONE DE SERVICE\nMême logique, mais la démarche passe par la personne responsable du matériel : ne pas lier un téléphone de service à un compte personnel.\n\nEN CAS DE VOL\nLa localisation ne remplace pas la déclaration : vol = plainte à la police. Et bloquer la carte SIM auprès de l'opérateur."),
   m("Sanction","Conduite à tenir face aux infractions (résumé).",
     "Avertir → recadrer → sanctionner, par paliers.\nDécidé à deux (travailleur social + infirmier) ou par la coordination.\n\n1. Vie commune (bruit, hygiène, horaires…) → rappel, puis sanction courte.\n2. Alcool / drogue → recadrage puis sanction ; refus de confier son traitement = fin d'hébergement.\n3. Agression / vol → verbale : avertissement ; physique, sexuelle ou vol : exclusion immédiate.\n4. Refus de soin → à voir en réunion."),
@@ -6824,6 +6833,11 @@ function deco(fiche, pourquoi){ fiche.deco=true; if(pourquoi) fiche.decoTxt=pour
 function tags(fiche, liste){ fiche.tags=liste||[]; return fiche; }
 function m(nom,desc,notes){
   return {id:uid(),fav:false,domaine:"methodes",nom,commune:"",desc,public:"",referent:"",tel:"",mail:"",site:"",adr:"",horaires:"",notes};
+}
+/* Même fiche que `m()`, mais rangée dans les DÉMARCHES : quand ce qu'elle décrit se
+   fait à un guichet ou sur un formulaire, pas face à quelqu'un qui va mal. */
+function mVersDemarches(nom,desc,notes){
+  const o=m(nom,desc,notes); o.domaine="demarches"; o.demarche="Téléphone perdu ou volé"; return o;
 }
 function cpas(nom,commune,tel,site,adr){
   return d("social",nom,commune,"Revenu d'intégration (RIS), aide sociale, guidance budgétaire, aide médicale urgente.","Habitants de la commune",tel,"",site,adr,"","");
@@ -20223,8 +20237,16 @@ const ACC_CHAMPS=[
     ⚠ NE PAS LES REMETTRE, même « pour que la note soit complète » : la note se colle
     DANS le dossier de la personne, qui porte déjà son nom.
     Le GSM reste : c'est le seul moyen de la rappeler, et c'est elle qui le donne. */
+ /* ⚠ LE CONSEIL EST ICI, PAS DANS UNE FICHE (Mag, 21/08/2026 : « ça, tu pourrais
+    plutôt rajouter comme tips dans l'entretien d'accueil »). Il vivait dans le
+    Protocole, où personne n'allait le chercher au bon moment. Le bon moment, c'est
+    l'instant précis où on note son numéro : le téléphone est là, sur la table.
+    ⚠ APRÈS LA PERTE, IL N'Y A PLUS RIEN À ACTIVER — c'est toute la raison d'en
+    parler maintenant, et c'est pour ça que la phrase est écrite en entier plutôt
+    que renvoyée à un lien. */
  {s:'Pour la joindre', c:[
-   {k:'gsm',l:'GSM'}
+   {k:'gsm',l:'GSM',
+    tip:'Proposer d’activer la localisation MAINTENANT, pendant qu’elle a son téléphone en main. Après la perte, il n’y a plus rien à activer.'}
  ]},
  {s:'Motif', c:[
    {k:'passe',l:'Que s’est-il passé ?',b:1},
@@ -20275,6 +20297,7 @@ function vAccueilPersonne(volet){
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         return '<label class="accf"><span>'+esc(f.l)+'</span>'+
+          (f.tip?'<i class="acctip">'+esc(f.tip)+'</i>':'')+
           (f.b
             ? '<textarea rows="2" autocomplete="off" spellcheck="false" '+
               'oninput="accSet(\''+f.k+'\',this.value)">'+v+'</textarea>'
@@ -20330,7 +20353,8 @@ function accImprimer(volet){
   const w=window.open('','_blank'); if(!w){ toast('Le navigateur a bloqué la fenêtre'); return; }
   const ligne=function(f){
     const v=(ACC[f.k]||'').trim();
-    return '<div class="ch"><span class="lb">'+esc(f.l)+'</span>'+
+    return '<div class="ch"><span class="lb">'+esc(f.l)+
+      (f.tip?' <i style="font-weight:400;color:#555">— '+esc(f.tip)+'</i>':'')+'</span>'+
       (v?'<span class="vl">'+esc(v).replace(/\n/g,'<br>')+'</span>'
         :'<span class="tr'+(f.b?' haut':'')+'"></span>')+'</div>';
   };
