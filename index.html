@@ -15370,19 +15370,14 @@ function fcard(p){
      ⚠ Le rond de domaine ne disparaît pas partout : il reste dans les listes qui
      MÉLANGENT les domaines (favoris, recherche), où il dit quelque chose. Ici, dans
      un tiroir, il ne disait rien. */
-  /* ⚠ MAIL OU NOTE SE VOIT SUR LA CARTE (Mag, 21/08/2026 : « mail et note, il faut
-     différencier »). La distinction existait DÉJÀ dans la donnée (le champ `genre`)
-     et dans la rangée de filtres — mais nulle part sur la carte : il fallait filtrer
-     pour savoir, c'est-à-dire savoir avant de chercher.
-     ⚠ ON NE FABRIQUE PAS UNE ÉTIQUETTE POUR ÇA. J'avais commencé par poser des tags
-     « Mail à envoyer » / « Note à écrire » : ça faisait DEUX filtres qui disaient la
-     même chose, dans la même page. On affiche le champ qui existe, on n'en invente
-     pas un second.
-     La différence est réelle et elle compte : un mail s'ENVOIE à quelqu'un, une note
-     s'ÉCRIT dans un dossier. Les cinq notes sont des observations de soin (ulcère,
-     diabète, amputation à surveiller) — les envoyer par mail n'aurait aucun sens. */
-  const pastilles=((p.genre==='Note'?['Note']:(p.genre==='Mail'?['Mail']:[]))
-    .concat(p.tags||[])).slice(0,3).map(function(t){
+  /* ⚠ PAS DE PASTILLE « Mail » / « Note » ICI. Elle y a été pendant une demi-heure,
+     le temps qu'on comprenne ce qu'elle demandait vraiment : ce sont deux SECTIONS
+     qu'il fallait (voir `listeDuTiroir`), pas une marque sur chaque carte. Une fois
+     les sections en place, la pastille répétait douze fois « Mail » sous un titre qui
+     dit déjà « Les mails à envoyer ».
+     C'est la troisième fois aujourd'hui sur le même sujet : quand un rangement est
+     visible, tout ce qui le redit devient du bruit. */
+  const pastilles=(p.tags||[]).slice(0,3).map(function(t){
     return '<span class="fr2p" style="background:'+tagCouleur(t)+'">'+esc(t)+'</span>';
   }).join('');
   return '<div class="frow2 c3'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
@@ -15687,8 +15682,9 @@ function vDomaine(key){
     items=items.filter(p=>p.demarche===filt.dem);
   }
   if(d.isMail){
-    chips+=chipRow('genre',['Mail','Note'],filt.genre,'Tous');
-    if(filt.genre!=='Tous') items=items.filter(p=>p.genre===filt.genre);
+    /* ⚠ Plus de rangée « Mail / Note » : les deux SECTIONS le disent (voir
+       `listeDuTiroir`). Le filtre est gardé dans l'état pour ne rien casser, mais il
+       n'est plus proposé — on ne montre pas deux fois le même tri. */
     chips+=chipRow('famille',['Médical','Social'],filt.famille,'Toutes');
     if(filt.famille!=='Toutes') items=items.filter(p=>p.famille===filt.famille);
   }
@@ -15874,9 +15870,38 @@ function vDomaine(key){
         PRINT_FEUILLES.length+' pour l’instant</small></span>'+
         '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>'
       : '')+
-    (items.length||grpHtml?items.map(d.isFormation?flCard:fcard).join('')+grpHtml:
+    (items.length||grpHtml?listeDuTiroir(d,items,key)+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
     '</div>'+fichePanHTML();
+}
+
+/* ═══ DEUX SECTIONS DANS LE TIROIR DES MODÈLES (Mag, 21/08/2026) ═══
+   « Ça doit être différent de notes, ça doit être deux sections différentes. »
+   La pastille sur la carte ne suffisait pas : elle dit ce QU'EST une carte, elle ne
+   RANGE pas la liste. Dix-sept modèles mélangés restent dix-sept modèles mélangés,
+   même bien étiquetés.
+   Un mail s'ENVOIE à quelqu'un — réquisitoire, AMU, mutuelle. Une note s'ÉCRIT dans
+   un dossier : ce qu'on a repéré à l'accueil, un ulcère de jambe, un diabète. Ce ne
+   sont pas deux sortes du même objet, ce sont deux gestes.
+   ⚠ LA RANGÉE DE FILTRES « Mail / Note » DISPARAÎT AVEC ÇA. Deux sections visibles
+   ET un filtre qui fait la même chose, c'est le doublon qu'on retire partout depuis
+   ce matin. Le filtre « Médical / Social », lui, reste : il croise, il ne répète pas.
+   ⚠ UNE SECTION VIDE NE S'ÉCRIT PAS : si on filtre sur Médical et qu'il ne reste que
+   des mails, le titre « Les notes à écrire » ne s'affiche pas au-dessus de rien. */
+function listeDuTiroir(d,items,key){
+  const carte=d.isFormation?flCard:fcard;
+  if(!d.isMail) return items.map(carte).join('');
+  const bloc=function(titre,liste,sous){
+    if(!liste.length) return '';
+    return '<div class="sectc" style="margin-top:18px"><b>'+esc(titre)+'</b>'+
+           '<em>'+liste.length+'</em></div>'+
+           '<p class="hint" style="margin:0 0 10px">'+esc(sous)+'</p>'+
+           liste.map(carte).join('');
+  };
+  return bloc('Les mails à envoyer', items.filter(function(p){ return p.genre!=='Note'; }),
+              'Objet et texte déjà écrits — on copie, on complète, on envoie.')+
+         bloc('Les notes à écrire', items.filter(function(p){ return p.genre==='Note'; }),
+              'Un canevas à recopier dans le dossier. Ça ne s’envoie à personne.');
 }
 
 /* ---------- fiche ---------- */
