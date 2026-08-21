@@ -12183,7 +12183,14 @@ function vCentre(){
        mails qui vont avec, et la feuille des soins. Ses deux mots seuls ne faisaient
        pas un nom de bouton.
        ⚠ SI J'AI MAL COMPLÉTÉ, c'est un mot à changer — le sien fait foi. */
-    {n:'Démarches sociales et médicales', s:'', c:'#A9C8E8', p:'accomp',
+    /* ⚠ SON DESSIN PASSE AUX CALQUES (`demarche`). Il portait les deux silhouettes,
+       comme « Accueil entrant » deux lignes plus haut — la répétition qu'elle relève
+       à chaque fois. Les calques sont déjà le dessin des démarches : le bouton porte
+       maintenant le dessin de ce qu'il contient.
+       ⚠ Sa porte « Démarches » garde le même : un écho parent/enfant se lit comme
+       « c'est bien le tiroir des démarches », alors que deux boutons voisins qui se
+       ressemblent, non. */
+    {n:'Démarches sociales et médicales', s:'', c:'#A9C8E8', p:'demarche',
      k:['Démarches','Mails et notes','Les schémas à donner']},
     /* ⚠ RENOMMÉ « Activités » le 21/08/2026 (Mag : « note juste activités »).
        « Éduc / Activités » nommait un MÉTIER et une chose à la fois, séparés par une
@@ -12423,7 +12430,7 @@ function vCentre(){
     }).join('');
   }
 
-  let premiere=true, nPortes=0;
+  let premiere=true, nPortes=0; const nPortesFam=[];
   const nDocs=(typeof tousLesDocs==='function')?tousLesDocs().length:0;
   const familles=[];
   FAMILLES.forEach(function(f,fi){
@@ -12439,7 +12446,7 @@ function vCentre(){
        décider si ça vaut la peine d'ouvrir. */
     /* Seule « Apprendre » gagne la porte Ressources : le compte ne l'ajoute qu'à elle. */
     const enPlus=((nDocs && fi===2)?1:0);
-    nPortes+=dedans.length+enPlus;
+    nPortes+=dedans.length+enPlus; nPortesFam.push(dedans.length+enPlus);
     const ouvert=(CENTRE_FAM===String(fi));
     const nDedans=dedans.length+enPlus;
     const sous=(premiere && !voitOutilsCentre()) ? 'Vue D'
@@ -12468,13 +12475,34 @@ function vCentre(){
   const nMethodes=DATA.filter(function(p){ return p.domaine==='methodes'; }).length;
   const btnProtocole=
     '<button class="famz" onclick="go(\'#/d/methodes\')">'+
-      '<span class="rd" style="background:'+pastel('#f6e7a8')+'"><span class="ic">'+icon('conduite')+'</span></span>'+
+      /* ⚠ LA CLÉ EST `clipboard`, PAS `conduite` — c'est le NOM DU FICHIER qui s'appelle
+         conduite.svg. Le rond est resté vide jusqu'à ce qu'elle le voie : `icon()` sur
+         une clé inconnue ne se plaint pas, il rend un SVG vide. Même piège que
+         `hebergement` ce matin. Regarder l'écran, pas seulement le code. */
+      '<span class="rd" style="background:'+pastel('#f6e7a8')+'"><span class="ic">'+icon('clipboard')+'</span></span>'+
       '<span class="tx"><b>Protocole</b><em>'+nMethodes+' conduite'+(nMethodes>1?'s':'')+' à tenir</em></span>'+
       '<span class="chv">›</span></button>';
-  if(familles.length)
+  /* ═══ DEUX SECTIONS AU LIEU D'UNE (Mag, 21/08/2026 : « mets ça en dessous avec un
+     autre titre ») ═══
+     « Les outils de l'équipe » couvrait cinq boutons qui ne servent pas au même
+     moment. En haut, ce qu'on sort quand on accompagne quelqu'un : les démarches et
+     les conduites à tenir. En dessous, ce qui n'est jamais urgent : ce qu'on propose
+     aux hébergés, et ce qu'on apprend soi-même.
+     ⚠ LE COMPTE SUIT CHAQUE SECTION. Un total global au-dessus d'une moitié de liste
+     serait faux — et c'est le genre de chiffre qui fait douter du reste. */
+  const outilsHaut=familles.slice(0,1), outilsBas=familles.slice(1);
+  if(outilsHaut.length){
+    const n=nPortesFam[0]+1;   /* +1 : Protocole est un bouton, donc une porte */
     h+='<div class="sectc"><b><i style="background:#A9C8E8"></i>Les outils de l’équipe</b>'+
-       '<em>'+(nPortes+1)+' portes</em></div>'+
-       familles.join('')+btnProtocole;
+       '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
+       outilsHaut.join('')+btnProtocole;
+  }
+  if(outilsBas.length){
+    const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
+    h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
+       '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
+       outilsBas.join('');
+  }
   h+='<div style="height:26px"></div>';
   return h;
 }
