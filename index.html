@@ -9268,7 +9268,23 @@ function chProchaine(ch){
    ce serait mentir à l'équipe. */
 const CH_SANS_OBJET='sans objet';
 let CH_DEPART='vider';     /* le choix en cours dans le formulaire d'ajout */
-function chDepart(v){ CH_DEPART=v; render(); }
+/* ═══ LE CLIC QUI EFFAÇAIT TOUT (Mag, 21/08/2026) ═══
+   « Quand j'écris le numéro de chambre et le nom, ça va, mais quand je clique sur
+   À VIDER ou NETTOYER, ça s'efface. »
+   ⚠ C'ÉTAIT `render()`. Redessiner la page recrée les deux champs de saisie, donc
+   vide le numéro et le nom qu'on vient de taper — juste avant d'appuyer sur Ajouter.
+   Le geste normal est pourtant : je tape, je choisis, j'ajoute.
+   ⚠ ON NE REDESSINE PAS POUR CHANGER DEUX CLASSES. C'est la troisième fois que ce
+   piège coûte une séance ici — voir la mémoire « ça tremble, les clics se perdent ».
+   Un `render()` dans un gestionnaire de clic, sur une page qui contient un champ de
+   saisie, est un bug en attente. */
+function chDepart(v){
+  CH_DEPART=v;
+  const bs=document.querySelectorAll('.chdep-b');
+  for(let i=0;i<bs.length;i++){
+    bs[i].classList.toggle('on', bs[i].getAttribute('data-dep')===v);
+  }
+}
 async function ajouterChambre(){
   const n=document.getElementById('chNum'), i=document.getElementById('chIni');
   const num=(n&&n.value||'').trim(); if(!num){n&&n.focus();return}
@@ -9413,9 +9429,11 @@ function chResume(encours){
         }).join('')+
       '</div>';
     }).join('')+
-    '<p class="chres-p">Une chambre n’est comptée qu’une fois, dans ce qu’elle attend '+
-    'maintenant. Tant qu’elle n’est pas libérée sur la liste étage, elle n’est pas '+
-    'donnée à quelqu’un d’autre.</p></div>';
+    /* ⚠ RETIRÉ (Mag, 21/08/2026) : « Une chambre n'est comptée qu'une fois… »
+       expliquait la MÉCANIQUE du compteur à quelqu'un qui veut juste savoir où aller.
+       Si le compte surprend un jour, c'est le compte qu'il faudra revoir, pas une
+       phrase d'excuse en dessous. */
+    '</div>';
 }
 function vChambres(){
   const encours=CHAMBRES.filter(c=>!chambreFinie(c)), finies=CHAMBRES.filter(chambreFinie).slice(0,8);
@@ -9428,24 +9446,33 @@ function vChambres(){
     '</div>'+
     /* LE CHOIX AVANT D'AJOUTER : « il reste des affaires » ou pas. C'est la seule
        vraie question au moment où on ajoute — le reste du parcours ne change pas. */
+    /* ⚠ « LA CHAMBRE EST » EST RETIRÉ (Mag, 21/08/2026). Les deux boutons disent déjà
+       de quoi ils parlent : une étiquette au-dessus ne fait que répéter, et sur un
+       écran étroit elle mangeait la moitié de la ligne.
+       ⚠ `data-dep` n'est pas décoratif : c'est lui qui permet à `chDepart` de changer
+       le bouton allumé SANS redessiner la page — donc sans effacer la saisie. */
     '<div class="chdep">'+
-      '<span class="chdep-t">La chambre est</span>'+
-      '<button class="chdep-b'+(CH_DEPART==='vider'?' on':'')+'" onclick="chDepart(\'vider\')">'+
+      '<button class="chdep-b'+(CH_DEPART==='vider'?' on':'')+'" data-dep="vider" onclick="chDepart(\'vider\')">'+
         '<b>À vider</b><em>il reste des affaires</em></button>'+
-      '<button class="chdep-b'+(CH_DEPART==='nettoyer'?' on':'')+'" onclick="chDepart(\'nettoyer\')">'+
+      '<button class="chdep-b'+(CH_DEPART==='nettoyer'?' on':'')+'" data-dep="nettoyer" onclick="chDepart(\'nettoyer\')">'+
         '<b>Déjà vide</b><em>on passe au nettoyage</em></button>'+
     '</div>'+
     /* ⚠ LE PRÉNOM EST REVENU (Mag, 08/08/2026 : « les prénoms on peut mettre »). En
        raccourcissant ce texte une heure plus tôt, j'avais laissé « des initiales »
        tout court — plus sévère que sa règle. Raccourcir ne doit pas durcir. */
-    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Initiales, ou prénom et première lettre du nom. Jamais le nom de famille.</b> C\'est pour savoir quel lit débarrasser quand la chambre est à deux.</span></div>'+
+    /* ⚠ LA RÈGLE RESTE, L'EXPLICATION PART (Mag, 21/08/2026). « C'est pour savoir quel
+       lit débarrasser quand la chambre est à deux » justifiait la règle à des gens qui
+       l'appliquent déjà. La règle, elle, ne bouge pas : c'est une donnée de personne. */
+    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Initiales, ou prénom et première lettre du nom. Jamais le nom de famille.</b></span></div>'+
     (encours.length?'<div class="ghead">En cours <span style="color:var(--enc2)">'+encours.length+'</span></div>'+encours.map(chCard).join(''):'')+
     (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
     (!CHAMBRES.length?(chambresLoaded
       ?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b><p>Ajoute un numéro quand une personne part.</p></div>'
       :'<div class="empty"><b>Chargement…</b></div>'):'')+
-    chResume(encours)+
-    '<p class="hint" style="margin:14px 0 26px">Partagée par toute l\'équipe. Chaque coche porte un nom et une heure ; un clic de plus l\'annule.</p>';
+    /* ⚠ RETIRÉE (Mag, 21/08/2026) : « Partagée par toute l'équipe. Chaque coche porte
+       un nom et une heure… » — chaque coche affiche DÉJÀ le nom et l'heure, sous la
+       ligne. Écrire en bas de page ce que l'écran montre en haut, c'est du remplissage. */
+    chResume(encours);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -12134,7 +12161,10 @@ function vHome(){
      mène sur grand écran. Seule la section de l'accueil part. */
 
 
-  return h+'<div class="foot">COUSIN <span class="sign">@mag</span></div></div>';
+  /* ⚠ LA SIGNATURE « COUSIN @mag » EST RETIRÉE (Mag, 21/08/2026 : « retire
+     Cousin@mag »). C'était la dernière ligne de l'accueil : une signature d'auteur
+     au bas d'un outil de travail. Personne n'ouvre l'app pour savoir qui l'a faite. */
+  return h+'</div>';
 }
 
 /* La même grande carte Démarches sur l'accueil et dans les outils du Centre. */
