@@ -445,6 +445,24 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   #view .imprligne, #view .f-page, #view .quiz-card
   { margin-left:auto; margin-right:auto; }
 }
+/* ═══ « AUJOURD'HUI » SUR DEUX COLONNES (Mag, 22/08/2026) ═══
+   « Sur l'écran, je trouve que ça pourrait être partagé. Ça pourrait être sur deux
+   colonnes. »
+   Trois grandes lignes empilées dans une colonne de 620 px, au milieu d'un écran de
+   1470, laissent les deux tiers vides — et la troisième chose du jour passe sous la
+   ligne de flottaison alors qu'il y a toute la place du monde à droite.
+   ⚠ SEUIL À 1100 px, PAS 900 : à 900 chaque carte tomberait à ~330 px et le gros
+   titre de 20 px se casserait en trois lignes. Sous le seuil, rien ne change.
+   ⚠ UNE CARTE SEULE EN BAS PREND TOUTE LA LARGEUR : le nombre de choses du jour
+   varie, et un trou à droite d'une carte orpheline se lit comme un bug.
+   (Ceci n'est PAS la refonte du bloc écartée le 08/08 : le contenu et l'ordre ne
+   bougent pas, c'est la place qui change.) */
+@media (min-width:1100px){
+  #view .grosses{max-width:980px;display:grid;grid-template-columns:repeat(2,1fr);
+    gap:10px;align-items:start}
+  #view .grosses .grosse{margin-bottom:0}
+  #view .grosses .grosse:last-child:nth-child(odd){grid-column:1/-1}
+}
 /* L'espace laissé par le titre retiré. Même hauteur que lui : la bande garde son
    équilibre, les cartes ne remontent pas contre le bord. */
 .zj-air{height:14px}
@@ -2515,6 +2533,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .popcard input{width:100%;font:inherit;font-size:17px;font-weight:500;color:var(--noir);
   background:#fdfdfc;border:1.25px solid var(--trait);border-radius:6px;padding:12px 13px;margin-top:14px}
 .popcard input:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+/* Le troisième champ ne reçoit qu'un nombre : une case large comme un nombre.
+   Une case pleine largeur pour « 2 » invite à y écrire une phrase. */
+#popChamp3{width:130px;font-family:ui-monospace,monospace;letter-spacing:.06em}
 .popbas{display:flex;align-items:center;gap:10px;margin-top:18px}
 .popbas .ann{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:#8b8984;padding:12px 4px}
@@ -3561,6 +3582,16 @@ body.no-tabs #tabbar{display:none}
     background:var(--noir);color:#f2eee6;border-top:0;justify-content:flex-start;
     padding:26px 18px calc(20px + env(safe-area-inset-bottom));
     display:flex;flex-direction:column;gap:26px;overflow-y:auto}
+  /* ⚠ L'ASCENSEUR DU RAIL NE PREND PLUS DE PLACE (Mag, 22/08/2026 : « le menu à
+     gauche s'est mal calé parce que j'ai un ascenseur »). Le rail défile dès que la
+     fenêtre est courte — et là où la barre de défilement est OPAQUE (Windows, et un
+     Mac réglé sur « toujours afficher »), elle mange une quinzaine de pixels DANS
+     les 236 px : les ronds et les mots se décalent, et la colonne n'est plus alignée
+     avec rien. Le `body` garde son padding de 236 px, lui, d'où l'impression que
+     tout est de travers.
+     Même remède que `.rail` plus haut : ça défile, ça ne s'affiche pas. */
+  #tabbar{scrollbar-width:none;-ms-overflow-style:none}
+  #tabbar::-webkit-scrollbar{display:none}
   #tabbar .raillogo{width:56px;height:auto;display:block;align-self:flex-start;filter:invert(1)}
   #tabbar .railprinc{display:flex;flex-direction:column;gap:8px}
   #tabbar .railprinc button{display:flex;flex-direction:row;align-items:center;gap:12px;
@@ -4390,6 +4421,14 @@ body.no-tabs #tabbar{display:none}
     <b id="popTitre"></b>
     <p id="popTexte"></p>
     <input id="popChamp" type="text" autocomplete="off">
+    <!-- ═══ DEUX CHAMPS DE PLUS (Mag, 22/08/2026) ═══
+         « On peut changer le nom, mais on ne peut pas changer la phrase, ni le
+         nombre de demandes. » Une proposition d'activité, c'est un titre, une
+         précision et un compteur : les trois se corrigent, ou aucun.
+         ⚠ CACHÉS PAR DÉFAUT — toutes les autres fenêtres de l'app n'ont qu'un champ,
+         et elles ne doivent rien voir de tout ça. -->
+    <input id="popChamp2" type="text" autocomplete="off" style="display:none">
+    <input id="popChamp3" type="text" inputmode="numeric" autocomplete="off" style="display:none">
     <div class="popbas">
       <button class="ann" onclick="popFermer()">Annuler</button>
       <button class="ok" id="popOk" onclick="popValider()"></button>
@@ -13276,17 +13315,25 @@ function vProfil(){
    affichent l'adresse du site et n'ont rien de nous (Mag, 06/08/2026).
    · cousinConfirme(titre, texte, quandOui, {ok, danger})
    · cousinDemande(titre, texte, valeurDeDépart, quandRempli)          */
-let _popQuandOui=null, _popChamp=false;
+let _popQuandOui=null, _popChamp=false, _popPlus=false;
 function popFermer(){
   document.getElementById('popBg').classList.remove('on');
-  _popQuandOui=null; _popChamp=false;
+  ['popChamp2','popChamp3'].forEach(function(id){
+    const e=document.getElementById(id); if(e){ e.style.display='none'; e.value=''; }
+  });
+  _popQuandOui=null; _popChamp=false; _popPlus=false;
 }
 function popValider(){
   const c=document.getElementById('popChamp');
   const v=_popChamp ? (c.value||'') : true;
+  /* ⚠ ON LIT LES CHAMPS AVANT DE FERMER : `popFermer` les vide. */
+  const plus = _popPlus ? {
+    deux:(document.getElementById('popChamp2')||{}).value||'',
+    trois:(document.getElementById('popChamp3')||{}).value||''
+  } : null;
   const f=_popQuandOui;
   popFermer();
-  if(f) f(v);
+  if(f) f(v, plus);
 }
 function cousinPop(o){
   const bg=document.getElementById('popBg');
@@ -13296,6 +13343,15 @@ function cousinPop(o){
   _popChamp = (typeof o.champ==='string');
   c.style.display=_popChamp?'block':'none';
   if(_popChamp){ c.value=o.champ; c.setAttribute('maxlength', o.max||24); }
+  /* Les deux champs supplémentaires ne servent qu'aux propositions d'activités. */
+  _popPlus = !!o.plus;
+  if(_popPlus){
+    const c2=document.getElementById('popChamp2'), c3=document.getElementById('popChamp3');
+    c2.style.display='block'; c2.value=o.plus.deux||''; c2.setAttribute('maxlength',300);
+    c2.setAttribute('placeholder', o.plus.deuxPlaceholder||'');
+    c3.style.display='block'; c3.value=o.plus.trois||'';
+    c3.setAttribute('placeholder', o.plus.troisPlaceholder||'');
+  }
   const ok=document.getElementById('popOk');
   ok.textContent=o.ok||'Confirmer';
   ok.classList.toggle('danger',!!o.danger);
@@ -18836,27 +18892,53 @@ async function propEtat(id, etat){
     await loadPropositions(); render();
   }catch(e){ toast('Modification refusée'); }
 }
-/* Corriger le texte d'une proposition sans la perdre : le compteur de demandes, la
-   source et la date restent, seul le libellé change. */
+/* ═══ LES TROIS MORCEAUX SE CORRIGENT (Mag, 22/08/2026) ═══
+   « Ici, on peut annuler ou changer. C'est génial. On peut changer le nom. Mais on
+   ne peut pas changer la phrase, et on ne peut pas non plus changer le nombre de
+   demandes. »
+   Elle a raison, et c'était un demi-outil : une proposition d'activité, c'est un
+   TITRE (« Jam »), une PRÉCISION (« trouver 2 guitares ») et un COMPTEUR. On ne
+   pouvait corriger que le premier — donc pour changer la précision il fallait
+   supprimer la ligne et la retaper, en perdant le compteur au passage. C'est
+   exactement ce que « Modifier » avait été ajouté pour éviter le 13/08.
+   ⚠ LE COMPTEUR SE CORRIGE, IL NE SE FABRIQUE PAS. On le borne entre 1 et 99, et
+   « Demandé encore » reste le geste normal pour l'augmenter : ce champ-ci sert à
+   réparer une erreur de frappe, pas à gonfler une demande.
+   ⚠ ON N'ENVOIE QUE CE QUI A CHANGÉ : une mise à jour qui réécrit les trois colonnes
+   à l'identique se heurterait aux policies pour rien, et brouillerait le message
+   d'erreur le jour où il y en a un. */
 function propModifier(id){
   const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
-  cousinDemande('Modifier la proposition',
-    'Corrige le texte. Le nombre de fois qu’elle a été demandée ne change pas.',
-    p.texte||'', async function(txt){
-      txt=(txt||'').trim(); if(!txt || txt===p.texte) return;
+  cousinPop({
+    titre:'Modifier la proposition',
+    texte:'Le titre, la précision en dessous, et le nombre de fois qu’elle a été demandée.',
+    champ:p.texte||'', max:200, ok:'Enregistrer',
+    plus:{ deux:p.note||'',  deuxPlaceholder:'La précision — facultatif',
+           trois:String(p.demandee||1), troisPlaceholder:'Demandée … fois' },
+    quandOui: async function(txt, plus){
+      txt=(txt||'').trim(); if(!txt) return;
+      const note=((plus&&plus.deux)||'').trim();
+      let n=parseInt(String((plus&&plus.trois)||'').replace(/[^0-9]+/g,''),10);
+      if(!isFinite(n) || n<1) n=1;
+      if(n>99) n=99;
+      const maj={};
+      if(txt!==p.texte)          maj.texte=txt.slice(0,300);
+      if(note!==(p.note||''))    maj.note=note||null;
+      if(n!==(p.demandee||1))    maj.demandee=n;
+      if(!Object.keys(maj).length) return;
       /* ⚠ LA PANNE DOIT SE DIRE (leçon des erreurs Supabase muettes) : « Modification
          refusée » ne disait pas POURQUOI, et Mag a cru que ça n'arrivait pas dans la
-         base. On affiche maintenant le message réel — c'est lui qui permet de réparer. */
+         base. On affiche le message réel — c'est lui qui permet de réparer. */
       try{
-        if(!sb) { toast('Pas de connexion à la base'); return; }
-        const {data,error}=await sb.from('propositions').update({texte:txt.slice(0,300)})
-          .eq('id',p.id).select('id');
+        if(!sb){ toast('Pas de connexion à la base'); return; }
+        const {data,error}=await sb.from('propositions').update(maj).eq('id',p.id).select('id');
         if(error) throw error;
         if(!data || !data.length){ toast('Refusé par la base — tu n’as pas le droit de modifier celle-ci'); return; }
         await loadPropositions(); render(); toast('Proposition modifiée');
       }catch(e){ toast('Échec : '+((e&&e.message)||e)); }
-    });
+    }
+  });
 }
 function propRetirer(id){
   const p=PROPOS.find(function(x){ return String(x.id)===String(id); });
