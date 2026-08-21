@@ -12088,6 +12088,8 @@ function vCentre(){
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   const nFormations=DATA.filter(p=>p.domaine==='formations').length;
   const nMails=DATA.filter(p=>p.domaine==='mails').length;
+  const nMailsEnvoi=DATA.filter(p=>p.domaine==='mails' && (p.objet||'').trim()).length;
+  const nNotes=nMails-nMailsEnvoi;
   const nMeth=DATA.filter(p=>p.domaine==='methodes').length;
   const auj=agendaProchains(1);
 
@@ -12097,7 +12099,9 @@ function vCentre(){
     ['Protocole', nMeth+' méthodes','clipboard','','#fd8fd0','#1b1b1b',"go('#/d/methodes')"],
     ['Activités', (auj.length?auj.length+' sorties aujourd\'hui':'Sorties · Article 27'),'ticket','noir large',null,'#6cb392',"go('#/ticket')"],
     ['Démarches','Réquisitoire · AMU · RIS','demarche','large','#A9C8E8','#f2eee6',"go('#/d/demarches')"],
-    ['Mails et notes', nMails+' modèles à copier','mail','','#f6e7a8','#1b1b1b',"go('#/d/mails')"],
+    /* ⚠ LE SOUS-TITRE COMPTE LES DEUX SÉPARÉMENT : la différence se voit avant même
+       d'ouvrir, et les deux nombres se recalculent tout seuls. */
+    ['Mails et notes', nMailsEnvoi+' mails · '+nNotes+' notes','mail','','#f6e7a8','#1b1b1b',"go('#/d/mails')"],
     /* LES SCHÉMAS : un outil, pas un lieu — d'où sa place ici et pas dans le Réseau. */
     /* ⚠ Son dessin passe des calques à l'imprimante (Mag, 21/08/2026 : « les pictos
        se répètent »). Il portait le MÊME dessin que « Démarches », deux lignes plus
@@ -15355,7 +15359,19 @@ function fcard(p){
      ⚠ Le rond de domaine ne disparaît pas partout : il reste dans les listes qui
      MÉLANGENT les domaines (favoris, recherche), où il dit quelque chose. Ici, dans
      un tiroir, il ne disait rien. */
-  const pastilles=(p.tags||[]).slice(0,3).map(function(t){
+  /* ⚠ MAIL OU NOTE SE VOIT SUR LA CARTE (Mag, 21/08/2026 : « mail et note, il faut
+     différencier »). La distinction existait DÉJÀ dans la donnée (le champ `genre`)
+     et dans la rangée de filtres — mais nulle part sur la carte : il fallait filtrer
+     pour savoir, c'est-à-dire savoir avant de chercher.
+     ⚠ ON NE FABRIQUE PAS UNE ÉTIQUETTE POUR ÇA. J'avais commencé par poser des tags
+     « Mail à envoyer » / « Note à écrire » : ça faisait DEUX filtres qui disaient la
+     même chose, dans la même page. On affiche le champ qui existe, on n'en invente
+     pas un second.
+     La différence est réelle et elle compte : un mail s'ENVOIE à quelqu'un, une note
+     s'ÉCRIT dans un dossier. Les cinq notes sont des observations de soin (ulcère,
+     diabète, amputation à surveiller) — les envoyer par mail n'aurait aucun sens. */
+  const pastilles=((p.genre==='Note'?['Note']:(p.genre==='Mail'?['Mail']:[]))
+    .concat(p.tags||[])).slice(0,3).map(function(t){
     return '<span class="fr2p" style="background:'+tagCouleur(t)+'">'+esc(t)+'</span>';
   }).join('');
   return '<div class="frow2 c3'+(estConseille(p)?' reco':'')+(p.deco?' deco':'')+'" role="button" tabindex="0" onclick="fichePan(\''+p.sid+'\')" style="margin-bottom:10px">'+
