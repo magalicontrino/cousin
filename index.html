@@ -494,6 +494,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
    collé au nom dit la même chose sans décaler la ligne d'un pixel par rapport à ses
    voisines — et un décalage de 3 px sur une seule ligne d'une liste, ça se voit.
    ⚠ Le jaune reste réservé à ce qui presse. Le rouge est aux urgences. */
+/* Le titre d'un groupe DANS un dépliant. Volontairement discret : il sépare, il ne
+   se clique pas, et il ne doit jamais peser autant que les portes qu'il coiffe. */
+.famgp{font-family:ui-monospace,monospace;font-size:9px;font-weight:600;letter-spacing:.19em;
+  text-transform:uppercase;color:var(--enc2);padding:14px 0 2px;border-top:1px solid var(--ligne);
+  margin-top:4px}
+.famdedans > .famgp:first-child{border-top:0;margin-top:0;padding-top:8px}
 .famli.pressee .tx b::after{content:'';display:inline-block;width:7px;height:7px;
   border-radius:50%;background:#f5c542;margin-left:7px;vertical-align:middle}
 #view .qneuf{max-width:620px;padding-top:16px}
@@ -12131,7 +12137,11 @@ function vCentre(){
        l'intention. Ne pas les remettre.
        ⚠ « Ce qu'on propose » est devenu « Éduc / Activités » et « Le quotidien »
        « Gestion du centre », à sa demande — mêmes mots que ceux de l'équipe. */
-    {n:'Le travail avec la personne', s:'', c:'#A9C8E8', p:'accomp',
+    /* ⚠ RENOMMÉE le 21/08/2026 (Mag : « le travail avec la personne, ce n'est pas très
+       clair »). L'ancien nom décrivait une INTENTION — sa propre règle dit de nommer
+       la chose, jamais son effet, et son test est « est-ce qu'un collègue dirait ça au
+       téléphone ? ». Personne ne dit « il me faut du travail avec la personne ». */
+    {n:'Accompagner quelqu’un', s:'', c:'#A9C8E8', p:'accomp',
      k:['Protocole','Démarches','Mails et notes','Les schémas à donner','Le règlement']},
     {n:'Éduc / Activités', s:'', c:'#f8763f', p:'palette',
      k:['Éduc','Activités','Autour d’ici']},
@@ -12248,6 +12258,61 @@ function vCentre(){
      ⚠ Une seule chose ouverte à la fois dans toute la page — Gestion du centre
      comprise. Deux dépliants ouverts, on refait une page longue et on a tourné en
      rond. C'est `CENTRE_FAM` qui le garantit : il ne retient qu'une clé. */
+  /* ═══ CE QU'IL Y A DANS UN DÉPLIANT, ET DANS QUEL ORDRE ═══
+     ⚠ « RESSOURCES » EN PREMIÈRE PORTE DE CHAQUE FAMILLE (Mag, 21/08/2026) : « il
+     faut toujours avoir des ressources en premier dans les boutons ». Elle ne
+     s'affiche que s'il y a des documents — un bouton qui ouvre une page vide est
+     pire que pas de bouton.
+     ⚠ « ACCUEIL » N'EST QUE DANS LA PREMIÈRE FAMILLE : c'est le premier geste avec
+     quelqu'un qui arrive, il n'a rien à faire dans Éduc ni dans Apprendre. Son
+     sous-titre dit « l'entretien d'arrivée » et pas « l'accueil » — le mot Accueil
+     est déjà le premier bouton du bas.
+
+     ═══ LE TRI DES SEPT PORTES (Mag, 21/08/2026) ═══
+     « Je voudrais voir comment on peut trier ce qu'il y a dans le travail avec la
+     personne » — puis ses rapprochements, qu'elle a trouvés seule et qui tiennent :
+     les mails avec les démarches, les ressources avec les schémas, et « accueil et
+     règlement, c'est ACCUEIL / NOUVEL ENTRANT ».
+     Chaque paire tient pour une raison qu'on peut dire en un mot : deux moments de
+     l'arrivée · la même démarche (l'une se fait, l'autre s'envoie) · deux papiers qui
+     sortent de l'imprimante.
+     ⚠ PROTOCOLE RESTE SEUL, EN TÊTE, SANS TITRE AU-DESSUS. Elle ne l'a pas placé, et
+     il n'entre dans aucun des trois : ce n'est ni l'arrivée, ni une démarche, ni un
+     papier à donner — c'est ce qu'on ouvre quand quelque chose ARRIVE (une sanction,
+     des violences, un risque suicidaire). Il est premier parce que c'est celui qu'on
+     cherche en urgence. ⚠ Et un groupe d'un seul élément n'est pas un groupe : pas de
+     titre pour lui.
+     ⚠ AUCUNE PORTE N'A CHANGÉ DE NOM NI DE DESTINATION. On n'a ajouté que trois
+     petits titres : si ça ne va pas à l'usage, on les retire et tout revient. */
+  const CENTRE_GROUPES={
+    0:[{t:'', k:['Protocole']},
+       {t:'Accueil / nouvel entrant', k:['__accueil','Le règlement']},
+       {t:'Les démarches',            k:['Démarches','Mails et notes']},
+       {t:'Les papiers à donner',     k:['Les schémas à donner','__ressources']}]
+  };
+  function dedansHTML(fi,dedans,nDocs){
+    const ress = nDocs ? porteCentre('imprimer','Ressources',
+        nDocs+(nDocs>1?' documents officiels':' document officiel'),"go('#/ressources')") : '';
+    const acc  = porteCentre('accomp','Accueil','L’entretien d’arrivée, et la note pour le 6D',
+        "go('#/accueil-personne')");
+    const porte=function(nom){
+      if(nom==='__ressources') return ress;
+      if(nom==='__accueil')    return acc;
+      const o=dedans.find(function(x){ return x[0]===nom; });
+      return o ? porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]) : '';
+    };
+    const gr=CENTRE_GROUPES[fi];
+    if(!gr){
+      /* Les familles sans tri : Ressources d'abord, puis les outils dans leur ordre. */
+      return ress+dedans.map(function(o){ return porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]); }).join('');
+    }
+    return gr.map(function(g){
+      const corps=g.k.map(porte).filter(Boolean).join('');
+      if(!corps) return '';                       /* groupe vide (vue D) : pas de titre en l'air */
+      return (g.t?'<div class="famgp">'+esc(g.t)+'</div>':'')+corps;
+    }).join('');
+  }
+
   let premiere=true, nPortes=0;
   const nDocs=(typeof tousLesDocs==='function')?tousLesDocs().length:0;
   const familles=[];
@@ -12275,31 +12340,7 @@ function vCentre(){
         '<span class="tx"><b>'+esc(f.n)+'</b><em>'+esc(sous)+'</em></span>'+
         '<span class="chv">'+(ouvert?'⌃':'›')+'</span></button>'+
       (ouvert
-        ? '<div class="famdedans">'+
-            /* ⚠ « RESSOURCES » EN PREMIÈRE PORTE DE CHAQUE FAMILLE (Mag, 21/08/2026) :
-               « il faut toujours avoir des ressources en premier dans les boutons…
-               quand je clique sur Apprendre, il doit y avoir les ressources ».
-               C'est la même porte dans les trois familles, et c'est voulu : on ne
-               cherche pas où sont les documents officiels, ils sont là où on ouvre.
-               ⚠ Elle ne s'affiche QUE s'il y a des documents — un bouton qui ouvre
-               une page vide, c'est pire que pas de bouton. */
-            (nDocs ? porteCentre('imprimer','Ressources',
-                nDocs+(nDocs>1?' documents officiels':' document officiel'),
-                "go('#/ressources')") : '')+
-            /* ⚠ « ACCUEIL » N'EST QUE DANS « LE TRAVAIL AVEC LA PERSONNE » (Mag,
-               21/08/2026 : « dans la personne, mets un bouton accueil, et là-dedans
-               on va mettre l'entretien d'accueil, pour qu'on le trouve facilement »).
-               C'est le premier geste avec quelqu'un qui arrive — il ne va donc ni
-               dans Éduc, ni dans Apprendre.
-               ⚠ Le sous-titre dit « l'entretien d'arrivée » et pas « l'accueil » :
-               le mot Accueil est DÉJÀ le premier bouton du bas, celui de la page
-               d'accueil. Sans cette précision, deux choses différentes portent le
-               même mot à trois centimètres l'une de l'autre. */
-            (fi===0 ? porteCentre('accomp','Accueil','L’entretien d’arrivée, et la note pour le 6D',
-                "go('#/accueil-personne')") : '')+
-            dedans.map(function(o){
-              return porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]);
-            }).join('')+'</div>'
+        ? '<div class="famdedans">'+dedansHTML(fi,dedans,nDocs)+'</div>'
         : ''));
     premiere=false;
   });
