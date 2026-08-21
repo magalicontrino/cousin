@@ -8476,6 +8476,8 @@ function ouFermer(){ document.getElementById('ouBg').classList.remove('on'); fig
 var LISTE_OUV=false;
 function listeOuvrir(){
   LISTE_OUV=true;
+  /* Même raison que `rafraichirEnArrivant` : on ouvre la feuille pour SAVOIR. */
+  if(typeof rafraichirPerso==='function') rafraichirPerso(true);
   document.getElementById('listeCorps').innerHTML=listeCorps();
   document.getElementById('listeBg').classList.add('on');
   figerFond(true);
@@ -21123,13 +21125,41 @@ function rafraichirPartage(force){
   app('admin',      typeof loadAdmin==='function'?loadAdmin:null);
 }
 document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible') rafraichirPartage(false);
+  if(document.visibilityState==='visible'){ rafraichirPartage(false); rafraichirPerso(false); }
 });
+
+/* ═══ CE QU'ELLE ÉCRIT SUR SON TÉLÉPHONE DOIT ARRIVER SUR SON BUREAU ═══
+   (Mag, 21/08/2026 : « j'ai rempli la liste sur mon téléphone, et quand je vais sur
+   le bureau je ne vois pas ma liste que j'ai faite à la réunion »)
+
+   CE QUI SE PASSAIT, mesuré dans les journaux de la base : sa liste MONTAIT
+   correctement — quatre envois depuis son téléphone entre 11h32 et 11h40. Ce n'est
+   donc pas l'enregistrement qui manquait. Elle ne REDESCENDAIT pas, parce que
+   `chargerReglages()` n'était appelé qu'UNE SEULE FOIS, au démarrage de l'app. Un
+   onglet de bureau ouvert depuis le matin ne relit jamais : il faut le recharger à
+   la main, et personne ne devine ça — on croit simplement que l'app a perdu la
+   liste.
+   ⚠ `rafraichirPartage()` ne couvrait pas ce cas et ne doit pas le couvrir : il
+   s'occupe des écrans PARTAGÉS (chambres, fil, passations). `reglages_perso`, c'est
+   son tiroir à elle — sa liste, son petit nom, ses chapitres lus.
+   ⚠ On relit quand l'onglet revient au premier plan, et en ARRIVANT sur sa liste :
+   c'est là qu'on se pose la question. Pas en boucle — 15 secondes de repos entre
+   deux lectures, sauf quand on demande expressément. */
+var _dernierPerso=0;
+async function rafraichirPerso(force){
+  if(!sb||!PROFILE||!PROFILE.uid) return;
+  if(!force && Date.now()-_dernierPerso < 15000) return;
+  _dernierPerso=Date.now();
+  try{ await chargerReglages(); render(); }catch(e){}
+}
 /* Et en ARRIVANT sur un écran partagé : on vient souvent d'y aller exprès pour
    voir où en est l'équipe. `force` saute le délai des 20 secondes — ce clic-là est
    une question, elle mérite une réponse fraîche. */
 function rafraichirEnArrivant(vue){
   if(ECRANS_PARTAGES[vue]) rafraichirPartage(true);
+  /* Sa liste et ses rappels : on arrive dessus pour les regarder, on veut donc
+     l'état d'aujourd'hui, pas celui du chargement de ce matin. */
+  if(vue==='liste'||vue==='home') rafraichirPerso(true);
 }
 
 async function loadProfile(){
