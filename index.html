@@ -3093,6 +3093,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   background:var(--noir);color:#f2eee6;margin:0 calc(-1 * var(--pad));
   padding:18px var(--pad) 20px;display:flex;align-items:flex-end;gap:12px}
 .hero .htx{flex:1;min-width:0}
+/* ⚠ PAS DE SURVOL QUI BOUGE (règle du 18/08) : le trait pointillé dit que ça se
+   clique, en permanence, sans rien qui glisse sous le curseur. */
+.hero .hsur-l{border:0;background:none;padding:0 0 1px;cursor:pointer;text-align:left;
+  border-bottom:1px dotted currentColor}
 .hero .hsur{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.2em;
   text-transform:uppercase;font-weight:500}
 .hero h1{display:block;font-size:38px;font-weight:700;text-transform:uppercase;
@@ -11488,11 +11492,22 @@ function tile(d,reseau){
 }
 /* Le bandeau noir de titre d'écran (handoff Claude Design, 06/08/2026).
    surtitre + titre + picto d'accent ; la flèche de retour n'apparaît que si on la demande. */
-function heroBandeau(titre, surtitre, couleur, pic, retour, cls){
+/* ⚠ `surLien` : LE SURTITRE DEVIENT UNE PORTE (Mag, 22/08/2026 : « je ne peux pas
+   revenir en arrière… vers le centre, ça ne fonctionne pas »).
+   Reproduit : la flèche fait `history.back()`, donc elle ramène D'OÙ L'ON VIENT.
+   Arrivée sur « Jour des poubelles » depuis le raccourci de l'accueil, elle
+   revenait à l'accueil — c'est juste, mais la fiche affiche « CENTRE » au-dessus du
+   titre, et ce mot ne menait nulle part. Deux chemins pour deux gestes : la flèche
+   revient en arrière, le surtitre monte d'un cran. */
+function heroBandeau(titre, surtitre, couleur, pic, retour, cls, surLien){
   return '<div class="hero'+(cls?' '+cls:'')+'">'+
     (retour!==false?'<button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
     '<span class="htx">'+
-      (surtitre?'<span class="hsur" style="color:'+couleur+'">'+esc(surtitre)+'</span>':'')+
+      (surtitre
+        ? (surLien
+            ? '<button class="hsur hsur-l" style="color:'+couleur+'" onclick="go(\''+surLien+'\')">'+esc(surtitre)+'</button>'
+            : '<span class="hsur" style="color:'+couleur+'">'+esc(surtitre)+'</span>')
+        : '')+
       '<h1>'+esc(titre)+'</h1></span>'+
     (pic?'<span class="hpic" style="color:'+couleur+'"><span class="ic">'+icon(pic)+'</span></span>':'')+
   '</div>';
@@ -16483,9 +16498,14 @@ function rafraichirAvis(sid){
        replié, `#aviszone` n'existe même pas. */
     const c=document.getElementById('constatzone');
     if(c && BYSID[sid]) c.outerHTML=constatHTML(BYSID[sid]);
+    /* ⚠ L'EN-TÊTE AUSSI, ET AVANT LE CORPS : quand le carnet est REPLIÉ, `#aviszone`
+       n'existe pas — c'était le seul morceau mis à jour, donc replié, le carnet
+       restait sur « Chargement… » sans jamais annoncer ses mots. */
+    const nMots=AVIS.filter(function(a){ return (a.texte||'').trim(); }).length;
+    const etats=document.querySelectorAll('.carnet-etat');
+    for(let i=0;i<etats.length;i++) etats[i].innerHTML=carnetEtatHTML(true,nMots);
     const z=document.getElementById('aviszone');
     if(z) z.innerHTML=avisCorpsHTML(sid);
-    else if(typeof render==='function') render();
   });
 }
 /* ⚠ ON COCHE ET ON DÉCOCHE, SANS CHASSER LES AUTRES (18/08/2026). Avant, poser une
@@ -16766,15 +16786,25 @@ function avisBlocHTML(p){
            celui-là : le mot qu'elle emploie, plus les deux mots qui disent QUI
            l'écrit. Ne pas le rebaptiser sans elle. */
         '<b>Le wiki de l’équipe</b>'+
-        (pret
-          ? '<span class="cpt'+(nMots?'':' vide')+'"></span>'+
-            '<span class="n">'+(nMots ? nMots+' mot'+(nMots>1?'s':'') : 'rien encore')+'</span>'
-          : '<span class="n">Chargement…</span>')+
+        /* ⚠ CE MORCEAU EST REMPLAÇABLE TOUT SEUL (réparé le 22/08/2026, signalé par
+           Mag : « le wiki de l'équipe ne fonctionne pas »). Il fonctionnait — mais
+           l'en-tête restait sur « Chargement… » POUR TOUJOURS. `rafraichirAvis` ne
+           réécrivait que le corps (`#aviszone`) : le titre gardait l'état d'avant la
+           lecture, donc l'écran disait « ça charge » alors que tout était arrivé.
+           Un outil qui dit qu'il n'a pas fini est un outil cassé, même s'il marche.
+           ⚠ ON NE REMPLACE PAS TOUT LE CARNET : le champ de commentaire est dedans,
+           et un collègue peut être en train d'y écrire. */
+        '<span class="carnet-etat">'+carnetEtatHTML(pret,nMots)+'</span>'+
         '<span class="chv">'+(CARNET_OUV?'\u2303':'\u203A')+'</span></button>'+
       (CARNET_OUV
         ? '<div id="aviszone" class="cc">'+(pret?avisCorpsHTML(p.sid):'<p class="hint">Chargement…</p>')+'</div>'
         : '')+
     '</div>';
+}
+function carnetEtatHTML(pret,nMots){
+  if(!pret) return '<span class="n">Chargement…</span>';
+  return '<span class="cpt'+(nMots?'':' vide')+'"></span>'+
+         '<span class="n">'+(nMots ? nMots+' mot'+(nMots>1?'s':'') : 'rien encore')+'</span>';
 }
 var CARNET_OUV=false;
 /* ═══ ⚠ ON NE REDESSINE PAS TOUTE LA PAGE POUR OUVRIR UN CARNET ═══
@@ -16952,7 +16982,7 @@ function vFiche(p){
   /* L'en-tête change, TOUT LE RESTE DE LA FICHE NE BOUGE PAS : les lignes d'infos,
      le « À savoir », les boutons, le wiki. C'est une seule variable qu'on échange. */
   const tete = estCentre
-    ? heroBandeau(p.nom, d.short||d.label||'', c, fichePicto(p)||d.ic||'compass', true, 'fiche')+
+    ? heroBandeau(p.nom, d.short||d.label||'', c, fichePicto(p)||d.ic||'compass', true, 'fiche', '#/centre')+
       ((p.desc||p.conditions)
         ? '<div class="fintro">'+
             (p.desc?'<p class="fdesc">'+esc(p.desc)+'</p>':'')+
