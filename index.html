@@ -20461,11 +20461,42 @@ async function requestAccess(){
     _g('authMsg').textContent="Demande envoyée ✓\n\nMag la voit dans son espace et la valide. Tu n'as rien d'autre à faire : reviens sur cette page plus tard, et si c'est validé tu entres directement.\n\nPense à la prévenir si c'est urgent.";
   }catch(e){ if(rq) rq.textContent="Réessayer"; }
 }
+/* ═══ ⚠ « JE ME CONNECTE ET ÇA NE FONCTIONNE PAS » (Mag, 21/08/2026) ═══
+   Ce qui se passait, et c'est la faute la plus grave de la journée : cette fonction
+   ne lisait QUE `data`, jamais `.error`. Or Supabase NE LÈVE PAS d'exception quand
+   une requête échoue — il renvoie `{data:null, error:{…}}`. Le `try/catch` ne voyait
+   donc rien passer : `data` valait `null`, la fonction répondait « non », et l'app
+   affichait à MAG, qui est l'administratrice :
+       « Ton compte grosbalou55@hotmail.com n'est pas encore autorisé. »
+   Une panne de réseau d'une seconde se lisait comme un refus définitif.
+   ⚠ CE N'EST PAS THÉORIQUE : le 21/08/2026 à 07:12 UTC, les journaux de la base
+   portent un 500 — « error finding refresh token: failed to connect to database ».
+   Six minutes plus tard elle entrait normalement. Entre les deux, l'app lui a dit
+   qu'elle n'avait pas le droit d'entrer.
+   C'est exactement le piège déjà noté pour `sb.rpc()` : une panne muette s'affiche
+   comme un contenu vide. Ici, elle s'affichait comme une porte fermée.
+
+   MAINTENANT, TROIS RÉPONSES POSSIBLES ET PAS DEUX :
+     true  → l'adresse est autorisée ;
+     false → la base a répondu, et la réponse est non ;
+     null  → ON NE SAIT PAS (la base n'a pas répondu). On réessaie deux fois — une
+             base qui se réveille met une seconde ou deux — puis on le DIT, au lieu
+             d'accuser le compte de la personne.
+   ⚠ NE JAMAIS refaire un `return false` dans le `catch` : c'est confondre « non »
+   et « pas de réponse », et c'est ce qui l'a bloquée dehors. */
 async function checkAllowed(){
   // La sécurité (RLS) ne renvoie que la ligne de la personne si son email est autorisé.
-  try{ const {data}=await sb.from('allowed_emails').select('email'); return Array.isArray(data)&&data.length>0; }
-  catch(e){ return false; }
+  for(let essai=0; essai<3; essai++){
+    let r=null;
+    try{ r=await sb.from('allowed_emails').select('email'); }
+    catch(e){ r={error:{message:(e&&e.message)||String(e)}}; }
+    if(r && !r.error) return Array.isArray(r.data) && r.data.length>0;
+    ACCES_PANNE=(r&&r.error&&r.error.message)||'la base n’a pas répondu';
+    if(essai<2) await new Promise(function(ok){ setTimeout(ok, 800*(essai+1)); });
+  }
+  return null;
 }
+var ACCES_PANNE='';
 async function markSeen(user){
   try{ await sb.from('profiles').upsert({id:user.id,email:user.email,vu_le:new Date().toISOString()},{onConflict:'id'}); }catch(e){}
 }
@@ -21707,6 +21738,14 @@ async function initAuth(){
   try{ session=(await sb.auth.getSession()).data.session; }catch(e){}
   if(!session){ showLogin(); return; }
   const ok=await checkAllowed();
+  /* ⚠ « on ne sait pas » n'est PAS « non ». Voir `checkAllowed()` : tant que la base
+     n'a pas répondu, on ne dit à personne que son compte n'est pas autorisé — on dit
+     que la base ne répond pas, et on repropose le bouton. */
+  if(ok===null){
+    showRetry("La base de COUSIN n’a pas répondu.\n\nCe n’est pas ton compte : c’est le serveur qui n’a pas suivi. "+
+      "Appuie encore une fois sur le bouton, ça repart presque toujours du premier coup.");
+    return;
+  }
   if(!ok){
     // Une demande déjà envoyée ? On rassure plutôt que de reproposer le bouton.
     let dejaDemande=false;
