@@ -8542,13 +8542,32 @@ const TAGS_REGLES={
   /* ⚠ PAS `enfant` TOUT SEUL : « Femmes seules SANS ENFANTS » se retrouvait étiqueté
      « Familles », et depuis que l'étiquette s'affiche EN COULEUR sur la carte, on
      lisait le contraire de ce que la fiche dit. */
-  [/famille|avec enfants?/i,'Familles'],
+  /* ⚠ UN SEUL MOT POUR UNE SEULE CHOSE (Mag, 21/08/2026) : « si je mets Famille, ça
+     veut dire avec enfant… or une famille, c'est avec enfant, non ? »
+     Elle avait raison, et les chiffres le disaient : 5 fiches portaient « Familles »,
+     11 « Avec enfants », et HUIT maisons acceptaient des enfants sans porter
+     « Familles » — Chèvrefeuille, Talita, La Maison Rue Verte, Le Chant d'Oiseau, la
+     Maison de la Mère et de l'Enfant… c'est-à-dire précisément des maisons pour
+     femmes avec enfants. La même réalité, étiquetée de deux façons selon la fiche.
+     Et comme les étiquettes s'ADDITIONNENT, cocher les deux ne gardait que les 3
+     fiches qui portaient les deux : l'écran se vidait sans que personne comprenne.
+     « Couples » reste à part, parce qu'il dit autre chose : deux adultes, pas
+     d'enfant. */
+  [/famille|avec enfants?/i,'Avec enfants'],
   [/insertion|accompagnement|long/i,'Insertion']]
 };
 DATA.forEach(p=>{
   const regles=TAGS_REGLES[p.domaine]; if(!regles) return;
   const hay=p.nom+' '+(p.desc||'')+' '+(p.public||'');
   regles.forEach(r=>{ if(r[0].test(hay) && !p.tags.includes(r[1])) p.tags.push(r[1]); });
+});
+/* Les fiches qui portaient « Familles » à la main rejoignent le même mot. On le fait
+   ICI, après les règles, pour n'avoir qu'un seul endroit à lire le jour où on se
+   demande d'où vient une étiquette. */
+DATA.forEach(function(p){
+  if(!p.tags || p.tags.indexOf('Familles')<0) return;
+  p.tags=p.tags.filter(function(t){ return t!=='Familles'; });
+  if(p.tags.indexOf('Avec enfants')<0) p.tags.push('Avec enfants');
 });
 /* Corrections à la main (relecture fiche par fiche) : les règles se faisaient piéger
    par des mots du texte (« 1re ligne » → écoute, « agréé PHARE » → droits, etc.). */
@@ -11826,11 +11845,19 @@ function vCentre(){
     ['Démarches','Réquisitoire · AMU · RIS','demarche','large','#A9C8E8','#f2eee6',"go('#/d/demarches')"],
     ['Mails et notes', nMails+' modèles à copier','mail','','#f6e7a8','#1b1b1b',"go('#/d/mails')"],
     /* LES SCHÉMAS : un outil, pas un lieu — d'où sa place ici et pas dans le Réseau. */
-    ['Les schémas à donner','Une feuille A4, dans sa langue','demarche','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
+    /* ⚠ Son dessin passe des calques à l'imprimante (Mag, 21/08/2026 : « les pictos
+       se répètent »). Il portait le MÊME dessin que « Démarches », deux lignes plus
+       haut dans le même dépliant. L'imprimante dit ce que c'est : une feuille qu'on
+       sort et qu'on donne. */
+    ['Les schémas à donner','Une feuille A4, dans sa langue','imprimer','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
     /* LE RÈGLEMENT (Mag, 08/08/2026) : ce qu'on explique à quelqu'un le jour où il
        arrive. Il est ici, et pas dans « Gestion du centre », parce qu'il ne sert pas
        à faire tourner la maison — il sert à recevoir une personne. */
-    ['Le règlement','Ce qu’on explique à l’arrivée','clipboard','','#f6e7a8','#1b1b1b',"go('#/reglement')"],
+    /* ⚠ Son dessin passe des quatre carrés à la balance : il était identique à celui
+       de « Protocole », dans le même dépliant. La balance dit une règle ; les quatre
+       carrés disent une conduite à tenir. Ce sont deux choses différentes, elles
+       méritaient deux dessins. */
+    ['Le règlement','Ce qu’on explique à l’arrivée','juridique','','#f6e7a8','#1b1b1b',"go('#/reglement')"],
     /* ÉDUC : ce qu'on PROPOSE aux hébergés, en face des démarches qu'on fait POUR eux. */
     /* ⚠ Son dessin passe des deux silhouettes au cotillon : les deux silhouettes
        montent sur la famille « Le travail avec la personne », et deux fois le même
@@ -15255,7 +15282,19 @@ function vDomaine(key){
   /* Ces deux-là d'abord, avant l'ordre des règles : c'est la question qu'on se pose
      en premier quand on cherche une place ce soir. */
   const ordre=['Réservé aux femmes','Réservé aux hommes'].concat((TAGS_REGLES[key]||[]).map(r=>r[1]));
-  let alltags=[...new Set(parCommune.flatMap(p=>p.tags))];
+  /* ⚠ UNE ÉTIQUETTE PORTÉE PAR UNE SEULE FICHE N'EST PAS UN FILTRE (21/08/2026).
+     Mesuré sur les maisons d'accueil : six étiquettes sur seize ne tenaient qu'à une
+     fiche — Tout public, Sans enfants, Jeunes 18-24, Femmes enceintes, Escaliers,
+     Places libres en direct. Elles allongeaient la rangée de moitié et ne triaient
+     rien : cliquer dessus, c'est isoler une carte qu'on avait déjà sous les yeux.
+     ⚠ ELLES RESTENT ÉCRITES SUR LA FICHE, et sur la carte : c'est le BOUTON qui
+     part, pas l'information. Même règle que pour « Femmes » le 19/08.
+     ⚠ Et celle qu'on a cochée ne disparaît jamais sous le doigt : sans ça, cocher
+     une étiquette rare ferait s'évanouir le bouton qui vient de servir. */
+  const compte={};
+  parCommune.forEach(function(p){ (p.tags||[]).forEach(function(t){ compte[t]=(compte[t]||0)+1; }); });
+  let alltags=[...new Set(parCommune.flatMap(p=>p.tags))]
+    .filter(function(t){ return compte[t]>1 || filt.tags.indexOf(t)>=0; });
   alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
   /* Si la sous-catégorie qu'on lisait n'existe plus dans ce qui reste — on vient de
      cliquer « Nos préférés » — on la relâche au lieu d'afficher une page vide. */
