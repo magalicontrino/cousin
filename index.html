@@ -1487,6 +1487,15 @@ body.pan-ouvert #view{animation:none;transform:none}
 .onb-c.on i::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;
   justify-content:center;color:var(--noir);font-size:13px;font-weight:700}
 /* les deux encadrés et le jeu */
+/* ═══ LA RÈGLE, SUR L'ÉCRAN DU CENTRE (21/08/2026) ═══
+   Elle avait un écran entier ; elle a maintenant un encadré, sur l'écran où l'on
+   écrit. ⚠ IL EST NOIR, et c'est la seule chose noire de la visite : `.onb-ex` est
+   dessiné pour un fond sombre (coche blanche, fond translucide), et surtout le noir
+   ne sert QU'À CE QUI ALERTE. Une règle qu'on peut enfreindre en fait partie. */
+.onb-regle{background:var(--noir);color:#f2eee6;border-radius:10px;padding:15px;margin-bottom:14px}
+.onb-regle b{display:block;font-size:15.5px;line-height:1.35;margin-bottom:7px}
+.onb-regle span{display:block;font-size:14px;line-height:1.5;opacity:.86;margin-bottom:11px}
+.onb-p2{font-size:14px;line-height:1.5;opacity:.75;margin-top:-2px}
 .onb-cadre{border:1.25px solid var(--trait);border-radius:10px;padding:14px;margin-bottom:14px}
 .onb-ct{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.18em;
   text-transform:uppercase;padding-bottom:9px;margin-bottom:12px;border-bottom:1.5px solid var(--noir)}
@@ -4418,6 +4427,11 @@ const PICTOS={compass:'ico-reseau.svg', demarche:'ico-demarches.svg',
                  — même trait, mêmes bouts arrondis, en attendant le tien : il est sur
                  la planche en « à redessiner ». */
               femme:'femme.svg', homme:'homme.svg', ou:'adresse.svg',
+              /* `hebergement` n'avait pas de clé : `icon('hebergement')` rendait un
+                 SVG vide. `poub` est le sac-poubelle en MASQUE (même dessin que
+                 `poubelle`, qui est une image EN COULEUR) : dans un rond pastel il
+                 faut un trait noir, pas un logo vert et bleu. */
+              hebergement:'hebergement.svg', poub:'notif-poubelle.svg',
               /* Ton dessin du handicap, déposé le 01/08/2026 (renommé sans accent : une adresse
                  d'image doit rester simple). Il remplace le dessin provisoire. */
               handicap:'handicap.svg',
@@ -18895,6 +18909,24 @@ function onbFini(){
 function onbRaccourciFait(){ ONB.raccourci=true; onbSave(); onbFini(); }
 function onbRejouer(){ ONB_ETAPE=0; go('#/bienvenue'); }
 
+/* ═══ LA VISITE, EN QUATRE ÉTAPES — UNE PAR BOUTON (Mag, 21/08/2026) ═══
+   Ses mots : « je trouve qu'il est un peu long. Tu pourrais le faire en quatre
+   étapes pour les quatre boutons quoi. »
+   Avant : cinq écrans dont deux ne montraient AUCUN bouton de l'app — une page de
+   présentation (« Salut, je suis Cousin ») et une page de règle. On visitait donc
+   une app sans la voir.
+   Maintenant : quatre écrans, quatre boutons du bas, dans leur ordre à l'écran. On
+   sort de la visite en sachant où l'on va appuyer, ce qui est tout ce qu'une visite
+   doit faire.
+   CE QUI N'A PAS ÉTÉ PERDU, et c'était le risque :
+   · LA RÈGLE (jamais de nom de famille) est sur l'écran du CENTRE — c'est là qu'on
+     écrit : les chambres, la passation, le fil. Une règle se pose là où on peut
+     l'enfreindre, pas sur un écran à part qu'on passe.
+   · LE RACCOURCI est à la fin du dernier écran : c'est la dernière chose qu'on
+     demande, et elle ne mérite pas un écran pour elle seule.
+   ⚠ AUCUN LIEN RÉEL DANS LA VISITE (Mag, 08/08/2026 : « ne mets pas de lien réel
+   dans le onboarding »). On ANNONCE, on n'ouvre pas.
+   ⚠ AUCUNE FAUSSE DONNÉE : les nombres sont comptés sur le vrai catalogue. */
 function vBienvenue(){
   const nbFiches=DATA.filter(function(p){ return DOM[p.domaine] && DOM[p.domaine].reseau; }).length;
   const nbCommunes=[...new Set(DATA.map(function(p){ return p.commune; })
@@ -18906,115 +18938,92 @@ function vBienvenue(){
   };
   let h='<div class="onb">';
 
-  /* ── 1 · L'app se présente ── */
+  /* ── 1 · ACCUEIL ── Le bonjour tient en deux lignes au-dessus du titre : il n'a
+     plus besoin d'un écran à lui. */
   if(E===0){
-    h+='<div class="onb-e noir">'+pas(0,5)+
-      '<div class="onb-t">Salut,<br>je suis<br>Cousin</div>'+
-      '<p>Ton collègue de poche. Je connais le réseau, les démarches et le tour du linge. '+
-      'Deux minutes et on se connaît.</p>'+
-      '<button class="onb-b jaune" onclick="onbAller(1)">On y va</button>'+
+    h+='<div class="onb-e noir">'+pas(0,4)+
+      '<div class="onb-sur">Le premier bouton</div>'+
+      '<div class="onb-t">Ta journée,<br>en arrivant</div>'+
+      '<p>Salut, je suis Cousin — ton collègue de poche. Quatre boutons en bas de '+
+      'l’écran, et on a fait le tour. Le premier, c’est ce qui bouge aujourd’hui.</p>'+
+      '<div class="onb-l">'+
+        onbLigne('linge','#fd8fd0','Le linge du jour','Quel étage, quelles chambres')+
+        onbLigne('poub','#f5c542','Les poubelles','Quand les sortir, quelle couleur')+
+        onbLigne('cle','#f8763f','Les chambres','Ce qu’il reste à vider')+
+        onbLigne('list','#A9C8E8','Ta check-list','Ce que tu coches, personne ne le voit')+
+      '</div>'+
+      '<button class="onb-b jaune" onclick="onbAller(1)">Le suivant</button>'+
       onbPied(0)+'</div>';
   }
 
-  /* ── 2 · Les quatre boutons ── */
+  /* ── 2 · LE RÉSEAU ── */
   else if(E===1){
-    h+='<div class="onb-e">'+pas(1,5)+
-      '<div class="onb-sur">Le bas de l’écran</div>'+
-      '<div class="onb-t noirt">Tout tient<br>en quatre</div>'+
+    h+='<div class="onb-e">'+pas(1,4)+
+      '<div class="onb-sur">Le deuxième bouton</div>'+
+      '<div class="onb-t noirt">Où envoyer<br>quelqu’un</div>'+
+      '<p><b>'+nbFiches+' adresses</b> dans <b>'+nbCommunes+' communes</b>. Rangées par '+
+      'ce qu’il faut à la personne, pas par le métier de l’association.</p>'+
       '<div class="onb-l">'+
-        onbLigne('home','#f5c542','Accueil','Ta journée en un coup d’œil')+
-        onbLigne('reseau','#f3c6da','Le réseau',nbFiches+' fiches, '+nbCommunes+' communes')+
-        onbLigne('centre','#A9C8E8','Le centre','Tes outils et le quotidien')+
-        onbLigne('siren','#e63329','Urgences','Les numéros, tout de suite')+
+        onbLigne('hebergement','#A9C8E8','Un toit','Dormir ce soir, ou pour un temps')+
+        onbLigne('medical','#6cb392','Des soins','Médecin, dents, santé mentale')+
+        onbLigne('juridique','#b28b7a','Des droits','CPAS, papiers, argent')+
       '</div>'+
-      '<button class="onb-b" onclick="onbAller(2)">Suivant</button>'+onbPied(1)+'</div>';
+      '<p class="onb-p2">Chaque adresse a sa fiche : le numéro, l’adresse, les heures, '+
+      'et ce que l’équipe en sait.</p>'+
+      '<button class="onb-b" onclick="onbAller(2)">Le suivant</button>'+onbPied(1)+'</div>';
   }
 
-  /* ── 3 · La règle ── */
+  /* ── 3 · LE CENTRE, ET LA RÈGLE ── */
   else if(E===2){
-    h+='<div class="onb-e rouge">'+pas(2,5)+
-      '<div class="onb-sur">Confidentialité</div>'+
-      '<div class="onb-t">Une seule<br>règle</div>'+
-      /* ⚠ LA RÈGLE CORRIGÉE (Mag, 08/08/2026 : « les prénoms on peut mettre »).
-         L'écran disait « AUCUN nom dans COUSIN, ni celui d'une personne hébergée, ni
-         celui d'une collègue ». C'était plus strict que sa règle à elle — et surtout
-         l'app se contredisait elle-même : chaque coche des chambres porte le prénom
-         de qui l'a faite, le fil aussi, la passation aussi. Une règle que l'outil
-         enfreint à chaque écran, on cesse de la croire, y compris là où elle compte.
-
-         La vraie règle, la sienne, tenait déjà sur l'écran des chambres : LE PRÉNOM
-         OUI, LE NOM DE FAMILLE JAMAIS. C'est celle-là, et une seule pour toute l'app.
-
-         ⚠ Le contre-exemple ne nomme toujours personne — les crochets disent la même
-         chose sans écrire un vrai nom dans la page qui l'interdit. */
-      '<p><b>Jamais de nom de famille.</b> Le prénom, oui : le tien, celui d’un '+
-      'collègue. Pour une personne hébergée, ses <b>initiales</b> ou son <b>prénom et '+
-      'la première lettre de son nom</b>.</p>'+
-      '<div class="onb-ex ok"><i>✓</i>« Le monsieur de la 214 est parti »</div>'+
-      '<div class="onb-ex ok"><i>✓</i>« Chambre 312 — M.D. · prévenue par Sofia »</div>'+
-      '<div class="onb-ex non"><i>✕</i>« [prénom] [NOM DE FAMILLE] est parti »</div>'+
-      '<p style="margin-top:12px">La chambre, l’étage, le métier : ça suffit à se '+
-      'comprendre entre nous. Un nom de famille, lui, reste écrit et se retrouve.</p>'+
-      '<button class="onb-b" onclick="onbAller(3)">Compris</button>'+onbPied(2)+'</div>';
-  }
-
-  /* ── 4 · L'ÉCRAN « TA JOURNÉE » A ÉTÉ RETIRÉ (Mag, 11/08/2026) ──
-     Il demandait « ta journée ressemble à quoi ? » et servait à décocher des boules
-     de l'accueil. Le réglage n'existe plus (voir `onbGarde`) : les quatre boules sont
-     là d'office. Un écran qui pose une question sans effet est pire qu'un écran de
-     moins — surtout dans une visite qu'on refait à chaque connexion.
-     ⚠ LA VISITE PASSE DONC DE 6 À 5 ÉCRANS. Les numéros affichés (`pas(n,5)`) et les
-     sauts (`onbAller`) ont été renumérotés en conséquence — sinon on aurait un écran
-     « 5 sur 6 » suivi de rien, ou un « Suivant » qui tombe dans le vide. */
-
-  /* ── 5 · C'est prêt : les deux encadrés, avec le jeu entre les deux ── */
-  else if(E===3){
-    const t=ONB.taches||[];
-    const gardees=ONB_TACHES.filter(function(x){ return !t.length || t.indexOf(x.k)>=0; });
-    h+='<div class="onb-e">'+pas(3,5)+
-      '<div class="onb-sur">C’est prêt</div>'+
-      '<div class="onb-t noirt">Commence<br>par là</div>'+
-
-      '<div class="onb-cadre"><div class="onb-ct">Sur ton accueil</div>'+
-        '<div class="onb-bl">'+gardees.map(function(x){
-          return '<span class="onb-bo"><i class="ic">'+icon(x.k)+'</i><em>'+esc(x.t.replace(/^Les? /,''))+'</em></span>';
-        }).join('')+'</div></div>'+
-
-      /* ⚠ AUCUN LIEN RÉEL DANS LA VISITE (Mag, 08/08/2026) : « ne mets pas de lien
-         réel dans le onboarding ». Il y avait ici un bouton « Tirer une première
-         carte » qui fermait la visite et lançait le jeu pour de bon — on partait donc
-         de la présentation au milieu, sans avoir vu le dernier écran ni le raccourci.
-         La visite ANNONCE le jeu, elle ne l'ouvre pas : on le retrouve dans le Centre
-         une fois qu'on est arrivé au bout. */
-      '<div class="onb-jeu">'+
-        '<b>On fait un jeu ?</b>'+
-        '<span>Des cartes sur le réseau et le quartier. Tu ne peux pas te tromper — '+
-        'chaque réponse t’apprend quelque chose. Tu le trouveras dans <b>Le centre</b>.</span>'+
+    h+='<div class="onb-e">'+pas(2,4)+
+      '<div class="onb-sur">Le troisième bouton</div>'+
+      '<div class="onb-t noirt">La maison,<br>et tes outils</div>'+
+      '<div class="onb-l">'+
+        onbLigne('centre','#6cb392','Gestion du centre','Linge, poubelles, chambres, produits')+
+        onbLigne('accomp','#A9C8E8','Le travail avec la personne','Protocole, démarches, mails, règlement')+
+        onbLigne('educatif','#b28b7a','Apprendre','Formations, jeux, dictionnaire')+
       '</div>'+
-
-      /* Le second encadré, « En tête de ton réseau », est parti le 08/08/2026 avec
-         le comptage des fiches ouvertes. L'étape se termine donc sur le jeu. */
-      '<button class="onb-b" onclick="onbAller(4)">Dernière chose</button>'+onbPied(3)+'</div>';
+      /* ⚠ LA RÈGLE EST ICI, ET C'EST VOULU : le Centre est l'écran où l'on ÉCRIT
+         (les chambres, la passation, le fil). Une règle se pose là où on peut
+         l'enfreindre. Elle est raccourcie — sa version longue vivait sur un écran
+         entier que tout le monde passait.
+         ⚠ « les prénoms on peut mettre » (Mag, 08/08/2026) : ne pas la redurcir.
+         L'app elle-même signe les coches avec un prénom ; une règle que l'outil
+         enfreint à chaque écran, on cesse de la croire. */
+      '<div class="onb-regle">'+
+        '<b>Une seule règle : jamais de nom de famille.</b>'+
+        '<span>Le prénom, oui — le tien, celui d’un collègue. Pour une personne '+
+        'hébergée : ses initiales, ou la chambre.</span>'+
+        '<div class="onb-ex ok"><i>✓</i>« Chambre 312 — M.D. · prévenue par Sofia »</div>'+
+        '<div class="onb-ex non"><i>✕</i>« [prénom] [NOM DE FAMILLE] est parti »</div>'+
+      '</div>'+
+      '<button class="onb-b" onclick="onbAller(3)">Le dernier</button>'+onbPied(2)+'</div>';
   }
 
-  /* ── 6 · Le raccourci ── */
+  /* ── 4 · URGENCES, ET LE RACCOURCI ── */
   else {
-    h+='<div class="onb-e noir">'+pas(4,5)+
-      '<div class="onb-sur">Dernière chose</div>'+
-      '<div class="onb-t">Garde-moi<br>sous la main</div>'+
-      '<p>COUSIN n’est pas dans le magasin d’applications. On l’ajoute soi-même à '+
-      'l’écran d’accueil, et il s’ouvre ensuite comme une app.</p>'+
-      '<div class="onb-sch">'+
-        '<div><b>1</b><span class="vg">'+schPartage()+'</span>'+
-          '<span class="tx">Touche <b>ce bouton</b>.<em>En bas de Safari · sur Android, les 3 points</em></span></div>'+
-        '<div><b>2</b><span class="vg">'+schAccueil()+'</span>'+
-          '<span class="tx">Descends et touche <b>cette ligne</b>.<em>Sur l’écran d’accueil</em></span></div>'+
-        '<div><b>3</b><span class="vg">'+schAjouter()+'</span>'+
-          '<span class="tx">Touche <b>Ajouter</b>. C’est fini.<em>En haut à droite</em></span></div>'+
+    h+='<div class="onb-e rouge">'+pas(3,4)+
+      '<div class="onb-sur">Le quatrième bouton</div>'+
+      '<div class="onb-t">Les numéros,<br>tout de suite</div>'+
+      '<p>Le rouge, c’est quand ça ne peut pas attendre. Les numéros sont en gros, '+
+      'et on appelle en une touche — sans chercher dans une fiche.</p>'+
+      /* Le raccourci ferme la visite : c'est la seule chose qu'on DEMANDE, et elle
+         ne méritait pas un écran pour elle seule. */
+      '<div class="onb-cadre"><div class="onb-ct">Avant de commencer</div>'+
+        '<p style="margin:0 0 10px">COUSIN n’est pas dans le magasin d’applications. '+
+        'On l’ajoute soi-même à l’écran d’accueil, et il s’ouvre ensuite comme une app.</p>'+
+        '<div class="onb-sch">'+
+          '<div><b>1</b><span class="vg">'+schPartage()+'</span>'+
+            '<span class="tx">Touche <b>ce bouton</b>.<em>En bas de Safari · sur Android, les 3 points</em></span></div>'+
+          '<div><b>2</b><span class="vg">'+schAccueil()+'</span>'+
+            '<span class="tx">Descends et touche <b>cette ligne</b>.<em>Sur l’écran d’accueil</em></span></div>'+
+          '<div><b>3</b><span class="vg">'+schAjouter()+'</span>'+
+            '<span class="tx">Touche <b>Ajouter</b>. C’est fini.<em>En haut à droite</em></span></div>'+
+        '</div>'+
       '</div>'+
       '<button class="onb-b jaune" onclick="onbRaccourciFait()">C’est ajouté</button>'+
       '<button class="onb-s" onclick="onbFini()">Plus tard — tu me le rappelleras</button>'+
-      onbPied(4)+'</div>';
+      onbPied(3)+'</div>';
   }
 
   return h+'</div>';
@@ -19025,17 +19034,15 @@ function vBienvenue(){
    l'app fait vraiment. Réservée à l'administration — ce n'est pas un écran d'équipe. */
 function vBienvenueTout(){
   if(!(PROFILE&&PROFILE.admin)) { onbRejouer(); return ''; }
-  /* Cinq écrans depuis le 11/08/2026 : « Ta journée » est parti avec le réglage des
-     boules (voir `onbGarde`). */
-  const titres=['1 · L’app se présente','2 · Les quatre boutons','3 · La règle',
-                '4 · C’est prêt','5 · Le raccourci'];
+  /* Quatre écrans depuis le 21/08/2026 : un par bouton du bas (voir `vBienvenue`). */
+  const titres=['1 · Accueil','2 · Le réseau','3 · Le centre, et la règle','4 · Urgences, et le raccourci'];
   const garde=ONB_ETAPE;
-  let h=heroBandeau('L’onboarding','Les six écrans, un par un','#A9C8E8','ecran',true);
+  let h=heroBandeau('L’onboarding','Les quatre écrans, un par un','#A9C8E8','ecran',true);
   h+='<div class="obt-i">Ce que voit quelqu’un qui ouvre COUSIN <b>pour la première fois</b>, '+
      'juste après s’être connecté avec Google. Une seule fois : ensuite, ça ne revient plus.<br>'+
      'Les boutons ne marchent pas ici — c’est une planche pour regarder.</div>';
   h+='<div class="obt-g">';
-  for(let i=0;i<5;i++){
+  for(let i=0;i<4;i++){
     ONB_ETAPE=i;
     h+='<div class="obt-c"><div class="obt-n">'+titres[i]+'</div>'+
        '<div class="obt-tel"><div class="obt-no">'+vBienvenue()+'</div></div></div>';
