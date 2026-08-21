@@ -1411,6 +1411,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   display:flex;align-items:center;justify-content:center;font-size:15px;color:#57554f}
 @media (hover:hover){ .fdoc:hover{background:#fff;box-shadow:0 0 0 1.5px var(--noir)} }
 @media print{ .fdocs{display:none} }
+.fdoc-fiche{display:block;width:100%;text-align:left;background:none;border:0;padding:2px 4px 10px 65px;
+  margin-top:-4px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--enc2)}
+@media (hover:hover){ .fdoc-fiche:hover{color:var(--noir)} }
 .fboutons{padding:14px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fboutons.n1{grid-template-columns:1fr}
 .fboutons.n3{grid-template-columns:repeat(3,1fr)}
@@ -10884,6 +10888,7 @@ function parseRoute(){
   if(seg[0]==='bienvenue') return {view:'bienvenue'};
   if(seg[0]==='reglement') return {view:'reglement'};
   if(seg[0]==='schemas') return {view:'schemas'};
+  if(seg[0]==='ressources') return {view:'ressources'};
   if(seg[0]==='educ') return {view:'educ'};
   if(seg[0]==='lexique') return {view:'lexique'};
   if(seg[0]==='partager') return {view:'partager'};
@@ -11041,6 +11046,7 @@ function render(){
   else if(current.view==='bienvenue') view.innerHTML=vBienvenue();
   else if(current.view==='reglement') view.innerHTML=vReglement();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
+  else if(current.view==='ressources') view.innerHTML=vRessources();
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
@@ -12111,6 +12117,7 @@ function vCentre(){
      comprise. Deux dépliants ouverts, on refait une page longue et on a tourné en
      rond. C'est `CENTRE_FAM` qui le garantit : il ne retient qu'une clé. */
   let premiere=true, nPortes=0;
+  const nDocs=(typeof tousLesDocs==='function')?tousLesDocs().length:0;
   const familles=[];
   FAMILLES.forEach(function(f,fi){
     const dedans=f.k.map(function(nom){
@@ -12128,9 +12135,20 @@ function vCentre(){
         '<span class="tx"><b>'+esc(f.n)+'</b><em>'+esc(sous)+'</em></span>'+
         '<span class="chv">'+(ouvert?'⌃':'›')+'</span></button>'+
       (ouvert
-        ? '<div class="famdedans">'+dedans.map(function(o){
-            return porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]);
-          }).join('')+'</div>'
+        ? '<div class="famdedans">'+
+            /* ⚠ « RESSOURCES » EN PREMIÈRE PORTE DE CHAQUE FAMILLE (Mag, 21/08/2026) :
+               « il faut toujours avoir des ressources en premier dans les boutons…
+               quand je clique sur Apprendre, il doit y avoir les ressources ».
+               C'est la même porte dans les trois familles, et c'est voulu : on ne
+               cherche pas où sont les documents officiels, ils sont là où on ouvre.
+               ⚠ Elle ne s'affiche QUE s'il y a des documents — un bouton qui ouvre
+               une page vide, c'est pire que pas de bouton. */
+            (nDocs ? porteCentre('imprimer','Ressources',
+                nDocs+(nDocs>1?' documents officiels':' document officiel'),
+                "go('#/ressources')") : '')+
+            dedans.map(function(o){
+              return porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]);
+            }).join('')+'</div>'
         : ''));
     premiere=false;
   });
@@ -13253,7 +13271,7 @@ function boiteClasser(id){
    ══════════════════════════════════════════════════════════════════════════ */
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
-const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', schemas:'Les schémas à donner', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', schemas:'Les schémas à donner', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
   profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', linge:'Le linge', centre:'Le centre',
@@ -19476,6 +19494,60 @@ function vReglement(){
      '<div class="rgl-v">'+RGL_VERIF.map(function(x){ return '<div>'+esc(x)+'</div>'; }).join('')+'</div>'+
      '<div class="fsrc" style="text-align:left;padding:10px 0 0">Ces points sont aussi dans le chantier.</div>';
 
+  return h+'<div style="height:26px"></div>';
+}
+/* ═══ LES RESSOURCES — TOUS LES DOCUMENTS OFFICIELS AU MÊME ENDROIT ═══
+   (Mag, 21/08/2026) « Il faut toujours avoir des ressources en premier dans les
+   boutons… quand je clique sur Apprendre, il doit y avoir les ressources. Tu ouvres
+   juste une page avec tous les PDF. Et à chaque fois aussi rajouter dans la
+   formation même. »
+   Donc DEUX chemins vers le même fichier, et c'est voulu :
+   · depuis la FICHE qui en parle (voir `docsHTML`) — on lit, on télécharge ;
+   · depuis cette page — on prépare une formation, on veut la pile.
+   ⚠ UNE SEULE SOURCE : cette page ne tient pas sa propre liste, elle RAMASSE les
+   documents accrochés aux fiches (`DOCS_PLUS`) plus ceux qui ne dépendent d'aucune
+   fiche (`DOCS_LIBRES`). Un document ajouté à une fiche apparaît ici tout seul —
+   sinon les deux listes divergeraient, et c'est toujours la page oubliée qu'on
+   montre en formation.
+   ⚠ RIEN N'EST INVENTÉ ICI : si elle n'a encore déposé qu'un document, la page en
+   montre un et le dit. Pas de fausse abondance. */
+const DOCS_LIBRES=[];
+function tousLesDocs(){
+  const out=[];
+  DATA.forEach(function(p){
+    (Array.isArray(p.docs)?p.docs:[]).forEach(function(d){
+      if(d&&d.f) out.push(Object.assign({}, d, {fiche:p.nom, sid:p.sid, domaine:p.domaine}));
+    });
+  });
+  DOCS_LIBRES.forEach(function(d){ if(d&&d.f) out.push(d); });
+  out.sort(function(a,b){ return (a.n||'').localeCompare(b.n||'','fr'); });
+  return out;
+}
+function vRessources(){
+  const docs=tousLesDocs();
+  let h=heroBandeau('Les ressources', docs.length+(docs.length>1?' documents officiels':' document officiel'),
+                    '#A9C8E8','imprimer');
+  h+='<p class="hint" style="margin:16px 0 0">Les documents officiels tels qu’ils ont été '+
+     'publiés — dépliants, brochures, supports de formation. On les télécharge pour les '+
+     'imprimer ou les montrer en formation.</p>';
+  if(!docs.length){
+    return h+'<div class="empty" style="margin-top:20px"><b>Rien encore</b>'+
+      '<p>Dépose les fichiers dans le dossier <b>documents/</b> du projet et dis-le-moi : '+
+      'je les accroche à leur fiche, et ils apparaissent ici.</p></div>'+
+      '<div style="height:26px"></div>';
+  }
+  h+='<div class="fdocs" style="margin-top:20px">'+docs.map(function(d){
+    return '<a class="fdoc" href="'+esc(d.f)+'" target="_blank" rel="noopener" download>'+
+      '<span class="ic">'+icon('imprimer')+'</span>'+
+      '<span class="tx"><b>'+esc(d.n||'Document')+'</b>'+
+        '<em>'+esc(d.d?('Version du '+d.d):'Date inconnue')+
+        (d.src?' · '+esc(String(d.src).replace(/^https?:\/\//,'').replace(/\/$/,'')):'')+'</em></span>'+
+      '<span class="chv">↓</span></a>'+
+      /* ⚠ LE CHEMIN VERS LA FICHE COMPTE AUTANT QUE LE FICHIER : un dépliant seul ne
+         dit ni qui appeler ni à quelle heure. La fiche, si. */
+      (d.sid?'<button class="fdoc-fiche" onclick="go(\''+'#/f/'+esc(d.sid)+'\')">'+
+        'La fiche : '+esc(d.fiche)+' ›</button>':'');
+  }).join('')+'</div>';
   return h+'<div style="height:26px"></div>';
 }
 function vSchemas(){
