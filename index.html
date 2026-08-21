@@ -1499,14 +1499,6 @@ body.pan-ouvert #view{animation:none;transform:none}
 .onb-cadre{border:1.25px solid var(--trait);border-radius:10px;padding:14px;margin-bottom:14px}
 .onb-ct{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.18em;
   text-transform:uppercase;padding-bottom:9px;margin-bottom:12px;border-bottom:1.5px solid var(--noir)}
-.onb-bl{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
-.onb-bo{display:flex;flex-direction:column;align-items:center;gap:7px;width:74px}
-.onb-bo .ic{width:44px;height:44px;border-radius:50%;background:var(--noir);color:var(--jaune);
-  display:flex;align-items:center;justify-content:center;padding:11px}
-.onb-bo em{font-style:normal;font-family:ui-monospace,monospace;font-size:8px;letter-spacing:.1em;
-  text-transform:uppercase;text-align:center;line-height:1.3}
-.onb-jeu b{display:block;font-size:20px;font-weight:700;margin-bottom:7px}
-.onb-jeu span{display:block;font-size:14px;line-height:1.5;opacity:.85;margin-bottom:14px}
 .onb-bj{border:0;border-radius:9px;background:var(--jaune);color:var(--noir);padding:14px;width:100%;
   font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer}
 /* les trois pas du raccourci */
@@ -1767,17 +1759,6 @@ body.pan-ouvert #view{animation:none;transform:none}
 .sectc b i{width:12px;height:12px;flex:none}
 .sectc em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:#8b8984}
-.ogrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.otile{border-radius:6px;padding:14px;display:flex;flex-direction:column;min-height:122px;
-  text-align:left;color:var(--noir);border:0}
-.otile.large{grid-column:span 2;min-height:110px}
-.otile.noir{background:var(--noir);color:#f2eee6}
-.otile.blanc{background:#fdfdfc;border:1.25px solid var(--trait)}
-.otile b{font-size:15.5px;font-weight:600;line-height:1.1}
-.otile em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
-  text-transform:uppercase;margin-top:4px;opacity:.72}
-.otile.noir em{opacity:1}
-.otile .ic{width:32px;height:32px;flex:none;margin:auto 0 0 auto}
 /* Les carrés des sacs : la seule information de la page qui ne s'écrit pas en
    toutes lettres. Ils se posent juste avant le chevron, et ils s'arrondissent un peu
    pour ne pas faire un troisième vocabulaire de formes. */
@@ -1785,17 +1766,20 @@ body.pan-ouvert #view{animation:none;transform:none}
 .famli .sacsq i{width:10px;height:10px;border-radius:2px}
 /* Survol du Centre : la tuile se soulève d'un trait noir, la carte s'éclaircit.
    Jamais d'inversion en noir — le picto resterait invisible (Mag, 06/08/2026). */
-.otile,.famz{transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
+.famz{transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
 @media (hover:hover){
   /* Plus de glissement au survol (18/08/2026) — voir le grand bloc « LES SURVOLS,
      PARTOUT » plus bas : le trait net suffit à désigner, et rien ne saute.
      ⚠ La famille répond comme les autres rangées : trois formes de ligne, ça allait
      déjà ; trois façons de répondre au doigt, non. */
-  .otile:hover{box-shadow:0 0 0 1.5px var(--noir)}
   .famz:hover{background:#fff;box-shadow:0 0 0 1.5px var(--noir)}
 }
-.otile:active{transform:translateY(0) scale(.99)}
 .famz:active{background:#fff}
+
+/* ⚠ `.otile` / `.ogrid` / `.onb-jeu` / `.onb-bl` ONT ÉTÉ SUPPRIMÉES le 21/08/2026 :
+   plus aucune balise ne les portait. Les tuiles colorées du Centre sont devenues des
+   dépliants, et l'encadré du jeu est parti avec la visite en quatre étapes. Du style
+   qui ne s'applique à rien se lit comme s'il servait encore. */
 
 /* ---- FORMATIONS redessinées (handoff) ---- */
 .fmod{flex:0 0 auto;width:158px;border-radius:6px;padding:15px;display:flex;flex-direction:column;
@@ -3590,8 +3574,7 @@ body.no-tabs #tabbar{display:none}
   /* ---- les listes deviennent des grilles ---- */
   .dgrid.res{grid-template-columns:repeat(5,1fr)}
   .ogrid{grid-template-columns:repeat(3,1fr)}
-  .otile.large{grid-column:span 1}
-  .flist,.rlist,.cards,.frows{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:start}
+    .flist,.rlist,.cards,.frows{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:start}
   .frows{grid-template-columns:repeat(2,1fr)}
   .cards{padding-top:12px}
   .fcarte,.fsavoir,.msg.epingle{grid-column:1/-1}
@@ -20711,10 +20694,23 @@ async function loadProfile(){
       if(r.error) throw r.error;
       return r.data;
     };
-    let me=null;
+    let me=null, litPas=false;
     try{ me=await lire('email,equipe,pfo,admin,listes,paves'); }
     catch(e){ try{ me=await lire('email,equipe,pfo,admin,listes'); }
-      catch(e2){ try{ me=await lire('email,equipe,pfo,admin'); }catch(e3){} } }
+      catch(e2){ try{ me=await lire('email,equipe,pfo,admin'); }catch(e3){ litPas=true; } } }
+    /* ═══ ⚠ ON NE DÉGRADE PERSONNE PARCE QUE LA BASE N'A PAS RÉPONDU (21/08/2026) ═══
+       Même faute que `checkAllowed()`, qui a bloqué Mag dehors ce matin : les trois
+       tentatives ci-dessus peuvent TOUTES échouer pour une raison technique (réseau
+       coupé, base qui se réveille). `me` restait alors `null`, `admin` restait `false`
+       — et l'administratrice perdait son badge, sa page Admin et ses listes, sans un
+       mot, jusqu'au prochain rechargement.
+       ⚠ « La base n'a pas répondu » n'est pas « tu n'as pas ce droit ». Tant qu'on ne
+       sait pas, on GARDE ce qu'on savait déjà du tour précédent. Ne pas remplacer ça
+       par un `admin=false` : c'est exactement le bug qu'on vient de payer. */
+    if(litPas && PROFILE && PROFILE.email){
+      profileLoaded=true;
+      return;                       /* on ne touche à rien : le profil d'avant tient */
+    }
     if(me&&me[0]){
       equipe=me[0].equipe||''; pfo=!!me[0].pfo; admin=!!me[0].admin;
       listes=Array.isArray(me[0].listes)?me[0].listes:[];
