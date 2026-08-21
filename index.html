@@ -10609,11 +10609,17 @@ const PRINT_FEUILLES=[
   /* La même trame que la page « Accueil », mais vierge : on l'imprime AVANT
      l'entretien et on écrit au stylo. Une seule définition pour les deux
      (`ACC_CHAMPS`) — sinon la feuille en main et l'écran finissent par diverger. */
-  {k:'accueil', nom:'Entretien de premier accueil',
+  {k:'accueil', nom:'Premier accueil — social',
    sous:'La trame, vierge, à remplir au stylo',
-   det:'Les questions de l’accueil dans l’ordre : la personne, le motif, la situation '+
-       'socio-administrative, le médical, les réseaux, le projet, les démarches, le soutien.',
-   pages:'1 page · A4', pi:'accomp', act:'imprimerAccueilVierge()'}
+   det:'Les questions de l’accueil social dans l’ordre : le motif, la situation '+
+       'socio-administrative, les réseaux, le projet, les démarches, le soutien.',
+   pages:'1 page · A4', pi:'accomp', act:'imprimerAccueilVierge()'},
+  {k:'accueilmed', nom:'Premier accueil — médical',
+   sous:'La trame, vierge, à remplir au stylo',
+   det:'La couverture des soins (mutuelle, carte médicale, AMU), le médecin, le besoin '+
+       'et le traitement. ⚠ Elle ne contient que ce que l’équipe a dicté — si les '+
+       'infirmiers ont leur propre trame, on la met à la place.',
+   pages:'1 page · A4', pi:'medical', act:"imprimerAccueilVierge('med')"}
 ];
 
 function vPrint(){
@@ -11025,7 +11031,9 @@ function parseRoute(){
   if(seg[0]==='reglement') return {view:'reglement'};
   if(seg[0]==='schemas') return {view:'schemas'};
   if(seg[0]==='ressources') return {view:'ressources'};
-  if(seg[0]==='accueil-personne') return {view:'accueilpersonne'};
+  /* Deux volets, une seule page : `#/accueil-personne` reste le social (les liens
+     déjà partagés continuent de marcher), `#/accueil-personne/med` ouvre le médical. */
+  if(seg[0]==='accueil-personne') return {view:'accueilpersonne', volet:(seg[1]==='med'?'med':'')};
   if(seg[0]==='educ') return {view:'educ'};
   if(seg[0]==='lexique') return {view:'lexique'};
   if(seg[0]==='partager') return {view:'partager'};
@@ -11184,7 +11192,7 @@ function render(){
   else if(current.view==='reglement') view.innerHTML=vReglement();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='ressources') view.innerHTML=vRessources();
-  else if(current.view==='accueilpersonne') view.innerHTML=vAccueilPersonne();
+  else if(current.view==='accueilpersonne') view.innerHTML=vAccueilPersonne(current.volet);
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
@@ -12142,7 +12150,7 @@ function vCentre(){
        la chose, jamais son effet, et son test est « est-ce qu'un collègue dirait ça au
        téléphone ? ». Personne ne dit « il me faut du travail avec la personne ». */
     {n:'Accompagner quelqu’un', s:'', c:'#A9C8E8', p:'accomp',
-     k:['Protocole','Démarches','Mails et notes','Les schémas à donner','Le règlement']},
+     k:['Protocole','Démarches','Mails et notes','Les schémas à donner']},
     {n:'Éduc / Activités', s:'', c:'#f8763f', p:'palette',
      k:['Éduc','Activités','Autour d’ici']},
     {n:'Apprendre', s:'', c:'#b28b7a', p:'educatif',
@@ -12201,6 +12209,34 @@ function vCentre(){
   if(col) gres.push('Poubelles '+col.court);
   if(produitsJour()) gres.push('Produits '+produitsJour().quand);
   if(tbPresse()) gres.push('Tour des chambres');
+  /* ═══ « ACCUEIL ENTRANT », EN TÊTE DE LA PAGE (Mag, 21/08/2026) ═══
+     « Accueil entrant, tu peux rajouter un bouton, avant gestion du centre. »
+     C'est le premier moment avec quelqu'un qui arrive : l'entretien, et le règlement
+     qu'on lui explique. Il était rangé dans « Accompagner quelqu'un » ; mis devant, il
+     se voit sans rien ouvrir.
+     ⚠ IL PASSE AVANT LA GESTION DU CENTRE, et c'est voulu : une arrivée n'attend pas.
+     ⚠ Il obéit au même `CENTRE_FAM` que les autres : une seule chose ouverte à la fois
+     dans la page, sinon on refait un mur. */
+  const aouvert=(CENTRE_FAM==='a');
+  h+='<button class="famz'+(aouvert?' ouvert':'')+'" onclick="centreFam(\'a\')" '+
+      'aria-expanded="'+(aouvert?'true':'false')+'">'+
+      '<span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('accomp')+'</span></span>'+
+      '<span class="tx"><b>Accueil entrant</b><em>L’entretien d’arrivée et le règlement</em></span>'+
+      '<span class="chv">'+(aouvert?'⌃':'›')+'</span></button>';
+  if(aouvert){
+    h+='<div class="famdedans">'+
+      /* ⚠ DEUX TRAMES (Mag, 21/08/2026) : « tu peux séparer en deux, le premier
+         accueil médical et le premier accueil social ». Ce ne sont ni les mêmes
+         gens, ni le même moment, ni le même dossier. */
+      porteCentre('accomp','Premier accueil social','Le motif, l’administratif, le projet',
+        "go('#/accueil-personne')")+
+      porteCentre('medical','Premier accueil médical','La couverture des soins, le traitement',
+        "go('#/accueil-personne/med')")+
+      porteCentre('juridique','Le règlement','Ce qu’on explique à l’arrivée',
+        "go('#/reglement')")+
+      '</div>';
+  }
+
   const gouvert=(CENTRE_FAM==='g');
   h+='<button class="famz'+(gouvert?' ouvert':'')+'" onclick="centreFam(\'g\')" '+
       'aria-expanded="'+(gouvert?'true':'false')+'">'+
@@ -12284,20 +12320,22 @@ function vCentre(){
      titre pour lui.
      ⚠ AUCUNE PORTE N'A CHANGÉ DE NOM NI DE DESTINATION. On n'a ajouté que trois
      petits titres : si ça ne va pas à l'usage, on les retire et tout revient. */
+  /* ⚠ « ACCUEIL / NOUVEL ENTRANT » A QUITTÉ CE DÉPLIANT (Mag, 21/08/2026 : « accueil
+     entrant, tu peux rajouter un bouton, avant gestion du centre »). Le groupe est
+     devenu un bouton à lui, en tête de la page — c'est le premier moment, il méritait
+     d'être vu sans ouvrir quoi que ce soit. Il ne reste donc ici que les trois autres
+     paquets, et « Le règlement » est parti avec l'accueil. */
   const CENTRE_GROUPES={
     0:[{t:'', k:['Protocole']},
-       {t:'Accueil / nouvel entrant', k:['__accueil','Le règlement']},
-       {t:'Les démarches',            k:['Démarches','Mails et notes']},
-       {t:'Les papiers à donner',     k:['Les schémas à donner','__ressources']}]
+       {t:'Les démarches',        k:['Démarches','Mails et notes']},
+       {t:'Les papiers à donner', k:['Les schémas à donner','__ressources']}]
   };
   function dedansHTML(fi,dedans,nDocs){
     const ress = nDocs ? porteCentre('imprimer','Ressources',
         nDocs+(nDocs>1?' documents officiels':' document officiel'),"go('#/ressources')") : '';
-    const acc  = porteCentre('accomp','Accueil','L’entretien d’arrivée, et la note pour le 6D',
-        "go('#/accueil-personne')");
+
     const porte=function(nom){
       if(nom==='__ressources') return ress;
-      if(nom==='__accueil')    return acc;
       const o=dedans.find(function(x){ return x[0]===nom; });
       return o ? porteCentre(o[2], esc(o[0]), esc(o[1]), o[6]) : '';
     };
@@ -12327,7 +12365,7 @@ function vCentre(){
        réelles, qu'on voit, qu'on clique, et que le compte oubliait.
        Un chiffre faux sur un bouton fermé, c'est pire que pas de chiffre : il sert à
        décider si ça vaut la peine d'ouvrir. */
-    const enPlus=(nDocs?1:0)+(fi===0?1:0);
+    const enPlus=(nDocs?1:0);
     nPortes+=dedans.length+enPlus;
     const ouvert=(CENTRE_FAM===String(fi));
     const nDedans=dedans.length+enPlus;
@@ -19458,7 +19496,8 @@ const RGL=[
   {t:'Les repas', ic:'colis', l:[
     /* Le petit déjeuner reste À VÉRIFIER — elle l'a redit le 09/08 : « je pense,
        mais je ne suis pas vraiment sûre, mets en attendant que je dois confirmer ». */
-    ['Petit déjeuner','7 h → 8 h 30', 1],
+    /* Tranché par Mag le 21/08/2026 : « 7 h 30 - 10 h ». Plus d'À vérifier. */
+    ['Petit déjeuner','7 h 30 → 10 h', 0],
     ['Dîner','12 h → 13 h 30', 0],
     ['Repas du soir','18 h → 19 h 30', 0],
     ['Manger en chambre','Absolument interdit.', 0]
@@ -19479,8 +19518,11 @@ const RGL=[
     ['Vendre','Aucune vente, aucun trafic dans le centre.', 0]
   ]},
   {t:'Découcher', ic:'list', l:[
-    ['Combien de nuits','10 jours par mois au total, et 3 nuits d’affilée au maximum.', 1],
-    ['Au-delà','Sans justification, la place est désencodée. La justification est acceptée par la coordination.', 1]
+    /* Confirmé par Mag le 21/08/2026 : « oui, après 3 jours non justifiés on
+       désencode ». Les deux règles sont donc vraies EN MÊME TEMPS, ce n'était pas
+       l'une ou l'autre. */
+    ['Combien de nuits','10 jours par mois au total, et 3 nuits d’affilée au maximum.', 0],
+    ['Au-delà de 3 nuits','Sans justification, la place est désencodée. La justification est acceptée par la coordination.', 0]
   ]},
   {t:'Les étages', ic:'centre', l:[
     /* Tranché par Mag le 09/08/2026 : « c'est 6e étage et troisième étage, je me
@@ -19496,6 +19538,12 @@ const RGL=[
     ['Le ménage','Chacun est responsable de sa chambre et fait le maximum pour qu’elle reste propre — on vit en communauté.', 0],
     ['Les affaires','Trois bacs en plastique au maximum par chambre — ou l’équivalent.', 0],
     ['La nourriture','On ne monte pas de nourriture en chambre : ça attire les nuisibles.', 0]
+  ]},
+  /* Répondu par Mag le 21/08/2026 : « il y a des casiers dispo, faire la demande à
+     l'accueil ». La section n'existait pas — c'était le troisième À vérifier. */
+  {t:'L’argent et les objets de valeur', ic:'cadenas', l:[
+    ['Un casier','Des casiers sont disponibles pour l’argent et les objets de valeur.', 0],
+    ['Comment en avoir un','La demande se fait à l’accueil.', 0]
   ]},
   {t:'Les espaces communs', ic:'chat', l:[
     ['La salle TV','Ouverte à tout le monde.', 0],
@@ -19516,11 +19564,26 @@ const RGL=[
   {t:'Le vol', ic:'siren', l:[
     ['Voler','C’est une sanction, décidée au cas par cas.', 0]
   ]},
+  /* Donnés par Mag le 21/08/2026. ⚠ CEUX DU REZ SONT MARQUÉS « À REVÉRIFIER » PAR
+     ELLE-MÊME, et ils DIVERGENT de l'affiche relevée le 08/08 (qui dit 15 h → 17 h 30
+     et 17 h 30 → 20 h, là où elle dit 15 h → 15 h 30 et 19 h 30). On n'efface pas
+     l'une avec l'autre : un horaire faux fait rater un soin. Les deux versions sont
+     dans la fiche « Les deux infirmeries du centre », et ici on affiche le doute. */
+  {t:'Les infirmeries', ic:'medical', l:[
+    ['Au 2e étage (LAM)','7 h 45 → 9 h 30 · 11 h 30 → 12 h 30 · 17 h 30 → 19 h 30.', 0],
+    ['La nuit','Au 2e étage, de 21 h 30 à 22 h 30. Une seule infirmière : pour une urgence, c’est le 112.', 0],
+    ['Au rez-de-chaussée','9 h → 13 h · 15 h → 15 h 30 · 19 h 30.', 1]
+  ]},
   {t:'Le linge', ic:'linge', l:[
     ['Une fois par semaine','Chaque étage a son jour — le tableau est sur la feuille imprimée, et sur l’accueil.', 0]
   ]},
+  /* Tranché par Mag le 21/08/2026 : « premier samedi du mois — tu peux mettre les
+     dates des 3 prochains mois au moment de l'inscription ». Les dates sont CALCULÉES
+     (voir `prochaineDistrib`), jamais recopiées à la main : une date écrite en dur
+     devient fausse le mois suivant. */
   {t:'Les produits d’entretien', ic:'colis', l:[
-    ['Une fois par mois','La distribution des produits. La date est annoncée dans le centre.', 1]
+    ['Le premier samedi du mois','La distribution des produits.', 0],
+    ['Les trois prochaines', troisDistribs(), 0]
   ]}
 ];
 /* Les questions qu'on ne peut pas trancher tout seul. Elles sont écrites ici ET
@@ -19531,14 +19594,30 @@ const RGL=[
    cas, on dit juste « sanction »). Restent quatre points — dont deux que J'AI
    ajoutés en construisant la feuille imprimée, marqués (moi) : les inventions se
    déclarent, elles ne se glissent pas. */
+/* ⚠ LA LISTE A FONDU LE 21/08/2026 : Mag a répondu à cinq des six points (petit
+   déjeuner 7 h 30 → 10 h · le découcher, les deux règles à la fois · les casiers,
+   demande à l'accueil · les horaires des infirmeries · les produits, premier samedi).
+   Il en reste DEUX — et le premier est nouveau, né de sa réponse. */
+/* ⚠ « Retire ça et laisse juste dans le chantier » (Mag, 21/08/2026) — à propos du
+   112/101 en bas de la feuille imprimée. Cette liste-ci est lue par TOUTE L'ÉQUIPE au
+   bas du règlement : une question de mise en page n'a rien à y faire. Le chantier,
+   lui, est sa liste de travail à elle, et le point y reste entier.
+   ⚠ Les deux numéros RESTENT sur la feuille imprimée : elle a retiré la QUESTION, pas
+   les numéros. */
 const RGL_VERIF=[
-  'Le petit déjeuner : 7 h → 8 h 30 ? Tu as redit « je pense, mais je ne suis pas vraiment sûre ».',
-  'Découcher : 10 jours par mois ET 3 nuits d’affilée — ou 3 nuits puis désencodage ?',
-  'L’argent et les objets de valeur : toujours rien dessus.',
-  'Les horaires des infirmeries (en haut, en bas) : je ne les ai pas — la feuille imprimée les attend.',
-  '(moi) Les produits : « la date est annoncée dans le centre » — c’est ma phrase, pas la tienne.',
-  '(moi) Le bas de la feuille imprimée : Urgences 112 · Police 101 — à garder ou à retirer ?'
+  'Les infirmeries du REZ : elle donne 9 h → 13 h · 15 h → 15 h 30 · 19 h 30, en disant « à revérifier ». L’affiche relevée le 08/08 dit 15 h → 17 h 30 et 17 h 30 → 20 h. Les deux ne peuvent pas être vraies : à trancher sur place, un horaire faux fait rater un soin.'
 ];
+/* Les trois prochaines distributions, calculées — jamais écrites à la main. */
+function troisDistribs(){
+  try{
+    const p=prochaineDistrib(), out=[];
+    for(let i=0;i<3;i++){
+      const d=premierSamedi(p.getFullYear(), p.getMonth()+i);
+      out.push(d.toLocaleDateString('fr-BE',{day:'numeric',month:'long'}));
+    }
+    return out.join(' · ')+'.';
+  }catch(e){ return 'Le premier samedi de chaque mois.'; }
+}
 /* ═══ LA FEUILLE À REMETTRE (09/08/2026) ═══
    « Cette feuille sera imprimable, parce qu'on la remettra aux hébergés. »
    Ce n'est PAS la page recopiée : la page parle à l'équipe (avec ses À vérifier),
@@ -19817,7 +19896,7 @@ function accSet(k,v){ ACC[k]=v; accNoteMaj(); }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
 function accNoteMaj(){
   const el=document.getElementById('accNote'); if(!el) return;
-  const t=accNote();
+  const t=accNote(current&&current.volet);
   el.textContent = t || 'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.';
   el.classList.toggle('vide', !t);
 }
@@ -19829,6 +19908,33 @@ function accEffacer(){
    feuille vierge à imprimer. Ajouter une question ici la fait apparaître aux trois
    endroits — sinon la feuille papier et l'écran divergent, et c'est la feuille qu'on
    a en main devant la personne. */
+/* ═══ DEUX TRAMES, PAS UNE (Mag, 21/08/2026) ═══
+   « Pour le premier accueil des entrants, tu peux séparer en deux : le premier
+   accueil MÉDICAL et le premier accueil SOCIAL. »
+   Ce ne sont pas les mêmes gens qui les mènent, ni le même moment, ni le même
+   dossier — une seule feuille obligeait chacun à sauter par-dessus les questions de
+   l'autre.
+   ⚠ LE MÉDICAL NE CONTIENT QUE CE QU'ELLE A DICTÉ. Je n'invente pas de questions
+   cliniques : allergies, antécédents, douleur, vaccins — je ne sais pas ce que les
+   infirmiers demandent, et une trame médicale inventée par une machine, ce serait
+   grave. Si l'équipe médicale a la sienne, elle nous la donne et on la met ici.
+   ⚠ LA MUTUELLE EST DU CÔTÉ MÉDICAL, pas du social : c'est elle qui décide si un
+   soin est possible aujourd'hui. Le reste de l'administratif reste au social. */
+const ACC_CHAMPS_MED=[
+ {s:'Pour la joindre', c:[
+   {k:'gsm_m',l:'GSM'}
+ ]},
+ {s:'Couverture des soins', c:[
+   {k:'mutuelle',l:'Mutuelle · carte médicale · AMU'}
+ ]},
+ {s:'Situation médicale', c:[
+   {k:'medecin',l:'Coordonnées du médecin'},
+   {k:'besoin',l:'Besoin médical · traitement',b:1}
+ ]},
+ {s:'Démarches et rendez-vous', c:[
+   {k:'demarches_m',l:'À encoder dans l’agenda, dans le 6D',b:1}
+ ]}
+];
 const ACC_CHAMPS=[
  /* ⚠⚠ AUCUN NOM, AUCUNE DATE DE NAISSANCE, AUCUN ÂGE (Mag, 21/08/2026) : « ici, ne
     jamais noter le nom entier, donc retire nom et prénom. C'est juste un canevas
@@ -19852,12 +19958,7 @@ const ACC_CHAMPS=[
    {k:'papiers',l:'Document d’identité : type, durée de validité, perdu ou volé, n° de Registre national — ou le SP (numéro de sûreté publique)',b:1},
    {k:'etatcivil',l:'État civil : marié, divorcé, séparé, en couple…'},
    {k:'revenu',l:'Revenu : type et montant'},
-   {k:'adresse',l:'Adresse : commune · dernier domicile'},
-   {k:'mutuelle',l:'Mutuelle · carte médicale · AMU'}
- ]},
- {s:'Situation médicale', c:[
-   {k:'medecin',l:'Coordonnées du médecin'},
-   {k:'besoin',l:'Besoin médical · traitement',b:1}
+   {k:'adresse',l:'Adresse : commune · dernier domicile'}
  ]},
  {s:'Réseaux', c:[
    {k:'suivie',l:'Personne suivie ? Par qui ?',b:1},
@@ -19873,11 +19974,13 @@ const ACC_CHAMPS=[
    {k:'soutien',l:'0800 · report · médical · social',b:1}
  ]}
 ];
-function vAccueilPersonne(){
+function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : ACC_CHAMPS; }
+function vAccueilPersonne(volet){
+  const JEU=accJeu(volet);
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
                 ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
-  let h=heroBandeau('Premier accueil', dateTxt, '#A9C8E8','accomp');
+  let h=heroBandeau(volet==='med'?'Accueil médical':'Accueil social', dateTxt, '#A9C8E8','accomp');
   /* ⚠ LA PHRASE SUR LA CONFIDENTIALITÉ EST EN HAUT ET ELLE Y RESTE. C'est la seule
      chose qui distingue cette page d'un fichier de personnes. */
   /* ⚠ DEUX PHRASES, PAS SIX (Mag, 21/08/2026 : « réduit à… et rajoute pas de nom
@@ -19889,7 +19992,7 @@ function vAccueilPersonne(){
   h+='<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('cadenas')+
      '</span>Rien n’est enregistré</b><p>Quand tu fermes l’app, tout est effacé — '+
      'le dossier, c’est le 6D.\nPas de nom d’hébergé.</p></div>';
-  h+='<div class="accform">'+ACC_CHAMPS.map(function(g){
+  h+='<div class="accform">'+JEU.map(function(g){
     return '<div class="accg"><div class="acct">'+esc(g.s)+'</div>'+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
@@ -19909,22 +20012,22 @@ function vAccueilPersonne(){
      touche QUE le bloc de la note : redessiner la page à chaque frappe déplacerait
      le curseur au milieu d'un mot — c'est le piège déjà payé trois fois ici. */
   h+='<div class="accnotebloc"><div class="acct">La note</div>'+
-     '<pre id="accNote" class="accnote'+(accNote()?'':' vide')+'">'+
-     esc(accNote()||'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.')+
+     '<pre id="accNote" class="accnote'+(accNote(volet)?'':' vide')+'">'+
+     esc(accNote(volet)||'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.')+
      '</pre></div>';
   h+='<div class="accact">'+
-     '<button class="accb plein" onclick="accCopier()">'+icon('clipboard')+'Copier la note</button>'+
-     '<button class="accb" onclick="accImprimer()">'+icon('imprimer')+'Imprimer</button>'+
+     '<button class="accb plein" onclick="accCopier(\''+(volet||'')+'\')">'+icon('clipboard')+'Copier la note</button>'+
+     '<button class="accb" onclick="accImprimer(\''+(volet||'')+'\')">'+icon('imprimer')+'Imprimer</button>'+
      '<button class="accb" onclick="accEffacer()">Effacer</button>'+
      '</div>';
   return h+'<div style="height:26px"></div>';
 }
 /* La note à coller dans le 6D. On ne recopie QUE ce qui est rempli : une note pleine
    de titres vides fait chercher une information qui n'a pas été prise. */
-function accNote(){
+function accNote(volet){
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const l=['PREMIER ACCUEIL — '+d,''];
-  ACC_CHAMPS.forEach(function(g){
+  const l=[(volet==='med'?'PREMIER ACCUEIL — MÉDICAL — ':'PREMIER ACCUEIL — SOCIAL — ')+d,''];
+  accJeu(volet).forEach(function(g){
     const remplis=g.c.filter(function(f){ return (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
     l.push(g.s.toUpperCase());
@@ -19935,15 +20038,16 @@ function accNote(){
   l.push('(Note écrite depuis COUSIN. À compléter dans le 6D.)');
   return l.join('\n');
 }
-function accCopier(){
-  const t=accNote();
+function accCopier(volet){
+  const t=accNote(volet);
   if(!t){ toast('Rien à copier — la page est vide'); return; }
   copyTxt(t,'Note copiée — colle-la dans le 6D');
 }
 /* La feuille : remplie si on a écrit, VIERGE sinon. C'est la même trame dans les deux
    cas — on peut donc l'imprimer avant l'entretien et écrire au stylo. */
-function accImprimer(){
-  const rempli=ACC_CHAMPS.some(function(g){ return g.c.some(function(f){ return (ACC[f.k]||'').trim(); }); });
+function accImprimer(volet){
+  const JEU=accJeu(volet);
+  const rempli=JEU.some(function(g){ return g.c.some(function(f){ return (ACC[f.k]||'').trim(); }); });
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
   const w=window.open('','_blank'); if(!w){ toast('Le navigateur a bloqué la fenêtre'); return; }
   const ligne=function(f){
@@ -19977,16 +20081,16 @@ function accImprimer(){
     '<div class="bar"><b>Premier accueil — '+(rempli?'feuille remplie':'feuille vierge')+'</b>'+
       '<button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
-    '<div class="pg"><h1>Premier accueil</h1>'+
+    '<div class="pg"><h1>Premier accueil — '+(volet==='med'?'médical':'social')+'</h1>'+
     '<div class="dt">'+(rempli?'Entretien du '+d:'Feuille vierge · à remplir pendant l’entretien')+'</div>'+
-    ACC_CHAMPS.map(function(g){
+    JEU.map(function(g){
       return '<div class="gr"><div class="gt">'+esc(g.s)+'</div>'+g.c.map(ligne).join('')+'</div>';
     }).join('')+
     '</div></body></html>');
   w.document.close();
 }
 /* Le bouton de la page Print : la même feuille, vierge, sans passer par l'écran. */
-function imprimerAccueilVierge(){ const g=ACC; ACC={}; accImprimer(); ACC=g; }
+function imprimerAccueilVierge(volet){ const g=ACC; ACC={}; accImprimer(volet); ACC=g; }
 function vSchemas(){
   const s=schemaTrouve();
   let h=heroBandeau('Les schémas à donner','Une feuille A4, dans sa langue','#A9C8E8','demarche',true);
