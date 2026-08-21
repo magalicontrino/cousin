@@ -10876,8 +10876,10 @@ function render(){
   noterEcran();
   /* La barre « voir comme » (administration seulement) et, si elle est demandée,
      le cadre du téléphone À LA PLACE de la page. */
+  /* Même règle que pour le rail juste au-dessus : cette barre se réécrivait à chaque
+     render(), donc ses boutons étaient détruits sous le curseur eux aussi. */
   const ap=document.getElementById('apercu');
-  if(ap) ap.innerHTML=barreApercu();
+  if(ap){ const apHTML=barreApercu(); if(ap.__html!==apHTML){ ap.__html=apHTML; ap.innerHTML=apHTML; } }
   /* ═══ L'APERÇU NE SE RECONSTRUIT PLUS À CHAQUE REDESSIN (Mag, 10/08/2026) ═══
      « Ça fait des trucs étranges quand je mets en vue téléphone dans l'Admin… ça
      tremble même quand tu vas sur des boutons. »
@@ -20033,7 +20035,30 @@ function renderTabs(){
                           : APERCU_TEL ? 'Vue : téléphone'
                           : 'Voir comme', 'oeil']]
             : []);
-  document.getElementById('tabbar').innerHTML=
+  /* ═══ ⚠ LE RAIL NE SE RECONSTRUIT QUE S'IL A VRAIMENT CHANGÉ (Mag, 21/08/2026) ═══
+     « En ligne, ça tremble toujours les boutons… je parle des boutons sur le côté,
+     à gauche, sur grand écran. »
+     LA VRAIE CAUSE, mesurée cette fois au lieu d'être devinée : cette ligne
+     réécrivait `#tabbar.innerHTML` À CHAQUE `render()`. Réécrire l'HTML ne met pas
+     les boutons à jour, elle en fabrique de NEUFS et jette les anciens. Le bouton
+     qui est sous le curseur est donc détruit et remplacé :
+       · son `:hover` retombe — mesuré, la souris n'ayant pas bougé d'un pixel :
+         avant render(), `#tabbar button:hover` trouve « Réseau » ; après, plus rien.
+         Un render = un clignotement. Connectée, l'app recharge ses tables partagées,
+         les render() arrivent par paquets : ça tremble en continu.
+       · et un CLIC se perd : le navigateur n'envoie un `click` que si le doigt se
+         lève sur le MÊME élément qu'il a enfoncé. Si un render passe entre les deux,
+         l'élément n'existe plus. D'où « je ne sais plus cliquer ».
+     C'est le même défaut, exactement, que l'aperçu téléphone du 10/08 : « on
+     réécrivait view.innerHTML à chaque render… d'où le tremblement ».
+     LE REMÈDE : on prépare l'HTML, on le compare à ce qui est déjà posé, et on
+     n'écrit QUE s'il a changé. Neuf render() sur dix ne touchent donc plus à rien.
+     ⚠ On garde la comparaison dans une propriété à nous (`__html`) et PAS en
+     relisant `innerHTML` : le navigateur normalise ce qu'il rend (guillemets,
+     ordre des attributs), la comparaison serait donc toujours fausse et on
+     réécrirait à chaque fois — c'est-à-dire qu'on n'aurait rien réparé.
+     ⚠ NE PAS remettre une écriture inconditionnelle ici. */
+  const railHTML=
     '<img class="raillogo" src="logo.png" alt="COUSIN">'+
     '<div class="railprinc">'+T.map(t=>
       '<button class="'+(t[4]?'on':'')+'" style="--c:'+t[3]+'" onclick="go(\''+t[0]+'\')">'+
@@ -20045,6 +20070,8 @@ function renderTabs(){
       (x[0]==='@idee'?'ouvrirIdee()':x[0]==='@apercu'?'apercuOuvrir()':'go(\''+x[0]+'\')')+'"><span class="ic"'+
       (x[3]?' style="color:'+x[3]+'"':'')+'>'+icon(x[2])+'</span>'+
       '<span class="lbl">'+x[1]+'</span></button>').join('')+'</div>';
+  const bar=document.getElementById('tabbar');
+  if(bar && bar.__html!==railHTML){ bar.__html=railHTML; bar.innerHTML=railHTML; }
 }
 
 /* ============================================================================
