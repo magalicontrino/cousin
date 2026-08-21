@@ -1431,7 +1431,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accf textarea{min-height:56px}
 .accf input:focus,.accf textarea:focus{outline:none;border-color:var(--noir);
   box-shadow:0 0 0 1.5px var(--noir)}
-.accact{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+.accnotebloc{margin-top:24px;display:flex;flex-direction:column;gap:9px}
+.accnote{margin:0;background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;
+  padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;
+  white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto}
+.accnote.vide{color:var(--enc2);font-family:inherit;font-size:14px;line-height:1.5}
+.accact{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
 .accb{display:inline-flex;align-items:center;gap:8px;background:#fdfdfc;border:1.25px solid var(--trait);
   border-radius:999px;padding:11px 17px;font-size:14.5px;font-weight:600;color:var(--noir)}
 .accb.plein{background:#f5c542;border-color:#e0b02f}
@@ -19705,7 +19710,14 @@ function vRessources(){
    en train de taper (c'est le piège déjà payé trois fois dans ce fichier). Les
    valeurs sont donc relues depuis `ACC` à chaque rendu. */
 var ACC={};
-function accSet(k,v){ ACC[k]=v; }
+function accSet(k,v){ ACC[k]=v; accNoteMaj(); }
+/* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
+function accNoteMaj(){
+  const el=document.getElementById('accNote'); if(!el) return;
+  const t=accNote();
+  el.textContent = t || 'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.';
+  el.classList.toggle('vide', !t);
+}
 function accEffacer(){
   if(!confirm('Effacer tout ce qui est écrit sur cette page ?')) return;
   ACC={}; render(); toast('Page vidée');
@@ -19715,9 +19727,17 @@ function accEffacer(){
    endroits — sinon la feuille papier et l'écran divergent, et c'est la feuille qu'on
    a en main devant la personne. */
 const ACC_CHAMPS=[
- {s:'La personne', c:[
-   {k:'nom',l:'NOM'}, {k:'prenom',l:'Prénom'}, {k:'gsm',l:'GSM'},
-   {k:'naissance',l:'Date de naissance'}, {k:'age',l:'Âge'}
+ /* ⚠⚠ AUCUN NOM, AUCUNE DATE DE NAISSANCE, AUCUN ÂGE (Mag, 21/08/2026) : « ici, ne
+    jamais noter le nom entier, donc retire nom et prénom. C'est juste un canevas
+    pour s'aider, on n'a pas besoin d'autant de détails. Le téléphone, oui. »
+    Elle a raison et ça règle la contradiction de cette page : une trame d'entretien
+    n'a pas besoin d'identifier quelqu'un pour aider à mener l'entretien. Le nom
+    existe déjà dans le 6D, c'est là que la note se colle.
+    ⚠ NE PAS LES REMETTRE, même « pour que la note soit complète » : la note se colle
+    DANS le dossier de la personne, qui porte déjà son nom.
+    Le GSM reste : c'est le seul moyen de la rappeler, et c'est elle qui le donne. */
+ {s:'Pour la joindre', c:[
+   {k:'gsm',l:'GSM'}
  ]},
  {s:'Motif', c:[
    {k:'passe',l:'Que s’est-il passé ?',b:1},
@@ -19726,7 +19746,7 @@ const ACC_CHAMPS=[
  ]},
  {s:'Situation socio-administrative', c:[
    {k:'nationalite',l:'Nationalité · statut de séjour · situation légale',b:1},
-   {k:'papiers',l:'Document d’identité : type, validité, perdu ou volé, n° de Registre national (ou SP)',b:1},
+   {k:'papiers',l:'Document d’identité : type, durée de validité, perdu ou volé, n° de Registre national — ou le SP (numéro de sûreté publique)',b:1},
    {k:'etatcivil',l:'État civil : marié, divorcé, séparé, en couple…'},
    {k:'revenu',l:'Revenu : type et montant'},
    {k:'adresse',l:'Adresse : commune · dernier domicile'},
@@ -19774,6 +19794,16 @@ function vAccueilPersonne(){
           '</label>';
       }).join('')+'</div>';
   }).join('')+'</div>';
+  /* ═══ LA NOTE SE FORME EN BAS, AU FUR ET À MESURE (Mag, 21/08/2026) ═══
+     « J'aimerais que la note se forme en bas au fur et à mesure, comme ça on a une
+     vue d'ensemble. Il faut une note structurée, qu'on puisse la recopier. »
+     ⚠ ELLE SE MET À JOUR TOUTE SEULE, SANS REDESSINER LE FORMULAIRE. `accSet` ne
+     touche QUE le bloc de la note : redessiner la page à chaque frappe déplacerait
+     le curseur au milieu d'un mot — c'est le piège déjà payé trois fois ici. */
+  h+='<div class="accnotebloc"><div class="acct">La note</div>'+
+     '<pre id="accNote" class="accnote'+(accNote()?'':' vide')+'">'+
+     esc(accNote()||'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.')+
+     '</pre></div>';
   h+='<div class="accact">'+
      '<button class="accb plein" onclick="accCopier()">'+icon('clipboard')+'Copier la note</button>'+
      '<button class="accb" onclick="accImprimer()">'+icon('imprimer')+'Imprimer</button>'+
