@@ -22144,7 +22144,30 @@ function rafraichirPartage(force){
   /* ⚠ CHAQUE CHARGEUR SE DÉBROUILLE SEUL, ET SON ÉCHEC NE DOIT PAS EMPÊCHER LES
      AUTRES : ils lisent déjà `.error` et gardent leur message de panne. On ne fait
      que les rappeler — surtout pas réécrire la gestion d'erreur ici. */
-  const app=function(nom,fn){ if(quoi.indexOf(nom)>=0 && typeof fn==='function'){ try{ fn(); }catch(e){} } };
+  /* ═══ ⚠ ON REDESSINE QUAND LA LECTURE EST FINIE (Mag, 22/08/2026 : « il y a encore
+     ce problème de chargement ») ═══
+     Le défaut : chaque chargeur commence par remettre son drapeau à « pas chargé »,
+     puis part lire la base. Le rendu qui suit voyait donc « pas chargé » et écrivait
+     « Chargement… » — et comme PERSONNE ne redessinait à la fin de la lecture, le mot
+     restait à l'écran jusqu'au prochain clic. On croyait que ça chargeait pour
+     toujours ; en réalité les données étaient là depuis longtemps.
+     ⚠ ON NE REDESSINE QUE SI ON EST TOUJOURS SUR LE MÊME ÉCRAN : sinon on écrase la
+     page où la personne vient d'arriver.
+     ⚠ Et l'accueil reste hors de cette liste, pour la raison écrite plus haut. */
+  const app=function(nom,fn){
+    if(quoi.indexOf(nom)<0 || typeof fn!=='function') return;
+    const vueAvant=current && current.view;
+    try{
+      const r=fn();
+      if(r && typeof r.then==='function'){
+        r.then(function(){
+          if(current && current.view===vueAvant && typeof render==='function') render();
+        }).catch(function(){
+          if(current && current.view===vueAvant && typeof render==='function') render();
+        });
+      }
+    }catch(e){}
+  };
   app('chambres',   typeof loadChambres==='function'?loadChambres:null);
   app('tourbacs',   typeof loadTourBacs==='function'?loadTourBacs:null);
   app('passations', typeof loadPassations==='function'?loadPassations:null);
