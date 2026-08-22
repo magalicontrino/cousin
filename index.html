@@ -3309,6 +3309,8 @@ body.pan-ouvert #view{animation:none;transform:none}
   margin-top:8px;font-size:14px;color:var(--noir)}
 .passcase i{width:19px;height:19px;border:1.5px solid var(--trait-fort);border-radius:5px;
   flex:none;display:inline-block}
+.passcase span{flex:1;min-width:0;line-height:1.3}
+.passcase span b{font-weight:600}
 .passcase.on{border-color:#6cb392}
 .passcase.on i{background:#6cb392;border-color:#6cb392}
 /* Le second bouton du champ : même hauteur que « OK », mais creux — c'est le chemin
@@ -23127,6 +23129,8 @@ function passLigne(p, mienne){
          pour faire disparaître. */
       (bas.length?'<em class="plbas">'+bas.join(' · ')+'</em>':'')+
     '</span>'+
+    /* L'étiquette verte : « à jeun » suffit sur une rangée — c'est sur la feuille
+       d'écriture que l'heure devait être dite, pas ici où la place manque. */
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
     /* ⚠ NI CRAYON NI CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans
        la passation, c'est juste une passation »). Une passation se LIT et s'IMPRIME.
@@ -23186,7 +23190,9 @@ function imprimerPassation(pour){
           '<td'+(!g.heure&&!g.chambre?' colspan="3"':'')+'>'+esc(p.texte||'')+
             /* ⚠ « À JEUN » DOIT SORTIR SUR LE PAPIER AUSSI : c'est la feuille qu'on
                a sous les yeux à 5 h du matin, l'écran est resté dans le bureau. */
-            (p.a_jeun&&p.genre==='reveil'?'<b class="pjeun">À JEUN</b>':'')+
+            /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte,
+               la feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
+            (p.a_jeun&&p.genre==='reveil'?'<b class="pjeun">À JEUN DEPUIS MINUIT</b>':'')+
             /* ⚠ LE MESSAGE ENTIER SUR LE PAPIER, retours à la ligne compris (Mag,
                22/08 : « quand ça s'imprime, il faut qu'il y ait le message avec »).
                Le papier ne se déplie pas : il n'y a rien à couper dessus. */
@@ -23374,11 +23380,24 @@ function passFeuilleHTML(){
             '<em>'+esc(x.s)+'</em></button>';
         }).join('')+
       '</div>'+
-      /* ⚠ LA CASE N'APPARAÎT QUE SUR UN RÉVEIL. Sur « À jeun » elle répéterait le
-         genre ; sur une info elle ne veut rien dire. */
+      /* ⚠ LA CASE NE DIT PLUS « À JEUN » (Mag, 22/08/2026 : « il y a deux fois à jeun.
+         Et marque : il ne doit plus manger à minuit »).
+         Le mot était écrit DEUX FOIS à trois centimètres d'écart — sur le bouton de
+         genre « À jeun », et sur la case juste en dessous. On croyait avoir choisi deux
+         fois la même chose, ou s'être trompé.
+         La case dit maintenant ce qu'elle FAIT, en clair et avec l'heure : « il ne doit
+         plus manger à partir de minuit ». Le genre garde le mot, la case garde la
+         règle — et les deux ne se répètent plus.
+         ⚠ ELLE N'APPARAÎT QUE SUR UN RÉVEIL, et c'est tout son intérêt : quelqu'un
+         qu'on réveille ET qui ne mange pas. Sur le genre « À jeun » (celui qu'on ne
+         réveille pas) elle n'aurait rien à ajouter ; sur une info elle ne veut rien
+         dire.
+         ⚠ MINUIT, ET PAS UNE HEURE À SAISIR : c'est la règle du jeûne avant une
+         opération, la même pour tout le monde. Un champ d'heure de plus sur une feuille
+         qu'on remplit à 23 h, c'est une question pour rien. */
       (PASS_GENRE==='reveil'
         ? '<button id="passAjeun" class="passcase'+(PASS_AJEUN?' on':'')+'" onclick="passAjeunBascule()">'+
-          '<i></i>Il doit rester à jeun</button>'
+          '<i></i><span>Il ne doit plus manger <b>à partir de minuit</b></span></button>'
         : '')+
       /* Le jour et l'heure ne concernent que ce qui a une heure. */
       (PASS_GENRE!=='passation'
