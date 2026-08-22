@@ -3729,7 +3729,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .rich h2,.rich h3{margin:18px 0 8px}
 .rich p{margin-bottom:10px}
 .rich ul,.rich ol{margin:0 0 10px 20px}
-.fchips{display:none}
+/* ⚠⚠ UNE LIGNE `.fchips{display:none}` VIVAIT ICI, ET ELLE CASSAIT NEUF ÉCRANS
+   (trouvée le 22/08/2026 en cherchant pourquoi « À qui ? » n'affichait rien dans la
+   passation). Elle venait du tout premier commit de cette app et n'avait aucun objet :
+   posée APRÈS `.fchips{display:flex}`, elle l'emportait partout, sans exception.
+   Étaient donc invisibles, en silence : le choix de l'équipe dans la passation, les
+   filtres du Chantier, les périodes des statistiques, les listes de l'Admin, les
+   sources des propositions. Rien ne signalait la panne — les boutons étaient bien
+   dans la page, ils n'avaient simplement pas de hauteur.
+   ⚠ NE PAS LA REMETTRE : si un jour il faut masquer une rangée de chips, on le fait
+   sur SON écran, pas sur la classe. */
 
 /* ---- barre d'appel de la fiche ---- */
 /* ⚠ ELLE SUIT LES AUTRES : sur une fiche, c'est ELLE la barre du bas (le dock
@@ -22817,8 +22826,27 @@ function passTri(liste){
     return String(b.cree_le).localeCompare(String(a.cree_le));
   });
 }
-function passPourChoix(k){ PASS_POUR=k; render(); }
-function passGenreChoix(g){ PASS_GENRE=g; render(); }
+/* Relever les champs avant `render()`, les reposer après : sans ça, choisir un genre
+   efface ce qu'on vient d'écrire. */
+function passChampsGarder(){
+  const v=function(id){ const e=document.getElementById(id); return e?(e.value||''):''; };
+  PASS_GARDE={txt:v('passTxt'), heure:v('passHeure'), ch:v('passCh'),
+              com:v('passCom'), jour:v('passJour')};
+  render();
+  setTimeout(function(){
+    if(!PASS_GARDE) return;
+    const m={passTxt:PASS_GARDE.txt, passHeure:PASS_GARDE.heure, passCh:PASS_GARDE.ch,
+             passCom:PASS_GARDE.com, passJour:PASS_GARDE.jour};
+    Object.keys(m).forEach(function(id){
+      const e=document.getElementById(id);
+      /* Le jour a une valeur par défaut : on ne l'écrase pas avec du vide. */
+      if(e && (m[id]||id!=='passJour')) e.value=m[id];
+    });
+    PASS_GARDE=null;
+  }, 30);
+}
+function passPourChoix(k){ PASS_POUR=k; passChampsGarder(); }
+function passGenreChoix(g){ PASS_GENRE=g; passChampsGarder(); }
 /* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
    note le soir, pour le lendemain matin. */
 function passDemain(){ const d=new Date(); d.setDate(d.getDate()+1); return agIso(d); }
@@ -22861,7 +22889,10 @@ async function passAjouter(){
     }
     ['passTxt','passHeure','passCh','passCom'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
-    PASS_AJEUN=false;
+    /* ⚠ LA FEUILLE SE REFERME UNE FOIS LA LIGNE PASSÉE : elle a fait son travail, et la
+       ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
+       croire que rien n'est parti. */
+    PASS_AJEUN=false; PASS_FEUILLE=false; PASS_GARDE=null;
     await loadPassations(); render(); toast('Passée ✓');
   }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
 }
@@ -22995,7 +23026,7 @@ function passLigne(p, mienne){
   return '<div class="pl'+(ok?' faite':'')+'">'+
     '<span class="pgc" style="background:'+g.c+'"></span>'+
     '<span class="h">'+(g.heure?esc(p.heure||'—'):'—')+'</span>'+
-    '<span class="tx" onclick="passCocher(\''+p.id+'\')">'+
+    '<span class="tx">'+
       '<b>'+esc(p.texte)+'</b>'+
       /* ═══ LE MESSAGE SE DÉPLIE (Mag, 22/08/2026) ═══
          « Tout ça peut être assez long, mais il faut qu'on puisse déployer ici et voir
@@ -23015,10 +23046,10 @@ function passLigne(p, mienne){
       (bas.length?'<em class="plbas">'+bas.join(' · ')+'</em>':'')+
     '</span>'+
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
-    /* ⚠ PAS DE CRAYON ICI (22/08/2026 : « on ne touche plus à la passation en bas »).
-       Corriger se fait depuis Ma liste perso, où la ligne est aussi affichée. */
-    '<button class="cas" onclick="passCocher(\''+p.id+'\')" aria-label="Cocher">'+
-      (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+    /* ⚠ NI CRAYON NI CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans
+       la passation, c'est juste une passation »). Une passation se LIT et s'IMPRIME.
+       Ce n'est pas une liste de tâches : cocher, c'est le travail de sa propre liste.
+       Corriger, c'est depuis Ma liste perso, où la ligne est aussi affichée. */
   '</div>';
 }
 /* ═══ LA PASSATION SUR PAPIER (Mag, 13/08/2026) ═══
@@ -23032,11 +23063,33 @@ function passLigne(p, mienne){
    dans un couloir, à 22 h, sans téléphone.
    ⚠ Les réveils EN PREMIER et par heure — c'est un horaire, pas une liste de courses.
    ⚠ AUCUN NOM : numéro de chambre et initiales, comme partout ailleurs. */
+/* ═══ LA FEUILLE IMPRIME EXACTEMENT CE QUE LA CARTE MONTRE (Mag, 22/08/2026 : « ça
+   n'imprime pas tout ce qu'il y a dans la passation ») ═══
+   ⚠ LA CAUSE : la CARTE affichait l'union de deux ensembles — ce qui m'est ADRESSÉ
+   (`passPourMoi`, par mes listes) ET ce que J'AI ÉCRIT (`passEcrites`, par mon
+   identifiant) — alors que la FEUILLE ne prenait qu'un seul critère, `p.pour === la
+   liste choisie`. Deux règles différentes pour deux affichages de la même chose : on
+   voyait des lignes à l'écran qui ne sortaient pas sur le papier, sans qu'aucune erreur
+   n'apparaisse nulle part.
+   Maintenant les deux lisent LA MÊME SOURCE. Ce qui est à l'écran est sur la feuille,
+   toujours — c'est la seule règle qui tienne quand on imprime pour donner en main
+   propre à quelqu'un qui ne va pas ouvrir l'app.
+   ⚠ DÉDOUBLONNÉ PAR `id` : une ligne que j'ai écrite POUR MA PROPRE équipe est dans les
+   deux ensembles à la fois, et sortait deux fois. */
+function passToutes(){
+  const vues={};
+  return passTri(passPourMoi().concat(passEcrites()).filter(function(p){
+    if(vues[p.id]) return false; vues[p.id]=1; return true;
+  }));
+}
 function imprimerPassation(pour){
-  const cle=pour||PASS_POUR;
-  const liste=passTri(PASSATIONS.filter(function(p){ return p.pour===cle; }));
+  const liste=passToutes();
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
-  const qui=LISTE_LABELS[cle]||cle;
+  /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
+     sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
+  const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
+  const qui=eq.length ? eq.map(function(k){ return LISTE_LABELS[k]||k; }).join(' · ')
+                      : (LISTE_LABELS[pour||PASS_POUR]||pour||PASS_POUR);
 
   const bloc=function(g){
     const l=liste.filter(function(p){ return (p.genre||'passation')===g.k; });
@@ -23145,7 +23198,9 @@ function imprimerPassation(pour){
    ⚠ ET C'EST AUSSI POURQUOI ELLE MONTRE TOUT — ce qui m'est destiné ET ce que j'ai
    écrit : c'est la feuille qu'on imprime, elle doit être complète. */
 function passationsHTML(){
-  const toutes=passTri(passPourMoi().concat(passEcrites()));
+  /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
+     doit être sur le papier, sans exception. */
+  const toutes=passToutes();
   let h='<div class="pcarte pcarte-lire">'+
     '<div class="ptitre"><b>La passation</b><span>'+
       esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</span></div>';
@@ -23181,11 +23236,21 @@ function passationsHTML(){
    monte ici, sous la ligne d'écriture. C'est le seul endroit où l'on décide à qui on
    passe, de quel genre il s'agit, à quelle heure et dans quelle chambre.
    ⚠ ELLE NE S'OUVRE QUE SUR DEMANDE : le bouton « Passation » d'une ligne ou du champ
-   d'écriture (`PASS_OUVRIR`), ou le crayon d'une passation déjà écrite (`PASS_EDIT`).
+   d'écriture, ou le crayon d'une passation déjà écrite (`PASS_EDIT`).
    Fermée, elle n'existe pas — pas de bouton « Passer quelque chose » à l'écran. */
 function passFeuilleHTML(){
-  const ouvrir=(PASS_EDIT||PASS_OUVRIR); PASS_OUVRIR=false;
-  if(!ouvrir) return '';
+  /* ⚠⚠ LE BOGUE DU 22/08/2026 (Mag : « quand je clique sur passation et que je clique
+     par exemple sur agent, la fenêtre se ferme, alors que je devrais confirmer »).
+     `PASS_OUVRIR` était un drapeau à USAGE UNIQUE : le premier rendu le consommait.
+     Or choisir un genre ou une équipe appelle `render()` — au deuxième rendu, le
+     drapeau était déjà retombé et la feuille disparaissait au milieu de la saisie.
+     Elle est maintenant portée par `PASS_FEUILLE`, un état qui DURE : elle se ferme
+     quand on enregistre, quand on annule, et pas avant.
+     ⚠ ET LE SECOND BOGUE, CACHÉ DERRIÈRE : `render()` reconstruit les champs à vide.
+     Changer de genre effaçait donc le texte déjà tapé, sans rien dire. Les valeurs sont
+     relevées avant le rendu et reposées après — voir `passChampsGarder`. */
+  if(PASS_EDIT) PASS_FEUILLE=true;
+  if(!PASS_FEUILLE) return '';
   const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
   return '<details class="acform pass" style="margin-top:14px" open>'+
     '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer à l’équipe')+'</summary>'+
@@ -23223,14 +23288,15 @@ function passFeuilleHTML(){
       '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
-      (PASS_EDIT?'<button class="passannul" onclick="passEditAnnuler()">Annuler</button>':'')+
+      '<button class="passannul" onclick="'+(PASS_EDIT?'passEditAnnuler()':'passFeuilleFermer()')+'">'+
+        (PASS_EDIT?'Annuler':'Fermer sans passer')+'</button>'+
     '</div></details>';
 }
 /* ═══ MODIFIER UNE PASSATION (Mag, 22/08/2026) ═══
    Le crayon rouvre LE MÊME formulaire, rempli avec ce qui y est déjà. Pas une
    deuxième fenêtre à entretenir : un seul endroit où l'on écrit une passation, qu'on
    la crée ou qu'on la corrige. */
-var PASS_EDIT=null, PASS_OUVRIR=false;
+var PASS_EDIT=null, PASS_OUVRIR=false, PASS_FEUILLE=false, PASS_GARDE=null;
 function passModifier(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -23247,7 +23313,10 @@ function passModifier(id){
     const e=document.getElementById('passTxt'); if(e) e.focus();
   }, 40);
 }
-function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; render(); }
+function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; render(); }
+/* Le bouton qui referme la feuille sans rien enregistrer, quand on n'était pas en train
+   de corriger : sinon, une feuille ouverte par erreur ne se referme jamais. */
+function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; render(); }
 
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
@@ -23336,7 +23405,7 @@ function rappelVersPassation(){
      champ chambre, et c'est lui qu'on remplit. */
   const c=document.getElementById('rapCh');
   const ch=((c&&c.value)||'').trim(); if(c) c.value='';
-  PASS_EDIT=null; PASS_AJEUN=false; PASS_OUVRIR=true;
+  PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   render();
   setTimeout(function(){
     const e=document.getElementById('passTxt');
@@ -23567,7 +23636,7 @@ function rappelPasser(id){
   const t=String(r.texte||'').trim(), ch=String(r.chambre||'').trim();
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
   rappelsSauver();
-  PASS_EDIT=null; PASS_AJEUN=false; PASS_OUVRIR=true;
+  PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   render();
   setTimeout(function(){
     const e=document.getElementById('passTxt');
