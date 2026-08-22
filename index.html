@@ -3327,6 +3327,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .passl{margin:2px 0 0}
 .passl-t{display:block;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--enc2);margin-bottom:7px}
+/* Un seul destinataire possible : on l'écrit, on ne le fait pas choisir. Un choix à une
+   seule option est une question à laquelle on a déjà répondu. */
+.passl-1{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;font-weight:600;color:var(--noir)}
+/* La porte de sortie de l'administration : discrète, en pointillé — ce n'est pas une
+   équipe de plus, c'est « montre-moi tout ». */
+.fchip.toutes{border-style:dashed;color:var(--enc2)}
 
 /* La carte du raccourci, sur l'accueil : elle attend, elle ne surgit pas. */
 .onb-rap{border:1.25px solid var(--trait);background:#fdfdfc;padding:13px 14px;margin:0 0 18px}
@@ -22848,6 +22855,60 @@ function passChampsGarder(){
     PASS_GARDE=null;
   }, 30);
 }
+/* ═══ QUI PASSE À QUI (Mag, 22/08/2026) ═══
+   « Je vois que je peux choisir entre tous les corps de métier, mais NON. Moi, en tant
+   que PFO, j'ai envie de faire la passation QUE au PFO de nuit. »
+   Douze équipes proposées à quelqu'un qui n'en vise jamais qu'une, c'est onze occasions
+   de se tromper de destinataire — et une passation qui part au mauvais endroit ne se
+   rate pas à moitié : personne ne la lit.
+
+   Le tableau vient de ce qu'elle a dicté :
+   · « les éducateurs doivent donner la passation au prochain 4/4 » ;
+   · « les polyvalents doivent donner la passation au prochain 4/4 » ;
+   · « les infirmiers vont devoir donner la passation à ceux de la nuit ET à ceux du
+     jour » ;
+   · elle-même, PFO de jour → PFO de nuit.
+   « Le prochain 4/4 » veut dire l'équipe qui prend la suite : pour un éducateur, c'est
+   la même liste (ce sont les suivants qui la liront) ; pour un polyvalent de jour,
+   c'est la nuit, et inversement.
+
+   ⚠ CE TABLEAU EST UNE PREMIÈRE VERSION, ET IL SE CORRIGE ICI, EN UN ENDROIT. Ce qui
+   n'y est pas encore tranché : Afaf, « qui travaille en 5-7 mais de journée, doit faire
+   des passations aussi pour le soir » — il n'existe pas de liste « soir » aujourd'hui,
+   donc sa règle attend d'être décidée avec elle ([[cousin-groupes-de-passation]]). */
+const PASSE_A={
+  'pfo-jour':['pfo-nuit'],
+  'pfo-nuit':['pfo-jour'],
+  'educ':['educ'],
+  'ts':['ts'],
+  'polyvalent-jour':['polyvalent-nuit'],
+  'polyvalent-nuit':['polyvalent-jour'],
+  /* Les infirmiers passent AUX DEUX : la nuit et le jour. */
+  'médical':['médical-nuit','médical-rez','médical-2e'],
+  'médical-rez':['médical-nuit','médical-rez','médical-2e'],
+  'médical-2e':['médical-nuit','médical-rez','médical-2e'],
+  'médical-nuit':['médical-rez','médical-2e'],
+  'aide-soignant-matin':['aide-soignant-soir'],
+  'aide-soignant-soir':['aide-soignant-matin']
+};
+/* À qui CETTE personne peut passer quelque chose. Vide = on n'a pas de règle pour elle,
+   et dans ce cas on montre tout plutôt que de la bloquer. */
+function passRoles(){
+  const mes=MES_LISTES||[], vus={}, out=[];
+  mes.forEach(function(k){
+    (PASSE_A[k]||[]).forEach(function(d){ if(!vus[d]){ vus[d]=1; out.push(d); } });
+  });
+  if(!out.length) return LISTE_ORDER.slice();
+  /* ⚠ L'ADMIN GARDE TOUT, mais après les siennes : c'est elle qui écrit les passations
+     d'exemple et qui doit pouvoir viser n'importe quelle équipe pour vérifier. */
+  if(PROFILE && PROFILE.admin && !PASS_TOUTES) return out;
+  if(PROFILE && PROFILE.admin){
+    LISTE_ORDER.forEach(function(k){ if(!vus[k]){ vus[k]=1; out.push(k); } });
+  }
+  return out;
+}
+var PASS_TOUTES=false;
+function passToutesEquipes(){ PASS_TOUTES=true; passChampsGarder(); }
 function passPourChoix(k){ PASS_POUR=k; passChampsGarder(); }
 function passGenreChoix(g){ PASS_GENRE=g; passChampsGarder(); }
 /* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
@@ -23272,16 +23333,38 @@ function passFeuilleHTML(){
      relevées avant le rendu et reposées après — voir `passChampsGarder`. */
   if(PASS_EDIT) PASS_FEUILLE=true;
   if(!PASS_FEUILLE) return '';
-  const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
+  const roles=passRoles();
+  /* Si l'on n'a qu'un seul destinataire possible, on ne DEMANDE pas : on le dit. Un
+     choix à une seule option est une question à laquelle on a déjà répondu. */
+  if(roles.length===1 && PASS_POUR!==roles[0]) PASS_POUR=roles[0];
+  /* ⚠ ET SI L'ÉQUIPE RETENUE N'EST PLUS PROPOSÉE, on retombe sur la première : sinon le
+     défaut historique (`pfo-nuit`) resterait sélectionné pour un éducateur, sans qu'aucun
+     bouton ne s'allume — et la passation partirait au PFO. */
+  if(roles.indexOf(PASS_POUR)<0) PASS_POUR=roles[0];
   return '<details class="acform pass" style="margin-top:14px" open>'+
     '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer à l’équipe')+'</summary>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
-      '<div class="passl"><span class="passl-t">À qui ?</span>'+
-        '<div class="fchips">'+roles.map(function(k){
-          return '<button class="fchip'+(PASS_POUR===k?' on':'')+'" onclick="passPourChoix(\''+esc(k)+'\')">'+
-            esc(LISTE_LABELS[k]||k)+'</button>';
-        }).join('')+'</div></div>'+
+      (roles.length===1
+        ? '<div class="passl"><span class="passl-t">À qui ?</span>'+
+          '<div class="passl-1">'+esc(LISTE_LABELS[roles[0]]||roles[0])+
+          /* ⚠ L'ADMIN GARDE UNE PORTE DE SORTIE, même quand il n'y a qu'un
+             destinataire : c'est elle qui écrit les passations d'exemple et qui doit
+             pouvoir viser n'importe quelle équipe pour vérifier. Discrète, en
+             pointillé — ce n'est pas une équipe de plus. */
+          (PROFILE && PROFILE.admin && !PASS_TOUTES
+            ? ' <button class="fchip toutes" onclick="passToutesEquipes()">Toutes les équipes…</button>'
+            : '')+
+          '</div></div>'
+        : '<div class="passl"><span class="passl-t">À qui ?</span>'+
+          '<div class="fchips">'+roles.map(function(k){
+            return '<button class="fchip'+(PASS_POUR===k?' on':'')+'" onclick="passPourChoix(\''+esc(k)+'\')">'+
+              esc(LISTE_LABELS[k]||k)+'</button>';
+          }).join('')+
+          (PROFILE && PROFILE.admin && !PASS_TOUTES
+            ? '<button class="fchip toutes" onclick="passToutesEquipes()">Toutes les équipes…</button>'
+            : '')+
+          '</div></div>')+
       '<div class="chdep pass4" style="margin:2px 0 0">'+
         PASS_GENRES.map(function(x){
           return '<button class="chdep-b'+(PASS_GENRE===x.k?' on':'')+'" '+
