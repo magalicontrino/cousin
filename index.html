@@ -3242,6 +3242,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl2 .ib.on{border-color:var(--noir);color:var(--noir)}
 .pcarte .pl2 .rapPass.mini{min-height:32px;padding:0 11px;font-size:8.5px;border-width:1px;
   border-radius:5px;flex:none}
+/* La corbeille est rouge, mais seulement au trait : un aplat rouge sur chaque ligne
+   ferait de « supprimer » la chose la plus voyante de la carte. */
+.pcarte .pl2 .ib.sup{color:var(--rouge);border-color:var(--rouge)}
 /* En retard : la ligne porte un trait rouge à gauche. Le rendez-vous est peut-être en
    train de se rater — c'est le seul cas qui a le droit de crier ici. */
 /* ⚠ LE TRAIT ROUGE RESTE DANS LA CARTE : posé en `box-shadow` plutôt qu'en bordure
@@ -22920,6 +22923,24 @@ async function passCocher(id){
    ⚠ ON REMET LA LIGNE DANS SA LISTE AVANT D'EFFACER LA PASSATION, jamais l'inverse :
    si la base refuse la suppression, la ligne est en double — visible, réparable. Dans
    l'autre sens, elle serait perdue des deux côtés. */
+/* Effacer une passation pour de bon. À ne pas confondre avec `passRetirer`, qui la
+   fait REMONTER dans sa liste : ici, la ligne n'existe plus nulle part.
+   ⚠ On demande confirmation et on montre le texte : à 23 h, deux lignes de passation se
+   ressemblent, et celle qu'on efface n'est pas toujours celle qu'on croit. */
+async function passSupprimer(id){
+  const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  cousinConfirme('Supprimer cette passation ?',
+    p.texte+'\n\nElle ne reviendra pas dans ta liste : elle est effacée.',
+    async function(){
+      if(!sb){ toast('Pas de connexion'); return; }
+      try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
+        if(error) throw error;
+        if(String(PASS_EDIT)===String(p.id)){ PASS_EDIT=null; PASS_FEUILLE=false; }
+        await loadPassations(); render();
+      }catch(e){ toast('Suppression refusée'); }
+    }, {ok:'Supprimer', danger:true});
+}
 function passRetirer(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -23533,6 +23554,16 @@ function rappelsHTML(enCarte){
         '<span class="pl2-sep"></span>'+
         '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
           'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+        /* ⚠ TROIS GESTES, ET ILS NE FONT PAS LA MÊME CHOSE (Mag, 22/08/2026 : « mets
+           une corbeille ») :
+           · le CRAYON corrige la ligne, elle reste en passation ;
+           · la CORBEILLE l'efface — elle ne revient nulle part ;
+           · REPRENDRE la sort de la passation et la remet dans ma liste.
+           La corbeille manquait : une ligne écrite par erreur n'avait comme issue que
+           de remonter dans sa propre liste, où il fallait ensuite la retirer une
+           seconde fois. */
+        '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" '+
+          'aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'+
         '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Reprendre</button>'+
       '</div>'+
       '<div class="pl2-t"><b>'+esc(p.texte)+'</b>'+
