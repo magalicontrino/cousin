@@ -3313,6 +3313,14 @@ body.pan-ouvert #view{animation:none;transform:none}
   text-transform:uppercase;color:var(--enc2);background:#fdfdfc;border:1px solid var(--ligne);
   border-radius:5px;padding:6px 10px;flex:none;white-space:nowrap}
 .pcarte .ptitre-b:active{color:var(--rouge);border-color:var(--rouge)}
+/* Les trois rythmes sur une tâche du modèle : de petits boutons sous le texte, pas une
+   étiquette. Il faut voir d'un coup d'œil lequel est posé ET pouvoir le corriger sans
+   retaper la ligne. */
+.modry{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;font-style:normal}
+.modry-b{font-family:ui-monospace,monospace;font-size:8px;letter-spacing:.1em;
+  text-transform:uppercase;color:#8b8984;background:none;border:1px solid var(--ligne);
+  border-radius:999px;padding:3px 8px}
+.modry-b.on{background:var(--noir);border-color:var(--noir);color:var(--creme)}
 .pcarte .pgt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--enc2);border-bottom:1px solid var(--noir);
   padding-bottom:4px;margin:16px 0 4px}
@@ -14418,13 +14426,41 @@ async function loadModeles(){
 function modChoisir(k){ MOD_LISTE=k; MOD_ERREUR=null; render(); }
 function modDe(k){ return MODELES.filter(function(t){ return t.liste===k; })
                           .sort(function(a,b){ return (a.ordre||0)-(b.ordre||0); }); }
+/* ═══ LE RYTHME SE RÈGLE ENFIN ICI (Mag, 22/08/2026) ═══
+   Elle voulait ajouter au PFO une tâche « à faire en tout début de 7-7 » — le tour des
+   chambres. C'était impossible : cet écran écrivait `liste`, `tache` et `ordre`, JAMAIS
+   `rythme`. Toute tâche ajoutée depuis l'app naissait donc « aujourd'hui », et
+   réapparaissait tous les matins. Les tâches de reprise existantes n'avaient pu être
+   posées qu'en SQL, à la main.
+   Trois rythmes, ce sont les trois blocs de la check-list :
+   · `jour`    — tous les jours ;
+   · `semaine` — au cours de la semaine ;
+   · `reprise` — le jour où l'on reprend son 4-4 ou son 7-7, et ce jour-là seulement.
+   ⚠ LE RYTHME SE CORRIGE AUSSI SUR UNE TÂCHE DÉJÀ ÉCRITE (`modRythme`) : sans ça, une
+   erreur obligeait à retirer la ligne et à la retaper, en perdant sa place dans l'ordre. */
+const MOD_RYTHMES=[
+  {k:'jour',    l:'Tous les jours'},
+  {k:'semaine', l:'Dans la semaine'},
+  {k:'reprise', l:'À la reprise du cycle'}
+];
+let MOD_RYTHME='jour';
+function modRythmeChoix(k){ MOD_RYTHME=k; render(); }
+async function modRythme(id, k){
+  try{
+    const r=await sb.from('checklists').update({rythme:k}).eq('id',id).select('id');
+    if(r.error) throw r.error;
+    MOD_ERREUR=null;
+    await loadModeles(); await loadListes(); render();
+  }catch(e){ MOD_ERREUR='Changement refusé : '+((e&&e.message)||'la base a dit non'); render(); }
+}
 async function modAjouter(){
   const i=document.getElementById('modTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
   const dernieres=modDe(MOD_LISTE);
   const ordre=(dernieres.length? (dernieres[dernieres.length-1].ordre||0) : 0)+10;
   try{
-    const r=await sb.from('checklists').insert({liste:MOD_LISTE, tache:t, ordre:ordre}).select('id');
+    const r=await sb.from('checklists')
+      .insert({liste:MOD_LISTE, tache:t, ordre:ordre, rythme:MOD_RYTHME}).select('id');
     if(r.error) throw r.error;
     if(!r.data||!r.data.length) throw new Error('la base n’a rien écrit');
     i.value=''; MOD_ERREUR=null;
@@ -14488,9 +14524,15 @@ function vModeles(){
     h+='<p class="hint" style="margin-top:12px">Cette liste est vide. Écris sa première tâche ci-dessous.</p>';
   } else {
     h+='<div class="rlist">'+taches.map(function(t,i){
+      const ry=(t.rythme||'jour');
       return '<div class="tache">'+
         '<span class="modn">'+(i+1)+'</span>'+
-        '<span class="tx"><b>'+esc(t.tache)+'</b></span>'+
+        '<span class="tx"><b>'+esc(t.tache)+'</b>'+
+          '<em class="modry">'+MOD_RYTHMES.map(function(x){
+            return '<button class="modry-b'+(ry===x.k?' on':'')+'" '+
+              'onclick="modRythme('+t.id+',\''+x.k+'\')">'+esc(x.l)+'</button>';
+          }).join('')+'</em>'+
+        '</span>'+
         '<span class="modb">'+
           (i>0?'<button onclick="modBouger('+t.id+',-1)" aria-label="Monter">↑</button>':'<span></span>')+
           (i<taches.length-1?'<button onclick="modBouger('+t.id+',1)" aria-label="Descendre">↓</button>':'<span></span>')+
@@ -14499,7 +14541,12 @@ function vModeles(){
       '</div>';
     }).join('')+'</div>';
   }
-  h+='<div class="chadd" style="margin-top:12px">'+
+  h+='<div class="passl" style="margin-top:18px"><span class="passl-t">Quand ?</span>'+
+       '<div class="fchips">'+MOD_RYTHMES.map(function(x){
+         return '<button class="fchip'+(MOD_RYTHME===x.k?' on':'')+'" '+
+           'onclick="modRythmeChoix(\''+x.k+'\')">'+esc(x.l)+'</button>';
+       }).join('')+'</div></div>';
+  h+='<div class="chadd" style="margin-top:10px">'+
        '<input id="modTxt" type="text" placeholder="Une tâche de plus…" autocomplete="off" '+
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();modAjouter();}">'+
        '<button class="chaddbtn" onclick="modAjouter()">Ajouter</button>'+
