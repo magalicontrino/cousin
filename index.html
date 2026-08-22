@@ -22959,7 +22959,12 @@ function passEcrites(){ return PASSATIONS.filter(passMienne); }
    infos il se rate. Puis « à jeun », par heure aussi : c'est une heure à partir de
    laquelle la personne ne mange plus, donc ça se lit avant le petit-déjeuner. Puis
    les sorties de centre. Les infos en dernier : elles n'ont pas d'horaire. */
-const PASS_RANG={reveil:0, ajeun:1, sortie:2, passation:3};
+/* ⚠ L'AGENT EST DANS L'HORAIRE, PAS APRÈS (22/08/2026) : « quand il y a des horaires,
+   essaye de les mettre dans l'ordre ». Un réveil de collègue à 5 h 30 et un réveil
+   d'hébergé à 5 h 45 se font l'un après l'autre — les séparer par genre obligerait à
+   lire deux listes en parallèle pour reconstituer sa matinée. Tout ce qui porte une
+   heure partage donc le même rang, et c'est l'heure qui tranche. */
+const PASS_RANG={reveil:0, agent:0, ajeun:0, sortie:2, passation:3};
 function passTri(liste){
   return liste.slice().sort(function(a,b){
     const ra=(PASS_RANG[a.genre]!==undefined?PASS_RANG[a.genre]:3);
@@ -23081,8 +23086,15 @@ async function passAjouter(){
   l.jour = (PASS_GENRE!=='passation' ? v('passJour') : '') || todayStr();
   /* ⚠ UN « À JEUN » EST TOUJOURS À MINUIT : on la pose nous-mêmes, il n'y a plus de
      champ à lire. Un réveil, lui, porte l'heure qu'on a saisie. */
-  if(PASS_GENRE==='ajeun')       l.heure='00:00';
-  else if(PASS_GENRE==='reveil') l.heure=v('passHeure')||null;
+  /* ⚠ UN « À JEUN » A UNE HEURE DE RÉVEIL, LUI AUSSI (Mag, 22/08/2026 : « c'est surtout
+     dans à jeun qu'il faut qu'il y ait un réveil, c'est logique : si quelqu'un doit être
+     à jeun, c'est qu'il doit se faire opérer »).
+     Une ligne « à jeun » porte donc DEUX heures, et il ne faut pas les confondre :
+     · le début du jeûne — TOUJOURS minuit, écrit dans le nom du genre, pas demandé ;
+     · l'heure du RÉVEIL — variable, et c'est elle qu'on saisit et qu'on lit le matin.
+     C'est celle-ci qui est enregistrée : c'est elle qui décide de la place de la ligne
+     dans l'horaire de la nuit. */
+  l.heure = g.heure ? (v('passHeure')||null) : null;
   /* ⚠ PLUS DE CASE, DONC PLUS DE `a_jeun` À L'ÉCRITURE (22/08/2026, voir la feuille).
      On l'écrit à faux et pas « on n'y touche pas » : en corrigeant une ancienne ligne
      qui portait la case, il faut que la correction reflète ce qu'on voit à l'écran —
@@ -23201,6 +23213,21 @@ const PASS_GENRES=[
      opération commence à minuit, toujours — l'écrire sur le bouton évite d'avoir à le
      demander en dessous, et c'est ce qui a permis de retirer le champ d'heure. */
   {k:'ajeun',    l:'À jeun',    court:'À jeun', s:'plus manger dès 00h00', c:'#6cb392', heure:true,  chambre:true},
+  /* ═══ UN AGENT, ET IL PEUT AVOIR UNE HEURE (Mag, 22/08/2026) ═══
+     « Quand les personnes doivent être agents, souvent il y a un réveil. Donc il faut
+     pouvoir mettre les deux. Comment on peut faire ? »
+     La réponse tient dans ce tableau, et c'est la même erreur qu'on répare pour la
+     troisième fois ce soir : LE GENRE ET L'HEURE NE SONT PAS LA MÊME CHOSE.
+     · le GENRE dit DE QUI on parle — un hébergé, un agent, une info ;
+     · l'HEURE dit QUAND il faut faire quelque chose.
+     Tant que « réveil » était un genre, réveiller un collègue était impossible : il
+     fallait choisir entre dire que c'est un agent et dire qu'il faut le réveiller.
+     Maintenant, un agent porte une heure comme un hébergé : « Agent · 05:30 · réveiller
+     l'infirmière de garde », c'est UNE ligne, et elle tombe au bon endroit dans
+     l'horaire du matin.
+     ⚠ PAS DE CHAMBRE SUR UN AGENT : un collègue n'en a pas.
+     ⚠ LE JAUNE EST CELUI DE SA MAQUETTE du 22/08 au matin. */
+  {k:'agent',    l:'Un agent',  court:'Agent',  s:'un collègue',             c:'#f5c542', heure:true,  chambre:false},
   {k:'passation',l:'Une info',  court:'Info',   s:'à transmettre',           c:'#a9c8e8', heure:false, chambre:false}
 ];
 /* L'étiquette verte : un APLAT, pas un liseré. « C'est très important, ils doivent le
@@ -23329,19 +23356,27 @@ function imprimerPassation(pour){
   const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
   const qui=eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR);
 
-  const bloc=function(g){
-    const l=liste.filter(function(p){ return (p.genre||'passation')===g.k; });
+  /* ═══ MÊME FUSION QUE SUR ÉCRAN (Mag, 22/08/2026), voir `passationsHTML` : ce qui a
+     une heure — réveil, agent, à jeun — se lit dans UN SEUL programme, trié par heure,
+     au lieu de trois tableaux séparés qui obligeaient à recomposer sa matinée. Le
+     genre s'écrit en petit devant le texte : sur le papier, une couleur ne se voit pas
+     forcément (photocopie, imprimante noir et blanc), le mot, lui, se lit toujours. */
+  const bloc=function(genres, titre, rouge){
+    const l=liste.filter(function(p){ return genres.indexOf(p.genre||'passation')>=0; });
     if(!l.length) return '';
-    return '<h2'+(g.k==='reveil'?' class="rouge"':'')+'>'+esc(g.court)+'</h2><table>'+
+    /* Colonnes FIXES pour toute la table : une chambre absente (un agent) laisse sa
+       case vide plutôt que de décaler les colonnes des lignes voisines. */
+    const chambres=l.some(function(p){ return passGenreDe(p.genre).chambre; });
+    return '<h2'+(rouge?' class="rouge"':'')+'>'+esc(titre)+'</h2><table>'+
       l.map(function(p){
-        const fait=passFait(p);
+        const g=passGenreDe(p.genre), fait=passFait(p);
         return '<tr'+(fait?' class="fait"':'')+'>'+
           '<td class="cc"><span class="bx"></span></td>'+
           (g.heure?'<td class="h">'+esc(p.heure||'—')+'</td>':'')+
-          (g.chambre?'<td class="ch">'+esc(p.chambre||'—')+'</td>':'')+
-          '<td'+(!g.heure&&!g.chambre?' colspan="3"':'')+'>'+esc(p.texte||'')+
-            /* ⚠ « À JEUN » DOIT SORTIR SUR LE PAPIER AUSSI : c'est la feuille qu'on
-               a sous les yeux à 5 h du matin, l'écran est resté dans le bureau. */
+          (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
+          '<td>'+
+            (g.heure?'<b class="pgenre">'+esc(g.court)+'</b> ':'')+
+            esc(p.texte||'')+
             /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte,
                la feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
             (p.a_jeun&&p.genre==='reveil'?'<b class="pjeun">À JEUN DEPUIS MINUIT</b>':'')+
@@ -23353,7 +23388,9 @@ function imprimerPassation(pour){
           '</td></tr>';
       }).join('')+'</table>';
   };
-  const corps=PASS_GENRES.map(bloc).join('') ||
+  const corps=
+      bloc(['reveil','agent','ajeun'], 'Le programme', true)+
+      bloc(['passation'], 'Info', false) ||
     '<p class="vide">Rien à passer pour cette équipe.</p>';
 
   const w=window.open('','_blank');
@@ -23386,6 +23423,9 @@ function imprimerPassation(pour){
     '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
     /* L'à jeun sur le papier : encadré noir, il doit sauter aux yeux. */
     '.pjeun{display:inline-block;margin-left:8px;border:2px solid #000;padding:0 5px;font-size:11pt;letter-spacing:.06em}'+
+    /* Le nom du genre, en petit, devant le texte — sur une table qui mélange plusieurs
+       genres, c'est lui qui les distingue quand la couleur ne s'imprime pas. */
+    '.pgenre{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#555;margin-right:4px}'+
     'tr.fait td{color:#8b8984;text-decoration:line-through}'+
     '.vide{padding:18px 0;font-size:15px;color:#555}'+
     '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
@@ -23451,13 +23491,31 @@ function passationsHTML(){
     h+='<div class="cal-vide" style="margin-top:10px">Chargement…</div>';
   } else {
     let rien=true;
-    PASS_GENRES.forEach(function(g){
-      const l=toutes.filter(function(p){ return (p.genre||'passation')===g.k; });
-      if(!l.length) return;
+    /* ═══ CE QUI A UNE HEURE SE MÊLE, DANS L'ORDRE (Mag, 22/08/2026) ═══
+       « Quand il y a des horaires, essaye de les mettre dans l'ordre. » Avant : un
+       bloc RÉVEIL trié par heure, PUIS un bloc À JEUN trié par heure — on lisait
+       16 h, puis en dessous 00:00, comme si la nuit repartait de zéro. Un réveil
+       d'hébergé à 5 h 45 et un réveil d'agent à 5 h 30 se font l'un après l'autre :
+       les séparer par genre obligeait à lire deux colonnes en parallèle pour
+       reconstituer sa matinée.
+       Réveil, Agent et À jeun partagent donc maintenant UN SEUL bloc, trié par heure
+       — c'est le trait de couleur à gauche de chaque ligne qui continue de dire le
+       genre, pas un titre séparé. Une Info n'a pas d'heure : elle garde son bloc à
+       elle, à la fin, comme avant. */
+    const horaires=toutes.filter(function(p){ return passGenreDe(p.genre).heure; });
+    const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
+    if(horaires.length){
       rien=false;
-      h+='<div class="pgt">'+esc(g.court)+'</div>'+
-         l.map(function(p){ return passLigne(p); }).join('');
-    });
+      /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
+         touchent. Un conteneur à écart les aurait fait flotter séparément. */
+      h+='<div class="pgt">Le programme</div>'+
+         horaires.map(function(p){ return passLigne(p); }).join('');
+    }
+    if(infos.length){
+      rien=false;
+      h+='<div class="pgt">Info</div>'+
+         infos.map(function(p){ return passLigne(p); }).join('');
+    }
     if(rien) h+='<div class="pvide">Rien n’a été passé</div>';
   }
 
@@ -23491,6 +23549,9 @@ function passFeuilleHTML(){
   if(PASS_EDIT) PASS_FEUILLE=true;
   if(!PASS_FEUILLE) return '';
   const roles=passRoles();
+  /* Le genre choisi, pour savoir quels champs montrer — l'heure et la chambre ne
+     valent pas pour les mêmes genres (voir `PASS_GENRES`). */
+  const g=passGenreDe(PASS_GENRE);
   /* Si l'on n'a qu'un seul destinataire possible, on ne DEMANDE pas : on le dit. Un
      choix à une seule option est une question à laquelle on a déjà répondu. */
   if(roles.length===1 && PASS_POUR!==roles[0]) PASS_POUR=roles[0];
@@ -23505,7 +23566,15 @@ function passFeuilleHTML(){
     '<div class="passpop-t"><b>'+(PASS_EDIT?'Modifier cette passation':'Une passation')+'</b>'+
       '<button class="passpop-x" onclick="passFeuilleFermer()" aria-label="Fermer">✕</button></div>'+
     '<div class="acg">'+
-      '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
+      /* ⚠ TROIS POINTS, ET LE CURSEUR DEDANS (Mag, 22/08/2026 : « mets le curseur et
+         trois petits points, pour qu'on voie qu'on peut écrire — là, on ne sent pas que
+         c'est un champ de texte »).
+         La phrase d'avant (« Ce qu'il faut savoir, ou qui réveiller ») remplissait le
+         champ de gris : on lisait une consigne, pas une invitation. Trois points ne
+         disent rien et laissent la place vide — et c'est la place vide qui appelle à
+         écrire. Le curseur, lui, se pose tout seul à l'ouverture (voir
+         `passFeuilleMaj`). */
+      '<input id="passTxt" placeholder="…">'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
          qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
          On l'ÉCRIT, pour qu'elle sache où sa ligne part, mais on ne le lui demande pas.
@@ -23540,11 +23609,17 @@ function passFeuilleHTML(){
          Le JOUR, lui, vaut pour les deux : un jeûne se date. */
       (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
-          (PASS_GENRE==='reveil'
-            /* ⚠ « HEURE », ET RIEN D'AUTRE (Mag, 22/08/2026 : « marque plutôt heure »).
-               « À quelle heure ? — 05:30 » ne tenait pas dans le champ sur un téléphone :
-               on lisait « À quelle heur… » et l'exemple était coupé. Un mot suffit. */
-            ? '<input id="passHeure" placeholder="Heure" inputmode="numeric">'
+          /* ⚠ « HEURE », ET RIEN D'AUTRE (Mag, 22/08/2026 : « marque plutôt heure »).
+             « À quelle heure ? — 05:30 » ne tenait pas dans le champ sur un téléphone.
+             ⚠ ET L'À JEUN LA REÇOIT AUSSI (Mag, 22/08/2026 : « c'est surtout dans à jeun
+             qu'il faut qu'il y ait un réveil, c'est logique — si quelqu'un doit être à
+             jeun, c'est qu'il doit se faire opérer »). Une ligne « à jeun » porte donc
+             DEUX heures : minuit, le début du jeûne, toujours le même, écrit dans le nom
+             du genre — et l'heure du RÉVEIL, variable, que voici. C'est cette dernière
+             qui compte pour l'équipe du matin, et c'est elle qui est enregistrée. */
+          (g.heure
+            ? '<input id="passHeure" inputmode="numeric" placeholder="'+
+              (PASS_GENRE==='ajeun'?'Heure du réveil':'Heure')+'">'
             : '')+'</div>'
         : '')+
       /* La chambre existe sur les trois genres : « le 603 est agité » est une info. */
@@ -23552,7 +23627,10 @@ function passFeuilleHTML(){
          être que des chiffres »). `inputmode` fait monter le pavé NUMÉRIQUE sur un
          téléphone — on tape à une main, à 23 h — et le `oninput` retire tout le reste,
          y compris ce qui arrive par un copier-coller. */
-      '<input id="passCh" placeholder="N° de chambre — facultatif" inputmode="numeric" '+
+      /* ⚠ PLUS DE « FACULTATIF » (Mag, 22/08/2026 : « retire le facultatif »). Tous les
+         champs de cette feuille le sont sauf le texte : le dire sur un seul faisait
+         croire que les autres ne l'étaient pas. */
+      '<input id="passCh" placeholder="N° de chambre" inputmode="numeric" '+
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')">'+
       /* ⚠ LE CHAMP « CE QU'IL FAUT SAVOIR EN PLUS » EST RETIRÉ (Mag, 22/08/2026 :
          « retire ça, il y a déjà un texte, c'est bien assez complexe comme ça »).
@@ -23578,7 +23656,16 @@ function passFeuilleMaj(){
   const veut=!!(PASS_FEUILLE||PASS_EDIT);
   if(veut){
     document.getElementById('passCorps').innerHTML=passFeuilleHTML();
-    if(!ouverte){ bg.classList.add('on'); figerFond(true); }
+    if(!ouverte){
+      bg.classList.add('on'); figerFond(true);
+      /* ⚠ LE CURSEUR SE POSE À L'OUVERTURE, ET SEULEMENT LÀ. Cette fenêtre se redessine
+         à chaque changement de genre : reprendre le focus à chaque fois arracherait le
+         curseur des doigts de celle qui est en train de taper. */
+      setTimeout(function(){
+        const e=document.getElementById('passTxt');
+        if(e && !PASS_EDIT && !e.value) e.focus();
+      }, 60);
+    }
   }else if(ouverte){
     bg.classList.remove('on'); figerFond(false);
     document.getElementById('passCorps').innerHTML='';
@@ -23672,7 +23759,7 @@ function rappelModifier(id){
   cousinPop({
     titre:'Modifier', texte:'', champ:r.texte||'', max:400, ok:'Enregistrer',
     plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
-           deuxPlaceholder:'N° de chambre — facultatif' },
+           deuxPlaceholder:'N° de chambre' },
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus){
