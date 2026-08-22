@@ -3368,6 +3368,21 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl2 .ib.on{border-color:var(--noir);color:var(--noir)}
 .pcarte .pl2 .rapPass.mini{min-height:32px;padding:0 11px;font-size:8.5px;border-width:1px;
   border-radius:5px;flex:none}
+/* ═══ LES COMMANDES D'UNE LIGNE DE PASSATION ═══
+   Elles occupent toute une ligne sous le texte plutôt que de se serrer à sa droite :
+   à trois boutons, dont un qui porte quatre mots, il n'y a pas la place sur 375 px — et
+   c'est le TEXTE qu'on écraserait, alors que c'est lui qu'on vient lire.
+   ⚠ Alignées à droite : elles se lisent après le texte, jamais avant. */
+.pcarte .pl{flex-wrap:wrap}
+.pcarte .pl .plact{flex:1 0 100%;display:flex;justify-content:flex-end;align-items:center;
+  gap:8px;margin-top:8px}
+.pcarte .pl .plact .ib{width:32px;height:32px;flex:none;border:1px solid var(--ligne);
+  border-radius:5px;background:#fdfdfc;color:var(--enc2);display:inline-flex;
+  align-items:center;justify-content:center}
+.pcarte .pl .plact .ib svg{width:14px;height:14px}
+.pcarte .pl .plact .ib.sup{color:var(--rouge);border-color:var(--rouge)}
+.pcarte .pl .plact .rapPass.mini{min-height:32px;padding:0 11px;font-size:8.5px;
+  border-width:1px;border-radius:5px;flex:none}
 /* La corbeille est rouge, mais seulement au trait : un aplat rouge sur chaque ligne
    ferait de « supprimer » la chose la plus voyante de la carte. */
 .pcarte .pl2 .ib.sup{color:var(--rouge);border-color:var(--rouge)}
@@ -3385,6 +3400,10 @@ body.pan-ouvert #view{animation:none;transform:none}
    jaune devant, mais retire-lui le fond jaune »). Un fond teinté sur plusieurs lignes
    d'affilée devient un bloc de couleur, et c'est le bloc qu'on voit au lieu des lignes.
    Le trait, lui, marque sans peser. */
+/* ⚠ ÉCRIT APRÈS `.faite`, ET C'EST VOLONTAIRE : une ligne faite perd son trait, mais une
+   ligne de réunion le garde même cochée — c'est la règle du 22/08 (« je peux avoir fait
+   un truc dont je dois quand même parler en réunion »). L'ordre des deux règles dans
+   cette feuille EST la règle : ne pas les inverser. */
 .pcarte .pl2.reunion{box-shadow:inset 3px 0 0 #f5c542;padding-left:11px}
 .pcarte .pl2 .ib.reunion{border-color:#e0ad10;color:#a97c05;background:#fdf6e3}
 .pcarte .pgt.reunion{color:#a97c05;border-bottom-color:#f5c542}
@@ -11921,7 +11940,7 @@ function render(){
   /* ⚠ ON ARRIVE SUR « MA LISTE » : la check-list se referme. Voir `clReplie` — c'est
      ICI que « à l'arrivée sur la page » prend son sens, et pas au chargement de l'app :
      on navigue entre les pages sans jamais la recharger. */
-  if(current.view==='liste' && VUE_AVANT!=='liste'){ CL_OUVERTE=false; PASS_OUVERTE=false; }
+  if(current.view==='liste' && VUE_AVANT!=='liste') CL_OUVERTE=false;
   VUE_AVANT=current.view;
   /* Le bus ne se charge QUE depuis l'accueil — c'est le seul endroit où il s'affiche,
      et le quota anonyme de la STIB est de 100 appels par jour pour tout le centre. */
@@ -22559,7 +22578,11 @@ function clPlier(){ CL_OUVERTE=!CL_OUVERTE; render(); }
    ⚠ ET LE BOUTON IMPRIMER RESTE VISIBLE PLIÉE : c'est le geste qu'on fait le plus
    souvent sur cette carte, et le seul qu'on ferait sans avoir besoin de lire l'écran —
    on imprime pour donner la feuille, pas pour la relire. */
-let PASS_OUVERTE=false;
+/* ⚠ ELLE ARRIVE DÉPLOYÉE (Mag, 22/08/2026 : « dans ce cas-là, la passation doit être
+   déployée »). Elle avait été mise repliée quand elle n'était qu'une relecture — mais
+   depuis que l'encart du haut a disparu, c'est ICI qu'on corrige, qu'on supprime et
+   qu'on annule une passation. Une carte où l'on agit ne s'ouvre pas fermée. */
+let PASS_OUVERTE=true;
 function passRepliee(){ return !PASS_OUVERTE; }
 function passPlier(){ PASS_OUVERTE=!PASS_OUVERTE; render(); }
 const LISTE_VUE_K='lux_liste_vue';
@@ -23633,10 +23656,23 @@ function passLigne(p, mienne, role, heure){
     /* L'étiquette verte : « à jeun » suffit sur une rangée — c'est sur la feuille
        d'écriture que l'heure devait être dite, pas ici où la place manque. */
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
-    /* ⚠ NI CRAYON NI CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans
-       la passation, c'est juste une passation »). Une passation se LIT et s'IMPRIME.
-       Ce n'est pas une liste de tâches : cocher, c'est le travail de sa propre liste.
-       Corriger, c'est depuis Ma liste perso, où la ligne est aussi affichée. */
+    /* ⚠ PAS DE CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans la
+       passation, c'est juste une passation »). Une passation se lit et s'imprime ;
+       cocher, c'est le travail de sa propre liste.
+       ⚠ MAIS LES COMMANDES SONT ICI DEPUIS QUE L'ENCART DU HAUT A DISPARU (« il y a un
+       doublon... laisse juste cet encart-là pour la passation, avec tous les détails —
+       modifier, mettre à la corbeille, annuler la passation »). Elles n'apparaissent
+       que sur CE QU'ON A ÉCRIT SOI-MÊME : ce que l'équipe d'avant nous a passé n'est
+       pas à nous, on ne le corrige pas. */
+    (passMienne(p)
+      ? '<span class="plact">'+
+          '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
+            'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+          '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" '+
+            'aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'+
+          '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Annuler la passation</button>'+
+        '</span>'
+      : '')+
   '</div>';
 }
 /* ═══ LA PASSATION SUR PAPIER (Mag, 13/08/2026) ═══
@@ -24364,49 +24400,6 @@ function rappelsEffacer(){
 function rappelsHTML(enCarte){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
   let h='';
-  /* La rangée d'une ligne PARTIE EN PASSATION : même dessin que les autres, mais
-     teintée, et ses boutons ne sont pas les mêmes — on ne coche pas ici (c'est
-     l'équipe qui reçoit qui coche, en bas), on corrige ou on la reprend. */
-  const ligneP=function(p){
-    const g=passGenreDe(p.genre);
-    const bas=[esc(g.court)+' · '+esc(passPourNom(p.pour))];
-    if(p.chambre) bas.push('ch. '+esc(p.chambre));
-    if(g.heure && p.heure) bas.push(esc(p.heure));
-    if(passFait(p)) bas.push('faite');
-    return '<div class="pl2 pass"'+(passFait(p)?' data-faite="1"':'')+'>'+
-      '<div class="pl2-h">'+
-        '<span class="pgc" style="background:'+g.c+'"></span>'+
-        '<span class="pl2-sep"></span>'+
-        '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
-          'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
-        /* ⚠ TROIS GESTES, ET ILS NE FONT PAS LA MÊME CHOSE (Mag, 22/08/2026 : « mets
-           une corbeille ») :
-           · le CRAYON corrige la ligne, elle reste en passation ;
-           · la CORBEILLE l'efface — elle ne revient nulle part ;
-           · REPRENDRE la sort de la passation et la remet dans ma liste.
-           La corbeille manquait : une ligne écrite par erreur n'avait comme issue que
-           de remonter dans sa propre liste, où il fallait ensuite la retirer une
-           seconde fois. */
-        '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" '+
-          'aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'+
-        /* ⚠ « REPRENDRE » NE VOULAIT RIEN DIRE (Mag, 22/08/2026 : « je ne comprends pas
-           ce bouton reprendre »). Reprendre quoi, et où ? Le mot décrivait le mouvement
-           interne (la ligne remonte de la passation vers ma liste) au lieu de décrire ce
-           que la personne fait. Ce qu'elle fait, c'est ANNULER LA PASSATION : la ligne
-           cesse d'être une passation et redevient une chose à faire, chez elle.
-           ⚠ ET ÇA SE DISTINGUE DE LA CORBEILLE JUSTE À CÔTÉ : annuler la ramène,
-           la corbeille l'efface. Deux gestes voisins doivent porter deux mots qui ne se
-           ressemblent pas. */
-        '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Annuler la passation</button>'+
-      '</div>'+
-      '<div class="pl2-t"><b>'+esc(p.texte)+'</b>'+
-        (p.commentaire?'<i class="plcom">'+esc(p.commentaire)+'</i>':'')+
-        '<em>'+bas.join(' · ')+'</em></div></div>';
-  };
-  if(!enCarte){
-    h+='<div class="sect" style="margin-top:34px"><b>Ma liste perso</b>'+
-       '<em>'+(tot? fait+' / '+tot : 'rien pour l’instant')+'</em></div>';
-  }
   /* ═══ ON ÉCRIT D'ABORD, ON RELIT ENSUITE (Mag, 22/08/2026) ═══
      « Quand j'arrive dans ma liste, je dois pouvoir rentrer quelque chose en premier,
      non ? Puis après j'ai ma liste, et puis après j'ai ce qui part en passation. »
@@ -24461,7 +24454,7 @@ function rappelsHTML(enCarte){
       if(r.chambre) bas.push('ch. '+esc(r.chambre));
       if(r.quand)   bas.push(esc(rappelQuandFr(r.quand)));
       return '<div class="pl2'+(ok?' faite':'')+((!ok&&d===-1)?' retard':'')+
-        (r.reunion&&!ok?' reunion':'')+'">'+
+        (r.reunion?' reunion':'')+'">'+
         '<div class="pl2-h">'+
           '<button class="cas" onclick="rappelCocher(\''+r.id+'\')" aria-label="Cocher">'+
             (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
@@ -24507,27 +24500,30 @@ function rappelsHTML(enCarte){
     /* ⚠ LE BLOC DE LA RÉUNION PASSE AVANT TOUT LE RESTE, y compris avant « en retard » :
        c'est elle qui a choisi ces lignes-là à la main, et une chose qu'on a marquée
        exprès ne doit pas se retrouver sous une chose que l'app a classée toute seule. */
-    const reunion=MESRAPPELS.filter(function(r){ return r.reunion && !rappelFait(r); });
+    /* ⚠ UNE LIGNE COCHÉE PEUT RESTER EN RÉUNION (Mag, 22/08/2026 : « les choses de ma
+       liste qui sont déjà cochées peuvent aussi rester cochées, mais on peut aussi mettre
+       une étoile pour que ça passe en réunion — je peux avoir fait un truc dont je dois
+       quand même parler en réunion »).
+       C'est juste : l'étoile ne dit pas « à faire », elle dit « à DIRE ». Les deux sont
+       indépendants — on peut avoir réglé une situation et devoir quand même la raconter.
+       La ligne reste donc dans le bloc de la réunion, barrée et estompée comme toutes
+       les lignes faites : on voit qu'elle est réglée ET qu'on doit en parler. */
+    const reunion=MESRAPPELS.filter(function(r){ return r.reunion; });
     const pasReunion=function(l){ return l.filter(function(r){ return !r.reunion; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasReunion(parJour(-1)))
       + groupe('Aujourd’hui', pasReunion(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasReunion(aVenir))
-      + groupe('Faits', faits);
+      + groupe('Faits', pasReunion(faits));
   }
-  /* ═══ CE QUI EST PARTI EN PASSATION RESTE EN FIN DE LISTE (Mag, 22/08/2026) ═══
-     « Tout ce qui est passation, ça part en fin de liste dans une autre couleur. Mais
-     de la liste, on va pouvoir changer les passations. »
-     Une ligne passée ne disparaît pas de chez soi : elle descend au bout, elle change
-     de couleur, et elle reste modifiable. C'est ce qui permet de dire « on ne touche
-     plus à la passation en bas » — tout ce qu'on veut y changer se change ici.
-     ⚠ SEULEMENT CELLES QU'ON A ÉCRITES : ce que l'équipe d'avant nous a passé n'est pas
-     à nous, on ne le corrige pas. Ça se lit dans la carte du bas. */
-  const miennes=(typeof passEcrites==='function')?passTri(passEcrites()):[];
-  if(miennes.length){
-    h+='<div class="pgt pass">Parties en passation</div>'+
-       miennes.map(ligneP).join('');
-  }
+  /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
+     doublon — je trouve que l'encart parti en passation, il est en trop »).
+     Il montrait exactement les mêmes lignes que la carte « La passation » juste en
+     dessous : deux endroits pour la même chose, donc deux endroits à tenir à jour dans
+     sa tête, et la question « laquelle des deux je regarde ? » à chaque fois.
+     TOUT SE PASSE MAINTENANT DANS LA CARTE DU BAS, commandes comprises — voir
+     `passLigne`, qui porte le crayon, la corbeille et « Annuler la passation » sur les
+     lignes qu'on a écrites soi-même. */
   /* ⚠ LA FEUILLE N'EST PLUS ICI : elle s'ouvre dans une fenêtre (22/08/2026, « c'est un
      peu brouillon, est-ce qu'on ne pourrait pas faire une pop-up ? »). Voir
      `passFeuilleMaj` et le `<div id="passBg">`. */
