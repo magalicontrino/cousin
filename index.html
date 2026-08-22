@@ -2612,6 +2612,24 @@ body.pan-ouvert #view{animation:none;transform:none}
 .popbas .ok{flex:1;background:var(--noir);color:#f2eee6;border-radius:6px;padding:13px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
 .popbas .ok.danger{background:var(--rouge)}
+/* ═══ LA FENÊTRE DE LA PASSATION (Mag, 22/08/2026) ═══
+   Plus large que les autres fenêtres de COUSIN, parce qu'elle porte neuf champs et pas
+   une question. Et elle défile toute seule : sur un téléphone en paysage, ou avec le
+   clavier ouvert, elle dépasserait sinon l'écran par le bas et le bouton « Passer à
+   l'équipe » deviendrait inatteignable. */
+.popcard.passpop{max-width:520px;padding:0;max-height:88vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.passpop-t{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;
+  background:var(--creme);border-bottom:1px solid var(--ligne);padding:16px 18px 13px}
+.passpop-t b{flex:1;font-size:17px;font-weight:700;letter-spacing:-.02em;
+  text-transform:none;display:block}
+/* Une croix, pas « Laisse tomber » : elle ferme, elle ne propose rien. Même règle que
+   le bloc PFO en son temps. */
+.passpop-x{width:32px;height:32px;flex:none;border:1px solid var(--trait);border-radius:50%;
+  background:none;font-size:14px;line-height:1;color:var(--noir);padding:0}
+.passpop-x:active{background:var(--noir);color:var(--creme)}
+#passBg .acform.pass.ouverte{border:0;background:none;margin:0;padding:0;max-width:none}
+#passBg .acform.pass .acg{padding:16px 18px 18px}
 /* Le second bouton (« Aucun jour ») : il défait, il ne valide pas — il a donc le
    dessin de « Annuler », pas celui du bouton noir. */
 .popbas .autre{border:1px solid var(--ligne);border-radius:6px;background:#fdfdfc;
@@ -3289,6 +3307,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .ptitre b{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .pcarte .ptitre span{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--enc2)}
+/* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
+   comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
+.pcarte .ptitre-b{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--enc2);background:#fdfdfc;border:1px solid var(--ligne);
+  border-radius:5px;padding:6px 10px;flex:none;white-space:nowrap}
+.pcarte .ptitre-b:active{color:var(--rouge);border-color:var(--rouge)}
 .pcarte .pgt{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--enc2);border-bottom:1px solid var(--noir);
   padding-bottom:4px;margin:16px 0 4px}
@@ -4715,6 +4739,23 @@ body.no-tabs #tabbar{display:none}
   </div>
 </div>
 
+<!-- ═══ LA PASSATION S'ÉCRIT DANS UNE FENÊTRE (Mag, 22/08/2026) ═══
+     « Je n'aime pas où se place le "passer à l'équipe", parce que c'est un peu
+     brouillon. Est-ce qu'on ne pourrait pas faire une pop-up ? »
+     Elle avait raison : la feuille se dépliait AU MILIEU de la liste, entre les lignes
+     déjà écrites et le champ où l'on tape. Neuf champs qui poussent le reste vers le
+     bas, sur la carte même qu'on est en train de lire — on ne savait plus si l'on
+     écrivait une ligne pour soi ou une passation.
+     Dans une fenêtre, le geste est net : on ouvre, on remplit, on passe, ça se referme,
+     et la liste n'a pas bougé.
+     ⚠ ELLE VIT HORS DE `#view`, comme les autres fenêtres : `render()` ne la touche donc
+     pas toute seule. C'est `passFeuilleMaj()`, appelée en fin de rendu, qui la
+     redessine — sinon changer de genre ne changerait rien à l'écran. -->
+<div id="passBg" class="popbg" onclick="if(event.target.id==='passBg')passFeuilleFermer()">
+  <div class="popcard passpop" role="dialog" aria-modal="true" aria-label="Passer à l’équipe">
+    <div id="passCorps"></div>
+  </div>
+</div>
 <div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popFermer()">
   <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="popTitre">
     <b id="popTitre"></b>
@@ -11759,6 +11800,10 @@ function render(){
     setTimeout(ajusterCadre,0);
     requestAnimationFrame(function(){ requestAnimationFrame(ajusterCadre); });
   }
+  /* ⚠ EN DERNIER : la fenêtre de la passation vit HORS de `#view`, donc `render()` ne
+     la touche pas. Sans cette ligne, changer de genre dans la fenêtre ne changerait
+     rien à l'écran. Même raison que l'ancienne feuille de la check-list. */
+  if(typeof passFeuilleMaj==='function') passFeuilleMaj();
 }
 
 /* ---------- accueil ---------- */
@@ -13693,6 +13738,16 @@ function cousinPop(o){
     c2.style.display='block'; c2.value=o.plus.deux||'';
     c2.setAttribute('maxlength', o.plus.deuxMax||300);
     c2.setAttribute('placeholder', o.plus.deuxPlaceholder||'');
+    /* ⚠ QUE DES CHIFFRES QUAND C'EST UN NUMÉRO DE CHAMBRE (22/08/2026). Le même champ
+       sert aussi à une phrase (les propositions d'activités) : le filtre ne se pose donc
+       que si on le demande, et il se RETIRE sinon — sans ça, la fenêtre suivante
+       hériterait du filtre de la précédente et avalerait les lettres. */
+    if(o.plus.deuxNum){
+      c2.setAttribute('inputmode','numeric');
+      c2.oninput=function(){ this.value=this.value.replace(/[^0-9]/g,''); };
+    }else{
+      c2.removeAttribute('inputmode'); c2.oninput=null;
+    }
     /* ⚠ LE TROISIÈME CHAMP EST FACULTATIF : la feuille de « Ma liste perso » n'en a
        que deux (le texte et le numéro de chambre). Sans ce test, un champ vide et muet
        s'affichait dessous. */
@@ -23365,8 +23420,12 @@ function passFeuilleHTML(){
      défaut historique (`pfo-nuit`) resterait sélectionné pour un éducateur, sans qu'aucun
      bouton ne s'allume — et la passation partirait au PFO. */
   if(roles.indexOf(PASS_POUR)<0) PASS_POUR=roles[0];
-  return '<details class="acform pass" style="margin-top:14px" open>'+
-    '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer à l’équipe')+'</summary>'+
+  return '<div class="acform pass ouverte">'+
+    /* ⚠ LE TITRE NE RÉPÈTE PLUS LE BOUTON (Mag, 22/08/2026). « Passer à l'équipe »
+       était écrit en haut de la fenêtre ET sur le bouton du bas — le même problème que
+       « à jeun » écrit deux fois. Le titre NOMME la fenêtre, le bouton DIT l'action. */
+    '<div class="passpop-t"><b>'+(PASS_EDIT?'Modifier cette passation':'Une passation')+'</b>'+
+      '<button class="passpop-x" onclick="passFeuilleFermer()" aria-label="Fermer">✕</button></div>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
@@ -23404,18 +23463,41 @@ function passFeuilleHTML(){
       (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
           (PASS_GENRE==='reveil'
-            ? '<input id="passHeure" placeholder="À quelle heure ? — 05:30">'
+            /* ⚠ « HEURE », ET RIEN D'AUTRE (Mag, 22/08/2026 : « marque plutôt heure »).
+               « À quelle heure ? — 05:30 » ne tenait pas dans le champ sur un téléphone :
+               on lisait « À quelle heur… » et l'exemple était coupé. Un mot suffit. */
+            ? '<input id="passHeure" placeholder="Heure" inputmode="numeric">'
             : '')+'</div>'
         : '')+
       /* La chambre existe sur les trois genres : « le 603 est agité » est une info. */
-      '<input id="passCh" placeholder="N° de chambre — facultatif">'+
+      /* ⚠ QUE DES CHIFFRES (Mag, 22/08/2026 : « le numéro de la chambre, ça ne doit
+         être que des chiffres »). `inputmode` fait monter le pavé NUMÉRIQUE sur un
+         téléphone — on tape à une main, à 23 h — et le `oninput` retire tout le reste,
+         y compris ce qui arrive par un copier-coller. */
+      '<input id="passCh" placeholder="N° de chambre — facultatif" inputmode="numeric" '+
+        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')">'+
       /* « Dans les passations, il y a beaucoup de texte parfois. » */
       '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
-      '<button class="passannul" onclick="'+(PASS_EDIT?'passEditAnnuler()':'passFeuilleFermer()')+'">'+
-        (PASS_EDIT?'Annuler':'Fermer sans passer')+'</button>'+
-    '</div></details>';
+      (PASS_EDIT
+        ? '<button class="passannul sup" onclick="passRetirer(\''+PASS_EDIT+'\')">Annuler la passation</button>'
+        : '')+
+    '</div></div>';
+}
+/* La fenêtre vit hors de `#view` : c'est ici qu'elle se remplit et s'ouvre. Appelée à la
+   fin de chaque `render()`. */
+function passFeuilleMaj(){
+  const bg=document.getElementById('passBg'); if(!bg) return;
+  const ouverte=bg.classList.contains('on');
+  const veut=!!(PASS_FEUILLE||PASS_EDIT);
+  if(veut){
+    document.getElementById('passCorps').innerHTML=passFeuilleHTML();
+    if(!ouverte){ bg.classList.add('on'); figerFond(true); }
+  }else if(ouverte){
+    bg.classList.remove('on'); figerFond(false);
+    document.getElementById('passCorps').innerHTML='';
+  }
 }
 /* ═══ MODIFIER UNE PASSATION (Mag, 22/08/2026) ═══
    Le crayon rouvre LE MÊME formulaire, rempli avec ce qui y est déjà. Pas une
@@ -23504,7 +23586,8 @@ function rappelModifier(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   cousinPop({
     titre:'Modifier', texte:'', champ:r.texte||'', max:400, ok:'Enregistrer',
-    plus:{ deux:r.chambre||'', deuxMax:12, deuxPlaceholder:'N° de chambre — facultatif' },
+    plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
+           deuxPlaceholder:'N° de chambre — facultatif' },
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus){
@@ -23611,10 +23694,40 @@ function carteMaListe(){
   /* ⚠ MÊME CARTE QUE LA PASSATION (22/08/2026) : `.pcarte` + `.ptitre`. Les trois
      blocs de la page — Ta check-list, Ma liste perso, La passation — portent
      désormais le même dessin. « Je veux que tout soit bien délimité. » */
+  /* ═══ EFFACER LA LISTE (Mag, 22/08/2026) ═══
+     « Un bouton à côté de Ma liste perso. Quand il n'y a rien, marquer "rien pour
+     l'instant" ; quand il y aura quelque chose, il faudra mettre "effacer la liste", et
+     il faut que ce soit un bouton. Quand la liste est terminée, qu'on a tout fait et
+     qu'on veut s'en débarrasser, on efface la liste, on la remet à zéro. »
+     Le coin droit du titre change donc de nature selon l'état : une PHRASE quand il n'y
+     a rien à faire, un BOUTON dès qu'il y a quelque chose à balayer. C'est le même
+     endroit, et c'est voulu — on cherche l'état de sa liste là où on lit son nom.
+     ⚠ LE COMPTE (« 0 / 3 faites ») CÈDE SA PLACE, et c'est elle qui l'a décidé : il se
+     lit déjà sur les lignes elles-mêmes, alors qu'un bouton n'a nulle part ailleurs où
+     aller. */
   return '<div class="pcarte"><div class="ptitre"><b>Ma liste perso</b>'+
-      '<span>'+(tot? fait+' / '+tot+' faites' : 'rien pour l’instant')+'</span></div>'+
+      (tot
+        ? '<button class="ptitre-b" onclick="rappelsEffacer()">Effacer la liste</button>'
+        : '<span>rien pour l’instant</span>')+
+    '</div>'+
       rappelsHTML(true)+
     '</div>';
+}
+/* ⚠ ON EFFACE SA LISTE, PAS SES PASSATIONS. Ce qui est parti à l'équipe de nuit ne
+   m'appartient plus : l'effacer d'un geste de fin de service ferait disparaître des
+   consignes que quelqu'un d'autre attend. Les passations se retirent une par une, avec
+   leur corbeille, et la fenêtre le dit.
+   ⚠ ET ON DEMANDE, avec le compte : « remettre à zéro » est le seul geste de cette carte
+   qui ne se répare pas — la liste perso ne vit que dans le téléphone. */
+function rappelsEffacer(){
+  const tot=MESRAPPELS.length; if(!tot) return;
+  const reste=MESRAPPELS.filter(function(r){ return !rappelFait(r); }).length;
+  cousinConfirme('Effacer toute ta liste ?',
+    tot+(tot>1?' lignes seront effacées':' ligne sera effacée')+
+    (reste? ', dont '+reste+(reste>1?' que tu n’as pas cochées':' que tu n’as pas cochée') : '')+
+    '.\n\nCe qui est parti en passation n’est pas touché : ça reste chez l’équipe de nuit.',
+    function(){ MESRAPPELS=[]; rappelsSauver(); render(); },
+    {ok:'Effacer', danger:true});
 }
 /* ═══ LA RANGÉE DE MA LISTE PERSO (Mag, 22/08/2026) ═══
    Ses mots, et c'est le plan exact : « on doit mettre vraiment beaucoup de choses, et
@@ -23760,15 +23873,16 @@ function rappelsHTML(enCarte){
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<div class="chadd-b">'+
        '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
-       'aria-label="Numéro de chambre" '+
+       'aria-label="Numéro de chambre" inputmode="numeric" '+
+       'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')" '+
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
        '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
        '</div>'+
      '</div>';
-  /* La feuille de la passation s'ouvre ICI, sous la ligne d'écriture — « c'est de la
-     liste qu'il faut tout faire ». Voir `passFeuilleHTML`. */
-  h+=(typeof passFeuilleHTML==='function'?passFeuilleHTML():'');
+  /* ⚠ LA FEUILLE N'EST PLUS ICI : elle s'ouvre dans une fenêtre (22/08/2026, « c'est un
+     peu brouillon, est-ce qu'on ne pourrait pas faire une pop-up ? »). Voir
+     `passFeuilleMaj` et le `<div id="passBg">`. */
   return h;
 }
 /* Envoyer en passation une ligne DÉJÀ écrite : elle sort de ma liste et le texte part
