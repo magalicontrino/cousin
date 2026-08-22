@@ -3381,7 +3381,11 @@ body.pan-ouvert #view{animation:none;transform:none}
    Le jaune de l'app, en trait à gauche — le même repère que le rouge du retard, une
    couleur plus haut dans la liste. L'étoile du bouton s'allume de la même couleur : le
    geste et son effet portent la même marque. */
-.pcarte .pl2.reunion{box-shadow:inset 3px 0 0 #f5c542;padding-left:11px;background:#fdf9ec}
+/* ⚠ LE TRAIT SEUL, PAS LE FOND (Mag, 22/08/2026 : « tu peux laisser juste la ligne en
+   jaune devant, mais retire-lui le fond jaune »). Un fond teinté sur plusieurs lignes
+   d'affilée devient un bloc de couleur, et c'est le bloc qu'on voit au lieu des lignes.
+   Le trait, lui, marque sans peser. */
+.pcarte .pl2.reunion{box-shadow:inset 3px 0 0 #f5c542;padding-left:11px}
 .pcarte .pl2 .ib.reunion{border-color:#e0ad10;color:#a97c05;background:#fdf6e3}
 .pcarte .pgt.reunion{color:#a97c05;border-bottom-color:#f5c542}
 /* ═══ CE QUI EST PARTI EN PASSATION, EN FIN DE LISTE (Mag, 22/08/2026) ═══
@@ -3389,8 +3393,21 @@ body.pan-ouvert #view{animation:none;transform:none}
    pour moi, c'est chez l'équipe qui arrive » — sans le répéter en toutes lettres sur
    chaque ligne. Le petit trait à gauche garde la couleur du GENRE, comme dans la carte
    du bas : les deux endroits parlent de la même ligne, ils doivent se ressembler. */
-.pcarte .pgt.pass{color:#5b8fd4;border-bottom-color:#5b8fd4}
-.pcarte .pl2.pass{background:#f4f7fb;margin:0 -14px;padding-left:14px;padding-right:14px}
+/* ═══ « PARTIES EN PASSATION » EST UN VRAI TITRE (Mag, 22/08/2026) ═══
+   « Il faut mettre un plus gros titre, le même que Ma liste perso, juste pour qu'on voie
+   mieux, en noir — qu'on passe à autre chose. »
+   C'était un sous-titre en petites capitales grises, comme « Aujourd'hui » ou « En
+   retard » : le même rang typographique que des groupes de MA liste, alors que ces
+   lignes-là ne m'appartiennent plus — elles sont chez l'équipe de nuit. Il prend donc le
+   dessin d'un titre de carte : gros, noir, gras, avec de l'air au-dessus. On voit qu'on
+   change de monde avant même d'avoir lu le mot. */
+.pcarte .pgt.pass{font-family:'Eastman',system-ui,sans-serif;font-size:16px;font-weight:700;
+  letter-spacing:-.01em;text-transform:none;color:var(--noir);
+  border-bottom:2px solid var(--noir);padding-bottom:7px;margin:30px 0 2px}
+/* ⚠ PLUS DE FOND BLEU NON PLUS (22/08/2026). Même raison : la teinte transformait ces
+   lignes en pavé. C'est le TITRE qui dit qu'on change de monde, pas la couleur du fond —
+   voir `.pgt.pass` juste en dessous. */
+.pcarte .pl2.pass{padding-left:11px}
 .pcarte .pl2.pass .pgc{width:4px;height:22px;border-radius:2px;flex:none;padding:0;margin:0;
   max-width:none;display:block}
 .pcarte .pl2.pass[data-faite="1"] .pl2-t b{color:#8b8984;text-decoration:line-through}
@@ -11904,7 +11921,7 @@ function render(){
   /* ⚠ ON ARRIVE SUR « MA LISTE » : la check-list se referme. Voir `clReplie` — c'est
      ICI que « à l'arrivée sur la page » prend son sens, et pas au chargement de l'app :
      on navigue entre les pages sans jamais la recharger. */
-  if(current.view==='liste' && VUE_AVANT!=='liste') CL_OUVERTE=false;
+  if(current.view==='liste' && VUE_AVANT!=='liste'){ CL_OUVERTE=false; PASS_OUVERTE=false; }
   VUE_AVANT=current.view;
   /* Le bus ne se charge QUE depuis l'accueil — c'est le seul endroit où il s'affiche,
      et le quota anonyme de la STIB est de 100 appels par jour pour tout le centre. */
@@ -22534,6 +22551,17 @@ function listeRank(k){const i=LISTE_ORDER.indexOf(k);return i<0?99:i}
 let CL_OUVERTE=false;
 function clReplie(){ return !CL_OUVERTE; }
 function clPlier(){ CL_OUVERTE=!CL_OUVERTE; render(); }
+/* ⚠ LA PASSATION SE REPLIE AUSSI, ET ARRIVE FERMÉE (Mag, 22/08/2026 : « le bouton doit
+   être à déployer, il doit être replié, on doit juste voir le titre et le bouton
+   imprimer pour l'équipe de nuit »).
+   Même raison que la check-list : c'est une carte de LECTURE, on la consulte quand on en
+   a besoin. Fermée, elle laisse la place à ce qu'on vient faire — écrire dans sa liste.
+   ⚠ ET LE BOUTON IMPRIMER RESTE VISIBLE PLIÉE : c'est le geste qu'on fait le plus
+   souvent sur cette carte, et le seul qu'on ferait sans avoir besoin de lire l'écran —
+   on imprime pour donner la feuille, pas pour la relire. */
+let PASS_OUVERTE=false;
+function passRepliee(){ return !PASS_OUVERTE; }
+function passPlier(){ PASS_OUVERTE=!PASS_OUVERTE; render(); }
 const LISTE_VUE_K='lux_liste_vue';
 let LISTE_VUE=''; try{ LISTE_VUE=localStorage.getItem(LISTE_VUE_K)||''; }catch(e){}
 function listeVoir(k){
@@ -23825,8 +23853,18 @@ function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
      doit être sur le papier, sans exception. */
   const toutes=passToutes();
-  let h='<div class="pcarte pcarte-lire">'+
-    '<div class="ptitre"><b>La passation</b><span>'+esc(passPourNom(PASS_POUR))+'</span></div>';
+  const plie=passRepliee();
+  let h='<div class="pcarte pcarte-lire'+(plie?' plie':'')+'">'+
+    '<button class="ptitre ptitre-pli" onclick="passPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
+      '<b>La passation</b><span>'+esc(passPourNom(PASS_POUR))+'</span>'+
+      '<em class="ch">›</em></button>';
+  /* Pliée : le titre, et de quoi imprimer. Rien d'autre. */
+  if(plie){
+    return h+'<div class="imprligne" style="justify-content:flex-start;margin-top:12px">'+
+      '<button class="imprbtn" onclick="event.stopPropagation();imprimerPassation()">'+
+      '<span class="ic">'+icon('note')+'</span>Imprimer pour '+
+      esc(passPourNom(PASS_POUR, true))+'</button></div></div>';
+  }
 
   if(PASS_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:10px"><b>Passation illisible</b>'+
