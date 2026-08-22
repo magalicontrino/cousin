@@ -2596,8 +2596,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .popbg.on{display:flex}
 .popcard{width:100%;max-width:400px;background:var(--creme);border:1.5px solid var(--trait-fort);
   border-radius:10px;padding:22px;box-shadow:0 18px 44px rgba(27,27,27,.3)}
-.popcard b{display:block;font-size:22px;font-weight:700;text-transform:uppercase;
-  letter-spacing:-.025em;line-height:1.05}
+/* ⚠ LE TITRE SE MET À LA LARGEUR DE L'ÉCRAN (Mag, 22/08/2026 : « écrit plus petit,
+   "supprimer cette passation" — vu que le point d'interrogation, il part à la ligne »).
+   22 px en capitales, c'est trop pour une question de quatre mots sur un téléphone : le
+   « ? » basculait seul sur la ligne suivante, et un point d'interrogation orphelin fait
+   lire la phrase deux fois. `clamp` la laisse grande là où il y a la place. */
+.popcard b{display:block;font-size:clamp(16px,5vw,20px);font-weight:700;text-transform:uppercase;
+  letter-spacing:-.02em;line-height:1.12;text-wrap:balance}
 .popcard p{font-size:14.5px;line-height:1.5;color:#4a4844;margin:10px 0 0;white-space:pre-line}
 .popcard p:empty{display:none}
 .popcard input{width:100%;font:inherit;font-size:17px;font-weight:500;color:var(--noir);
@@ -23158,8 +23163,10 @@ async function passCocher(id){
 async function passSupprimer(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
-  cousinConfirme('Supprimer cette passation ?',
-    p.texte+'\n\nElle ne reviendra pas dans ta liste : elle est effacée.',
+  /* ⚠ PAS DE PHRASE D'EXPLICATION (Mag, 22/08/2026 : « retire, elle ne reviendra pas
+     dans ta liste, elle est effacée »). Le bouton rouge dit « Supprimer » : ce qu'il
+     fait n'a pas besoin d'être raconté au-dessus. */
+  cousinConfirme('Supprimer cette passation ?', p.texte,
     async function(){
       if(!sb){ toast('Pas de connexion'); return; }
       try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
@@ -23261,19 +23268,19 @@ function passGenreDe(k){
       || PASS_GENRES_ANCIENS.find(function(g){ return g.k===k; })
       || PASS_GENRES.find(function(g){ return g.k==='passation'; });
 }
-/* ═══ LE PROGRAMME DE LA NUIT : une ligne peut valoir DEUX MOMENTS ═══
-   Un réveil « à jeun » en produit deux — minuit pour prévenir, l'heure dite pour
-   réveiller. Tout le reste en produit un seul. On trie ensuite sur l'heure, et c'est
-   ce qui fait qu'on lit sa nuit dans l'ordre où elle se passe.
-   ⚠ `role` dit ce qu'on vient faire : 'prevenir' ou 'reveil'. Les deux entrées portent
-   la MÊME passation `p` — cocher, corriger ou reprendre l'une agit sur la ligne
-   entière, ce qui est bien ce qu'on veut : c'est une seule consigne. */
+/* ═══ L'HORAIRE DE LA NUIT ═══
+   Les lignes qui portent une heure, dans l'ordre où elles se passent.
+   ⚠ PAS DE RENDEZ-VOUS DE MINUIT (Mag, 22/08/2026 : « retire le fait de prévenir à
+   minuit, c'est trop compliqué »). Une ligne « à jeun » a bien deux temps dans la vraie
+   vie — on prévient le soir, on réveille le matin — mais les faire apparaître comme
+   deux entrées obligeait à lire deux fois la même personne dans la même liste, et à se
+   demander à chaque fois laquelle des deux on cochait.
+   UNE LIGNE = UNE LIGNE. Le fait qu'elle soit à jeun se dit par l'étiquette verte, à
+   l'endroit et à l'heure où on la réveille. */
 function passProgramme(liste){
   const out=[];
   liste.forEach(function(p){
-    const g=passGenreDe(p.genre);
-    if(!g.heure) return;
-    if(p.a_jeun) out.push({p:p, heure:'00:00', role:'prevenir'});
+    if(!passGenreDe(p.genre).heure) return;
     out.push({p:p, heure:p.heure||'', role:'reveil'});
   });
   /* Une heure vide part à la fin : mieux vaut la voir en dernier que la voir écraser
@@ -23335,16 +23342,9 @@ function passLigne(p, mienne, role, heure){
     '<span class="h">'+esc(heure!==undefined?(heure||'—'):(g.heure?(p.heure||'—'):'—'))+'</span>'+
     '<span class="tx">'+
       '<b>'+esc(p.texte)+'</b>'+
-      /* ⚠ CE QU'ON VIENT FAIRE, EN TOUTES LETTRES SUR CHACUN DES DEUX MOMENTS. À minuit
-         on ne réveille pas : on prévient. Au petit matin on réveille — et on le redit,
-         parce qu'un réveillé à 5 h qui a oublié descend au réfectoire, et l'opération
-         saute. Sans cette ligne, les deux rendez-vous seraient deux fois le même texte
-         à deux heures différentes, et on ne saurait pas lequel on est en train de lire. */
-      (p.a_jeun
-        ? '<em class="pjeun-r">'+(prev
-            ? 'Le prévenir : plus rien à manger à partir de maintenant'
-            : 'Le réveiller — et lui redire qu’il ne mange pas')+'</em>'
-        : '')+
+      /* ⚠ PAS DE PHRASE D'ACTION SOUS LE TEXTE (22/08/2026, « c'est trop compliqué ») :
+         l'étiquette verte « à jeun », à droite de la ligne, dit déjà ce qu'il faut
+         savoir au moment où on réveille. */
       /* ═══ LE MESSAGE SE DÉPLIE (Mag, 22/08/2026) ═══
          « Tout ça peut être assez long, mais il faut qu'on puisse déployer ici et voir
          le message. » Court, il s'affiche en entier ; long, il se coupe à deux lignes.
@@ -23421,7 +23421,7 @@ function imprimerPassation(pour){
     const moments=passProgramme(liste);
     if(!moments.length) return '';
     const chambres=moments.some(function(m){ return passGenreDe(m.p.genre).chambre; });
-    return '<h2 class="rouge">Le programme</h2><table>'+
+    return '<h2 class="rouge">Réveil</h2><table>'+
       moments.map(function(m){
         const p=m.p, g=passGenreDe(p.genre), fait=passFait(p);
         return '<tr'+(fait?' class="fait"':'')+'>'+
@@ -23429,11 +23429,10 @@ function imprimerPassation(pour){
           '<td class="h">'+esc(m.heure||'—')+'</td>'+
           (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
           '<td>'+esc(p.texte||'')+
-            (p.a_jeun
-              ? '<b class="pjeun">'+(m.role==='prevenir'
-                  ? 'LE PRÉVENIR — PLUS RIEN À MANGER'
-                  : 'À JEUN — LE RÉVEILLER ET LUI REDIRE')+'</b>'
-              : '')+
+            /* ⚠ ENCADRÉE ET EN CAPITALES SUR LE PAPIER : la feuille est lue seule, dans
+               un couloir, à 5 h du matin, et souvent photocopiée en noir et blanc — une
+               couleur ne suffirait pas. */
+            (p.a_jeun?'<b class="pjeun">À JEUN</b>':'')+
             (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
             (p.jour&&p.jour!==agIso(new Date())?'<span class="com">pour le '+esc(rappelQuandFr(p.jour))+'</span>':'')+
           '</td></tr>';
@@ -23586,7 +23585,7 @@ function passationsHTML(){
       rien=false;
       /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
          touchent. Un conteneur à écart les aurait fait flotter séparément. */
-      h+='<div class="pgt">Le programme</div>'+
+      h+='<div class="pgt">Réveil</div>'+
          moments.map(function(m){
            return passLigne(m.p, undefined, m.role, m.heure);
          }).join('');
