@@ -3154,14 +3154,19 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl:last-child{border-bottom:0}
 /* Le trait prend toute la hauteur de la rangée : sur un texte à deux lignes, un petit
    tiret flottant ne se rattache plus à rien. */
-.pcarte .pl .pt{width:4px;border-radius:2px;flex:none;align-self:stretch;min-height:24px}
+/* ⚠ LA CLASSE S'APPELLE `pgc` ET PAS `pt` : `.pt` est DÉJÀ PRISE dans l'app (c'est la
+   page « Partager », qui lui donne `min-height:56vh`). Le trait de couleur héritait de
+   ses `padding` et de son `display:flex`, et une rangée pouvait se retrouver haute de
+   455 px. Trouvé à l'écran le 22/08/2026, pas en relisant. */
+.pcarte .pl .pgc{width:4px;border-radius:2px;flex:none;align-self:stretch;min-height:24px;
+  padding:0;margin:0;max-width:none}
 /* L'heure en colonne, largeur fixe : 05:45 et — doivent tomber au même endroit, sinon
    les textes ne s'alignent pas et la liste ne se lit plus en diagonale. */
 .pcarte .pl .h{font-family:ui-monospace,monospace;font-size:13px;font-weight:500;
   letter-spacing:.02em;color:var(--noir);flex:none;min-width:44px}
 .pcarte .pl .tx{flex:1;min-width:0;cursor:pointer}
 .pcarte .pl .tx b{display:block;font-size:15px;font-weight:400;line-height:1.25}
-.pcarte .pl.faite .pt{opacity:.35}
+.pcarte .pl.faite .pgc{opacity:.35}
 .pcarte .pl.faite .h,.pcarte .pl.faite .tx b{color:#8b8984;text-decoration:line-through}
 /* La seconde ligne — chambre, jour, qui — en petit et en gris, et seulement quand elle
    a quelque chose à dire. */
@@ -3220,13 +3225,28 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le calendrier s'allume quand la ligne porte un jour : on voit d'un coup d'œil
    lesquelles sont datées, sans lire. */
 .pcarte .pl2 .ib.on{border-color:var(--noir);color:var(--noir)}
-.pcarte .pl2 .rapPass.pt{min-height:32px;padding:0 11px;font-size:8.5px;border-width:1px;
+.pcarte .pl2 .rapPass.mini{min-height:32px;padding:0 11px;font-size:8.5px;border-width:1px;
   border-radius:5px;flex:none}
 /* En retard : la ligne porte un trait rouge à gauche. Le rendez-vous est peut-être en
    train de se rater — c'est le seul cas qui a le droit de crier ici. */
 /* ⚠ LE TRAIT ROUGE RESTE DANS LA CARTE : posé en `box-shadow` plutôt qu'en bordure
    avec marge négative, il ne dépasse pas du bord arrondi de la carte. */
 .pcarte .pl2.retard{box-shadow:inset 3px 0 0 var(--rouge);padding-left:11px}
+/* ═══ CE QUI EST PARTI EN PASSATION, EN FIN DE LISTE (Mag, 22/08/2026) ═══
+   « Ça part en fin de liste dans une autre couleur. » La teinte dit « ce n'est plus
+   pour moi, c'est chez l'équipe qui arrive » — sans le répéter en toutes lettres sur
+   chaque ligne. Le petit trait à gauche garde la couleur du GENRE, comme dans la carte
+   du bas : les deux endroits parlent de la même ligne, ils doivent se ressembler. */
+.pcarte .pgt.pass{color:#5b8fd4;border-bottom-color:#5b8fd4}
+.pcarte .pl2.pass{background:#f4f7fb;margin:0 -14px;padding-left:14px;padding-right:14px}
+.pcarte .pl2.pass .pgc{width:4px;height:22px;border-radius:2px;flex:none;padding:0;margin:0;
+  max-width:none;display:block}
+.pcarte .pl2.pass[data-faite="1"] .pl2-t b{color:#8b8984;text-decoration:line-through}
+/* Le commentaire de la passation, relu depuis la liste : en clair, pas en capitales —
+   c'est une phrase, pas une étiquette. */
+.pcarte .pl2 .plcom{display:block;font-style:normal;font-size:13px;line-height:1.4;
+  color:var(--enc2);margin-top:4px}
+
 /* ═══ LA CARTE DE LA PASSATION (Mag, 22/08/2026) ═══
    Blanche, bord noir : elle se détache de la page crème, et ce qui est dedans se lit
    comme « ça part chez quelqu'un d'autre ». */
@@ -22729,8 +22749,22 @@ async function loadPassations(){
     /* Hier ET aujourd'hui : l'équipe de nuit arrive le soir et finit le lendemain
        matin — sa passation est écrite « hier » de son point de vue. */
     const h=new Date(); h.setDate(h.getDate()-1);
+    /* ⚠⚠ LE BOGUE DU 22/08/2026 (Mag : « quand je vais imprimer la passation, tout ne
+       se met pas ») ═══
+       `.gte('jour', …)` EXCLUT LES LIGNES OÙ `jour` EST NULL — c'est la règle SQL, une
+       comparaison avec NULL n'est jamais vraie. Or une INFO n'avait pas de jour : le
+       formulaire ne posait `jour` que sur les genres qui ont une heure. Résultat :
+       toutes les infos partaient dans la base et n'en revenaient JAMAIS — ni à
+       l'écran, ni sur la feuille imprimée. Elles n'étaient pas perdues, elles étaient
+       invisibles, ce qui est pire : on croit avoir passé l'information.
+       Deux verrous, et il faut les deux :
+       · ICI, on accepte explicitement les lignes sans jour (`jour.is.null`) — c'est ce
+         qui fait remonter tout ce qui a déjà été écrit avant la correction ;
+       · à l'écriture, TOUTE passation reçoit un jour (voir `passAjouter`) — pour que
+         le problème ne se reforme pas. */
     const {data,error}=await sb.from('passations').select('*')
-      .gte('jour', agIso(h)).order('jour',{ascending:false}).limit(200);
+      .or('jour.gte.'+agIso(h)+',jour.is.null')
+      .order('jour',{ascending:false}).limit(200);
     if(error) throw error;
     PASSATIONS=data||[]; PASS_PANNE='';
   }catch(e){ PASSATIONS=[]; PASS_PANNE=(e&&e.message)||String(e); }
@@ -22787,10 +22821,11 @@ async function passAjouter(){
      restent réservés à ce qui a une heure. */
   l.chambre=v('passCh')||null;
   l.commentaire=v('passCom')||null;
-  if(PASS_GENRE!=='passation'){
-    if(g.heure) l.heure=v('passHeure')||null;
-    l.jour=v('passJour')||null;
-  }
+  /* ⚠ TOUTE PASSATION A UN JOUR, MÊME UNE INFO. Sans lui, la ligne ne repasse pas le
+     filtre de `loadPassations` et devient invisible — voir la note là-bas. Une info
+     est datée d'aujourd'hui : c'est le jour où on la passe. */
+  l.jour = (PASS_GENRE!=='passation' ? v('passJour') : '') || todayStr();
+  if(PASS_GENRE!=='passation' && g.heure) l.heure=v('passHeure')||null;
   /* ⚠ LA CASE NE VAUT QUE SUR UN RÉVEIL. Sur les deux autres genres on l'écrit à
      faux : sans ça, une case cochée puis un changement de genre laisserait un
      « à jeun » invisible collé à une info. */
@@ -22920,6 +22955,7 @@ function passGenreDe(k){ return PASS_GENRES.find(function(g){ return g.k===k; })
    faite descendent sur une SECONDE LIGNE, en petit, et seulement quand ils ont
    quelque chose à dire. Une info sans commentaire n'affiche qu'une ligne. */
 function passLigne(p, mienne){
+  if(mienne===undefined) mienne=passMienne(p);
   const ok=passFait(p), g=passGenreDe(p.genre);
   const com=String(p.commentaire||'').trim();
   /* 80 caractères : au-delà, ça dépasse deux lignes sur un téléphone de 375. */
@@ -22942,7 +22978,7 @@ function passLigne(p, mienne){
   if(ok && quiFait) bas.push('fait par '+esc(quiFait));
 
   return '<div class="pl'+(ok?' faite':'')+'">'+
-    '<span class="pt" style="background:'+g.c+'"></span>'+
+    '<span class="pgc" style="background:'+g.c+'"></span>'+
     '<span class="h">'+(g.heure?esc(p.heure||'—'):'—')+'</span>'+
     '<span class="tx" onclick="passCocher(\''+p.id+'\')">'+
       '<b>'+esc(p.texte)+'</b>'+
@@ -22964,11 +23000,8 @@ function passLigne(p, mienne){
       (bas.length?'<em class="plbas">'+bas.join(' · ')+'</em>':'')+
     '</span>'+
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
-    /* ⚠ LE CRAYON (Mag, 22/08/2026 : « il faut pouvoir modifier les passations »).
-       Avant, une passation mal notée n'avait qu'une issue : la supprimer et la
-       retaper — en perdant qui l'avait passée et à quelle heure. */
-    (passMienne(p)?'<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
-       'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>':'')+
+    /* ⚠ PAS DE CRAYON ICI (22/08/2026 : « on ne touche plus à la passation en bas »).
+       Corriger se fait depuis Ma liste perso, où la ligne est aussi affichée. */
     '<button class="cas" onclick="passCocher(\''+p.id+'\')" aria-label="Cocher">'+
       (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
   '</div>';
@@ -23079,10 +23112,26 @@ function imprimerPassation(pour){
    ⚠ TROIS PHRASES ONT ÉTÉ RETIRÉES ICI — le paragraphe qui expliquait ce qu'est une
    passation, « Rien à passer, rien de reçu », et « Les réveils sortent en premier ».
    Sa règle du 22/08 : « tu mets trop de phrases explicatives, ça brûle tout ». */
+/* ═══ LA CARTE DU BAS NE SE TOUCHE PLUS (Mag, 22/08/2026) ═══
+   Ses mots, et c'est la règle du fonctionnement entier :
+   « C'est **de la liste** qu'il faut tout faire. Et après, ça doit se mettre dans
+   passation. Et la passation doit être **imprimable**, mais c'est de la liste que
+   **tout doit pouvoir se changer**. Tout ce qui est passation, ça part **en fin de
+   liste dans une autre couleur**. Mais de la liste, on va pouvoir changer les
+   passations. **On ne touche plus à la passation en bas.** »
+
+   Donc, ici : on LIT, on COCHE, on IMPRIME. Rien d'autre.
+   · plus de crayon sur les rangées — on corrige depuis sa liste, en haut ;
+   · plus de feuille « Passer quelque chose » — on écrit depuis sa liste ;
+   · plus de « retirer » — on reprend la ligne depuis sa liste.
+   ⚠ LA CASE À COCHER RESTE, ET C'EST TOUT L'INTÉRÊT : cette carte est ce que l'équipe
+   qui ARRIVE vient lire à 22 h. Elle doit pouvoir cocher ce qu'elle a fait. Ce qu'elle
+   ne peut pas faire, c'est réécrire ce qu'on lui a passé.
+   ⚠ ET C'EST AUSSI POURQUOI ELLE MONTRE TOUT — ce qui m'est destiné ET ce que j'ai
+   écrit : c'est la feuille qu'on imprime, elle doit être complète. */
 function passationsHTML(){
   const toutes=passTri(passPourMoi().concat(passEcrites()));
-  const reste=toutes.filter(function(p){ return !passFait(p); }).length;
-  let h='<div class="pcarte">'+
+  let h='<div class="pcarte pcarte-lire">'+
     '<div class="ptitre"><b>La passation</b><span>'+
       esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</span></div>';
 
@@ -23092,52 +23141,38 @@ function passationsHTML(){
   } else if(!PASS_CHARGE){
     h+='<div class="cal-vide" style="margin-top:10px">Chargement…</div>';
   } else {
-    /* Un bloc par genre, dans l'ordre des genres — et un bloc vide ne s'écrit pas :
-       un titre au-dessus de rien fait croire à une panne. */
     let rien=true;
     PASS_GENRES.forEach(function(g){
       const l=toutes.filter(function(p){ return (p.genre||'passation')===g.k; });
       if(!l.length) return;
       rien=false;
-      /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
-         touchent. Un conteneur à écart les aurait fait flotter séparément, et on
-         serait revenu à dix boîtes au lieu d'une liste. */
       h+='<div class="pgt">'+esc(g.court)+'</div>'+
-         l.map(function(p){ return passLigne(p, passMienne(p)); }).join('');
+         l.map(function(p){ return passLigne(p); }).join('');
     });
-    /* Une carte vide doit dire qu'elle est vide, en trois mots : sans ça, on ne sait
-       pas si rien n'a été passé ou si l'app n'a pas fini de charger. */
     if(rien) h+='<div class="pvide">Rien n’a été passé</div>';
   }
 
-  /* ⚠ IMPRIMER RESTE DANS LA CARTE, et c'est sa raison d'être : « la passation doit
-     être imprimable aussi, c'est très important ». C'est la feuille qu'on pose sur le
-     bureau de l'équipe qui arrive — une feuille par équipe.
-     ⚠ IL VIENT JUSTE APRÈS LES LIGNES, comme sur sa maquette : c'est la fin de la
-     lecture. Écrire une passation vient après, en dessous — on ouvre cette carte pour
-     LIRE ce que l'équipe d'avant a laissé, pas pour écrire. */
+  /* ⚠ IMPRIMER EST LA RAISON D'ÊTRE DE CETTE CARTE : « la passation doit être
+     imprimable aussi, c'est très important ». C'est la feuille qu'on pose sur le
+     bureau de l'équipe qui arrive — une feuille par équipe. */
   h+='<div class="imprligne" style="justify-content:flex-start;margin-top:14px">'+
      '<button class="imprbtn" onclick="imprimerPassation()">'+
      '<span class="ic">'+icon('note')+'</span>Imprimer pour '+
      esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</button></div>';
-
-  /* LE FORMULAIRE : le texte, à qui, le genre — et la case « à jeun » sur un réveil. */
-  const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
-  const g=passGenreDe(PASS_GENRE);
-  /* `PASS_OUVRIR` : posé par « Passation » depuis la liste perso, consommé ici — le
-     formulaire s'ouvre une fois, pas à chaque rendu suivant. */
+  return h+'</div>';
+}
+/* ═══ LA FEUILLE D'ÉCRITURE VIT DANS MA LISTE PERSO (Mag, 22/08/2026) ═══
+   « C'est de la liste qu'il faut tout faire. » Elle était dans la carte du bas ; elle
+   monte ici, sous la ligne d'écriture. C'est le seul endroit où l'on décide à qui on
+   passe, de quel genre il s'agit, à quelle heure et dans quelle chambre.
+   ⚠ ELLE NE S'OUVRE QUE SUR DEMANDE : le bouton « Passation » d'une ligne ou du champ
+   d'écriture (`PASS_OUVRIR`), ou le crayon d'une passation déjà écrite (`PASS_EDIT`).
+   Fermée, elle n'existe pas — pas de bouton « Passer quelque chose » à l'écran. */
+function passFeuilleHTML(){
   const ouvrir=(PASS_EDIT||PASS_OUVRIR); PASS_OUVRIR=false;
-  /* ═══ ON N'ÉCRIT PAS UNE PASSATION DEPUIS LA PASSATION (Mag, 22/08/2026) ═══
-     « Les passations, elles se font que de ma liste perso. » La carte du bas est un
-     endroit où l'on LIT ce que l'équipe d'avant a laissé — et où l'on coche. Elle
-     n'a pas de bouton pour écrire : on écrit dans sa liste perso, et « Passation »
-     fait descendre la ligne ici.
-     ⚠ LA FEUILLE EXISTE TOUJOURS, mais elle ne s'ouvre plus toute seule : seulement
-     quand on la demande — le crayon d'une ligne (`PASS_EDIT`), ou le bouton
-     « Passation » de la liste perso (`PASS_OUVRIR`). Fermée, elle n'existe pas :
-     plus de « Passer quelque chose » sur l'écran. */
-  if(!ouvrir) return h+'</div>';
-  h+='<details class="acform pass" style="margin-top:14px" open>'+
+  if(!ouvrir) return '';
+  const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
+  return '<details class="acform pass" style="margin-top:14px" open>'+
     '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer à l’équipe')+'</summary>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
@@ -23161,37 +23196,20 @@ function passationsHTML(){
         ? '<button id="passAjeun" class="passcase'+(PASS_AJEUN?' on':'')+'" onclick="passAjeunBascule()">'+
           '<i></i>Il doit rester à jeun</button>'
         : '')+
-      /* ⚠ LE JOUR ET L'HEURE ne concernent que ce qui a une heure (un réveil, un
-         « à jeun ») : sur une info, ils ne veulent rien dire. */
+      /* Le jour et l'heure ne concernent que ce qui a une heure. */
       (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
           '<input id="passHeure" placeholder="'+
             (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'"></div>'
         : '')+
-      /* ⚠ LA CHAMBRE EST TOUJOURS LÀ, SUR LES TROIS GENRES (Mag, 22/08/2026 : « on
-         doit pouvoir toujours mettre le numéro de la chambre, dans la passation et
-         dans la liste »). Elle n'apparaissait pas sur une info — or « ascenseur B en
-         panne » n'en a pas, mais « le 603 est agité » en a une, et c'est une info. */
+      /* La chambre existe sur les trois genres : « le 603 est agité » est une info. */
       '<input id="passCh" placeholder="N° de chambre — facultatif">'+
-          /* ═══ IL FAUT POUVOIR ÉCRIRE LONG (Mag, 22/08/2026) ═══
-             « Dans les passations, il y a beaucoup de texte parfois. Il faut pouvoir
-             écrire des infos sur le fait qu'il boite, que ce n'est pas OK, qu'il est
-             difficile, que ça fait deux fois qu'il rate son rendez-vous, pour appuyer
-             l'importance. »
-             C'était un `input` d'une ligne : on écrivait trois mots et on s'arrêtait.
-             ⚠ LE PLACEHOLDER DONNE DES EXEMPLES, et ce n'est pas décoratif : un champ
-             vide nommé « un commentaire » ne dit pas qu'on a le droit d'écrire cinq
-             lignes. Les exemples sont les siens. */
-          '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
+      /* « Dans les passations, il y a beaucoup de texte parfois. » */
+      '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
-      /* ⚠ RETIRER SE FAIT ICI, ET NULLE PART AILLEURS. Sur la rangée, un « retirer »
-         rouge sous chaque ligne se lit avant l'heure du réveil. Ici, on l'a déjà
-         ouverte pour la corriger : c'est le moment où la question se pose. */
-      (PASS_EDIT?'<button class="passannul" onclick="passEditAnnuler()">Annuler</button>'+
-        '<button class="passannul sup" onclick="passRetirer(\''+PASS_EDIT+'\')">Reprendre dans ma liste</button>':'')+
+      (PASS_EDIT?'<button class="passannul" onclick="passEditAnnuler()">Annuler</button>':'')+
     '</div></details>';
-  return h+'</div>';
 }
 /* ═══ MODIFIER UNE PASSATION (Mag, 22/08/2026) ═══
    Le crayon rouvre LE MÊME formulaire, rempli avec ce qui y est déjà. Pas une
@@ -23416,6 +23434,27 @@ function carteMaListe(){
 function rappelsHTML(enCarte){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
   let h='';
+  /* La rangée d'une ligne PARTIE EN PASSATION : même dessin que les autres, mais
+     teintée, et ses boutons ne sont pas les mêmes — on ne coche pas ici (c'est
+     l'équipe qui reçoit qui coche, en bas), on corrige ou on la reprend. */
+  const ligneP=function(p){
+    const g=passGenreDe(p.genre);
+    const bas=[esc(g.court)+' · '+esc(LISTE_LABELS[p.pour]||p.pour)];
+    if(p.chambre) bas.push('ch. '+esc(p.chambre));
+    if(g.heure && p.heure) bas.push(esc(p.heure));
+    if(passFait(p)) bas.push('faite');
+    return '<div class="pl2 pass"'+(passFait(p)?' data-faite="1"':'')+'>'+
+      '<div class="pl2-h">'+
+        '<span class="pgc" style="background:'+g.c+'"></span>'+
+        '<span class="pl2-sep"></span>'+
+        '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
+          'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+        '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Reprendre</button>'+
+      '</div>'+
+      '<div class="pl2-t"><b>'+esc(p.texte)+'</b>'+
+        (p.commentaire?'<i class="plcom">'+esc(p.commentaire)+'</i>':'')+
+        '<em>'+bas.join(' · ')+'</em></div></div>';
+  };
   if(!enCarte){
     h+='<div class="sect" style="margin-top:34px"><b>Ma liste perso</b>'+
        '<em>'+(tot? fait+' / '+tot : 'rien pour l’instant')+'</em></div>';
@@ -23443,7 +23482,7 @@ function rappelsHTML(enCarte){
             'aria-label="Mettre un jour" title="Mettre un jour">'+icon('calendrier')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
-          '<button class="rapPass pt" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
+          '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
         '</div>'+
         '<div class="pl2-t" onclick="rappelCocher(\''+r.id+'\')">'+
           '<b>'+esc(r.texte)+'</b>'+
@@ -23461,6 +23500,19 @@ function rappelsHTML(enCarte){
       + groupe('Aujourd’hui', parJour(0).concat(parJour(null)))
       + groupe('Plus tard', aVenir)
       + groupe('Faits', faits);
+  }
+  /* ═══ CE QUI EST PARTI EN PASSATION RESTE EN FIN DE LISTE (Mag, 22/08/2026) ═══
+     « Tout ce qui est passation, ça part en fin de liste dans une autre couleur. Mais
+     de la liste, on va pouvoir changer les passations. »
+     Une ligne passée ne disparaît pas de chez soi : elle descend au bout, elle change
+     de couleur, et elle reste modifiable. C'est ce qui permet de dire « on ne touche
+     plus à la passation en bas » — tout ce qu'on veut y changer se change ici.
+     ⚠ SEULEMENT CELLES QU'ON A ÉCRITES : ce que l'équipe d'avant nous a passé n'est pas
+     à nous, on ne le corrige pas. Ça se lit dans la carte du bas. */
+  const miennes=(typeof passEcrites==='function')?passTri(passEcrites()):[];
+  if(miennes.length){
+    h+='<div class="pgt pass">Parties en passation</div>'+
+       miennes.map(ligneP).join('');
   }
   /* ═══ LE TEXTE AU-DESSUS, LES DEUX BOUTONS DESSOUS (Mag, 22/08/2026) ═══
      « Ici, tu devrais mettre le texte et les deux boutons en dessous. » Sur une colonne
@@ -23487,6 +23539,9 @@ function rappelsHTML(enCarte){
        '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
        '</div>'+
      '</div>';
+  /* La feuille de la passation s'ouvre ICI, sous la ligne d'écriture — « c'est de la
+     liste qu'il faut tout faire ». Voir `passFeuilleHTML`. */
+  h+=(typeof passFeuilleHTML==='function'?passFeuilleHTML():'');
   return h;
 }
 /* Envoyer en passation une ligne DÉJÀ écrite : elle sort de ma liste et le texte part
