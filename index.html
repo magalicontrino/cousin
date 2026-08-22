@@ -476,7 +476,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
      mets-les en 4, comme ça on a une vision entière de l'écran ») ═══
      Deux rangées de deux obligeaient à descendre pour voir les deux dernières —
      sur un écran qui a la place de tout montrer d'un coup. */
-  #view .tuiles{max-width:980px;grid-template-columns:repeat(4,minmax(0,1fr))}
+  /* ⚠ `auto-fit` ET PAS `repeat(4,…)` : le nombre de portes a déjà changé une fois
+     (« Ma liste » est partie le 22/08). Une grille figée à quatre colonnes aurait
+     laissé un trou à droite ; celle-ci se répartit sur ce qu'il y a. */
+  #view .tuiles{max-width:980px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
 }
 /* L'espace laissé par le titre retiré. Même hauteur que lui : la bande garde son
    équilibre, les cartes ne remontent pas contre le bord. */
@@ -12201,18 +12204,9 @@ function vHome(){
   const nRat=(typeof ratCompte==='function')?ratCompte():0;
   const favs=DATA.filter(function(p){ return FAVS.has(p.sid); });
 
-  /* Les tâches servent maintenant à REMPLIR UNE PORTE (« 2 à faire »), plus à
-     dessiner une liste sur l'accueil. Le calcul, lui, ne change pas. */
-  const taches=[];
-  CHECKLISTS.filter(function(g){ return g.mienne; }).forEach(function(g){
-    (g.taches||[]).forEach(function(t){
-      taches.push({id:t.id, txt:t.tache, sous:g.liste, fait:!!DONE[t.id], f:'t'});
-    });
-  });
-  MESRAPPELS.forEach(function(r){
-    taches.push({id:r.id, txt:r.texte, sous:'ton rappel', fait:rappelFait(r), f:'r'});
-  });
-  const resteTaches=taches.filter(function(t){ return !t.fait; }).length;
+  /* ⚠ LE COMPTE DES TÂCHES A ÉTÉ RETIRÉ D'ICI le 22/08/2026, avec la porte « Ma
+     liste ». Le chiffre continue de vivre sur la PASTILLE du bouton de la barre du
+     haut — c'est lui qui dit qu'il reste quelque chose, et il suffit. */
 
   const grosses=boules.filter(function(b){ return !endormie(b); });
   const dorment=boules.filter(endormie);
@@ -12262,13 +12256,16 @@ function vHome(){
     h+='</div>';
   }
 
-  /* ═══ LE RESTE : QUATRE PORTES ═══
+  /* ═══ LE RESTE ═══
      Chacune dit CE QU'IL Y A DERRIÈRE, pas ce qu'elle est. « 2 à faire » et
-     « 5 à revoir » sont des raisons d'entrer ; « Ma liste » tout seul n'en est pas
-     une. Quand il n'y a rien, on le dit aussi — un compte vide vaut mieux qu'un
-     chiffre inventé. */
+     « 5 à revoir » sont des raisons d'entrer. Quand il n'y a rien, on le dit aussi —
+     un compte vide vaut mieux qu'un chiffre inventé.
+     ⚠ « MA LISTE » N'Y EST PLUS (Mag, 22/08/2026 : « tu pourrais retirer ma liste
+     parce que c'est déjà en haut en raccourci »). Elle est dans le rail sur écran et
+     derrière son bouton dans la barre du haut sur téléphone — avec sa pastille quand
+     il reste quelque chose. Une même porte à deux endroits de la même page, c'est
+     une porte qu'on n'ouvre à aucun des deux. */
   const portes=[
-    ['Ma liste',   (resteTaches ? resteTaches+' à faire' : 'Tout est fait'),                    'list',  "go('#/liste')"],
     ['Activités',  (sorties.length ? sorties.length+' à venir' : 'Rien d’annoncé'),        'ticket',"go('#/ticket')"],
     ['Tes favoris',(favs.length ? favs.length+' fiche'+(favs.length>1?'s':'') : 'Aucun encore'),'star',  "go('#/favoris')"],
     ['Les jeux',   (nRat ? nRat+' à revoir' : JEUX.length+' jeux'),                             'jjour', "go('#/jeux')"]
