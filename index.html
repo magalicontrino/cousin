@@ -22776,7 +22776,7 @@ function rappelViser(){
    le motif — on va réveiller la 312 à 5 h 30, on ne dit pas pourquoi.
    ═══════════════════════════════════════════════════════════════════════════ */
 var PASSATIONS=[], PASS_PANNE='', PASS_CHARGE=false;
-var PASS_POUR='pfo-nuit';      /* à qui : l'équipe de nuit d'abord, c'est le cas courant */
+var PASS_POUR='pfo-nuit';      /* à qui : l'équipe de nuit — voir `passRoles` */
 var PASS_GENRE='passation';    /* passation ou réveil */
 
 async function loadPassations(){
@@ -22895,22 +22895,34 @@ const PASSE_A={
 };
 /* À qui CETTE personne peut passer quelque chose. Vide = on n'a pas de règle pour elle,
    et dans ce cas on montre tout plutôt que de la bloquer. */
-function passRoles(){
-  const mes=MES_LISTES||[], vus={}, out=[];
-  mes.forEach(function(k){
-    (PASSE_A[k]||[]).forEach(function(d){ if(!vus[d]){ vus[d]=1; out.push(d); } });
-  });
-  if(!out.length) return LISTE_ORDER.slice();
-  /* ⚠ L'ADMIN GARDE TOUT, mais après les siennes : c'est elle qui écrit les passations
-     d'exemple et qui doit pouvoir viser n'importe quelle équipe pour vérifier. */
-  if(PROFILE && PROFILE.admin && !PASS_TOUTES) return out;
-  if(PROFILE && PROFILE.admin){
-    LISTE_ORDER.forEach(function(k){ if(!vus[k]){ vus[k]=1; out.push(k); } });
-  }
-  return out;
+/* ═══ TOUT PART À L'ÉQUIPE DE NUIT, ET ON NE LE DEMANDE PLUS (Mag, 22/08/2026) ═══
+   « Retire ça » (en montrant les douze équipes), puis « laisse juste PFO nuit », puis
+   la correction qui compte : « **non, équipe de nuit** ».
+   Ce n'est pas un détail de vocabulaire. « PFO — Nuit » est le nom d'une CHECK-LIST,
+   celle d'un poste précis ; ce qu'on vise en passant une consigne, c'est **l'équipe qui
+   prend la suite ce soir**, quel que soit le métier de celui qui écrit. Le mot juste
+   est donc « l'équipe de nuit », et c'est lui qui s'affiche partout où la passation
+   parle de son destinataire — sur la feuille d'écriture, en tête de la carte, sur le
+   bouton d'impression et sur la feuille imprimée.
+   ⚠ LA CLÉ NE CHANGE PAS : en base, c'est toujours `pfo-nuit`. Renommer la clé aurait
+   coupé les passations déjà écrites de leur destinataire. Seul le mot affiché change —
+   et seulement ICI : dans la check-list, « PFO — Nuit » reste « PFO — Nuit », parce que
+   là c'est bien du poste qu'on parle.
+   ⚠ LE TABLEAU `PASSE_A` RESTE JUSTE AU-DESSUS, INUTILISÉ POUR L'INSTANT. Il porte ce
+   qu'elle a dicté sur les éducateurs, les polyvalents et les infirmiers — ça redeviendra
+   vrai le jour où chaque métier aura sa propre équipe qui prend la suite. Ne pas
+   l'effacer : c'est la seule trace écrite de ces règles-là.
+   Voir [[cousin-groupes-de-passation]]. */
+const PASS_EQUIPE='pfo-nuit';
+function passRoles(){ return [PASS_EQUIPE]; }
+/* Le nom affiché du destinataire d'une passation. Voir la note ci-dessus : ce n'est pas
+   `LISTE_LABELS`, qui nomme des check-lists. */
+function passPourNom(k, dansUnePhrase){
+  if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
+  /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
+     est bonne en titre, mauvaise au milieu d'une phrase. */
+  return dansUnePhrase ? 'l’équipe de nuit' : 'L’équipe de nuit';
 }
-var PASS_TOUTES=false;
-function passToutesEquipes(){ PASS_TOUTES=true; passChampsGarder(); }
 function passPourChoix(k){ PASS_POUR=k; passChampsGarder(); }
 function passGenreChoix(g){ PASS_GENRE=g; passChampsGarder(); }
 /* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
@@ -23107,7 +23119,7 @@ function passLigne(p, mienne){
      titre : le répéter six fois, c'était la moitié de « y a tout qui sort, c'est pas
      clair ». Il ne s'écrit que si la ligne part AILLEURS que là où pointe la carte —
      là, il apprend quelque chose. */
-  if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(LISTE_LABELS[p.pour]||p.pour)); }
+  if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(passPourNom(p.pour, true))); }
   else if(qui) bas.push('de '+esc(qui));
   /* ⚠ LE JOUR SEULEMENT S'IL N'EST PAS AUJOURD'HUI : un réveil noté le samedi pour le
      dimanche se lit sinon comme un réveil pour tout de suite. */
@@ -23181,8 +23193,7 @@ function imprimerPassation(pour){
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
      sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
   const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
-  const qui=eq.length ? eq.map(function(k){ return LISTE_LABELS[k]||k; }).join(' · ')
-                      : (LISTE_LABELS[pour||PASS_POUR]||pour||PASS_POUR);
+  const qui=eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR);
 
   const bloc=function(g){
     const l=liste.filter(function(p){ return (p.genre||'passation')===g.k; });
@@ -23297,8 +23308,7 @@ function passationsHTML(){
      doit être sur le papier, sans exception. */
   const toutes=passToutes();
   let h='<div class="pcarte pcarte-lire">'+
-    '<div class="ptitre"><b>La passation</b><span>'+
-      esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</span></div>';
+    '<div class="ptitre"><b>La passation</b><span>'+esc(passPourNom(PASS_POUR))+'</span></div>';
 
   if(PASS_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge);margin-top:10px"><b>Passation illisible</b>'+
@@ -23323,7 +23333,7 @@ function passationsHTML(){
   h+='<div class="imprligne" style="justify-content:flex-start;margin-top:14px">'+
      '<button class="imprbtn" onclick="imprimerPassation()">'+
      '<span class="ic">'+icon('note')+'</span>Imprimer pour '+
-     esc(LISTE_LABELS[PASS_POUR]||PASS_POUR)+'</button></div>';
+     esc(passPourNom(PASS_POUR, true))+'</button></div>';
   return h+'</div>';
 }
 /* ═══ LA FEUILLE D'ÉCRITURE VIT DANS MA LISTE PERSO (Mag, 22/08/2026) ═══
@@ -23358,26 +23368,15 @@ function passFeuilleHTML(){
     '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer à l’équipe')+'</summary>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
-      (roles.length===1
-        ? '<div class="passl"><span class="passl-t">À qui ?</span>'+
-          '<div class="passl-1">'+esc(LISTE_LABELS[roles[0]]||roles[0])+
-          /* ⚠ L'ADMIN GARDE UNE PORTE DE SORTIE, même quand il n'y a qu'un
-             destinataire : c'est elle qui écrit les passations d'exemple et qui doit
-             pouvoir viser n'importe quelle équipe pour vérifier. Discrète, en
-             pointillé — ce n'est pas une équipe de plus. */
-          (PROFILE && PROFILE.admin && !PASS_TOUTES
-            ? ' <button class="fchip toutes" onclick="passToutesEquipes()">Toutes les équipes…</button>'
-            : '')+
-          '</div></div>'
-        : '<div class="passl"><span class="passl-t">À qui ?</span>'+
-          '<div class="fchips">'+roles.map(function(k){
-            return '<button class="fchip'+(PASS_POUR===k?' on':'')+'" onclick="passPourChoix(\''+esc(k)+'\')">'+
-              esc(LISTE_LABELS[k]||k)+'</button>';
-          }).join('')+
-          (PROFILE && PROFILE.admin && !PASS_TOUTES
-            ? '<button class="fchip toutes" onclick="passToutesEquipes()">Toutes les équipes…</button>'
-            : '')+
-          '</div></div>')+
+      /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
+         qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
+         On l'ÉCRIT, pour qu'elle sache où sa ligne part, mais on ne le lui demande pas.
+         ⚠ PLUSIEURS DESTINATAIRES EST UN CAS RÉEL, pas une erreur : « les infirmiers
+         vont devoir donner la passation à ceux de la nuit ET à ceux du jour ». La ligne
+         est alors écrite UNE FOIS PAR ÉQUIPE — voir `passAjouter`. */
+      '<div class="passl"><span class="passl-t">À qui ?</span>'+
+        '<div class="passl-1">'+roles.map(function(k){ return esc(passPourNom(k)); }).join(' · ')+
+        '</div></div>'+
       '<div class="chdep pass4" style="margin:2px 0 0">'+
         PASS_GENRES.map(function(x){
           return '<button class="chdep-b'+(PASS_GENRE===x.k?' on':'')+'" '+
@@ -23648,7 +23647,7 @@ function rappelsHTML(enCarte){
      l'équipe qui reçoit qui coche, en bas), on corrige ou on la reprend. */
   const ligneP=function(p){
     const g=passGenreDe(p.genre);
-    const bas=[esc(g.court)+' · '+esc(LISTE_LABELS[p.pour]||p.pour)];
+    const bas=[esc(g.court)+' · '+esc(passPourNom(p.pour))];
     if(p.chambre) bas.push('ch. '+esc(p.chambre));
     if(g.heure && p.heure) bas.push(esc(p.heure));
     if(passFait(p)) bas.push('faite');
