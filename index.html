@@ -2595,7 +2595,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   align-items:center;justify-content:center;padding:20px}
 .popbg.on{display:flex}
 .popcard{width:100%;max-width:400px;background:var(--creme);border:1.5px solid var(--trait-fort);
-  border-radius:10px;padding:22px;box-shadow:0 18px 44px rgba(27,27,27,.3)}
+  border-radius:10px;padding:22px;box-shadow:0 18px 44px rgba(27,27,27,.3);
+  /* ⚠ ELLE SUIT SON CONTENU, puis défile : un texte de vingt lignes ne doit pas pousser
+     « Enregistrer » hors de l'écran. Même règle que la fenêtre de la passation. */
+  max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 /* ⚠ LE TITRE SE MET À LA LARGEUR DE L'ÉCRAN (Mag, 22/08/2026 : « écrit plus petit,
    "supprimer cette passation" — vu que le point d'interrogation, il part à la ligne »).
    22 px en capitales, c'est trop pour une question de quatre mots sur un téléphone : le
@@ -2607,7 +2610,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .popcard p:empty{display:none}
 .popcard input{width:100%;font:inherit;font-size:17px;font-weight:500;color:var(--noir);
   background:#fdfdfc;border:1.25px solid var(--trait);border-radius:6px;padding:12px 13px;margin-top:14px}
-.popcard input:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+.popcard input:focus,.popcard textarea:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+/* ═══ LE GRAND CHAMP DE LA FENÊTRE « MODIFIER » ═══
+   Même dessin que le champ d'une ligne, mais il grandit avec le texte (`passGrandir`) et
+   la fenêtre défile quand il n'y a plus la place — comme la fenêtre de la passation.
+   Pas de poignée de redimensionnement : la hauteur se règle toute seule, et cette
+   poignée invite à un geste qui ne marche pas au doigt. */
+.popcard textarea{width:100%;font:inherit;font-family:'Eastman',system-ui,sans-serif;
+  font-size:16px;line-height:1.45;font-weight:400;color:var(--noir);background:#fdfdfc;
+  border:1.25px solid var(--trait);border-radius:6px;padding:12px 13px;margin-top:14px;
+  resize:none;overflow:hidden;display:block;min-height:84px}
 /* Le troisième champ ne reçoit qu'un nombre : une case large comme un nombre.
    Une case pleine largeur pour « 2 » invite à y écrire une phrase. */
 #popChamp3{width:130px;font-family:ui-monospace,monospace;letter-spacing:.06em}
@@ -4881,6 +4893,19 @@ body.no-tabs #tabbar{display:none}
     <b id="popTitre"></b>
     <p id="popTexte"></p>
     <input id="popChamp" type="text" autocomplete="off">
+    <!-- ═══ LE MÊME CHAMP, EN GRAND (Mag, 22/08/2026) ═══
+         « Quand je veux modifier un texte et que je fais espace à la ligne, ça se ferme.
+         On ne sait pas faire un grand texte, ça n'a aucun sens. Si c'est un grand texte,
+         il faut que ce soit en proportion, et si on rajoute du texte il faut que ça
+         s'agrandisse — pareil que l'autre fenêtre. »
+         Deux bogues en un : le champ était un `input` d'UNE LIGNE, et la touche Entrée y
+         VALIDAIT ET FERMAIT la fenêtre. Vouloir aller à la ligne enregistrait donc à
+         moitié ce qu'on était en train d'écrire.
+         ⚠ LES DEUX CHAMPS COEXISTENT et l'un des deux se montre : les fenêtres à une
+         seule réponse (un jour, un nom) gardent leur ligne unique et leur Entrée qui
+         valide — c'est ce qu'on veut quand on tape trois caractères. -->
+    <textarea id="popChampM" rows="3" autocomplete="off" style="display:none"
+      oninput="passGrandir(this)"></textarea>
     <!-- ═══ DEUX CHAMPS DE PLUS (Mag, 22/08/2026) ═══
          « On peut changer le nom, mais on ne peut pas changer la phrase, ni le
          nombre de demandes. » Une proposition d'activité, c'est un titre, une
@@ -13868,20 +13893,21 @@ function vProfil(){
    affichent l'adresse du site et n'ont rien de nous (Mag, 06/08/2026).
    · cousinConfirme(titre, texte, quandOui, {ok, danger})
    · cousinDemande(titre, texte, valeurDeDépart, quandRempli)          */
+let _popMulti=false;
 let _popQuandOui=null, _popQuandAutre=null, _popChamp=false, _popPlus=false;
 function popFermer(){
   document.getElementById('popBg').classList.remove('on');
-  ['popChamp2','popChamp3'].forEach(function(id){
+  ['popChamp2','popChamp3','popChampM'].forEach(function(id){
     const e=document.getElementById(id); if(e){ e.style.display='none'; e.value=''; }
   });
   const c=document.getElementById('popChamp');
   if(c){ c.type='text'; c.value=''; }
   const au=document.getElementById('popAutre');
   if(au) au.style.display='none';
-  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false;
+  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false;
 }
 function popValider(){
-  const c=document.getElementById('popChamp');
+  const c=document.getElementById(_popMulti?'popChampM':'popChamp');
   const v=_popChamp ? (c.value||'') : true;
   /* ⚠ ON LIT LES CHAMPS AVANT DE FERMER : `popFermer` les vide. */
   const plus = _popPlus ? {
@@ -13896,7 +13922,10 @@ function cousinPop(o){
   const bg=document.getElementById('popBg');
   document.getElementById('popTitre').textContent=o.titre||'';
   document.getElementById('popTexte').textContent=o.texte||'';
-  const c=document.getElementById('popChamp');
+  _popMulti = !!o.multi;
+  const c=document.getElementById(_popMulti?'popChampM':'popChamp');
+  const autre=document.getElementById(_popMulti?'popChamp':'popChampM');
+  if(autre){ autre.style.display='none'; autre.value=''; }
   _popChamp = (typeof o.champ==='string');
   c.style.display=_popChamp?'block':'none';
   /* ═══ UN VRAI CALENDRIER (Mag, 22/08/2026 : « ce serait mieux un petit calendrier
@@ -13947,7 +13976,17 @@ function cousinPop(o){
   bg.classList.add('on');
   /* ⚠ PAS DE `select()` SUR UN CALENDRIER : sur iPhone ça rouvre le clavier par-dessus
      le calendrier, et on ne voit plus les jours. */
-  if(_popChamp && !o.date) setTimeout(function(){ c.focus(); c.select(); },60);
+  if(_popChamp && _popMulti){
+    /* Le champ arrive rempli : il doit s'ouvrir à la hauteur de son contenu, sinon on
+       rouvre un long texte coupé à trois lignes — le défaut qu'on répare.
+       ⚠ ON NE SÉLECTIONNE PAS TOUT sur un long texte : le premier caractère tapé
+       l'effacerait en entier. Le curseur se pose à la fin. */
+    setTimeout(function(){
+      passGrandir(c); c.focus();
+      try{ c.setSelectionRange(c.value.length, c.value.length); }catch(e){}
+    },60);
+  }
+  else if(_popChamp && !o.date) setTimeout(function(){ c.focus(); c.select(); },60);
 }
 function popAutre(){
   const f=_popQuandAutre;
@@ -13965,7 +14004,11 @@ document.addEventListener('keydown',function(e){
   const bg=document.getElementById('popBg');
   if(!bg||!bg.classList.contains('on')) return;
   if(e.key==='Escape'){ e.preventDefault(); popFermer(); }
-  if(e.key==='Enter' && _popChamp){ e.preventDefault(); popValider(); }
+  /* ⚠ DANS UN GRAND CHAMP, ENTRÉE VA À LA LIGNE — c'est tout le problème qu'on répare.
+     On y valide avec Cmd/Ctrl + Entrée, et avec le bouton. Ailleurs, Entrée valide
+     toujours : sur une fenêtre à une réponse, c'est le geste attendu. */
+  if(e.key==='Enter' && _popChamp && !_popMulti){ e.preventDefault(); popValider(); }
+  else if(e.key==='Enter' && _popMulti && (e.metaKey||e.ctrlKey)){ e.preventDefault(); popValider(); }
 });
 
 /* ---------- VOIR L'APP COMME LES AUTRES (réservé à l'administration) ----------
@@ -24080,14 +24123,14 @@ function rappelAjouter(){
 function rappelModifier(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   cousinPop({
-    titre:'Modifier', texte:'', champ:r.texte||'', max:400, ok:'Enregistrer',
+    titre:'Modifier', texte:'', champ:r.texte||'', max:4000, multi:true, ok:'Enregistrer',
     plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
            deuxPlaceholder:'N° de chambre' },
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus){
       v=(v||'').trim(); if(!v) return;
-      r.texte=v.slice(0,400);
+      r.texte=v.slice(0,4000);
       const ch=((plus&&plus.deux)||'').trim();
       if(ch) r.chambre=ch.slice(0,12); else delete r.chambre;
       rappelsSauver(); render();
