@@ -472,15 +472,17 @@ h1,h2,h3{font-weight:700;line-height:1.2}
      étirement : `stretch` collait la ligne grise à la hauteur de la plus haute carte
      et en faisait une grande boîte vide — son reproche du même soir. Là, les quatre
      font la même taille, et seule une carte à titre long dépasse. */
-  #view .ajd .grosse,
-  #view .ajd .dormeuses{min-height:86px}
-  #view .ajd .grosse{margin-bottom:0}
-  #view .ajd .dormeuses{justify-content:center}
+  #view .ajd .grosse{min-height:86px;margin-bottom:0}
   /* ⚠ `align-self:start` ET PAS `stretch` : étirée à la hauteur de la grande carte
      d'à côté, la ligne grise devenait une grande boîte vide pour trois mots. Elle
      garde sa hauteur, celle de son contenu — c'est ce qui la fait lire comme une
      ligne endormie et non comme une carte qu'on aurait oublié de remplir. */
-  #view .ajd .dormeuses{margin-top:0;max-width:none;align-self:start}
+  /* ⚠ ELLE PREND LA HAUTEUR DE SA RANGÉE (Mag, 22/08/2026 : « mets quand même le
+     bouton qui n'est pas actif à la même proportion que les autres »). Une hauteur
+     minimale ne suffisait pas : les cartes du jour sont plus hautes que ça dès que le
+     titre respire. `stretch` lui donne exactement la taille de sa voisine, et le
+     contenu se centre dedans — c'est ce qui fait quatre cases de même format. */
+  #view .ajd .dormeuses{margin-top:0;max-width:none;align-self:stretch;justify-content:center}
   /* Un peu d'air entre le filet du titre et la première carte. */
   #view .ajd{padding-top:2px}
   /* ═══ LES QUATRE PORTES SUR UNE SEULE RANGÉE (Mag, 22/08/2026 : « sur écran,
@@ -3167,6 +3169,11 @@ body.pan-ouvert #view{animation:none;transform:none}
   flex:none;display:inline-block}
 .passcase.on{border-color:#6cb392}
 .passcase.on i{background:#6cb392;border-color:#6cb392}
+/* Le second bouton du champ : même hauteur que « OK », mais creux — c'est le chemin
+   de côté, pas le geste courant. */
+.rapPass{flex:none;background:#fdfdfc;color:var(--noir);border:1.25px solid var(--noir);
+  border-radius:5px;padding:0 13px;min-height:42px;font-family:ui-monospace,monospace;
+  font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
 .passmod{width:30px;height:30px;flex:none;border:1px solid var(--ligne);border-radius:5px;
   background:#fdfdfc;color:var(--enc2);display:inline-flex;align-items:center;
   justify-content:center;margin-left:6px}
@@ -23044,7 +23051,10 @@ function passationsHTML(){
   /* LE FORMULAIRE : le texte, à qui, le genre — et la case « à jeun » sur un réveil. */
   const roles=(typeof LISTE_ORDER!=='undefined'?LISTE_ORDER:['pfo-nuit','pfo-jour']);
   const g=passGenreDe(PASS_GENRE);
-  h+='<details class="acform pass" style="margin-top:14px"'+(PASS_EDIT?' open':'')+'>'+
+  /* `PASS_OUVRIR` : posé par « Passation » depuis la liste perso, consommé ici — le
+     formulaire s'ouvre une fois, pas à chaque rendu suivant. */
+  const ouvrir=(PASS_EDIT||PASS_OUVRIR); PASS_OUVRIR=false;
+  h+='<details class="acform pass" style="margin-top:14px"'+(ouvrir?' open':'')+'>'+
     '<summary>'+(PASS_EDIT?'Modifier cette passation':'Passer quelque chose')+'</summary>'+
     '<div class="acg">'+
       '<input id="passTxt" placeholder="Ce qu’il faut savoir, ou qui réveiller *">'+
@@ -23094,7 +23104,7 @@ function passationsHTML(){
    Le crayon rouvre LE MÊME formulaire, rempli avec ce qui y est déjà. Pas une
    deuxième fenêtre à entretenir : un seul endroit où l'on écrit une passation, qu'on
    la crée ou qu'on la corrige. */
-var PASS_EDIT=null;
+var PASS_EDIT=null, PASS_OUVRIR=false;
 function passModifier(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -23157,6 +23167,37 @@ function rappelAjouter(){
                        :{id:'r'+Date.now(), texte:t.slice(0,120)});
   rappelsSauver(); i.value=''; if(q) q.value=''; render();
   setTimeout(function(){ const c=document.getElementById('rapTxt'); if(c) c.focus(); },30);
+}
+/* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
+function rappelModifier(id){
+  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
+  cousinDemande('Modifier', '', r.texte||'', function(v){
+    v=(v||'').trim(); if(!v || v===r.texte) return;
+    r.texte=v.slice(0,120); rappelsSauver(); render();
+  }, 120);
+}
+/* ═══ LA LIGNE PART EN PASSATION (Mag, 22/08/2026) ═══
+   Elle n'entre PAS dans la liste perso au passage : ce qui est pour l'équipe qui
+   arrive n'a rien à faire dans les choses que j'ai à faire, moi. Le texte est emporté
+   tel quel dans le formulaire de la passation, qui s'ouvre rempli.
+   ⚠ ON NE REDESSINE QU'UNE FOIS, puis on remplit : les champs n'existent pas avant
+   le rendu. Même précaution que pour `passModifier`. */
+function rappelVersPassation(){
+  const i=document.getElementById('rapTxt'); if(!i) return;
+  const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
+  i.value='';
+  const q=document.getElementById('rapQuand'); if(q) q.value='';
+  PASS_EDIT=null; PASS_AJEUN=false; PASS_OUVRIR=true;
+  render();
+  setTimeout(function(){
+    const e=document.getElementById('passTxt');
+    if(!e) return;
+    e.value=t; e.focus();
+    if(e.scrollIntoView){
+      const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+      try{ e.scrollIntoView({behavior:doux?'smooth':'auto', block:'center'}); }catch(err){ e.scrollIntoView(); }
+    }
+  }, 50);
 }
 /* Changer ou retirer le jour d'un rappel déjà écrit. */
 function rappelDater(id){
@@ -23246,6 +23287,11 @@ function rappelsHTML(enCarte){
         '<span class="tx" onclick="rappelCocher(\''+r.id+'\')" style="cursor:pointer">'+
           '<b>'+esc(r.texte)+'</b>'+
           (r.quand?'<em>'+esc(rappelQuandFr(r.quand))+'</em>':'')+'</span>'+
+        /* ⚠ CORRIGER SANS RETAPER (Mag, 22/08/2026 : « j'aimerais qu'on puisse, quand
+           on rentre une information, la modifier dans ma liste perso »). Avant, une
+           ligne mal écrite n'avait qu'une issue : la retirer et recommencer. */
+        '<button class="passmod" onclick="rappelModifier(\''+r.id+'\')" '+
+          'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
         '<button class="fsup" onclick="rappelDater(\''+r.id+'\')" title="Mettre ou changer le jour">'+
           (r.quand?'Le jour':'Un jour')+'</button>'+
         '<button class="fsup sup" onclick="rappelRetirer(\''+r.id+'\')">Retirer</button>'+
@@ -23270,7 +23316,17 @@ function rappelsHTML(enCarte){
   h+='<div class="chadd" style="margin-top:12px">'+
        '<input id="rapTxt" type="text" placeholder="Ce que tu ne veux pas oublier…" autocomplete="off" '+
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
-       '<button class="chaddbtn" onclick="rappelAjouter()">Ajouter</button>'+
+       /* ═══ OK, OU PASSATION (Mag, 22/08/2026) ═══
+          « Quand tu remplis le truc, ça doit être OK, ou alors remplir une
+          passation. » Au moment où on écrit, on sait déjà pour qui c'est : « Rappeler
+          le CPAS » est pour soi, « M.D. 118 » est pour l'équipe de nuit. Écrire puis
+          rouvrir la ligne pour le dire demanderait trois gestes pour une chose sue
+          dès le départ — et laisserait la ligne traîner dans la liste entre les deux.
+          ⚠ « PASSATION » N'ENREGISTRE RIEN TOUT DE SUITE : elle emporte le texte dans
+          le formulaire de la passation, qui demande à qui et de quel genre. On ne
+          passe jamais quelque chose à quelqu'un sans avoir dit à qui. */
+       '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
+       '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
      '</div>'+
      /* ⚠ LA PHRASE D'EXPLICATION EST RETIRÉE (Mag, 13/08/2026). Elle disait ce que
         fait une date : le rappel remonte le matin venu et allume la pastille. C'est
