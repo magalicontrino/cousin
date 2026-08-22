@@ -3027,6 +3027,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .chadd.empile{flex-direction:column;gap:8px}
 .chadd.empile input{width:100%}
 .chadd-b{display:flex;gap:8px}
+/* Le numéro de chambre : étroit et à gauche, sur la ligne des boutons. Un champ de
+   trois caractères qui prendrait toute la largeur ferait croire qu'on attend une
+   phrase. */
+.chadd-ch{flex:0 1 92px;min-width:64px;font:inherit;font-size:14px;color:var(--noir);
+  background:#f4f3f0;border:1px solid var(--ligne);border-radius:0;padding:11px 10px}
+.chadd-ch:focus{outline:0;border-color:var(--trait-fort)}
+.chadd.empile .chadd-ch{flex:0 1 92px}
 .chadd.empile .chaddbtn,.chadd.empile .rapPass{flex:1;min-height:44px;
   display:inline-flex;align-items:center;justify-content:center}
 .cyc b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
@@ -22774,11 +22781,15 @@ async function passAjouter(){
   const l={texte:texte.slice(0,300), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
   /* Chaque genre porte les champs qui le concernent, et rien d'autre (13/08/2026). */
   const g=passGenreDe(PASS_GENRE);
+  /* ⚠ LA CHAMBRE ET LE COMMENTAIRE VALENT POUR LES TROIS GENRES (22/08/2026) : « on
+     doit pouvoir toujours mettre le numéro de la chambre ». Une info porte souvent un
+     numéro (« le 603 est agité ») et souvent un long texte. Seuls le JOUR et l'HEURE
+     restent réservés à ce qui a une heure. */
+  l.chambre=v('passCh')||null;
+  l.commentaire=v('passCom')||null;
   if(PASS_GENRE!=='passation'){
-    if(g.heure)   l.heure=v('passHeure')||null;
-    if(g.chambre) l.chambre=v('passCh')||null;
+    if(g.heure) l.heure=v('passHeure')||null;
     l.jour=v('passJour')||null;
-    l.commentaire=v('passCom')||null;
   }
   /* ⚠ LA CASE NE VAUT QUE SUR UN RÉVEIL. Sur les deux autres genres on l'écrit à
      faux : sans ça, une case cochée puis un changement de genre laisserait un
@@ -22918,7 +22929,7 @@ function passLigne(p, mienne){
 
   /* La seconde ligne : on n'écrit que ce qui existe. */
   const bas=[];
-  if(g.chambre && p.chambre) bas.push('ch. '+esc(p.chambre));
+  if(p.chambre) bas.push('ch. '+esc(p.chambre));
   /* ⚠ « POUR PFO — NUIT » NE SE RÉÉCRIT PAS SUR CHAQUE LIGNE. La carte le dit déjà en
      titre : le répéter six fois, c'était la moitié de « y a tout qui sort, c'est pas
      clair ». Il ne s'écrit que si la ligne part AILLEURS que là où pointe la carte —
@@ -23150,11 +23161,18 @@ function passationsHTML(){
         ? '<button id="passAjeun" class="passcase'+(PASS_AJEUN?' on':'')+'" onclick="passAjeunBascule()">'+
           '<i></i>Il doit rester à jeun</button>'
         : '')+
+      /* ⚠ LE JOUR ET L'HEURE ne concernent que ce qui a une heure (un réveil, un
+         « à jeun ») : sur une info, ils ne veulent rien dire. */
       (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
           '<input id="passHeure" placeholder="'+
-            (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'"></div>'+
-          '<input id="passCh" placeholder="N° de chambre">'+
+            (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'"></div>'
+        : '')+
+      /* ⚠ LA CHAMBRE EST TOUJOURS LÀ, SUR LES TROIS GENRES (Mag, 22/08/2026 : « on
+         doit pouvoir toujours mettre le numéro de la chambre, dans la passation et
+         dans la liste »). Elle n'apparaissait pas sur une info — or « ascenseur B en
+         panne » n'en a pas, mais « le 603 est agité » en a une, et c'est une info. */
+      '<input id="passCh" placeholder="N° de chambre — facultatif">'+
           /* ═══ IL FAUT POUVOIR ÉCRIRE LONG (Mag, 22/08/2026) ═══
              « Dans les passations, il y a beaucoup de texte parfois. Il faut pouvoir
              écrire des infos sur le fait qu'il boite, que ce n'est pas OK, qu'il est
@@ -23164,8 +23182,7 @@ function passationsHTML(){
              ⚠ LE PLACEHOLDER DONNE DES EXEMPLES, et ce n'est pas décoratif : un champ
              vide nommé « un commentaire » ne dit pas qu'on a le droit d'écrire cinq
              lignes. Les exemples sont les siens. */
-          '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'
-        : '')+
+          '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
       /* ⚠ RETIRER SE FAIT ICI, ET NULLE PART AILLEURS. Sur la rangée, un « retirer »
@@ -23237,12 +23254,16 @@ function rappelQuandFr(iso){
 function rappelAjouter(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
-  const q=document.getElementById('rapQuand');
-  const quand=(q&&q.value)||'';
-  MESRAPPELS.push(quand?{id:'r'+Date.now(), texte:t.slice(0,120), quand:quand}
-                       :{id:'r'+Date.now(), texte:t.slice(0,120)});
-  rappelsSauver(); i.value=''; if(q) q.value=''; render();
-  setTimeout(function(){ const c=document.getElementById('rapTxt'); if(c) c.focus(); },30);
+  const c=document.getElementById('rapCh');
+  const ch=((c&&c.value)||'').trim();
+  /* ⚠ 400 CARACTÈRES, comme dans la feuille du crayon : « on doit mettre vraiment
+     beaucoup de choses ». Couper à 120 ici et à 400 là aurait tronqué en silence ce
+     qu'on vient d'écrire. */
+  const ligne={id:'r'+Date.now(), texte:t.slice(0,400)};
+  if(ch) ligne.chambre=ch.slice(0,12);
+  MESRAPPELS.push(ligne);
+  rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  setTimeout(function(){ const e=document.getElementById('rapTxt'); if(e) e.focus(); },30);
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
 /* ═══ UNE SEULE FEUILLE POUR TOUT CORRIGER (Mag, 22/08/2026) ═══
@@ -23278,13 +23299,17 @@ function rappelVersPassation(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
   i.value='';
-  const q=document.getElementById('rapQuand'); if(q) q.value='';
+  /* La chambre tapée ici part avec le texte : la feuille de la passation a son propre
+     champ chambre, et c'est lui qu'on remplit. */
+  const c=document.getElementById('rapCh');
+  const ch=((c&&c.value)||'').trim(); if(c) c.value='';
   PASS_EDIT=null; PASS_AJEUN=false; PASS_OUVRIR=true;
   render();
   setTimeout(function(){
     const e=document.getElementById('passTxt');
     if(!e) return;
     e.value=t; e.focus();
+    const cc=document.getElementById('passCh'); if(cc && ch) cc.value=ch;
     if(e.scrollIntoView){
       const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
       try{ e.scrollIntoView({behavior:doux?'smooth':'auto', block:'center'}); }catch(err){ e.scrollIntoView(); }
@@ -23444,10 +23469,20 @@ function rappelsHTML(enCarte){
      puis rouvrir la ligne pour le dire demanderait trois gestes pour une chose sue dès
      le départ. « Passation » n'enregistre rien tout de suite : elle emporte le texte
      dans la feuille de la passation, qui demande à qui et de quel genre. */
+  /* ⚠ LE NUMÉRO DE CHAMBRE EST TOUJOURS LÀ (Mag, 22/08/2026 : « on doit pouvoir
+     toujours mettre le numéro de la chambre, dans la passation et dans la liste »).
+     Il était seulement dans la feuille du crayon — donc après coup, pour une ligne
+     déjà écrite. Or au centre, une ligne sur deux commence par un numéro de chambre :
+     il doit être là AU MOMENT où on tape, pas dans une correction.
+     ⚠ Il est étroit et à gauche, sur la ligne des boutons : un champ de trois
+     caractères qui prendrait toute la largeur ferait croire qu'on attend une phrase. */
   h+='<div class="chadd empile" style="margin-top:14px">'+
        '<input id="rapTxt" type="text" placeholder="Ce que tu ne veux pas oublier…" autocomplete="off" '+
        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<div class="chadd-b">'+
+       '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
+       'aria-label="Numéro de chambre" '+
+       'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
        '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
        '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
        '</div>'+
@@ -23459,7 +23494,7 @@ function rappelsHTML(enCarte){
    on ne passe jamais rien à personne sans avoir dit à qui. */
 function rappelPasser(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
-  const t=(r.chambre? r.chambre+' — ':'')+String(r.texte||'').trim();
+  const t=String(r.texte||'').trim(), ch=String(r.chambre||'').trim();
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
   rappelsSauver();
   PASS_EDIT=null; PASS_AJEUN=false; PASS_OUVRIR=true;
@@ -23468,6 +23503,7 @@ function rappelPasser(id){
     const e=document.getElementById('passTxt');
     if(!e) return;
     e.value=t; e.focus();
+    const cc=document.getElementById('passCh'); if(cc && ch) cc.value=ch;
     if(e.scrollIntoView){
       const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
       try{ e.scrollIntoView({behavior:doux?'smooth':'auto', block:'center'}); }catch(err){ e.scrollIntoView(); }
