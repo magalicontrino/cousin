@@ -15,6 +15,9 @@
 -- cesserait de la voir. C'est exactement ce que fait le bloc « À la reprise de ton
 -- cycle » de la check-list, qui passe en rouge et remonte en tête le jour venu.
 --
+-- ⚠ LE TEXTE EST LE SIEN, MOT POUR MOT (« change le titre, juste mets ça »). Un premier
+-- libellé plus long avait été posé puis corrigé le soir même, directement en base.
+--
 -- ⚠ RELANÇABLE SANS DANGER : le `where not exists` empêche de créer un doublon si on
 -- exécute ce fichier deux fois. Rien n'est effacé, rien n'est écrasé.
 -- ⚠ CE QUE ÇA NE TOUCHE PAS : `checklist_faites`, où est gardé ce que chacun a coché.
@@ -22,8 +25,8 @@
 insert into public.checklists (liste, tache, ordre, rythme)
 select v.liste, v.tache, v.ordre, v.rythme
 from (values
-  ('pfo-jour', 'Tour des chambres — les affaires oubliées d''une personne désencodée', 900, 'reprise'),
-  ('pfo-nuit', 'Tour des chambres — les affaires oubliées d''une personne désencodée', 900, 'reprise')
+  ('pfo-jour', 'Tour des chambres — personne désencodées', 900, 'reprise'),
+  ('pfo-nuit', 'Tour des chambres — personne désencodées', 900, 'reprise')
 ) as v(liste, tache, ordre, rythme)
 where not exists (
   select 1 from public.checklists c

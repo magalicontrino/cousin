@@ -3307,6 +3307,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .ptitre b{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .pcarte .ptitre span{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--enc2)}
+/* Le titre qui plie : c'est un bouton, mais il doit se lire comme un titre. Seul le
+   chevron dit qu'on peut appuyer — et il tourne quand c'est ouvert. */
+.pcarte .ptitre-pli{width:100%;text-align:left;background:none;border:0;padding:0;color:inherit}
+.pcarte .ptitre-pli .ch{font-style:normal;font-size:15px;color:var(--enc2);flex:none;
+  transition:transform .15s ease;transform:rotate(90deg)}
+.pcarte.plie .ptitre-pli .ch{transform:rotate(0deg)}
+.pcarte.plie{padding-bottom:14px}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
    comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
 .pcarte .ptitre-b{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.13em;
@@ -13203,8 +13210,23 @@ function listeCorps(){
        est dans le titre de la carte, une fois. */
   const bloc=function(g){
     const tot=g.taches.length, fait=g.taches.filter(t=>DONE[t.id]).length;
-    let s='<div class="pcarte"><div class="ptitre"><b>Ta check-list</b>'+
-      '<span>'+esc(LISTE_LABELS[g.liste]||g.liste)+' · '+fait+' / '+tot+'</span></div>';
+    /* ═══ LA CHECK-LIST SE REPLIE (Mag, 22/08/2026 : « la check-list doit pouvoir se
+       replier ») ═══
+       C'est la plus longue des trois cartes, et c'est aussi celle qu'on finit en début
+       de service. Une fois tout coché, elle continuait de pousser Ma liste perso et la
+       passation hors de l'écran — on faisait défiler quinze tâches faites pour arriver
+       à ce qu'on venait chercher.
+       ⚠ LE PLI SE SOUVIENT (`lux_cl_replie`), sinon il faudrait le refaire vingt fois
+       par jour : on ouvre l'app en moyenne toutes les demi-heures.
+       ⚠ LE COMPTE RESTE VISIBLE PLIÉE, et c'est tout l'intérêt : « 5 / 5 » sur une
+       carte fermée dit que c'est fini ; une carte fermée muette ferait douter. */
+    const plie=clReplie();
+    let s='<div class="pcarte'+(plie?' plie':'')+'">'+
+      '<button class="ptitre ptitre-pli" onclick="clPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
+        '<b>Ta check-list</b>'+
+        '<span>'+esc(LISTE_LABELS[g.liste]||g.liste)+' · '+fait+' / '+tot+'</span>'+
+        '<em class="ch">›</em></button>';
+    if(plie) return s+'</div>';
     /* ═══ TROIS RYTHMES, TROIS BLOCS (Mag, 08/08/2026) ═══
        « À la reprise » d'abord et en rouge le jour où on reprend son 4-4 ou son 7-7 :
        c'est le seul moment où ces tâches-là existent, et elles doivent sauter aux
@@ -22273,6 +22295,13 @@ function listeRank(k){const i=LISTE_ORDER.indexOf(k);return i<0?99:i}
 /* La liste actuellement montrée dans Ma liste. Gardée dans le téléphone : on ouvre
    l'app vingt fois par jour, et repartir chaque fois sur une autre liste que celle
    qu'on suit, c'est un clic de plus vingt fois. */
+/* Le pli de la check-list, gardé dans le téléphone — voir `bloc()` dans `listeCorps`. */
+const CL_REPLIE_K='lux_cl_replie';
+function clReplie(){ try{ return localStorage.getItem(CL_REPLIE_K)==='1'; }catch(e){ return false; } }
+function clPlier(){
+  try{ localStorage.setItem(CL_REPLIE_K, clReplie()?'0':'1'); }catch(e){}
+  render();
+}
 const LISTE_VUE_K='lux_liste_vue';
 let LISTE_VUE=''; try{ LISTE_VUE=localStorage.getItem(LISTE_VUE_K)||''; }catch(e){}
 function listeVoir(k){
@@ -23043,7 +23072,9 @@ async function passAjouter(){
      numéro (« le 603 est agité ») et souvent un long texte. Seuls le JOUR et l'HEURE
      restent réservés à ce qui a une heure. */
   l.chambre=v('passCh')||null;
-  l.commentaire=v('passCom')||null;
+  /* ⚠ ON NE TOUCHE PLUS AU COMMENTAIRE : le champ n'existe plus (voir la feuille). S'il
+     restait écrit ici, corriger une ancienne passation EFFACERAIT son commentaire en
+     silence — la clé absente laisse la colonne intacte à la mise à jour. */
   /* ⚠ TOUTE PASSATION A UN JOUR, MÊME UNE INFO. Sans lui, la ligne ne repasse pas le
      filtre de `loadPassations` et devient invisible — voir la note là-bas. Une info
      est datée d'aujourd'hui : c'est le jour où on la passe. */
@@ -23523,8 +23554,15 @@ function passFeuilleHTML(){
          y compris ce qui arrive par un copier-coller. */
       '<input id="passCh" placeholder="N° de chambre — facultatif" inputmode="numeric" '+
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')">'+
-      /* « Dans les passations, il y a beaucoup de texte parfois. » */
-      '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'+
+      /* ⚠ LE CHAMP « CE QU'IL FAUT SAVOIR EN PLUS » EST RETIRÉ (Mag, 22/08/2026 :
+         « retire ça, il y a déjà un texte, c'est bien assez complexe comme ça »).
+         Il avait été demandé le matin même — « dans les passations, il y a beaucoup de
+         texte parfois » — mais le champ du haut accepte déjà tout le texte qu'on veut :
+         deux zones de texte l'une sous l'autre posaient la question « laquelle ? » à
+         chaque passation, à 23 h, pour un partage qui n'a aucune règle.
+         ⚠ LES COMMENTAIRES DÉJÀ ÉCRITS CONTINUENT DE S'AFFICHER, sur les rangées comme
+         sur la feuille imprimée : on ne fait pas disparaître une consigne parce qu'on a
+         retiré le champ qui la posait. Voir `passAjouter`, qui n'y touche plus. */
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
       (PASS_EDIT
@@ -23867,6 +23905,13 @@ function rappelsHTML(enCarte){
             'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
           '<button class="ib'+(r.quand?' on':'')+'" onclick="rappelDater(\''+r.id+'\')" '+
             'aria-label="Mettre un jour" title="Mettre un jour">'+icon('calendrier')+'</button>'+
+          /* ⚠ LA CORBEILLE EST AUSSI SUR LES LIGNES DE MA LISTE (Mag, 22/08/2026 : « je
+             ne vois pas la corbeille dans les notes de ma liste »). Elle n'était que sur
+             les lignes parties en passation ; ici, effacer était caché DANS la feuille du
+             crayon — donc invisible, donc introuvable. Les deux sortes de rangées portent
+             maintenant les mêmes gestes, au même endroit. */
+          '<button class="ib sup" onclick="rappelRetirer(\''+r.id+'\')" '+
+            'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
