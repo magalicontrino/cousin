@@ -22934,11 +22934,15 @@ async function passAjouter(){
      filtre de `loadPassations` et devient invisible — voir la note là-bas. Une info
      est datée d'aujourd'hui : c'est le jour où on la passe. */
   l.jour = (PASS_GENRE!=='passation' ? v('passJour') : '') || todayStr();
-  if(PASS_GENRE!=='passation' && g.heure) l.heure=v('passHeure')||null;
-  /* ⚠ LA CASE NE VAUT QUE SUR UN RÉVEIL. Sur les deux autres genres on l'écrit à
-     faux : sans ça, une case cochée puis un changement de genre laisserait un
-     « à jeun » invisible collé à une info. */
-  l.a_jeun = (PASS_GENRE==='reveil') ? !!PASS_AJEUN : false;
+  /* ⚠ UN « À JEUN » EST TOUJOURS À MINUIT : on la pose nous-mêmes, il n'y a plus de
+     champ à lire. Un réveil, lui, porte l'heure qu'on a saisie. */
+  if(PASS_GENRE==='ajeun')       l.heure='00:00';
+  else if(PASS_GENRE==='reveil') l.heure=v('passHeure')||null;
+  /* ⚠ PLUS DE CASE, DONC PLUS DE `a_jeun` À L'ÉCRITURE (22/08/2026, voir la feuille).
+     On l'écrit à faux et pas « on n'y touche pas » : en corrigeant une ancienne ligne
+     qui portait la case, il faut que la correction reflète ce qu'on voit à l'écran —
+     sinon on enregistrerait une consigne qu'on ne peut plus ni voir ni enlever. */
+  l.a_jeun = false;
   try{
     /* ⚠ MÊME FORMULAIRE POUR CRÉER ET POUR CORRIGER (Mag, 22/08 : « il faut pouvoir
        modifier les passations »). `PASS_EDIT` porte l'identifiant en cours : s'il est
@@ -23047,7 +23051,10 @@ function passRetirer(id){
    ⚠ La table était VIDE au moment du changement : aucun genre à remapper. */
 const PASS_GENRES=[
   {k:'reveil',   l:'Un réveil', court:'Réveil', s:'quelqu’un à réveiller',   c:'#E8308A', heure:true,  chambre:true},
-  {k:'ajeun',    l:'À jeun',    court:'À jeun', s:'il ne doit plus manger',  c:'#6cb392', heure:true,  chambre:true},
+  /* ⚠ L'HEURE EST DANS LE NOM (Mag, 22/08/2026 : « rajoute 00h00 »). Un jeûne avant
+     opération commence à minuit, toujours — l'écrire sur le bouton évite d'avoir à le
+     demander en dessous, et c'est ce qui a permis de retirer le champ d'heure. */
+  {k:'ajeun',    l:'À jeun',    court:'À jeun', s:'plus manger dès 00h00', c:'#6cb392', heure:true,  chambre:true},
   {k:'passation',l:'Une info',  court:'Info',   s:'à transmettre',           c:'#a9c8e8', heure:false, chambre:false}
 ];
 /* L'étiquette verte : un APLAT, pas un liseré. « C'est très important, ils doivent le
@@ -23380,30 +23387,25 @@ function passFeuilleHTML(){
             '<em>'+esc(x.s)+'</em></button>';
         }).join('')+
       '</div>'+
-      /* ⚠ LA CASE NE DIT PLUS « À JEUN » (Mag, 22/08/2026 : « il y a deux fois à jeun.
-         Et marque : il ne doit plus manger à minuit »).
-         Le mot était écrit DEUX FOIS à trois centimètres d'écart — sur le bouton de
-         genre « À jeun », et sur la case juste en dessous. On croyait avoir choisi deux
-         fois la même chose, ou s'être trompé.
-         La case dit maintenant ce qu'elle FAIT, en clair et avec l'heure : « il ne doit
-         plus manger à partir de minuit ». Le genre garde le mot, la case garde la
-         règle — et les deux ne se répètent plus.
-         ⚠ ELLE N'APPARAÎT QUE SUR UN RÉVEIL, et c'est tout son intérêt : quelqu'un
-         qu'on réveille ET qui ne mange pas. Sur le genre « À jeun » (celui qu'on ne
-         réveille pas) elle n'aurait rien à ajouter ; sur une info elle ne veut rien
-         dire.
-         ⚠ MINUIT, ET PAS UNE HEURE À SAISIR : c'est la règle du jeûne avant une
-         opération, la même pour tout le monde. Un champ d'heure de plus sur une feuille
-         qu'on remplit à 23 h, c'est une question pour rien. */
-      (PASS_GENRE==='reveil'
-        ? '<button id="passAjeun" class="passcase'+(PASS_AJEUN?' on':'')+'" onclick="passAjeunBascule()">'+
-          '<i></i><span>Il ne doit plus manger <b>à partir de minuit</b></span></button>'
-        : '')+
-      /* Le jour et l'heure ne concernent que ce qui a une heure. */
+      /* ⚠ LA CASE « IL NE DOIT PLUS MANGER » EST RETIRÉE (Mag, 22/08/2026 : « retire
+         ça »). Elle avait été demandée le matin même — « souvent ils vont être dans
+         RÉVEIL et dans À JEUN, il faut pouvoir mettre les deux » — puis reformulée le
+         soir, puis retirée. C'est sa décision la plus récente, elle l'emporte.
+         Ce qui reste pour dire qu'une personne ne mange pas : LE GENRE « À jeun ».
+         ⚠ L'ÉTIQUETTE VERTE CONTINUE DE S'AFFICHER sur les lignes déjà écrites qui
+         portent `a_jeun` : on ne fait pas disparaître une consigne médicale d'une
+         passation existante parce qu'on a retiré le bouton qui la posait. */
+      /* ⚠ « À QUELLE HEURE » EST RETIRÉ DU GENRE « À JEUN » (Mag, 22/08/2026 :
+         « retire »). Il n'y avait qu'une réponse possible — minuit — et elle est
+         maintenant écrite sur le bouton du genre. Un champ dont on connaît d'avance la
+         réponse est un champ qu'on remplit mal.
+         Sur un RÉVEIL, l'heure reste : c'est la seule chose qui compte à 5 h du matin.
+         Le JOUR, lui, vaut pour les deux : un jeûne se date. */
       (PASS_GENRE!=='passation'
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
-          '<input id="passHeure" placeholder="'+
-            (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'"></div>'
+          (PASS_GENRE==='reveil'
+            ? '<input id="passHeure" placeholder="À quelle heure ? — 05:30">'
+            : '')+'</div>'
         : '')+
       /* La chambre existe sur les trois genres : « le 603 est agité » est une info. */
       '<input id="passCh" placeholder="N° de chambre — facultatif">'+
