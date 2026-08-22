@@ -2986,6 +2986,35 @@ body.pan-ouvert #view{animation:none;transform:none}
    Les pastilles débordaient de l'écran ; ce qui dépasse ne se voit pas. Le
    déroulant tient sur une ligne quel que soit le nombre de listes, et les montre
    toutes d'un coup quand on l'ouvre. Le point ● devant les siennes. */
+/* ═══ LA BARRE DU HAUT DE « MA LISTE » (Mag, 22/08/2026) ═══
+   Une seule ligne, très discrète : pas de fond, un filet fin, du texte gris. Ce qui
+   compte sur cette page, ce sont les tâches — pas les outils qui les entourent.
+   ⚠ ELLE SE REPLIE SUR PLUSIEURS LIGNES quand il n'y a pas la place (`flex-wrap`),
+   au lieu de pousser l'imprimante hors de l'écran. */
+.mlbarre{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;
+  max-width:620px}
+.mlbarre .mlb-sep{flex:1;min-width:0}
+.mlb{display:inline-flex;align-items:center;gap:7px;min-height:34px;
+  border:1px solid var(--ligne);border-radius:5px;background:#fdfdfc;padding:0 11px;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--enc2)}
+.mlb .ic{width:13px;height:13px;flex:none;color:var(--enc2)}
+.mlb:active{color:var(--noir);border-color:var(--trait)}
+/* Le déroulant se fond dans la barre : même hauteur, même filet, même petit texte.
+   Il ne doit pas peser plus que les boutons à côté — c'est un réglage, pas un titre. */
+.mlsel{display:inline-flex;min-width:0}
+.mlsel select{font:inherit;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--noir);min-height:34px;
+  background:#fdfdfc;border:1px solid var(--ligne);border-radius:5px;padding:0 30px 0 11px;
+  -webkit-appearance:none;appearance:none;max-width:220px;text-overflow:ellipsis;
+  background-image:linear-gradient(45deg,transparent 50%,var(--noir) 50%),linear-gradient(135deg,var(--noir) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.mlsel select:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
+/* Le picto seul : carré, pas de mot dedans. */
+.imprbtn.nu{padding:0;width:34px;min-height:34px;justify-content:center;gap:0}
+.visuallyhidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
 .lsel{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
 .lsel label{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--enc2);flex:none}
@@ -10989,10 +11018,17 @@ function imprimerCongelateur(){
 }
 
 /* Le bouton, posé partout où une page vaut la peine d'être emportée sur papier. */
-function boutonImprimer(quoi){
+/* ⚠ `nu` : LE BOUTON SE RÉDUIT À SON PICTO (Mag, 22/08/2026 : « le bouton à imprimer
+   est aussi plus discret, faites juste un petit picto »). Le mot « Imprimer » est
+   utile là où le bouton est seul au-dessus d'une page ; dans une barre d'outils où
+   trois choses se suivent, il pèse autant qu'une action qu'on fait tous les jours.
+   ⚠ LE `title` ET L'`aria-label` RESTENT, ET ILS DEVIENNENT INDISPENSABLES : un
+   picto sans mot, c'est un bouton muet pour qui ne le reconnaît pas. */
+function boutonImprimer(quoi, nu){
   const act=(quoi==='maliste')?'imprimerMaListe()':'imprimer()';
-  return '<button class="imprbtn" onclick="'+act+'" title="Imprimer ou enregistrer en PDF">'+
-    icon('imprimer')+'<span>Imprimer</span></button>';
+  return '<button class="imprbtn'+(nu?' nu':'')+'" onclick="'+act+'"'+
+    ' title="Imprimer ou enregistrer en PDF" aria-label="Imprimer">'+
+    icon('imprimer')+(nu?'':'<span>Imprimer</span>')+'</button>';
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove('show'),1800)}
@@ -12796,10 +12832,52 @@ function vListe(){
    exactement les mêmes lignes. Le jour où une règle change (les rythmes, la garde
    PFO, les passations), elle change aux deux endroits parce qu'il n'y a qu'un
    endroit. Ne pas recopier ce corps ailleurs. */
+/* ═══ UNE SEULE BARRE, EN HAUT, DISCRÈTE (Mag, 22/08/2026) ═══
+   « Ça doit se mettre sur une seule ligne en haut, de manière très discrète par
+   rapport au reste. »
+   Trois outils traînaient chacun sur sa ligne, à trois hauteurs différentes de la
+   page : imprimer tout en haut à droite, « je remplace le PFO » sous lui, « je
+   reprends mon cycle » beaucoup plus bas, coincé entre deux listes de tâches. Ce
+   sont trois gestes du MATIN, faits une fois, avant de commencer — pas trois étapes
+   du travail. Ils se rangent donc ensemble, avant la première tâche, et en petit.
+   ⚠ LE DÉROULANT DES LISTES Y ENTRE AUSSI, ET IL CHANGE DE PUBLIC — voir
+   `listeSelecteurHTML`.
+   ⚠ « DISCRET » NE VEUT PAS DIRE PETIT AU POINT DE DISPARAÎTRE : les boutons gardent
+   leur hauteur de doigt (34 px), c'est le POIDS VISUEL qui baisse — pas de fond, un
+   filet fin, du texte gris. */
+function listeBarreHTML(ordre, vue){
+  const dedans = listeSelecteurHTML(ordre, vue) + pfoBoutonHTML() +
+    (!enReprise()
+      ? '<button class="mlb" onclick="jeReprends()">'+
+        '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle</button>'
+      : '');
+  return '<div class="mlbarre">'+dedans+
+    '<span class="mlb-sep"></span>'+boutonImprimer('maliste', true)+'</div>';
+}
+/* ═══ LE DÉROULANT NE S'ADRESSE PLUS À TOUT LE MONDE (Mag, 22/08/2026) ═══
+   « Ça, il faut vraiment que ce soit que l'admin qui le voie. »
+   Ce qu'il ouvrait, c'était les listes des AUTRES rôles — utile pour elle, qui les
+   écrit et les relit ; sans objet pour quelqu'un qui vient chercher sa journée, et
+   qui pouvait tomber sur la liste d'un autre service sans comprendre pourquoi.
+   ⚠ CE N'EST PAS TOUT À FAIT « ADMIN SEULEMENT », ET C'EST VOULU : quelqu'un qui a
+   PLUSIEURS listes à lui (le remplaçant PFO, par exemple, qui gagne la liste PFO en
+   plus de la sienne) doit pouvoir passer de l'une à l'autre. Il garde donc un
+   déroulant, mais qui ne contient QUE les siennes. Une seule liste à soi et pas
+   admin : pas de déroulant du tout, il n'y aurait rien à choisir. */
+function listeSelecteurHTML(ordre, vue){
+  const admin=!!(PROFILE && PROFILE.admin);
+  const choix = admin ? ordre : ordre.filter(function(g){ return g.mienne; });
+  if(choix.length<2) return '';
+  return '<span class="mlsel"><label class="visuallyhidden" for="selListe">La liste</label>'+
+    '<select id="selListe" onchange="listeVoir(this.value)">'+choix.map(function(g){
+      return '<option value="'+esc(g.liste)+'"'+(g.liste===vue.liste?' selected':'')+'>'+
+        (g.mienne?'\u25CF ':'')+esc(LISTE_LABELS[g.liste]||g.liste)+'</option>';
+    }).join('')+'</select></span>';
+}
 function listeCorps(){
-  let h='<div class="imprligne">'+boutonImprimer('maliste')+'</div>';
+  let h='';
 
-  if(!listesLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+  if(!listesLoaded) return '<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
 
   /* ═══ LA GARDE PFO (Mag, 13/08/2026) ═══
      Elle ne se règle plus dans l'Admin : on la prend le matin, on la rend le soir.
@@ -12811,9 +12889,14 @@ function listeCorps(){
      ⚠ Il ne s'affiche pas pour tout le monde : proposer la garde PFO à un infirmier
      ou à un polyvalent n'aurait aucun sens. Seuls ceux dont le métier peut la
      prendre le voient — les travailleurs sociaux, et l'administration. */
-  if(PROFILE && (PROFILE.admin || /social|^ts$/i.test(PROFILE.equipe||''))) h+=pfoBlocHTML();
-
   const miennes=CHECKLISTS.filter(g=>g.mienne), autres=CHECKLISTS.filter(g=>!g.mienne);
+  const ordre=miennes.concat(autres);
+  /* La liste montrée : son dernier choix s'il tient encore, sinon la sienne. */
+  const vue=ordre.find(function(g){ return g.liste===LISTE_VUE; }) || ordre[0] || {liste:'',mienne:true};
+  h+=listeBarreHTML(ordre, vue);
+  /* La carte « tu as la garde » et le choix déplié restent dans la page, sous la
+     barre : ce sont des blocs qui disent quelque chose, pas des boutons. */
+  if(PROFILE && (PROFILE.admin || /social|^ts$/i.test(PROFILE.equipe||''))) h+=pfoBlocHTML();
 
   /* L'ABSENCE DE LISTE, REPLIÉE. On l'explique à qui va la chercher, pas à tout le
      monde et pas en premier. */
@@ -12894,11 +12977,8 @@ function listeCorps(){
      Le bouton discret, lui, RESTE : il ne dérange personne et il permet de le dire
      ou de le corriger n'importe quel jour. La devinette automatique (trois jours
      sans ouvrir l'app = retour de repos) continue de marcher toute seule. */
-  if(!enReprise()){
-    h+='<div class="imprligne" style="justify-content:flex-start;margin-top:16px">'+
-       '<button class="imprbtn" onclick="jeReprends()">'+
-       '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle aujourd’hui</button></div>';
-  }
+  /* ⚠ LE BOUTON DE REPRISE EST MONTÉ DANS LA BARRE (22/08/2026). Il vivait ici, au
+     milieu de la page, entre deux listes de tâches. Voir `listeBarreHTML`. */
   /* ═══ UNE SEULE LISTE À LA FOIS (Mag, 08/08/2026) ═══
      « Je suis PFO au jour, donc je ne veux pas avoir la liste nuit. Mais je dois
      pouvoir voir toutes les autres listes aussi — que la mienne soit en évidence.
@@ -12912,28 +12992,11 @@ function listeCorps(){
      ⚠ Rien n'est caché : toutes les listes auxquelles la base lui donne accès sont
      dans le choix. C'est l'affichage qui se concentre, pas les droits. */
   if(CHECKLISTS.length){
-    const ordre=miennes.concat(autres);
-    /* La liste montrée : son dernier choix s'il tient encore, sinon la sienne. */
-    let vue=ordre.find(function(g){ return g.liste===LISTE_VUE; }) || ordre[0];
     h+='<div class="sect" style="margin-top:22px"><b>Le travail</b>'+
        '<em>'+(vue.mienne?'ta liste':'la liste d’un autre rôle')+'</em></div>';
-    /* ⚠ UN DÉROULANT, PAS DES PASTILLES (Mag, 08/08/2026 : « j'aime pas ça, plutôt
-       un truc déroulant »). Les pastilles débordaient de l'écran et il fallait les
-       faire défiler du doigt pour découvrir qu'il en existait d'autres : on ne voit
-       pas ce qu'on ne fait pas défiler. Un déroulant montre TOUT d'un coup, et tient
-       sur une ligne quel que soit le nombre de listes.
-       Chaque ligne porte ce qui reste à faire — on choisit en connaissance de cause. */
-    h+='<div class="lsel"><label for="selListe">La liste</label>'+
-      '<select id="selListe" onchange="listeVoir(this.value)">'+ordre.map(function(g){
-        return '<option value="'+esc(g.liste)+'"'+(g.liste===vue.liste?' selected':'')+'>'+
-          (g.mienne?'\u25CF ':'')+esc(LISTE_LABELS[g.liste]||g.liste)+
-          /* ⚠ PLUS DE « — 3 à faire » DANS LE NOM DE LA LISTE (Mag, 13/08/2026 :
-             « retire 1 à faire »). Le compte est déjà écrit deux fois juste en
-             dessous — dans le titre de section et dans l'anneau. Trois fois le même
-             chiffre, dont un collé au nom de la liste, ça allongeait chaque ligne
-             sans rien apprendre. */
-          '</option>';
-      }).join('')+'</select></div>';
+    /* ⚠ LE DÉROULANT N'EST PLUS ICI : il est monté dans la barre du haut, et il ne
+       s'adresse plus au même monde (voir `listeSelecteurHTML`). Le titre de section,
+       lui, reste : c'est lui qui dit si on lit sa propre liste ou celle d'un autre. */
     h+=bloc(vue);
   }
   h+=passationsHTML();
@@ -22394,9 +22457,19 @@ function pfoBlocHTML(){
      ce bouton ne sert qu'au remplaçant, pour la journée. Le code le faisait déjà —
      c'est le mot qui mentait, et un mot qui ment fait appuyer les mauvaises
      personnes tous les matins. */
-  return '<div class="imprligne" style="justify-content:flex-start;margin-top:10px">'+
-    '<button class="imprbtn" onclick="jePrendsPFO()">'+
-    '<span class="ic">'+icon('cle')+'</span>Je remplace le PFO aujourd’hui</button></div>';
+  return '';
+}
+/* ⚠ LE BOUTON EST SORTI DE `pfoBlocHTML` (Mag, 22/08/2026 : « ça doit se mettre sur
+   une seule ligne en haut, de manière très discrète »). La CARTE (« tu as la garde »)
+   et le CHOIX déplié restent des blocs dans la page — ils portent une information et
+   une décision. Le bouton, lui, n'est qu'une porte : sa place est dans la barre.
+   ⚠ Il ne s'affiche que si la garde n'est pas déjà prise et que le choix n'est pas
+   ouvert — sinon on proposerait de faire ce qu'on est en train de faire. */
+function pfoBoutonHTML(){
+  if(gardePFO() || PFO_DEMANDE) return '';
+  if(!(PROFILE && (PROFILE.admin || /social|^ts$/i.test(PROFILE.equipe||'')))) return '';
+  return '<button class="mlb" onclick="jePrendsPFO()">'+
+    '<span class="ic">'+icon('cle')+'</span>Je remplace le PFO</button>';
 }
 /* Est-ce qu'on est dans les 24 h qui suivent une reprise ? */
 function enReprise(){ return repriseLe()===todayStr(); }
