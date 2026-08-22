@@ -3149,6 +3149,13 @@ body.pan-ouvert #view{animation:none;transform:none}
   text-transform:uppercase;color:var(--enc2);border-bottom:1px solid var(--noir);
   padding-bottom:4px;margin:16px 0 4px}
 /* ⚠ UN APLAT, PAS UN LISERÉ : « c'est très important, ils doivent le savoir ». */
+/* Le message d'une passation : coupé à deux lignes tant qu'on ne l'ouvre pas. */
+.passcom.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden}
+.passcom.ouvert{display:block;-webkit-line-clamp:unset;overflow:visible}
+.passplus{display:block;margin-top:4px;padding:0;background:none;border:0;
+  font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--enc2);border-bottom:1px dotted var(--enc2)}
 .passjeun{display:inline-block;margin-left:8px;font-family:ui-monospace,monospace;
   font-size:8.5px;font-weight:500;letter-spacing:.11em;text-transform:uppercase;
   background:#6cb392;color:#0f2b1f;border-radius:3px;padding:3px 7px;vertical-align:2px}
@@ -3256,8 +3263,13 @@ body.pan-ouvert #view{animation:none;transform:none}
   border-bottom:1px dotted currentColor}
 .hero .hsur{display:block;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.2em;
   text-transform:uppercase;font-weight:500}
-.hero h1{display:block;font-size:38px;font-weight:700;text-transform:uppercase;
-  letter-spacing:-.035em;line-height:.9;margin-top:6px;color:#f2eee6}
+/* ⚠ MÊME TAILLE QUE L'ACCUEIL (Mag, 22/08/2026 : « pourquoi les titres ne sont pas de
+   la même taille ? Tu peux mettre des titres normaux, un peu comme on a fait sur la
+   page d'accueil »). Ils montaient à 38 px, 46 px, et jusqu'à 60 px sur écran —
+   « MA LISTE » traversait la page pendant que la liste elle-même attendait dessous.
+   Un seul réglage, le sien : min(8vw, 34px). Les deux agrandissements tombent. */
+.hero h1{display:block;font-size:min(8vw,34px);font-weight:700;text-transform:uppercase;
+  letter-spacing:-.03em;line-height:.92;margin-top:6px;color:#f2eee6}
 .hero .hpic{width:36px;height:36px;flex:none}
 .hero .hpic .ic{width:100%;height:100%}
 .hero .cbtn{width:36px;height:36px;border-radius:50%;border-color:#f2eee6;color:#f2eee6;align-self:center}
@@ -3824,7 +3836,8 @@ body.no-tabs #tabbar{display:none}
   /* ---- le bandeau noir devient un grand titre sur un filet ---- */
   .hero{position:static;background:transparent;color:var(--noir);margin:0 0 26px;
     padding:0 0 18px;border-bottom:1.5px solid var(--noir);align-items:flex-end}
-  .hero h1{font-size:60px;letter-spacing:-.04em;line-height:.9;margin-top:10px;color:var(--noir)}
+  /* ⚠ Le titre ne grandit plus sur écran (22/08) — seule la couleur change ici. */
+  .hero h1{color:var(--noir)}
   .hero .hsur{font-size:10px;letter-spacing:.24em}
   .hero .cbtn{border-color:var(--trait-fort);color:var(--noir)}
   .hero .hpic{width:52px;height:52px}
@@ -3941,7 +3954,6 @@ body.no-tabs #tabbar{display:none}
   .dgrid.res{grid-template-columns:repeat(3,1fr)}
   .flist,.rlist,.cards{grid-template-columns:repeat(2,1fr)}
   .rc,.fmod{width:calc(33.333% - 8px)}
-  .hero h1{font-size:46px}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -10980,7 +10992,7 @@ const PRINT_FEUILLES=[
 ];
 
 function vPrint(){
-  let h=heroBandeau('Print','Les feuilles à réimprimer','#A9C8E8','imprimer',true);
+  let h=heroBandeau('Print','','#A9C8E8','imprimer',true);
   h+='<div class="fsrc" style="text-align:left;padding:14px 2px 0">'+
      'Les feuilles vierges qu’on réimprime souvent, toujours les mêmes. '+
      'On les sort, on les remplit à la main.</div>';
@@ -12900,7 +12912,12 @@ function nCentreFiches(){ return fichesDe('coord').length; }
 function vListe(){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
-  return heroBandeau('Ma liste', dateTxt, '#A9C8E8','list')+listeCorps();
+  /* ⚠ PAS DE FLÈCHE DE RETOUR (Mag, 22/08/2026 : « je ne vois pas pourquoi il y a une
+     petite flèche pour retourner à gauche »). Elle a raison : « Ma liste » a SA PROPRE
+     LIGNE dans le rail et son propre bouton dans la barre du haut — c'est une
+     destination, pas une sous-page. Une flèche de retour sur une destination renvoie
+     n'importe où, selon d'où l'on vient. Même raisonnement que pour l'Accueil. */
+  return heroBandeau('Ma liste', dateTxt, '#A9C8E8','list', false)+listeCorps();
 }
 /* ═══ LA CHECK-LIST EST DÉCOUPÉE EN DEUX (Mag, 21/08/2026) ═══
    Le bandeau d'un côté, TOUT LE RESTE de l'autre. Pas par goût du rangement : depuis
@@ -13096,11 +13113,11 @@ function listeCorps(){
   h+='<div class="ml3-c">'+carteMaListe()+'</div>';
   h+='<div class="ml3-c">'+passationsHTML()+'</div>';
   h+='</div>';
-  /* ⚠ CETTE PHRASE ÉTAIT DEVENUE FAUSSE le jour où les rythmes sont arrivés : elle
-     promettait que TOUT se décoche demain matin, alors qu'une tâche de la semaine
-     tient jusqu'au lundi. Une phrase d'aide qui ment est pire que pas de phrase. */
-  h+='<p class="hint" style="margin:18px 0 26px">Ce que tu coches est à toi, personne d’autre ne le voit. '+
-     'Les tâches du jour se décochent demain matin ; celles de la semaine tiennent jusqu’à lundi.</p>';
+  /* ⚠ RETIRÉE LE 22/08/2026 (« retire ça »). Elle avait déjà été réécrite une fois
+     parce qu'elle mentait ; elle part pour la vraie raison : elle explique l'écran à
+     des gens qui l'utilisent tous les jours. Voir la règle « pas de phrases
+     explicatives ». Ce qu'elle promettait — que rien n'est partagé — reste vrai, et
+     ne se démontre pas par une phrase. */
   return h+'<div style="height:26px"></div>';
 }
 
@@ -13239,7 +13256,7 @@ function feedQuand(iso){
   }catch(e){ return ''; }
 }
 function vFil(){
-  let h=heroBandeau('Le fil','Le porte-voix de l’équipe','#f5c542','feed');
+  let h=heroBandeau('Le fil','','#f5c542','feed',false);
   if(!sb) return h+'<div class="empty" style="margin-top:16px"><b>Hors ligne.</b>'+
     '<p>Reconnecte-toi à internet pour voir le fil.</p></div>';
 
@@ -13368,7 +13385,7 @@ function vDuNeuf(){
      avec quoi (Mag, 08/08/2026 : « c'est pas du tout adapté à une lecture »). */
   const fmt=function(iso){const d=new Date(iso);return JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];};
   const auj=new Date().toISOString().slice(0,10);
-  let h=heroBandeau('Quoi de neuf','Ce que tu peux faire aujourd’hui et que tu ne pouvais pas hier','#f5c542','bulb');
+  let h=heroBandeau('Quoi de neuf','','#f5c542','bulb',false);
   let jour='', premier=true;
   h+='<div class="qneuf">';
   NOUVEAUTES.forEach(function(n){
@@ -13390,7 +13407,7 @@ function vProfil(){
   const co=!!(PROFILE&&PROFILE.email);          // connectée pour de vrai ?
   const nomAff=nomAffiche()||(PROFILE&&PROFILE.nom)||'Sans prénom';
   const ini=(nomAff||'?').charAt(0).toUpperCase();
-  let h=heroBandeau('Profil','Ta carte d’identité','#f3c6da','user');
+  let h=heroBandeau('Profil','','#f3c6da','user',false);
 
   if(!co){
     /* Pas connectée (hors ligne, ou base muette) : on ne lui invente ni métier ni vue. */
@@ -14106,7 +14123,7 @@ async function chargerStats(j){
   if(current.view==='stats') render();
 }
 function vStats(){
-  let h=heroBandeau('Statistiques','Où l’équipe passe son temps','#5b8fd4','ecran',true);
+  let h=heroBandeau('Statistiques','','#5b8fd4','ecran',true);
   if(!(PROFILE&&PROFILE.admin))
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Ces chiffres ne regardent que toi.</p></div><div style="height:26px"></div>';
@@ -14239,7 +14256,7 @@ function rafraichirModeles(){
   loadModeles().then(function(){ if(current.view==='modeles') render(); });
 }
 function vModeles(){
-  let h=heroBandeau('Les modèles','Ce que chaque rôle doit faire','#6cb392','list',true);
+  let h=heroBandeau('Les modèles','','#6cb392','list',true);
   if(!(PROFILE&&PROFILE.admin))
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Seule l’administration écrit les listes.</p></div><div style="height:26px"></div>';
@@ -14286,7 +14303,7 @@ function vModeles(){
 }
 
 function vChantier(){
-  let h=heroBandeau('Le chantier','Ta liste de travail','#f8763f','list',true);
+  let h=heroBandeau('Le chantier','','#f8763f','list',true);
   if(PROFILE&&PROFILE.admin) h+='<div class="imprligne">'+boutonImprimer()+'</div>';
   if(!(PROFILE&&PROFILE.admin))
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
@@ -14348,7 +14365,7 @@ function vChantier(){
 }
 
 function vAdmin(){
-  let h=heroBandeau('Admin','L’équipe et les accès','#f8763f','cog');
+  let h=heroBandeau('Admin','','#f8763f','cog',false);
   if(!vueGestion())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
@@ -17530,7 +17547,7 @@ function urgParReseau(list,cc){
 function toggleUrgCat(btn,i){ urgCat=(urgCat===i)?null:i; render(); }
 function vUrgences(){
   /* Bandeau noir + 112/101 en cartes rouges + catégories dépliables (handoff). */
-  return heroBandeau('Urgences','On sait où téléphoner','#e63329','siren',false)+
+  return heroBandeau('Urgences','','#e63329','siren',false)+
     urgencesListHTML()+
     '<div style="height:26px"></div>';
 }
@@ -18617,7 +18634,7 @@ function vQuiz(){
        06/08/2026). On reprend exactement le picto qu'il a dans le Réseau. */
     const themes=[['all','Tout mélangé','de'],['droits','Adresse de référence, CPAS et agrément','demarche']]
       .concat(DOMAINES.filter(x=>x.reseau).map(x=>[x.key,x.label,x.ic]));
-    return heroBandeau('Quiz','Teste tes connaissances','#f5c542','bulb',true)+
+    return heroBandeau('Quiz','','#f5c542','bulb',true)+
       '<div class="flist" style="padding-top:14px">'+themes.map(function(t){
         const c=(t[0]==='all'||t[0]==='droits')?'#f5c542':dc(t[0]);
         return '<button class="frow2" onclick="quizStart(\''+t[0]+'\')">'+
@@ -19673,7 +19690,7 @@ function vPartager(){
      l'époque où la page portait la notice d'installation — on imprimait la feuille
      pour l'afficher. Sans la notice, il n'imprimait plus qu'un QR et une adresse,
      que le QR sert justement à ne pas devoir recopier. */
-  let h=heroBandeau('Partager COUSIN','L’adresse et le QR','#6cb392','envoyer',true);
+  let h=heroBandeau('Partager COUSIN','','#6cb392','envoyer',false);
   h+='<div class="pt">'+
      '<div class="pt-qr">'+qrSVG(COUSIN_URL,140)+'</div>'+
      '<div class="pt-url">'+esc(COUSIN_URL.replace('https://',''))+'</div>'+
@@ -19713,7 +19730,7 @@ function vLexique(){
 }
 
 function vEduc(){
-  let h=heroBandeau('Éduc','Ce qu’on peut proposer','#f8763f','accomp',true);
+  let h=heroBandeau('Éduc','','#f8763f','accomp',true);
 
   /* ── LA CULTURE ET LES SORTIES : on ne recopie rien, on renvoie vers ce qui existe
      déjà et qui est tenu à jour ailleurs. */
@@ -19993,7 +20010,7 @@ function vBienvenueTout(){
   /* Quatre écrans depuis le 21/08/2026 : un par bouton du bas (voir `vBienvenue`). */
   const titres=['1 · Accueil','2 · Le réseau','3 · Le centre, et la règle','4 · Urgences, et le raccourci'];
   const garde=ONB_ETAPE;
-  let h=heroBandeau('L’onboarding','Les quatre écrans, un par un','#A9C8E8','ecran',true);
+  let h=heroBandeau('L’onboarding','','#A9C8E8','ecran',true);
   h+='<div class="obt-i">Ce que voit quelqu’un qui ouvre COUSIN <b>pour la première fois</b>, '+
      'juste après s’être connecté avec Google. Une seule fois : ensuite, ça ne revient plus.<br>'+
      'Les boutons ne marchent pas ici — c’est une planche pour regarder.</div>';
@@ -20376,7 +20393,7 @@ function imprimerReglement(){
 }
 
 function vReglement(){
-  let h=heroBandeau('Le règlement','Ce qu’on explique à l’arrivée','#A9C8E8','demarche',true);
+  let h=heroBandeau('Le règlement','','#A9C8E8','demarche',true);
   h+='<div class="imprligne"><button class="fbtn" onclick="imprimerReglement()">'+
      '<span class="ic">'+icon('demarche')+'</span>La feuille à remettre — imprimer</button></div>';
 
@@ -20817,7 +20834,7 @@ function accImprimer(volet){
 function imprimerAccueilVierge(volet){ const g=ACC; ACC={}; accImprimer(volet); ACC=g; }
 function vSchemas(){
   const s=schemaTrouve();
-  let h=heroBandeau('Parcours de soin','La feuille à donner, dans sa langue','#A9C8E8','medical',true);
+  let h=heroBandeau('Parcours de soin','','#A9C8E8','medical',true);
 
   /* Les questions : on ne montre la suivante que si la précédente est répondue —
      l'entonnoir se resserre, on ne remplit pas un formulaire. */
@@ -21244,7 +21261,7 @@ function vTicket(){
      chacun avec son prix écrit en toutes lettres.
      Refaite à nouveau le 12/08/2026 — voir le grand commentaire au-dessus. */
   const prochains=agendaProchains(31);
-  let h=heroBandeau('Activités','Sorties · Article 27','#6cb392','ticket',true);
+  let h=heroBandeau('Activités','','#6cb392','ticket',true);
 
   /* LE CALENDRIER DU MOIS, rapatrié le 08/08/2026 : « ces prochains jours » ne
      répond pas à « qu'est-ce qu'il y a le 17 ? ». La grille, si. */
@@ -21699,7 +21716,7 @@ function vQuartier(){
      Elle s'imprime maintenant, avec UN QR PAR ADRESSE : la personne scanne et son
      itinéraire s'ouvre depuis là où elle est. C'est le dernier point de la liste des
      manques de l'ancienne app. */
-  let h=heroBandeau('Autour d’ici','Bd Prince de Liège 38','#b28b7a','pin')+
+  let h=heroBandeau('Autour d’ici','','#b28b7a','pin')+
     '<div class="imprligne">'+boutonImprimer()+'</div>'+
     '<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>La feuille à donner</b>'+
     '<p>Ce qu’il y a autour du centre. <b>Imprime-la et donne-la</b> : elle porte un '+
@@ -22699,6 +22716,13 @@ async function loadPassations(){
 }
 function passFait(p){ return !!(p && p.fait_le); }
 function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid); }
+/* On ne touche qu'à une classe : pas de `render()` sur une page qui a des champs. */
+function passDeplier(b){
+  const e=b.parentElement && b.parentElement.querySelector('.passcom');
+  if(!e) return;
+  const ouvert=e.classList.toggle('ouvert');
+  b.textContent = ouvert ? 'Replier' : 'Voir tout';
+}
 /* Ce qui m'est adressé : les passations dont le rôle est dans MES listes. */
 function passPourMoi(){
   const m=MES_LISTES||[];
@@ -22831,6 +22855,9 @@ function passGenreDe(k){ return PASS_GENRES.find(function(g){ return g.k===k; })
 
 function passLigne(p, mienne){
   const ok=passFait(p), g=passGenreDe(p.genre), rev=(p.genre!=='passation');
+  const com=String(p.commentaire||'').trim();
+  /* 80 caractères : au-delà, ça dépasse deux lignes sur un téléphone de 375. */
+  const comLong=(com.length>80 || com.indexOf('\n')>=0);
   const qui=String(p.par||'').trim().split(/\s+/)[0];
   const quiFait=String(p.fait_par||'').trim().split(/\s+/)[0];
   return '<div class="tache'+(ok?' faite':'')+(rev&&!ok?' passrev':'')+'">'+
@@ -22846,9 +22873,18 @@ function passLigne(p, mienne){
         esc(p.texte)+
         /* Sur un RÉVEIL seulement : le genre « à jeun » le dit déjà par lui-même. */
         (p.a_jeun&&p.genre==='reveil'?'<span class="passjeun">à jeun</span>':'')+'</b>'+
-      /* Le commentaire du réveil, sous le texte : c'est ce qui explique le geste
-         (« frapper fort, il n'entend pas »), et ça ne tient pas sur la même ligne. */
-      (p.commentaire?'<em class="passcom">'+esc(p.commentaire)+'</em>':'')+
+      /* ═══ LE MESSAGE SE DÉPLIE (Mag, 22/08/2026) ═══
+         « Tout ça peut être assez long, mais il faut qu'on puisse déployer ici et voir
+         le message. »
+         Court, il s'affiche en entier. Long, il se coupe à deux lignes avec un bouton
+         qui l'ouvre — sinon une seule passation bavarde repousse les réveils suivants
+         hors de l'écran, et c'est eux qu'on vient lire.
+         ⚠ LE DÉPLIAGE NE PASSE PAS PAR `render()` : cette page contient les champs du
+         formulaire, et les redessiner viderait ce qu'on est en train d'y taper. On ne
+         change qu'une classe. */
+      (com?'<em class="passcom'+(comLong?' clamp':'')+'">'+esc(com).replace(/\n/g,'<br>')+'</em>'+
+        (comLong?'<button class="passplus" onclick="event.stopPropagation();passDeplier(this)">Voir tout</button>':'')
+        :'')+
       '<em>'+esc(g.court)+
         (mienne?' · pour '+esc(LISTE_LABELS[p.pour]||p.pour):(qui?' · de '+esc(qui):''))+
         /* ⚠ LE JOUR S'ÉCRIT EN TOUTES LETTRES, et seulement s'il n'est pas
@@ -22897,7 +22933,10 @@ function imprimerPassation(pour){
             /* ⚠ « À JEUN » DOIT SORTIR SUR LE PAPIER AUSSI : c'est la feuille qu'on
                a sous les yeux à 5 h du matin, l'écran est resté dans le bureau. */
             (p.a_jeun&&p.genre==='reveil'?'<b class="pjeun">À JEUN</b>':'')+
-            (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+
+            /* ⚠ LE MESSAGE ENTIER SUR LE PAPIER, retours à la ligne compris (Mag,
+               22/08 : « quand ça s'imprime, il faut qu'il y ait le message avec »).
+               Le papier ne se déplie pas : il n'y a rien à couper dessus. */
+            (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
             (p.jour&&p.jour!==agIso(new Date())?'<span class="com">pour le '+esc(rappelQuandFr(p.jour))+'</span>':'')+
           '</td></tr>';
       }).join('')+'</table>';
@@ -23033,8 +23072,17 @@ function passationsHTML(){
         ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
           '<input id="passHeure" placeholder="'+
             (PASS_GENRE==='reveil'?'À quelle heure ? — 05:30':'À jeun à partir de — 00:00')+'"></div>'+
-          '<div class="acduo"><input id="passCh" placeholder="N° de chambre">'+
-          '<input id="passCom" placeholder="Un commentaire"></div>'
+          '<input id="passCh" placeholder="N° de chambre">'+
+          /* ═══ IL FAUT POUVOIR ÉCRIRE LONG (Mag, 22/08/2026) ═══
+             « Dans les passations, il y a beaucoup de texte parfois. Il faut pouvoir
+             écrire des infos sur le fait qu'il boite, que ce n'est pas OK, qu'il est
+             difficile, que ça fait deux fois qu'il rate son rendez-vous, pour appuyer
+             l'importance. »
+             C'était un `input` d'une ligne : on écrivait trois mots et on s'arrêtait.
+             ⚠ LE PLACEHOLDER DONNE DES EXEMPLES, et ce n'est pas décoratif : un champ
+             vide nommé « un commentaire » ne dit pas qu'on a le droit d'écrire cinq
+             lignes. Les exemples sont les siens. */
+          '<textarea id="passCom" rows="3" placeholder="Ce qu’il faut savoir en plus — il boite, il a déjà raté deux rendez-vous, il est difficile le matin…"></textarea>'
         : '')+
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
