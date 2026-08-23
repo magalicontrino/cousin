@@ -1276,6 +1276,13 @@ body.pan-ouvert #view{animation:none;transform:none}
   letter-spacing:.12em;text-transform:uppercase;color:var(--enc2);margin-top:5px;line-height:1.35}
 .grosse .chv{flex:none;font-size:22px;color:var(--noir)}
 @media (hover:hover){ .grosse:hover{box-shadow:0 0 0 1.5px var(--noir)} }
+/* La version éteinte d'une grande carte : même format, mais tout est grisé — elle
+   ne tient pas le rôle d'une carte du jour, elle ne fait que dire « pas ce soir ». */
+.grosse.dz{background:#f6f5f3;border-color:var(--ligne);color:var(--enc2)}
+.grosse.dz .rd{background:#e6e4df}
+.grosse.dz .tx b{color:var(--enc2)}
+.grosse.dz .tx em{color:#b4b2a9}
+@media (hover:hover){ .grosse.dz:hover{box-shadow:none} }
 
 /* Ce qui ne demande rien aujourd'hui. Les lignes gardent 40 px de haut : c'est
    silencieux, ça ne doit pas devenir impossible à viser au doigt. */
@@ -12689,7 +12696,6 @@ function vHome(){
      haut — c'est lui qui dit qu'il reste quelque chose, et il suffit. */
 
   const grosses=boules.filter(function(b){ return !endormie(b); });
-  const dorment=boules.filter(endormie);
 
   if(boules.length){
     /* Le compte annonce ce qu'on voit en grand — pas le nombre de choses dessinées. */
@@ -12704,8 +12710,9 @@ function vHome(){
        grise passait dessous, seule, pour trois mots. Dans une grille commune, elles
        se rangent côte à côte. Sur téléphone, `.ajd` ne fait rien du tout. */
     h+='<div class="ajd">';
-    h+='<div class="grosses">'+grosses.map(function(b){
+    h+='<div class="grosses">'+boules.map(function(b){
       const poub=(b[0]==='poubelle');
+      const dz=endormie(b);
       /* Le bac de Mag garde son recyclage : il se creuse à la couleur du rond noir. */
       const dedans = poub ? pictoPoubelle(b[3],'#1b1b1b',30)
                           : '<span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span>';
@@ -12719,20 +12726,11 @@ function vHome(){
       const sous = (poub && col)
         ? sacsTexte(col.sacs)+' · '+(String(col.quand).split(' · ')[1]||col.court)
         : b[2];
-      return '<button class="grosse'+(poub?' poub':'')+'" onclick="'+b[4]+'">'+
+      return '<button class="grosse'+(poub?' poub':'')+(dz?' dz':'')+'" onclick="'+b[4]+'">'+
         '<span class="rd">'+dedans+'</span>'+
         '<span class="tx"><b>'+esc(titre)+'</b><em>'+esc(sous||'')+'</em></span>'+
-        '<span class="chv">›</span></button>';
+        (dz?'':'<span class="chv">›</span>')+'</button>';
     }).join('')+'</div>';
-
-    /* ⚠ CE QUI DORT RESTE CLIQUABLE. C'est par la clé qu'on ajoute une chambre et
-       par les produits qu'on retrouve la date : les éteindre ne doit pas les fermer. */
-    if(dorment.length)
-      h+='<div class="dormeuses">'+dorment.map(function(b){
-        return '<button class="dz" onclick="'+b[4]+'">'+
-          '<span class="ic">'+icon(b[0])+'</span>'+
-          esc(b[1])+' · '+esc(b[2]||'')+'</button>';
-      }).join('')+'</div>';
     h+='</div>';
   }
 
