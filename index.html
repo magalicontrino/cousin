@@ -11793,6 +11793,7 @@ function parseRoute(){
   if(seg[0]==='f' && BYSID[seg[1]]) return {view:'fiche',sid:seg[1]};
   if(seg[0]==='centre') return {view:'centre'};
   if(seg[0]==='admin') return {view:'admin'};
+  if(seg[0]==='ranger') return {view:'ranger'};
   if(seg[0]==='profil') return {view:'profil'};
   if(seg[0]==='quiz') return {view:'quiz'};
   if(seg[0]==='jeux') return {view:'jeux'};
@@ -11949,6 +11950,7 @@ function render(){
     if(BYSID[current.sid] && BYSID[current.sid].domaine!=='mails') rafraichirAvis(current.sid); }
   else if(current.view==='centre') view.innerHTML=vCentre();
   else if(current.view==='admin'){ view.innerHTML=vAdmin(); rafraichirAdmin(); }
+  else if(current.view==='ranger'){ view.innerHTML=vRanger(); rafraichirAdmin(); }
   else if(current.view==='profil') view.innerHTML=vProfil();
   else if(current.view==='duneuf') view.innerHTML=vDuNeuf();
   else if(current.view==='ticket') view.innerHTML=vTicket();
@@ -14554,7 +14556,7 @@ function boiteClasser(id){
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
 const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', accueilpersonne:'Premier accueil', schemas:'Schéma parcours de soin', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
-  profil:'Mon profil', admin:'Admin', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
+  profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
@@ -15171,6 +15173,13 @@ function vAdmin(){
        '<b>Le chantier</b><span class="n">'+
        (chantierLoaded ? (aFaire+' à faire'+(enBoite?' · '+enBoite+' dans la boîte':'')) : 'ta liste de travail')+
        '</span><span class="sg">›</span></button>';
+    /* WIKI À RANGER, ICI ET PAS SEULEMENT DANS LES ACCÈS (Mag, 24/08/2026 : « mets ça
+       dans mon atelier »). C'est une file de travail de la coordination — les avis des
+       collègues à classer — et le groupe « Ton atelier » est justement l'endroit du
+       travail à faire. Le compteur dit ce qui attend, comme le chantier. */
+    gOutil+='<button class="acc'+(ARANGER.length?' duboulot':'')+'" onclick="go(\'#/ranger\')">'+
+       '<b>Wiki à ranger</b><span class="n">'+(ARANGER.length?ARANGER.length+' à classer':'aucun')+'</span>'+
+       '<span class="sg">›</span></button>';
     gOutil+='<button class="acc" onclick="go(\'#/modeles\')">'+
        '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
        '<span class="sg">›</span></button>';
@@ -15216,6 +15225,21 @@ function vAdmin(){
      'Il garde en revanche les formations, les jeux et le quiz — se former est ouvert à tout le monde.\n\n'+
      'Les autres restrictions restent à décider ensemble.</p></div>';
   return h+'<div style="height:26px"></div>';
+}
+
+/* ═══ WIKI À RANGER, EN PAGE À ELLE (Mag, 24/08/2026 : « personne ne doit voir cette
+   page à part moi admin ») ═══
+   C'est la section « Wiki à ranger » de l'Admin, mais ouverte seule, et réservée
+   STRICTEMENT au compte administrateur — pas aux coordinateurs, que `vAdmin` laisse
+   passer via `vueGestion()`. Un coordinateur venu taper #/ranger à la main tombe sur
+   le même écran « Réservé ». */
+function vRanger(){
+  let h=heroBandeau('Wiki à ranger','','#f8763f','cog',false);
+  if(!(PROFILE&&PROFILE.admin))
+    return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
+      '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
+  ADM_SECTION='ranger';
+  return vAdmin();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
