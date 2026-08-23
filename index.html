@@ -14660,9 +14660,6 @@ function vStats(){
         return '<span class="stj" title="'+esc(String(x.jour||''))+' — '+(x.vues||0)+'"><i style="height:'+ht+'%"></i></span>';
       }).join('')+'</div>';
   }
-  h+='<div class="fsavoir" style="margin-top:24px"><b><span class="ic">'+icon('bulb')+'</span>Ce qui est noté, et ce qui ne l’est pas</b>'+
-     '<p>On note le NOM de l’écran ouvert, et rien d’autre : jamais qui l’a ouvert, jamais ce qui y a été lu.\n\n'+
-     'Tes propres passages ne comptent pas — tu ouvres vingt écrans par soir pour vérifier ton travail, ça fausserait tout.</p></div>';
   return h+'<div style="height:26px"></div>';
 }
 
@@ -14910,62 +14907,14 @@ function vAdmin(){
       '<span class="sg">'+(ADM_SECTION===cle?'⌄':'›')+'</span></button>';
   };
 
-  /* ═══ LES MESSAGES À RANGER — EN PREMIER (Mag, 18/08/2026 : « mets ça en premier
-     en haut ») ═══
-     La deuxième moitié de « on écrit d'abord, on range après ». C'est la file qui
-     se remplit toute seule, tous les jours, sans que personne la demande : les deux
-     autres attendent une action extérieure (une candidature, une proposition). */
-  gAcces+=chapeau('ranger','Wiki à ranger',ARANGER.length,'en attente','aucun');
-  if(ADM_SECTION==='ranger'){
-    gAcces+='<div class="rlist">';
-    if(!ARANGER.length) gAcces+='<div class="role"><b style="font-weight:500;color:#8b8984">Rien à ranger.</b></div>';
-    ARANGER.forEach(function(a){
-      const pf=BYSID[a.sid], sel=rangerSel(a), touche=rangerTouche(a);
-      gAcces+='<div class="msg"><div class="top"><span class="tx">'+
-        '<b>'+esc(pf?pf.nom:a.sid)+'</b>'+
-        '<em>'+esc(a.auteur_nom||'une collègue')+' · '+esc(quandFr(a.cree_le))+'</em></span></div>'+
-        /* Le texte tel quel. On ne le retouche pas : il est signé. */
-        ((a.texte||'').trim()?'<p>'+esc(a.texte)+'</p>'
-                             :'<p class="hint">Pas de phrase — '+
-                               (etqsDe(a).length?'juste une étiquette.':'rien du tout.')+'</p>')+
-        '<div class="avisetq" style="margin-top:8px">'+
-          Object.keys(ETQ_LABELS).map(function(k){
-            const on=sel.indexOf(k)>=0;
-            return '<button class="fchip'+(on?' on':'')+'" onclick="rangerEtq('+a.id+',\''+k+'\')" '+
-              'aria-pressed="'+(on?'true':'false')+'" '+
-              'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
-              esc(ETQ_LABELS[k][0])+'</button>';
-          }).join('')+
-        '</div>'+
-        /* ⚠ « COMMENT J'ANNULE OU CONFIRME ? » — SA QUESTION DU 18/08/2026, ET ELLE
-           N'AVAIT PAS DE RÉPONSE. Les étiquettes partaient au doigt, et le seul
-           bouton visible était du texte gris.
-           Maintenant : tant qu'on n'a pas confirmé, rien n'est parti. « Annuler »
-           n'apparaît QUE si on a touché quelque chose — sinon il n'annulerait rien
-           et ferait douter. */
-        (touche?'<div class="rgbar"><button class="rgann" onclick="rangerAnnuler('+a.id+')">Annuler</button>'+
-                '<button class="rgok" onclick="rangerFini('+a.id+',true)">Enregistrer et ranger</button></div>'
-               :'')+
-        '<div class="fcbas">'+
-          '<button class="pub" onclick="rangerConseiller('+a.id+')">Conseiller ce lieu</button>'+
-        '</div>'+
-        /* Sortir de la file sans rien en tirer. En dernier, et en petit : c'est le
-           geste qu'on fait le moins, et il ne doit pas se cliquer par erreur. */
-        /* ⚠ UN SEUL MOT, PAS DEUX (Mag, 18/08/2026 : « il y a classer sans suite,
-           et il y a déjà rangé, explique-moi »).
-           J'avais fait varier le mot selon que le message portait ou non une
-           étiquette — « classer sans suite » quand on n'en tire rien, « c'est déjà
-           rangé » sinon. La nuance était juste, et elle nuisait : deux mots sur un
-           bouton qui fait UNE chose, ça fait chercher la différence entre deux
-           actions qui n'existent pas. Elle l'a demandée, donc c'était raté.
-           Le bouton dit maintenant ce qu'il fait, et rien d'autre. */
-        (touche?'':'<button class="lienbas" onclick="rangerFini('+a.id+')">Ranger sans rien changer</button>')+
-        '</div>';
-    });
-    gAcces+='</div>';
-  }
+   /* ═══ LES MESSAGES À RANGER (Mag, 18/08/2026 : « mets ça en premier en haut ») ═══
+      La deuxième moitié de « on écrit d'abord, on range après ». C'est la file qui
+      se remplit toute seule, tous les jours, sans que personne la demande : les deux
+      autres attendent une action extérieure (une candidature, une proposition).
+      ⚠ LE PANNEAU NE VIT PLUS ICI (Mag, 24/08/2026 : « mets ça dans mon atelier ») : il
+      est dans « Ton atelier », sur la page dédiée #/ranger, réservée à l'admin. */
 
-  /* --- Les demandes d'accès --- */
+    /* --- Les demandes d'accès --- */
   gAcces+=chapeau('dem','Demandes d’accès',dem.length,'en attente','aucune');
   if(ADM_SECTION==='dem'){
     gAcces+='<div class="rlist">';
@@ -15183,6 +15132,39 @@ function vAdmin(){
     gOutil+='<button class="acc'+(ARANGER.length?' duboulot':'')+'" onclick="go(\'#/ranger\')">'+
        '<b>Wiki à ranger</b><span class="n">'+(ARANGER.length?ARANGER.length+' à classer':'aucun')+'</span>'+
        '<span class="sg">›</span></button>';
+    /* La section, quand elle est ouverte. Elle vit sur la page #/ranger, réservée à
+       l'admin, mais le corps se rend ici pour ne pas dupliquer le rendu. */
+    if(ADM_SECTION==='ranger'){
+      gOutil+='<div class="rlist">';
+      if(!ARANGER.length) gOutil+='<div class="role"><b style="font-weight:500;color:#8b8984">Rien à ranger.</b></div>';
+      ARANGER.forEach(function(a){
+        const pf=BYSID[a.sid], sel=rangerSel(a), touche=rangerTouche(a);
+        gOutil+='<div class="msg"><div class="top"><span class="tx">'+
+          '<b>'+esc(pf?pf.nom:a.sid)+'</b>'+
+          '<em>'+esc(a.auteur_nom||'une collègue')+' · '+esc(quandFr(a.cree_le))+'</em></span></div>'+
+          ((a.texte||'').trim()?'<p>'+esc(a.texte)+'</p>'
+                               :'<p class="hint">Pas de phrase — '+
+                                 (etqsDe(a).length?'juste une étiquette.':'rien du tout.')+'</p>')+
+          '<div class="avisetq" style="margin-top:8px">'+
+            Object.keys(ETQ_LABELS).map(function(k){
+              const on=sel.indexOf(k)>=0;
+              return '<button class="fchip'+(on?' on':'')+'" onclick="rangerEtq('+a.id+',\''+k+'\')" '+
+                'aria-pressed="'+(on?'true':'false')+'" '+
+                'style="'+(on?'background:'+ETQ_COUL[k]+';border-color:'+ETQ_COUL[k]+';color:#fff':'')+'">'+
+                esc(ETQ_LABELS[k][0])+'</button>';
+            }).join('')+
+          '</div>'+
+          (touche?'<div class="rgbar"><button class="rgann" onclick="rangerAnnuler('+a.id+')">Annuler</button>'+
+                  '<button class="rgok" onclick="rangerFini('+a.id+',true)">Enregistrer et ranger</button></div>'
+                 :'')+
+          '<div class="fcbas">'+
+            '<button class="pub" onclick="rangerConseiller('+a.id+')">Conseiller ce lieu</button>'+
+          '</div>'+
+          (touche?'':'<button class="lienbas" onclick="rangerFini('+a.id+')">Ranger sans rien changer</button>')+
+          '</div>';
+      });
+      gOutil+='</div>';
+    }
     gOutil+='<button class="acc" onclick="go(\'#/modeles\')">'+
        '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
        '<span class="sg">›</span></button>';
