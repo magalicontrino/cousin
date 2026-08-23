@@ -4956,6 +4956,7 @@ body.no-tabs #tabbar{display:none}
          ⚠ LES DEUX CHAMPS COEXISTENT et l'un des deux se montre : les fenêtres à une
          seule réponse (un jour, un nom) gardent leur ligne unique et leur Entrée qui
          valide — c'est ce qu'on veut quand on tape trois caractères. -->
+    <div id="popBarre" style="display:none"></div>
     <textarea id="popChampM" rows="3" autocomplete="off" style="display:none"
       oninput="passGrandir(this)"></textarea>
     <!-- ═══ DEUX CHAMPS DE PLUS (Mag, 22/08/2026) ═══
@@ -13977,6 +13978,13 @@ function cousinPop(o){
   _popMulti = !!o.multi;
   const c=document.getElementById(_popMulti?'popChampM':'popChamp');
   const autre=document.getElementById(_popMulti?'popChamp':'popChampM');
+  /* La barre G / S ne sert que dans le grand champ : sur une ligne unique (un jour, un
+     nom), il n'y a rien à mettre en gras. */
+  const bar=document.getElementById('popBarre');
+  if(bar){
+    bar.style.display=_popMulti?'block':'none';
+    bar.innerHTML=_popMulti?passBarreHTML('popChampM'):'';
+  }
   if(autre){ autre.style.display='none'; autre.value=''; }
   _popChamp = (typeof o.champ==='string');
   c.style.display=_popChamp?'block':'none';
@@ -20442,8 +20450,6 @@ function vBienvenue(){
     h+='<div class="onb-e noir">'+pas(0,4)+
       '<div class="onb-sur">Le premier bouton</div>'+
       '<div class="onb-t">Ta journée,<br>en arrivant</div>'+
-      '<p>Salut, je suis Cousin — ton collègue de poche. Quatre boutons en bas de '+
-      'l’écran, et on a fait le tour. Le premier, c’est ce qui bouge aujourd’hui.</p>'+
       '<div class="onb-l">'+
         onbLigne('linge','#fd8fd0','Le linge du jour','Quel étage, quelles chambres')+
         onbLigne('poub','#f5c542','Les poubelles','Quand les sortir, quelle couleur')+
@@ -23632,7 +23638,7 @@ function passLigne(p, mienne, role, heure){
     '<span class="pgc" style="background:'+g.c+'"></span>'+
     '<span class="h">'+esc(heure!==undefined?(heure||'—'):(g.heure?(p.heure||'—'):'—'))+'</span>'+
     '<span class="tx">'+
-      '<b>'+esc(p.texte)+'</b>'+
+      '<b>'+passRiche(p.texte)+'</b>'+
       /* ⚠ PAS DE PHRASE D'ACTION SOUS LE TEXTE (22/08/2026, « c'est trop compliqué ») :
          l'étiquette verte « à jeun », à droite de la ligne, dit déjà ce qu'il faut
          savoir au moment où on réveille. */
@@ -23737,7 +23743,7 @@ function imprimerPassation(pour){
           '<td class="cc"><span class="bx"></span></td>'+
           '<td class="h">'+esc(m.heure||'—')+'</td>'+
           (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
-          '<td>'+esc(p.texte||'').replace(/\n/g,'<br>')+
+          '<td>'+passRiche(p.texte,true)+
             /* ⚠ ENCADRÉE ET EN CAPITALES SUR LE PAPIER : la feuille est lue seule, dans
                un couloir, à 5 h du matin, et souvent photocopiée en noir et blanc — une
                couleur ne suffirait pas. */
@@ -23763,7 +23769,7 @@ function imprimerPassation(pour){
           (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
           '<td>'+
             (g.heure?'<b class="pgenre">'+esc(g.court)+'</b> ':'')+
-            esc(p.texte||'').replace(/\n/g,'<br>')+
+            passRiche(p.texte,true)+
             /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte,
                la feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
             (p.a_jeun?'<b class="pjeun">À JEUN</b>':'')+
@@ -24003,6 +24009,7 @@ function passFeuilleHTML(){
          et qui est difficile le matin.
          ⚠ IL GRANDIT TOUT SEUL en tapant (`passGrandir`) : une barre de défilement dans
          un champ de trois lignes cache ce qu'on vient d'écrire. */
+      passBarreHTML('passTxt')+
       '<textarea id="passTxt" rows="3" placeholder="…" oninput="passGrandir(this)"></textarea>'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
          qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
@@ -24096,6 +24103,54 @@ function passFeuilleHTML(){
    défile, et le navigateur garde le curseur en vue tout seul. Un plafond, même haut,
    aurait fini par cacher les premières lignes d'un long message — c'est-à-dire
    exactement le défaut qu'on répare. */
+/* ═══ GRAS ET SOULIGNÉ DANS UN TEXTE (Mag, 22/08/2026 : « si on sélectionne quelque
+   chose, est-ce qu'on peut le souligner et le mettre en gras ? ») ═══
+
+   ⚠ POURQUOI DES REPÈRES DANS LE TEXTE ET PAS UN VRAI ÉDITEUR RICHE. Un éditeur riche
+   (`contenteditable`) stocke du HTML : il faudrait alors le nettoyer à chaque lecture
+   pour qu'un texte collé depuis un mail n'injecte pas n'importe quoi dans l'app, et
+   tout ce qui lit ces textes aujourd'hui — les rangées, la feuille imprimée, les
+   anciennes lignes déjà en base — devrait changer en même temps.
+   Ici, ce qui part dans la base reste du TEXTE : `**important**` et `__souligné__`.
+   C'est lisible même brut, ça survit à un copier-coller, à une exportation, et à une
+   version de l'app qui ne saurait pas le rendre. Et l'affichage, lui, échappe D'ABORD
+   le texte, puis transforme les repères — dans cet ordre, rien de ce qu'on tape ne peut
+   devenir du code.
+
+   ⚠ ON N'ÉCRIT PAS LES REPÈRES À LA MAIN : on sélectionne, on touche G ou S. */
+function passRiche(txt, pourPapier){
+  let h=esc(String(txt||''));
+  h=h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  h=h.replace(/__([^_]+)__/g, '<u>$1</u>');
+  return pourPapier ? h.replace(/\n/g,'<br>') : h;
+}
+/* Entoure la sélection des deux repères, ou les retire si elle les porte déjà. */
+function passStyle(id, marque){
+  const e=document.getElementById(id); if(!e) return;
+  const d=e.selectionStart, f=e.selectionEnd;
+  if(d===f){ e.focus(); return; }
+  const v=e.value, sel=v.slice(d,f), n=marque.length;
+  const deja=(v.slice(d-n,d)===marque && v.slice(f,f+n)===marque);
+  if(deja){
+    e.value=v.slice(0,d-n)+sel+v.slice(f+n);
+    e.setSelectionRange(d-n, f-n);
+  }else{
+    e.value=v.slice(0,d)+marque+sel+marque+v.slice(f);
+    e.setSelectionRange(d+n, f+n);
+  }
+  e.focus(); passGrandir(e);
+}
+/* Les deux boutons, au-dessus du champ. Ils ne s'écrivent pas « B » et « U » : on est en
+   français, et « G » et « S » se lisent sans traduction. */
+function passBarreHTML(id){
+  return '<div class="txbar">'+
+    '<button type="button" class="txb g" onmousedown="event.preventDefault()" '+
+      'onclick="passStyle(\''+id+'\',\'**\')" title="Gras">G</button>'+
+    '<button type="button" class="txb u" onmousedown="event.preventDefault()" '+
+      'onclick="passStyle(\''+id+'\',\'__\')" title="Souligné">S</button>'+
+    '<span class="txb-h">Sélectionne un mot, puis touche G ou S</span>'+
+  '</div>';
+}
 function passGrandir(e){
   if(!e) return;
   e.style.height='auto';
@@ -24429,6 +24484,7 @@ function rappelsHTML(enCarte){
           ⚠ ENTRÉE VALIDE TOUJOURS, mais MAJ+ENTRÉE va à la ligne : sur un champ qu'on
           remplit vingt fois par jour d'une seule phrase, obliger à viser « OK » à chaque
           fois serait un geste de plus à chaque note. */
+       passBarreHTML('rapTxt')+
        '<textarea id="rapTxt" rows="1" placeholder="Ce que tu ne veux pas oublier…" '+
        'autocomplete="off" oninput="passGrandir(this)" '+
        'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();rappelAjouter();}"></textarea>'+
@@ -24486,7 +24542,7 @@ function rappelsHTML(enCarte){
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
         '</div>'+
         '<div class="pl2-t" onclick="rappelCocher(\''+r.id+'\')">'+
-          '<b>'+esc(r.texte)+'</b>'+
+          '<b>'+passRiche(r.texte)+'</b>'+
           (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
         '</div></div>';
     };
