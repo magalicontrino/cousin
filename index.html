@@ -3435,6 +3435,20 @@ body.pan-ouvert #view{animation:none;transform:none}
    autres feuilles). Le repère à gauche est un filet bleu, comme la réunion est jaune. */
 .pcarte .pl2.absence{box-shadow:inset 3px 0 0 #e63329;padding-left:11px}
 .pcarte .pgt.absence{color:#e63329;border-bottom-color:#e63329}
+/* ═══ LE BLOC « LES ENCODAGES » (Mag, 24/08/2026) ═══
+   Fond rouge plein — c'est le bloc qu'on ne doit pas oublier. Le titre et les lignes
+   se posent dessus, en clair pour rester lisibles. */
+.pcarte .encgrp{background:#e63329;border-radius:10px;padding:9px 11px 3px;margin-top:16px}
+.pcarte .encgrp .pgt{color:#fff;border-bottom-color:#fff}
+.pcarte .encgrp .pl2{background:transparent}
+.pcarte .encgrp .pl2 .tx b{color:#fff}
+.pcarte .encgrp .pl2 .tx em,.pcarte .encgrp .pl2 .tx .plbas{color:#ffe1de}
+.pcarte .encgrp .pl2 .cas{border-color:#fff;color:#fff}
+.pcarte .encgrp .pl2 .ib{color:#fff;border-color:rgba(255,255,255,.6)}
+.pcarte .encgrp .pl2 .ib.sup{color:#fff;border-color:rgba(255,255,255,.6)}
+.pcarte .encgrp .pl2 .pl2-sep{border-color:rgba(255,255,255,.35)}
+.pcarte .encgrp .pl2 .absnote{color:#fff}
+.pcarte .encgrp .pl2 .absnote .bx{border-color:#fff;background:#fff}
 /* La mention « Absence » posée sous le texte d'une note : case + mot, en rouge. */
 .pcarte .pl2 .absnote{display:inline-flex;align-items:center;gap:8px;margin-top:6px;
   font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
@@ -24406,6 +24420,13 @@ function rappelAbsence(id){
   if(r.absence) delete r.absence; else r.absence=true;
   rappelsSauver(); render();
 }
+/* L'étiquette « encodage » (désencodage…) : la note monte dans « Les encodages », le
+   bloc rouge tout en bas — celui qu'on ne doit pas oublier. */
+function rappelDesencodage(id){
+  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
+  if(r.desencodage) delete r.desencodage; else r.desencodage=true;
+  rappelsSauver(); render();
+}
 function rappelRetirer(id){
   const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
   cousinConfirme('Retirer ce rappel ?', r.texte, function(){
@@ -24556,9 +24577,8 @@ function rappelsHTML(enCarte){
           cinq minutes — on écrit les mêmes choses aux deux endroits.
           ⚠ ENTRÉE VALIDE TOUJOURS, mais MAJ+ENTRÉE va à la ligne : sur un champ qu'on
           remplit vingt fois par jour d'une seule phrase, obliger à viser « OK » à chaque
-          fois serait un geste de plus à chaque note. */
-       passBarreHTML('rapTxt')+
-       '<textarea id="rapTxt" rows="1" placeholder="Ce que tu ne veux pas oublier…" '+
+           fois serait un geste de plus à chaque note. */
+        '<textarea id="rapTxt" rows="1" placeholder="Ce que tu ne veux pas oublier…" '+
        'autocomplete="off" '+
        'oninput="RAP_BROUILLON=this.value;passGrandir(this)" '+
        'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();rappelAjouter();}">'+esc(RAP_BROUILLON||'')+'</textarea>'+
@@ -24636,11 +24656,19 @@ function rappelsHTML(enCarte){
           '<span class="absnote'+(r.absence?' on':'')+'" '+
             'onclick="event.stopPropagation();rappelAbsence(\''+r.id+'\')">'+
             '<span class="bx"></span>Absence</span>'+
+          /* ═══ DÉSENCODAGE, ENCORE PLUS MIS EN ÉVIDENCE (Mag, 24/08/2026) ═══
+             La case est rouge (le fond du bloc), car c'est ce qu'on ne doit pas oublier. */
+          '<span class="absnote enc'+(r.desencodage?' on':'')+'" '+
+            'onclick="event.stopPropagation();rappelDesencodage(\''+r.id+'\')">'+
+            '<span class="bx"></span>Désencodage</span>'+
         '</div></div>';
     };
     const groupe=function(titre, liste, cl){
       if(!liste.length) return '';
-      return '<div class="pgt'+(cl?' '+cl:'')+'">'+titre+'</div>'+liste.map(ligne).join('');
+      const contenu='<div class="pgt'+(cl?' '+cl:'')+'">'+titre+'</div>'+liste.map(ligne).join('');
+      /* Le bloc des encodages est enveloppé d'un fond rouge — c'est celui qui doit
+         arrêter l'œil, pas se fondre dans la liste. */
+      return (cl==='encodage') ? '<div class="encgrp">'+contenu+'</div>' : contenu;
     };
     const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
     const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand).localeCompare(String(b.quand)); });
@@ -24661,15 +24689,21 @@ function rappelsHTML(enCarte){
        compteur qu'on lit, pas une urgence : le mettre en tête l'aurait fait crier pour
        ce qu'on consulte une fois par jour. Il ferme la liste, en rouge et marqué. */
     const absences=MESRAPPELS.filter(function(r){ return r.absence; });
-    /* Les deux groupes marqués à la main sortent des blocs automatiques (jour, retard,
-       fait) : une ligne qu'on a pointée ne doit pas apparaître deux fois. */
-    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence; }); };
+    /* ⚠ LES ENCODAGES, TOUT EN BAS, SUR FOND ROUGE (Mag, 24/08/2026 : « il faut que ce
+       soit vraiment mis en évidence, il ne faut pas que j'oublie »). C'est le bloc qui
+       arrête l'œil : fond rouge, le désencodage qu'on ne doit pas rater. Une note peut
+       porter à la fois absence et désencodage — elle ne va qu'ici, pas aux absences. */
+    const encodages=MESRAPPELS.filter(function(r){ return r.desencodage; });
+    /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
+       automatiques : une ligne pointée ne doit pas apparaître deux fois. */
+    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasMarque(aVenir))
       + groupe('Faits', pasMarque(faits))
-      + groupe('Les absences', absences, 'absence');
+      + groupe('Les absences', absences, 'absence')
+      + groupe('Les encodages', encodages, 'encodage');
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
