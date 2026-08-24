@@ -3436,19 +3436,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl2.absence{box-shadow:inset 3px 0 0 #e63329;padding-left:11px}
 .pcarte .pgt.absence{color:#e63329;border-bottom-color:#e63329}
 /* ═══ LE BLOC « LES ENCODAGES » (Mag, 24/08/2026) ═══
-   Fond rouge plein — c'est le bloc qu'on ne doit pas oublier. Le titre et les lignes
-   se posent dessus, en clair pour rester lisibles. */
-.pcarte .encgrp{background:#e63329;border-radius:10px;padding:9px 11px 3px;margin-top:16px}
+   Fond rouge plein — c'est le bloc qu'on ne doit pas oublier. On ne recolore PAS les
+   boutons ni la case (ils ont déjà leur dessin lisible) : seul le fond change, et le
+   texte de la note passe en blanc pour se lire sur le rouge. */
+.pcarte .encgrp{background:#e63329;border-radius:10px;padding:8px 11px 4px;margin-top:16px}
 .pcarte .encgrp .pgt{color:#fff;border-bottom-color:#fff}
 .pcarte .encgrp .pl2{background:transparent}
 .pcarte .encgrp .pl2 .tx b{color:#fff}
 .pcarte .encgrp .pl2 .tx em,.pcarte .encgrp .pl2 .tx .plbas{color:#ffe1de}
-.pcarte .encgrp .pl2 .cas{border-color:#fff;color:#fff}
-.pcarte .encgrp .pl2 .ib{color:#fff;border-color:rgba(255,255,255,.6)}
-.pcarte .encgrp .pl2 .ib.sup{color:#fff;border-color:rgba(255,255,255,.6)}
-.pcarte .encgrp .pl2 .pl2-sep{border-color:rgba(255,255,255,.35)}
 .pcarte .encgrp .pl2 .absnote{color:#fff}
-.pcarte .encgrp .pl2 .absnote .bx{border-color:#fff;background:#fff}
+.pcarte .encgrp .pl2 .absnote .bx{border-color:#fff;background:#e63329}
+.pcarte .encgrp .pl2 .absnote.on .bx{background:#fff}
 /* La mention « Absence » posée sous le texte d'une note : case + mot, en rouge. */
 .pcarte .pl2 .absnote{display:inline-flex;align-items:center;gap:8px;margin-top:6px;
   font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
@@ -24413,20 +24411,8 @@ function rappelReunion(id){
   if(r.reunion) delete r.reunion; else r.reunion=true;
   rappelsSauver(); render();
 }
-/* L'étiquette « absence » : pose ou retire la marque, et la ligne monte dans le bloc
-   « Les absences ». Même logique que la réunion — on marque, et ça se voit en haut. */
-function rappelAbsence(id){
-  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
-  if(r.absence) delete r.absence; else r.absence=true;
-  rappelsSauver(); render();
-}
-/* L'étiquette « encodage » (désencodage…) : la note monte dans « Les encodages », le
-   bloc rouge tout en bas — celui qu'on ne doit pas oublier. */
-function rappelDesencodage(id){
-  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
-  if(r.desencodage) delete r.desencodage; else r.desencodage=true;
-  rappelsSauver(); render();
-}
+/* L'étiquette « absence » : posée depuis le champ d'écriture. Le marquage se règle à
+   la création de la note, pas ligne par ligne — voir `RAP_TAGS` et `rappelAjouter`. */
 function rappelRetirer(id){
   const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
   cousinConfirme('Retirer ce rappel ?', r.texte, function(){
@@ -24593,7 +24579,7 @@ function rappelsHTML(enCarte){
         /* ═══ LES ENCODÉS COCHABLES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
            Des cases libellées sous le champ, chacune cochable : une absence, un
            désencodage… On coche, on écrit, et la note porte le drapeau. L'absence
-           part dans « Les absences » ; les encodés dans « Les encodages » en bas. */
+           part dans « Les absences » ; les encodés dans « Désencodages » en bas. */
         '<div class="absas">'+
         '<button class="absa'+(RAP_TAGS.absence?' on':'')+'" onclick="RAP_TAGS.absence=!RAP_TAGS.absence;render()" '+
           'aria-pressed="'+(RAP_TAGS.absence?'true':'false')+'">'+
@@ -24650,17 +24636,6 @@ function rappelsHTML(enCarte){
         '<div class="pl2-t" onclick="rappelCocher(\''+r.id+'\')">'+
           '<b>'+passRiche(r.texte)+'</b>'+
           (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
-          /* ═══ ABSENCE, COMME UNE LIGNE SOUS LE TEXTE (Mag, 24/08/2026) ═══
-             Une case cochable sur la note : on marque/démarque, et la note passe dans
-             « Les absences ». Même dessin que le champ d'écriture. */
-          '<span class="absnote'+(r.absence?' on':'')+'" '+
-            'onclick="event.stopPropagation();rappelAbsence(\''+r.id+'\')">'+
-            '<span class="bx"></span>Absence</span>'+
-          /* ═══ DÉSENCODAGE, ENCORE PLUS MIS EN ÉVIDENCE (Mag, 24/08/2026) ═══
-             La case est rouge (le fond du bloc), car c'est ce qu'on ne doit pas oublier. */
-          '<span class="absnote enc'+(r.desencodage?' on':'')+'" '+
-            'onclick="event.stopPropagation();rappelDesencodage(\''+r.id+'\')">'+
-            '<span class="bx"></span>Désencodage</span>'+
         '</div></div>';
     };
     const groupe=function(titre, liste, cl){
@@ -24703,7 +24678,7 @@ function rappelsHTML(enCarte){
       + groupe('Plus tard', pasMarque(aVenir))
       + groupe('Faits', pasMarque(faits))
       + groupe('Les absences', absences, 'absence')
-      + groupe('Les encodages', encodages, 'encodage');
+      + groupe('Désencodages', encodages, 'encodage');
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
