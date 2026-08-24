@@ -3482,6 +3482,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .ptitre-lire{flex-wrap:nowrap}
 .pcarte .ptitre-lire .ptitre-pli{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
 .pcarte .ptitre-lire .ptitre-pli span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Le chevron du repli se pousse au bout à droite de la ligne, sous le bouton
+   d'impression — le même geste qu'au titre de la check-list (Mag, 24/08/2026). */
+.pcarte .ptitre-lire .ptitre-pli .ch{margin-left:auto}
 .pcarte .ptitre-lire .ptitre-i{margin-left:6px}
 .pcarte .ptitre-pli .ch{font-style:normal;font-size:15px;color:var(--enc2);flex:none;
   transition:transform .15s ease;transform:rotate(90deg)}
@@ -11214,27 +11217,37 @@ function imprimerMaListe(){
 
   let corps='';
 
-  /* ═══ MA LISTE PERSO SEULE (Mag, 24/08/2026 : « quand j'imprime ma liste perso, il ne
-     doit y avoir que ma liste perso' »). Avant, la feuille mélangeait la liste perso,
-     le travail de la check-list et la passation ; on imprime ici UNIQUEMENT ce que la
-     personne s'est noté à elle-même. */
-  const rapTous=MESRAPPELS.filter(function(r){ return !rappelFait(r); });
-  const rap=rapTous.filter(function(r){ return r.reunion; })
-       .concat(rapTous.filter(function(r){ return !r.reunion; }));
-  if(rap.length){
-    corps+='<h2 class="info">Ma liste perso</h2><table>'+rap.map(function(r){
-      const j=rappelDu(r), ch=r.chambre?('ch. '+esc(r.chambre)):'';
-      /* Le rappel peut porter un jour — on l'écrit en sous-texte, comme sur l'écran. */
-      const quand=r.quand?esc(rappelQuandFr(r.quand)):'';
-      const bas=[ch,quand].filter(Boolean).join(' · ');
-      return '<tr>'+
-        '<td class="cc"><span class="bx"></span></td>'+
-        '<td colspan="3">'+esc(r.texte||'')+
-          (bas?'<span class="com">'+bas+'</span>':'')+
-          (r.reunion?'<span class="com">à dire en réunion</span>':'')+
-        '</td></tr>';
-    }).join('')+'</table>';
-  }
+  /* ═══ MA LISTE PERSO, DANS L'ORDRE DE L'ÉCRAN (Mag, 24/08/2026) ═══
+     La carte est divisée en trois parties — à dire en réunion, les absences, puis le
+     reste — et la feuille doit reproduire cette mise en page. Une ligne marquée à la
+     main (réunion ou absence) sort des blocs automatiques : elle n'apparaît qu'une fois,
+     là où on l'a pointée. */
+  const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
+  const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand||'').localeCompare(String(b.quand||'')); });
+  const reunions=MESRAPPELS.filter(function(r){ return r.reunion; });
+  const absences=MESRAPPELS.filter(function(r){ return r.absence; });
+  const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence; }); };
+
+  const champ=function(r){
+    const ch=r.chambre?('ch. '+esc(r.chambre)):'';
+    const quand=r.quand?esc(rappelQuandFr(r.quand)):'';
+    const bas=[ch,quand].filter(Boolean).join(' · ');
+    return '<tr'+(rappelFait(r)?' class="fait"':'')+'>'+
+      '<td class="cc"><span class="bx"></span></td>'+
+      '<td colspan="3">'+esc(r.texte||'')+
+        (bas?'<span class="com">'+bas+'</span>':'')+
+      '</td></tr>';
+  };
+  const bloc=function(titre, liste, cl){
+    if(!liste.length) return '';
+    return '<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2><table>'+liste.map(champ).join('')+'</table>';
+  };
+  corps+= bloc('À dire en réunion', reunions, 'reunion')
+    + bloc('Les absences', absences, 'absence')
+    + bloc('En retard', pasMarque(parJour(-1)), 'presse')
+    + bloc('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
+    + bloc('Plus tard', pasMarque(aVenir))
+    + bloc('Faits', pasMarque(MESRAPPELS.filter(rappelFait)));
 
   if(!corps) corps='<p class="vide">Ta liste perso est vide : tu n’as rien noté.</p>';
 
@@ -11265,6 +11278,12 @@ function imprimerMaListe(){
        l'app doivent se reconnaître. */
     'h2.rouge{color:#c0246e;border-color:#E8308A}'+
     'h2.info{color:#4b7fb5;border-color:#a9c8e8}'+
+    /* Les trois parties de la carte, dans les mêmes teintes qu'à l'écran : la réunion
+       en jaune, les absences en bleu — la feuille doit se lire comme la page. */
+    'h2.reunion{color:#a97c05;border-color:#f5c542}'+
+    'h2.absence{color:#3e6ea0;border-color:#a9c8e8}'+
+    'h2.presse{color:#c41f1f;border-color:#e6a3a0}'+
+    'tr.fait td{color:#8b8984;text-decoration:line-through}'+
     '.ry{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666;margin:10px 0 2px}'+
     '.ry.rouge{color:#c41f1f}'+
     'table{width:100%;border-collapse:collapse}'+
@@ -22516,6 +22535,12 @@ function clPlier(){ CL_OUVERTE=!CL_OUVERTE; render(); }
 let PASS_OUVERTE=true;
 function passRepliee(){ return !PASS_OUVERTE; }
 function passPlier(){ PASS_OUVERTE=!PASS_OUVERTE; render(); }
+/* ⚠ MA LISTE PERSO SE REPLIE AUSSI (Mag, 24/08/2026 : « le chevron de repli aussi dans
+   ma liste perso »). C'est la carte où l'on écrit — pas une carte de lecture — elle
+   arrive donc DÉPLOYÉE. Le pli libère la place quand on n'a plus rien à noter. */
+let RAP_OUVERTE=true;
+function rapRepliee(){ return !RAP_OUVERTE; }
+function rapPlier(){ RAP_OUVERTE=!RAP_OUVERTE; render(); }
 const LISTE_VUE_K='lux_liste_vue';
 let LISTE_VUE=''; try{ LISTE_VUE=localStorage.getItem(LISTE_VUE_K)||''; }catch(e){}
 function listeVoir(k){
@@ -24344,12 +24369,20 @@ function carteMaListe(){
      ⚠ LE COMPTE (« 0 / 3 faites ») CÈDE SA PLACE, et c'est elle qui l'a décidé : il se
      lit déjà sur les lignes elles-mêmes, alors qu'un bouton n'a nulle part ailleurs où
      aller. */
-  return '<div class="pcarte"><div class="ptitre"><b>Ma liste perso</b>'+
+  const plie=rapRepliee();
+  return '<div class="pcarte'+(plie?' plie':'')+'">'+
+    /* ═══ MÊME TITRE-PLI QUE LA PASSATION ET LA CHECK-LIST (Mag, 24/08/2026) ═══
+       Le chevron à droite replie la carte — la liste perso se replie comme les deux
+       autres, pour libérer la place le soir. Le titre reste un bouton. */
+    '<div class="ptitre ptitre-lire">'+
+      '<button class="ptitre-pli" onclick="rapPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
+        '<b>Ma liste perso</b>'+
+        '<span>'+(tot ? fait+' / '+tot+' faites' : 'rien pour l’instant')+'</span>'+
+        '<em class="ch">›</em></button>'+
       /* ⚠ IMPRIMER TOUTE LA PAGE, PAS SEULEMENT CETTE CARTE (Mag, 22/08/2026 : « je dois
          pouvoir imprimer ma liste, avec tout quoi, la passation — quand j'imprime là, ça
-         fait vraiment toute ma liste »). `imprimerMaListe` sort déjà les trois blocs sur
-         une seule feuille : ce qui est passé à l'équipe, la check-list du travail, et
-         cette liste-ci. Il manquait simplement une porte pour l'appeler d'ici.
+         fait vraiment toute ma liste »). `imprimerMaListe` sort déjà la liste perso sur
+         une feuille. Il manquait simplement une porte pour l'appeler d'ici.
          ⚠ UN DESSIN SEUL, sans le mot : le titre porte déjà « Effacer la liste » écrit
          en toutes lettres, et deux boutons de texte côte à côte se lisent comme un
          choix entre deux actions de même poids — alors qu'imprimer ne détruit rien. */
@@ -24357,9 +24390,9 @@ function carteMaListe(){
         'title="Imprimer toute la page">'+icon('note')+'</button>'+
       (tot
         ? '<button class="ptitre-b" onclick="rappelsEffacer()">Effacer la liste</button>'
-        : '<span>rien pour l’instant</span>')+
+        : '')+
     '</div>'+
-      rappelsHTML(true)+
+    (plie ? '' : rappelsHTML(true))+
     '</div>';
 }
 /* ⚠ ON EFFACE SA LISTE, PAS SES PASSATIONS. Ce qui est parti à l'équipe de nuit ne
