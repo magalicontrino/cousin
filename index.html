@@ -23396,7 +23396,20 @@ function passPourNom(k, dansUnePhrase){
   return dansUnePhrase ? 'l’équipe de nuit' : 'L’équipe de nuit';
 }
 function passPourChoix(k){ PASS_POUR=k; passChampsGarder(); }
-function passGenreChoix(g){ PASS_GENRE=g; passChampsGarder(); }
+function passGenreChoix(g){
+  const avant=passGenreDe(PASS_GENRE), apres=passGenreDe(g);
+  /* ⚠ ATTENTION QUAND ON ANNULE UN RÉVEIL (Mag, 24/08/2026). Passer d'un genre qui a
+     une heure (réveil, à jeun) vers un genre qui n'en a pas (info) retire l'heure : la
+     ligne ne réveillera plus personne. On le dit avant que ce soit fait. */
+  if(avant && avant.heure && !apres.heure){
+    cousinConfirme('Annuler ce réveil ?',
+      'Tu passes la ligne en « info » : elle ne réveillera plus personne.\n\n'+
+      'Si c’est voulu, confirme ; sinon choisis un genre avec une heure.',
+      function(){ PASS_GENRE=g; passChampsGarder(); }, {ok:'Annuler le réveil', danger:true});
+    return;
+  }
+  PASS_GENRE=g; passChampsGarder();
+}
 /* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
    note le soir, pour le lendemain matin. */
 function passDemain(){ const d=new Date(); d.setDate(d.getDate()+1); return agIso(d); }
@@ -23775,11 +23788,13 @@ function passToutes(){
    le même nom, donc la même note »). La même passation peut exister deux fois en base
    avec deux `id` différents — un réveil saisi deux fois, un « à jeun » du soir et du
    matin. Le dédoublonnage par `id` ne les rapproche pas. On garde aussi une clé de
-   contenu : même texte + chambre + heure + jour = une seule ligne. */
+   contenu : même texte + chambre + jour = une seule ligne.
+   ⚠ NI HEURE NI GENRE DANS LA CLÉ (Mag, 24/08/2026) : sinon une même note passée une
+   fois en réveil puis modifiée en info restait deux fois — une dans chaque section. */
 function passUnique(liste){
   const vues={};
   return liste.filter(function(p){
-    const k=p.texte+'|'+(p.chambre||'')+'|'+(p.heure||'')+'|'+(p.jour||'')+'|'+(p.genre||'');
+    const k=p.texte+'|'+(p.chambre||'')+'|'+(p.jour||'');
     if(vues[k]) return false; vues[k]=1; return true;
   });
 }
