@@ -3111,6 +3111,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .chadd.ecrire textarea,.chadd.ecrire input{background:#fdfdfc;border-color:transparent;
   border-radius:6px;color:var(--noir)}
 .chadd.ecrire textarea:focus,.chadd.ecrire input:focus{border-color:#f5c542}
+/* Le picto « absences » du champ d'écriture : un carré clair aligné aux boutons, comme
+   les pictos des lignes. Sur fond noir il doit rester lisible. */
+.chadd.ecrire .ib{width:44px;height:44px;flex:none;border:1px solid rgba(242,238,230,.35);
+  border-radius:6px;background:rgba(242,238,230,.08);color:#f2eee6;display:inline-flex;
+  align-items:center;justify-content:center}
+.chadd.ecrire .ib.absence{background:#eef4fb;color:#3e6ea0;border-color:#a9c8e8}
+.chadd.ecrire .ib svg{width:16px;height:16px}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
    ce qui est écrit ») ═══
@@ -3404,6 +3411,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl2.reunion{box-shadow:inset 3px 0 0 #f5c542;padding-left:11px}
 .pcarte .pl2 .ib.reunion{border-color:#e0ad10;color:#a97c05;background:#fdf6e3}
 .pcarte .pgt.reunion{color:#a97c05;border-bottom-color:#f5c542}
+/* Les absences : le bleu des jours (même famille que le calendrier et l'info dans les
+   autres feuilles). Le repère à gauche est un filet bleu, comme la réunion est jaune. */
+.pcarte .pl2.absence{box-shadow:inset 3px 0 0 #a9c8e8;padding-left:11px}
+.pcarte .pl2 .ib.absence{border-color:#7ba3cf;color:#3e6ea0;background:#eef4fb}
+.pcarte .pgt.absence{color:#3e6ea0;border-bottom-color:#a9c8e8}
 /* ═══ CE QUI EST PARTI EN PASSATION, EN FIN DE LISTE (Mag, 22/08/2026) ═══
    « Ça part en fin de liste dans une autre couleur. » La teinte dit « ce n'est plus
    pour moi, c'est chez l'équipe qui arrive » — sans le répéter en toutes lettres sur
@@ -5102,6 +5114,10 @@ const ICONS = {
      16 px. Un mégaphone avait été essayé entre-temps, puis écarté. Celle-ci est la
      forme que tout le monde reconnaît, et elle reste nette en petit. */
   etoile5:'<path d="M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.4l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94z"/>',  calendrier:'<path d="M7 2v2H5.5A2.5 2.5 0 0 0 3 6.5v13A2.5 2.5 0 0 0 5.5 22h13a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 18.5 4H17V2h-2v2H9V2H7zM5 9h14v10.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H7zm4 0v2h2v-2h-2z"/>',
+  /* L'absence : un calendrier barré d'un trait, pour dire « ce jour-là, absent ».
+     C'est un jour marqué, pas une personne — le picto reste dans la famille des
+     calendriers de l'app (11/09/2026). */
+  absence:'<path d="M7 2v2H5.5A2.5 2.5 0 0 0 3 6.5v13A2.5 2.5 0 0 0 5.5 22h13a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 18.5 4H17V2h-2v2H9V2H7zM5 8h14v11a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19V8z"/><path d="M3.5 9.5l17 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   /* Le crayon : « modifier », partout où on corrige sans supprimer (22/08/2026).
      Même trait plein que les autres — pas un contour, pour rester dans la famille. */
   crayon: '<path d="M3 17.3V21h3.7L17.9 9.8 14.2 6.1 3 17.3z"/><path d="M20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.6 1.6 3.7 3.7L20.7 7z"/>',
@@ -11192,94 +11208,35 @@ function imprimerMaListe(){
              ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
 
-  /* Ses listes à elle ; si son rôle n'en a aucune, celle qu'elle regarde. */
-  let groupes=(CHECKLISTS||[]).filter(function(g){ return g.mienne; });
-  if(!groupes.length && CHECKLISTS && CHECKLISTS.length){
-    const vue=CHECKLISTS.find(function(g){ return g.liste===LISTE_VUE; });
-    groupes=vue?[vue]:[CHECKLISTS[0]];
-  }
-
-  /* Le compte porte sur TOUT (tâches + rappels), comme l'aperçu de l'accueil. */
+  /* Le compte porte sur la liste perso (ses rappels). */
   let tot=0, faites=0;
-  groupes.forEach(function(g){ (g.taches||[]).forEach(function(t){ tot++; if(DONE[t.id]) faites++; }); });
   MESRAPPELS.forEach(function(r){ tot++; if(rappelFait(r)) faites++; });
-
-  const case_=function(){ return '<td class="cc"><span class="bx"></span></td>'; };
-  const titre=function(t, cl){ return '<h2'+(cl?' class="'+cl+'"':'')+'>'+esc(t)+'</h2>'; };
 
   let corps='';
 
-  /* ═══ L'ORDRE DE LA FEUILLE (Mag, 22/08/2026) ═══
-     « Quand je print tout, ce n'est pas très clair, ce n'est pas logique. La passation à
-     la fin, ouais, pourquoi pas — mais moi c'est plutôt ce que J'AI À FAIRE. Il faut un
-     print de ma liste, ça c'est important. »
-     La feuille commence donc par ce qui la concerne, elle, et finit par ce qui concerne
-     l'équipe qui arrive :
-     1. MA LISTE PERSO — ce qu'elle a noté elle-même, réunion en tête ;
-     2. LE TRAVAIL — la check-list de son rôle ;
-     3. LA PASSATION — en dernier : c'est un rappel de ce qu'elle a passé, pas une chose
-        à faire. Avant, elle ouvrait la feuille et tombait sur les réveils des autres. */
-  /* Les lignes marquées « à dire en réunion » en tête : c'est la feuille qu'on emporte
-     à la réunion, et ce qu'on a marqué exprès doit être la première chose qu'on voit. */
+  /* ═══ MA LISTE PERSO SEULE (Mag, 24/08/2026 : « quand j'imprime ma liste perso, il ne
+     doit y avoir que ma liste perso' »). Avant, la feuille mélangeait la liste perso,
+     le travail de la check-list et la passation ; on imprime ici UNIQUEMENT ce que la
+     personne s'est noté à elle-même. */
   const rapTous=MESRAPPELS.filter(function(r){ return !rappelFait(r); });
   const rap=rapTous.filter(function(r){ return r.reunion; })
        .concat(rapTous.filter(function(r){ return !r.reunion; }));
   if(rap.length){
-    corps+=titre('Ma liste perso')+'<table>'+rap.map(function(r){
-      const j=rappelDu(r);
-      const q=(r.reunion?'à dire en réunion':(j===-1?'en retard':(j===0?'aujourd’hui':'')));
-      return '<tr'+(j===-1?' class="presse"':'')+'>'+case_()+'<td colspan="3">'+esc(r.texte||'')+
-        (q?'<span class="com">'+esc(q)+'</span>':'')+'</td></tr>';
+    corps+='<h2 class="info">Ma liste perso</h2><table>'+rap.map(function(r){
+      const j=rappelDu(r), ch=r.chambre?('ch. '+esc(r.chambre)):'';
+      /* Le rappel peut porter un jour — on l'écrit en sous-texte, comme sur l'écran. */
+      const quand=r.quand?esc(rappelQuandFr(r.quand)):'';
+      const bas=[ch,quand].filter(Boolean).join(' · ');
+      return '<tr>'+
+        '<td class="cc"><span class="bx"></span></td>'+
+        '<td colspan="3">'+esc(r.texte||'')+
+          (bas?'<span class="com">'+bas+'</span>':'')+
+          (r.reunion?'<span class="com">à dire en réunion</span>':'')+
+        '</td></tr>';
     }).join('')+'</table>';
   }
 
-  if(!corps) corps='<p class="vide">Rien à faire sur cette feuille : tout est coché.</p>';
-
-  /* ── LE TRAVAIL ── par liste, puis par rythme. Un bloc vide ne s'écrit pas :
-     un titre au-dessus de rien fait croire qu'il manque quelque chose. */
-  groupes.forEach(function(g){
-    const restent=(g.taches||[]).filter(function(t){ return !DONE[t.id]; });
-    if(!restent.length) return;
-    corps+=titre(LISTE_LABELS[g.liste]||g.liste);
-    const par=function(r){ return restent.filter(function(t){ return rythmeDe(t)===r; }); };
-    const bloc=function(nom, liste, cl){
-      if(!liste.length) return '';
-      return '<div class="ry'+(cl?' '+cl:'')+'">'+esc(nom)+'</div><table>'+
-        liste.map(function(t){ return '<tr>'+case_()+'<td colspan="3">'+esc(t.tache)+'</td></tr>'; }).join('')+
-        '</table>';
-    };
-    /* Le jour de reprise, ces tâches-là passent devant : c'est le seul jour où
-       elles existent. Les autres jours elles referment la liste. */
-    const rep=bloc(enReprise()?'À faire en reprenant':'À la reprise de ton cycle',
-                   par('reprise'), enReprise()?'rouge':'');
-    if(enReprise()) corps+=rep;
-    corps+=bloc('Aujourd’hui', par('jour'))+bloc('Au cours de la semaine', par('semaine'),'sem');
-    if(!enReprise()) corps+=rep;
-  });
-
-  /* ── MA LISTE À MOI ── ses rappels. Le jour n'est écrit que s'il presse :
-     un rappel sans date est là tous les jours et n'annonce rien. */
-  /* ── LA PASSATION ── ce qui est arrivé de l'équipe d'avant et n'est pas coché. */
-  const pour=(typeof passPourMoi==='function'?passTri(passPourMoi()):[])
-               .filter(function(p){ return !passFait(p); });
-  const reveils=pour.filter(function(p){ return p.genre==='reveil'; });
-  const infos=pour.filter(function(p){ return p.genre!=='reveil'; });
-
-  if(reveils.length){
-    corps+=titre('Les réveils','rouge')+'<table>'+reveils.map(function(p){
-      return '<tr>'+case_()+
-        '<td class="h">'+esc(p.heure||'heure ?')+'</td>'+
-        '<td class="ch">'+esc(p.chambre||'—')+'</td>'+
-        '<td>'+esc(p.texte||'')+
-          (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+'</td></tr>';
-    }).join('')+'</table>';
-  }
-  if(infos.length){
-    corps+=titre('La passation')+'<table>'+infos.map(function(p){
-      return '<tr>'+case_()+'<td colspan="3">'+esc(p.texte||'')+
-        (p.commentaire?'<span class="com">'+esc(p.commentaire)+'</span>':'')+'</td></tr>';
-    }).join('')+'</table>';
-  }
+  if(!corps) corps='<p class="vide">Ta liste perso est vide : tu n’as rien noté.</p>';
 
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
@@ -11324,19 +11281,22 @@ function imprimerMaListe(){
     'td.h{width:20mm;font-weight:700;font-size:17px;white-space:nowrap}'+
     'td.ch{width:22mm;font-weight:700;white-space:nowrap}'+
     '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
-    'tr.presse td{background:#fdeeed}'+
-    '.vide{padding:18px 0;font-size:15px;color:#555}'+
-    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
+     'tr.presse td{background:#fdeeed}'+
+     '.vide{padding:18px 0;font-size:15px;color:#555}'+
+     /* ⚠ LE FOND GRIS NE DOIT PAS S'IMPRIMER (24/08/2026) : même réparation que la
+        feuille de passation — on force le blanc sur le papier. */
+     '@media print{.bar{display:none}body{background:#fff}'+
+       '.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
     '</style></head><body>'+
     '<div class="bar"><b>Ma liste — aperçu</b>'+
       '<button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
     '<div class="pg">'+
-      '<h1>Ma liste</h1>'+
+      '<h1>Ma liste perso</h1>'+
       '<p class="sous">'+esc(jour)+(qui?' · '+esc(qui):'')+'</p>'+
       '<p class="compte">'+(tot
          ? faites+' sur '+tot+' déjà faites — elles ne sont pas sur la feuille.'
-         : 'Aucune tâche pour l’instant.')+'</p>'+
+         : 'Rien de noté pour l’instant.')+'</p>'+
       corps+
       /* De quoi noter en route : ce qu'on retient dans un couloir se perd si on n'a
          pas la place de l'écrire tout de suite. */
@@ -23122,6 +23082,15 @@ async function resetListe(nom){
 let MESRAPPELS;
 try{ MESRAPPELS=JSON.parse(localStorage.getItem('lux_mes_rappels')||'[]'); }catch(e){ MESRAPPELS=[]; }
 if(!Array.isArray(MESRAPPELS)) MESRAPPELS=[];
+/* ═══ LE BROUILLON DU CHAMP « CE QUE TU NE VEUX PAS OUBLIER » (24/08/2026) ═══
+   Mag tapait une note et la page a « sauté » — un `render()` déclenché entre-temps
+   (rafraîchissement en arrivant, données qui se rechargent) reconstruit le champ à
+   vide et la saisie se perd. On garde donc le texte tapé dans une variable survivante
+   à tout rerendu, et `rappelsHTML` le repose dans le champ. */
+let RAP_BROUILLON='';
+let RAP_CH_BROUILLON='';
+/* L'état « cette note est un jour d'absence », choisi avant de taper. */
+let RAP_ABSENCE=false;
 function rappelsSauver(){
   try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
   if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
@@ -23805,9 +23774,13 @@ function imprimerPassation(pour){
     /* Le nom du genre, en petit, devant le texte — sur une table qui mélange plusieurs
        genres, c'est lui qui les distingue quand la couleur ne s'imprime pas. */
     '.pgenre{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#555;margin-right:4px}'+
-    'tr.fait td{color:#8b8984;text-decoration:line-through}'+
-    '.vide{padding:18px 0;font-size:15px;color:#555}'+
-    '@media print{.bar{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
+     'tr.fait td{color:#8b8984;text-decoration:line-through}'+
+     '.vide{padding:18px 0;font-size:15px;color:#555}'+
+     /* ⚠ LE FOND GRIS NE DOIT PAS S'IMPRIMER (Mag, 24/08/2026) : le body de l'aperçu
+        est #e8e7e4, et sur une page qui déborde le blanc du `.pg` ne couvre pas tout
+        le fond — le carré gris sortait sur le papier. On force le blanc. */
+     '@media print{.bar{display:none}body{background:#fff}'+
+       '.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
     '</style></head><body>'+
     '<div class="bar"><b>La passation — aperçu</b>'+
       '<button onclick="window.close()">Fermer</button>'+
@@ -24221,8 +24194,9 @@ function rappelAjouter(){
      qu'on vient d'écrire. */
   const ligne={id:'r'+Date.now(), texte:t.slice(0,400)};
   if(ch) ligne.chambre=ch.slice(0,12);
+  if(RAP_ABSENCE) ligne.absence=true;
   MESRAPPELS.push(ligne);
-  rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_ABSENCE=false; rappelsSauver(); i.value=''; if(c) c.value=''; render();
   setTimeout(function(){ const e=document.getElementById('rapTxt'); if(e) e.focus(); },30);
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
@@ -24264,6 +24238,7 @@ function rappelVersPassation(){
      champ chambre, et c'est lui qu'on remplit. */
   const c=document.getElementById('rapCh');
   const ch=((c&&c.value)||'').trim(); if(c) c.value='';
+  RAP_BROUILLON=''; RAP_CH_BROUILLON='';
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   render();
   setTimeout(function(){
@@ -24309,6 +24284,13 @@ function rappelCocher(id){
 function rappelReunion(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   if(r.reunion) delete r.reunion; else r.reunion=true;
+  rappelsSauver(); render();
+}
+/* L'étiquette « absence » : pose ou retire la marque, et la ligne monte dans le bloc
+   « Les absences ». Même logique que la réunion — on marque, et ça se voit en haut. */
+function rappelAbsence(id){
+  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
+  if(r.absence) delete r.absence; else r.absence=true;
   rappelsSauver(); render();
 }
 function rappelRetirer(id){
@@ -24393,7 +24375,7 @@ function rappelsEffacer(){
     tot+(tot>1?' lignes seront effacées':' ligne sera effacée')+
     (reste? ', dont '+reste+(reste>1?' que tu n’as pas cochées':' que tu n’as pas cochée') : '')+
     '.\n\nCe qui est parti en passation n’est pas touché : ça reste chez l’équipe de nuit.',
-    function(){ MESRAPPELS=[]; rappelsSauver(); render(); },
+    function(){ MESRAPPELS=[]; RAP_BROUILLON=''; RAP_CH_BROUILLON=''; rappelsSauver(); render(); },
     {ok:'Effacer', danger:true});
 }
 /* ═══ LA RANGÉE DE MA LISTE PERSO (Mag, 22/08/2026) ═══
@@ -24454,16 +24436,23 @@ function rappelsHTML(enCarte){
           fois serait un geste de plus à chaque note. */
        passBarreHTML('rapTxt')+
        '<textarea id="rapTxt" rows="1" placeholder="Ce que tu ne veux pas oublier…" '+
-       'autocomplete="off" oninput="passGrandir(this)" '+
-       'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();rappelAjouter();}"></textarea>'+
-       '<div class="chadd-b">'+
-       '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
-       'aria-label="Numéro de chambre" inputmode="numeric" '+
-       'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')" '+
-       'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
-       '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
-       '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
-       '</div>'+
+       'autocomplete="off" '+
+       'oninput="RAP_BROUILLON=this.value;passGrandir(this)" '+
+       'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();rappelAjouter();}">'+esc(RAP_BROUILLON||'')+'</textarea>'+
+        '<div class="chadd-b">'+
+        '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
+        'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(RAP_CH_BROUILLON||'')+'" '+
+        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');RAP_CH_BROUILLON=this.value" '+
+        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
+        '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
+        '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
+        /* ═══ ABSENCES, AUSSI AU MOMENT OÙ ON ÉCRIT (Mag, 24/08/2026) ═══
+           Le picto est aussi sur les lignes déjà écrites ; ici il dit d'avance que la
+           note qu'on est en train de taper est une absence. On coche le calendrier barré,
+           on écrit, et la ligne part dans « Les absences ». */
+        '<button class="ib'+(RAP_ABSENCE?' absence':'')+'" onclick="RAP_ABSENCE=!RAP_ABSENCE;render()" '+
+          'aria-label="Marquer comme absence" title="Jour d’absence">'+icon('absence')+'</button>'+
+        '</div>'+
      '</div>';
   if(tot){
     /* ═══ RANGÉS PAR JOUR (08/08/2026) ═══
@@ -24503,6 +24492,12 @@ function rappelsHTML(enCarte){
              voyant, pas en le cherchant. */
           '<button class="ib'+(r.reunion?' reunion':'')+'" onclick="rappelReunion(\''+r.id+'\')" '+
             'aria-label="À dire en réunion" title="À dire en réunion">'+icon('etoile5')+'</button>'+
+          /* ═══ ABSENCES (Mag, 24/08/2026) ═══
+             On note tous les jours le nombre de jours d'absence. Le marqueur fait
+             comme l'étoile : il pose une étiquette sur la ligne, et la ligne remonte
+             dans un bloc « Les absences » en tête. Calendrier barré pour le jour absent. */
+          '<button class="ib'+(r.absence?' absence':'')+'" onclick="rappelAbsence(\''+r.id+'\')" '+
+            'aria-label="Absence" title="Jours d’absence">'+icon('absence')+'</button>'+
           '<button class="ib sup" onclick="rappelRetirer(\''+r.id+'\')" '+
             'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
@@ -24533,12 +24528,19 @@ function rappelsHTML(enCarte){
        La ligne reste donc dans le bloc de la réunion, barrée et estompée comme toutes
        les lignes faites : on voit qu'elle est réglée ET qu'on doit en parler. */
     const reunion=MESRAPPELS.filter(function(r){ return r.reunion; });
-    const pasReunion=function(l){ return l.filter(function(r){ return !r.reunion; }); };
+    /* ⚠ LES ABSENCES PASSENT AUSSI EN TÊTE (Mag, 24/08/2026 : « si c'est une absence,
+       alors il doit se placer dans les absences »). C'est le second geste qu'on marque
+       à la main ; il précède le reste comme la réunion. */
+    const absences=MESRAPPELS.filter(function(r){ return r.absence; });
+    /* Les deux groupes marqués à la main sortent des blocs automatiques (jour, retard,
+       fait) : une ligne qu'on a pointée ne doit pas apparaître deux fois. */
+    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
-      + groupe('En retard', pasReunion(parJour(-1)))
-      + groupe('Aujourd’hui', pasReunion(parJour(0).concat(parJour(null))))
-      + groupe('Plus tard', pasReunion(aVenir))
-      + groupe('Faits', pasReunion(faits));
+      + groupe('Les absences', absences, 'absence')
+      + groupe('En retard', pasMarque(parJour(-1)))
+      + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
+      + groupe('Plus tard', pasMarque(aVenir))
+      + groupe('Faits', pasMarque(faits));
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
