@@ -2619,6 +2619,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le troisième champ ne reçoit qu'un nombre : une case large comme un nombre.
    Une case pleine largeur pour « 2 » invite à y écrire une phrase. */
 #popChamp3{width:130px;font-family:ui-monospace,monospace;letter-spacing:.06em}
+/* ═══ LES CASES ABSENCE / DÉSENCODAGE DE LA FENÊTRE (Mag, 24/08/2026) ═══
+   Deux cases côte à côte, cochables, sous le champ. Cochee = rouge (la couleur des
+   encodés), décochée = gris. */
+.popetq{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.popetb{flex:1;min-width:130px;display:inline-flex;align-items:center;gap:9px;
+  border:1.25px solid var(--ligne);border-radius:6px;padding:10px 12px;background:#fdfdfc;
+  color:var(--enc2);font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;font-weight:600;cursor:pointer}
+.popetb .bx{width:14px;height:14px;border:1.5px solid var(--enc2);border-radius:3px;background:none;flex:none}
+.popetb.on{border-color:#e63329;color:#e63329;background:#fdeeed}
+.popetb.on .bx{border-color:#e63329;background:#e63329}
 .popbas{display:flex;align-items:center;gap:10px;margin-top:18px}
 .popbas .ann{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:#8b8984;padding:12px 4px}
@@ -13999,7 +14010,7 @@ function vProfil(){
    · cousinConfirme(titre, texte, quandOui, {ok, danger})
    · cousinDemande(titre, texte, valeurDeDépart, quandRempli)          */
 let _popMulti=false;
-let _popQuandOui=null, _popQuandAutre=null, _popChamp=false, _popPlus=false;
+let _popQuandOui=null, _popQuandAutre=null, _popChamp=false, _popPlus=false, _popEtq=false, _popEtqSel={};
 function popFermer(){
   document.getElementById('popBg').classList.remove('on');
   ['popChamp2','popChamp3','popChampM'].forEach(function(id){
@@ -14009,7 +14020,9 @@ function popFermer(){
   if(c){ c.type='text'; c.value=''; }
   const au=document.getElementById('popAutre');
   if(au) au.style.display='none';
-  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false;
+  const et=document.getElementById('popEtq');
+  if(et){ et.style.display='none'; et.innerHTML=''; }
+  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false; _popEtq=false;
 }
 function popValider(){
   const c=document.getElementById(_popMulti?'popChampM':'popChamp');
@@ -14019,9 +14032,12 @@ function popValider(){
     deux:(document.getElementById('popChamp2')||{}).value||'',
     trois:(document.getElementById('popChamp3')||{}).value||''
   } : null;
+  /* ⚠ LES CASES ABSENCE / DÉSENCODAGE, si la fenêtre en propose. Chaque case cochée
+     revient comme vrai — on ne lit pas le HTML, on lit `_popEtqSel`. */
+  const etq = _popEtq ? _popEtqSel : null;
   const f=_popQuandOui;
   popFermer();
-  if(f) f(v, plus);
+  if(f) f(v, plus, etq);
 }
 function cousinPop(o){
   const bg=document.getElementById('popBg');
@@ -14082,6 +14098,25 @@ function cousinPop(o){
     }
   }
   const ok=document.getElementById('popOk');
+  /* ═══ LES CASES ABSENCE / DÉSENCODAGE DE LA FENÊTRE (Mag, 24/08/2026) ═══
+     Pour une note de Ma liste perso, on peut poser ou retirer ces marques sans recréer
+     la ligne — surtout POUR LES RETIRER (une note sortie des absences). `o.etq` est la
+     liste des cases, `o.etqSel` celles déjà cochées. */
+  _popEtq = !!o.etq;
+  _popEtqSel = (o.etqSel||{}).slice ? (o.etqSel||[]) : {};
+  if(_popEtq){
+    const et=document.getElementById('popEtq');
+    if(et){
+      const sel={}; (o.etqSel||[]).forEach(function(k){ sel[k]=1; });
+      _popEtqSel=sel;
+      et.style.display='block';
+      et.innerHTML='<div class="popetq">'+(o.etq||[]).map(function(opt){
+        return '<button class="popetb'+(sel[opt.k]?' on':'')+'" '+
+          'onclick="popEtqToggle(\''+opt.k+'\',this)">'+
+          '<span class="bx"></span>'+esc(opt.l)+'</button>';
+      }).join('')+'</div>';
+    }
+  }
   ok.textContent=o.ok||'Confirmer';
   ok.classList.toggle('danger',!!o.danger);
   _popQuandOui=o.quandOui||null;
@@ -14104,6 +14139,11 @@ function popAutre(){
   const f=_popQuandAutre;
   popFermer();
   if(f) f();
+}
+/* Une case absence/désencodage qui se coche ou se décoche dans la fenêtre. */
+function popEtqToggle(k, btn){
+  if(_popEtqSel[k]){ delete _popEtqSel[k]; } else { _popEtqSel[k]=1; }
+  if(btn) btn.classList.toggle('on', !!_popEtqSel[k]);
 }
 function cousinConfirme(titre,texte,quandOui,opt){
   cousinPop({titre:titre,texte:texte,ok:(opt&&opt.ok)||'Confirmer',danger:!!(opt&&opt.danger),quandOui:quandOui});
@@ -21184,20 +21224,15 @@ const ACC_CHAMPS=[
     ⚠ APRÈS LA PERTE, IL N'Y A PLUS RIEN À ACTIVER — c'est toute la raison d'en
     parler maintenant, et c'est pour ça que la phrase est écrite en entier plutôt
     que renvoyée à un lien. */
- {s:'Pour la joindre', c:[
-   {k:'gsm',l:'GSM',
-    /* ⚠ COURT, ET IL DOIT LE RESTER (Mag, 21/08/2026 : « une phrase beaucoup plus
-       courte, explique juste qu'il faut l'activer avant la perte »). Ma version
-       faisait trois lignes sous une case à remplir : on ne lit pas un paragraphe
-       pendant qu'on parle à quelqu'un.
-       ⚠ CETTE LIGNE EST TOUT CE QUI RESTE DU SUJET, et c'est voulu. Les deux fiches
-       « téléphone » ont été supprimées le 21/08 : « on s'en fout si c'est volé, on
-       sait très bien qu'on doit aller à la police — tu mets pas ça sur le site, ça
-       sert à rien ». Ne pas les réécrire. */
-    tip:'La localisation s’active avant la perte, pas après.'}
- ]},
- {s:'Motif', c:[
-   {k:'passe',l:'Que s’est-il passé ?',b:1},
+  /* ⚠ RENOMMÉE « POUR LA JOINDRE » → « TÉLÉPHONE » (Mag, 24/08/2026 : « POUR LA JOINDRE
+     retire, note juste téléphone »). La clé reste `gsm` pour ne pas perdre les numéros
+     déjà saisis, mais le titre et le libellé disent « téléphone ». */
+  {s:'Téléphone', c:[
+    {k:'gsm',l:'téléphone',
+     tip:'La localisation s’active avant la perte, pas après.'}
+  ]},
+  {s:'Motif', c:[
+    {k:'passe',l:'Que s’est-il passé ?',b:1},
    {k:'depuis',l:'Depuis combien de temps sans hébergement ?'},
    {k:'venue',l:'Qu’est-ce qui l’a amenée au Samusocial ?',b:1}
  ]},
@@ -21241,17 +21276,13 @@ const ACC_CHAMPS=[
       noter l'un en oubliant l'autre. Et un « non » est une réponse : on l'écrit. */
    {k:'prevenir',l:'En cas de problème, qui prévenir ? Est-elle d’accord qu’on appelle ?',b:1}
  ]},
- {s:'Projet', c:[
-   /* ═══ CE QU'ELLE AIME FAIRE (Mag, 21/08/2026) ═══
-      Sur les cinq cases proposées, elle en a gardé deux. Celle-ci se pose DANS
-      « Projet », en première ligne — pas dans un bloc à elle : un groupe d'un seul
-      élément n'est pas un groupe. Et l'ordre dit quelque chose : ce qu'elle aime
-      d'abord, l'orientation ensuite. C'est ce qui remplit une journée au centre de
-      jour, un atelier, un Article 27 — sans ça, on n'oriente que vers des guichets.
-      ⚠ CE N'EST PAS DE LA CONVERSATION : la réponse change ce qu'on lui propose. */
-   {k:'aime',l:'Ce qu\'elle aime faire : sport, musique, cuisine, jardin…',b:1},
-   {k:'projet',l:'Ouverture des droits · orientation (logement, MA, MR, hospitalisation…)',b:1}
- ]},
+  {s:'Projet', c:[
+    /* ⚠ « CE QU'ELLE AIME FAIRE » A QUITTÉ CETTE SECTION (Mag, 24/08/2026 : « fais en un
+       titre et laisse ça pour la fin de l'entretien »). C'était une ligne au début de
+       Projet ; elle a maintenant SON titre, tout en bas — c'est une question qu'on
+       pose en fin d'entretien, pas en ouvrant. */
+    {k:'projet',l:'Ouverture des droits · orientation (logement, MA, MR, hospitalisation…)',b:1}
+  ]},
  /* ⚠ « Note juste démarche. Enlève à encoder dans l'agenda dans le 6D » (Mag,
     21/08/2026). Le titre disait « Démarches ET RENDEZ-VOUS » et l'étiquette
     en-dessous rappelait où encoder — trois informations pour une case à remplir,
@@ -21261,9 +21292,15 @@ const ACC_CHAMPS=[
  {s:'Démarches', c:[
    {k:'demarches',l:'',b:1}
  ]},
- {s:'Soutien', c:[
-   {k:'soutien',l:'0800 · report · médical · social',b:1}
- ]}
+  {s:'Soutien', c:[
+    {k:'soutien',l:'0800 · report · médical · social',b:1}
+  ]},
+  /* ═══ ACTIVITÉS, EN FIN D'ENTRETIEN (Mag, 24/08/2026 : « ce qu'elle aime faire » →
+     « note plutôt activités »). C'est la dernière question : ce qu'elle aime, en fin
+     d'entretien, pas en ouvrant. Le champ n'a pas d'étiquette — le titre dit la question. */
+  {s:'Activités', c:[
+    {k:'aime',l:'sport, musique, cuisine, jardin…',b:1}
+  ]}
 ];
 function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : ACC_CHAMPS; }
 function vAccueilPersonne(volet){
@@ -21284,7 +21321,7 @@ function vAccueilPersonne(volet){
      '</span>Rien n’est enregistré</b><p>Quand tu fermes l’app, tout est effacé — '+
      'le dossier, c’est le 6D.\nPas de nom d’hébergé.</p></div>';
   h+='<div class="accform">'+JEU.map(function(g){
-    return '<div class="accg"><div class="acct">'+esc(g.s)+'</div>'+
+    return '<div class="accg"><div class="acct">'+esc(g.s)+' :</div>'+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
@@ -21318,7 +21355,9 @@ function vAccueilPersonne(volet){
    de titres vides fait chercher une information qui n'a pas été prise. */
 function accNote(volet){
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const l=[(volet==='med'?'PREMIER ACCUEIL — MÉDICAL — ':'PREMIER ACCUEIL — SOCIAL — ')+d,''];
+  /* ⚠ LE TITRE DE LA NOTE A CHANGÉ (Mag, 24/08/2026 : « retire PREMIER ACCUEIL… et
+     remplace par entretien d'accueil »). On garde la date, sans le pavé institutionnel. */
+  const l=[(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d,''];
   accJeu(volet).forEach(function(g){
     const remplis=g.c.filter(function(f){ return (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
@@ -21331,7 +21370,6 @@ function accNote(volet){
     l.push('');
   });
   if(l.length<=2) return '';
-  l.push('(Note écrite depuis COUSIN. À compléter dans le 6D.)');
   return l.join('\n');
 }
 function accCopier(volet){
@@ -24371,13 +24409,21 @@ function rappelModifier(id){
     titre:'Modifier', texte:'', champ:r.texte||'', max:4000, multi:true, ok:'Enregistrer',
     plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
            deuxPlaceholder:'N° de chambre' },
+    /* ═══ ON PEUT POSER OU RETIRER ABSENCE / DÉSENCODAGE ICI (Mag, 24/08/2026 : « comment
+       je fais pour retirer cette note des absences ? »). La note cochée se décoche d'un
+       doigt, sans recréer la ligne. */
+    etq:[{k:'absence', l:'Absence'},{k:'desencodage', l:'Désencodage'}],
+    etqSel:[r.absence?'absence':null, r.desencodage?'desencodage':null].filter(Boolean),
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
-    quandOui:function(v, plus){
+    quandOui:function(v, plus, etq){
       v=(v||'').trim(); if(!v) return;
       r.texte=v.slice(0,4000);
       const ch=((plus&&plus.deux)||'').trim();
       if(ch) r.chambre=ch.slice(0,12); else delete r.chambre;
+      /* Les cases reflètent les marques cochées : cochée = posée, décochée = retirée. */
+      if(etq&&etq.absence) r.absence=true; else delete r.absence;
+      if(etq&&etq.desencodage) r.desencodage=true; else delete r.desencodage;
       rappelsSauver(); render();
     }
   });
