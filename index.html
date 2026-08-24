@@ -3116,7 +3116,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .chadd.ecrire .ib{width:44px;height:44px;flex:none;border:1px solid rgba(242,238,230,.35);
   border-radius:6px;background:rgba(242,238,230,.08);color:#f2eee6;display:inline-flex;
   align-items:center;justify-content:center}
-.chadd.ecrire .ib.absence{background:#eef4fb;color:#3e6ea0;border-color:#a9c8e8}
+.chadd.ecrire .ib.absence{background:#fdeeed;color:#e63329;border-color:#e63329}
 .chadd.ecrire .ib svg{width:16px;height:16px}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
@@ -3413,9 +3413,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pgt.reunion{color:#a97c05;border-bottom-color:#f5c542}
 /* Les absences : le bleu des jours (même famille que le calendrier et l'info dans les
    autres feuilles). Le repère à gauche est un filet bleu, comme la réunion est jaune. */
-.pcarte .pl2.absence{box-shadow:inset 3px 0 0 #a9c8e8;padding-left:11px}
-.pcarte .pl2 .ib.absence{border-color:#7ba3cf;color:#3e6ea0;background:#eef4fb}
-.pcarte .pgt.absence{color:#3e6ea0;border-bottom-color:#a9c8e8}
+.pcarte .pl2.absence{box-shadow:inset 3px 0 0 #e63329;padding-left:11px}
+.pcarte .pl2 .ib.absence{border-color:#e63329;color:#e63329;background:#fdeeed}
+.pcarte .pgt.absence{color:#e63329;border-bottom-color:#e63329}
 /* ═══ CE QUI EST PARTI EN PASSATION, EN FIN DE LISTE (Mag, 22/08/2026) ═══
    « Ça part en fin de liste dans une autre couleur. » La teinte dit « ce n'est plus
    pour moi, c'est chez l'équipe qui arrive » — sans le répéter en toutes lettres sur
@@ -3467,15 +3467,21 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* ⚠ LE TITRE NE SE COUPE PAS EN DEUX : depuis que le bouton d'impression est là, « Ma
    liste perso » se cassait en « Ma liste / perso » sur un téléphone. Le titre reste
    entier, et ce sont les boutons qui passent à la ligne s'il manque de la place. */
-.pcarte .ptitre{display:flex;align-items:center;justify-content:space-between;gap:10px;
+.pcarte .ptitre{display:flex;align-items:center;justify-content:flex-start;gap:10px;
   flex-wrap:wrap}
 .pcarte .ptitre b{white-space:nowrap}
 .pcarte .ptitre b{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .pcarte .ptitre span{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--enc2)}
 /* Le titre qui plie : c'est un bouton, mais il doit se lire comme un titre. Seul le
-   chevron dit qu'on peut appuyer — et il tourne quand c'est ouvert. */
+   chevron dit qu'on peut appuyer — et il tourne quand c'est ouvert. Le sous-titre se
+   colle au titre (flex-start), le chevron, lui, part au bout à droite. */
 .pcarte .ptitre-pli{width:100%;text-align:left;background:none;border:0;padding:0;color:inherit}
+/* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : sur un titre nu (la check-list), le
+   `justify-content:space-between` poussait aussi le SOUS-TITRE à droite. On repasse en
+   flex-start, et seul le chevron s'écarte via `margin-left:auto`. */
+.pcarte .ptitre-pli{display:flex;align-items:center;gap:10px}
+.pcarte .ptitre-pli .ch{margin-left:auto}
 /* La même carte, mais avec un bouton en plus à droite du titre (l'impression). Le
    bouton-pli devient extensible (`flex:1`) au lieu de `width:100%`, pour laisser la
    place au bouton d'impression sur la même ligne. Le chevron garde sa rotation. */
@@ -11933,7 +11939,9 @@ function render(){
   /* ⚠ ON ARRIVE SUR « MA LISTE » : la check-list se referme. Voir `clReplie` — c'est
      ICI que « à l'arrivée sur la page » prend son sens, et pas au chargement de l'app :
      on navigue entre les pages sans jamais la recharger. */
-  if(current.view==='liste' && VUE_AVANT!=='liste') CL_OUVERTE=false;
+  /* À L'ARRIVÉE SUR « MA LISTE » : seule MA LISTE PERSO reste déployée (Mag, 24/08/2026).
+     La check-list et la passation se replient — on vient écrire, pas relire. */
+  if(current.view==='liste' && VUE_AVANT!=='liste'){ CL_OUVERTE=false; PASS_OUVERTE=false; RAP_OUVERTE=true; }
   VUE_AVANT=current.view;
   /* Le bus ne se charge QUE depuis l'accueil — c'est le seul endroit où il s'affiche,
      et le quota anonyme de la STIB est de 100 appels par jour pour tout le centre. */
@@ -13055,6 +13063,11 @@ function vCentre(){
      ⚠ Il obéit au même `CENTRE_FAM` que les autres : une seule chose ouverte à la fois
      dans la page, sinon on refait un mur. */
   const aouvert=(CENTRE_FAM==='a');
+  /* ⚠ LE GROUPE D NE VOIT PAS L'ACCUEIL ENTRANT (Mag, 24/08/2026) : il ne garde que la
+     gestion du centre (le linge, les poubelles) et « Sortir et apprendre ». L'entretien
+     d'arrivée et les démarches ne sont pas pour lui. */
+  const voirAccueil=voitOutilsCentre();
+  if(voirAccueil){
   h+='<button class="famz'+(aouvert?' ouvert':'')+'" onclick="centreFam(\'a\')" '+
       'aria-expanded="'+(aouvert?'true':'false')+'">'+
       '<span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('accomp')+'</span></span>'+
@@ -13072,6 +13085,7 @@ function vCentre(){
       porteCentre('juridique','Le règlement','Ce qu’on explique à l’arrivée',
         "go('#/reglement')")+
       '</div>';
+  }
   }
 
   const gouvert=(CENTRE_FAM==='g');
@@ -16582,24 +16596,11 @@ function vDomaine(key){
   const d=DOM[key];
   let items=fichesDe(key);
   let chips='';
-  if(d.isDem && filt.dem==='Toutes'){
-    /* Liste condensée : une ligne par démarche, puis le choix de l'organisme. */
-    const dems=DEMARCHES.filter(t=>items.some(p=>p.demarche===t));
-    const pp=DATA.find(p=>p.domaine==='formations' && /Premiers pas/i.test(p.nom));
-    return heroBandeau(d.label, dems.length+' démarches', dc(key), d.ic)+
-      /* Le rail est parti d'ici aussi — « et ce sur chaque page de réseau » (Mag). */
-      '<div class="cards" style="display:flex;flex-direction:column">'+dems.map(t=>{
-        const n=items.filter(p=>p.demarche===t).length;
-        return '<div class="fcard" role="button" tabindex="0" onclick="setFilt(\'dem\',\''+esc(t).replace(/'/g,"\\'")+'\')">'+
-          '<span class="fpi" style="color:'+dc('demarches')+'"><span class="ic">'+icon('demarche')+'</span></span>'+
-          '<span class="tx"><b>'+esc(t)+'</b><small>'+n+' organisme'+(n>1?'s':'')+'</small></span>'+
-          '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
-      }).join('')+
-      (pp?'<div class="fcard" role="button" tabindex="0" onclick="go(\'#/f/'+pp.sid+'\')" style="background:#f5c542">'+
-        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon('book')+'</span></span>'+
-        '<span class="tx"><b>Nouveau ici ? Premiers pas</b><small>La formation qui explique comment tout se tient</small></span></div>':'')+
-      '</div>';
-  }
+  /* ⚠ « OUVRIR LES DROITS » ARRIVE DIRECTEMENT SUR LA PAGE AVEC LE TRI (Mag, 24/08/2026 :
+     « je veux arriver directement à la page avec le tri »). La vieille page condensée —
+     une carte par démarche avant la liste — faisait un écran de plus pour rien : on
+     cliquait une démarche, et on retombait sur la même liste avec un filtre. On entre
+     donc d'emblée dans la vue filtrée, avec la rangée de tri en haut. */
   if(d.isDem){
     const dems=DEMARCHES.filter(t=>DATA.some(p=>p.domaine===key&&p.demarche===t));
     chips+=chipRow('dem',dems,filt.dem,'Toutes');
@@ -23868,9 +23869,13 @@ function passationsHTML(){
       '<button class="ptitre-pli" onclick="passPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
         '<b>La passation</b>'+
         '<span>'+esc(passPourNom(PASS_POUR))+'</span>'+
-        '<em class="ch">›</em></button>'+
+      '</button>'+
       '<button class="ptitre-i" onclick="imprimerPassation()" aria-label="Imprimer la passation" '+
         'title="Imprimer la passation">'+icon('note')+'</button>'+
+      /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : il passe en dernier, après le
+         bouton d'impression. Dans le bouton-pli, `margin-left:auto` le poussait à
+         droite du TITRE mais restait à gauche de l'imprimeur. */
+      '<em class="ch" onclick="passPlier()" aria-hidden="true">›</em>'+
     '</div>';
   /* Pliée : le titre seul. L'impression est déjà dans le titre, en haut à droite. */
   if(plie){
@@ -24378,7 +24383,7 @@ function carteMaListe(){
       '<button class="ptitre-pli" onclick="rapPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
         '<b>Ma liste perso</b>'+
         '<span>'+(tot ? fait+' / '+tot+' faites' : 'rien pour l’instant')+'</span>'+
-        '<em class="ch">›</em></button>'+
+      '</button>'+
       /* ⚠ IMPRIMER TOUTE LA PAGE, PAS SEULEMENT CETTE CARTE (Mag, 22/08/2026 : « je dois
          pouvoir imprimer ma liste, avec tout quoi, la passation — quand j'imprime là, ça
          fait vraiment toute ma liste »). `imprimerMaListe` sort déjà la liste perso sur
@@ -24391,6 +24396,8 @@ function carteMaListe(){
       (tot
         ? '<button class="ptitre-b" onclick="rappelsEffacer()">Effacer la liste</button>'
         : '')+
+      /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
+      '<em class="ch" onclick="rapPlier()" aria-hidden="true">›</em>'+
     '</div>'+
     (plie ? '' : rappelsHTML(true))+
     '</div>';
@@ -24561,19 +24568,19 @@ function rappelsHTML(enCarte){
        La ligne reste donc dans le bloc de la réunion, barrée et estompée comme toutes
        les lignes faites : on voit qu'elle est réglée ET qu'on doit en parler. */
     const reunion=MESRAPPELS.filter(function(r){ return r.reunion; });
-    /* ⚠ LES ABSENCES PASSENT AUSSI EN TÊTE (Mag, 24/08/2026 : « si c'est une absence,
-       alors il doit se placer dans les absences »). C'est le second geste qu'on marque
-       à la main ; il précède le reste comme la réunion. */
+    /* ⚠ LES ABSENCES VONT À LA FIN (Mag, 24/08/2026 : « mets ça à la fin »). C'est un
+       compteur qu'on lit, pas une urgence : le mettre en tête l'aurait fait crier pour
+       ce qu'on consulte une fois par jour. Il ferme la liste, en rouge et marqué. */
     const absences=MESRAPPELS.filter(function(r){ return r.absence; });
     /* Les deux groupes marqués à la main sortent des blocs automatiques (jour, retard,
        fait) : une ligne qu'on a pointée ne doit pas apparaître deux fois. */
     const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
-      + groupe('Les absences', absences, 'absence')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasMarque(aVenir))
-      + groupe('Faits', pasMarque(faits));
+      + groupe('Faits', pasMarque(faits))
+      + groupe('Les absences', absences, 'absence');
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
