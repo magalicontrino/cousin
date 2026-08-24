@@ -23255,6 +23255,16 @@ async function loadPassations(){
 }
 function passFait(p){ return !!(p && p.fait_le); }
 function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid); }
+/* ⚠ GERABLE = MIELLE OU ADRESSÉE À MON ÉQUIPE (Mag, 24/08/2026 : « on n'arrive pas à
+   changer la note ni à la supprimer ni à la remettre hors Passation »). Une ligne écrite
+   pour MON rôle me concerne : la corriger ou l'annuler ne touche pas au travail des
+   autres. La toute première règle (« ce que l'équipe d'avant nous a passé n'est pas à
+   nous ») est tombée : elle empêchait de se débarrasser d'une erreur. */
+function passGerable(p){
+  if(passMienne(p)) return true;
+  if(!p || !PROFILE) return false;
+  return (MES_LISTES||[]).some(function(l){ return l===p.pour; });
+}
 /* On ne touche qu'à une classe : pas de `render()` sur une page qui a des champs. */
 function passDeplier(b){
   const e=b.parentElement && b.parentElement.querySelector('.passcom');
@@ -23707,9 +23717,10 @@ function passLigne(p, mienne, role, heure){
        ⚠ MAIS LES COMMANDES SONT ICI DEPUIS QUE L'ENCART DU HAUT A DISPARU (« il y a un
        doublon... laisse juste cet encart-là pour la passation, avec tous les détails —
        modifier, mettre à la corbeille, annuler la passation »). Elles n'apparaissent
-       que sur CE QU'ON A ÉCRIT SOI-MÊME : ce que l'équipe d'avant nous a passé n'est
-       pas à nous, on ne le corrige pas. */
-    (passMienne(p)
+        que sur CE QU'ON A ÉCRIT SOI-MÊME — et sur ce qui m'est ADRESSÉ (Mag, 24/08/2026 :
+        « on n'arrive pas à changer la note ni à la supprimer »). Les réveils écrits pour
+        mon équipe m'appartiennent aussi : je dois pouvoir les corriger et les annuler. */
+    (passGerable(p)
       ? '<span class="plact">'+
           '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
             'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
@@ -23949,7 +23960,7 @@ function imprimerPassation(pour){
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
      doit être sur le papier, sans exception. */
-  const toutes=passToutes();
+  const toutes=passUnique(passToutes());
   const plie=passRepliee();
   let h='<div class="pcarte pcarte-lire'+(plie?' plie':'')+'">'+
     /* ═══ MÊME TITRE-PLI QUE LA CHECK-LIST (Mag, 24/08/2026 : « fais le même que sur
