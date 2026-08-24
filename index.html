@@ -13088,24 +13088,30 @@ function vCentre(){
   }
   }
 
+  /* ═══ GESTION DU CENTRE, CONSTRUIT À PART (Mag, 24/08/2026 : « ça doit avoir son
+     propre titre et être après les outils de l'équipe »). Le bloc est écrit ici mais
+     affiché ENSUITE, après « Les outils de l'équipe » — voir l'assemblage en bas.
+     ⚠ CE QUI PRESSE NE SE CACHE PAS DERRIÈRE UN CLIC : le sous-titre dit l'essentiel
+     du jour (l'étage du linge, le moment des sacs) sans ouvrir. Ne pas le remplacer
+     par « 6 portes » : un compteur n'a jamais évité un oubli. */
   const gouvert=(CENTRE_FAM==='g');
-  h+='<button class="famz'+(gouvert?' ouvert':'')+'" onclick="centreFam(\'g\')" '+
+  let gcentre='<button class="famz'+(gouvert?' ouvert':'')+'" onclick="centreFam(\'g\')" '+
       'aria-expanded="'+(gouvert?'true':'false')+'">'+
       '<span class="rd" style="background:'+pastel('#6cb392')+'"><span class="ic">'+icon('centre')+'</span></span>'+
       '<span class="tx"><b>Gestion du centre</b><em>'+esc(gres.length?gres.join(' · '):'Le quotidien de la maison')+'</em></span>'+
       '<span class="chv">'+(gouvert?'⌃':'›')+'</span></button>';
   if(gouvert){
-    h+='<div class="famdedans">';
-    if(l) h+=porteCentre('linge','Linge — aujourd’hui',
+    gcentre+='<div class="famdedans">';
+    if(l) gcentre+=porteCentre('linge','Linge — aujourd’hui',
       esc(l.etage+(l.chambres?' · ch. '+l.chambres:''))+(lt?' · demain '+esc(lt.etage):''),
       "go('#/linge')");
     /* Les sacs gardent leurs carrés de couleur : c'est la seule information de la
        page qui ne s'écrit pas en toutes lettres. Ils passent avant le chevron. */
-    if(col) h+=porteCentre(pictoPoubelle('#1b1b1b','#ffffff',21),
+    if(col) gcentre+=porteCentre(pictoPoubelle('#1b1b1b','#ffffff',21),
       'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
       "goFiche(/poubelle/i)", '',
       '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>');
-    h+=porteCentre('cle','Chambres',
+    gcentre+=porteCentre('cle','Chambres',
       (chEnCours()?chEnCours()+' en cours — vider, nettoyer, libérer':'Vider, nettoyer, libérer'),
       "go('#/chambres')")+
     /* LE TOUR DES CHAMBRES, juste sous les Chambres — c'est le même couloir, mais
@@ -13253,8 +13259,7 @@ function vCentre(){
     nPortes+=dedans.length+enPlus; nPortesFam.push(dedans.length+enPlus);
     const ouvert=(CENTRE_FAM===String(fi));
     const nDedans=dedans.length+enPlus;
-    const sous=(premiere && !voitOutilsCentre()) ? 'Vue D'
-             : nDedans+' porte'+(nDedans>1?'s':'');
+    const sous=nDedans+' porte'+(nDedans>1?'s':'');
     familles.push(
       '<button class="famz'+(ouvert?' ouvert':'')+'" onclick="centreFam(\''+fi+'\')" '+
         'aria-expanded="'+(ouvert?'true':'false')+'">'+
@@ -13295,17 +13300,35 @@ function vCentre(){
      ⚠ LE COMPTE SUIT CHAQUE SECTION. Un total global au-dessus d'une moitié de liste
      serait faux — et c'est le genre de chiffre qui fait douter du reste. */
   const outilsHaut=familles.slice(0,1), outilsBas=familles.slice(1);
-  if(outilsHaut.length){
-    const n=nPortesFam[0]+1;   /* +1 : Protocole est un bouton, donc une porte */
-    h+='<div class="sectc"><b><i style="background:#A9C8E8"></i>Les outils de l’équipe</b>'+
-       '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
-       outilsHaut.join('')+btnProtocole;
-  }
-  if(outilsBas.length){
-    const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
-    h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
-       '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
-       outilsBas.join('');
+  /* ═══ LE GROUPE D (Mag, 24/08/2026) : il ne garde que la gestion du centre (le linge,
+     les poubelles) et « Sortir et apprendre ». Ni l'accueil entrant (déjà retiré plus
+     haut), ni les outils de l'équipe, ni Protocole. Le bloc `gcentre` et `outilsBas`
+     passent, le reste est masqué. */
+  const vueD=!voitOutilsCentre();
+  if(vueD){
+    h+=gcentre;
+    if(outilsBas.length){
+      const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
+      h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
+         '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
+         outilsBas.join('');
+    }
+  } else {
+    if(outilsHaut.length){
+      const n=nPortesFam[0]+1;   /* +1 : Protocole est un bouton, donc une porte */
+      h+='<div class="sectc"><b><i style="background:#A9C8E8"></i>Les outils de l’équipe</b>'+
+         '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
+         outilsHaut.join('')+btnProtocole;
+    }
+    /* GESTION DU CENTRE S'INSÈRE ICI : après les outils de l'équipe, avant Sortir et
+       apprendre (Mag, 24/08/2026). Il a son propre titre de bouton. */
+    h+=gcentre;
+    if(outilsBas.length){
+      const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
+      h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
+         '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
+         outilsBas.join('');
+    }
   }
   h+='<div style="height:26px"></div>';
   return h;
