@@ -3127,10 +3127,11 @@ body.pan-ouvert #view{animation:none;transform:none}
   font-family:ui-monospace,monospace;font-size:13px;font-weight:700;line-height:1;cursor:pointer}
 .txbar .txb u{text-decoration:underline}
 .chadd.ecrire .txbar .txb-h{color:rgba(242,238,230,.45)}
-/* ═══ LA CASE « NOTER UNE ABSENCE » SOUS LE CHAMP (Mag, 24/08/2026) ═══
+/* ═══ LES CASES « ABSENCE » / « DÉSENCODAGE » SOUS LE CHAMP (Mag, 24/08/2026) ═══
    Une ligne de bouton, avec une vraie case à cocher et le mot écrit — pas un picto
-   muet qu'on coche sans savoir. Cochee, elle passe en rouge (la couleur des absences). */
-.chadd.ecrire .absa{margin-top:10px;display:flex;align-items:center;gap:10px;width:100%;
+   muet qu'on coche sans savoir. Cochee, elle passe en rouge (la couleur des encodés). */
+.chadd.ecrire .absas{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.chadd.ecrire .absa{display:flex;align-items:center;gap:10px;flex:1;min-width:0;
   border:1px solid rgba(242,238,230,.3);border-radius:6px;padding:11px 12px;
   color:#e8e5df;background:none;font-family:ui-monospace,monospace;font-size:9.5px;
   letter-spacing:.13em;text-transform:uppercase;font-weight:600;cursor:pointer}
@@ -23169,8 +23170,11 @@ if(!Array.isArray(MESRAPPELS)) MESRAPPELS=[];
    à tout rerendu, et `rappelsHTML` le repose dans le champ. */
 let RAP_BROUILLON='';
 let RAP_CH_BROUILLON='';
-/* L'état « cette note est un jour d'absence », choisi avant de taper. */
-let RAP_ABSENCE=false;
+/* ═══ LES « ENCODÉS » COCHABLES AVANT D'ÉCRIRE (Mag, 24/08/2026) ═══
+   Une note peut porter plus d'un repère à la fois (une absence, un désencodage…).
+   `RAP_TAGS` est un objet de booléens, indexé par clé — un seul endroit à tenir à
+   jour, et `rappelAjouter` recopie ce qui est coché dans la note. */
+let RAP_TAGS={absence:false, desencodage:false};
 function rappelsSauver(){
   try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
   if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
@@ -23390,6 +23394,10 @@ async function passAjouter(){
      savoir. La colonne est un `text` en base — elle n'a pas de limite. Les 4000
      caractères ci-dessous ne sont qu'un garde-fou contre un collage accidentel. */
   const l={texte:texte.slice(0,4000), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
+  /* ⚠ ON SIGNE CE QU'ON ÉCRIT (Mag, 24/08/2026) : sans `uid`, `passMienne` ne reconnaît
+     jamais la ligne comme sienne et les boutons « modifier / annuler » ne s'affichent
+     pas — on ne peut plus retirer une passation qu'on vient de poser. */
+  if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
   /* Chaque genre porte les champs qui le concernent, et rien d'autre (13/08/2026). */
   const g=passGenreDe(PASS_GENRE);
   /* ⚠ LA CHAMBRE ET LE COMMENTAIRE VALENT POUR LES TROIS GENRES (22/08/2026) : « on
@@ -23436,6 +23444,14 @@ async function passAjouter(){
     }
     ['passTxt','passHeure','passCh','passCom'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
+    /* ⚠ LA NOTE D'ORIGINE PART AVEC LA PASSATION : le texte était gardé dans Ma liste
+       perso tant que la feuille était ouverte ; une fois la ligne passée, on le retire
+       du champ et du brouillon, sinon il resservirait à la prochaine note. */
+    const rapi=document.getElementById('rapTxt');
+    if(rapi) rapi.value='';
+    const rapch=document.getElementById('rapCh');
+    if(rapch) rapch.value='';
+    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false};
     /* ⚠ LA FEUILLE SE REFERME UNE FOIS LA LIGNE PASSÉE : elle a fait son travail, et la
        ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
        croire que rien n'est parti. */
@@ -23725,8 +23741,20 @@ function passToutes(){
     if(vues[p.id]) return false; vues[p.id]=1; return true;
   }));
 }
+/* ⚠ DOUBLON DE CONTENU (Mag, 24/08/2026 : « je ne comprends pas pourquoi il y a deux fois
+   le même nom, donc la même note »). La même passation peut exister deux fois en base
+   avec deux `id` différents — un réveil saisi deux fois, un « à jeun » du soir et du
+   matin. Le dédoublonnage par `id` ne les rapproche pas. On garde aussi une clé de
+   contenu : même texte + chambre + heure + jour = une seule ligne. */
+function passUnique(liste){
+  const vues={};
+  return liste.filter(function(p){
+    const k=p.texte+'|'+(p.chambre||'')+'|'+(p.heure||'')+'|'+(p.jour||'')+'|'+(p.genre||'');
+    if(vues[k]) return false; vues[k]=1; return true;
+  });
+}
 function imprimerPassation(pour){
-  const liste=passToutes();
+  const liste=passUnique(passToutes());
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
      sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
@@ -24277,9 +24305,11 @@ function rappelAjouter(){
      qu'on vient d'écrire. */
   const ligne={id:'r'+Date.now(), texte:t.slice(0,400)};
   if(ch) ligne.chambre=ch.slice(0,12);
-  if(RAP_ABSENCE) ligne.absence=true;
+  /* Chaque encodé coché (absence, désencodage…) recopie son drapeau sur la note. */
+  if(RAP_TAGS.absence) ligne.absence=true;
+  if(RAP_TAGS.desencodage) ligne.desencodage=true;
   MESRAPPELS.push(ligne);
-  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_ABSENCE=false; rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
   setTimeout(function(){ const e=document.getElementById('rapTxt'); if(e) e.focus(); },30);
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
@@ -24316,12 +24346,12 @@ function rappelModifier(id){
 function rappelVersPassation(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
-  i.value='';
-  /* La chambre tapée ici part avec le texte : la feuille de la passation a son propre
-     champ chambre, et c'est lui qu'on remplit. */
+  /* ⚠ ON NE VIDE PAS LE CHAMP (Mag, 24/08/2026 : « il faut que ça reste en mémoire tant
+     que je n'ai pas fait passation »). Si on ferme la fenêtre — ou qu'on a cliqué là par
+     erreur et qu'on veut plutôt OK — le texte reste dans Ma liste perso. Il ne part que
+     quand la passation est réellement envoyée (voir `passAjouter`). */
   const c=document.getElementById('rapCh');
-  const ch=((c&&c.value)||'').trim(); if(c) c.value='';
-  RAP_BROUILLON=''; RAP_CH_BROUILLON='';
+  const ch=((c&&c.value)||'').trim();
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   render();
   setTimeout(function(){
@@ -24540,14 +24570,19 @@ function rappelsHTML(enCarte){
         '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
         '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
         '</div>'+
-        /* ═══ ABSENCES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
-           Une ligne dédiée sous le champ : « ☐ Noter une absence ». Pas un picto muet
-           qu'on coche à vide — un libellé qui se lit, et une case. On coche, on écrit,
-           et la note part dans « Les absences » en rouge en fin de liste. */
-        '<button class="absa'+(RAP_ABSENCE?' on':'')+'" onclick="RAP_ABSENCE=!RAP_ABSENCE;render()" '+
-          'aria-pressed="'+(RAP_ABSENCE?'true':'false')+'">'+
+        /* ═══ LES ENCODÉS COCHABLES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
+           Des cases libellées sous le champ, chacune cochable : une absence, un
+           désencodage… On coche, on écrit, et la note porte le drapeau. L'absence
+           part dans « Les absences » ; les encodés dans « Les encodages » en bas. */
+        '<div class="absas">'+
+        '<button class="absa'+(RAP_TAGS.absence?' on':'')+'" onclick="RAP_TAGS.absence=!RAP_TAGS.absence;render()" '+
+          'aria-pressed="'+(RAP_TAGS.absence?'true':'false')+'">'+
           '<span class="bx"></span>Noter une absence</button>'+
-     '</div>';
+        '<button class="absa'+(RAP_TAGS.desencodage?' on':'')+'" onclick="RAP_TAGS.desencodage=!RAP_TAGS.desencodage;render()" '+
+          'aria-pressed="'+(RAP_TAGS.desencodage?'true':'false')+'">'+
+          '<span class="bx"></span>Désencodage</button>'+
+        '</div>'+
+      '</div>';
   if(tot){
     /* ═══ RANGÉS PAR JOUR (08/08/2026) ═══
        Ce qui est passé et jamais coché d'abord : c'est le seul qui doive crier, parce
