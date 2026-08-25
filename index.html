@@ -4923,18 +4923,28 @@ body.no-tabs #tabbar{display:none}
      donc SANS RÉSEAU. C'est tout l'intérêt — le bouton Map, lui, a besoin du
      réseau ; c'est le supplément quand ça passe, jamais l'inverse. */
   .qrues{position:relative;margin:12px var(--pad) 0;border:1.25px solid var(--trait);
-    border-radius:12px;overflow:hidden;background:#e4e1d8}
-  .qrues svg{display:block;width:100%;height:auto}
-  .qici{position:absolute;width:42px;height:42px;border-radius:50%;background:var(--noir);
-    color:var(--creme);display:flex;align-items:center;justify-content:center;
-    font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;font-weight:700}
-  .qdot{position:absolute;width:32px;height:32px;border-radius:50%;
-    border:1.25px solid var(--trait);display:flex;align-items:center;justify-content:center;
-    background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.18)}
+    border-radius:12px;overflow:hidden;background:#e4e1d8;aspect-ratio:343/400;width:min(520px, calc(100% - 2*var(--pad)))}
+  .qrues svg{display:block;width:100%;height:100%}
+  /* ⚠ TOUT EST POSÉ EN POURCENTAGE, et donc recentré de sa demi-largeur. Avant, les
+     ronds étaient placés en PIXELS calculés pour 343 px de large : sur un écran
+     d'ordinateur le dessin s'étirait pendant qu'« ICI » restait planté à gauche. */
+  .qici{position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;
+    border-radius:50%;background:var(--noir);color:var(--creme);display:flex;
+    align-items:center;justify-content:center;font-family:ui-monospace,monospace;
+    font-size:10px;letter-spacing:.1em;font-weight:700}
+  .qdot{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;
+    border-radius:50%;border:1.25px solid var(--trait);display:flex;align-items:center;
+    justify-content:center;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.18)}
+  /* Ramené au bord : le trait pointillé du rond redit ce que dit le pointillé du
+     trait — ce lieu est plus loin que le cadre. */
+  .qdot.loin{border-style:dashed;border-color:rgba(27,27,27,.55)}
   .qdot .pico,.qdot svg{width:17px;height:17px;display:block}
-  .qnom{position:absolute;width:120px;text-align:center;font-size:11px;font-weight:600;
-    color:var(--noir);text-shadow:0 0 3px #e4e1d8,0 0 3px #e4e1d8,0 0 3px #e4e1d8}
-  .qech{position:absolute;left:10px;bottom:9px;display:flex;align-items:center;gap:7px;
+  .qnom{position:absolute;transform:translateX(-50%);white-space:nowrap;text-align:center;
+    font-size:11px;font-weight:600;line-height:1.1;color:var(--noir);
+    text-shadow:0 0 3px #e4e1d8,0 0 3px #e4e1d8,0 0 3px #e4e1d8,0 0 4px #e4e1d8}
+  .qnom em{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;
+    letter-spacing:.06em;text-transform:uppercase;color:#4a4844}
+  .qech{position:absolute;left:10px;top:9px;display:flex;align-items:center;gap:7px;
     font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;
     text-transform:uppercase;color:#5d5a54;background:rgba(228,225,216,.9);
     padding:4px 7px;border-radius:4px}
@@ -4943,6 +4953,25 @@ body.no-tabs #tabbar{display:none}
   .qnord{position:absolute;right:9px;top:8px;width:22px;height:22px;border-radius:50%;
     background:rgba(228,225,216,.9);display:flex;align-items:center;justify-content:center;
     font-family:ui-monospace,monospace;font-size:9px;font-weight:700;color:var(--noir)}
+
+  /* ── LA VRAIE CARTE, DANS L'APP (25/08/2026) ──
+     ⚠ C'est la SEULE chose de l'app qui a besoin du réseau. Le Plan, à côté, est
+     dessiné par l'app et s'affiche toujours : c'est lui le filet. */
+  .qcarte{position:relative;margin:12px var(--pad) 0;border:1.25px solid var(--trait);
+    border-radius:12px;overflow:hidden;background:#e4e1d8;aspect-ratio:343/420;width:min(520px, calc(100% - 2*var(--pad)))}
+  .qtuiles{position:absolute;inset:0}
+  .qtuile{position:absolute;display:block}
+  .qcarte .qici{z-index:3}
+  .qcarte .qdot{z-index:3}
+  .qcarte .qnom{z-index:3;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 0 6px #fff}
+  .qzoom{position:absolute;right:9px;top:9px;z-index:4;display:flex;flex-direction:column;gap:5px}
+  .qzoom button{width:34px;height:34px;border-radius:8px;background:rgba(253,253,252,.94);
+    border:1.25px solid var(--trait);font-size:19px;line-height:1;color:var(--noir);
+    display:flex;align-items:center;justify-content:center}
+  /* L'attribution OpenStreetMap est OBLIGATOIRE quand on affiche leurs cartes. */
+  .qattr{position:absolute;right:0;bottom:0;z-index:4;background:rgba(253,253,252,.86);
+    padding:3px 7px;border-radius:5px 0 0 0;font-family:ui-monospace,monospace;
+    font-size:8px;letter-spacing:.06em;color:#4a4844}
 
   /* ── « PLUS LOIN » : ce qui ne tient pas dans le cadre ──
      Chacun garde sa flèche, tournée à sa VRAIE direction, et son temps de marche. */
@@ -12199,7 +12228,10 @@ function render(){
        Sur téléphone le clavier s'ouvre donc tout seul — un geste de moins. */
     setTimeout(function(){ const c=document.getElementById('rechInput'); if(c) c.focus(); },30); }
   else if(current.view==='reseau') view.innerHTML=vReseauV2();
-  else if(current.view==='quartier') view.innerHTML=vQuartier();
+  else if(current.view==='quartier'){ view.innerHTML=vQuartier();
+    /* Les noms du plan et de la carte se placent une fois la page à l'écran :
+       c'est le seul moment où on connaît leur vraie largeur. */
+    requestAnimationFrame(qPlacerNoms); }
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
   /* ═══ ⚠ LE GLISSEMENT NE PARTAIT JAMAIS ═══
@@ -22685,19 +22717,205 @@ function planRues(W,H,port){
   });
   g+=voies+textes;
 
-  let sur='';
-  Object.keys(QLIEUX).forEach(function(nom){
-    const d=QLIEUX[nom]; if(d.m>port*0.94) return;
-    const p=P([d.x,d.y]), qi=QIC[nom]||['pin','#ecebe8'];
-    sur+='<div class="qdot" style="left:'+(p[0]-16).toFixed(1)+'px;top:'+(p[1]-16).toFixed(1)+'px;background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span></div>';
-    sur+='<div class="qnom" style="left:'+(p[0]-60).toFixed(1)+'px;top:'+(p[1]+18).toFixed(1)+'px">'+esc(nom.replace('Parc du ',''))+'</div>';
+  /* Les lieux. Ceux qui tiennent dans le cadre sont à leur vraie place ; les
+     autres sont ramenés au bord, dans leur vraie direction. */
+  const pc=function(v,tot){ return (v/tot*100).toFixed(2)+'%'; };
+  /* ⚠ LES LIEUX LOINTAINS ÉTAIENT POSÉS SUR UN CERCLE, et cinq d'entre eux sont au
+     sud : ils s'empilaient tous dans le même coin, illisibles. Ils sont maintenant
+     poussés contre LE BORD DU CADRE (le rectangle, pas un cercle) — ce qui donne
+     beaucoup plus de place — puis écartés les uns des autres jusqu'à ce que plus
+     personne ne se touche.
+     ⚠ SEUL L'ANGLE BOUGE, de quelques degrés, et jamais la distance : la direction
+     reste juste à l'échelle du quartier, et le temps de marche est écrit dessous. */
+  const mx=W/2-42, my=H/2-56;            /* le bord, moins la place d'un rond ET de son nom */
+  const auBord=function(rad){
+    const sx=Math.sin(rad), sy=-Math.cos(rad);
+    const t=Math.min(Math.abs(sx)<1e-6?1e9:mx/Math.abs(sx), Math.abs(sy)<1e-6?1e9:my/Math.abs(sy));
+    return [cx+sx*t, cy+sy*t];
+  };
+  const lieux=Object.keys(QLIEUX).map(function(nom){
+    const q=QLIEUX[nom], loin=(q.m>port*0.94);
+    return {nom:nom, loin:loin, rad:Math.atan2(q.x,-q.y), r:Math.hypot(q.x,q.y)*k, min:q.min};
+  });
+  const pos=function(q){ return q.loin?auBord(q.rad):[cx+Math.sin(q.rad)*q.r, cy-Math.cos(q.rad)*q.r]; };
+  /* On les écarte par petites poussées répétées, jusqu'à ce que ça tienne. */
+  for(let tour=0; tour<80; tour++){
+    let bouge=false;
+    for(let i=0;i<lieux.length;i++){ for(let j=i+1;j<lieux.length;j++){
+      const a=lieux[i], b=lieux[j]; if(!a.loin && !b.loin) continue;
+      const pa=pos(a), pb=pos(b);
+      const dx=pb[0]-pa[0], dy=pb[1]-pa[1], dd=Math.hypot(dx,dy);
+      if(dd>=78) continue;
+      let da=b.rad-a.rad;
+      while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+      const sens=(da>=0?1:-1)*0.03;
+      if(b.loin) b.rad+=sens;
+      if(a.loin) a.rad-=sens;
+      bouge=true;
+    }}
+    if(!bouge) break;
+  }
+  let sur='', iRond=1;   /* 0 = le rond ICI */
+  lieux.forEach(function(q){
+    const p=pos(q), x=p[0], y=p[1], qi=QIC[q.nom]||['pin','#ecebe8'];
+    if(q.loin){
+      /* le pointillé dit « ça continue au-delà du cadre » */
+      g+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#1b1b1b" '+
+         'stroke-width="1.1" stroke-dasharray="3 4" opacity="0.3"/>';
+    }
+    sur+='<div class="qdot'+(q.loin?' loin':'')+'" style="left:'+pc(x,W)+';top:'+pc(y,H)+';background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span></div>';
+    /* La place exacte du nom est réglée après l'affichage, par qPlacerNoms(). */
+    sur+='<div class="qnom" data-rond="'+(iRond++)+'" style="left:'+pc(x,W)+';top:'+pc(y+19,H)+'">'+
+         esc(qCourt(q.nom))+(q.loin?' <em>· '+q.min+' min</em>':'')+'</div>';
   });
   /* L'échelle : sans elle, « c'est loin » ne veut rien dire. */
-  return '<div class="qrues" style="height:'+H+'px">'+
-    '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
-    '<div class="qici" style="left:'+(cx-21).toFixed(1)+'px;top:'+(cy-21).toFixed(1)+'px">ICI</div>'+sur+
+  return '<div class="qrues">'+
+    '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
+    '<div class="qici" style="left:'+pc(cx,W)+';top:'+pc(cy,H)+'">ICI</div>'+sur+
     '<div class="qech"><i style="width:'+(200*k).toFixed(0)+'px"></i><span>200 m · 2 min</span></div>'+
     '<div class="qnord">N</div></div>';
+}
+
+
+/* Le nom court de chaque lieu, pour le plan — un rond de 32 px n'a pas la place
+   d'« Hôpital Agora ». ⚠ On NOMME, on ne coupe pas : retirer le mot « Parc »
+   transformait « Parc de la Pede » en « de la Pede ». */
+const QCOURTS={ 'Parc du Peterbos':'Peterbos', 'Parc Astrid':'Parc Astrid',
+  'Parc Crickx':'Parc Crickx', 'Parc de la Pede':'La Pede',
+  'Aldi':'Aldi', 'DoucheFLUX':'DoucheFLUX' };
+const qCourt=function(n){ return QCOURTS[n]||n; };
+
+/* Le centre, en coordonnées. C'est le même point que le (0,0) du plan dessiné. */
+const QCENTRE={lat:50.845975, lon:4.299699};
+/* Chaque lieu en latitude/longitude, reconstruit depuis ses mètres (x est, y sud). */
+function qLatLon(m){
+  return { lat: QCENTRE.lat - m.y/111300,
+           lon: QCENTRE.lon + m.x/(111300*Math.cos(QCENTRE.lat*Math.PI/180)) };
+}
+/* `null` = cadrage automatique (tout doit tenir). Les boutons + et − posent une
+   valeur, et à partir de là c'est elle qui commande. */
+let QZOOM=null;
+function qZoomer(d,z){ QZOOM=Math.max(11,Math.min(17,(QZOOM===null?z:QZOOM)+d)); render(); }
+
+/* De la latitude/longitude vers le repère des tuiles (Web Mercator). */
+function qProj(lat,lon,z){
+  const n=Math.pow(2,z), r=lat*Math.PI/180;
+  return { x:(lon+180)/360*n,
+           y:(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n };
+}
+function carteTuiles(W,H){
+  const T=256;
+  /* Tous les points à cadrer : le centre d'hébergement, et les six lieux. */
+  const pts=[QCENTRE].concat(Object.keys(QLIEUX).map(function(n){ return qLatLon(QLIEUX[n]); }));
+
+  /* ═══ POURQUOI UN CADRAGE CONTINU ET PAS UN ZOOM ENTIER ═══
+     Les lieux s'étendent sur 3,6 km d'est en ouest. Au zoom 13 ça ne rentre pas,
+     au zoom 12 ça rentre deux fois — et la moitié du cadre reste vide pendant que
+     les punaises se serrent au milieu. Les zooms d'une carte vont de deux en deux :
+     il n'y a jamais celui qu'il faut.
+     On prend donc les tuiles du zoom JUSTE AU-DESSUS (plus fines que nécessaire)
+     et on les RÉDUIT d'un facteur exact. Le cadrage tombe pile, à toutes les
+     tailles d'écran, et les tuiles restent nettes puisqu'on les rapetisse. */
+  const zT=(QZOOM===null)?13:QZOOM;
+  const p0=pts.map(function(q){ return qProj(q.lat,q.lon,zT); });
+  const xs=p0.map(function(q){return q.x;}), ys=p0.map(function(q){return q.y;});
+  const lx=(Math.max.apply(null,xs)-Math.min.apply(null,xs))*T;
+  const ly=(Math.max.apply(null,ys)-Math.min.apply(null,ys))*T;
+  /* La marge laisse la place aux ronds et à leur nom. `f` ne dépasse jamais 1 :
+     on réduit, on n'agrandit pas (une tuile agrandie devient floue). */
+  const f=(QZOOM===null) ? Math.min((W-104)/Math.max(lx,1),(H-96)/Math.max(ly,1),1) : 1;
+  /* On centre sur la BOÎTE qui contient tout, pas sur le centre d'hébergement :
+     sinon les lieux se serrent dans un coin. */
+  const c={x:(Math.max.apply(null,xs)+Math.min.apply(null,xs))/2,
+           y:(Math.max.apply(null,ys)+Math.min.apply(null,ys))/2};
+  const ecran=function(p){ return [W/2+(p.x-c.x)*T*f, H/2+(p.y-c.y)*T*f]; };
+  /* Tout est posé en % du cadre : c'est ce qui rend la carte juste à toutes les
+     largeurs d'écran, du téléphone au rail de l'ordinateur. */
+  const pcx=function(v){ return (v/W*100).toFixed(3)+'%'; };
+  const pcy=function(v){ return (v/H*100).toFixed(3)+'%'; };
+
+  /* Les tuiles qui touchent le cadre. */
+  const n=Math.pow(2,zT), pas=T*f;
+  const tx0=Math.floor(c.x-(W/2)/pas), tx1=Math.ceil(c.x+(W/2)/pas);
+  const ty0=Math.floor(c.y-(H/2)/pas), ty1=Math.ceil(c.y+(H/2)/pas);
+  let tuiles='';
+  for(let tx=tx0; tx<=tx1; tx++){
+    for(let ty=ty0; ty<=ty1; ty++){
+      if(ty<0||ty>=n) continue;
+      const wx=((tx%n)+n)%n;                 /* la Terre est ronde : on repasse de l'autre côté */
+      const e=ecran({x:tx,y:ty});
+      tuiles+='<img class="qtuile" alt="" src="https://tile.openstreetmap.org/'+
+        zT+'/'+wx+'/'+ty+'.png" style="left:'+pcx(e[0])+';top:'+pcy(e[1])+';'+
+        'width:'+(pas/W*100).toFixed(3)+'%;height:'+(pas/H*100).toFixed(3)+'%">';
+    }
+  }
+  /* Le centre, puis les six lieux, à leur vraie place. */
+  const ec=ecran(qProj(QCENTRE.lat,QCENTRE.lon,zT));
+  let pins='<div class="qici" style="left:'+pcx(ec[0])+';top:'+pcy(ec[1])+'">ICI</div>';
+  /* ⚠ LES NOMS SE MARCHAIENT DESSUS (« Aldi » sur « Parc Astrid », « DoucheFLUX »
+     sur « Parc Crickx ») : deux lieux voisins sur la carte ont leur nom au même
+     endroit. On les pose donc un par un, et si la place est déjà prise, le nom
+     passe AU-DESSUS de sa punaise au lieu de dessous. La punaise, elle, ne bouge
+     jamais : c'est elle qui dit où est le lieu. */
+  let iP=1;                 /* 0 = le rond ICI */
+  Object.keys(QLIEUX).forEach(function(nom){
+    const ll=qLatLon(QLIEUX[nom]), e=ecran(qProj(ll.lat,ll.lon,zT));
+    const px=e[0], py=e[1], qi=QIC[nom]||['pin','#ecebe8'];
+    if(px<-40||px>W+40||py<-40||py>H+40) return;
+    pins+='<div class="qdot" style="left:'+pcx(px)+';top:'+pcy(py)+';background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span></div>';
+    /* La place exacte du nom est réglée après l'affichage, par qPlacerNoms() :
+       impossible de deviner ici la largeur de « DoucheFLUX · 41 min ». */
+    pins+='<div class="qnom" data-rond="'+(iP++)+'" style="left:'+pcx(px)+';top:'+pcy(py+20)+'">'+
+      esc(qCourt(nom))+' <em>· '+QLIEUX[nom].min+' min</em></div>';
+  });
+  return '<div class="qcarte">'+
+    '<div class="qtuiles">'+tuiles+'</div>'+pins+
+    '<div class="qzoom"><button onclick="qZoomer(1,'+zT+')" aria-label="Agrandir">+</button>'+
+    '<button onclick="qZoomer(-1,'+zT+')" aria-label="Réduire">−</button></div>'+
+    '<div class="qattr">© OpenStreetMap</div></div>';
+}
+
+
+function qPlacerNoms(){
+  ['.qrues','.qcarte'].forEach(function(sel){
+    const boite=document.querySelector(sel); if(!boite) return;
+    const cadre=boite.getBoundingClientRect();
+    const ronds=[...boite.querySelectorAll('.qdot,.qici')];
+    const rects=ronds.map(function(r){ return r.getBoundingClientRect(); });
+    const noms=[...boite.querySelectorAll('.qnom')];
+    const pris=[];
+    const touche=function(a,b,m){ m=m||2;
+      return a.left<b.right-m && b.left+m<a.right && a.top<b.bottom-m && b.top+m<a.bottom; };
+    noms.forEach(function(n){
+      const i=parseInt(n.dataset.rond,10);
+      const pin=rects[i]; if(!pin) return;
+      const w=n.offsetWidth, h=n.offsetHeight;
+      const cxp=pin.left+pin.width/2-cadre.left, cyp=pin.top+pin.height/2-cadre.top;
+      /* Le tour de la punaise : dessous, dessus, les côtés, puis plus loin. */
+      const essais=[[0,pin.height/2+3],[0,-pin.height/2-h-3],
+                    [w/2+pin.width/2-2,-h/2],[-w/2-pin.width/2+2,-h/2],
+                    [w/2+pin.width/2-2,-h-6],[-w/2-pin.width/2+2,-h-6],
+                    [0,pin.height/2+h+6],[0,-pin.height/2-2*h-8]];
+      let mis=false;
+      for(let k=0;k<essais.length && !mis;k++){
+        const x=cxp+essais[k][0], y=cyp+essais[k][1];
+        const r={left:cadre.left+x-w/2, right:cadre.left+x+w/2, top:cadre.top+y, bottom:cadre.top+y+h};
+        if(r.left<cadre.left+2||r.right>cadre.right-2||r.top<cadre.top+2||r.bottom>cadre.bottom-2) continue;
+        if(rects.some(function(b,j){ return j!==i && touche(r,b,3); })) continue;
+        if(pris.some(function(b){ return touche(r,b,0); })) continue;
+        n.style.left=(x/cadre.width*100).toFixed(3)+'%';
+        n.style.top=(y/cadre.height*100).toFixed(3)+'%';
+        pris.push(r); mis=true;
+      }
+      if(!mis){
+        /* Aucune place : on met le nom sous sa punaise, en le rentrant dans le cadre. */
+        const x=Math.max(w/2+3,Math.min(cadre.width-w/2-3,cxp)), y=cyp+pin.height/2+3;
+        n.style.left=(x/cadre.width*100).toFixed(3)+'%';
+        n.style.top=(y/cadre.height*100).toFixed(3)+'%';
+        pris.push({left:cadre.left+x-w/2,right:cadre.left+x+w/2,top:cadre.top+y,bottom:cadre.top+y+h});
+      }
+    });
+  });
 }
 
 /* La flèche d'un lieu lointain, tournée à son VRAI cap. */
@@ -22721,11 +22939,6 @@ const QIC={ 'Les toilettes':['cible','#cfe6f5'], 'Le linge':['linge','#f7d9c6'],
    aller-retour entre la liste et le plan. */
 let QVUE='liste';
 function qVue(v){ QVUE=v; render(); }
-/* La vraie carte, centrée sur le centre. ⚠ ELLE A BESOIN DU RÉSEAU — c'est le
-   supplément, pas le plan. */
-function qMaps(){
-  window.open('https://www.google.com/maps/@?api=1&map_action=map&center=50.84597,4.29970&zoom=16','_blank','noopener');
-}
 
 function vQuartier(){
   /* AUTOUR D'ICI : le quartier groupé par besoin, en registre — et depuis le
@@ -22737,11 +22950,18 @@ function vQuartier(){
     '<div class="qseg">'+
       '<button class="qsegb'+(QVUE==='liste'?' on':'')+'" onclick="qVue(\'liste\')">Liste</button>'+
       '<button class="qsegb'+(QVUE==='plan'?' on':'')+'" onclick="qVue(\'plan\')">Plan</button>'+
-      '<button class="qsegb" onclick="qMaps()">'+icon('pin')+'<span>Map</span></button>'+
+      '<button class="qsegb'+(QVUE==='map'?' on':'')+'" onclick="qVue(\'map\')">'+icon('pin')+'<span>Map</span></button>'+
     '</div>';
 
+  if(QVUE==='map'){
+    /* ⚠ ELLE A BESOIN DU RÉSEAU. Le Plan, lui, marche toujours : si rien ne
+       vient, on le dit et on y renvoie, au lieu de laisser un rectangle gris. */
+    h+=carteTuiles(343,420);
+    h+='<div class="imprligne" style="padding-top:14px">'+boutonImprimer()+'</div>';
+    return h+'<div style="height:26px"></div>';
+  }
   if(QVUE==='plan'){
-    h+=planRues(343,340);
+    h+=planRues(343,400);
     /* Ce qui ne tient pas dans 750 m : une flèche à son vrai cap, et le temps. */
     h+='<div class="sectl">Plus loin — à pied</div><div class="qloin">'+
       ['Aldi','Parc Astrid','Parc Crickx','DoucheFLUX','Parc de la Pede'].map(function(n){

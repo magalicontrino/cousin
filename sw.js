@@ -3,17 +3,54 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v966';
-const ASSETS = ['./', './index.html', './app-classique.html', './manifest.webmanifest',
+const CACHE = 'cousin-v968';
+const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './favicon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
                 './font/eastman-demibold.woff2', './font/eastman-extrabold.woff2',
                 './font/eastman-bold.woff2', './font/eastman-condensed-black.woff2', './font/eastman-grotesque-heavy.woff2', './font/eastman-compressed-bold.woff2',
-                './picto/ico-reseau.svg', './picto/ico-demarches.svg',
-                './picto/ico-guillemets.svg', './picto/ico-etoile.svg', './picto/site.svg', './picto/ico-demidisques.svg', './picto/ico-fleur.svg',
-                './picto/ico-donut.svg', './picto/astuce.svg',
-                './picto/formations.svg', './picto/avis.svg', './picto/urgences.svg',
-                './picto/petition.svg', './picto/roue.svg', './picto/cle.svg', './picto/imprimer.svg', './picto/femme.svg', './picto/homme.svg', './picto/juridique.svg', './picto/addictions.svg', './picto/planning.svg', './picto/accompagnement.svg', './picto/social.svg', './picto/lgbtqi.svg', './qrcode.js', './picto/jeu-roue.svg', './picto/jeu-cartes.svg', './picto/jeu-serie.svg', './picto/jeu-chrono.svg', './picto/jeu-enquete.svg', './picto/jeu-cible.svg', './picto/jeu-jour.svg', './picto/jeu-duel.svg', './picto/de.svg', './picto/palette.svg'];
+                /* ═══ TOUS LES PICTOS, SANS EXCEPTION (25/08/2026) ═══
+                   La liste était tenue À LA MAIN, et elle avait 46 dessins de retard :
+                   la fleur des parcs, la punaise, le chevron, le linge, les colis… Or
+                   cette liste est ce qui est garanti HORS LIGNE. Un picto absent, c'est
+                   un rond pastel vide dans le hall ou dans une chambre.
+                   ⚠ ET ÇA S'ÉTAIT DÉJÀ PRODUIT — petition, roue et cle avaient manqué
+                   des semaines après leur arrivée. Une liste à la main reprend toujours
+                   du retard : on met donc LE DOSSIER ENTIER (100 dessins, 165 Ko).
+                   ⚠ À REGÉNÉRER quand des pictos sont ajoutés :
+                      ls picto/*.svg | sed "s|.*|'./&', |"
+                   ═══════════════════════════════════════════════════════════════════ */
+                './picto/Arc.svg', './picto/accompagnement.svg', './picto/accueil.svg',
+                './picto/addictions.svg', './picto/adresse.svg', './picto/alarme.svg',
+                './picto/applaudir.svg', './picto/assise.svg', './picto/astuce.svg', './picto/avis.svg',
+                './picto/bouee.svg', './picto/camera.svg', './picto/centre.svg', './picto/chevron.svg',
+                './picto/cible.svg', './picto/cle.svg', './picto/coche.svg', './picto/coeur.svg',
+                './picto/colis.svg', './picto/conduite.svg', './picto/confidentialite.svg',
+                './picto/copier.svg', './picto/de.svg', './picto/deconnexion.svg', './picto/demarches.svg',
+                './picto/demidisques.svg', './picto/donut.svg', './picto/educatif.svg',
+                './picto/envoyer.svg', './picto/escalade.svg', './picto/etrangers.svg',
+                './picto/favoris.svg', './picto/femme.svg', './picto/fete.svg', './picto/fil.svg',
+                './picto/fleur.svg', './picto/formations.svg', './picto/gand.svg', './picto/handicap.svg',
+                './picto/hebergement.svg', './picto/homme.svg', './picto/horaires.svg',
+                './picto/ico-bulle.svg', './picto/ico-cartes.svg', './picto/ico-demarches.svg',
+                './picto/ico-demidisques.svg', './picto/ico-donut.svg', './picto/ico-etoile.svg',
+                './picto/ico-fleche-coudee.svg', './picto/ico-fleche-diagonale.svg',
+                './picto/ico-fleur.svg', './picto/ico-guillemets.svg', './picto/ico-marquepage.svg',
+                './picto/ico-ondes.svg', './picto/ico-photo.svg', './picto/ico-reseau.svg',
+                './picto/ico-viseur.svg', './picto/imprimer.svg', './picto/jeu-cartes.svg',
+                './picto/jeu-chrono.svg', './picto/jeu-cible.svg', './picto/jeu-duel.svg',
+                './picto/jeu-enquete.svg', './picto/jeu-jour.svg', './picto/jeu-roue.svg',
+                './picto/jeu-serie.svg', './picto/juridique.svg', './picto/lgbtqi.svg',
+                './picto/linge.svg', './picto/listes.svg', './picto/logement.svg', './picto/mails.svg',
+                './picto/medical.svg', './picto/modifier.svg', './picto/muscle.svg', './picto/musique.svg',
+                './picto/notif-poubelle.svg', './picto/notifications.svg', './picto/palette.svg',
+                './picto/partager.svg', './picto/pelote.svg', './picto/petition.svg',
+                './picto/planning.svg', './picto/plume.svg', './picto/poterie.svg', './picto/pouce.svg',
+                './picto/profil.svg', './picto/question.svg', './picto/recherche.svg',
+                './picto/reseau.svg', './picto/roue.svg', './picto/sante-mentale.svg', './picto/site.svg',
+                './picto/social.svg', './picto/stats.svg', './picto/telephone.svg', './picto/ticket.svg',
+                './picto/urgences-domaine.svg', './picto/urgences.svg', './picto/whatsapp.svg',
+                './qrcode.js'];
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // la nouvelle version prend la main immédiatement
