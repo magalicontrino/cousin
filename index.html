@@ -5005,6 +5005,18 @@ body.no-tabs #tabbar{display:none}
   .qlieu-map.bus{background:#fdfdfc;color:var(--noir);border:1.25px solid var(--trait)}
   .qlieu-map.bus .pico{background:var(--noir)}
 
+  /* ── LA CARTE SUR LA FEUILLE IMPRIMÉE ──
+     ⚠ `print-color-adjust:exact` est indispensable : sans lui le navigateur
+     supprime TOUS les fonds pour économiser l'encre, et les ronds pastel des
+     lieux sortent vides. */
+  .qpapier{margin:0 0 14px}
+  .qrues.papier{border:1.25px solid #000;border-radius:0;background:#fff;
+    break-inside:avoid;page-break-inside:avoid;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .qrues.papier .qdot{box-shadow:none;border-color:#000}
+  .qrues.papier .qnom{text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff}
+  .qrues.papier .qech,.qrues.papier .qnord{background:rgba(255,255,255,.92)}
+
   /* ── « PLUS LOIN » : ce qui ne tient pas dans le cadre ──
      Chacun garde sa flèche, tournée à sa VRAIE direction, et son temps de marche. */
   .qloin{display:flex;flex-direction:column;padding:0 var(--pad)}
@@ -11322,13 +11334,16 @@ function imprimer(){
             '</div>';
           }).join('');
       }).join('');
-      corps=quartierPlanSVG()+
+      /* ⚠ LA FEUILLE PORTE MAINTENANT LA VRAIE CARTE (Mag, 25/08/2026 : « le print
+         ne représente pas la carte. Mets la carte mais avec un fond blanc »).
+         Elle sortait encore l'ancien plan-boussole — des cercles pointillés et des
+         numéros à reporter dans la liste. Ce n'est plus ce que l'app montre, et
+         surtout ça ne disait pas par où passer. */
+      corps='<div class="qpapier">'+planRues(700,560,null,{papier:true})+'</div>'+
         '<div class="pf-n">Les adresses utiles autour du centre</div>'+
         bloc+
-        '<div class="ag-fin"><b>Le plan est un schéma, pas une carte :</b> il donne la '+
-        'direction et le temps de marche, pas le tracé des rues. <b>Les horaires '+
-        'changent</b> — pour les douches et la buanderie, téléphoner avant de faire le '+
-        'trajet, surtout si c’est loin.</div>';
+        '<div class="ag-fin"><b>Les horaires changent</b> — pour les douches et la '+
+        'buanderie, téléphoner avant de faire le trajet, surtout si c’est loin.</div>';
       t='Autour d’ici';
     }
   }catch(e){}
@@ -11477,7 +11492,16 @@ function imprimer(){
        c'est une feuille qu'on donne à quelqu'un qui voit parfois mal. */
     '<div class="fw'+((!corps && (current&&(current.view==='liste'||current.view==='chambres')))?' serre':'')+'">'+
       '<div class="pt-h"><b>'+esc(t)+'</b><span>'+esc(dateTxt)+'</span></div>'+
-      (corps||src.innerHTML)+'</div></body></html>');
+      (corps||src.innerHTML)+'</div>'+
+    /* ⚠ LES NOMS DE LA CARTE SE PLACENT DANS LA FENÊTRE D'IMPRESSION, PAS ICI.
+       Ils sont posés en mesurant les vraies boîtes (voir `qPlacerNoms`) — et la
+       feuille n'a ni la même largeur ni la même police d'écran. Sans ce rappel,
+       les six noms restaient à leur position de départ et se marchaient dessus
+       sur le papier. On emporte donc la fonction dans la page. */
+    '<script>'+qPlacerNoms.toString()+
+      ';window.addEventListener("load",function(){setTimeout(qPlacerNoms,60)});'+
+      'setTimeout(qPlacerNoms,300);<\/script>'+
+    '</body></html>');
   w.document.close();
 }
 /* ═══ LA FEUILLE DE MA LISTE (Mag, 13/08/2026 : « Imprimer Ma liste / fais ça ») ═══
@@ -22691,19 +22715,22 @@ const QOFFS=[50,38,62,28,72,20,80];
 
 /* Le plan. `port` = le rayon montré, en mètres (750 : au-delà, sur 375 px, une
    rue n'est plus une rue, c'est un trait gris). */
-function planRues(W,H,port){
+function planRues(W,H,port,opt){
+  opt=opt||{};
+  const pap=!!opt.papier;          /* la même carte, mais faite pour le papier */
   /* ⚠ Proportionnel au cadre : même finesse de trait, plus de terrain en grand. */
   port=port||(760*Math.min(W,H)/343);
   const cx=W/2, cy=H/2, k=(Math.min(W,H)/2-6)/port;
   const P=function(p){ return [cx+p[0]*k, cy+p[1]*k]; };
   const dans=function(p){ return p[0]>-12&&p[0]<W+12&&p[1]>-12&&p[1]<H+12; };
   const dd=function(q){ return q.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' '); };
-  let g='<rect width="'+W+'" height="'+H+'" fill="#e4e1d8"/>';
+  const FOND=pap?'#ffffff':'#e4e1d8', VERT=pap?'#f1f1f1':'#d3e2d5';
+  let g='<rect width="'+W+'" height="'+H+'" fill="'+FOND+'"/>';
   /* Les parcs d'abord : sur un plan de quartier, c'est ce qu'on reconnaît avant
      les noms de rues. Ils passent DESSOUS les rues. */
   QVERTS.forEach(function(v){
     const q=v.map(P); if(!q.some(dans)) return;
-    g+='<path d="'+dd(q)+'Z" fill="#d3e2d5"/>';
+    g+='<path d="'+dd(q)+'Z" fill="'+VERT+'"'+(pap?' stroke="#dcdcdc" stroke-width="0.6"':'')+'/>';
   });
   let lis='', fil='';
   QORDRE.forEach(function(type){
@@ -22713,8 +22740,14 @@ function planRues(W,H,port){
       r.s.forEach(function(s){
         const q=s.map(P); if(!q.some(dans)) return;
         const d=dd(q);
-        lis+='<path d="'+d+'" stroke="'+t[2]+'" stroke-width="'+(t[0]+1.7).toFixed(1)+'"/>';
-        fil+='<path d="'+d+'" stroke="'+t[1]+'" stroke-width="'+t[0]+'"/>';
+        /* ⚠ SUR PAPIER ON INVERSE : un seul trait gris, pas un trait blanc bordé.
+           Un liseré + un remplissage blanc sur du blanc, ça ne donne rien. */
+        if(pap){
+          fil+='<path d="'+d+'" stroke="#8d8d8d" stroke-width="'+(t[0]*0.42).toFixed(2)+'"/>';
+        } else {
+          lis+='<path d="'+d+'" stroke="'+t[2]+'" stroke-width="'+(t[0]+1.7).toFixed(1)+'"/>';
+          fil+='<path d="'+d+'" stroke="'+t[1]+'" stroke-width="'+t[0]+'"/>';
+        }
       });
     });
   });
@@ -22763,7 +22796,7 @@ function planRues(W,H,port){
         '><textPath href="#'+id+'" startOffset="'+off+'%" text-anchor="middle">'+esc(txt)+'</textPath></text>'; };
     /* Deux passes : le halo couleur du fond, puis le texte — sinon le nom se pose
        sur le trait blanc de la rue et devient illisible. */
-    textes+=t('none','stroke="#e4e1d8" stroke-width="3.2" paint-order="stroke"')+t('#4f4c46','dy="-0.5"');
+    textes+=t('none','stroke="'+FOND+'" stroke-width="3.2" paint-order="stroke"')+t(pap?'#333':'#4f4c46','dy="-0.5"');
   });
   g+=voies+textes;
 
@@ -22828,7 +22861,11 @@ function planRues(W,H,port){
          esc(qCourt(q.nom))+(q.loin?' <em>· '+q.min+' min</em>':'')+'</div>';
   });
   /* L'échelle : sans elle, « c'est loin » ne veut rien dire. */
-  return '<div class="qrues" style="aspect-ratio:'+W+'/'+H+';width:100%;max-width:900px;margin-left:auto;margin-right:auto">'+
+  /* ⚠ Sur papier, le cadre prend toute la largeur de la feuille et perd ses marges
+     d'écran ; à l'écran il garde le centrage posé le 25/08. */
+  return '<div class="qrues'+(pap?' papier':'')+'" style="aspect-ratio:'+W+'/'+H+
+    (pap?';width:100%;margin:0'
+        :';width:100%;max-width:900px;margin-left:auto;margin-right:auto')+'">'+
     '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
     '<div class="qici" style="left:'+pc(cx,W)+';top:'+pc(cy,H)+'">ICI</div>'+sur+
     '<div class="qech"><i style="width:'+(200*k).toFixed(0)+'px"></i><span>200 m · 2 min</span></div>'+
