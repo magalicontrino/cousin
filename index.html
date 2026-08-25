@@ -4152,6 +4152,56 @@ body.no-tabs #tabbar{display:none}
   background:#f4f3f1;color:var(--noir);border:0;border-radius:0;padding:7px 13px;flex:0 0 auto}
 @media print{ #panneBar{display:none !important} }
 
+/* ── FONTAINES ET TOILETTES (26/08/2026) ──
+   Une rangée = un lieu + sa distance. La distance est à droite, en chiffres fixes :
+   c'est la colonne qu'on descend des yeux, elle doit s'aligner. */
+.eau-chips{display:flex;flex-wrap:wrap;gap:8px;padding:12px var(--pad) 0}
+.eau-l{display:flex;flex-direction:column;padding:0 var(--pad)}
+.eau-r{display:flex;align-items:flex-start;gap:12px;padding:12px 0;
+  border-top:1px solid var(--ligne);color:inherit;text-decoration:none}
+.eau-r:first-child{border-top:0}
+.eau-r:active{background:#f4f2ee}
+.eau-n{flex:1;min-width:0}
+.eau-n b{display:block;font-size:15px;font-weight:600;line-height:1.25}
+.eau-n i{font-style:normal;display:block;font-size:12.5px;color:var(--enc2);margin-top:2px;line-height:1.35}
+.eau-n i.eau-p{font-size:11.5px}
+.eau-tg{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.eau-t{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.06em;
+  text-transform:uppercase;padding:3px 7px;border-radius:3px;background:#eceae5;color:var(--enc2)}
+.eau-t.oui{background:#e2f0e8;color:#1f7a44}
+.eau-t.non{background:#f7e3e3;color:#a33}
+.eau-t.pmr{background:#e4edf7;color:#1d5a8f}
+.eau-d{flex:none;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.06em;
+  color:var(--noir);padding-top:2px;width:62px;text-align:right}
+.eau-src{margin:18px var(--pad) 0;padding:14px 15px;background:#fdfdfc;
+  border:1px solid var(--ligne);border-radius:6px}
+.eau-src b{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.eau-src span{display:block;font-size:12px;line-height:1.5;color:var(--enc2)}
+.eau-src .lienbas{margin-top:9px;display:inline-block}
+@media(min-width:760px){ .eau-l,.eau-chips,.eau-src{max-width:760px;margin-left:auto;margin-right:auto} }
+
+/* ═══ LE CENTRE EN DEUX COLONNES, 980 px (Mag, 26/08/2026 : « il faut une taille max
+   en largeur non ? » — puis « C » parmi les trois propositions) ═══
+   Sur un écran de 1900 px, une rangée du Centre faisait toute la largeur : le titre
+   collé à gauche, le chevron à quarante centimètres de là. On lisait un titre puis
+   on cherchait où cliquer.
+   980 px, c'est la largeur que l'accueil utilise déjà pour « Aujourd'hui » (voir
+   `#view .ajd`) : on ne fabrique pas une largeur de plus.
+   ⚠ CE QUI DOIT PRENDRE TOUTE LA LARGEUR, et pourquoi :
+     · le bandeau noir — un titre à demi-largeur ne serait plus un titre ;
+     · les titres de section — ils SÉPARENT, donc ils barrent ;
+     · le dépliant ouvert ET son contenu — le Centre est un accordéon (une seule
+       porte ouverte à la fois) : ce qui s'ouvre doit s'ouvrir en grand, sinon on
+       lirait son contenu dans une demi-colonne à côté d'une porte fermée. */
+@media(min-width:980px){
+  body.at-centre #view{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:14px;align-content:start;max-width:980px;margin-left:auto;margin-right:auto}
+  body.at-centre #view > .hero,
+  body.at-centre #view > .sectc,
+  body.at-centre #view > .famz.ouvert,
+  body.at-centre #view > .famdedans{grid-column:1/-1}
+}
+
 /* LA CARTE DE PANNE, quand c'est UNE page qui n'a pas su se dessiner. Elle prend la
    place de la page : on doit voir que le clic a abouti quelque part. */
 .pan-carte{max-width:520px;margin:28px auto;padding:22px 20px;background:#fdfdfc;
@@ -9038,6 +9088,261 @@ function agendaProchains(jours, filtre){
   }
   return out;
 }
+/* ═══ LES POINTS D'EAU ET LES TOILETTES PUBLIQUES (Mag, 26/08/2026) ═══
+   « Je veux la carte des fontaines dans Bruxelles aussi » — « et un plan des
+   toilettes aussi ».
+
+   ⚠ CE SONT DE VRAIES COORDONNÉES, RELEVÉES LE 26/08/2026 sur les jeux de données
+   officiels de la Ville de Bruxelles (opendata.brussels.be) :
+     · fontaines et bornes d'eau potable gérées par la Ville de Bruxelles ;
+     · bornes gérées par la Région (source Vivaqua) ;
+     · bornes gratuites dans les gares SNCB ;
+     · toilettes et urinoirs publics — avec gratuit/payant et l'accès PMR.
+   Rien n'est estimé, rien n'est deviné : chaque point porte la latitude et la
+   longitude publiées, et la distance affichée en découle.
+
+   ⚠ ET VOICI CE QUE ÇA NE COUVRE PAS, IL FAUT LE SAVOIR AVANT D'ENVOYER QUELQU'UN :
+   ces jeux s'arrêtent au TERRITOIRE DE LA VILLE DE BRUXELLES (Pentagone, Laeken,
+   NOH, Haren) plus quelques points en bordure. IL N'Y A DONC AUCUN POINT À
+   ANDERLECHT — ce n'est pas un oubli, c'est ce que la Ville publie. La fiche
+   « Fontaines » le disait déjà : notre commune est mal servie.
+
+   ⚠ POURQUOI ON N'A PAS COMPLÉTÉ AVEC OPENSTREETMAP. Il y existe 185 points de plus,
+   qui couvriraient Anderlecht — mais 174 n'ont NI NOM NI OPÉRATEUR : personne ne les
+   a vérifiés. Sa règle du plan du quartier vaut ici, et elle est plus importante que
+   le nombre de points : on ne place pas un point qu'on n'a pas vérifié, parce que
+   quelqu'un ira à pied. Une fontaine qui n'existe pas, c'est deux kilomètres pour
+   rien, et par 30 degrés.
+
+   ⚠ ET LES VIVAQUA NE COULENT QUE D'AVRIL À SEPTEMBRE INCLUS. En hiver, elles sont
+   fermées : ne pas y envoyer quelqu'un entre octobre et mars.
+
+   Le point de départ des distances, c'est le centre (voir ITI_DEPART). */
+const EAU_ICI={la:50.8367, lo:4.3097};
+const EAU_PTS=[
+  {n:"Borne Vivaqua",o:"Anneessens · Senne (rue de la)",c:"Bruxelles",cp:"1000",s:"Vivaqua — Région",la:50.84931,lo:4.33819},
+  {n:"Borne Vivaqua",o:"Vieux Laeken Est · Parvis notre dame",c:"Bruxelles",cp:"1020",s:"Vivaqua — Région",la:50.87992,lo:4.3559},
+  {n:"Borne Vivaqua",o:"Mutsaard · Avenue jean de bologne",c:"Bruxelles",cp:"1020",s:"Vivaqua — Région",la:50.89347,lo:4.36347},
+  {n:"Borne Vivaqua",o:"Quartier Royal · Parc de bruxelles",c:"Bruxelles",cp:"1000",s:"Vivaqua — Région",la:50.84048,lo:4.36473},
+  {n:"Borne Vivaqua",o:"Dries · Nations (square des)",c:"Bruxelles",cp:"1050",s:"Vivaqua — Région",la:50.79732,lo:4.39526},
+  {n:"Borne Vivaqua",o:"Etangs D'ixelles · Louise (avenue)-sud-est",c:"Bruxelles",cp:"1000",s:"Vivaqua — Région",la:50.81769,lo:4.37258},
+  {n:"Borne Vivaqua",o:"Marolles · Palais justice-hop. st.-pierre",c:"Bruxelles",cp:"1000",s:"Vivaqua — Région",la:50.83341,lo:4.3458},
+  {n:"Borne Vivaqua",o:"Bois De La Cambre · Cambre (bois de la)",c:"Bruxelles",cp:"1050",s:"Vivaqua — Région",la:50.81457,lo:4.37236},
+  {n:"Borne Vivaqua",o:"Quartier Europeen · Cite de la chaussee",c:"Bruxelles",cp:"1040",s:"Vivaqua — Région",la:50.84067,lo:4.37969},
+  {n:"Borne Vivaqua",o:"Parc Leopold · Leopold (parc)",c:"Bruxelles",cp:"1000",s:"Vivaqua — Région",la:50.83793,lo:4.3806},
+  {n:"Borne à eau Adolphe Max",o:"Boulevard Adolphe Max, 22",d:"En face du n°12.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85239,lo:4.35403},
+  {n:"Borne à eau Akarova",o:"Rue des Visitandines, 3",d:"En face de la rue du Jardin Rompu.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84011,lo:4.34834},
+  {n:"Borne à eau Attelages",o:"Carrefour des Attelages, 1",d:"En face de l’île du Chalet Robinson.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.80704,lo:4.37977},
+  {n:"Borne à eau Beyseghem",o:"Rue de Beyseghem, 148",d:"Sur la plaine de jeux, près des balançoires.",c:"Bruxelles",cp:"1120",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89588,lo:4.3754},
+  {n:"Borne à eau Borgval",o:"Boulevard Anspach, 99",d:"Au carrefour avec la rue Borgval.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84724,lo:4.3484},
+  {n:"Borne à eau Brigitinnes",o:"Rue des Brigittines, 10",d:"A la hauteur de La plaine de jeux et la gare Bruxelles-Chapelle.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84072,lo:4.3478},
+  {n:"Borne à eau Cité Modèle",o:"Square de la Turquoise, 10",d:"Cité modèle, sous le bloc 6, vers l’aire de jeu à côté des tables pingpong.",c:"Bruxelles",cp:"1020",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89554,lo:4.32239},
+  {n:"Borne à eau Clovis",o:"Boulevard Clovis, 53",d:"A la hauteur du boulevard Clovis n°53.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84964,lo:4.38144},
+  {n:"Borne à eau Craetbos",o:"Rue du Bois Henri, 10",d:"A côté de la plaine de jeu dans le fond du vallon.",c:"Bruxelles",cp:"1120",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89701,lo:4.38348},
+  {n:"Borne à eau De Brouckère centre",o:"Boulevard Emile Jacqmain, 2",d:"Au coin avec la rue des Hirondelles, devant le n°48 sur la place.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85194,lo:4.35305},
+  {n:"Borne à eau De Brouckère nord",o:"Boulevard Emile Jacqmain, 2",d:"Au coin avec la rue des Hirondelles, devant le n°48 sur la place.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85195,lo:4.35306},
+  {n:"Borne à eau De Brouckère sud",o:"Boulevard Emile Jacqmain, 2",d:"Au coin avec la rue des Hirondelles, devant le n°48 sur la place.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85193,lo:4.35304},
+  {n:"Borne à eau Ferme Maximilien",o:"Quai du Batelage, 2",d:"Adossée au bâtiment de la ferme.",c:"Bruxelles",cp:"1000",a:"accessible selon horaires",s:"Ville de Bruxelles",la:50.8587,lo:4.35042},
+  {n:"Borne à eau Fontainas est",o:"Boulevard Anspach, 189",d:"En face du n°11, du coté Rue aux Charbons.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84524,lo:4.34654},
+  {n:"Borne à eau Fontainas nord",o:"Boulevard Anspach, 189",d:"En face du n°1, du coté du parc.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84541,lo:4.34621},
+  {n:"Borne à eau Fontainas sud",o:"Place Fontainas, 28",d:"En face du n°8, côté entrée station métro.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84516,lo:4.34635},
+  {n:"Borne à eau Genêt est",o:"Avenue Franklin Roosevelt, 89A",d:"Deuxième borne face à l’étang et derrière le Chalet Robinson.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.80157,lo:4.3841},
+  {n:"Borne à eau Genêt ouest",o:"Avenue Franklin Roosevelt, 89A",d:"Première borne face à l’étang et derrière le Chalet Robinson.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.80167,lo:4.38246},
+  {n:"Borne à eau Grand Serment",o:"Rue du Houblon, 26",d:"En face du n°4.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85057,lo:4.34199},
+  {n:"Borne à eau Grétry",o:"Boulevard Anspach, 21",d:"Au carrefour avec la rue Grétry.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84975,lo:4.35117},
+  {n:"Borne à eau Haren",o:"Rue du Beemdgracht, 44",d:"Parc de Haeren, en face du n°40.",c:"Bruxelles",cp:"1130",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89659,lo:4.41921},
+  {n:"Borne à eau Jacques Brel",o:"Rue Yvonne Jospa, 17",d:"Au coin de la Rue du Houblon avec la Rue Yvonne Jospa, sur le terrain basket.",c:"Bruxelles",cp:"1000",a:"accessible selon horaires",s:"Ville de Bruxelles",la:50.85128,lo:4.34289},
+  {n:"Borne à eau Jeu de Criquet",o:"Chemin du Croquet, 1",d:"A l’entrée du parking du restaurant «Jeux d’Hiver».",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.81203,lo:4.37232},
+  {n:"Borne à eau L'Horizon",o:"Rue de la Comtesse de Flandre, 71",d:"Accessible via la rue de la Comtesse de Flandre.",c:"Bruxelles",cp:"1020",a:"accès réservé",s:"Ville de Bruxelles",la:50.87537,lo:4.35085},
+  {n:"Borne à eau Laiterie",o:"Avenue de Flore, 3",d:"Dans la plaine de jeux au croisement av de la Laiterie et av de Diane.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.80858,lo:4.37489},
+  {n:"Borne à eau Laskouster",o:"Avenue de Versailles, 142",d:"A la hauteur de l’Av de Versailles 144-146 et Rue Laskouter.",c:"Bruxelles",cp:"1120",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89711,lo:4.37538},
+  {n:"Borne à eau Marché aux Poulets",o:"Boulevard Anspach, 63",d:"Au carrefour avec la rue Marché aux Poulets.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84893,lo:4.35016},
+  {n:"Borne à eau Marguerite",o:"Square Marguerite, 13",d:"En face du n°13.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84714,lo:4.38662},
+  {n:"Borne à eau Marsupilami",o:"Rue Reper-Vreven, 39",d:"Sur la plaine de jeux, en face du n° 39.",c:"Bruxelles",cp:"1020",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89055,lo:4.34136},
+  {n:"Borne à eau Oasis",o:"Rue de Ter Plast, 16",d:"Dans la plaine de jeux, via la rue Alfred Stevens n°33 ou rue du Siphon n°11.",c:"Bruxelles",cp:"1020",a:"accessible selon horaires",s:"Ville de Bruxelles",la:50.88237,lo:4.34386},
+  {n:"Borne à eau Palais Outre-ponts",o:"Rue des Palais Outre-Ponts, 440",d:"Sur la plaine de jeux, en face du n° 440.",c:"Bruxelles",cp:"1020",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.87713,lo:4.36057},
+  {n:"Borne à eau Parc Bxl centre",o:"Rue de la Loi, 6",d:"En face à la rue Montagne du Parc, près du Théâtre Royal du Parc.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84522,lo:4.36335},
+  {n:"Borne à eau Parc Bxl nord",o:"Rue de la Loi, 1",d:"En face à la rue Royale, entre l'allée Zinner et des Bailles.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84587,lo:4.36462},
+  {n:"Borne à eau Pont Neuf",o:"Rue du Pont Neuf, 68",d:"A la hauteur de l’Eglise du Finistère et de l’Inno.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85311,lo:4.35607},
+  {n:"Borne à eau Prince Léopold",o:"Square Prince Léopold, 59",d:"En face du n° 49, près Rue Strauwen, au bord de l’allée autour du parc.",c:"Bruxelles",cp:"1020",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.88412,lo:4.34159},
+  {n:"Borne à eau Quai au Foin nord",o:"Quai au Foin, 67",d:"Derrière le théatre KVS, sur le terrain de basket, devant le n°67.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85557,lo:4.34817},
+  {n:"Borne à eau Quai au foin sud",o:"Quai au Foin, 67",d:"Derrière le théatre KVS, sur le terrain de basket, devant le n°67.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85556,lo:4.34817},
+  {n:"Borne à eau Querelle",o:"Rue Terre-Neuve, 132",d:"Au croisement avec la rue Vanderhaegen et rue de la Querelle.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.83926,lo:4.34449},
+  {n:"Borne à eau Sainte-Catherine est",o:"Place Sainte-Catherine, 1",d:"Devant l’église, à l'angle de la rue de Flandre.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85058,lo:4.34735},
+  {n:"Borne à eau Sainte-Catherine ouest",o:"Place Sainte-Catherine, 1",d:"Devant l’église, à l'angle de la rue de Flandre.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.85059,lo:4.34735},
+  {n:"Borne à eau Sapinière",o:"Avenue Victoria, 36",d:"Sur la rocade auto à l’est du Chalet Robinson.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.80535,lo:4.38349},
+  {n:"Borne à eau Teinturiers",o:"Boulevard Anspach, 136",d:"Au carrefour avec la rue des Teinturiers.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84673,lo:4.34805},
+  {n:"Borne à eau Val Maria",o:"Clos des Trigonelles, 5",d:"A côté de la plaine de jeu, en lisière du bois.",c:"Bruxelles",cp:"1120",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.90019,lo:4.38266},
+  {n:"Borne à eau Vallée du Maelbeek",o:"Rue Joseph II, 153",d:"Dans le haut du petit parc au coin de la chée d’Etterbeek et de la rue Joseph II.",c:"Bruxelles",cp:"1040",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.8439,lo:4.37902},
+  {n:"Borne à eau Verregat",o:"Rue des Genévriers, 42",d:"Parc du Verregat, derrière le chalet (côté avenue des Magnolias).",c:"Bruxelles",cp:"1020",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.89967,lo:4.33178},
+  {n:"Borne à eau Yourcenar",o:"Rue aux Laines, 30",d:"Entrée Rue aux laines, passage M. Yourcenar.",c:"Bruxelles",cp:"1000",a:"accessible selon horaires",s:"Ville de Bruxelles",la:50.83791,lo:4.35604},
+  {n:"Borne à eau des Cinq Coins",o:"Rue des Teinturiers, 18",d:"Au coin avec la rue des Teinturiers et rue Platesteen.",c:"Bruxelles",cp:"1000",a:"accessible 24h/24",s:"Ville de Bruxelles",la:50.84644,lo:4.34887},
+  {n:"Borne à eau des Escargots",o:"Rue des Renards, 12",d:"Entrée rue des Capucins n°59, local service jeunesse, aire de jeux, à droite.",c:"Bruxelles",cp:"1000",a:"accessible selon horaires",s:"Ville de Bruxelles",la:50.83732,lo:4.34744},
+  {n:"Gare de Bruxelles-Central",o:"Niveau 0. En bas, à droite de l’escalier menant vers la sortie \"Cantersteen\".",c:"Bruxelles",cp:"1000",s:"SNCB",la:50.84554,lo:4.35736},
+  {n:"Gare de Bruxelles-Schuman",o:"Niveau xxx. Près des guichets et de l'escalier.",c:"Bruxelles",cp:"1040",s:"SNCB",la:50.84301,lo:4.3803},
+  {n:"Borne Vivaqua",o:"Quartier Europeen · Luxembourg (place de)",c:"Ixelles",cp:"1050",s:"Vivaqua — Région",la:50.83957,lo:4.37236},
+  {n:"Gare de Bruxelles-Luxembourg",o:"Niveau xxx. Près de \"Cyclo\" et de l'entrée vers le quai 6.",c:"Ixelles",cp:"1047",s:"SNCB",la:50.83785,lo:4.37358},
+  {n:"Borne Vivaqua",o:"Berckmans - Hotel Des Monnaies · Toison d'or (avenue)",c:"Saint-Gilles",cp:"1060",s:"Vivaqua — Région",la:50.83344,lo:4.35037},
+  {n:"Gare de Bruxelles-Midi",o:"Niveau 0.  A côté de l’entrée vers le quai 10, en face des guichets.",c:"Saint-Gilles",cp:"1060",s:"SNCB",la:50.8364,lo:4.33658},
+  {n:"Borne Vivaqua",o:"Saint-Josse Centre · Madou",c:"Saint-Josse-Ten-Noode",cp:"1210",s:"Vivaqua — Région",la:50.84912,lo:4.36954},
+];
+
+const WC_PTS=[
+  {n:"Anka Lounge",o:"Chaussée de Haecht 1687",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1130",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.88853,lo:4.42445},
+  {n:"Arrêt de bus STIB",o:"203, Rue Arthur Maes",d:"Toilette publique",c:"Bruxelles",cp:"1130",p:"Payant",m:0,t:"Toilette",g:"STIB",la:50.88643,lo:4.42973},
+  {n:"Arrêt de bus STIB",o:"80, Avenue des Croix de Guerre",d:"Toilette publique",c:"Bruxelles",cp:"1120",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.88742,lo:4.37828},
+  {n:"Arrêt de bus STIB",o:"62, Boulevard Emile Jacqmain",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.85366,lo:4.35384},
+  {n:"Arrêt de bus STIB",o:"4, Place du Nouveau Marché aux Grains",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.8511,lo:4.34532},
+  {n:"Arrêt de bus STIB",o:"30, Square Ambiorix",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:0,t:"Toilette",g:"STIB",la:50.84636,lo:4.38383},
+  {n:"Arrêt de métro STIB",o:"23, Place de Brouckère",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.85138,lo:4.35302},
+  {n:"Arrêt de métro STIB",o:"71, Boulevard Anspach",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.84806,lo:4.34928},
+  {n:"Arrêt de métro STIB",o:"81, Boulevard Anspach",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.84777,lo:4.34894},
+  {n:"Arrêt de tram STIB",o:"193, Rue Bruyn",d:"Toilette publique",c:"Bruxelles",cp:"1120",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.90788,lo:4.38937},
+  {n:"Arrêt de tram STIB",o:"525, Avenue Louise",d:"Toilette publique",c:"Bruxelles",cp:"1050",p:"Payant",m:0,t:"Toilette",g:"STIB",la:50.81523,lo:4.37213},
+  {n:"Arrêt de tram STIB",o:"15, Avenue du Général de Ceuninck",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Payant",m:1,t:"Toilette",g:"STIB",la:50.89355,lo:4.33115},
+  {n:"Asap Loi",o:"19, Rue de la Loi",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1040",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.84519,lo:4.36957},
+  {n:"Asap Meeûs",o:"37, Square de Meeûs",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.84071,lo:4.36881},
+  {n:"Atomium",o:"1, Square de l'Atomium",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1020",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.89517,lo:4.34161},
+  {n:"BDthèque Brand Whitlock",o:"10, Rue Sainte-Anne",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.84151,lo:4.35605},
+  {n:"Barbeton",o:"114, Rue Antoine Dansaert",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.8519,lo:4.34374},
+  {n:"Basils Liberté",o:"1, Place de la Liberté",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84966,lo:4.36606},
+  {n:"Bella Vita",o:"22, Place du Jardin aux Fleurs",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84817,lo:4.34376},
+  {n:"Bibliotheek Brussel-Laken",o:"Boulevard Emile Boscktael 107-109",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",la:50.87336,lo:4.34636},
+  {n:"Bibliothèque Adolphe Max",o:"11, Rue des Eburons",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.84858,lo:4.37836},
+  {n:"Bibliothèque Bruegel",o:"245, Rue Haute",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.83656,lo:4.34793},
+  {n:"Bibliothèque Fernand Brunfaut",o:"23/1, Square de la Cité Modèle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89582,lo:4.32425},
+  {n:"Bibliothèque de Haren",o:"34, Rue de la Paroisse",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1130",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.89261,lo:4.42062},
+  {n:"Bibliothèque de Laeken",o:"246, Boulevard Emile Bockstael",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.87631,lo:4.34796},
+  {n:"Bibliothèque de Neder-over-Heembeek",o:"63-65, Rue François Vekemans",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1120",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89557,lo:4.38974},
+  {n:"Bibliothèque des Riches Claires",o:"24, Rue des Riches Claires",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.8469,lo:4.34636},
+  {n:"Bibliothèque du Mutsaard",o:"82, Rue Gustave Demanet",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.89915,lo:4.35853},
+  {n:"Biblothèque Charles Janssen",o:"62, Boulevard Emile Jacqmain",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.8537,lo:4.3537},
+  {n:"Billie",o:"42, Rue Sainte-Catherine",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.85016,lo:4.34742},
+  {n:"Black Eagle",o:"61, Avenue de la Brabançonne",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84936,lo:4.38579},
+  {n:"Bouillon Bruxelles",o:"Rue des Dominicains 7-9",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",la:50.84814,lo:4.35447},
+  {n:"Box 120",o:"120, Boulevard Emile Bockstael",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.87294,lo:4.34537},
+  {n:"Brasserie Horta",o:"20, Rue des Sables",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.8511,lo:4.36008},
+  {n:"Brasserie Ommegang",o:"4, Rue de la Montagne",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84689,lo:4.35454},
+  {n:"Café Central",o:"14, Borgval",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84771,lo:4.34778},
+  {n:"Café Théâtre des Artistes",o:"1, Rue des Artistes",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.88039,lo:4.34922},
+  {n:"Café des Minimes",o:"60, Rue des Minimes",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83932,lo:4.35285},
+  {n:"Centre Culturel Bruegel",o:"Rue des Renards 1F",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.83707,lo:4.34728},
+  {n:"Centre Pôle Nord",o:"208, Chaussée d'Anvers",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.86493,lo:4.35767},
+  {n:"Chez François",o:"2, Quai aux Briques",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.85105,lo:4.34823},
+  {n:"Chez Richard",o:"2, Rue des Minimes",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84127,lo:4.35393},
+  {n:"City 2",o:"123, Rue Neuve",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.85482,lo:4.35839},
+  {n:"City 2",o:"123, Rue Neuve",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.85482,lo:4.35839},
+  {n:"Complexe sportif Neder-Over-Heembeek",o:"120, Rue Lombartzijde",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1120",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89288,lo:4.37683},
+  {n:"Damn Good Café",o:"10, Rue Saint-Jean Népomucène",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.85568,lo:4.35412},
+  {n:"Docks Bruxsel",o:"1, Boulevard Lambermont",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.87959,lo:4.37279},
+  {n:"Ebrius Artis Bar",o:"6, Place Rouppe",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84323,lo:4.34584},
+  {n:"Forum Café",o:"688, Avenue Houba de Strooper",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.89663,lo:4.32835},
+  {n:"Frénésie",o:"Boulevard Anspach 177",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84579,lo:4.34659},
+  {n:"Galerie Agora",o:"105, Rue du Marché aux Herbes",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.84642,lo:4.35439},
+  {n:"Garden City",o:"6, Place de la Liberté",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84992,lo:4.36649},
+  {n:"Gare Bruxelles-Schuman",o:"60, Chaussée d'Etterbeek",d:"Toilette publique",c:"Bruxelles",cp:"1040",p:"Payant",m:1,t:"Toilette",g:"SNCB",la:50.84271,lo:4.37955},
+  {n:"Gare Centrale",o:"Carrefour de l'Europe",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"SNCB",la:50.84544,lo:4.35734},
+  {n:"Grand Canal",o:"44-46, Quai des Péniches",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.86256,lo:4.35063},
+  {n:"Hôtel Barry",o:"25, Place Anneessens",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84391,lo:4.34451},
+  {n:"Inno",o:"111-123, Rue Neuve",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:0,t:"Toilette",g:"Exploitant privé",la:50.85314,lo:4.35679},
+  {n:"Inno",o:"111-123, Rue Neuve",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.85314,lo:4.35679},
+  {n:"James Joyce Irish Pub",o:"34, Rue Archimède",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84499,lo:4.38361},
+  {n:"Kiosk Radio",o:"10, Place des Palais",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:0,t:"Toilette",g:"Exploitant privé",la:50.84345,lo:4.36264},
+  {n:"L'Aquarelle",o:"73, Avenue Houba de Strooper",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.88817,lo:4.3397},
+  {n:"L'Equinoxe",o:"70, Rue Ravenstein",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84583,lo:4.35878},
+  {n:"L'Ommegang",o:"4, Rue de la Montagne",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84691,lo:4.35455},
+  {n:"La Bourse",o:"80, Boulevard Anspach",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.84803,lo:4.35018},
+  {n:"La Clé D'or",o:"Place du Jeu de Balle 1",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83748,lo:4.34672},
+  {n:"La Corte Gastronomica",o:"44, Rue Grétry",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84888,lo:4.35281},
+  {n:"Le Chineur",o:"3, Place du Jeu de Balle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83751,lo:4.34658},
+  {n:"Le Gutenberg",o:"25, Square Gutenberg",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84868,lo:4.3779},
+  {n:"Le Houba",o:"75, Avenue Houba de Strooper",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.8886,lo:4.33918},
+  {n:"Le Kiosque",o:"Avenue des Gênets",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.80319,lo:4.38151},
+  {n:"Le Marathon",o:"592, Avenue Houba de Strooper",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.89435,lo:4.33121},
+  {n:"Le Panorama Bar",o:"217, Rue Marie-Christine",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.8772,lo:4.3489},
+  {n:"Le Paon d'Or",o:"27, Place du Jeu de Balle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83716,lo:4.3453},
+  {n:"Le Pavé",o:"35, Place du Jeu de Balle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83682,lo:4.34489},
+  {n:"Le Pré Salé",o:"20, Rue de Flandre",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.85088,lo:4.34683},
+  {n:"Le Wolf",o:"20, Rue de la Violette",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84567,lo:4.35214},
+  {n:"Les Vignes du Liban",o:"152, Rue Haute",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83871,lo:4.35043},
+  {n:"Maison de Quartier Ambiorix",o:"Square Ambiorix 4",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.8478,lo:4.38297},
+  {n:"Maison de Quartier Anneessens",o:"Rue du Vautour 2",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",la:50.84515,lo:4.34344},
+  {n:"Maison de Quartier Bockstael",o:"4, Rue de la Comtesse de Flandre",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.87401,lo:4.3529},
+  {n:"Maison de Quartier Bruyn",o:"225, Rue Bruyn",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1120",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.90871,lo:4.38887},
+  {n:"Maison de Quartier Buanderie",o:"Rue de la Buanderie 1",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.84646,lo:4.34248},
+  {n:"Maison de Quartier Flèche",o:"Rue de la Flèche 5-7",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",la:50.85898,lo:4.35278},
+  {n:"Maison de Quartier Haren",o:"Rue Cortenbach 11",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1130",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.89225,lo:4.41724},
+  {n:"Maison de Quartier Léopold",o:"Square Prince Léopold",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.88385,lo:4.34148},
+  {n:"Maison de Quartier Marollia",o:"Rue aux Laines 154",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",la:50.83454,lo:4.34988},
+  {n:"Maison de Quartier Mellery",o:"Rue Mathieu Desmaré10",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.87964,lo:4.35679},
+  {n:"Maison de Quartier Midi",o:"Boulevard du Midi 53",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84084,lo:4.3409},
+  {n:"Maison de Quartier Millénaire",o:"Chaussée d'Anvers 150",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",la:50.86307,lo:4.35635},
+  {n:"Maison de Quartier Modèle",o:"23, Square de la Cité Modèle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89515,lo:4.32342},
+  {n:"Maison de Quartier Nord-Est",o:"16, Rue Van Campenhout",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84769,lo:4.38576},
+  {n:"Maison de Quartier Querelle",o:"Rue du Lavoir 32",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.83867,lo:4.34447},
+  {n:"Maison de Quartier Rotonde",o:"Boulevard du Centenaire",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.89093,lo:4.3446},
+  {n:"Maison de Quartier Van Artevelde",o:"129, Rue Van Artevelde",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84701,lo:4.344},
+  {n:"Mazette",o:"50, Place du Jeu de Balle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83649,lo:4.34586},
+  {n:"Nico's",o:"44, Rue John Waterloo Wilson",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84892,lo:4.38069},
+  {n:"Papier Beurre",o:"1, Place Surlet de Chokier",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84868,lo:4.36835},
+  {n:"Parc Fontainas",o:"11, Place Fontainas",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84561,lo:4.34601},
+  {n:"Parc Maximilien",o:"59B, Chaussée d'Anvers",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.86259,lo:4.35648},
+  {n:"Parc d'Osseghem",o:"4, Avenue du Gros Tilleul",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Bruxelles Environnement",la:50.89301,lo:4.34536},
+  {n:"Parc de la Porte de Hal",o:"114, Boulevard de Waterloo",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Bruxelles Environnement",la:50.83293,lo:4.34859},
+  {n:"Parking bus",o:"Boulevard du Centenaire",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89116,lo:4.34578},
+  {n:"Pipet",o:"241, Rue De Wand",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.9005,lo:4.36071},
+  {n:"Piscine du Centre",o:"28, Rue du Chevreuil",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83777,lo:4.34593},
+  {n:"Pitta d'Or",o:"233, Avenue de la Reine",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.87142,lo:4.3611},
+  {n:"Pitta d'Or",o:"272, Rue de Heembeek",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1120",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.89405,lo:4.3826},
+  {n:"Pizzeria Fantastico",o:"71, Rue de l'Enseignement",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84898,lo:4.36545},
+  {n:"Salle Omnisport Fontainas",o:"20, Rue des Six Jetons",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.84597,lo:4.34571},
+  {n:"Snack Verdun",o:"390, Rue de Verdun",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1130",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.89168,lo:4.41796},
+  {n:"Spread The Moon",o:"13, Rue du Gentilhomme",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84755,lo:4.36182},
+  {n:"Square Marguerite Duras",o:"6, Steenkoolkaai",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.85398,lo:4.34676},
+  {n:"Taylor's Café",o:"228, Rue Haute",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83702,lo:4.34883},
+  {n:"The Mint Brussels",o:"10, Place de la Monnaie",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1105",p:"Payant",m:0,t:"Toilette",g:"Exploitant privé",la:50.85002,lo:4.35278},
+  {n:"The Sneakers Café",o:"6, Petite rue des Bouchers",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84764,lo:4.35315},
+  {n:"Toilette",o:"54, Rue du Beemdgracht",d:"Toilette publique",c:"Bruxelles",cp:"1130",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89681,lo:4.41933},
+  {n:"Toilette",o:"23, Rue aux Choux",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.85224,lo:4.35711},
+  {n:"Toilette",o:"1, Place Emile Bockstael",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.87696,lo:4.3468},
+  {n:"Toilette",o:"49, Rue de la Madeleine",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84511,lo:4.35538},
+  {n:"Toilette",o:"Place Joseph Benoît Willems, 16",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Toilette",la:50.87518,lo:4.35034},
+  {n:"Toilette",o:"11, Rue De Wand",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89556,lo:4.35766},
+  {n:"Toilette",o:"183, Rue de Laeken",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.85645,lo:4.35296},
+  {n:"Toilette",o:"Chemin du Rossignol 18-20",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1120",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.89558,lo:4.38555},
+  {n:"Toilette",o:"1, Square de l' Atomium",d:"Toilette publique",c:"Bruxelles",cp:"1020",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.89482,lo:4.34086},
+  {n:"Toilette",o:"5, Anneessensplein",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84385,lo:4.3439},
+  {n:"Toilette",o:"1, Square Marguerite",d:"Toilette publique",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Ville de Bruxelles",la:50.84717,lo:4.38497},
+  {n:"Tour à Plomb",o:"24, Rue de l'Abattoir",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Ville de Bruxelles",la:50.84797,lo:4.33949},
+  {n:"Urinoir",o:"589, Avenue Louise",d:"Urinoir",c:"Bruxelles",cp:"1050",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.81451,lo:4.37215},
+  {n:"Urinoir",o:"23, Rue Hubert Stiernet",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.87659,lo:4.35799},
+  {n:"Urinoir",o:"21, Rue Tielemans",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.87644,lo:4.34717},
+  {n:"Urinoir",o:"38, Place Saint-Lambert",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.89078,lo:4.3443},
+  {n:"Urinoir",o:"38, Place Saint-Lambert",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.89158,lo:4.34522},
+  {n:"Urinoir",o:"47, Boulevard de l'Abattoir",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.8453,lo:4.33844},
+  {n:"Urinoir",o:"4, Place de la Chapelle",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.8415,lo:4.35008},
+  {n:"Urinoir",o:"23, Rue des Pierres",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.84731,lo:4.34962},
+  {n:"Urinoir",o:"38, Rue Saint-Christophe",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.84707,lo:4.346},
+  {n:"Urinoir",o:"24, Avenue Impératrice Charlotte",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.8967,lo:4.32949},
+  {n:"Urinoir",o:"1, Place du Béguinage",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.85247,lo:4.35033},
+  {n:"Urinoir",o:"99, Rue des Minimes",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.83794,lo:4.35115},
+  {n:"Urinoir",o:"8, Place du Nouveau Marché aux Grains",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.85113,lo:4.34457},
+  {n:"Urinoir",o:"12, Place Sainte-Catherine",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.85084,lo:4.3481},
+  {n:"Urinoir",o:"141, Avenue Houba de Strooper",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.89073,lo:4.33641},
+  {n:"Urinoir",o:"41,  Rue de Villers",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.84327,lo:4.35121},
+  {n:"Urinoir",o:"1, Rue de l'Arrosoir",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.83598,lo:4.34384},
+  {n:"Urinoir",o:"13, Square Marguerite",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.84717,lo:4.38674},
+  {n:"Urinoir",o:"22, Avenue Jean Palfyn",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.89362,lo:4.33232},
+  {n:"Urinoir",o:"17, Rue des Ursulines",d:"Urinoir",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.84128,lo:4.34776},
+  {n:"Urinoir",o:"387, Rue des Palais Outre-Ponts",d:"Urinoir",c:"Bruxelles",cp:"1020",p:"Gratuit",m:0,t:"Urinoir",g:"Ville de Bruxelles",la:50.87544,lo:4.36054},
+  {n:"Volle Brol",o:"29, Place du Jeu de Balle",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.83708,lo:4.34522},
+  {n:"Walvis",o:"209, Rue Antoine Dansaert",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.85306,lo:4.34191},
+  {n:"Woodpecker",o:"1, Carrefour des Attelages",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Payant",m:1,t:"Toilette",g:"Exploitant privé",la:50.80681,lo:4.37894},
+  {n:"Woodpecker",o:"5, Place des Palais",d:"Toilette exploitée par le privé",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84325,lo:4.36361},
+  {n:"Yummy Bowl",o:"49, Rue des Eperonniers",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:0,t:"Toilette",g:"Exploitant privé",la:50.84536,lo:4.3533},
+  {n:"Zennebar",o:"19-21, Drève Anna Boch",d:"Réseau Toilettes accueillantes",c:"Bruxelles",cp:"1000",p:"Gratuit",m:1,t:"Toilette",g:"Exploitant privé",la:50.86771,lo:4.34885},
+];
+
 var QUARTIER = [
   { grp:"Au centre", lignes:[
     { t:"Les toilettes", d:"Au centre, accessibles." },
@@ -12331,6 +12636,7 @@ function parseRoute(){
   if(seg[0]==='recherche') return {view:'recherche'};
   if(seg[0]==='reseau') return {view:'reseau'};
   if(seg[0]==='quartier') return {view:'quartier'};
+  if(seg[0]==='eau') return {view:'eau', onglet:(seg[1]==='wc'?'wc':'eau')};
   if(seg[0]==='favoris') return {view:'favoris'};
   if(seg[0]==='urgences') return {view:'urgences'};
   return {view:'home'};
@@ -12406,6 +12712,9 @@ function renderInterne(){
      AUCUN transform, sinon le calque fixe du téléphone se recale sur lui. */
   document.body.classList.toggle('en-apercu',!!APERCU_TEL);
   document.body.classList.toggle('at-home',current.view==='home');
+  /* Voir `body.at-centre #view` : la page du Centre se range en deux colonnes sur
+     grand écran. Il fallait un crochet, comme `at-home` juste au-dessus. */
+  document.body.classList.toggle('at-centre',current.view==='centre');
   /* Voir `body.pan-ouvert #view` : un panneau de fiche ou d'activité est en
      `position:fixed` DANS #view — tant qu'il est ouvert, la page ne s'anime pas. */
   /* ⚠ `try` VOULU : `FICHE_PAN` et `ACT_PAN` sont déclarés en `let` bien plus bas
@@ -12518,7 +12827,7 @@ function renderInterne(){
   else if(current.view==='reglement') view.innerHTML=vReglement();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='ressources') view.innerHTML=vRessources();
-  else if(current.view==='accueilpersonne') view.innerHTML=vAccueilPersonne(current.volet);
+  else if(current.view==='accueilpersonne'){ view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); }
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
@@ -12532,6 +12841,7 @@ function renderInterne(){
     /* Les noms du plan et de la carte se placent une fois la page à l'écran :
        c'est le seul moment où on connaît leur vraie largeur. */
     requestAnimationFrame(qPlacerNoms); }
+  else if(current.view==='eau') view.innerHTML=vEau();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
     _ecranDessine=keyOf(current);
@@ -13654,6 +13964,20 @@ function vCentre(){
   h+='<button class="famz" onclick="go(\'#/quartier\')">'+
       '<span class="rd" style="background:'+pastel('#f5c542')+'"><span class="ic">'+icon('pin')+'</span></span>'+
       '<span class="tx"><b>Autour d’ici</b><em>Le plan du quartier</em></span>'+
+      '<span class="chv">›</span></button>';
+  /* ═══ LES FONTAINES ET LES TOILETTES (Mag, 26/08/2026) ═══
+     ⚠ DEUX BOUTONS, PAS UN. Sa règle sur les noms de tiroirs : un titre qui porte
+     deux besoins, ça fait deux boutons. « Boire » et « aller aux toilettes » ne se
+     cherchent pas au même moment ni pour la même personne — et « Fontaines et
+     toilettes » n'est le nom de rien.
+     Chacun ouvre la page sur SON onglet : voir `eauOnglet()`. */
+  h+='<button class="famz" onclick="go(\'#/eau\')">'+
+      '<span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('pin')+'</span></span>'+
+      '<span class="tx"><b>Les fontaines</b><em>'+EAU_PTS.length+' points d’eau potable gratuits</em></span>'+
+      '<span class="chv">›</span></button>';
+  h+='<button class="famz" onclick="go(\'#/eau/wc\')">'+
+      '<span class="rd" style="background:'+pastel('#b28b7a')+'"><span class="ic">'+icon('pin')+'</span></span>'+
+      '<span class="tx"><b>Les toilettes</b><em>'+WC_PTS.filter(function(x){return x.p==='Gratuit';}).length+' gratuites sur '+WC_PTS.length+'</em></span>'+
       '<span class="chv">›</span></button>';
   }
 
@@ -15180,7 +15504,7 @@ function boiteClasser(id){
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
 const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', accueilpersonne:'Premier accueil', schemas:'Schéma parcours de soin', educ:'Éduc', lexique:'Le dictionnaire', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
-  profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
+  eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
@@ -21820,7 +22144,13 @@ function vAccueilPersonne(volet){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
                 ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
-  let h=heroBandeau(volet==='med'?'Accueil médical':'Accueil social', dateTxt, '#A9C8E8','accomp');
+  /* ⚠ LE TITRE EST CELUI DU BOUTON, MOT POUR MOT (Mag, 26/08/2026 : « mets toujours
+     les mêmes titres qu'au clic pour arriver sur la page »).
+     On cliquait « Premier accueil social » et on arrivait sur « Accueil social ».
+     Deux mots pour la même page : on se demande une demi-seconde si on s'est
+     trompé de porte. Le mot « Premier » n'est pas décoratif, en plus — c'est ce
+     qui dit que c'est l'entretien d'ARRIVÉE. */
+  let h=heroBandeau(volet==='med'?'Premier accueil médical':'Premier accueil social', dateTxt, '#A9C8E8','accomp');
   h+='<div class="accform">'+JEU.map(function(g){
     return '<div class="accg"><div class="acct">'+esc(g.s)+' :</div>'+
       g.c.map(function(f){
@@ -21828,8 +22158,15 @@ function vAccueilPersonne(volet){
         return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
           (f.tip?'<i class="acctip">'+esc(f.tip)+'</i>':'')+
           (f.b
-            ? '<textarea rows="2" autocomplete="off" spellcheck="false" '+
-              'oninput="accSet(\''+f.k+'\',this.value)">'+v+'</textarea>'
+            /* ⚠ LA FENÊTRE GRANDIT AVEC LE TEXTE (Mag, 26/08/2026). Deux lignes fixes
+               et une barre de défilement à l'intérieur : on écrivait « ce qui l'a
+               amenée au Samusocial » en regardant par le trou d'une serrure, sans
+               pouvoir relire ce qu'on venait de taper. `passGrandir` existait déjà
+               pour la passation — on s'en sert, plutôt que d'en écrire un deuxième.
+               ⚠ ET AU CHARGEMENT AUSSI (voir `accGrandirTout`) : en revenant sur la
+               page, un texte déjà écrit doit s'afficher en entier. */
+            ? '<textarea rows="2" autocomplete="off" spellcheck="false" class="accgr" '+
+              'oninput="passGrandir(this);accSet(\''+f.k+'\',this.value)">'+v+'</textarea>'
             : '<input type="text" autocomplete="off" spellcheck="false" value="'+v+'" '+
               'oninput="accSet(\''+f.k+'\',this.value)">')+
           '</label>';
@@ -23318,6 +23655,96 @@ const QIC={ 'Les toilettes':['cible','#cfe6f5'], 'Le linge':['linge','#f7d9c6'],
    aller-retour entre la liste et le plan. */
 let QVUE='liste';
 function qVue(v){ QVUE=v; render(); }
+
+/* ═══ FONTAINES ET TOILETTES (Mag, 26/08/2026) ═══
+   Deux onglets sur une seule page, parce que c'est un seul geste : quelqu'un qui
+   part en ville a besoin de boire ET d'aller aux toilettes, et les deux se
+   cherchent au même moment. Voir le grand commentaire au-dessus de `EAU_PTS` pour
+   d'où viennent les points, et surtout pour ce que ça ne couvre pas.
+   ⚠ LE TRI EST PAR DISTANCE, TOUJOURS. Une liste alphabétique de 153 toilettes ne
+   sert à personne : ce qu'on cherche, c'est la plus proche d'ici. */
+/* ⚠ L'ONGLET EST DANS L'ADRESSE, pas dans une variable à côté. `#/eau/wc` doit
+   ouvrir les toilettes — sinon un lien envoyé à une collègue ouvre l'autre onglet
+   que celui qu'on lui montrait. C'est l'adresse qui décide, toujours. */
+let EAU_FILTRE='';        /* '' | 'gratuit' | 'pmr' */
+function eauOnglet(){ return (current&&current.onglet==='wc')?'wc':'eau'; }
+function eauVue(v){ EAU_FILTRE=''; go('#/eau'+(v==='wc'?'/wc':'')); }
+function eauFiltre(f){ EAU_FILTRE=(EAU_FILTRE===f?'':f); render(); }
+/* La distance à vol d'oiseau, calculée sur les vraies coordonnées. On ne donne PAS
+   de temps de marche : il dépend du chemin, et c'est exactement le genre de chiffre
+   inventé qui a rendu le plan du quartier faux. Le bouton d'itinéraire, lui, donne
+   le vrai trajet. */
+function eauDist(pt){
+  const R=6371000, r=Math.PI/180;
+  const a=Math.sin(EAU_ICI.la*r)*Math.sin(pt.la*r)+
+          Math.cos(EAU_ICI.la*r)*Math.cos(pt.la*r)*Math.cos((pt.lo-EAU_ICI.lo)*r);
+  return R*Math.acos(Math.min(1,a));
+}
+function eauKm(m){ return m<1000 ? Math.round(m/10)*10+' m' : (m/1000).toFixed(1).replace('.',',')+' km'; }
+function eauAdresse(pt){
+  return [pt.o, pt.cp, pt.c].filter(Boolean).join(', ');
+}
+function vEau(){
+  const wc=(eauOnglet()==='wc');
+  let h=heroBandeau(wc?'Les toilettes':'Les fontaines',
+                    'Ville de Bruxelles','#A9C8E8','pin')+
+    '<div class="qseg">'+
+      '<button class="qsegb'+(wc?'':' on')+'" onclick="eauVue(\'eau\')">Fontaines</button>'+
+      '<button class="qsegb'+(wc?' on':'')+'" onclick="eauVue(\'wc\')">Toilettes</button>'+
+    '</div>';
+
+  let liste=(wc?WC_PTS:EAU_PTS).slice();
+  if(wc && EAU_FILTRE==='gratuit') liste=liste.filter(function(x){ return x.p==='Gratuit'; });
+  if(wc && EAU_FILTRE==='pmr')     liste=liste.filter(function(x){ return x.m===1; });
+  liste.forEach(function(x){ x.__d=eauDist(x); });
+  liste.sort(function(a,b){ return a.__d-b.__d; });
+
+  /* Les deux filtres qui changent vraiment quelque chose pour nos publics : est-ce
+     que c'est gratuit, et est-ce que ça passe en chaise. Le reste est du décor. */
+  if(wc){
+    const nG=WC_PTS.filter(function(x){ return x.p==='Gratuit'; }).length;
+    const nP=WC_PTS.filter(function(x){ return x.m===1; }).length;
+    h+='<div class="eau-chips">'+
+      '<button class="chip'+(EAU_FILTRE==='gratuit'?' on':'')+'" onclick="eauFiltre(\'gratuit\')">Gratuites · '+nG+'</button>'+
+      '<button class="chip'+(EAU_FILTRE==='pmr'?' on':'')+'" onclick="eauFiltre(\'pmr\')">Accès PMR · '+nP+'</button>'+
+    '</div>';
+  }
+
+  h+='<div class="sectl">Les plus proches d\u2019ici \u2014 '+liste.length+'</div>';
+
+  h+='<div class="eau-l">'+liste.map(function(x){
+    const adr=eauAdresse(x);
+    /* Gratuit se dit, payant se dit aussi : envoyer quelqu'un sans un euro vers une
+       toilette payante, c'est le faire marcher pour rien. */
+    let tags='';
+    if(wc){
+      if(x.p) tags+='<span class="eau-t'+(x.p==='Gratuit'?' oui':' non')+'">'+esc(x.p)+'</span>';
+      if(x.m===1) tags+='<span class="eau-t pmr">PMR</span>';
+    } else if(x.s){ tags+='<span class="eau-t src">'+esc(x.s)+'</span>'; }
+    return '<a class="eau-r" href="'+qIti(adr)+'" target="_blank" rel="noopener">'+
+      '<span class="eau-n"><b>'+esc(x.n||'')+'</b>'+
+        (x.o?'<i>'+esc(x.o)+'</i>':'')+
+        (x.d?'<i class="eau-p">'+esc(x.d)+'</i>':'')+
+        (tags?'<span class="eau-tg">'+tags+'</span>':'')+
+      '</span>'+
+      '<span class="eau-d">'+eauKm(x.__d)+'</span></a>';
+  }).join('')+'</div>';
+
+  h+='<div class="imprligne" style="padding-top:14px">'+boutonImprimer()+'</div>';
+
+  /* ⚠ CETTE NOTE RESTE. Ce n'est pas une phrase explicative de plus : c'est ce qui
+     empêche d'envoyer quelqu'un à Anderlecht chercher une fontaine qui n'est pas
+     dans la liste parce que la Ville ne la publie pas. */
+  h+='<div class="eau-src">'+
+     '<b>Ces points s\u2019arrêtent à la Ville de Bruxelles</b>'+
+     '<span>Pentagone, Laeken, Neder-Over-Heembeek, Haren. Rien à Anderlecht : '+
+     'la Ville n\u2019en publie pas. '+
+     (wc?'':'Les bornes Vivaqua ne coulent que d\u2019avril à septembre. ')+
+     'Relevé le 26/08/2026 sur opendata.brussels.be.</span>'+
+     '<a class="lienbas" href="https://environnement.brussels/citoyen/documentation-et-outils/cartes/ou-trouver-des-fontaines-deau-potable-bruxelles" target="_blank" rel="noopener">La carte officielle de la Région</a>'+
+     '</div>';
+  return h+'<div style="height:26px"></div>';
+}
 
 function vQuartier(){
   /* AUTOUR D'ICI : le quartier groupé par besoin, en registre — et depuis le
@@ -25339,6 +25766,15 @@ function passBarreHTML(id){
     '<button type="button" class="txb u" onmousedown="event.preventDefault()" '+
       'onclick="passStyle(\''+id+'\',\'__\')" title="Souligné">S</button>'+
   '</div>';
+}
+/* Les champs du Premier accueil s'ouvrent à la hauteur de ce qu'ils contiennent
+   DÈS L'ARRIVÉE : `scrollHeight` ne veut rien dire tant que l'élément n'est pas
+   posé dans la page, d'où le passage par la frame suivante. */
+function accGrandirTout(){
+  requestAnimationFrame(function(){
+    try{ [].forEach.call(document.querySelectorAll('textarea.accgr'), passGrandir); }
+    catch(e){ panneNoter('hauteur des champs', e); }
+  });
 }
 function passGrandir(e){
   if(!e) return;
