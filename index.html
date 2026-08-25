@@ -4977,6 +4977,26 @@ body.no-tabs #tabbar{display:none}
     background:rgba(228,225,216,.9);display:flex;align-items:center;justify-content:center;
     font-family:ui-monospace,monospace;font-size:9px;font-weight:700;color:var(--noir)}
 
+  /* ── LA RANGÉE D'AUTOUR D'ICI : le nom, le temps à pied, ouvert ou fermé ──
+     Ce qui sert à CHOISIR, et rien d'autre. Le détail est dans la feuille. */
+  .qsous{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:5px;
+    text-transform:none;letter-spacing:0;font-family:inherit;font-style:normal}
+  .qmin{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--enc2)}
+  .qetat{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;
+    text-transform:uppercase;padding:2px 7px;border-radius:4px}
+  .qetat.oui{background:#d6ecdf;color:#1f4d38}
+  .qetat.non{background:#f7dcda;color:#8a2f27}
+  .qlieu-l .qetat{margin-left:8px;vertical-align:1px}
+  .qlieu-plus{white-space:pre-line;font-size:14px;line-height:1.55;color:#4a4844;
+    padding:12px 0 0;margin:0}
+  /* Les deux trajets côte à côte : à pied (ce que la rangée annonce) et en bus
+     (c'est Maps qui dit laquelle et combien de temps — l'app n'écrit aucun numéro). */
+  .qlieu-trajets{display:flex;gap:8px;margin-top:14px}
+  .qlieu-trajets .qlieu-map{flex:1;margin-top:0}
+  .qlieu-map.bus{background:#fdfdfc;color:var(--noir);border:1.25px solid var(--trait)}
+  .qlieu-map.bus .pico{background:var(--noir)}
+
   /* ── « PLUS LOIN » : ce qui ne tient pas dans le cadre ──
      Chacun garde sa flèche, tournée à sa VRAIE direction, et son temps de marche. */
   .qloin{display:flex;flex-direction:column;padding:0 var(--pad)}
@@ -8889,26 +8909,28 @@ var QUARTIER = [
   { grp:"Au centre", lignes:[
     { t:"Les toilettes", d:"Au centre, accessibles." },
     { t:"Le linge", d:"La buanderie du centre." },
-    { t:"Les produits", d:"Distribution à l'accueil, le 1er samedi du mois." }
+    { t:"Les produits", d:"Distribution à l'accueil.", plus:"Le 1er samedi du mois." }
   ]},
   { grp:"Courses pas chères", lignes:[
     { t:"Aldi", d:"Le supermarché le plus proche.", adr:"Avenue Marius Renard 27, 1070 Anderlecht",
       hor:"Lun–Sam 8h30–20h · dim fermé" }
   ]},
   { grp:"Dépannage, tard le soir", lignes:[
-    { t:"Night shops", d:"Au carrefour, juste en bas du centre. Ouverts tard — dépannage et cigarettes.",
+    { t:"Night shops", d:"Au carrefour, juste en bas du centre.",
+      plus:"Ouverts tard — dépannage et cigarettes.",
       hor:"Tous les jours, jusqu'au soir" }
   ]},
   { grp:"Se laver, laver son linge", lignes:[
-    { t:"DoucheFLUX", d:"Douches et buanderie. Carte de membre nécessaire. Douches jusqu'à 14h30. MERCREDI RÉSERVÉ AUX FEMMES. Linge sale : dépôt 8h30–11h, repris le jour même entre 15h et 16h.",
+    { t:"DoucheFLUX", d:"Douches et buanderie. Carte de membre nécessaire.",
+      plus:"⚠ MERCREDI RÉSERVÉ AUX FEMMES.\nDouches jusqu'à 14h30.\nLinge sale : dépôt entre 8h30 et 11h, repris le jour même entre 15h et 16h.",
       adr:"Rue des Vétérinaires 84, 1070 Anderlecht", tel:"02 319 58 27",
       hor:"Mar–Ven 8h30–16h · Sam 8h30–14h" }
   ]},
   { grp:"Prendre l'air — les parcs", lignes:[
-    { t:"Parc Astrid", d:"15 hectares, près du stade. Le plus grand du coin.", adr:"Avenue Théo Verbeeck, 1070 Anderlecht", hor:"Ouvert en continu" },
+    { t:"Parc Astrid", d:"Le plus grand du coin.", plus:"15 hectares, près du stade.", adr:"Avenue Théo Verbeeck, 1070 Anderlecht", hor:"Ouvert en continu" },
     { t:"Parc du Peterbos", d:"Grand parc de quartier.", adr:"Avenue Shakespeare, 1070 Anderlecht", hor:"Ouvert en continu" },
     { t:"Parc Crickx", d:"À Cureghem, plus petit.", adr:"Rue Émile Carpentier, 1070 Anderlecht", hor:"Ouvert en continu" },
-    { t:"Parc de la Pede", d:"Campagne et étangs, à Neerpede. Plus loin, mais dépaysant.", adr:"Neerpede, 1070 Anderlecht", hor:"Ouvert en continu" }
+    { t:"Parc de la Pede", d:"Campagne et étangs, à Neerpede.", plus:"Plus loin, mais dépaysant.", adr:"Neerpede, 1070 Anderlecht", hor:"Ouvert en continu" }
   ]}
 ];
 </script>
@@ -22864,6 +22886,37 @@ function qIti(adr){
     '&destination='+encodeURIComponent(adr)+'&travelmode=walking';
 }
 
+
+/* Les heures d'ouverture en chiffres, pour pouvoir dire « ouvert » ou « fermé ».
+   Une entrée par jour, dimanche = 0. null = fermé. '24' = ouvert en continu.
+   ⚠ À CONFIRMER : reprises des phrases d'horaires, dont la source n'est pas notée. */
+const QHORAIRES={
+  'Aldi':            [null,[510,1200],[510,1200],[510,1200],[510,1200],[510,1200],[510,1200]],
+  'DoucheFLUX':      [null,null,[510,960],[510,960],[510,960],[510,960],[510,840]],
+  'Parc Astrid':     '24', 'Parc du Peterbos':'24', 'Parc Crickx':'24', 'Parc de la Pede':'24'
+};
+/* Ouvert ou fermé, maintenant. Renvoie null quand on ne sait pas — et dans ce cas
+   on n'écrit RIEN : une pastille grise « on ne sait pas » n'aide personne. */
+function qOuvert(nom){
+  const h=QHORAIRES[nom]; if(!h) return null;
+  if(h==='24') return {ouvert:true, quoi:'Ouvert en continu'};
+  const d=new Date(), j=d.getDay(), m=d.getHours()*60+d.getMinutes();
+  const c=h[j];
+  const hhmm=function(x){ const a=Math.floor(x/60), b=x%60; return a+'h'+(b?String(b).padStart(2,'0'):''); };
+  if(c && m>=c[0] && m<c[1]) return {ouvert:true, quoi:'Ouvert · ferme à '+hhmm(c[1])};
+  /* Fermé : on dit quand ça rouvre, sinon « fermé » laisse devant une porte sans suite. */
+  for(let k=0;k<7;k++){
+    const jj=(j+k)%7, cc=h[jj];
+    if(!cc) continue;
+    if(k===0 && m<cc[0]) return {ouvert:false, quoi:'Fermé · ouvre à '+hhmm(cc[0])};
+    if(k>0){
+      const noms=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+      return {ouvert:false, quoi:'Fermé · rouvre '+(k===1?'demain':noms[jj])+' à '+hhmm(cc[0])};
+    }
+  }
+  return {ouvert:false, quoi:'Fermé'};
+}
+
 /* ═══ LA FICHE D'UN LIEU, EN FEUILLE QUI MONTE (Mag, 24/08/2026) ═══
    « Quand on clique sur un lieu de ma liste, une fenêtre monte du bas, et on peut
    ensuite cliquer sur un lien map qui amène au parcours en partant du centre. » */
@@ -22881,12 +22934,24 @@ function qLieuOuvrir(nom){
   let c='<div class="qlieu">'+
     '<div class="qlieu-tx"><span class="rd" style="background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span></span>'+
     '<p>'+esc(l.d||'')+'</p></div>';
+  /* Le détail : ce qu'on veut savoir une fois qu'on a choisi ce lieu-là. */
+  if(l.plus) c+='<p class="qlieu-plus">'+esc(l.plus)+'</p>';
   if(l.adr) c+='<div class="qlieu-l"><em>Adresse</em><b>'+esc(l.adr)+'</b></div>';
-  if(l.hor) c+='<div class="qlieu-l"><em>Horaires</em><b>'+esc(l.hor)+'</b></div>';
+  if(l.hor){
+    const o=qOuvert(l.t);
+    c+='<div class="qlieu-l"><em>Horaires</em><b>'+esc(l.hor)+
+      (o?'<span class="qetat'+(o.ouvert?' oui':' non')+'">'+esc(o.quoi)+'</span>':'')+'</b></div>';
+  }
   if(l.tel) c+='<div class="qlieu-l"><em>Téléphone</em><b><a class="glink" href="tel:'+esc(l.tel.replace(/[^+0-9]/g,''))+'">'+esc(l.tel)+'</a></b></div>';
-  /* LE « MAP » : l'itinéraire à pied depuis le centre, dans l'app de cartes. */
-  if(l.adr) c+='<a class="qlieu-map" href="'+qIti(l.adr)+'" target="_blank" rel="noopener">'+
-    '<span class="ic">'+icon('pin')+'</span>Itinéraire à pied depuis le centre</a>';
+  /* LES DEUX TRAJETS, DEPUIS LE CENTRE. À pied d'abord : c'est ce que la rangée
+     annonce en minutes. En bus ensuite — et c'est Maps qui dit LAQUELLE et combien
+     de temps, pas nous. */
+  if(l.adr) c+='<div class="qlieu-trajets">'+
+    '<a class="qlieu-map" href="'+qIti(l.adr)+'" target="_blank" rel="noopener">'+
+      '<span class="ic">'+icon('pin')+'</span>À pied'+(QLIEUX[l.t]?' · '+QLIEUX[l.t].min+' min':'')+'</a>'+
+    '<a class="qlieu-map bus" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">'+
+      '<span class="ic">'+icon('pin')+'</span>En bus</a>'+
+    '</div>';
   c+='</div>';
   document.getElementById('qCorps').innerHTML=c;
   document.getElementById('qBg').classList.add('on');
@@ -23002,13 +23067,20 @@ function vQuartier(){
     h+='<div class="sectl">'+esc(g.grp)+'</div><div class="rlist">'+
       g.lignes.map(function(l){
         const qi=QIC[l.t]||['pin','#ecebe8'];
-        /* ⚠ LA LIGNE OUVRE LA FICHE DU LIEU (Mag, 24/08/2026) : une feuille monte du bas
-           avec le détail et le bouton « itinéraire à pied ». Le chevron n'est plus un
-           lien direct — c'est l'indice qu'on peut appuyer. */
+        /* ⚠ LA RANGÉE OUVRE LA FEUILLE : plus de chevron (il annonçait un départ qui
+           n'a pas lieu), et plus de description non plus — elle est dans la feuille.
+           Ce qui reste est ce qui sert à CHOISIR : le nom, le temps de marche, et
+           si c'est ouvert maintenant. */
+        const dist=QLIEUX[l.t];
+        const ouv=qOuvert(l.t);
+        let sous='';
+        if(dist) sous+='<span class="qmin">'+dist.min+' min à pied</span>';
+        if(ouv) sous+='<span class="qetat'+(ouv.ouvert?' oui':' non')+'">'+esc(ouv.quoi)+'</span>';
+        if(!sous) sous='<span class="qmin">'+esc(l.d||'')+'</span>';
         return '<button class="frow2 qlieu-btn" style="align-items:center;width:100%;text-align:left" '+
           'onclick="qLieuOuvrir(\''+esc(l.t).replace(/'/g,"\\'")+'\')">'+
           '<span class="rd" style="background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span></span>'+
-          '<span class="tx"><b>'+esc(l.t)+'</b><em style="text-transform:none;letter-spacing:0;font-family:inherit;font-size:13px;color:#4a4844;margin-top:4px">'+esc(l.d)+'</em></span>'+
+          '<span class="tx"><b>'+esc(l.t)+'</b><em class="qsous">'+sous+'</em></span>'+
         '</button>';
       }).join('')+'</div>';
   });
