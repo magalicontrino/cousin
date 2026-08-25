@@ -11312,27 +11312,44 @@ function imprimer(){
          huit taches d'encre et une feuille qui ne montrait rien : on ne voyait pas
          que l'Aldi est à côté et que la Pede est loin. Le plan le montre d'un coup
          d'œil, et il marche sans téléphone — ce qui est le cas le plus courant. */
+      /* ═══ UNE COULEUR PAR BESOIN (Mag, 25/08/2026 : « un design un peu plus
+         coloré, un peu plus chouette ») ═══
+         La feuille était grise : des filets noirs, du texte, rien pour attraper
+         l'œil. Chaque groupe prend donc sa couleur — la même pastel que le rond
+         du lieu à l'écran, pour que la feuille et l'app se ressemblent.
+         ⚠ CE SONT DES PASTELS, PAS DES APLATS SATURÉS : une feuille qu'on donne
+         est photocopiée, pliée, mouillée. Le texte reste noir sur clair, et tout
+         reste lisible en noir et blanc si l'imprimante est en fin de cartouche. */
+      const QGRP={ 'Au centre':'#cfe6f5', 'Courses pas chères':'#f6e7a8',
+        'Dépannage, tard le soir':'#d8d3ef', 'Se laver, laver son linge':'#cbe6f0',
+        "Prendre l'air — les parcs":'#dcefe4' };
       const bloc=QUARTIER.map(function(g){
-        return '<div class="pf-g">'+esc(g.grp)+'</div>'+
+        const c=QGRP[g.grp]||'#ecebe8';
+        return '<div class="qg" style="background:'+c+'">'+esc(g.grp)+'</div>'+
+          '<div class="qgb">'+
           g.lignes.map(function(l){
+            const qi=QIC[l.t]||['pin','#ecebe8'];
+            const loin=QLIEUX[l.t];
             const d=[];
-            const rp=quartierRepere(l.t);
             if(l.adr) d.push('<span><i>Adresse</i>'+esc(l.adr)+'</span>');
-            if(l.tel) d.push('<span class="tel"><i>Tél</i>'+esc(l.tel)+'</span>');
-            /* ⚠ PAS `esc()` SUR UN NOMBRE : esc fait `(s||'').replace(…)`, et un
-               nombre n'a pas de .replace — ça lève, et le `catch` du bloc avalait
-               l'erreur en silence. La feuille repartait alors sur une simple copie de
-               l'écran, sans plan et sans numéros, sans qu'un seul message n'apparaisse.
-               C'est la même leçon que les erreurs muettes de Supabase : un catch vide
-               transforme une panne en « il ne s'est rien passé ». */
-            if(rp) d.push('<span><i>À pied</i>'+rp.min+' min · '+esc(rp.dir)+'</span>');
-            return '<div class="pf-f">'+
-              (rp?'<span class="pf-num">'+rp.n+'</span>':'')+
-              '<b>'+esc(l.t)+'</b>'+
-              '<p>'+esc(l.d)+'</p>'+
-              (d.length?'<div class="pf-l">'+d.join('')+'</div>':'')+
+            if(l.hor) d.push('<span><i>Horaires</i>'+esc(l.hor)+'</span>');
+            /* ⚠ LE NUMÉRO A DISPARU AVEC L'ANCIEN PLAN. La carte porte maintenant
+               des pictos, plus des chiffres à reporter : un « 3 » sur la feuille
+               ne renvoyait plus à rien. Et le temps de marche vient désormais des
+               vraies coordonnées (`QLIEUX`), pas de l'ancien `QUARTIER_PLAN`. */
+            return '<div class="qf">'+
+              '<span class="qfr" style="background:'+qi[1]+'">'+icon(qi[0])+'</span>'+
+              '<div class="qft">'+
+                '<b>'+esc(l.t)+(loin?'<em class="qfm">'+loin.min+' min à pied</em>':'')+'</b>'+
+                '<p>'+esc(l.d)+'</p>'+
+                (l.plus?'<p class="qfp">'+esc(l.plus)+'</p>':'')+
+                (d.length?'<div class="pf-l">'+d.join('')+'</div>':'')+
+                /* Le numéro est ce qu'on cherche des yeux sur une feuille : il reste
+                   le plus gros caractère de la ligne après le nom. */
+                (l.tel?'<div class="qftel">'+esc(l.tel)+'</div>':'')+
+              '</div>'+
             '</div>';
-          }).join('');
+          }).join('')+'</div>';
       }).join('');
       /* ⚠ LA FEUILLE PORTE MAINTENANT LA VRAIE CARTE (Mag, 25/08/2026 : « le print
          ne représente pas la carte. Mets la carte mais avec un fond blanc »).
@@ -11422,6 +11439,38 @@ function imprimer(){
       '.pf-num{float:left;width:20px;height:20px;border:1.6px solid #000;border-radius:50%;'+
         'font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;text-align:center;'+
         'line-height:17px;margin:1px 9px 0 0}'+
+      /* ═══ LA FEUILLE « AUTOUR D'ICI », HABILLÉE (Mag, 25/08/2026) ═══
+         ⚠ CES CLASSES VIVENT ICI, dans la feuille de style de la fenêtre
+         d'impression, et PAS dans celle de l'app : la page d'aperçu embarque
+         TOUTES les feuilles de style de COUSIN, et une mise en page inventée
+         là-dedans se fait manger par la cascade. Ici on passe après tout le
+         monde, donc on gagne. */
+      /* Le titre du besoin, sur son aplat de couleur. */
+      '.qg{break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid;'+
+        'font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.16em;'+
+        'text-transform:uppercase;color:#1b1b1b;padding:8px 12px;border-radius:6px;'+
+        'margin:20px 0 10px;font-weight:600;'+
+        '-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      '.qg:first-of-type{margin-top:0}'+
+      '.qgb{display:flex;flex-direction:column;gap:9px}'+
+      /* Une ligne = un rond de couleur, un dessin, et ce qu'il faut savoir. */
+      '.qf{display:flex;gap:13px;align-items:flex-start;break-inside:avoid;page-break-inside:avoid;'+
+        'border:1.25px solid #d9d6d0;border-radius:10px;padding:11px 13px}'+
+      '.qfr{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;'+
+        'justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      '.qfr svg,.qfr .pico{width:21px;height:21px;display:block}'+
+      '.qft{flex:1;min-width:0}'+
+      '.qft b{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:17px;'+
+        'font-weight:700;line-height:1.2}'+
+      /* Le temps de marche, à côté du nom : c'est ce qui décide si on y va à pied. */
+      '.qfm{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;'+
+        'letter-spacing:.1em;text-transform:uppercase;color:#444;font-weight:400}'+
+      '.qft p{font-size:13.5px;line-height:1.42;margin-top:4px;color:#111}'+
+      '.qft p.qfp{white-space:pre-line;color:#333;font-size:12.5px;margin-top:5px;'+
+        'padding-left:9px;border-left:2px solid #d9d6d0}'+
+      /* ⚠ LE NUMÉRO EN GROS ET EN GRAS : la feuille se lit debout, dehors, et
+         certains lisent mal. C'est la règle posée pour toutes les feuilles. */
+      '.qftel{font-size:19px;font-weight:700;letter-spacing:.02em;margin-top:6px}'+
       /* Le seul habit neuf de la feuille du quartier : l'intertitre d'un groupe
          (« Se laver, laver son linge »). Tout le reste emprunte celui des fiches. */
       '.pf-g{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;'+
