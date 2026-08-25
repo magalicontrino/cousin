@@ -13965,20 +13965,9 @@ function vCentre(){
       '<span class="rd" style="background:'+pastel('#f5c542')+'"><span class="ic">'+icon('pin')+'</span></span>'+
       '<span class="tx"><b>Autour d’ici</b><em>Le plan du quartier</em></span>'+
       '<span class="chv">›</span></button>';
-  /* ═══ LES FONTAINES ET LES TOILETTES (Mag, 26/08/2026) ═══
-     ⚠ DEUX BOUTONS, PAS UN. Sa règle sur les noms de tiroirs : un titre qui porte
-     deux besoins, ça fait deux boutons. « Boire » et « aller aux toilettes » ne se
-     cherchent pas au même moment ni pour la même personne — et « Fontaines et
-     toilettes » n'est le nom de rien.
-     Chacun ouvre la page sur SON onglet : voir `eauOnglet()`. */
-  h+='<button class="famz" onclick="go(\'#/eau\')">'+
-      '<span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('pin')+'</span></span>'+
-      '<span class="tx"><b>Les fontaines</b><em>'+EAU_PTS.length+' points d’eau potable gratuits</em></span>'+
-      '<span class="chv">›</span></button>';
-  h+='<button class="famz" onclick="go(\'#/eau/wc\')">'+
-      '<span class="rd" style="background:'+pastel('#b28b7a')+'"><span class="ic">'+icon('pin')+'</span></span>'+
-      '<span class="tx"><b>Les toilettes</b><em>'+WC_PTS.filter(function(x){return x.p==='Gratuit';}).length+' gratuites sur '+WC_PTS.length+'</em></span>'+
-      '<span class="chv">›</span></button>';
+  /* Les fontaines et les toilettes ont quitté le Centre le 26/08/2026 (« dans
+     réseaux ») : elles sont dans le Réseau, sous « Au quotidien ». Une même porte à
+     deux endroits, c'est une porte qu'on n'ouvre à aucun des deux. */
   }
 
   /* ═══ GESTION DU CENTRE, CONSTRUIT À PART (Mag, 24/08/2026 : « ça doit avoir son
@@ -16803,9 +16792,22 @@ const RESEAU_V2_CATEGORIES=[
   {title:'Collectifs',domaines:['agir'],etiquettes:['JOUR']},
   {title:'Annuaires, guides',domaines:['reperes'],etiquettes:['ORIENTATION']}
 ];
+/* ═══ BOIRE ET ALLER AUX TOILETTES PASSENT DANS LE RÉSEAU (Mag, 26/08/2026 :
+   « dans réseaux ») ═══
+   Elles étaient dans le Centre, avec les outils de la maison. Or ce ne sont pas des
+   outils d'équipe : c'est ce qu'on donne à quelqu'un qui repart en ville, comme
+   Manger ou Se laver. Elles rejoignent donc « Au quotidien », entre les deux.
+   ⚠ ELLES SONT AJOUTÉES AU BOUT DE LA LISTE, ET RATTACHÉES PAR LEUR CLÉ. Les
+   sections se découpent par RANGS (`start`/`end`) : les insérer au milieu aurait
+   décalé les quatre familles d'un cran, en silence. `plus:` les rattache par nom,
+   donc l'ordre des autres ne bouge jamais. */
+RESEAU_V2_CATEGORIES.push(
+  {cle:'eau', title:'Les fontaines', ic:'pin', lien:'#/eau',    etiquettes:['JOUR']},
+  {cle:'wc',  title:'Les toilettes', ic:'pin', lien:'#/eau/wc', etiquettes:['JOUR']}
+);
 const RESEAU_V2_SECTIONS=[
   {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:4},
-  {name:'Au quotidien', couleur:'#f5c542', start:4,  end:8},
+  {name:'Au quotidien', couleur:'#f5c542', start:4,  end:8, plus:['eau','wc']},
   {name:'Des soins',    couleur:'#6cb392', start:8,  end:14},
   {name:'Des droits',   couleur:'#f3c6da', start:14, end:27}
 ];
@@ -16836,11 +16838,18 @@ const RESEAU_V2_ETIQUETTES={
 /* `picto` absent → on prend celui que le domaine porte déjà dans l'app, plutôt que
    d'en inventer un. `.reseau-icon` habille les deux (image ou masque). */
 function reseauV2Carte(cat){
-  const d=DOMAINES.find(function(x){ return x.key===cat.domaines[0]; });
+  /* ⚠ UNE CARTE PEUT MENER AILLEURS QU'À UN TIROIR DU CATALOGUE (26/08/2026).
+     Les fontaines et les toilettes ne sont pas des fiches : ce sont des points
+     relevés sur les données de la Ville. Elles ouvrent donc leur page à elles.
+     `cat.lien` sert à ça, et `cat.domaines` devient facultatif. */
+  const dom=(cat.domaines&&cat.domaines[0])||null;
+  const d=dom?DOMAINES.find(function(x){ return x.key===dom; }):null;
   const dessin = cat.picto
     ? '<img src="picto/'+cat.picto+'" alt="" class="reseau-icon">'
-    : (d && d.ic ? icon(d.ic,'class="reseau-icon"') : '');
-  return '<button class="reseau-card" onclick="go(\'#/d/'+cat.domaines[0]+'\')">'+
+    : (cat.ic ? icon(cat.ic,'class="reseau-icon"')
+              : (d && d.ic ? icon(d.ic,'class="reseau-icon"') : ''));
+  const ou = cat.lien || ('#/d/'+dom);
+  return '<button class="reseau-card" onclick="go(\''+ou+'\')">'+
     '<span class="reseau-card-title">'+esc(cat.title)+'</span>'+
     '<span class="reseau-card-icon">'+dessin+'</span></button>';
 }
@@ -16880,7 +16889,12 @@ function vReseauV2(){
     for(let k=section.start;k<section.end;k++){
       cartes+=reseauV2Carte(RESEAU_V2_CATEGORIES[k]);
     }
-    const n=section.end-section.start;
+    /* Les cartes rattachées par clé (voir `plus:`), dessinées après celles du rang. */
+    const enPlus=(section.plus||[]).map(function(cle){
+      return RESEAU_V2_CATEGORIES.find(function(c){ return c.cle===cle; });
+    }).filter(Boolean);
+    enPlus.forEach(function(c){ cartes+=reseauV2Carte(c); });
+    const n=(section.end-section.start)+enPlus.length;
     html+='<div class="reseau-section-label" style="border-bottom-color:'+section.couleur+'">'+
       esc(section.name)+'<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+cartes;
   });
@@ -16892,7 +16906,10 @@ function vReseauV2(){
      Si cette section s'affiche, ce n'est pas une panne — c'est une question posée :
      « où range-t-on celui-là ? ». */
   const poses={};
-  RESEAU_V2_CATEGORIES.forEach(function(c){ c.domaines.forEach(function(k){ poses[k]=1; }); });
+  /* ⚠ `domaines` EST FACULTATIF depuis le 26/08/2026 : les fontaines et les toilettes
+     ouvrent une page, pas un tiroir du catalogue. Sans cette garde, le filet a
+     attrapé toute la page du Réseau — vu et corrigé le jour même. */
+  RESEAU_V2_CATEGORIES.forEach(function(c){ (c.domaines||[]).forEach(function(k){ poses[k]=1; }); });
   const oublies=DOMAINES.filter(function(d){ return d.reseau && !poses[d.key] && fichesDe(d.key).length; });
   if(oublies.length && ray===''){
     html+='<div class="reseau-section-label" style="border-bottom-color:#b28b7a">Le reste</div>'+
