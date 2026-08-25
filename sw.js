@@ -3,7 +3,7 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v984';
+const CACHE = 'cousin-v985';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './favicon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
@@ -30,7 +30,7 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './picto/demidisques.svg', './picto/donut.svg', './picto/educatif.svg',
                 './picto/envoyer.svg', './picto/escalade.svg', './picto/etrangers.svg',
                 './picto/favoris.svg', './picto/femme.svg', './picto/fete.svg', './picto/fil.svg',
-                './picto/fleur.svg', './picto/formations.svg', './picto/gand.svg', './picto/handicap.svg',
+                './picto/fleur.svg', './picto/fontaine.svg', './picto/formations.svg', './picto/gand.svg', './picto/handicap.svg',
                 './picto/hebergement.svg', './picto/homme.svg', './picto/horaires.svg',
                 './picto/ico-bulle.svg', './picto/ico-cartes.svg', './picto/ico-demarches.svg',
                 './picto/ico-demidisques.svg', './picto/ico-donut.svg', './picto/ico-etoile.svg',
@@ -48,7 +48,7 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './picto/planning.svg', './picto/plume.svg', './picto/poterie.svg', './picto/pouce.svg',
                 './picto/profil.svg', './picto/question.svg', './picto/recherche.svg',
                 './picto/reseau.svg', './picto/roue.svg', './picto/sante-mentale.svg', './picto/site.svg',
-                './picto/social.svg', './picto/stats.svg', './picto/telephone.svg', './picto/ticket.svg',
+                './picto/social.svg', './picto/stats.svg', './picto/toilettes.svg', './picto/telephone.svg', './picto/ticket.svg',
                 './picto/urgences-domaine.svg', './picto/urgences.svg', './picto/whatsapp.svg',
                 './qrcode.js'];
 
