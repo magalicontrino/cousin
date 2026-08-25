@@ -1595,6 +1595,31 @@ body.pan-ouvert #view{animation:none;transform:none}
   .acccote .accnote{max-height:calc(100vh - 190px)}
 }
 @media print{ .accdeux{display:block} .acccote{position:static} }
+
+/* ── LE WIKI DES PAGES (26/08/2026) ──
+   Le carnet lui-même est celui des fiches (`.carnet`, `.ct`, `.cc`) : un seul geste
+   à apprendre pour toute l'app. Il n'y a ici que ce qui lui est propre. */
+/* ⚠ UNE CLASSE EN PLUS, PAS UNE RÈGLE SUR `.carnet` : celui des fiches vit dans un
+   panneau qui a déjà ses marges. Écrire `.carnet{margin:…}` ici lui aurait donné des
+   marges latérales qu'il n'avait pas — sur toutes les fiches, sans qu'on le voie. */
+.wiki-carnet{margin:22px var(--pad) 0}
+.wiki-att{background:#fdfdfc;border:1.25px dashed var(--trait);border-radius:10px;
+  padding:11px 13px;margin-top:10px}
+.wiki-att p{margin:0;font-size:14px;line-height:1.45}
+/* Sa note attend : on le DIT, sinon elle réécrit la même chose le lendemain en
+   croyant que ce n'est pas parti. */
+.wiki-att em{display:block;font-style:normal;font-family:ui-monospace,monospace;
+  font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:7px}
+.wiki-motif{display:block;width:100%;margin-top:9px;font:inherit;font-size:14px;
+  color:var(--noir);background:#fdfdfc;border:1.25px solid var(--trait);
+  border-radius:9px;padding:8px 11px}
+.wiki-motif:focus{outline:none;border-color:var(--noir)}
+.wiki-b{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+.wiki-b .accb{padding:8px 15px;font-size:13.5px}
+/* ⚠ LE WIKI NE VA PAS SUR LE PAPIER (sa réponse du 26/08 : « non, écran seulement »).
+   La feuille garde les consignes officielles. */
+@media print{ .wiki-carnet, .wiki-att, .wiki-b{display:none !important} }
+@media(min-width:900px){ .wiki-carnet{max-width:760px;margin-left:auto;margin-right:auto} }
 .fdoc-fiche{display:block;width:100%;text-align:left;background:none;border:0;padding:2px 4px 10px 65px;
   margin-top:-4px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--enc2)}
@@ -10783,7 +10808,10 @@ function vChambres(){
       return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
     liste+=chTitreEtage(parseInt(e,10), l.length)+l.map(chCard).join('');
   });
-  return '<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+  /* ⚠ LE WIKI VIENT APRÈS LA LISTE. Cette page assemblait tout dans un seul
+     `return` : on passe par `h` pour pouvoir lui ajouter le carnet, sans rien
+     changer à ce qui est construit au-dessus. */
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Chambres</h1><span class="pastille" style="background:#f8763f">'+encours.length+' EN COURS</span></div>'+
     chTableau(encours)+
     '<div class="chadd">'+
@@ -10807,6 +10835,8 @@ function vChambres(){
     (!CHAMBRES.length?(chambresLoaded
       ?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b><p>Ajoute un numéro quand une personne part.</p></div>'
       :'<div class="empty"><b>Chargement…</b></div>'):'');
+  h+=wikiBloc('chambres');
+  return h;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -11518,6 +11548,7 @@ function vTourBacs(){
   h+=tbResume(ouvertes);
   h+='<p class="hint" style="margin:14px 0 26px">C’est une <b>passation</b> : chaque geste '+
      'porte un prénom et une date.</p>';
+  h+=wikiBloc('tourbacs');
   return h;
 }
 
@@ -12214,6 +12245,7 @@ function vPrint(){
           esc(f.pages)+'</small></span>'+
         '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
     }).join('')+'</div>';
+  h+=wikiBloc('print');
   return h;
 }
 
@@ -12713,6 +12745,14 @@ window.addEventListener('hashchange',()=>{
      désencodait une chambre restait invisible pendant des heures. Défini plus bas :
      on ne fait rien tant que la fonction n'existe pas encore. */
   if(typeof rafraichirEnArrivant==='function') rafraichirEnArrivant(current.view);
+  /* LE WIKI DES PAGES : on redemande à la base en arrivant sur un écran qui en porte
+     un, et sur « Wiki à ranger » où se relit la file. Sans ça, une validation posée
+     depuis un autre téléphone resterait invisible pendant des heures. */
+  try{
+    if(typeof loadWikiCentre==='function' &&
+       (WIKI_PAGES[current.view] || current.view==='ranger' || current.view==='admin'))
+      loadWikiCentre().then(function(){ render(); });
+  }catch(e){ panneNoter('wiki à l’arrivée', e); }
 });
 
 function keyOf(r){return r.view+(r.key||r.sid||'')}
@@ -16125,6 +16165,11 @@ function vAdmin(){
           '</div>';
       });
       gOutil+='</div>';
+      /* ⚠ LES PRÉCISIONS DES PAGES ARRIVENT ICI, avec le reste de ce qu'elle relit
+         (sa règle du 26/08/2026 : « tout sera ensemble mais d'abord validé par
+         moi »). Sans ça il faudrait faire le tour des huit pages pour voir s'il y a
+         du neuf — donc on ne le ferait pas, et les corrections dormiraient. */
+      gOutil+=wikiFileHTML();
     }
     gOutil+='<button class="acc" onclick="go(\'#/modeles\')">'+
        '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
@@ -21917,6 +21962,7 @@ function vReglement(){
      le CHANTIER — sa liste de travail à elle. Trois endroits, aucun oubli.
      ⚠ NE PAS LE REMETTRE ICI sans elle : c'est une page que toute l'équipe lit. */
 
+  h+=wikiBloc('reglement');
   return h+'<div style="height:26px"></div>';
 }
 /* ═══ LES RESSOURCES — TOUS LES DOCUMENTS OFFICIELS AU MÊME ENDROIT ═══
@@ -23032,6 +23078,7 @@ function vLinge(){
      ⚠ LA FICHE RESTE VIVANTE : `#/f/…` répond, la loupe et l'impression y mènent.
      C'est le bouton qui part, pas la fiche — et le jour où quelqu'un y ajoute un
      vrai paragraphe, il faudra un chemin depuis cette page. */
+  h+=wikiBloc('linge');
   return h+'<div style="height:26px"></div>';
 }
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -23808,7 +23855,166 @@ function vEau(){
      'Relevé le 26/08/2026 sur opendata.brussels.be.</span>'+
      '<a class="lienbas" href="https://environnement.brussels/citoyen/documentation-et-outils/cartes/ou-trouver-des-fontaines-deau-potable-bruxelles" target="_blank" rel="noopener">La carte officielle de la Région</a>'+
      '</div>';
+  h+=wikiBloc(wc?'wc':'eau');   /* chaque onglet a son propre wiki */
   return h+'<div style="height:26px"></div>';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE WIKI DES PAGES — ÉCRIT PAR TOUS, VALIDÉ PAR ELLE (Mag, 26/08/2026)
+   ══════════════════════════════════════════════════════════════════════════
+   « Mets un wiki dans tout ça pour que les travailleurs puissent participer aux
+   infos » — « dans chacun d'eux » — puis, et c'est ce qui décide de tout :
+   « ce wiki ne va servir qu'à affiner les infos. Tout sera ensemble mais d'abord
+   validé par moi. »
+
+   CE QUE C'EST : un moyen de CORRIGER ou de PRÉCISER ce qui est déjà écrit sur la
+   page — un étage qui change, une heure qui a bougé, un numéro qui ne répond plus.
+   Ce n'est pas un fil de discussion, et ce n'est pas un endroit où raconter sa
+   journée. Sa règle vaut ici comme ailleurs : ne rien écrire qui ne change pas ce
+   qu'on fait.
+
+   LES TROIS CHOSES À NE PAS DÉFAIRE :
+   ① RIEN N'APPARAÎT AVANT SA VALIDATION. Et ce n'est pas l'écran qui le tient,
+      c'est la base : la policy de lecture ne rend une note en attente qu'à son
+      auteur et à la coordination (voir sql/wiki-centre.sql). Une correction fausse
+      affichée à 35 personnes est pire que pas de correction du tout.
+   ② TOUT ARRIVE AU MÊME ENDROIT : la file d'attente est dans « Wiki à ranger »,
+      avec le reste de ce qu'elle relit. Elle n'a pas à faire le tour des pages.
+   ③ ÇA NE VA PAS SUR LE PAPIER (sa réponse : « non, écran seulement »). La feuille
+      qu'on donne à l'équipe garde les consignes officielles. Ne pas ajouter ce bloc
+      à `imprimer()` en croyant bien faire.
+   ══════════════════════════════════════════════════════════════════════════ */
+/* Le nom lisible de chaque page, pour la file d'attente : « une note sur linge »
+   ne dit rien à celle qui relit. À tenir à jour en même temps que `wikiBloc()`. */
+const WIKI_PAGES={
+  linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres',
+  print:'Les feuilles à imprimer', quartier:'Autour d’ici', reglement:'Le règlement',
+  eau:'Les fontaines', wc:'Les toilettes', centre:'Le Centre'
+};
+let WIKI_N=[];            /* toutes les notes que la base veut bien nous rendre */
+let WIKI_CHARGE=false;
+let WIKI_OUV='';          /* la page dont le carnet est déplié — une seule à la fois */
+async function loadWikiCentre(){
+  if(!sb){ WIKI_CHARGE=true; return; }
+  const r=await sb.from('wiki_centre').select('*').order('cree_le',{ascending:false});
+  /* ⚠ `sb.from()` NE LÈVE PAS D'EXCEPTION : sans lire `.error`, une panne de base
+     s'afficherait comme « rien encore », et on croirait le wiki vide. */
+  if(r.error){ panneNoter('lecture du wiki', r.error.message); WIKI_CHARGE=true; return; }
+  WIKI_N=r.data||[]; WIKI_CHARGE=true;
+}
+function wikiDe(page){ return WIKI_N.filter(function(n){ return n.page===page && n.etat==='ok'; }); }
+function wikiMiennesEnAttente(page){
+  return WIKI_N.filter(function(n){ return n.page===page && n.etat==='attente'
+    && PROFILE && n.auteur_uid===PROFILE.uid; });
+}
+function wikiEnAttente(){
+  return WIKI_N.filter(function(n){ return n.etat==='attente'; })
+    /* Les plus vieilles en premier : c'est une file, pas un fil d'actualité. */
+    .sort(function(a,b){ return String(a.cree_le||'').localeCompare(String(b.cree_le||'')); });
+}
+function wikiBascule(page){ WIKI_OUV=(WIKI_OUV===page?'':page); render(); }
+/* ⚠ LE BLOC EST LE MÊME PARTOUT, ET IL EST REPLIÉ PAR DÉFAUT. C'est le carnet des
+   fiches, repris tel quel : un seul geste à apprendre pour toute l'app. La tache à
+   droite dit s'il y a quelque chose dedans, sans avoir à ouvrir. */
+function wikiBloc(page){
+  if(!sb) return '';                       /* pas connecté : pas de wiki */
+  const ouvert=(WIKI_OUV===page);
+  const notes=wikiDe(page);
+  const att=wikiMiennesEnAttente(page).length;
+  const etat = !WIKI_CHARGE ? '<span class="n">Chargement…</span>'
+    : '<span class="cpt'+(notes.length?'':' vide')+'"></span><span class="n">'+
+      (notes.length ? notes.length+' précision'+(notes.length>1?'s':'') : 'rien encore')+
+      (att ? ' · '+att+' en attente' : '')+'</span>';
+  let h='<div class="carnet wiki-carnet'+(ouvert?' ouvert':'')+'">'+
+    '<button class="ct" onclick="wikiBascule(\''+page+'\')" aria-expanded="'+(ouvert?'true':'false')+'">'+
+      '<b>Le wiki de l’équipe</b>'+
+      '<span class="carnet-etat">'+etat+'</span>'+
+      '<span class="chv">'+(ouvert?'\u2303':'\u203A')+'</span></button>';
+  if(!ouvert) return h+'</div>';
+  h+='<div class="cc">';
+  if(notes.length){
+    h+='<div class="rlist">'+notes.map(function(n){
+      const j=(n.cree_le||'').slice(8,10)+'/'+(n.cree_le||'').slice(5,7);
+      return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+        '<em>'+esc(j)+'</em><p>'+esc(n.texte)+'</p>'+
+        (peutGerer()?'<button class="lienbas" onclick="wikiRetirer('+n.id+')">Retirer</button>':'')+
+      '</div>';
+    }).join('')+'</div>';
+  }
+  /* Ses propres notes en attente : elle doit voir que c'est parti, sinon elle
+     réécrit la même chose le lendemain. */
+  wikiMiennesEnAttente(page).forEach(function(n){
+    h+='<div class="wiki-att"><p>'+esc(n.texte)+'</p>'+
+       '<em>En attente de relecture</em>'+
+       '<button class="lienbas" onclick="wikiRetirer('+n.id+')">Annuler</button></div>';
+  });
+  /* ⚠ LE CHAMP DIT CE QU'ON ATTEND : une correction, pas un commentaire. Sans ça,
+     un champ vide sous « wiki » recueille n'importe quoi. */
+  h+='<div class="chadd empile ecrire" style="margin-top:12px">'+
+     '<textarea id="wikiTxt-'+page+'" rows="2" maxlength="600" '+
+       'placeholder="Ce qui a changé, ou ce qui manque sur cette page" '+
+       'oninput="passGrandir(this)"></textarea>'+
+     '<button class="accb" onclick="wikiEcrire(\''+page+'\')">Proposer</button>'+
+     '</div>';
+  return h+'</div></div>';
+}
+async function wikiEcrire(page){
+  const i=document.getElementById('wikiTxt-'+page);
+  const t=((i&&i.value)||'').trim();
+  if(!t){ if(i) i.focus(); toast('Écris ce qui a changé'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  const r=await sb.from('wiki_centre').insert({
+    page:page, texte:t.slice(0,600), auteur_uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  }).select();
+  if(r.error){ toast('Pas envoyé — '+r.error.message); return; }
+  toast('Proposé — la coordination va le relire');
+  if(i) i.value='';
+  await loadWikiCentre(); render();
+}
+async function wikiTrancher(id, etat){
+  const i=document.getElementById('wikiMotif-'+id);
+  const motif=((i&&i.value)||'').trim();
+  /* ⚠ UN REFUS SANS RAISON N'EST PAS UN REFUS, C'EST UN SILENCE. Même règle que
+     pour les conseils — et la base la tient aussi, par une contrainte. */
+  if(etat==='refus' && !motif){ if(i) i.focus(); toast('Une raison, même courte'); return; }
+  if(!sb){ toast('Pas connectée'); return; }
+  const r=await sb.from('wiki_centre').update({
+    etat:etat, motif:motif||null, tranche_le:new Date().toISOString(),
+    tranche_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
+  }).eq('id',id).select();
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  toast(etat==='ok'?'Validé — c’est en ligne':'Refusé, la raison est notée');
+  await loadWikiCentre(); render();
+}
+function wikiRetirer(id){
+  cousinConfirme('Retirer cette note ?','Elle ne s’affichera plus sur la page.',
+    async function(){
+      const r=await sb.from('wiki_centre').delete().eq('id',id);
+      if(r.error){ toast('Pas retiré — '+r.error.message); return; }
+      await loadWikiCentre(); render();
+    },{ok:'Retirer',danger:true});
+}
+/* ═══ LA FILE D'ATTENTE, DANS « WIKI À RANGER » (règle ② plus haut) ═══
+   Elle relit déjà les avis des fiches là — les précisions des pages la rejoignent,
+   au lieu de l'obliger à faire le tour des huit pages pour voir s'il y a du neuf. */
+function wikiFileHTML(){
+  if(!peutGerer()) return '';
+  const f=wikiEnAttente();
+  if(!f.length) return '';
+  return '<div class="sectl" style="margin-top:24px">Précisions des pages — '+f.length+'</div>'+
+    '<div class="rlist">'+f.map(function(n){
+      const j=(n.cree_le||'').slice(8,10)+'/'+(n.cree_le||'').slice(5,7);
+      return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+        '<em>'+esc(WIKI_PAGES[n.page]||n.page)+' · '+esc(j)+'</em>'+
+        '<p>'+esc(n.texte)+'</p>'+
+        '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" '+
+          'placeholder="Raison, si tu refuses" autocomplete="off">'+
+        '<div class="wiki-b">'+
+          '<button class="accb plein" onclick="wikiTrancher('+n.id+',\'ok\')">Valider</button>'+
+          '<button class="accb" onclick="wikiTrancher('+n.id+',\'refus\')">Refuser</button>'+
+        '</div></div>';
+    }).join('')+'</div>';
 }
 
 function vQuartier(){
@@ -23874,6 +24080,7 @@ function vQuartier(){
         '</button>';
       }).join('')+'</div>';
   });
+  h+=wikiBloc('quartier');
   return h+'<div style="height:26px"></div>';
 }
 
