@@ -4140,6 +4140,27 @@ body.no-tabs #tabbar{display:none}
   max-width:min(92vw,420px);text-align:center;line-height:1.35}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* LA BANDE DE PANNE (26/08/2026). Au-dessus de tout, mais elle ne couvre rien :
+   c'est une bande de quelques centimètres, pas un voile. Un voile plein écran, c'est
+   justement l'autre façon de tuer tous les boutons. */
+#panneBar{position:fixed;left:12px;right:12px;bottom:calc(var(--tab-h) + 12px);z-index:9996;
+  display:none;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--noir);color:#f4f3f1;border-radius:0;padding:11px 14px;
+  font-size:13.5px;font-weight:500;max-width:520px;margin:0 auto}
+#panneBar.on{display:flex}
+#panneBar button{font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  background:#f4f3f1;color:var(--noir);border:0;border-radius:0;padding:7px 13px;flex:0 0 auto}
+@media print{ #panneBar{display:none !important} }
+
+/* LA CARTE DE PANNE, quand c'est UNE page qui n'a pas su se dessiner. Elle prend la
+   place de la page : on doit voir que le clic a abouti quelque part. */
+.pan-carte{max-width:520px;margin:28px auto;padding:22px 20px;background:#fdfdfc;
+  border:1px solid var(--ligne);border-radius:6px}
+.pan-carte h2{font-size:17px;font-weight:700;margin:0;letter-spacing:-.01em}
+.pan-b{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.pan-b button{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  background:var(--noir);color:#f4f3f1;border:0;border-radius:0;padding:9px 15px}
+
 @media(min-width:760px){
   .dgrid{grid-template-columns:repeat(4,1fr)}
   .tile:nth-child(2n){border-right:1px solid var(--ligne)}
@@ -5033,6 +5054,63 @@ body.no-tabs #tabbar{display:none}
 </style>
 </head>
 <body>
+
+<script>
+/* ═════════════ LE FILET (26/08/2026) ═════════════
+   ⚠ POURQUOI IL EXISTE. Mag, 26/08/2026 : « les boutons ne fonctionnent plus sur la
+   page d'accueil, et ce n'est pas la première fois ».
+
+   REPRODUIT le jour même : il suffit qu'UNE ligne abîmée arrive de la base pour que
+   `render()` s'arrête au milieu. Le clic part bien, l'adresse change bien — mais
+   l'écran n'est jamais redessiné. La page reste donc affichée, intacte, et plus
+   AUCUN bouton ne répond. Et rien ne le disait : ni message, ni trace. On
+   rechargeait, ça repartait, et ça recommençait la fois d'après.
+
+   Une app de 17 000 lignes qui lit une base, le téléphone et le réseau finira
+   TOUJOURS par rencontrer une donnée qu'elle n'attendait pas. Ce qu'on répare ici,
+   ce n'est donc pas une donnée : c'est le fait qu'une seule erreur puisse tuer tout
+   le reste, en silence. Trois pièces, dans cet ordre :
+     ① ICI : toute erreur est notée (Profil › `PANNES`) au lieu de disparaître.
+     ② `render()` : chaque partie du dessin est isolée — celle qui casse n'empêche
+        plus les autres de se dessiner.
+     ③ `go()` : un chien de garde vérifie qu'un clic a VRAIMENT changé l'écran, et
+        redessine lui-même sinon.
+   ⚠ Ce script est le premier de la page, avant les données et avant l'app : une
+   erreur au chargement doit se voir elle aussi. Il ne dépend de rien. */
+window.PANNES=[];
+function panneNoter(ou,e){
+  try{
+    var m='';
+    try{ m=(e&&(e.stack||e.message))||String(e); }catch(_){ m='?'; }
+    window.PANNES.push({ou:ou, quoi:String(m).slice(0,600), quand:new Date().toISOString()});
+    if(window.PANNES.length>20) window.PANNES.shift();
+    try{ localStorage.setItem('cousin_pannes',JSON.stringify(window.PANNES)); }catch(_){}
+    if(window.console&&console.error) console.error('[COUSIN] '+ou, e);
+  }catch(_){}
+}
+/* LA BANDE. Une ligne, en bas, et un bouton. Pas d'explication : ce qu'on a besoin
+   de savoir, c'est que ça a buté et qu'on peut relancer. Voir `pannes-muettes` :
+   une panne muette est pire que la panne. */
+function panneBandeau(){
+  try{
+    var b=document.getElementById('panneBar');
+    if(!b){
+      b=document.createElement('div'); b.id='panneBar';
+      b.innerHTML='<span>Un bout de l\u2019app a but\u00e9.</span>'+
+                  '<button type="button" onclick="location.reload()">Relancer</button>';
+      document.body.appendChild(b);
+    }
+    b.classList.add('on');
+  }catch(_){}
+}
+window.addEventListener('error',function(ev){
+  panneNoter('erreur', (ev&&(ev.error||ev.message))||ev);
+});
+window.addEventListener('unhandledrejection',function(ev){
+  panneNoter('promesse', ev&&ev.reason);
+});
+try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=JSON.parse(_pv); }catch(_){}
+</script>
 
 <!-- Écran de connexion (réservé à l'équipe) — repris de l'app actuelle. -->
 <div id="authGate" class="auth-gate">
@@ -12142,10 +12220,35 @@ let current={view:'home'};
 let scrollMem={};
 /* Le dernier écran pour lequel le glissement d'entrée a été joué — voir `render()`. */
 var _ecranAnime=null;
+/* ⚠ L'ÉCRAN RÉELLEMENT DESSINÉ, pas celui qu'on a demandé. C'est la différence
+   entre les deux qui trahit un bouton mort — voir le chien de garde de `go()`. */
+var _ecranDessine=null;
 /* `NAV_CLIC` distingue « j'ouvre quelque chose » de « je reviens ». Voir le
    `hashchange` plus bas : on n'ouvre pas un tiroir au milieu de la page. */
 var NAV_CLIC=false;
-function go(hash){ NAV_CLIC=true; NAV_PAS++; location.hash=hash; }
+/* ═══ ③ LE CHIEN DE GARDE (26/08/2026) ═══
+   `go()` ne fait que changer l'adresse : c'est `hashchange` qui redessine. Deux
+   façons pour un clic de se perdre en silence, et Mag a rencontré les deux :
+     · `render()` casse en route → l'adresse a changé, l'écran non ;
+     · l'app est rouverte depuis l'écran d'accueil du téléphone et `hashchange`
+       n'arrive jamais.
+   Dans les deux cas le bouton a l'air mort. On vérifie donc, 90 ms après le clic,
+   que l'écran DESSINÉ est bien celui de l'adresse — et sinon on le dessine.
+   ⚠ 90 ms, pas 0 : il faut laisser `hashchange` faire son travail normal, sinon on
+   dessinerait deux fois et on perdrait la mémoire du défilement.
+   ⚠ Une seule vérification par clic, jamais de boucle : si ça rate encore, c'est la
+   bande de panne qui prend le relais. */
+function go(hash){
+  NAV_CLIC=true; NAV_PAS++; location.hash=hash;
+  setTimeout(function(){
+    try{
+      const r=parseRoute();
+      if(_ecranDessine===keyOf(r)) return;      /* tout va bien : l'écran a suivi */
+      panneNoter('clic perdu', 'demandé '+keyOf(r)+', dessiné '+_ecranDessine);
+      current=r; NAV_CLIC=false; render(); window.scrollTo(0,0);
+    }catch(e){ panneNoter('chien de garde', e); }
+  },90);
+}
 
 /* ═══ LA FLÈCHE « RETOUR » NE PEUT PAS S'EN REMETTRE À L'HISTORIQUE SEUL ═══
    (Mag, 21/08/2026 : « quand j'appuie sur le retour, ça ne me fonctionne pas »)
@@ -12223,6 +12326,22 @@ window.addEventListener('hashchange',()=>{
   /* Voir `retour()` : quand le déplacement ne vient PAS d'un `go()`, c'est la flèche
      du navigateur ou celle du téléphone — on a donc remonté d'un cran, et le compteur
      doit le savoir, sinon la flèche de l'app finirait par sortir de l'app. */
+  /* ═══ ON CHANGE DE PAGE : ON FERME CE QUI ÉTAIT RESTÉ OUVERT (26/08/2026) ═══
+     L'autre façon de tuer tous les boutons d'un coup : un VOILE plein écran resté
+     accroché. Les feuilles qui montent (partage, lieu, passation, idée, urgence)
+     posent un calque en `position:fixed` par-dessus toute la page. Tant qu'il est
+     là, chaque clic tombe dessus et pas sur le bouton — la page a l'air normale et
+     plus rien ne répond. Il suffit qu'une fermeture soit sautée (la flèche du
+     téléphone, une erreur au milieu) pour y rester coincée.
+     `figerFond` compte les ouvertures ; s'il se désynchronise, la page ne défile
+     même plus. On remet donc les deux à zéro à chaque changement d'écran :
+     ouvrir une page, c'est repartir d'une page propre. */
+  try{
+    ['ouBg','partBg','qBg','passBg','popBg','ideeBg','urgBg'].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.remove('on');
+    });
+    _figeN=0; document.documentElement.classList.remove('fond-fige');
+  }catch(e){ panneNoter('fermeture des feuilles', e); }
   if(!NAV_CLIC) NAV_PAS=Math.max(0,NAV_PAS-1);
   scrollMem[keyOf(current)]=window.scrollY;
   current=parseRoute(); render();
@@ -12258,7 +12377,17 @@ function setFilt(k,v){filt[k]=v;render();window.scrollTo(0,0)}
 
 /* ---------- rendu ---------- */
 const view=document.getElementById('view');
+/* ═══ ② LE DESSIN NE PEUT PLUS MOURIR (26/08/2026) ═══
+   `render()` n'est plus qu'une coquille : tout le travail est dans `renderInterne()`,
+   et il est découpé en morceaux isolés. Si l'un casse, les autres se dessinent quand
+   même — et la bande de panne le dit.
+   ⚠ NE PAS remettre le travail ici : c'est cette coquille qui garantit qu'un clic
+   aboutit toujours à quelque chose. */
 function render(){
+  try{ renderInterne(); }
+  catch(e){ panneNoter('render', e); panneBandeau(); }
+}
+function renderInterne(){
   document.body.classList.toggle('no-tabs',current.view==='fiche');
   /* Voir `body.en-apercu #view` : tant que l'aperçu est ouvert, #view ne doit porter
      AUCUN transform, sinon le calque fixe du téléphone se recale sur lui. */
@@ -12275,6 +12404,13 @@ function render(){
      bouton n'existe plus dans la page, et le code qui allait le chercher part avec.
      L'écran de recherche, lui, reste entier et #/recherche répond toujours.
      ⚠ Ne PAS renommer `stb` en « sb » : c'est le nom du lien vers la base (Supabase). */
+  /* ⚠ TOUTE LA BARRE DU HAUT EST SOUS FILET. C'est ELLE qui a bloqué l'app le
+     26/08 : le compte des pastilles lit la base (check-lists, rappels, passations),
+     et une seule ligne abîmée arrêtait `render()` AVANT que la page soit dessinée.
+     Résultat : le clic partait, l'adresse changeait, l'écran ne bougeait pas.
+     Une pastille qui manque, ce n'est rien. Une page qui ne se dessine pas, c'est
+     l'app entière. La page passe donc avant la barre, toujours. */
+  try{
   const stb=document.getElementById('starbtn');
   if(stb){ if(!stb.innerHTML) stb.innerHTML='<span class="ic">'+icon('star')+'</span>'; stb.classList.toggle('on',current.view==='favoris'); }
   /* Mon profil a quitté la barre du haut le 11/08/2026 : il est dans le menu des
@@ -12314,6 +12450,7 @@ function render(){
     if(lb.__html!==lbHTML){ lb.__html=lbHTML; lb.innerHTML=lbHTML; }
     lb.classList.toggle('on',current.view==='liste');
   }
+  }catch(e){ panneNoter('barre du haut', e); }
   if(current.view==='domaine' && filt._k!==current.key) filt={_k:current.key,communes:[],tags:[],dem:'Toutes',genre:'Tous',pgenre:null,famille:'Toutes'};
   /* On ARRIVE sur l'accueil : la pile de jeux se remet sur Chrono 60 s. On y était
      déjà (on coche une tâche, la météo se charge) : on ne touche à rien. */
@@ -12334,6 +12471,11 @@ function render(){
      l'app à l'intérieur redémarrait de zéro. D'où le cadre vide et le tremblement.
      On saute donc tout le bloc : la barre « Voir comme » et le cadre, plus bas,
      suffisent. */
+  /* ⚠ CHAQUE PAGE EST ISOLÉE. Avant, une page qui ne savait pas se dessiner (une
+     fiche incomplète, une activité sans date) coupait `render()` net : l'écran
+     restait sur la page PRÉCÉDENTE, et on croyait le bouton mort. Maintenant on voit
+     la page qui a buté — et toutes les autres continuent de s'ouvrir. */
+  try{
   if(APERCU_TEL){ /* rien à dessiner ici : le cadre s'en charge plus bas */ }
   else if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
@@ -12379,6 +12521,22 @@ function render(){
     requestAnimationFrame(qPlacerNoms); }
   else if(current.view==='favoris') view.innerHTML=vFavoris();
   else if(current.view==='urgences') view.innerHTML=vUrgences();
+    _ecranDessine=keyOf(current);
+  }catch(e){
+    panneNoter('page '+(current&&current.view), e);
+    /* ⚠ ON ÉCRIT QUELQUE CHOSE, TOUJOURS. Laisser l'écran précédent, c'est
+       exactement ce qui faisait croire à un bouton mort. */
+    try{
+      view.innerHTML='<div class="pan-carte">'+
+        '<h2>Cette page n\u2019a pas voulu s\u2019ouvrir.</h2>'+
+        '<div class="pan-b">'+
+        '<button type="button" onclick="go(\'#/\')">Accueil</button>'+
+        '<button type="button" onclick="location.reload()">Relancer</button>'+
+        '</div></div>';
+      _ecranDessine=keyOf(current);
+    }catch(_){}
+    panneBandeau();
+  }
   /* ═══ ⚠ LE GLISSEMENT NE PARTAIT JAMAIS ═══
      `animation:vin` est posée sur #view — et #view n'est PAS recréé quand on change
      de page : on ne réécrit que son contenu. Or une animation CSS ne rejoue pas
@@ -12390,6 +12548,10 @@ function render(){
      ⚠ Les trois gestes sont nécessaires dans cet ordre : couper l'animation, forcer
      le navigateur à recalculer (`offsetWidth`), la rendre. Sans le recalcul au
      milieu, il ne voit aucun changement et ne rejoue rien. */
+  /* ⚠ LA FIN AUSSI. Le rail, la barre « voir comme » et la feuille de la passation
+     viennent APRÈS la page : s'ils cassent, la page est déjà à l'écran, mais le
+     redessin d'après mourrait au même endroit. On les isole donc pareil. */
+  try{
   const cleEcran=keyOf(current);
   if(cleEcran!==_ecranAnime && !document.body.classList.contains('pan-ouvert')){
     _ecranAnime=cleEcran;
@@ -12436,6 +12598,7 @@ function render(){
      la touche pas. Sans cette ligne, changer de genre dans la fenêtre ne changerait
      rien à l'écran. Même raison que l'ancienne feuille de la check-list. */
   if(typeof passFeuilleMaj==='function') passFeuilleMaj();
+  }catch(e){ panneNoter('le tour de la page', e); }
 }
 
 /* ---------- accueil ---------- */
@@ -24197,8 +24360,12 @@ function passDeplier(b){
 }
 /* Ce qui m'est adressé : les passations dont le rôle est dans MES listes. */
 function passPourMoi(){
-  const m=MES_LISTES||[];
-  return PASSATIONS.filter(function(p){ return m.indexOf(p.pour)>=0; });
+  /* Même raison que `resteAListe` : lu à chaque redessin, écrit par toute l'équipe. */
+  try{
+    const m=MES_LISTES||[];
+    return (Array.isArray(PASSATIONS)?PASSATIONS:[])
+      .filter(function(p){ return p && m.indexOf(p.pour)>=0; });
+  }catch(e){ panneNoter('compte des passations', e); return []; }
 }
 function passEcrites(){ return PASSATIONS.filter(passMienne); }
 /* Les réveils d'abord, par heure. Une heure vide part à la fin — mieux vaut la voir
@@ -25384,7 +25551,11 @@ function rappelRetirer(id){
    pastille toujours allumée, on cesse de la voir. C'est la même règle que les
    poubelles et les produits. */
 function resteRappels(){
-  return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu2(r); }).length;
+  /* Même raison que `resteAListe` : ces lignes viennent de la base. */
+  try{
+    return (Array.isArray(MESRAPPELS)?MESRAPPELS:[])
+      .filter(function(r){ return r && !rappelFait(r) && rappelDu2(r); }).length;
+  }catch(e){ panneNoter('compte des rappels', e); return 0; }
 }
 /* Le bloc « Mes rappels », affiché sous la liste du travail. */
 /* ═══ TOUT DANS LE MÊME CADRE (Mag, 11/08/2026) ═══
@@ -25688,9 +25859,17 @@ function rappelPasser(id){
      ([[cousin-pas-de-phrases-explicatives]]). Ne pas la remettre « pour être clair ». */
 
 /* Ce qui reste à cocher dans SES listes — c'est ce chiffre qui compte sur l'accueil. */
+/* ⚠ DÉFENSIF DEPUIS LE 26/08/2026 : ce compte tourne à CHAQUE redessin, sur des
+   lignes venues de la base. Une liste sans tâches suffisait à arrêter tout le
+   dessin de l'app (reproduit). Une pastille fausse vaut mieux qu'une app figée. */
 function resteAListe(){
   let n=0;
-  CHECKLISTS.filter(g=>g.mienne).forEach(g=>g.taches.forEach(t=>{ if(!DONE[t.id]) n++; }));
+  try{
+    (CHECKLISTS||[]).forEach(function(g){
+      if(!g || !g.mienne || !Array.isArray(g.taches)) return;
+      g.taches.forEach(function(t){ if(t && !DONE[t.id]) n++; });
+    });
+  }catch(e){ panneNoter('compte des tâches', e); }
   return n;
 }
 
