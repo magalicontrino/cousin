@@ -9552,6 +9552,8 @@ var QUARTIER = [
   { grp:"Dépannage, tard le soir", lignes:[
     { t:"Night shops", d:"Au carrefour, juste en bas du centre.",
       plus:"Ouverts tard — dépannage et cigarettes.",
+      adr:"Bd Prince de Liège × Chaussée de Ninove, 1070 Anderlecht",
+      coord:"50.846936,4.299101",
       hor:"Tous les jours, jusqu'au soir" }
   ]},
   { grp:"Se laver, laver son linge", lignes:[
@@ -23766,6 +23768,8 @@ const QVERTS=[[[799,386],[914,544],[899,583],[933,621],[871,668],[849,646],[828,
 /* Chaque lieu à sa vraie place : x/y en mètres depuis le centre, `cap` en degrés
    (0 = nord), `min` = le temps de marche. */
 const QLIEUX={
+  /* Calculé sur le croisement réel des deux tracés : 115 m, au NORD du centre. */
+  'Night shops':     {x: -42,y:-107,m: 115,cap:339,min: 2},
   'Parc du Peterbos':{x:-280,y: 456,m: 536,cap:212,min: 9},
   'Aldi':            {x: 190,y:1073,m:1089,cap:170,min:18},
   'Parc Astrid':     {x:-102,y:1443,m:1446,cap:184,min:24},
@@ -24005,7 +24009,7 @@ function planRues(W,H,port,opt){
        <div> quand l'adresse manque : un lien qui ne mène nulle part est pire que
        pas de lien. Aujourd'hui les six lieux du plan ont tous leur adresse. */
     const adr=qAdresse(q.nom);
-    const ouv=adr?('<a class="qdot'+(q.loin?' loin':'')+'" href="'+qIti(adr)+'" target="_blank" rel="noopener" title="Itinéraire à pied depuis le centre"')
+    const ouv=adr?('<a class="qdot'+(q.loin?' loin':'')+'" href="'+qIti(adr,qCoord(q.nom))+'" target="_blank" rel="noopener" title="Itinéraire à pied depuis le centre"')
                  :('<div class="qdot'+(q.loin?' loin':'')+'"');
     sur+=ouv+' style="left:'+pc(x,W)+';top:'+pc(y,H)+';background:'+qi[1]+'"><span class="ic">'+icon(qi[0])+'</span>'+(adr?'</a>':'</div>');
     /* La place exacte du nom est réglée après l'affichage, par qPlacerNoms(). */
@@ -24077,10 +24081,18 @@ function qAdresse(nom){
   }
   return null;
 }
-/* L'itinéraire À PIED depuis le centre. */
-function qIti(adr){
+function qCoord(nom){ const l=qTrouve(nom); return l&&l.coord; }
+/* Le même trajet, mais en transports. Même règle : les coordonnées l'emportent. */
+function qItiBus(adr,coord){
   return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(ITI_DEPART)+
-    '&destination='+encodeURIComponent(adr)+'&travelmode=walking';
+    '&destination='+encodeURIComponent(coord||adr)+'&travelmode=transit';
+}
+/* L'itinéraire À PIED depuis le centre.
+   ⚠ `coord` L'EMPORTE SUR L'ADRESSE quand il existe : un croisement de rues n'a pas
+   de numéro, et Google ne sait pas le retrouver à partir de son nom. */
+function qIti(adr,coord){
+  return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(ITI_DEPART)+
+    '&destination='+encodeURIComponent(coord||adr)+'&travelmode=walking';
 }
 
 
@@ -24148,9 +24160,9 @@ function qLieuOuvrir(nom){
      annonce en minutes. En bus ensuite — et c'est Maps qui dit LAQUELLE et combien
      de temps, pas nous. */
   if(l.adr) c+='<div class="qlieu-trajets">'+
-    '<a class="qlieu-map" href="'+qIti(l.adr)+'" target="_blank" rel="noopener">'+
+    '<a class="qlieu-map" href="'+qIti(l.adr,l.coord)+'" target="_blank" rel="noopener">'+
       '<span class="ic">'+icon('pin')+'</span>À pied'+(QLIEUX[l.t]?' · '+QLIEUX[l.t].min+' min':'')+'</a>'+
-    '<a class="qlieu-map bus" href="'+itiHref(l.adr)+'" target="_blank" rel="noopener">'+
+    '<a class="qlieu-map bus" href="'+qItiBus(l.adr,l.coord)+'" target="_blank" rel="noopener">'+
       '<span class="ic">'+icon('pin')+'</span>En bus</a>'+
     '</div>';
   c+='</div>';
