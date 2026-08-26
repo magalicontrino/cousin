@@ -12990,7 +12990,7 @@ function renderInterne(){
        vraie coupure : le brouillon était bien écrit, et personne ne le proposait.
        `_ecranDessine` porte encore l'écran PRÉCÉDEMMENT dessiné. */
     if(_ecranDessine!=='accueilpersonne') accBrouillonRelire();
-    view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); requestAnimationFrame(accCaler);
+    view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); accCalerPlusTard();
     /* Tant qu'on n'a pas répondu, la page est là mais on ne peut pas écrire dessus. */
     if(ACC_PROPOSE) accBrOuvrir(); else accBrFermer();
   }
@@ -26408,13 +26408,46 @@ function accCaler(){
        qu'une fenêtre de trois lignes. */
     const dispo=window.innerHeight - Math.max(t,0) - 14;
     const collee=window.innerHeight - 28;
-    c.style.height=Math.max(260, Math.round(Math.min(dispo, collee)))+'px';
+    const h=Math.max(260, Math.round(Math.min(dispo, collee)))+'px';
+    /* On n'écrit que si ça change : sinon on réveille l'observateur ci-dessous pour
+       rien, à chaque défilement. */
+    if(c.style.height!==h) c.style.height=h;
   }catch(e){ panneNoter('hauteur de la note', e); }
 }
 /* On recale quand on défile et quand la fenêtre change de taille. `passive` : on ne
    bloque jamais le défilement. */
 window.addEventListener('scroll', function(){ if(current&&current.view==='accueilpersonne') accCaler(); }, {passive:true});
 window.addEventListener('resize', function(){ if(current&&current.view==='accueilpersonne') accCaler(); });
+/* ═══ ⚠ UNE SEULE MESURE NE SUFFIT PAS (Mag, 26/08/2026 : « à droite ça déborde en
+   bas ») ═══
+   Mesuré : au premier calcul la colonne commence à 119 px, et une fois la page
+   vraiment posée elle commence à 134. La hauteur gardait donc 15 px de trop, et les
+   boutons dépassaient d'autant — en haut de page, là où personne ne défile pour
+   rattraper le coup. La cause est ordinaire : les polices de l'app arrivent après le
+   premier dessin et changent la hauteur du bandeau.
+   On recale donc à chaque fois que la mise en page peut avoir bougé :
+   · quand les polices sont prêtes ;
+   · une fois de plus un peu après, pour ce qui arrive encore plus tard (une image,
+     un bloc qui se remplit) ;
+   · et surtout en SURVEILLANT la colonne de gauche : elle grandit à chaque fois
+     qu'un champ s'allonge sous la frappe.
+   ⚠ ON SURVEILLE LA COLONNE DE GAUCHE, PAS LA DROITE : surveiller celle dont on
+   change la hauteur, ce serait se réveiller soi-même en boucle. */
+let _accObs=null;
+function accSurveiller(){
+  try{
+    if(_accObs){ _accObs.disconnect(); _accObs=null; }
+    const g=document.querySelector('.accform'); if(!g||!window.ResizeObserver) return;
+    _accObs=new ResizeObserver(function(){ accCaler(); });
+    _accObs.observe(g);
+  }catch(e){ panneNoter('surveillance de la note', e); }
+}
+function accCalerPlusTard(){
+  requestAnimationFrame(accCaler);
+  setTimeout(accCaler,250);
+  try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(accCaler); }catch(e){}
+  accSurveiller();
+}
 function accGrandirTout(){
   requestAnimationFrame(function(){
     try{ [].forEach.call(document.querySelectorAll('textarea.accgr'), passGrandir); }
