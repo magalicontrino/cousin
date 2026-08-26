@@ -1585,14 +1585,32 @@ body.pan-ouvert #view{animation:none;transform:none}
    ⚠ `align-items:start` est indispensable : sans lui, la colonne de droite
    s'étire sur toute la hauteur du formulaire et `sticky` n'a plus rien à quoi
    se coller — la note redescendrait, sans erreur visible. */
+/* Le repère de la ligne active a besoin d'un parent positionné pour que son
+   `offsetTop` soit compté DANS le cadre, et pas dans la page. */
+.accnote{position:relative}
 @media(min-width:900px){
   .accdeux{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
     gap:26px;align-items:start;max-width:1100px;margin-left:auto;margin-right:auto}
-  .acccote{position:sticky;top:14px}
-  .acccote .accnotebloc{margin-top:20px}
-  /* La note ne dépasse jamais l'écran : au-delà, elle défile dans son cadre —
-     sinon les trois boutons sortiraient par le bas et deviendraient inatteignables. */
-  .acccote .accnote{max-height:calc(100vh - 190px)}
+  /* ═══ LA NOTE PREND TOUTE LA HAUTEUR DE L'ÉCRAN (Mag, 26/08/2026) ═══
+     « Il devrait être étiré jusqu'en bas de l'écran… ça doit s'adapter à l'écran en
+     hauteur », « en prenant compte que les boutons doivent être visibles ».
+     La colonne fait exactement une hauteur d'écran et se partage en trois : le titre
+     et les boutons prennent ce qu'il leur faut, la fenêtre de texte prend TOUT LE
+     RESTE. Les boutons sont donc toujours à la même place, calés en bas, quelle que
+     soit la taille de l'écran et la longueur de la note.
+     ⚠ `min-height:0` SUR LES DEUX PARENTS, sinon rien ne marche : une boîte flex
+     refuse par défaut de devenir plus petite que son contenu, et la fenêtre
+     grandirait au lieu de faire défiler — les boutons repartiraient sous l'écran. */
+  /* ⚠ LA HAUTEUR EST POSÉE PAR `accCaler()`, PAS ICI. `100vh` serait juste une fois
+     la page défilée (la colonne est alors collée en haut) — mais EN HAUT DE PAGE elle
+     commence sous le bandeau noir, et `100vh` la fait déborder de deux cents pixels :
+     les boutons passent sous l'écran, exactement ce qu'on veut éviter. Aucune formule
+     CSS ne connaît cette distance, qui change quand on défile. */
+  .acccote{position:sticky;top:14px;display:flex;flex-direction:column;min-height:0}
+  .acccote .accnotebloc{margin-top:20px;flex:1;min-height:0;display:flex;flex-direction:column}
+  .acccote .accnotebloc .acct{flex:none}
+  .acccote .accnote{flex:1;min-height:0;max-height:none;overflow:auto}
+  .acccote .accact{flex:none;margin-top:14px}
 }
 @media print{ .accdeux{display:block} .acccote{position:static} }
 
@@ -12904,7 +12922,7 @@ function renderInterne(){
   else if(current.view==='reglement') view.innerHTML=vReglement();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='ressources') view.innerHTML=vRessources();
-  else if(current.view==='accueilpersonne'){ view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); }
+  else if(current.view==='accueilpersonne'){ view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); requestAnimationFrame(accCaler); }
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
@@ -22099,13 +22117,35 @@ function vRessources(){
    en train de taper (c'est le piège déjà payé trois fois dans ce fichier). Les
    valeurs sont donc relues depuis `ACC` à chaque rendu. */
 var ACC={};
-function accSet(k,v){ ACC[k]=v; accNoteMaj(); }
+function accSet(k,v){ ACC[k]=v; accNoteMaj(k); }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
-function accNoteMaj(){
+function accNoteMaj(k){
   const el=document.getElementById('accNote'); if(!el) return;
-  const t=accNote(current&&current.volet);
-  el.textContent = t || 'Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.';
-  el.classList.toggle('vide', !t);
+  const lignes=accNoteLignes(current&&current.volet);
+  if(!lignes.length){
+    el.textContent='Elle se remplit à mesure que tu écris. Ce qui reste vide n’y apparaît pas.';
+    el.classList.add('vide'); return;
+  }
+  el.classList.remove('vide');
+  /* ⚠ `innerHTML` ET PAS `textContent` : il faut poser un repère sur la ligne du
+     champ qu'on remplit. Tout est échappé — et le texte qui part dans le
+     presse-papier ou sur la feuille vient de `accNote()`, pas d'ici. */
+  el.innerHTML=lignes.map(function(x){
+    const t=esc(x.t);
+    return (k && x.k===k) ? '<span id="accIci">'+t+'</span>' : t;
+  }).join('\n');
+  /* ═══ ON VOIT TOUJOURS CE QU'ON ÉCRIT (Mag, 26/08/2026) ═══
+     Dès que la note dépasse la hauteur de sa fenêtre, la ligne qu'on est en train
+     de remplir peut sortir du cadre — on écrit sans se relire.
+     ⚠ ON NE SE SERT PAS DE `scrollIntoView` : il ferait aussi bouger LA PAGE, et
+     l'écran sauterait à chaque lettre tapée. On ne déplace que l'ascenseur du
+     cadre, et seulement quand la ligne est vraiment sortie. */
+  try{
+    const ici=document.getElementById('accIci'); if(!ici) return;
+    const haut=ici.offsetTop, bas=haut+ici.offsetHeight;
+    if(haut < el.scrollTop) el.scrollTop=Math.max(0,haut-10);
+    else if(bas > el.scrollTop+el.clientHeight) el.scrollTop=bas-el.clientHeight+10;
+  }catch(e){ panneNoter('la note qui suit', e); }
 }
 function accEffacer(){
   if(!confirm('Effacer tout ce qui est écrit sur cette page ?')) return;
@@ -22303,6 +22343,26 @@ function vAccueilPersonne(volet){
 }
 /* La note à coller dans le 6D. On ne recopie QUE ce qui est rempli : une note pleine
    de titres vides fait chercher une information qui n'a pas été prise. */
+/* ═══ LA NOTE, LIGNE PAR LIGNE, AVEC LE CHAMP D'OÙ ELLE VIENT (26/08/2026) ═══
+   Il fallait pouvoir dire « cette ligne-là vient du champ qu'on est en train de
+   remplir », pour que la note se cale dessus quand elle devient plus haute que sa
+   fenêtre. `accNote()` continue de rendre du texte pur — c'est lui qui part dans le
+   presse-papier et sur la feuille, et il ne doit contenir aucune balise. */
+function accNoteLignes(volet){
+  const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const l=[{t:(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d},{t:''}];
+  accJeu(volet).forEach(function(g){
+    const remplis=g.c.filter(function(f){ return (ACC[f.k]||'').trim(); });
+    if(!remplis.length) return;
+    l.push({t:g.s.toUpperCase()});
+    remplis.forEach(function(f){
+      l.push({t:(f.l ? ('· '+f.l+' : '+String(ACC[f.k]).trim())
+                     : ('· '+String(ACC[f.k]).trim())), k:f.k});
+    });
+    l.push({t:''});
+  });
+  return (l.length<=2) ? [] : l;
+}
 function accNote(volet){
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
   /* ⚠ LE TITRE DE LA NOTE A CHANGÉ (Mag, 24/08/2026 : « retire PREMIER ACCUEIL… et
@@ -26052,6 +26112,29 @@ function passBarreHTML(id){
 /* Les champs du Premier accueil s'ouvrent à la hauteur de ce qu'ils contiennent
    DÈS L'ARRIVÉE : `scrollHeight` ne veut rien dire tant que l'élément n'est pas
    posé dans la page, d'où le passage par la frame suivante. */
+/* ═══ LA COLONNE DE DROITE VA JUSQU'EN BAS DE L'ÉCRAN, ET PAS PLUS LOIN ═══
+   (Mag, 26/08/2026 : « étiré jusqu'en bas de l'écran… en prenant compte que les
+   boutons doivent être visibles ».)
+   On mesure où la colonne commence À CET INSTANT, et on lui donne ce qui reste
+   jusqu'au bas de la fenêtre. En haut de page elle part sous le bandeau : elle est
+   donc plus courte. Dès qu'on défile, elle se colle en haut et s'allonge d'autant.
+   ⚠ CHANGER SA HAUTEUR NE LA DÉPLACE PAS : la hauteur de la rangée vient de la
+   colonne de gauche, qui est plus longue (`align-items:start`). Sans ça on aurait
+   une boucle — on mesure, on grandit, donc on remesure. */
+function accCaler(){
+  try{
+    const c=document.querySelector('.acccote'); if(!c) return;
+    if(window.innerWidth<900){ c.style.height=''; return; }
+    const t=c.getBoundingClientRect().top;
+    /* 260 px de plancher : sur un écran très bas, mieux vaut que la page défile
+       qu'une fenêtre de trois lignes. */
+    c.style.height=Math.max(260, Math.round(window.innerHeight - Math.max(t,0) - 14))+'px';
+  }catch(e){ panneNoter('hauteur de la note', e); }
+}
+/* On recale quand on défile et quand la fenêtre change de taille. `passive` : on ne
+   bloque jamais le défilement. */
+window.addEventListener('scroll', function(){ if(current&&current.view==='accueilpersonne') accCaler(); }, {passive:true});
+window.addEventListener('resize', function(){ if(current&&current.view==='accueilpersonne') accCaler(); });
 function accGrandirTout(){
   requestAnimationFrame(function(){
     try{ [].forEach.call(document.querySelectorAll('textarea.accgr'), passGrandir); }
