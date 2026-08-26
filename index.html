@@ -209,16 +209,38 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   background:#1f7a4d;color:#fff;border:0}
 @media (hover:hover){ .pt-c:hover{filter:brightness(1.3)} .pt-c.clair:hover{background:var(--noir);color:#f0efed} }
 
-/* ── LE DICTIONNAIRE (08/08/2026) ── */
-#view .lex{max-width:620px;padding-top:14px}
-.lx{border-bottom:1px solid var(--ligne);padding:12px 0}
-.lx summary{cursor:pointer;list-style:none;display:block}
+/* ── LE DICTIONNAIRE (08/08/2026 · redessiné le 27/08/2026) ── */
+#view .lex{max-width:620px;padding-top:6px}
+/* Le rail des lettres, collé sous le bandeau : on cherche un mot, on ne défile pas. */
+#view .lxrail{position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:6;
+  display:flex;flex-wrap:wrap;gap:3px;max-width:620px;padding:10px 0 8px;
+  background:var(--creme)}
+.lxrail a{display:flex;align-items:center;justify-content:center;min-width:26px;height:26px;
+  border-radius:6px;background:#fdfdfc;border:1.25px solid var(--trait);
+  font-family:ui-monospace,monospace;font-size:11px;font-weight:600;color:var(--noir);
+  text-decoration:none}
+.lxrail a:active{background:var(--noir);color:var(--creme)}
+/* La lettre : un repère, pas un titre. */
+.lxl{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.2em;color:var(--enc2);
+  border-bottom:1.5px solid var(--noir);padding:0 0 5px;margin:22px 0 2px}
+.lxl:first-child{margin-top:6px}
+/* ⚠ LA RANGÉE EST UNE FLEX, plus un flottant : le chevron était posé avec un
+   `float:right` et un `margin-top:-38px`, un calage qui se décroche dès qu'un mot
+   passe sur deux lignes. */
+.lx{border-bottom:1px solid var(--ligne)}
+.lx summary{cursor:pointer;list-style:none;display:flex;align-items:flex-start;gap:12px;
+  padding:13px 0}
 .lx summary::-webkit-details-marker{display:none}
-.lx summary b{display:block;font-size:16px;font-weight:700;line-height:1.2}
-.lx summary span{display:block;font-size:13.5px;color:#3c3a36;line-height:1.45;margin-top:3px}
-.lx summary::after{content:'▾';float:right;margin-top:-38px;color:#8b8984;font-size:13px}
-.lx[open] summary::after{content:'▴'}
-.lx p{font-size:13px;color:#73716b;line-height:1.55;margin-top:9px;padding-left:11px;
+.lx .lxt{flex:1;min-width:0}
+.lx .lxt b{display:block;font-size:16.5px;font-weight:600;line-height:1.22}
+.lx .lxt em{font-style:normal;display:block;font-size:13.5px;color:#3c3a36;
+  line-height:1.45;margin-top:3px}
+.lx .lxc{flex:none;width:22px;height:22px;border-radius:50%;background:#f2f0ed;
+  display:flex;align-items:center;justify-content:center;margin-top:2px}
+.lx .lxc::after{content:'';width:6px;height:6px;border-right:1.5px solid #6a6862;
+  border-bottom:1.5px solid #6a6862;transform:rotate(45deg) translate(-1px,-1px)}
+.lx[open] .lxc::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.lx p{font-size:13.5px;color:#5a5852;line-height:1.55;margin:0 0 14px;padding-left:12px;
   border-left:2px solid var(--ligne)}
 
 /* ── ÉDUC (08/08/2026) ── */
@@ -464,7 +486,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (min-width:900px){
   #view .zjeux,
   #view .grosses, #view .dormeuses, #view .tuiles,
-  #view .lienbas, #view .pt, #view .lex, #view .ed-g, #view .sch, #view .qneuf,
+  #view .lienbas, #view .pt, #view .lex, #view .lxrail, #view .ed-g, #view .sch, #view .qneuf,
   #view .cal, #view .acform, #view .cc, #view .cdet, #view .rich,
   #view .imprligne, #view .f-page, #view .quiz-card
   { margin-left:auto; margin-right:auto; }
@@ -21536,15 +21558,47 @@ function copierLien(){
 function vLexique(){
   const tri=LEXIQUE.slice().sort(function(a,b){ return a.m.localeCompare(b.m,'fr'); });
   let h=heroBandeau('Le dictionnaire', tri.length+' mots de chez nous','#b28b7a','book',true);
-  h+='<div class="fsrc" style="text-align:left;padding:12px 0 0;max-width:620px">'+
-     'Les mots relevés DANS COUSIN — dans les fiches, les formations, les schémas. '+
-     'Une phrase suffit ; le reste se déplie si tu veux.</div>';
-  h+='<div class="lex">'+tri.map(function(x,i){
-    return '<details class="lx"><summary><b>'+esc(x.m)+'</b><span>'+esc(x.c)+'</span></summary>'+
-      '<p>'+esc(x.d)+'</p></details>';
+  /* ⚠ LA PHRASE D'INTRODUCTION EST PARTIE (Mag, 27/08/2026 : « pas très joli et
+     embêtant à lire »). Elle expliquait le fonctionnement d'une page qui se
+     comprend en la regardant — et c'était la première chose à lire avant les mots.
+     C'est sa règle : par défaut, aucune phrase qui explique. */
+
+  /* ═══ RANGÉ PAR LETTRE, COMME UN DICTIONNAIRE ═══
+     48 mots à la file, c'est un mur : on ne cherche pas un mot, on le SUBIT. Avec
+     les lettres, l'œil saute directement au bon endroit — et la page ressemble
+     enfin à ce qu'elle est. */
+  const lettre=function(m){
+    const c=m.normalize('NFD').replace(/[\u0300-\u036f]/g,'').charAt(0).toUpperCase();
+    return /[A-Z]/.test(c)?c:'#';           /* « 9 bis » se range sous # */
+  };
+  /* Le rail des lettres : on touche, on y est. */
+  const lettres=[];
+  tri.forEach(function(x){ const l=lettre(x.m); if(lettres.indexOf(l)<0) lettres.push(l); });
+  h+='<div class="lxrail">'+lettres.map(function(l){
+    return '<a href="#lx-'+l.charCodeAt(0)+'" onclick="lxAller(event,\''+l.charCodeAt(0)+'\')">'+esc(l)+'</a>';
+  }).join('')+'</div>';
+
+  let cur='';
+  h+='<div class="lex">'+tri.map(function(x){
+    const l=lettre(x.m);
+    let tete='';
+    if(l!==cur){ cur=l; tete='<div class="lxl" id="lx-'+l.charCodeAt(0)+'">'+esc(l)+'</div>'; }
+    return tete+'<details class="lx"><summary>'+
+        '<span class="lxt"><b>'+esc(x.m)+'</b><em>'+esc(x.c)+'</em></span>'+
+        '<span class="lxc" aria-hidden="true"></span>'+
+      '</summary><p>'+esc(x.d)+'</p></details>';
   }).join('')+'</div>';
   h+='<div class="imprligne">'+boutonImprimer()+'</div>';
   return h+'<div style="height:26px"></div>';
+}
+/* ⚠ On ne laisse pas le navigateur sauter d'un coup : il passe sous le bandeau
+   collant et on ne voit pas où on a atterri. */
+function lxAller(ev,code){
+  ev.preventDefault();
+  const e=document.getElementById('lx-'+code); if(!e) return;
+  const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+  const y=e.getBoundingClientRect().top+window.scrollY-92;
+  window.scrollTo({top:y, behavior:doux?'smooth':'auto'});
 }
 
 function vEduc(){
