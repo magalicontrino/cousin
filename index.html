@@ -1606,7 +1606,14 @@ body.pan-ouvert #view{animation:none;transform:none}
      commence sous le bandeau noir, et `100vh` la fait déborder de deux cents pixels :
      les boutons passent sous l'écran, exactement ce qu'on veut éviter. Aucune formule
      CSS ne connaît cette distance, qui change quand on défile. */
-  .acccote{position:sticky;top:14px;display:flex;flex-direction:column;min-height:0}
+  /* ⚠ LE PLAFOND EST ICI, ET IL EST INDISPENSABLE. Une fois la colonne collée en
+     haut (`top:14px`), son bas est à 14 + sa hauteur : au-delà de la hauteur de la
+     fenêtre moins 28, les boutons passent SOUS l'écran. Ce plafond ne dépend de
+     rien qu'on mesure — il est donc plus fiable que le calcul, qui vient l'affiner.
+     `dvh` d'abord pour les navigateurs qui le connaissent : sur téléphone, `vh`
+     ignore la barre d'adresse qui se replie. */
+  .acccote{position:sticky;top:14px;display:flex;flex-direction:column;min-height:0;
+    max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px)}
   .acccote .accnotebloc{margin-top:20px;flex:1;min-height:0;display:flex;flex-direction:column}
   .acccote .accnotebloc .acct{flex:none}
   .acccote .accnote{flex:1;min-height:0;max-height:none;overflow:auto}
@@ -26126,9 +26133,19 @@ function accCaler(){
     const c=document.querySelector('.acccote'); if(!c) return;
     if(window.innerWidth<900){ c.style.height=''; return; }
     const t=c.getBoundingClientRect().top;
-    /* 260 px de plancher : sur un écran très bas, mieux vaut que la page défile
+    /* ⚠ DEUX CAS, ET LE PLUS PETIT GAGNE.
+       · EN HAUT DE PAGE la colonne commence sous le bandeau : elle n'a droit qu'à ce
+         qui reste jusqu'au bas de la fenêtre.
+       · EN BAS DU FORMULAIRE, la fin de la grille la repousse vers le haut et son
+         `top` devient NÉGATIF. C'est là que ça se gâtait : on calculait alors une
+         hauteur pleine, et en remontant d'un cran les boutons passaient sous
+         l'écran. Le second terme est le cas « collée en haut », qui est le maximum
+         absolu — il rattrape le premier quand celui-ci se trompe.
+       260 px de plancher : sur un écran très bas, mieux vaut que la page défile
        qu'une fenêtre de trois lignes. */
-    c.style.height=Math.max(260, Math.round(window.innerHeight - Math.max(t,0) - 14))+'px';
+    const dispo=window.innerHeight - Math.max(t,0) - 14;
+    const collee=window.innerHeight - 28;
+    c.style.height=Math.max(260, Math.round(Math.min(dispo, collee)))+'px';
   }catch(e){ panneNoter('hauteur de la note', e); }
 }
 /* On recale quand on défile et quand la fenêtre change de taille. `passive` : on ne
