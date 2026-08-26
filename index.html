@@ -1585,6 +1585,17 @@ body.pan-ouvert #view{animation:none;transform:none}
    ⚠ `align-items:start` est indispensable : sans lui, la colonne de droite
    s'étire sur toute la hauteur du formulaire et `sticky` n'a plus rien à quoi
    se coller — la note redescendrait, sans erreur visible. */
+/* ── LE BANDEAU DU BROUILLON (26/08/2026) ──
+   Noir, en haut de la page, deux boutons. Il n'explique rien : il dit ce qui est là
+   et propose les deux seules réponses possibles. */
+.accbr{margin:18px 0 0;padding:14px 16px;background:var(--noir);color:#f4f3f1;border-radius:10px;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.accbr b{font-size:14.5px;font-weight:600;line-height:1.35;flex:1;min-width:200px}
+.accbr-b{display:flex;gap:9px;flex:none}
+.accbr .accb{padding:8px 15px;font-size:13.5px}
+@media print{ .accbr{display:none !important} }
+@media(min-width:900px){ .accbr{max-width:1100px;margin-left:auto;margin-right:auto} }
+
 /* Le repère de la ligne active a besoin d'un parent positionné pour que son
    `offsetTop` soit compté DANS le cadre, et pas dans la page. */
 .accnote{position:relative}
@@ -1618,6 +1629,26 @@ body.pan-ouvert #view{animation:none;transform:none}
   .acccote .accnotebloc .acct{flex:none}
   .acccote .accnote{flex:1;min-height:0;max-height:none;overflow:auto}
   .acccote .accact{flex:none;margin-top:14px}
+  /* ═══ ⚠ LE STICKY DÉCROCHAIT EN FIN DE PAGE (Mag, 26/08/2026 : « en fin de parcours
+     de la fenêtre, le sticky remonte et devrait rester calé ») ═══
+     Un élément collant ne peut jamais sortir de la boîte qui le contient : ici la
+     grille. Or la page pouvait défiler 202 px DE PLUS que la grille — 176 px de marge
+     basse sur #view (la place de la barre du bas des téléphones) plus 26 px de cale.
+     Arrivé au bout, la grille se terminait avant la page, et la colonne était
+     repoussée vers le haut : elle « remontait », exactement ce qu'elle décrit.
+     Sur grand écran cette marge ne sert à rien — la barre du bas devient le RAIL DE
+     GAUCHE (mesuré : fixe, 236 px de large, toute la hauteur). On la retire donc,
+     mais SUR CETTE PAGE SEULEMENT : ailleurs elle a peut-être encore une raison.
+     La grille finit alors avec la page, et la colonne reste calée jusqu'au dernier
+     pixel. */
+  /* ⚠ `html` EN TÊTE, ET CE N'EST PAS DÉCORATIF. `body:not(.is-home) #view` impose
+     176 px plus bas dans le fichier, avec EXACTEMENT la même force que
+     `body.at-accueilp #view` — à force égale, c'est le dernier écrit qui gagne, et
+     ma règle ne servait à rien. Un `html` de plus suffit à passer devant, sans
+     `!important` qui rendrait la suite impossible à corriger.
+     (Même piège que le survol du bouton allumé, ce matin.) */
+  html body.at-accueilp #view{padding-bottom:0}
+  body.at-accueilp .accfin{display:none}
 }
 @media print{ .accdeux{display:block} .acccote{position:static} }
 
@@ -12817,6 +12848,9 @@ function renderInterne(){
   /* Voir `body.at-centre #view` : la page du Centre se range en deux colonnes sur
      grand écran. Il fallait un crochet, comme `at-home` juste au-dessus. */
   document.body.classList.toggle('at-centre',current.view==='centre');
+  /* Voir `body.at-accueilp #view` : sur cette page, la marge basse de #view empêche
+     la colonne de droite de rester collée jusqu'au bout. */
+  document.body.classList.toggle('at-accueilp',current.view==='accueilpersonne');
   /* Voir `body.pan-ouvert #view` : un panneau de fiche ou d'activité est en
      `position:fixed` DANS #view — tant qu'il est ouvert, la page ne s'anime pas. */
   /* ⚠ `try` VOULU : `FICHE_PAN` et `ACT_PAN` sont déclarés en `let` bien plus bas
@@ -12929,7 +12963,17 @@ function renderInterne(){
   else if(current.view==='reglement') view.innerHTML=vReglement();
   else if(current.view==='schemas') view.innerHTML=vSchemas();
   else if(current.view==='ressources') view.innerHTML=vRessources();
-  else if(current.view==='accueilpersonne'){ view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); requestAnimationFrame(accCaler); }
+  else if(current.view==='accueilpersonne'){
+    /* ⚠ ON NE RELIT LE BROUILLON QU'EN ARRIVANT. À chaque redessin, on reposerait la
+       question alors qu'on vient d'y répondre — et « Jeter » ne tiendrait pas.
+       ⚠ ON REGARDE `_ecranDessine`, PAS `VUE_AVANT` : `VUE_AVANT` est déjà écrasé
+       plus haut dans ce même `render()`, il vaut donc TOUJOURS 'accueilpersonne'
+       quand on arrive ici — et le bandeau ne s'affichait jamais. Vu en testant une
+       vraie coupure : le brouillon était bien écrit, et personne ne le proposait.
+       `_ecranDessine` porte encore l'écran PRÉCÉDEMMENT dessiné. */
+    if(_ecranDessine!=='accueilpersonne') accBrouillonRelire();
+    view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); requestAnimationFrame(accCaler);
+  }
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='partager') view.innerHTML=vPartager();
@@ -22113,18 +22157,91 @@ function vRessources(){
    · RIEN N'EST ENVOYÉ À LA BASE. Aucun `sb.from`, aucun `sb.rpc` dans ce fichier-ci.
    · RIEN N'EST GARDÉ DANS LE TÉLÉPHONE. Pas de `localStorage`, pas de cookie.
    · Ce qu'on tape vit dans UNE VARIABLE EN MÉMOIRE (`ACC`), le temps de l'entretien.
-     Fermer l'onglet, recharger la page : tout est parti.
    L'app est une machine à écrire, pas un classeur. Le dossier, c'est le 6D.
-   ⚠ NE JAMAIS AJOUTER ICI : un enregistrement automatique, un brouillon qui survit,
-   une synchronisation « pour ne pas perdre ». Ce serait fabriquer un fichier de
+   ⚠ NE JAMAIS AJOUTER ICI : un enregistrement dans la BASE, une synchronisation
+   entre appareils, un historique des entretiens. Ce serait fabriquer un fichier de
    personnes hébergées dans une app d'équipe — et personne ne l'aurait décidé.
+
+   ═══ CE QUI A CHANGÉ LE 26/08/2026, ET POURQUOI ═══
+   Sa question : « imagine, il y a une coupure de courant pendant que je suis en
+   train de faire l'entretien. C'est-à-dire que tout saute ? » — oui, tout sautait.
+   Refaire un entretien d'arrivée, ce n'est pas une contrariété technique : c'est
+   redemander à quelqu'un d'épuisé de raconter une deuxième fois pourquoi il est à
+   la rue. Elle a tranché : « on fait le brouillon local avec le bandeau ».
+
+   LE BROUILLON, ET SES QUATRE LIMITES — les défaire, c'est défaire sa décision :
+   ① IL NE QUITTE JAMAIS L'APPAREIL. `localStorage`, rien d'autre. Pas la base, pas
+      un autre téléphone, pas le compte. Voir la règle juste au-dessus : elle tient.
+   ② RIEN NE SE RESTAURE EN SILENCE. On revient sur la page, un bandeau DIT qu'un
+      entretien est resté là et à quelle heure — on choisit Reprendre ou Jeter. Sur
+      un poste partagé, personne ne tombe sur l'entretien d'un autre sans le voir.
+   ③ IL SE PÉRIME TOUT SEUL AU BOUT DE 12 HEURES, soit une garde. Passé ce délai il
+      est effacé au chargement, sans rien demander.
+   ④ IL N'APPARAÎT QUE SI LA PAGE EST VIDE. En plein entretien, aucun bandeau.
 
    ⚠ POURQUOI `ACC` EXISTE QUAND MÊME, au lieu de lire les champs à la volée : un
    `render()` déclenché en arrière-plan réécrit `#view` et effacerait ce qu'elle est
    en train de taper (c'est le piège déjà payé trois fois dans ce fichier). Les
    valeurs sont donc relues depuis `ACC` à chaque rendu. */
 var ACC={};
-function accSet(k,v){ ACC[k]=v; accNoteMaj(k); }
+/* La clé et le délai. 12 h = une garde : au-delà, ce n'est plus « la coupure de
+   courant de tout à l'heure », c'est un vieux papier qui traîne. */
+const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=12*3600*1000;
+let ACC_PROPOSE=null;     /* le brouillon retrouvé, tant qu'on n'a pas répondu */
+let _accEcritDans=null;
+function accBrouillonSauver(){
+  /* On n'écrit pas à chaque lettre : une pause de 400 ms suffit, et ça évite de
+     toucher au disque cinquante fois par phrase. */
+  clearTimeout(_accEcritDans);
+  _accEcritDans=setTimeout(function(){
+    try{
+      const vide=!Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); });
+      if(vide){ localStorage.removeItem(ACC_BROUILLON); return; }
+      localStorage.setItem(ACC_BROUILLON, JSON.stringify({
+        quand:Date.now(), volet:(current&&current.volet)||'', acc:ACC
+      }));
+    }catch(e){ /* mémoire pleine ou navigation privée : on n'en fait pas une panne */ }
+  },400);
+}
+function accBrouillonJeter(){
+  try{ localStorage.removeItem(ACC_BROUILLON); }catch(e){}
+  ACC_PROPOSE=null; render();
+}
+/* Au chargement de la page : y a-t-il un entretien resté là ? */
+function accBrouillonRelire(){
+  ACC_PROPOSE=null;
+  try{
+    const b=JSON.parse(localStorage.getItem(ACC_BROUILLON)||'null');
+    if(!b || !b.acc) return;
+    if(Date.now()-b.quand > ACC_PEREMPTION){ localStorage.removeItem(ACC_BROUILLON); return; }
+    /* ④ en plein entretien, aucun bandeau. */
+    if(Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); })) return;
+    /* Un brouillon du volet médical ne se propose pas sur le volet social. */
+    if((b.volet||'')!==((current&&current.volet)||'')) return;
+    ACC_PROPOSE=b;
+  }catch(e){}
+}
+function accBrouillonReprendre(){
+  if(!ACC_PROPOSE) return;
+  ACC=ACC_PROPOSE.acc||{}; ACC_PROPOSE=null;
+  render(); toast('Entretien repris');
+}
+function accBrouillonHeure(b){
+  try{ return new Date(b.quand).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+/* ⚠ LE BANDEAU DIT L'HEURE, ET RIEN DU CONTENU. Sur un poste partagé, savoir qu'un
+   entretien est resté là ne doit pas revenir à en lire un bout par-dessus l'épaule. */
+function accBrouillonHTML(){
+  if(!ACC_PROPOSE) return '';
+  return '<div class="accbr">'+
+    '<b>Un entretien commencé à '+esc(accBrouillonHeure(ACC_PROPOSE))+' est resté sur cet appareil.</b>'+
+    '<div class="accbr-b">'+
+      '<button class="accb plein" onclick="accBrouillonReprendre()">Reprendre</button>'+
+      '<button class="accb" onclick="accBrouillonJeter()">Jeter</button>'+
+    '</div></div>';
+}
+function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
 function accNoteMaj(k){
   const el=document.getElementById('accNote'); if(!el) return;
@@ -22156,7 +22273,7 @@ function accNoteMaj(k){
 }
 function accEffacer(){
   if(!confirm('Effacer tout ce qui est écrit sur cette page ?')) return;
-  ACC={}; render(); toast('Page vidée');
+  ACC={}; try{ localStorage.removeItem(ACC_BROUILLON); }catch(e){} ACC_PROPOSE=null; render(); toast('Page vidée');
 }
 /* ⚠ UNE SEULE DÉFINITION pour les trois usages : l'écran, la note à coller, et la
    feuille vierge à imprimer. Ajouter une question ici la fait apparaître aux trois
@@ -22307,6 +22424,9 @@ function vAccueilPersonne(volet){
      sticky`) — c'est tout l'intérêt de la mettre là.
      ⚠ SUR TÉLÉPHONE, RIEN NE CHANGE : `.accdeux` ne fait rien sous 900 px, la note
      revient sous le formulaire, comme avant. */
+  /* ⚠ LE BANDEAU EST AVANT TOUT LE RESTE. C'est une question posée en arrivant :
+     elle doit se lire avant qu'on commence à écrire par-dessus. */
+  h+=accBrouillonHTML();
   h+='<div class="accdeux">';
   h+='<div class="accform">'+JEU.map(function(g){
     return '<div class="accg"><div class="acct">'+esc(g.s)+' :</div>'+
@@ -22346,7 +22466,7 @@ function vAccueilPersonne(volet){
      '<button class="accb" onclick="accEffacer()">Effacer</button>'+
      '</div>';
   h+='</div></div>';   /* .acccote puis .accdeux */
-  return h+'<div style="height:26px"></div>';
+  return h+'<div class="accfin" style="height:26px"></div>';
 }
 /* La note à coller dans le 6D. On ne recopie QUE ce qui est rempli : une note pleine
    de titres vides fait chercher une information qui n'a pas été prise. */
