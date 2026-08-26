@@ -1593,7 +1593,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accbr b{font-size:14.5px;font-weight:600;line-height:1.35;flex:1;min-width:200px}
 .accbr-b{display:flex;gap:9px;flex:none}
 .accbr .accb{padding:8px 15px;font-size:13.5px}
-@media print{ .accbr{display:none !important} }
+@media print{ .accbr, #accBrBg{display:none !important} }
+/* Le bouton qui attend un second clic : il change de mot ET de couleur, sinon on ne
+   voit pas qu'il vient de demander quelque chose. */
+.accb.accb-dgr{background:var(--rouge,#e63329);border-color:var(--rouge,#e63329);color:#fff}
+#accBrBg .popcard{max-width:460px}
+#accBrBg .accbr-b{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
 @media(min-width:900px){ .accbr{max-width:1100px;margin-left:auto;margin-right:auto} }
 
 /* Le repère de la ligne active a besoin d'un parent positionné pour que son
@@ -5404,6 +5409,19 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
 <div id="passBg" class="popbg" onclick="if(event.target.id==='passBg')passFeuilleFermer()">
   <div class="popcard passpop" role="dialog" aria-modal="true" aria-label="Passer à l’équipe">
     <div id="passCorps"></div>
+  </div>
+</div>
+<!-- ═══ L'ENTRETIEN RESTÉ SUR L'APPAREIL (Mag, 26/08/2026) ═══
+     « Il faudrait, avant de l'écrire, qu'on ne puisse pas écrire un nouvel entretien
+     sans copier l'ancien. »
+     ⚠ PAS D'`onclick` SUR LE FOND, ET C'EST VOULU : cette fenêtre-ci ne se ferme pas
+     en cliquant à côté. Toutes les autres si — mais ici, tant qu'on n'a pas dit ce
+     qu'on fait de l'entretien précédent, on ne peut pas commencer par-dessus. -->
+<div id="accBrBg" class="popbg">
+  <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="accBrTitre">
+    <b id="accBrTitre"></b>
+    <p id="accBrTexte"></p>
+    <div class="accbr-b" id="accBrBoutons"></div>
   </div>
 </div>
 <div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popFermer()">
@@ -12781,7 +12799,7 @@ window.addEventListener('hashchange',()=>{
      même plus. On remet donc les deux à zéro à chaque changement d'écran :
      ouvrir une page, c'est repartir d'une page propre. */
   try{
-    ['ouBg','partBg','qBg','passBg','popBg','ideeBg','urgBg'].forEach(function(id){
+    ['ouBg','partBg','qBg','passBg','popBg','ideeBg','urgBg','accBrBg'].forEach(function(id){
       const el=document.getElementById(id); if(el) el.classList.remove('on');
     });
     _figeN=0; document.documentElement.classList.remove('fond-fige');
@@ -12973,6 +12991,8 @@ function renderInterne(){
        `_ecranDessine` porte encore l'écran PRÉCÉDEMMENT dessiné. */
     if(_ecranDessine!=='accueilpersonne') accBrouillonRelire();
     view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); requestAnimationFrame(accCaler);
+    /* Tant qu'on n'a pas répondu, la page est là mais on ne peut pas écrire dessus. */
+    if(ACC_PROPOSE) accBrOuvrir(); else accBrFermer();
   }
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
@@ -22184,63 +22204,181 @@ function vRessources(){
    en train de taper (c'est le piège déjà payé trois fois dans ce fichier). Les
    valeurs sont donc relues depuis `ACC` à chaque rendu. */
 var ACC={};
-/* La clé et le délai. 12 h = une garde : au-delà, ce n'est plus « la coupure de
-   courant de tout à l'heure », c'est un vieux papier qui traîne. */
-const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=12*3600*1000;
-let ACC_PROPOSE=null;     /* le brouillon retrouvé, tant qu'on n'a pas répondu */
+/* ═══ ⚠ DEUX ENTRETIENS, PAS UN (Mag, 26/08/2026) ═══
+   Elle a trouvé le défaut en s'en servant : « j'imagine que je fais un entretien et
+   il y a une coupure de courant. Et je continue à écrire un NOUVEL entretien. Il y a
+   une coupure de courant. Ça veut dire que je perds l'un ou l'autre. Non ? »
+
+   Oui, et dans les deux sens. Le bandeau proposait l'entretien de 09:43 pendant
+   qu'on en écrivait un autre — et l'écriture ÉCRASAIT le gardé, tandis que
+   « Reprendre » aurait effacé celui qu'on venait de taper. Un seul tiroir pour deux
+   entretiens, c'est toujours l'un des deux qui saute, en silence.
+
+   ON EN GARDE DONC DEUX, ET PAS PLUS : celui qu'on écrit maintenant, et le dernier
+   resté. C'est exactement la situation qu'elle décrit, et c'est explicable en une
+   phrase. Au-delà, on entasserait des entretiens dont personne ne saurait quoi
+   faire — sur une machine partagée, ce n'est pas anodin.
+   ⚠ S'il y en avait un TROISIÈME, plus ancien, il part. C'est assumé : le plus vieux
+   est celui qu'on a le moins de chances de vouloir.
+
+   Chaque entretien porte un `id`, qui est l'heure à laquelle il a commencé — c'est
+   ce qui permet à l'écriture en cours de ne mettre à jour QUE le sien.
+   12 h = une garde : au-delà, ce n'est plus « la coupure de courant de tout à
+   l'heure », c'est un vieux papier qui traîne. */
+const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=12*3600*1000, ACC_MAX=2;
+let ACC_PROPOSE=null;     /* celui que le bandeau propose, tant qu'on n'a pas répondu */
+let ACC_SESSION=null;     /* l'id de celui qu'on est en train d'écrire */
 let _accEcritDans=null;
+function accBrouillonsLire(){
+  try{
+    const brut=JSON.parse(localStorage.getItem(ACC_BROUILLON)||'[]');
+    /* Le premier jour, un seul brouillon était rangé seul, pas dans une liste. On le
+       relit quand même : personne ne doit perdre le sien à cause du changement. */
+    const l=Array.isArray(brut) ? brut
+          : (brut && brut.acc ? [{id:brut.quand, maj:brut.quand, volet:brut.volet, acc:brut.acc}] : []);
+    return l.filter(function(b){ return b && b.acc && (Date.now()-(b.maj||b.id))<=ACC_PEREMPTION; })
+            .sort(function(a,b){ return (b.maj||b.id)-(a.maj||a.id); });
+  }catch(e){ return []; }
+}
+function accBrouillonsEcrire(l){
+  try{
+    if(!l.length) localStorage.removeItem(ACC_BROUILLON);
+    else localStorage.setItem(ACC_BROUILLON, JSON.stringify(l.slice(0,ACC_MAX)));
+  }catch(e){ /* mémoire pleine ou navigation privée : on n'en fait pas une panne */ }
+}
+function accVide(){ return !Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); }); }
 function accBrouillonSauver(){
-  /* On n'écrit pas à chaque lettre : une pause de 400 ms suffit, et ça évite de
-     toucher au disque cinquante fois par phrase. */
+  /* On n'écrit pas à chaque lettre : une pause de 400 ms suffit. */
   clearTimeout(_accEcritDans);
   _accEcritDans=setTimeout(function(){
-    try{
-      const vide=!Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); });
-      if(vide){ localStorage.removeItem(ACC_BROUILLON); return; }
-      localStorage.setItem(ACC_BROUILLON, JSON.stringify({
-        quand:Date.now(), volet:(current&&current.volet)||'', acc:ACC
-      }));
-    }catch(e){ /* mémoire pleine ou navigation privée : on n'en fait pas une panne */ }
+    let l=accBrouillonsLire();
+    if(accVide()){
+      /* Tout effacé à la main : on retire LE SIEN, pas celui du voisin. */
+      accBrouillonsEcrire(l.filter(function(b){ return b.id!==ACC_SESSION; }));
+      return;
+    }
+    if(!ACC_SESSION) ACC_SESSION=Date.now();
+    l=l.filter(function(b){ return b.id!==ACC_SESSION; });
+    l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
+    accBrouillonsEcrire(l);
   },400);
 }
 function accBrouillonJeter(){
-  try{ localStorage.removeItem(ACC_BROUILLON); }catch(e){}
-  ACC_PROPOSE=null; render();
+  if(!ACC_PROPOSE){ ACC_PROPOSE=null; render(); return; }
+  const id=ACC_PROPOSE.id;
+  accBrouillonsEcrire(accBrouillonsLire().filter(function(b){ return b.id!==id; }));
+  ACC_PROPOSE=null; accBrFermer(); render();
 }
-/* Au chargement de la page : y a-t-il un entretien resté là ? */
+/* En arrivant : y a-t-il un entretien resté là, autre que celui qu'on écrit ? */
 function accBrouillonRelire(){
   ACC_PROPOSE=null;
-  try{
-    const b=JSON.parse(localStorage.getItem(ACC_BROUILLON)||'null');
-    if(!b || !b.acc) return;
-    if(Date.now()-b.quand > ACC_PEREMPTION){ localStorage.removeItem(ACC_BROUILLON); return; }
-    /* ④ en plein entretien, aucun bandeau. */
-    if(Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); })) return;
+  /* ④ en plein entretien, aucun bandeau. */
+  if(!accVide()) return;
+  const moi=ACC_SESSION;
+  const v=(current&&current.volet)||'';
+  const cand=accBrouillonsLire().filter(function(b){
     /* Un brouillon du volet médical ne se propose pas sur le volet social. */
-    if((b.volet||'')!==((current&&current.volet)||'')) return;
-    ACC_PROPOSE=b;
-  }catch(e){}
+    return b.id!==moi && (b.volet||'')===v;
+  });
+  if(cand.length) ACC_PROPOSE=cand[0];
 }
 function accBrouillonReprendre(){
   if(!ACC_PROPOSE) return;
-  ACC=ACC_PROPOSE.acc||{}; ACC_PROPOSE=null;
-  render(); toast('Entretien repris');
+  const prendre=function(){
+    ACC=ACC_PROPOSE.acc||{}; ACC_SESSION=ACC_PROPOSE.id; ACC_PROPOSE=null;
+    accBrFermer(); render(); toast('Entretien repris');
+  };
+  /* ⚠ SI ON A DÉJÀ ÉCRIT, ON DEMANDE. Reprendre remplace ce qu'il y a à l'écran —
+     et même si l'autre est gardé de son côté, personne n'aime voir son texte
+     disparaître sans avoir dit oui. */
+  if(!accVide() && typeof cousinConfirme==='function'){
+    cousinConfirme('Reprendre l’entretien de '+accBrouillonHeure(ACC_PROPOSE)+' ?',
+      'Ce que tu viens d’écrire reste gardé sur cet appareil — tu le retrouveras ici.',
+      prendre, {ok:'Reprendre'});
+    return;
+  }
+  prendre();
 }
 function accBrouillonHeure(b){
-  try{ return new Date(b.quand).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'}); }
+  try{ return new Date(b.id).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'}); }
   catch(e){ return ''; }
 }
-/* ⚠ LE BANDEAU DIT L'HEURE, ET RIEN DU CONTENU. Sur un poste partagé, savoir qu'un
-   entretien est resté là ne doit pas revenir à en lire un bout par-dessus l'épaule. */
-function accBrouillonHTML(){
-  if(!ACC_PROPOSE) return '';
-  return '<div class="accbr">'+
-    '<b>Un entretien commencé à '+esc(accBrouillonHeure(ACC_PROPOSE))+' est resté sur cet appareil.</b>'+
-    '<div class="accbr-b">'+
-      '<button class="accb plein" onclick="accBrouillonReprendre()">Reprendre</button>'+
-      '<button class="accb" onclick="accBrouillonJeter()">Jeter</button>'+
-    '</div></div>';
+/* ═══ LA FENÊTRE QUI BLOQUE (Mag, 26/08/2026) ═══
+   « Il faudrait, avant de l'écrire, qu'on ne puisse pas écrire un nouvel entretien
+   sans copier l'ancien. »
+
+   Le bandeau ne suffisait pas : on pouvait l'ignorer et écrire par-dessus. Or ce
+   qu'il annonce n'est pas une information, c'est UNE DÉCISION À PRENDRE — et tant
+   qu'elle n'est pas prise, commencer un autre entretien met le premier en danger.
+   La fenêtre bloque donc la page, et elle ne se ferme pas en cliquant à côté.
+
+   ⚠ ELLE DIT L'HEURE, ET RIEN DU CONTENU. Sur un poste partagé, savoir qu'un
+   entretien est resté là ne doit pas revenir à en lire un bout par-dessus l'épaule.
+
+   TROIS SORTIES, et une seule fait perdre quelque chose :
+   · REPRENDRE — on continue celui d'avant.
+   · COPIER LA NOTE — elle part dans le presse-papier, prête pour le 6D. C'est la
+     sortie qu'elle a demandée : on ne recommence pas sans avoir mis l'ancien à
+     l'abri. Une fois copié, « Jeter » devient un geste simple.
+   · JETER — DEUX CLICS tant qu'on n'a pas copié. Pas une fenêtre de confirmation
+     par-dessus la fenêtre : le bouton dit lui-même ce qu'il va faire. */
+let _accBrCopie=false;
+function accBrouillonHeure(b){
+  try{ return new Date(b.id).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
 }
+function accBrDessine(){
+  const t=document.getElementById('accBrTitre'), x=document.getElementById('accBrTexte'),
+        b=document.getElementById('accBrBoutons');
+  if(!t||!x||!b||!ACC_PROPOSE) return;
+  t.textContent='Un entretien commencé à '+accBrouillonHeure(ACC_PROPOSE)+' est resté sur cet appareil.';
+  x.textContent=_accBrCopie
+    ? 'Copié. Tu peux le coller dans le 6D.'
+    : 'Mets-le à l’abri avant d’en commencer un autre.';
+  b.innerHTML=
+    '<button class="accb plein" onclick="accBrouillonReprendre()">Reprendre</button>'+
+    '<button class="accb" onclick="accBrCopier()">'+(_accBrCopie?'Copier à nouveau':'Copier la note')+'</button>'+
+    '<button class="accb'+(_accBrCopie?'':' accb-att')+'" onclick="accBrJeter()">'+
+      (_accBrCopie?'Jeter':'Jeter')+'</button>';
+}
+function accBrOuvrir(){
+  const bg=document.getElementById('accBrBg');
+  if(!bg||!ACC_PROPOSE) return;
+  if(bg.classList.contains('on')) { accBrDessine(); return; }
+  _accBrCopie=false; accBrDessine();
+  bg.classList.add('on'); figerFond(true);
+}
+function accBrFermer(){
+  const bg=document.getElementById('accBrBg'); if(!bg) return;
+  if(bg.classList.contains('on')){ bg.classList.remove('on'); figerFond(false); }
+}
+/* La note de l'entretien GARDÉ, pas de celui qui est à l'écran. */
+function accBrCopier(){
+  if(!ACC_PROPOSE) return;
+  const garde=ACC, gardeS=ACC_SESSION;
+  ACC=ACC_PROPOSE.acc||{};
+  const t=accNote(ACC_PROPOSE.volet||'');
+  ACC=garde; ACC_SESSION=gardeS;
+  if(!t){ toast('Cet entretien est vide'); return; }
+  copyTxt(t,'Note copiée — colle-la dans le 6D');
+  _accBrCopie=true; accBrDessine();
+}
+let _accBrJeterArme=false;
+function accBrJeter(){
+  /* ⚠ DEUX CLICS TANT QU'ON N'A PAS COPIÉ. Jeter un entretien qu'on n'a mis nulle
+     part, c'est la seule chose irréversible de cette fenêtre. */
+  if(!_accBrCopie && !_accBrJeterArme){
+    _accBrJeterArme=true;
+    const b=document.getElementById('accBrBoutons');
+    if(b){ const j=b.lastElementChild; if(j){ j.textContent='Jeter sans copier ?'; j.classList.add('accb-dgr'); } }
+    setTimeout(function(){ _accBrJeterArme=false; accBrDessine(); },4000);
+    return;
+  }
+  _accBrJeterArme=false;
+  accBrouillonJeter();
+}
+function accBrouillonHTML(){ return ''; }   /* le bandeau a laissé la place à la fenêtre */
+function accBandeauMaj(){}
 function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
 function accNoteMaj(k){
@@ -22273,7 +22411,12 @@ function accNoteMaj(k){
 }
 function accEffacer(){
   if(!confirm('Effacer tout ce qui est écrit sur cette page ?')) return;
-  ACC={}; try{ localStorage.removeItem(ACC_BROUILLON); }catch(e){} ACC_PROPOSE=null; render(); toast('Page vidée');
+  /* ⚠ ON N'EFFACE QUE LE SIEN : l'autre entretien gardé ne nous appartient pas.
+     `ACC_SESSION` repart à zéro — la page vidée, c'est un nouvel entretien. */
+  ACC={};
+  accBrouillonsEcrire(accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION; }));
+  ACC_SESSION=null; accBrouillonRelire();
+  render(); toast('Page vidée');
 }
 /* ⚠ UNE SEULE DÉFINITION pour les trois usages : l'écran, la note à coller, et la
    feuille vierge à imprimer. Ajouter une question ici la fait apparaître aux trois
