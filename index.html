@@ -5235,6 +5235,23 @@ body.no-tabs #tabbar{display:none}
   .fext .fextl{flex:none;width:15px;height:15px;opacity:.42;margin-top:3px}
   .fext:active{background:#f4f2ee}
 
+  /* ── LES PODCASTS : le lecteur est DANS la page ──
+     ⚠ Le cadre du lecteur vient de Spotify : on ne maîtrise ni sa hauteur exacte
+     ni son thème. On lui donne la largeur, ses coins arrondis et rien d'autre. */
+  .podl{display:flex;flex-direction:column;gap:14px;padding:0 var(--pad)}
+  .podc{border:1.25px solid var(--trait);border-radius:12px;background:#fdfdfc;padding:14px}
+  .podt{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .podt b{font-size:16.5px;font-weight:600;line-height:1.2}
+  .podt em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--enc2)}
+  .podc > p{font-size:13px;line-height:1.45;color:#4a4844;margin:6px 0 12px}
+  .podif{display:block;width:100%;border:0;border-radius:12px}
+  .podl-a{display:inline-flex;align-items:center;gap:8px;margin-top:11px;
+    font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--noir);text-decoration:none;
+    border-bottom:1.25px solid var(--trait);padding-bottom:3px}
+  .podl-a .pico{width:13px;height:13px}
+
   /* ── « PLUS LOIN » : ce qui ne tient pas dans le cadre ──
      Chacun garde sa flèche, tournée à sa VRAIE direction, et son temps de marche. */
   .qloin{display:flex;flex-direction:column;padding:0 var(--pad)}
@@ -17799,6 +17816,39 @@ function formExtHTML(){
     }).join('')+'</div>';
 }
 
+
+/* ═══ PODCASTS (Mag, 27/08/2026 : « rajoute ça dans une session podcast », « dans
+   formation ») ═══
+   ⚠ IL SE JOUE DANS L'APP, il ne renvoie pas ailleurs : c'est le lecteur de
+   Spotify posé dans la page. On garde quand même le TITRE, QUI LE FAIT et DE QUOI
+   ÇA PARLE écrits au-dessus — si le lecteur ne charge pas (pas de réseau, cadre
+   bloqué), il reste un cadre vide, et un cadre vide sans légende ne dit rien.
+   Le lien « Ouvrir dans Spotify » est la sortie de secours.
+   ⚠ C'EST LE PREMIER CONTENU EXTÉRIEUR QUI S'EXÉCUTE DANS L'APP (les autres sont
+   des liens qu'on suit). Spotify voit donc l'adresse IP du téléphone et ce qu'on
+   ouvre. Aucune donnée d'hébergé ne part — mais ça méritait d'être écrit. */
+const FORM_POD=[
+  {t:'En Substance', par:'Addictions France',
+   d:'Des personnes suivies en centre de soin racontent leur cheminement avec les produits et leur parcours de soin. Une saison entière — « L’addiction à plusieurs voix ».',
+   show:'7BqCf3h71KMxmka9hDyx0Y',
+   u:'https://open.spotify.com/show/7BqCf3h71KMxmka9hDyx0Y'}
+];
+function formPodHTML(){
+  if(!FORM_POD.length) return '';
+  return '<div class="sectl">Podcasts</div><div class="podl">'+
+    FORM_POD.map(function(p){
+      return '<div class="podc">'+
+        '<div class="podt"><b>'+esc(p.t)+'</b><em>'+esc(p.par)+'</em></div>'+
+        '<p>'+esc(p.d)+'</p>'+
+        '<iframe class="podif" src="https://open.spotify.com/embed/show/'+esc(p.show)+'" '+
+          'height="352" frameborder="0" loading="lazy" title="'+esc(p.t)+'" '+
+          'allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>'+
+        '<a class="podl-a" href="'+p.u+'" target="_blank" rel="noopener">'+
+          '<span class="ic">'+icon('lien')+'</span>Ouvrir dans Spotify</a>'+
+      '</div>';
+    }).join('')+'</div>';
+}
+
 function vFormations(){
   const mods=DATA.filter(p=>p.domaine==='formations');
   const avance=function(p){const ch=formationChapitres(p.page);return ch.length?fluLus(p.sid).length/ch.length:0};
@@ -17836,7 +17886,7 @@ function vFormations(){
     }).join('')+'</div>';
   /* Les vraies formations, hors de l'app : après les modules, parce qu'on y va
      quand on a fait le tour de ce que l'app sait apprendre. */
-  h+=formExtHTML()+'<div style="height:26px"></div>';
+  h+=formExtHTML()+formPodHTML()+'<div style="height:26px"></div>';
   return h;
 }
 function flCard(p){
