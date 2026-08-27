@@ -1588,6 +1588,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accf textarea{min-height:56px}
 .accf input:focus,.accf textarea:focus{outline:none;border-color:var(--noir);
   box-shadow:0 0 0 1.5px var(--noir)}
+/* ═══ OUI / NON (Mag, 27/08/2026) ═══
+   Deux boutons plutôt qu'une case à cocher : une case décochée ne sait pas dire la
+   différence entre « non » et « pas encore demandé », et cette différence-là compte
+   dans une note qui part au dossier. Tant qu'on n'a pas cliqué, rien ne s'écrit.
+   Recliquer sur la réponse déjà choisie l'efface — on peut se tromper.
+   ⚠ RIEN NE BOUGE AU SURVOL (sa règle du 18/08) : seule la couleur change. */
+.accon{display:flex;gap:8px}
+.accon button{font:inherit;font-size:15px;font-weight:600;color:var(--noir);
+  background:#fdfdfc;border:1.25px solid var(--trait);border-radius:10px;
+  padding:9px 20px;cursor:pointer;min-width:74px}
+.accon button.on{background:var(--noir);border-color:var(--noir);color:#fdfdfc}
 .accnotebloc{margin-top:24px;display:flex;flex-direction:column;gap:9px}
 .accnote{margin:0;background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;
   padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;
@@ -22768,6 +22779,17 @@ function accBrJeter(){
 function accBrouillonHTML(){ return ''; }   /* le bandeau a laissé la place à la fenêtre */
 function accBandeauMaj(){}
 function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); }
+/* ⚠ ON NE REDESSINE PAS LE FORMULAIRE — on ne change que la couleur des deux
+   boutons. Redessiner à chaque clic effacerait le curseur du champ d'à côté :
+   c'est le piège déjà payé trois fois sur cette page. */
+function accOuiNon(k,v){
+  ACC[k]=(ACC[k]===v)?'':v;
+  const w=document.getElementById('accon-'+k);
+  if(w) [].forEach.call(w.querySelectorAll('button'), function(b){
+    b.classList.toggle('on', b.getAttribute('data-v')===ACC[k]);
+  });
+  accNoteMaj(k); accBrouillonSauver();
+}
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
 function accNoteMaj(k){
   const el=document.getElementById('accNote'); if(!el) return;
@@ -22862,10 +22884,22 @@ const ACC_CHAMPS=[
   {s:'Téléphone', c:[
     {k:'gsm',l:'téléphone'}
   ]},
+  /* ═══ LE MOTIF NE GARDE QUE LES RÉPONSES (Mag, 27/08/2026) ═══
+     « C'est plutôt des questions qu'on va poser en entretien quand on a la feuille
+     devant les yeux. C'est pour se guider vers un entretien, mais logiquement on
+     sait ce qu'on doit demander et la personne va répondre. On ne va pas marquer
+     dans les notes "que s'est-il passé" comme question. Pour cette partie-là, le
+     motif, on ne notera que les réponses. »
+     ⚠ D'OÙ LE CHAMP `n` : `l` est ce qu'on LIT À L'ÉCRAN et sur la feuille vierge —
+     la question, en entier, pour mener l'entretien. `n` est ce qui part DANS LA
+     NOTE. `n:''` veut dire « la réponse seule » ; `n` absent veut dire « comme à
+     l'écran », et rien ne change pour les champs qui n'en ont pas.
+     ⚠ NE PAS SUPPRIMER `l` POUR AUTANT : sans la question écrite, la feuille vierge
+     qu'on imprime avant l'entretien ne guide plus personne. */
   {s:'Motif', c:[
-    {k:'passe',l:'Que s’est-il passé ?',b:1},
-   {k:'depuis',l:'Depuis combien de temps sans hébergement ?'},
-   {k:'venue',l:'Qu’est-ce qui l’a amenée au Samusocial ?',b:1}
+    {k:'passe',l:'Que s’est-il passé ?',n:'',b:1},
+   {k:'depuis',l:'Depuis combien de temps sans hébergement ?',n:''},
+   {k:'venue',l:'Qu’est-ce qui l’a amenée au Samusocial ?',n:'',b:1}
  ]},
  {s:'Situation socio-administrative', c:[
    /* ═══ LES LANGUES PASSENT DEVANT (Mag, 21/08/2026 : « j'aime bien la langue
@@ -22875,7 +22909,17 @@ const ACC_CHAMPS=[
       ne se remplit. C'est aussi ce qui décide à qui on l'envoie — un service qui
       n'a personne dans sa langue, c'est un rendez-vous pour rien.
       ⚠ La nationalité ne dit PAS la langue : on la demande, on ne la déduit pas. */
-   {k:'langues',l:'Langues parlées · faut-il un interprète ?'},
+   /* ═══ EN DEUX TEMPS (Mag, 27/08/2026) ═══
+      « Pour langue parlée, faut-il un interprète ? Je préférerais que ce soit en deux
+      temps. Donc langue parlée, et qu'on puisse en mettre plusieurs. Faut-il un
+      interprète ? Ça devrait être oui ou non. »
+      Une seule case posait DEUX questions : on y écrivait « arabe » et l'interprète
+      passait à la trappe — alors que c'est lui qui décide si le rendez-vous suivant
+      sert à quelque chose. La première est maintenant un cadre qui grandit (`b:1`),
+      parce qu'on parle souvent trois langues ; la seconde est un oui/non.
+      ⚠ LA CLÉ `langues` NE CHANGE PAS : un brouillon en cours garde son texte. */
+   {k:'langues',l:'Langue',b:1},
+   {k:'interprete',l:'Faut-il un interprète ?',t:'ouinon',n:'Interprète'},
    {k:'nationalite',l:'Nationalité · statut de séjour · situation légale',b:1},
    {k:'papiers',l:'Document d’identité : type, durée de validité, perdu ou volé, n° de Registre national — ou le SP (numéro de sûreté publique)',b:1},
    {k:'etatcivil',l:'État civil : marié, divorcé, séparé, en couple…'},
@@ -22963,6 +23007,16 @@ function vAccueilPersonne(volet){
     return '<div class="accg"><div class="acct">'+esc(g.s)+' :</div>'+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
+        /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
+           renvoie le clic à son premier contrôle, et la réponse se poserait deux fois. */
+        if(f.t==='ouinon'){
+          return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
+            '<div class="accon" id="accon-'+f.k+'">'+
+            ['Oui','Non'].map(function(x){
+              return '<button type="button" data-v="'+x+'" class="'+(ACC[f.k]===x?'on':'')+
+                '" onclick="accOuiNon(\''+f.k+'\',\''+x+'\')">'+x+'</button>';
+            }).join('')+'</div></div>';
+        }
         return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
           (f.tip?'<i class="acctip">'+esc(f.tip)+'</i>':'')+
           (f.b
@@ -23006,6 +23060,9 @@ function vAccueilPersonne(volet){
    remplir », pour que la note se cale dessus quand elle devient plus haute que sa
    fenêtre. `accNote()` continue de rendre du texte pur — c'est lui qui part dans le
    presse-papier et sur la feuille, et il ne doit contenir aucune balise. */
+/* L'étiquette qui part DANS LA NOTE. Par défaut c'est celle de l'écran ; un champ
+   qui porte `n` impose la sienne, et `n:''` ne met que la réponse. */
+function accEtiq(f){ return (f.n===undefined) ? (f.l||'') : f.n; }
 function accNoteLignes(volet){
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
   const l=[{t:(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d},{t:''}];
@@ -23014,8 +23071,9 @@ function accNoteLignes(volet){
     if(!remplis.length) return;
     l.push({t:g.s.toUpperCase()});
     remplis.forEach(function(f){
-      l.push({t:(f.l ? ('· '+f.l+' : '+String(ACC[f.k]).trim())
-                     : ('· '+String(ACC[f.k]).trim())), k:f.k});
+      const e=accEtiq(f);
+      l.push({t:(e ? ('· '+e+' : '+String(ACC[f.k]).trim())
+                   : ('· '+String(ACC[f.k]).trim())), k:f.k});
     });
     l.push({t:''});
   });
@@ -23033,7 +23091,8 @@ function accNote(volet){
     remplis.forEach(function(f){
       /* Sans étiquette, la ligne porte directement la valeur : « · Démarches : » puis
          la valeur donnerait « Démarches / · Démarches : … », deux fois le même mot. */
-      l.push(f.l ? ('· '+f.l+' : '+String(ACC[f.k]).trim()) : ('· '+String(ACC[f.k]).trim()));
+      const e=accEtiq(f);
+      l.push(e ? ('· '+e+' : '+String(ACC[f.k]).trim()) : ('· '+String(ACC[f.k]).trim()));
     });
     l.push('');
   });
@@ -23054,6 +23113,17 @@ function accImprimer(volet){
   const w=window.open('','_blank'); if(!w){ toast('Le navigateur a bloqué la fenêtre'); return; }
   const ligne=function(f){
     const v=(ACC[f.k]||'').trim();
+    /* ⚠ SUR LE PAPIER, UN OUI/NON N'EST PAS UNE LIGNE À REMPLIR : c'est deux cases
+       à cocher au stylo. Une ligne pointillée invitait à écrire une phrase là où on
+       n'attend qu'un mot, et la feuille vierge doit se remplir aussi vite que
+       l'écran. Feuille remplie : la réponse est cochée. */
+    if(f.t==='ouinon'){
+      const cases=['Oui','Non'].map(function(x){
+        return '<span class="cs">'+(v===x?'☒':'☐')+' '+x+'</span>';
+      }).join('');
+      return '<div class="ch">'+(f.l?'<span class="lb">'+esc(f.l)+'</span>':'')+
+        '<span class="on">'+cases+'</span></div>';
+    }
     return '<div class="ch">'+(f.l||f.tip?'<span class="lb">'+esc(f.l)+
       (f.tip?(f.l?' — ':'')+'<i style="font-weight:400;color:#555">'+esc(f.tip)+'</i>':'')+'</span>':'')+
       (v?'<span class="vl">'+esc(v).replace(/\n/g,'<br>')+'</span>'
@@ -23075,6 +23145,8 @@ function accImprimer(volet){
     '.ch{margin-bottom:3mm}'+
     '.lb{display:block;font-size:9.5pt;color:#333;margin-bottom:1mm}'+
     '.vl{display:block;font-size:11pt;line-height:1.45;border-bottom:1px solid #ccc;padding-bottom:1mm}'+
+    '.on{display:block;font-size:11pt;line-height:1.45;padding-top:.5mm}'+
+    '.cs{margin-right:9mm;white-space:nowrap}'+
     '.tr{display:block;border-bottom:1px dotted #666;height:6mm}'+
     '.tr.haut{height:13mm}'+
     '@media print{.bar{display:none}body{background:#fff}'+
