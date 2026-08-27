@@ -1602,7 +1602,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accnotebloc{margin-top:24px;display:flex;flex-direction:column;gap:9px}
 .accnote{margin:0;background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;
   padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;
-  white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto}
+  white-space:pre-wrap;word-break:break-word;max-height:min(420px,46vh);overflow:auto}
 .accnote.vide{color:var(--enc2);font-family:inherit;font-size:14px;line-height:1.5}
 .accact{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
 .accb{display:inline-flex;align-items:center;gap:8px;background:#fdfdfc;border:1.25px solid var(--trait);
@@ -1663,9 +1663,21 @@ body.pan-ouvert #view{animation:none;transform:none}
      ignore la barre d'adresse qui se replie. */
   .acccote{position:sticky;top:14px;display:flex;flex-direction:column;min-height:0;
     max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px)}
-  .acccote .accnotebloc{margin-top:20px;flex:1;min-height:0;display:flex;flex-direction:column}
+  /* ═══ ⚠ LA NOTE NE REMPLIT PLUS LA COLONNE (Mag, 27/08/2026) ═══
+     « On ne voit toujours pas les boutons. Il faut que quand on arrive, on voie
+     tout. Que la fenêtre du texte s'adapte à l'écran, mais qu'elle ne prenne pas
+     trop de place et que le bouton soit caché. On ne voit les boutons que quand on
+     arrive à la fin du formulaire : pas du tout intuitif. »
+     Elle avait `flex:1` : la note prenait TOUTE la hauteur de la colonne, même vide
+     — une grande case blanche de 900 px pour deux lignes de gris. Et comme la
+     colonne est collante (`top:14px`), elle démarre bas dans la page tant qu'on n'a
+     pas défilé : sa hauteur d'un écran entier commençait donc à 300 px du haut, et
+     poussait « Copier la note » sous le bord.
+     Elle s'adapte maintenant à ce qu'elle contient, avec un plafond. En dessous, les
+     trois boutons sont là dès l'arrivée. */
+  .acccote .accnotebloc{margin-top:20px;flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
   .acccote .accnotebloc .acct{flex:none}
-  .acccote .accnote{flex:1;min-height:0;max-height:none;overflow:auto}
+  .acccote .accnote{flex:0 1 auto;min-height:0;max-height:calc(100dvh - 300px);overflow:auto}
   .acccote .accact{flex:none;margin-top:14px}
   /* ═══ ⚠ LE STICKY DÉCROCHAIT EN FIN DE PAGE (Mag, 26/08/2026 : « en fin de parcours
      de la fenêtre, le sticky remonte et devrait rester calé ») ═══
@@ -2841,45 +2853,54 @@ body.pan-ouvert #view{animation:none;transform:none}
    le contenu. Le conteneur s'efface (`display:contents`) : sans ça, une div vide
    ajouterait un espace dans la barre pour tous ceux qui ne sont pas admin. */
 #topbar #apercu{display:contents}
-.bboule{position:static;width:42px;height:42px;border-radius:0;
-  border:1.25px solid var(--trait);background:var(--barre);color:var(--noir);
+/* ⚠ L'ŒIL RESTE NOIR ET ROND (Mag, 27/08/2026 : « laisse l'œil noir comme il était
+   avant pour qu'ils soient vraiment à part »). Il est à la place qu'elle a choisie —
+   à gauche de la liste — mais il ne prend PAS l'habit des autres boutons : c'est le
+   seul qui ne sert pas à tout le monde, et ça doit se voir d'un coup d'œil.
+   ⚠ `#topbar button` impose 42×42, un trait et un fond clair à TOUT bouton de la
+   barre : il faut donc rendre chaque valeur explicitement, sinon le carré revient. */
+#topbar .bboule{position:static;width:42px;height:42px;border-radius:999px;
+  border:1.25px solid var(--noir);background:var(--noir);color:#f2eee6;
   display:flex;align-items:center;justify-content:center;transition:transform .12s ease}
-.bboule .ic{color:var(--noir)}
+#topbar .bboule .ic{width:18px;height:18px;color:#f2eee6}
 .bboule:active{transform:scale(.92)}
-.bboule .ic{width:17px;height:17px}
-.bboule.actif{background:#d9a20b;border-color:#d9a20b;color:var(--noir)}
-.bboule.actif .ic{color:var(--noir)}
-.bboule .bl{font-family:ui-monospace,monospace;font-size:13px;font-weight:500;letter-spacing:.02em}
-.bboule.actif .bl{font-size:12px}
-@media (hover:hover){ .bboule:hover{background:#f2f0ed} }
+/* Un aperçu qui tourne : l'œil passe au jaune. C'est le seul rappel qu'on ne regarde
+   pas sa propre vue — la lettre du groupe ne s'écrit plus sur le bouton. */
+#topbar .bboule.actif{background:#d9a20b;border-color:#d9a20b}
+#topbar .bboule.actif .ic{color:var(--noir)}
+@media (hover:hover){ #topbar .bboule:hover{background:#333} }
 /* Sur grand écran, « Voir comme » vit dans le rail noir : plus de boule qui flotte. */
 @media (min-width:900px){ .bboule{display:none} }
 #tabbar .railsec button.on{background:#f2eee6;color:var(--noir);opacity:1;border-left-color:#f2eee6}
 #tabbar .railsec button.on .ic{color:var(--noir)}
 #tabbar .railsec button.vueon{background:rgba(217,162,11,.22);border-left-color:#d9a20b;opacity:1}
 #tabbar .railsec button.vueon .ic{color:#d9a20b}
-.bascule .bplier{position:absolute;top:6px;right:10px;font-size:20px;line-height:1;color:rgba(242,238,230,.6)}
-.bascule{position:fixed;left:12px;top:calc(74px + env(safe-area-inset-top));z-index:60;background:var(--noir);
-  color:#f2eee6;border-radius:8px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;
-  max-width:calc(100vw - 24px);box-shadow:0 6px 22px rgba(27,27,27,.25)}
-.bascule.actif{outline:2px solid var(--jaune)}
-.bascule b{font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;letter-spacing:.18em;
-  text-transform:uppercase;opacity:.65}
-.bascule .bgrp{display:flex;gap:5px;flex-wrap:wrap}
-.bascule .bgrp button{font-family:ui-monospace,monospace;font-size:9px;font-weight:500;letter-spacing:.1em;
-  text-transform:uppercase;color:#f2eee6;border:1px solid rgba(242,238,230,.32);border-radius:999px;padding:5px 10px}
-.bascule .bgrp button.on{background:#f2eee6;color:var(--noir);border-color:#f2eee6}
-.bascule .bmet{font:inherit;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;
-  text-transform:uppercase;color:#f2eee6;background:rgba(242,238,230,.1);
-  border:1px solid rgba(242,238,230,.32);border-radius:6px;padding:7px 9px;max-width:230px}
-.bascule .bmet option{color:#1b1b1b;background:#f2eee6}
-.bascule .bfin{align-self:flex-start;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--jaune);text-decoration:underline}
-.bascule em{font-style:normal;font-size:11px;line-height:1.4;opacity:.72;max-width:240px}
+/* ═══ « VOIR COMME » EST UNE FEUILLE QUI MONTE (Mag, 27/08/2026) ═══
+   « Quand on clique dessus, fais une pop-up normale. Ce sera plus logique. »
+   L'ancien panneau flottait à côté du bouton, avec ses propres couleurs et ses
+   propres tailles — et le jour où l'œil est entré dans la barre du haut, il s'est
+   cassé en silence : `#topbar #apercu{display:contents}` fait de ses boutons des
+   enfants de la barre, donc `#topbar button{42×42, trait, fond clair}` les a tous
+   repeints en carrés blancs illisibles.
+   ⚠ LA LEÇON : `display:contents` n'efface pas la boîte pour le CSS des DESCENDANTS.
+   Tout ce qui vit dedans hérite des règles de la barre.
+   Elle emprunte donc sa classe aux autres feuilles de l'app (`partbg`/`partcard`) :
+   même glissement, mêmes bords, même voile, et surtout plus rien à repeindre. */
+.vcgrp{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.vcgrp button{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--noir);background:#fdfdfc;
+  border:1.25px solid var(--trait);border-radius:999px;padding:9px 15px;cursor:pointer}
+.vcgrp button.on{background:var(--noir);color:#f2eee6;border-color:var(--noir)}
+.vct{font-family:ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2);margin:0 0 8px}
+.vcmet{font:inherit;font-size:15px;color:var(--noir);background:#fdfdfc;
+  border:1.25px solid var(--trait);border-radius:10px;padding:11px 12px;width:100%;margin-bottom:16px}
+.vcfin{display:block;width:100%;background:var(--noir);color:#f2eee6;border:1.25px solid var(--noir);
+  border-radius:10px;padding:12px;font-family:ui-monospace,monospace;font-size:10px;font-weight:700;
+  letter-spacing:.11em;text-transform:uppercase;cursor:pointer;margin-bottom:14px}
+.vcnote{font-style:normal;display:block;font-size:14px;line-height:1.45;color:var(--enc2)}
 /* La bascule Écran/Téléphone n'a de sens que sur un grand écran. */
-@media (max-width:899px){ .bascule .becran{display:none} }
-/* Sur grand écran, la barre se pose À DROITE du rail, sinon elle le recouvre. */
-@media (min-width:900px){ .bascule{left:248px;bottom:16px} }
+@media (max-width:899px){ .vcecran{display:none} }
 /* ═══ L'APERÇU TÉLÉPHONE PREND TOUTE LA PAGE (Mag, 08/08/2026) ═══
    « Je t'ai demandé que ce soit un 100 % full screen sur la page, avec par exemple
    même 10 px de margin, mais pas spécialement plus. »
@@ -5490,6 +5511,16 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <div class="parttete"><b>Où ?</b>
       <button onclick="ouFermer()">Fermer</button></div>
     <div id="ouCorps"></div>
+  </div>
+</div>
+<!-- ═══ « VOIR COMME » (Mag, 27/08/2026 : « fais une pop-up normale ») ═══
+     Réservée à l'administration. Elle est ICI, dans le corps de la page, et surtout
+     PAS dans #topbar : la barre du haut repeint tous les boutons qu'elle contient. -->
+<div id="vcBg" class="partbg" onclick="if(event.target.id==='vcBg')apercuFermer()">
+  <div class="partcard" role="dialog" aria-modal="true" aria-label="Voir comme">
+    <div class="parttete"><b>Voir comme</b>
+      <button onclick="apercuFermer()" aria-label="Fermer">Fermer</button></div>
+    <div id="vcCorps"></div>
   </div>
 </div>
 <div id="partBg" class="partbg" onclick="if(event.target.id==='partBg')partageFermer()">
@@ -15360,34 +15391,31 @@ function grpDuMetier(m){ return GROUPE_DE_METIER[m]||'C'; }
    ouvrir la carte, et elle se replie dès qu'un choix est fait — c'est justement
    l'écran d'en dessous qu'on veut regarder (Mag, 06/08/2026). */
 let APERCU_OUVERT=false;
-function apercuOuvrir(){ APERCU_OUVERT=!APERCU_OUVERT; render(); }
-/* Un clic à côté referme la carte : elle ne doit pas rester dans les pattes.
-   ⚠ On EXCLUT les boutons qui l'ouvrent (l'œil du rail, la boule) : sinon ce
-   guetteur fermait la carte juste avant que le bouton ne la rouvre, et l'œil
-   semblait ne plus rien faire (Mag, 06/08/2026). */
-document.addEventListener('click',function(e){
-  if(!APERCU_OUVERT) return;
-  if(e.target.closest && e.target.closest('.bascule,.bboule,.apercuvr')) return;
-  APERCU_OUVERT=false; render();
-},true);
-/* La lettre portée par la boule quand un aperçu tourne : impossible d'oublier
-   qu'on ne regarde pas sa propre vue. */
-function apercuLettre(){
-  if(APERCU_METIER) return APERCU_METIER.charAt(0).toUpperCase();
-  if(APERCU_GRP==='D') return 'D';
-  if(APERCU_GRP) return 'ABC';
-  if(APERCU_TEL) return '';
-  return '';
+/* ⚠ L'OUVERTURE NE PASSE PLUS PAR `render()` (27/08/2026). L'ancienne carte était
+   dessinée DANS la page, donc la montrer voulait dire redessiner la page entière.
+   La feuille, elle, vit déjà dans le HTML : on remplit son corps et on l'allume.
+   Le guetteur de clic à côté disparaît avec — le voile de la feuille fait ce
+   travail, et c'est lui qui referme les autres feuilles de l'app. */
+function apercuOuvrir(){
+  const c=document.getElementById('vcCorps'), bg=document.getElementById('vcBg');
+  if(!c||!bg) return;
+  c.innerHTML=apercuCorps();
+  bg.classList.add('on');
+  APERCU_OUVERT=true;
 }
-function apercuTel(on){ APERCU_TEL=on; APERCU_OUVERT=false; render(); window.scrollTo(0,0); }
-function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; APERCU_METIER=''; APERCU_OUVERT=false; render(); }
+function apercuFermer(){
+  const bg=document.getElementById('vcBg'); if(bg) bg.classList.remove('on');
+  APERCU_OUVERT=false;
+}
+function apercuTel(on){ APERCU_TEL=on; apercuFermer(); render(); window.scrollTo(0,0); }
+function apercuGrp(g){ APERCU_GRP=(APERCU_GRP===g)?null:g; APERCU_METIER=''; apercuFermer(); render(); }
 function apercuMetier(m){
   APERCU_METIER=m||'';
   APERCU_GRP = m ? (grpDuMetier(m)==='D'?'D':'ABC') : null;
-  APERCU_OUVERT=false;
+  apercuFermer();
   render();
 }
-function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; APERCU_METIER=''; APERCU_OUVERT=false; render(); }
+function apercuFin(){ APERCU_TEL=false; APERCU_GRP=null; APERCU_METIER=''; apercuFermer(); render(); }
 /* Dans le cadre du téléphone, l'app se rouvre dans une fenêtre NEUVE : sans ça elle
    ne saurait pas qu'on est en aperçu et montrerait la vue de Mag (constaté le 06/08). */
 try{
@@ -15410,33 +15438,39 @@ function peutGerer(){ return !!(PROFILE&&PROFILE.admin) || estCoordi(); }
 function vueAdmin(){ return !!(PROFILE&&PROFILE.admin) && !APERCU_GRP; }
 function vueGestion(){ return peutGerer() && !APERCU_GRP; }
 function voitOutilsCentre(){ return APERCU_GRP!=='D'; }
+/* ⚠ LE BOUTON NE PORTE QUE L'ŒIL (Mag, 27/08/2026 : « en cliquant dessus, ça devient
+   un dé, j'ai pas compris pourquoi — laisse le petit picto avec l'œil comme il était
+   avant »). Il portait la lettre du groupe regardé dès qu'un aperçu tournait : à
+   côté de deux autres boutons carrés, ce « D » ne se lisait plus comme un rappel,
+   il se lisait comme un bouton cassé. Le rappel est maintenant la COULEUR — l'œil
+   passe au jaune — et la feuille dit en toutes lettres qui on regarde. */
 function barreApercu(){
   if(!(PROFILE&&PROFILE.admin)) return '';
-  if(location.search.indexOf('apercu=tel')>=0) return '';   // dans le cadre du téléphone : pas de barre
+  if(location.search.indexOf('apercu=tel')>=0) return '';   // dans le cadre du téléphone : pas de bouton
+  return '<button class="bboule'+(enApercu()?' actif':'')+'" onclick="apercuOuvrir()" '+
+    'aria-label="Voir l’app comme quelqu’un d’autre" title="Voir comme">'+
+    '<span class="ic">'+icon('oeil')+'</span></button>';
+}
+/* Le contenu de la feuille. Il se refabrique à chaque ouverture — les boutons doivent
+   montrer le groupe regardé au moment où on l'ouvre, pas celui d'il y a dix minutes. */
+function apercuCorps(){
   const g=function(k,l){ return '<button class="'+(APERCU_GRP===k?'on':'')+'" onclick="apercuGrp(\''+k+'\')">'+l+'</button>'; };
-  if(!APERCU_OUVERT){
-    const L=apercuLettre();
-    return '<button class="bboule'+(enApercu()?' actif':'')+'" onclick="apercuOuvrir()" '+
-      'aria-label="Voir l’app comme quelqu’un d’autre" title="Voir comme">'+
-      (L?'<span class="bl">'+esc(L)+'</span>':'<span class="ic">'+icon('oeil')+'</span>')+'</button>';
-  }
-  return '<div class="bascule'+(enApercu()?' actif':'')+'">'+
-    '<button class="bplier" onclick="apercuOuvrir()" aria-label="Replier">−</button>'+
-    '<b>Voir comme</b>'+
-    '<div class="bgrp becran">'+
+  return '<div class="vcecran"><p class="vct">Sur quoi</p>'+
+    '<div class="vcgrp">'+
       '<button class="'+(APERCU_TEL?'':'on')+'" onclick="apercuTel(false)">Écran</button>'+
       '<button class="'+(APERCU_TEL?'on':'')+'" onclick="apercuTel(true)">Téléphone</button>'+
-    '</div>'+
-    '<div class="bgrp">'+g('ABC','Groupe A · B · C')+g('D','Groupe D')+'</div>'+
-    '<select class="bmet" onchange="apercuMetier(this.value)">'+
-      '<option value="">Ou choisis un métier…</option>'+
+    '</div></div>'+
+    '<p class="vct">Quel groupe</p>'+
+    '<div class="vcgrp">'+g('ABC','Groupe A · B · C')+g('D','Groupe D')+'</div>'+
+    '<p class="vct">Ou un métier précis</p>'+
+    '<select class="vcmet" onchange="apercuMetier(this.value)">'+
+      '<option value="">Choisis un métier…</option>'+
       EQUIPES.map(function(q){ return '<option value="'+esc(q)+'"'+(APERCU_METIER===q?' selected':'')+'>'+
         esc(q)+' — groupe '+grpDuMetier(q)+'</option>'; }).join('')+
     '</select>'+
-    (enApercu()?'<button class="bfin" onclick="apercuFin()">Revenir à ma vue</button>':'')+
-    (APERCU_METIER?'<em>Tu vois COUSIN comme <b>'+esc(APERCU_METIER)+'</b> — groupe '+grpDuMetier(APERCU_METIER)+'.</em>':'')+
-    (APERCU_GRP?'<em>Une seule règle est décidée à ce jour : le groupe D ne voit ni les outils de l’équipe ni l’Admin — mais il garde les formations, les jeux et le quiz.</em>':'')+
-  '</div>';
+    (enApercu()?'<button class="vcfin" onclick="apercuFin()">Revenir à ma vue</button>':'')+
+    (APERCU_METIER?'<em class="vcnote">Tu vois COUSIN comme <b>'+esc(APERCU_METIER)+'</b> — groupe '+grpDuMetier(APERCU_METIER)+'.</em>':'')+
+    (APERCU_GRP?'<em class="vcnote">Une seule règle est décidée à ce jour : le groupe D ne voit ni les outils de l’équipe ni l’Admin — mais il garde les formations, les jeux et le quiz.</em>':'');
 }
 /* L'adresse de l'aperçu, sortie de `cadreTelephone` pour qu'on puisse la COMPARER
    avant de décider de refabriquer l'iframe — c'est elle qui dit si quelque chose a
