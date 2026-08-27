@@ -1725,6 +1725,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .wfmaj{margin:6px 0 0;font-family:ui-monospace,monospace;font-size:9.5px;
   letter-spacing:.08em;text-transform:uppercase;color:var(--enc2)}
 .wfbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* ⚠ « ÉCARTER » N'EST PAS UN BOUTON, C'EST UNE SORTIE DE SECOURS. Il héritait du
+   cadre pleine largeur de `.lienbas` et pesait autant que « Publier » — deux pavés
+   l'un sous l'autre, alors que publier est le geste de tous les jours et écarter
+   l'exception. Il reprend la taille d'un lien. */
+.wfbar .lienbas{width:auto;padding:6px 4px;border:0;background:none;text-align:left;
+  display:inline-block;flex:none}
 .wfhb{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--noir);border:1px solid var(--trait);
   padding:10px 13px;background:transparent}
@@ -1753,6 +1759,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .wfh.on{background:rgba(108,179,146,.09)}
 /* ⚠ DANS LA FILE : le AVANT et le PROPOSÉ, l'un sous l'autre. Relire un texte sans
    son précédent, c'est relire à l'aveugle — on ne voit pas ce qui a été ENLEVÉ. */
+/* ⚠ LE CHAMP DE RELECTURE : c'est LUI le cœur de l'écran, pas une note en bas de
+   page. Il prend la largeur, il grandit avec le texte, et il a le fond clair des
+   champs où l'on écrit — pour qu'on voie tout de suite qu'on peut taper dedans. */
+.wfedit{display:block;width:100%;margin-top:8px;font:inherit;font-size:14.5px;
+  line-height:1.5;color:var(--noir);background:#fdfdfc;border:1px solid var(--trait);
+  border-radius:0;padding:11px 12px;resize:none;overflow:hidden;min-height:76px}
+.wfedit:focus{outline:0;border-color:var(--trait-fort)}
+.wfmotif{display:block;width:100%;margin-top:8px;font:inherit;font-size:14px;
+  color:var(--noir);background:var(--champ,#f4f3f0);border:1px solid var(--ligne);
+  border-radius:0;padding:11px 12px}
 .wfavant,.wfapres{font-size:13.5px;line-height:1.5;padding:9px 11px;margin-top:8px}
 .wfavant{background:rgba(27,27,27,.05);color:var(--enc2)}
 .wfapres{background:var(--champ,#f4f3f0);border-left:3px solid var(--turq,#6cb392)}
@@ -19540,20 +19556,33 @@ async function wfTrancher(id, etat){
      aussi, par une contrainte — ceci n'est que la politesse de le dire avant. */
   if(etat==='refus' && !motif){ if(i) i.focus(); toast('Une raison, même courte'); return; }
   if(!sb){ toast('Pas connectée'); return; }
+  /* ⚠ ON PUBLIE CE QU'ELLE A DANS LE CHAMP, pas ce que le collègue avait envoyé —
+     c'est tout l'intérêt de pouvoir corriger avant de publier. Si le champ n'est pas
+     à l'écran (validation depuis ailleurs), on retombe sur le texte d'origine. */
+  const champ=document.getElementById('wfTexte-'+id);
+  const texte=((champ&&champ.value)||v.texte||'').trim();
+  if(etat==='ok' && !texte){ toast('Le texte est vide'); return; }
+  const corrige=(etat==='ok' && texte!==(v.texte||'').trim());
   const r=await sb.from('wiki_versions').update({
     etat:etat, motif:motif||null, tranche_le:new Date().toISOString(),
+    texte:(etat==='ok'?texte:v.texte),
+    /* Le résumé dit qu'elle est repassée dessus : l'historique doit pouvoir
+       expliquer pourquoi le texte publié n'est pas mot pour mot celui d'origine. */
+    resume:(corrige?((v.resume?v.resume+' · ':'')+'relu et corrigé').slice(0,120):v.resume),
     tranche_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
   }).eq('id',id).select();
   if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
   if(etat==='ok'){
     const f=await sb.from('wiki_fiches').upsert({
-      sid:v.sid, texte:v.texte, version_id:v.id,
+      sid:v.sid, texte:texte, version_id:v.id,
       maj_le:new Date().toISOString(),
       maj_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
     },{onConflict:'sid'}).select();
     if(f.error){ toast('Validé, mais pas affiché — '+f.error.message); return; }
   }
-  toast(etat==='ok'?'Validé — c’est en ligne':'Refusé, la raison est notée');
+  toast(etat==='ok'?(corrige?'Publié, avec ta correction':'Publié — c’est en ligne')
+                   :'Écarté, la raison est notée');
+  WF_ECARTE=null;
   await loadWikiFile();
   if(WF_SID) await loadWikiFiche(WF_SID);
   render();
@@ -19577,6 +19606,28 @@ function wfNomFiche(sid){
   try{ const p=DATA.find(function(x){ return x.sid===sid; }); return p?p.nom:sid; }
   catch(e){ return sid; }
 }
+let WF_ECARTE=null;   /* la version dont on est en train d'écrire le refus */
+function wfEcarter(id){ WF_ECARTE=(WF_ECARTE===id?null:id); render(); }
+
+/* ═══ RELIRE, C'EST LIRE ET CORRIGER — RIEN DE PLUS (Mag, 27/08/2026) ═══
+   Ses mots : « je devrais pouvoir lire le texte, le modifier, et c'est tout, en
+   fait. Ça doit être plus simple que ça. Et c'est moi après qui change le texte
+   final et la mise en forme. »
+
+   CE QUI EST PARTI, ET POURQUOI :
+   · le texte proposé était FIGÉ. Elle ne pouvait que dire oui ou non à la virgule
+     près d'un collègue — alors que son travail, c'est justement de reprendre le
+     texte. Il est maintenant dans un champ, et elle écrit dedans.
+   · le champ « une raison, si tu refuses » traînait sous CHAQUE proposition, tout
+     le temps, pour un geste rare. Il n'apparaît plus qu'après « Écarter ».
+   · deux gros boutons noirs côte à côte donnaient le même poids à publier et à
+     refuser. Publier est le geste normal ; écarter est l'exception, et prend la
+     taille d'un lien.
+
+   ⚠ LA VERSION GARDE SON AUTEUR même si Mag la corrige — c'est bien le collègue qui
+   a apporté l'information. Ce qu'elle a fait est noté à part (`tranche_nom`, et le
+   résumé le dit quand le texte a changé). Signer de son nom un texte qu'un autre a
+   trouvé, ce serait lui prendre son travail. */
 function wfFileHTML(){
   if(!WF_FILE.length) return '';
   return '<div class="sectc" style="margin-top:18px"><b>'+
@@ -19585,21 +19636,28 @@ function wfFileHTML(){
     WF_FILE.map(function(v){
       const j=(v.cree_le||'').slice(8,10)+'/'+(v.cree_le||'').slice(5,7);
       const avant=(WF[v.sid]&&WF[v.sid].texte)||'';
+      const ecarte=(WF_ECARTE===v.id);
       return '<div class="rgc">'+
         '<p class="rgq"><b>'+esc(wfNomFiche(v.sid))+'</b> — '+
           esc(v.auteur_nom||'une collègue')+' · '+esc(j)+
           (v.resume?' · '+esc(v.resume):'')+'</p>'+
-        /* ⚠ ON MONTRE CE QU'IL Y AVAIT AVANT, pas seulement la nouvelle version.
-           Relire un texte sans son précédent, c'est relire à l'aveugle : on ne voit
-           pas ce qui a été ENLEVÉ, et c'est justement ce qui compte. */
+        /* Ce qu'il y avait avant, en gris et en petit : on ne voit pas ce qui a été
+           ENLEVÉ si on n'a que la nouvelle version sous les yeux. */
         (avant?'<div class="wfavant"><em>Avant</em>'+esc(avant).replace(/\n/g,'<br>')+'</div>':'')+
-        '<div class="wfapres"><em>Proposé</em>'+esc(v.texte).replace(/\n/g,'<br>')+'</div>'+
-        '<input id="wfMotif-'+v.id+'" type="text" maxlength="200" '+
-          'placeholder="Une raison, si tu refuses">'+
-        '<div class="rgbar">'+
-          '<button class="rgann" onclick="wfTrancher('+v.id+',\'refus\')">Refuser</button>'+
-          '<button class="rgok" onclick="wfTrancher('+v.id+',\'ok\')">Valider</button>'+
-        '</div></div>';
+        '<textarea class="wfedit" id="wfTexte-'+v.id+'" rows="1" maxlength="4000" '+
+          'oninput="passGrandir(this)">'+esc(v.texte)+'</textarea>'+
+        (ecarte
+          ? '<input class="wfmotif" id="wfMotif-'+v.id+'" type="text" maxlength="200" '+
+            'placeholder="Pourquoi tu l’écartes — le collègue le lira">'+
+            '<div class="rgbar">'+
+              '<button class="rgann" onclick="wfEcarter('+v.id+')">Annuler</button>'+
+              '<button class="rgok" onclick="wfTrancher('+v.id+',\'refus\')">Écarter pour de bon</button>'+
+            '</div>'
+          : '<div class="wfbar" style="margin-top:10px">'+
+              '<button class="chaddbtn" onclick="wfTrancher('+v.id+',\'ok\')">Publier</button>'+
+              '<button class="lienbas" onclick="wfEcarter('+v.id+')">Écarter</button>'+
+            '</div>')+
+        '</div>';
     }).join('');
 }
 
