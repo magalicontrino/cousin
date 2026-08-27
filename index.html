@@ -13118,6 +13118,7 @@ function parseRoute(){
   if(seg[0]==='educ') return {view:'educ'};
   if(seg[0]==='lexique') return {view:'lexique'};
   if(seg[0]==='bibliotheque') return {view:'bibliotheque'};
+  if(seg[0]==='podcasts') return {view:'podcasts'};
   if(seg[0]==='partager') return {view:'partager'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
@@ -13190,7 +13191,8 @@ window.addEventListener('hashchange',()=>{
        (WIKI_PAGES[current.view] || current.view==='ranger' || current.view==='admin'
         /* Les livres portent chacun leur wiki : la bibliothèque doit charger la base
            en arrivant, sinon la première fiche ouverte affiche « rien encore ». */
-        || current.view==='bibliotheque' || current.view==='formations'))
+        || current.view==='bibliotheque' || current.view==='podcasts'
+        || current.view==='formations'))
       loadWikiCentre().then(function(){ render(); });
   }catch(e){ panneNoter('wiki à l’arrivée', e); }
 });
@@ -13353,6 +13355,7 @@ function renderInterne(){
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
   else if(current.view==='bibliotheque'){ FONGLET='livres'; view.innerHTML=vFormations(); }
+  else if(current.view==='podcasts'){ FONGLET='podcasts'; view.innerHTML=vFormations(); }
   else if(current.view==='partager') view.innerHTML=vPartager();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='recherche'){ view.innerHTML=vRecherche();
@@ -14299,6 +14302,7 @@ function vCentre(){
     /* LA BIBLIOTHÈQUE, DANS APPRENDRE (Mag, 27/08/2026) : les livres rangés par
        sous-catégorie, leur fiche ouvre un résumé et un éventuel PDF. */
     ['Livres',FORM_LIVRES.length+' volumes','book','','#b28b7a','#1b1b1b',"go('#/bibliotheque')"],
+    ['Podcasts',FORM_POD.length+' à écouter','chat','','#b28b7a','#1b1b1b',"go('#/podcasts')"],
     /* « PARTAGER COUSIN » A QUITTÉ LE CENTRE le 08/08/2026 (Mag : « le mettre dans le
        centre, ça n'a aucun sens »). Elle a raison : cette page ne contient que des
        outils de TRAVAIL — protocole, démarches, mails, schémas, dictionnaire. Partager
@@ -14417,6 +14421,10 @@ function vCentre(){
        ⚠ ELLE DOIT RESTER LA DERNIÈRE FAMILLE : « Ressources » est accrochée à
        l'index 2 (Apprendre) dans `dedansHTML`. La glisser avant déplacerait les
        documents officiels dans le mauvais dépliant, sans rien afficher d'anormal. */
+    /* La quatrième carte, à côté d'Activités, Apprendre et Livres. Comme Livres, elle
+       n'a qu'une porte : la règle du 27/08 la fait donc s'ouvrir directement. */
+    {n:'Podcasts', c:'#b28b7a', p:'chat',
+     k:['Podcasts']},
     {n:'Livres', s:'', c:'#b28b7a', p:'book',
      k:['Livres']}
   ];
@@ -18461,6 +18469,19 @@ const FORM_LIVRES=[
   {c:'pauvrete', t:'Keynes',
    a:'Michael Stewart', e:'Points Économie', res:'', pdf:''}
 ];
+/* L'étagère des podcasts, rangée par sujet — pas une liste à plat. Un sujet sans
+   podcast ne s'écrit pas : pas de titre au-dessus du vide. */
+function fPodcastsHTML(){
+  const parTheme={};
+  FORM_POD.forEach(function(p){ const t=THEME_VERS[p.th||'']||p.th||'Le terrain';
+    (parTheme[t]=parTheme[t]||[]).push(p); });
+  const ordre=THEMES_ORDRE.filter(function(t){ return parTheme[t]; })
+    .concat(Object.keys(parTheme).filter(function(t){ return THEMES_ORDRE.indexOf(t)<0; }).sort());
+  return ordre.map(function(t){
+    return '<div class="fsort">'+esc(t)+'</div><div class="podl">'+
+      parTheme[t].map(formPodCarte).join('')+'</div>';
+  }).join('');
+}
 /* Quel sujet est ouvert. Un seul à la fois, comme le Centre : deux dépliants
    ouverts, on ne sait plus lequel on lit. */
 let FTHEME=null;
@@ -18494,15 +18515,43 @@ function fLivresHTML(){
 }
 
 /* Une carte de podcast, réutilisable dans n'importe quel sujet. */
+/* ═══ ON ÉCOUTE DANS L'APP, SANS EN SORTIR (Mag, 27/08/2026) ═══
+   Sa demande : « je préférerais que tu intègres directement les trucs à écouter via
+   l'application, que ça n'ouvre pas vers Spotify ». Vérifié dans le navigateur avant
+   d'écrire : le lecteur Spotify ET le lecteur Apple s'affichent tous les deux.
+   · Spotify   → `show`, le lecteur officiel.
+   · Apple     → l'identifiant se lit dans l'adresse (…/idXXXXXXXX) et Apple fournit
+                 un lecteur à la même adresse, en `embed.`.
+   · Autre     → un lien, et il DIT où il va.
+   ⚠ LE LIEN RESTE SOUS LE LECTEUR, TOUJOURS. Un lecteur peut refuser de démarrer —
+   réseau coupé, cookies bloqués, plateforme en panne. Sans le lien en dessous, on
+   n'aurait plus aucun moyen d'atteindre l'émission.
+   ⚠ ET ÇA NE MARCHE PAS HORS LIGNE : ces lecteurs vont chercher le son chez eux. Dans
+   le métro, on verra un cadre vide — c'est le lien qui reste utile, pour plus tard. */
+function podAppleId(u){
+  const m=/podcasts\.apple\.com\/([a-z]{2})\/podcast\/(?:[^/]+\/)?id(\d+)/.exec(u||'');
+  return m ? {pays:m[1], id:m[2]} : null;
+}
 function formPodCarte(p){
+  const ap=podAppleId(p.u);
+  let lecteur='';
+  if(p.show){
+    lecteur='<iframe class="podif" src="https://open.spotify.com/embed/show/'+esc(p.show)+'" '+
+      'height="232" frameborder="0" loading="lazy" title="'+esc(p.t)+'" '+
+      'allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>';
+  }else if(ap){
+    lecteur='<iframe class="podif" src="https://embed.podcasts.apple.com/'+esc(ap.pays)+
+      '/podcast/id'+esc(ap.id)+'" height="232" frameborder="0" loading="lazy" '+
+      'title="'+esc(p.t)+'" sandbox="allow-forms allow-popups allow-same-origin '+
+      'allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" '+
+      'allow="autoplay *; encrypted-media *; clipboard-write"></iframe>';
+  }
   return '<div class="podc">'+
     '<div class="podt"><b>'+esc(p.t)+'</b><em>'+esc(p.par||'')+'</em></div>'+
     (p.d?'<p>'+esc(p.d)+'</p>':'')+
-    (p.show?'<iframe class="podif" src="https://open.spotify.com/embed/show/'+esc(p.show)+'" '+
-      'height="352" frameborder="0" loading="lazy" title="'+esc(p.t)+'" '+
-      'allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>':'')+
+    lecteur+
     (p.u?'<a class="podl-a" href="'+p.u+'" target="_blank" rel="noopener">'+
-      '<span class="ic">'+icon('lien')+'</span>Ouvrir dans Spotify</a>':'')+
+      '<span class="ic">'+icon('lien')+'</span>'+esc(podLibelle(p))+'</a>':'')+
   '</div>';
 }
 /* Une ressource, quelle que soit sa sorte : extérieure, livre, vidéo. */
@@ -18586,9 +18635,18 @@ function vFormations(){
   h+='<div class="qseg" style="margin-left:0;margin-right:0">'+
     '<button class="qsegb'+(FONGLET==='sujets'?' on':'')+'" onclick="fOnglet(\'sujets\')">Par sujet</button>'+
     '<button class="qsegb'+(FONGLET==='livres'?' on':'')+'" onclick="fOnglet(\'livres\')">Livres · '+FORM_LIVRES.length+'</button>'+
+    /* ⚠ TROISIÈME ONGLET (Mag, 27/08/2026 : « je voudrais les mettre comme quatrième
+       bouton aussi »). Les podcasts existaient déjà, rangés DANS chaque sujet — donc
+       introuvables si on cherche « un podcast » plutôt qu'« un sujet ». Ils gardent
+       leur place dans les sujets ET ont leur étagère, comme les livres.
+       ⚠ ILS RESTENT TRIÉS PAR SUJET ICI AUSSI (sa demande du même jour) : la liste
+       n'est pas à plat, elle est groupée par thème. */
+    '<button class="qsegb'+(FONGLET==='podcasts'?' on':'')+'" onclick="fOnglet(\'podcasts\')">Podcasts · '+FORM_POD.length+'</button>'+
     '</div>';
   if(FONGLET==='livres') return h+'<div class="famdedans" style="border:0;padding-top:4px">'+
     fLivresHTML()+'</div><div style="height:26px"></div>';
+  if(FONGLET==='podcasts') return h+'<div class="famdedans" style="border:0;padding-top:4px">'+
+    fPodcastsHTML()+'</div><div style="height:26px"></div>';
   ordre.forEach(function(t){
     const g=parTheme[t]||{};
     const n=SORTES.reduce(function(a,x){ return a+((g[x.k]||[]).length); },0);
@@ -23929,6 +23987,17 @@ function accEtiq(f){ return (f.n===undefined) ? (f.l||'') : f.n; }
    chercher la différence entre les deux — il n'y en a pas.
    ⚠ RÈGLE, PAS RÉGLAGE : on compare sans accents ni casse, donc tout champ futur qui
    porterait le nom de sa section disparaîtra aussi, sans qu'on ait à y penser. */
+/* ⚠ LE SEUIL EST UN RÉGLAGE, ET IL EST ICI, TOUT SEUL. 90 caractères : « pas
+   d'adresse depuis février » reste sur sa ligne, une phrase d'entretien passe en
+   bloc. Si c'est trop tôt ou trop tard, c'est ce chiffre-là qu'on change — pas la
+   mise en page.
+   ⚠ UN RETOUR À LA LIGNE SUFFIT AUSSI : quelqu'un qui a écrit deux lignes courtes
+   voulait deux lignes, et les recoller derrière une puce les collerait. */
+const ACC_LONG=90;
+function accEstLong(f){
+  const v=String(ACC[f.k]||'').trim();
+  return v.length>ACC_LONG || v.indexOf('\n')>=0;
+}
 function accSansDoublon(etiq, section){
   const nu=function(x){ return String(x||'').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); };
@@ -23941,10 +24010,30 @@ function accNoteLignes(volet){
     const remplis=g.c.filter(function(f){ return (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
     l.push({t:g.s.toUpperCase()});
-    remplis.forEach(function(f){
+    /* ⚠ LA FORME SUIT LA LONGUEUR — proposition B, choisie par toi le 27/08/2026.
+       « Interprète / oui » et le récit de la situation des enfants ne peuvent pas
+       avoir la même forme : sur une seule ligne, une réponse d'entretien devient un
+       bloc compact où plus rien ne se retrouve. Ta ligne « Enfants » contenait trois
+       informations — où ils sont, depuis quand, pourquoi il ne les voit plus — et
+       aucune ne se lisait à l'œil.
+       Les COURTES restent en liste, les LONGUES passent en dessous avec leur titre et
+       un blanc autour.
+       ⚠ AUCUNE QUESTION N'EST RETIRÉE, ET L'ÉCRAN NE CHANGE PAS (ta consigne du même
+       jour : « c'est imposé, le schéma ne doit pas changer »). Ceci ne touche QUE la
+       note produite — la trame de l'entretien, elle, garde ses questions et son
+       ordre. */
+    const courts=remplis.filter(function(f){ return !accEstLong(f); });
+    const longs =remplis.filter(function(f){ return  accEstLong(f); });
+    courts.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
       l.push({t:(e ? ('· '+e+' / '+String(ACC[f.k]).trim())
                    : ('· '+String(ACC[f.k]).trim())), k:f.k});
+    });
+    longs.forEach(function(f){
+      const e=accSansDoublon(accEtiq(f), g.s);
+      if(courts.length || longs.indexOf(f)>0) l.push({t:''});
+      if(e) l.push({t:e+' :', k:f.k});
+      l.push({t:String(ACC[f.k]).trim(), k:f.k});
     });
     l.push({t:''});
   });
@@ -23959,14 +24048,21 @@ function accNote(volet){
     const remplis=g.c.filter(function(f){ return (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
     l.push(g.s.toUpperCase());
-    remplis.forEach(function(f){
-      /* Sans étiquette, la ligne porte directement la valeur : « · Démarches : » puis
-         la valeur donnerait « Démarches / · Démarches : … », deux fois le même mot. */
-      /* ⚠ UNE BARRE, PAS DEUX POINTS (Mag, 27/08/2026 : « je préfère un / »). Deux
-         points se cognaient avec les étiquettes qui finissent par un point
-         d'interrogation — « qui prévenir ? : Sa sœur » ne se lit pas. */
+    /* Même règle que pour l'écran : les courtes en liste, les longues en dessous.
+       ⚠ UNE BARRE POUR LES COURTES (Mag, 27/08 : « je préfère un / ») — deux points
+       se cognaient avec les étiquettes qui finissent par « ? ». Mais pour un bloc
+       long, le titre porte bien les deux points : il annonce, il ne sépare pas. */
+    const courts=remplis.filter(function(f){ return !accEstLong(f); });
+    const longs =remplis.filter(function(f){ return  accEstLong(f); });
+    courts.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
       l.push(e ? ('· '+e+' / '+String(ACC[f.k]).trim()) : ('· '+String(ACC[f.k]).trim()));
+    });
+    longs.forEach(function(f){
+      const e=accSansDoublon(accEtiq(f), g.s);
+      if(courts.length || longs.indexOf(f)>0) l.push('');
+      if(e) l.push(e+' :');
+      l.push(String(ACC[f.k]).trim());
     });
     l.push('');
   });
