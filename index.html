@@ -14444,21 +14444,22 @@ function vCentre(){
        ⚠ ET SEULEMENT QUAND C'EST VRAI : sans rien en cours, le sous-titre reprend le
        compte des portes. Un « 0 formation en cours » serait une ligne qui ne change
        rien à ce qu'on fait. */
-    /* ⚠ FORMATIONS SORT D'« APPRENDRE » (Mag, 28/08/2026). Elle était DEDANS pendant
-       que Livres et Podcasts étaient À CÔTÉ, en cartes — alors que les trois ouvrent
-       des pages du même genre. C'est ce mélange de niveaux qu'elle n'arrivait pas à
-       lire, et elle avait raison.
-       Les trois sont maintenant au même rang. « Apprendre » garde ce qui sert à
-       s'exercer et à chercher un mot : les jeux, le dictionnaire, les ressources. */
-    {n:'Formations', c:'#6cb392', p:'educatif',
+    /* ⚠ FORMATIONS EST REVENUE DANS « APPRENDRE » (Mag, 28/08/2026 : « formations doit
+       aller dans apprendre »). Elle en était sortie quelques heures plus tôt, le même
+       jour — et le revirement se tient : ce qu'elle ne comprenait pas, ce n'était pas
+       le rangement, c'étaient LES ONGLETS. Cliquer sur Livres ouvrait une page où
+       Podcasts était à un doigt. Les onglets partis, chaque carte mène à sa page et
+       rien ne se mélange : Formations peut donc redescendre là où elle allait bien,
+       avec les jeux, le dictionnaire et les ressources.
+       La leçon vaut d'être gardée : quand un rangement ne se comprend pas, regarder
+       d'abord ce qui se passe APRÈS le clic. */
+    {n:'Apprendre', c:'#b28b7a', p:'educatif',
      s:function(){
        const n=DATA.filter(function(p){
          return p.domaine==='formations' && fluLus(p.sid).length>0; }).length;
        return n ? n+' formation'+(n>1?'s':'')+' en cours' : '';
      },
-     k:['Formations']},
-    {n:'Apprendre', s:'', c:'#b28b7a', p:'star',
-     k:['Les jeux','Le dictionnaire']},
+     k:['Formations','Les jeux','Le dictionnaire']},
     /* ⚠ LES LIVRES ONT LEUR PROPRE CARTE (Mag, 27/08/2026 : « rajoute une carte avec
        livre, et mets la section des livres dedans, ce sera plus clair »). Ils étaient
        la quatrième ligne d'« Apprendre », coincés entre les jeux et le dictionnaire —
@@ -14729,7 +14730,7 @@ function vCentre(){
     }).join('');
   }
 
-  let premiere=true, nPortes=0; const nPortesFam=[];
+  let premiere=true, nPortes=0; const nPortesFam=[], nomsFam=[];
   const nDocs=(typeof tousLesDocs==='function')?tousLesDocs().length:0;
   const familles=[];
   FAMILLES.forEach(function(f,fi){
@@ -14746,6 +14747,10 @@ function vCentre(){
     /* Seule « Apprendre » gagne la porte Ressources : le compte ne l'ajoute qu'à elle. */
     const enPlus=((nDocs && f.n==='Apprendre')?1:0);
     nPortes+=dedans.length+enPlus; nPortesFam.push(dedans.length+enPlus);
+    /* ⚠ ON RETIENT LE NOM, pas seulement le compte : une famille vide ne se rend pas
+       (`if(!dedans.length) return`), donc les positions glissent. Découper les
+       sections par index, c'est le piège des « Ressources » de ce matin. */
+    nomsFam.push(f.n);
     const ouvert=(CENTRE_FAM===String(fi));
     const nDedans=dedans.length+enPlus;
     /* Une famille peut dire mieux que « N portes » — voir `s` sur Apprendre. Si elle
@@ -14806,6 +14811,31 @@ function vCentre(){
      ⚠ LE COMPTE SUIT CHAQUE SECTION. Un total global au-dessus d'une moitié de liste
      serait faux — et c'est le genre de chiffre qui fait douter du reste. */
   const outilsHaut=familles.slice(0,1), outilsBas=familles.slice(1);
+  /* ═══ « SORTIR » ET « APPRENDRE » SE SÉPARENT (Mag, 28/08/2026 : « tu devrais séparer
+     sortir de apprendre ») ═══
+     Un seul titre couvrait deux gestes qui n'ont rien à voir : proposer une sortie à
+     quelqu'un, et se former soi-même. On ne les fait pas au même moment, ni dans le
+     même état d'esprit. Et le titre était devenu un fourre-tout à huit portes.
+     ⚠ LE DÉCOUPAGE SE FAIT PAR NOM, pas par position — voir `nomsFam`.
+     ⚠ ET IL EST CONSTRUIT UNE SEULE FOIS, pour les deux vues : le bloc était écrit
+     deux fois à l'identique (groupe D et vue complète), et deux copies finissent
+     toujours par diverger. */
+  const sectionsBas=(function(){
+    const dedansSortir=['Activités'];
+    let sortir='', apprendre='', nS=0, nA=0;
+    familles.forEach(function(html,k){
+      const nom=nomsFam[k], n=nPortesFam[k]||0;
+      if(nom==='Social et médical') return;           /* elle vit dans les outils du haut */
+      if(dedansSortir.indexOf(nom)>=0){ sortir+=html; nS+=n; }
+      else { apprendre+=html; nA+=n; }
+    });
+    const titre=function(coul,txt,n){
+      return '<div class="sectc"><b><i style="background:'+coul+'"></i>'+txt+'</b>'+
+             '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>';
+    };
+    return (nS?titre('#f8763f','Sortir',nS)+sortir:'')+
+           (nA?titre('#b28b7a','Apprendre',nA)+apprendre:'');
+  })();
   /* ═══ « POLYVALENTS ET LOGISTIQUE » (Mag, 24/08/2026) ═══
      Le quotidien de la maison — linge, poubelles, chambres — est le terrain des
      polyvalents et de la logistique. Il a donc sa propre section, qui porte la
@@ -14819,12 +14849,7 @@ function vCentre(){
   const vueD=!voitOutilsCentre();
   if(vueD){
     h+=sectPoly;
-    if(outilsBas.length){
-      const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
-      h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
-         '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
-         outilsBas.join('');
-    }
+    h+=sectionsBas;
   } else {
     if(outilsHaut.length){
       const n=nPortesFam[0]+1;   /* +1 : Protocole est un bouton, donc une porte */
@@ -14835,12 +14860,7 @@ function vCentre(){
     /* POLYVALENTS ET LOGISTIQUE S'INSÈRE ICI : après les outils de l'équipe, avant
        Sortir et apprendre (Mag, 24/08/2026). */
     h+=sectPoly;
-    if(outilsBas.length){
-      const n=nPortesFam.slice(1).reduce(function(a,b){ return a+b; },0);
-      h+='<div class="sectc"><b><i style="background:#f8763f"></i>Sortir et apprendre</b>'+
-         '<em>'+n+' porte'+(n>1?'s':'')+'</em></div>'+
-         outilsBas.join('');
-    }
+    h+=sectionsBas;
   }
   h+='<div style="height:26px"></div>';
   return h;
