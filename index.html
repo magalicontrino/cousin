@@ -2645,6 +2645,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .actb3 i .pico{width:100%;height:100%;display:block;background:currentColor;
   -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:center;mask-position:center}
+/* ⚠ LE PICTO EN COULEUR N'EST PAS UN MASQUE (arc-en-ciel, 28/08/2026). La ligne
+   au-dessus pose `background:currentColor` sous chaque `.pico` — sous une VRAIE
+   image, ce fond ressort par tout ce qui est transparent : l'arc-en-ciel se
+   retrouvait posé sur un carré rose. */
+.actb3 i img.picoc{background:none;object-fit:contain}
 .actb3 b{font-size:12.5px;line-height:1.15;font-weight:700}
 /* L'ENCART WAKA — variante B : la bande des activités. */
 .actwaka{margin-top:12px;border:1.5px solid var(--trait-fort);border-radius:18px;background:#fff;overflow:hidden}
@@ -2731,6 +2736,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .actrow:last-child{border-bottom:0}
 .actrow .tu{flex:none;width:52px;height:52px;border:1.25px solid var(--trait);border-radius:14px;
   display:flex;align-items:center;justify-content:center}
+.actrow .tu img.picoc{width:28px;height:28px;background:none;object-fit:contain}
 .actrow .tu .pico{width:28px;height:28px;display:block;background:var(--noir);
   -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
 .actrow .tx{flex:1;min-width:0}
@@ -4522,7 +4528,10 @@ body.no-tabs #tabbar{display:none}
   body.at-centre #view > .hero,
   body.at-centre #view > .sectc,
   body.at-centre #view > .famz.ouvert,
-  body.at-centre #view > .famdedans{grid-column:1/-1}
+  body.at-centre #view > .famdedans,
+  /* La grille des tuiles d'Activités : elle est déjà bornée à 560 px et centrée,
+     la laisser dans une demi-colonne la coincerait à côté d'une carte. */
+  body.at-centre #view > .acttrois{grid-column:1/-1}
   /* ⚠ ET C'EST CE QUI CRÉAIT L'ÉCART : `.hero + .famz{margin-top:14px}` ne touche que
      la carte qui SUIT le bandeau — sur une seule colonne c'est la première de la
      page, sur deux colonnes c'est UNE DES DEUX. Sa voisine n'avait pas la marge, la
@@ -14878,7 +14887,23 @@ function vCentre(){
        l'accueil entrant et le plan du quartier, sans rien qui dise à quoi elle se
        rattache. Un titre qui ne coiffe qu'une carte reste un repère : il annonce ce
        qui vient, et il sépare de ce qui précède. */
-    return {sortir:(nS?titre('#f8763f','Activités',nS)+sortir:''),
+    /* ═══ LES TUILES SOUS LE TITRE (Mag, 28/08/2026) ═══
+       « Il faudra descendre en dessous, avec un titre Activités, section. Une
+       formule gratuite, réservée aux femmes, article vingt-sept, les parcs —
+       comme je l'avais mis. »
+       La section ne portait qu'UNE carte, qui menait à la page des activités : il
+       fallait donc ouvrir la page pour découvrir qu'il y avait quatre portes
+       derrière. Elles remontent ici, telles qu'elle les a dessinées le 12/08 — la
+       même grille, les mêmes dessins, les mêmes mots.
+       ⚠ LA CARTE « ACTIVITÉS » RESTE AU-DESSUS : la page ne se réduit pas à ces
+       tuiles (l'encart WAKA, les groupes de parole, la culture y vivent aussi).
+       Retirer la carte, c'est fermer la seule porte vers eux.
+       ⚠ ET LE COMPTE DIT LA VÉRITÉ : la carte, plus les tuiles. Un titre qui
+       annonce « 1 porte » au-dessus de huit boutons, c'est le chiffre faux qu'elle
+       relève depuis le 21/08. */
+    const tuiles=(typeof actTuilesHTML==='function')?actTuilesHTML('actDe'):'';
+    const nT=(typeof ACT_GRILLE!=='undefined')?ACT_GRILLE.length:0;
+    return {sortir:(nS?titre('#f8763f','Activités',nS+nT)+sortir+tuiles:''),
             apprendre:(nA?titre('#b28b7a','Apprendre',nA)+apprendre:'')};
   })();
   /* ⚠ « ACTIVITÉS » PASSE AU-DESSUS DE LA LOGISTIQUE (28/08/2026). Sans titre à elle,
@@ -22114,6 +22139,23 @@ const PROP_SOURCES=[
   {k:'educ',    l:'Idée d’un éducateur',    court:'Éduc',    c:'#7C8AE0'},
   {k:'equipe',  l:'Suggestion de l’équipe', court:'Équipe',  c:'#4FAE86'}
 ];
+/* ═══ AU CENTRE, OU DEHORS (Mag, 28/08/2026 : « les idées et les propositions dans
+   et hors centre ») ═══
+   Le carnet ne savait noter que ce qui se passe SUR PLACE — il s'appelait d'ailleurs
+   « Ici, au centre ». Or la moitié de ce qu'on propose à quelqu'un se passe ailleurs :
+   une sortie, un musée, un club. C'est la même envie, notée par les mêmes gens, au
+   même moment ; ça n'avait aucune raison d'être un autre carnet.
+   ⚠ CE N'EST PAS UN FILTRE DE PLUS À REMPLIR : « Au centre » reste coché d'office,
+   c'est le cas le plus fréquent. On ne touche à la question que pour dire « dehors ».
+   ⚠ LES ANCIENNES LIGNES N'ONT PAS DE LIEU : la colonne arrive avec `default 'centre'`,
+   donc les 100 % des propositions déjà notées restent où elles sont. */
+const PROP_LIEUX=[
+  {k:'centre', l:'Au centre', court:'Au centre'},
+  {k:'dehors', l:'Dehors',    court:'Dehors'}
+];
+var PROP_LIEU='centre';
+function propLieuChoix(k){ PROP_LIEU=k; render(); }
+function propLieu(p){ return (p && p.lieu==='dehors') ? 'dehors' : 'centre'; }
 const PROP_ETATS={idee:'À voir', essayer:'À essayer', faite:'Déjà faite'};
 var PROPOS=[], PROP_PANNE='', PROP_CHARGE=false;
 var PROP_SOURCE='heberge';   /* le cas qu'elle veut pouvoir noter en premier */
@@ -22137,7 +22179,8 @@ async function propAjouter(){
   if(!sb){ toast('Pas de connexion'); return; }
   try{
     const {error}=await sb.from('propositions').insert({
-      texte:texte.slice(0,200), source:PROP_SOURCE, note:v('propNote')||null, par:nomAffiche() });
+      texte:texte.slice(0,200), source:PROP_SOURCE, lieu:PROP_LIEU,
+      note:v('propNote')||null, par:nomAffiche() });
     if(error) throw error;
     ['propTxt','propNote'].forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
     await loadPropositions(); render(); toast('Notée ✓');
@@ -22225,7 +22268,7 @@ function propRetirer(id){
     }catch(e){ toast('Suppression refusée'); }
   }, {ok:'Retirer', danger:true});
 }
-function propCarte(p){
+function propCarte(p, sansLieu){
   const s=propSource(p.source), mienne=!!(PROFILE && p.uid===PROFILE.uid);
   const qui=String(p.par||'').trim().split(/\s+/)[0];
   return '<div class="prop'+(p.etat==='faite'?' faite':'')+'" style="border-left-color:'+s.c+'">'+
@@ -22234,6 +22277,10 @@ function propCarte(p){
       /* Le compteur ne s'affiche qu'à partir de deux : « demandé 1 fois » est une
          information vide, et ça ferait un chiffre sur chaque ligne pour rien. */
       ((p.demandee||1)>1?'<span class="prop-n">'+p.demandee+' fois</span>':'')+
+      /* ⚠ SEUL « DEHORS » PORTE UNE ÉTIQUETTE. Écrire « Au centre » sur les
+         quatre cinquièmes des lignes, c'est répéter le nom de la page à chaque
+         ligne — et l'étiquette qui compte se perdrait au milieu. */
+      (!sansLieu && propLieu(p)==='dehors'?'<span class="prop-n">Dehors</span>':'')+
       '<span style="flex:1"></span>'+
       '<span class="prop-e">'+esc(PROP_ETATS[p.etat]||p.etat)+'</span>'+
     '</div>'+
@@ -22255,13 +22302,15 @@ function propCarte(p){
     '</div>'+
   '</div>';
 }
-function propositionsHTML(){
+/* `dansPanneau` : le tiroir porte déjà son titre et son compte en tête — les
+   réécrire dessous, ce serait la même phrase deux fois à trois centimètres d'écart. */
+function propositionsHTML(dansPanneau){
   const vivantes=PROPOS.filter(function(p){ return p.etat!=='faite'; });
   const faites=PROPOS.filter(function(p){ return p.etat==='faite'; }).slice(0,6);
   const nH=vivantes.filter(function(p){ return p.source==='heberge'; })
                    .reduce(function(a,p){ return a+(p.demandee||1); },0);
-  let h='<div class="sect" style="margin-top:34px"><b>Ici, au centre</b>'+
-        '<em>'+(vivantes.length?vivantes.length+' proposition'+(vivantes.length>1?'s':''):'rien de noté')+'</em></div>';
+  let h=dansPanneau?'':('<div class="sect" style="margin-top:34px"><b>Ce qu’on pourrait faire</b>'+
+        '<em>'+(vivantes.length?vivantes.length+' proposition'+(vivantes.length>1?'s':''):'rien de noté')+'</em></div>');
   /* ⚠ LA PHRASE D'EXPLICATION EST RETIRÉE (Mag, 20/08/2026 : « retire »).
      Elle disait « ce qu'on pourrait faire sur place, et d'où ça vient — ce n'est pas
      un programme, noter une envie n'engage personne à l'animer ». Trois lignes pour
@@ -22281,10 +22330,30 @@ function propositionsHTML(){
       ? 'Rien de noté. La prochaine fois que quelqu’un dit « on pourrait… », c’est ici.'
       : 'Chargement…')+'</div>';
   } else {
-    /* Les vivantes d'abord, les plus demandées en tête (le tri vient de la base). */
-    h+=vivantes.map(propCarte).join('');
+    /* ═══ DEUX PAQUETS : AU CENTRE, ET DEHORS (Mag, 28/08/2026) ═══
+       Dans chacun, les plus demandées en tête (le tri vient de la base).
+       ⚠ UN PAQUET VIDE NE S'ÉCRIT PAS. Un titre « Dehors » suivi de rien laisserait
+       croire qu'on a perdu des lignes — alors que personne n'en a encore noté.
+       ⚠ ET SI TOUT EST DU MÊME CÔTÉ, ON N'ÉCRIT AUCUN DES DEUX TITRES : aujourd'hui
+       toutes les propositions sont au centre ; coiffer la liste entière d'un titre
+       « Au centre » n'apprendrait rien à personne. */
+    const parLieu={centre:[], dehors:[]};
+    vivantes.forEach(function(x){ parLieu[propLieu(x)].push(x); });
+    const lesDeux=(parLieu.centre.length>0 && parLieu.dehors.length>0);
+    PROP_LIEUX.forEach(function(L){
+      const lot=parLieu[L.k];
+      if(!lot.length) return;
+      if(lesDeux) h+='<div class="ghead" style="margin-top:14px">'+esc(L.l)+'</div>';
+      /* ⚠ SOUS UN TITRE « DEHORS », L'ÉTIQUETTE « DEHORS » NE DIT RIEN DE PLUS —
+         on la retire quand les deux paquets sont écrits. Elle reste quand il n'y a
+         qu'un paquet, et dans « Déjà faites », qui mélange les deux.
+         ⚠ PAS DE `.map(propCarte)` ICI : `map` passerait l'INDEX en deuxième
+         argument, et la première carte (index 0) se comporterait autrement que les
+         suivantes. */
+      h+=lot.map(function(x){ return propCarte(x, lesDeux); }).join('');
+    });
     if(faites.length) h+='<div class="ghead" style="margin-top:16px">Déjà faites</div>'+
-      faites.map(propCarte).join('');
+      faites.map(function(x){ return propCarte(x, false); }).join('');
   }
   /* ⚠ LE TITRE ET LE PAVÉ D'AIDE (Mag, 12/08/2026) : « là note juste "proposition
      d'activité des hébergés" », puis « et retire ça » en montrant le paragraphe du
@@ -22301,6 +22370,14 @@ function propositionsHTML(){
         '<div class="fchips">'+PROP_SOURCES.map(function(s){
           return '<button class="fchip'+(PROP_SOURCE===s.k?' on':'')+'" onclick="propSourceChoix(\''+s.k+'\')">'+
             esc(s.l)+'</button>';
+        }).join('')+'</div></div>'+
+      /* ⚠ « OÙ ? » VIENT APRÈS « ÇA VIENT DE QUI ? », et pas avant : la source est ce
+         qui change le sens de la phrase (une demande n'est pas une idée) ; le lieu ne
+         fait que la ranger. On pose d'abord la question qui compte. */
+      '<div class="propc"><span class="passl-t">Où ?</span>'+
+        '<div class="fchips">'+PROP_LIEUX.map(function(L){
+          return '<button class="fchip'+(PROP_LIEU===L.k?' on':'')+'" onclick="propLieuChoix(\''+L.k+'\')">'+
+            esc(L.l)+'</button>';
         }).join('')+'</div></div>'+
       '<button class="acok" onclick="propAjouter()">Noter la proposition</button>'+
     '</div></details>';
@@ -24598,8 +24675,54 @@ const ACT_PORTES=[
   {k:'a27',     p:'ticket', c:'#6fc7d9', l:'Article 27<br>1,25 €'},
   {k:'waka',    p:'gand',  c:'#f5c542', l:'WAKA UP',
    f:function(x){ return /waka/i.test(x.asso||''); }},
-  {k:'parcs',   p:'adresse', c:'#a8d8c1', l:'Les parcs aux alentours', lg:'Les parcs'}
+  {k:'parcs',   p:'adresse', c:'#a8d8c1', l:'Les parcs aux alentours', lg:'Les parcs'},
+  /* ═══ TROIS PORTES DE PLUS (Mag, 28/08/2026) ═══
+     « Une formule gratuite, réservée aux femmes, article vingt-sept, les parcs —
+     comme je l'avais mis. Mets aussi LGBT. Et remets le calendrier. »
+     · LGBTQI+ — il n'y a AUCUNE activité encodée pour ce public : la porte ouvre
+       donc les huit associations du Réseau, qui, elles, existent. Le jour où une
+       activité arrive avec `pour_qui='lgbt'`, elle se posera au-dessus d'elles.
+       ⚠ Son dessin est en COULEUR (`ic`) : un arc-en-ciel en masque noir n'est plus
+       un arc-en-ciel, c'est un arc.
+     · LE CALENDRIER DU MOIS — il n'avait pas disparu, il n'était plus appelé nulle
+       part depuis le 13/08 : `agCalendrierHTML()` était du code orphelin. Il revient
+       là où elle l'avait accepté — dans le tiroir qu'on ouvre si on le veut, pas en
+       travers de la page.
+     · PROPOSITION D'ACTIVITÉ — le carnet, qui n'avait pas de porte : il traînait en
+       bas de la page, là où on ne descend pas. */
+  {k:'lgbt',  p:'lgbtqi',   ic:'rainbow',  c:'#fd8fd0', l:'LGBTQI+'},
+  /* ⚠ `planning` DESSINE UN BOUCLIER, PAS UN CALENDRIER — vérifié à l'écran, pas
+     dans le code. C'est `calendrier` qui dessine une grille de mois. */
+  {k:'cal',   p:'planning', ic:'calendrier', c:'#A9C8E8', l:'Le calendrier du mois', lg:'Le calendrier'},
+  {k:'propo', p:'astuce',   ic:'bulb',       c:'#f6e7a8', l:'Proposition d\u2019activit\u00e9'}
 ];
+/* Ouvrir une porte des Activités depuis UNE AUTRE PAGE (le Centre) : on arme le
+   panneau, puis on va à la page — elle se dessine avec le panneau déjà monté.
+   ⚠ Un seul chemin pour les deux endroits : la page et le Centre lisent la même
+   liste `ACT_PORTES`. Deux listes finiraient par diverger. */
+/* ⚠ SI ON Y EST DÉJÀ, `go()` NE REDESSINE RIEN : il ne fait que changer l'adresse,
+   et c'est `hashchange` qui appelle `render()` — or l'adresse ne change pas quand
+   elle est déjà la bonne. Vu à l'écran : le panneau ne s'ouvrait pas depuis la page
+   elle-même. */
+function actDe(k){ ACT_PAN=k;
+  if(String(location.hash||'').indexOf('#/ticket')===0) render(); else go('#/ticket'); }
+/* L'ORDRE DES TUILES, et il est le sien : « une formule gratuite, réservée aux
+   femmes, article vingt-sept, les parcs ». LGBTQI+ se pose contre « Réservé aux
+   femmes » — ce sont les deux portes qui disent UN PUBLIC. Le calendrier et le
+   carnet ferment la marche : ce ne sont pas des filtres, ce sont des outils.
+   ⚠ WAKA UP N'A PAS DE TUILE, ET C'EST VOULU (Mag, 28/08/2026 : « dans réservé aux
+   femmes il y a WAKA UP, en attendant d'autres »). Le jour où une deuxième asbl
+   arrive, c'est une ligne de plus derrière la même porte, pas un bouton de plus. */
+const ACT_GRILLE=['gratuit','femmes','lgbt','a27','parcs','cal','propo'];
+function actTuilesHTML(fn){
+  const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
+  return '<div class="acttrois">'+ACT_GRILLE.map(function(k){
+    const q=actPorte(k); if(!q) return '';
+    return '<button class="actb3" onclick="'+fn+'(\''+q.k+'\')">'+
+      '<i style="color:'+q.c+'">'+(q.ic?icon(q.ic):P(q.p))+'</i>'+
+      '<b>'+esc((q.lg||q.l).replace(/<br>/g,' '))+'</b></button>';
+  }).join('')+'</div>';
+}
 let ACT_PAN='';                        /* '' = aucun panneau ouvert */
 function actOuvrir(k){ ACT_PAN=k; render(); }
 function actFermer(){ ACT_PAN=''; render(); }
@@ -24815,12 +24938,11 @@ function vTicket(){
      l'encart WAKA, en seule rangée — on le perdait sous la ligne de flottaison,
      alors que c'est une porte qu'on ouvre aussi souvent que les trois autres. */
   const P=function(f,cls){ return '<span class="pico'+(cls?' '+cls:'')+'" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
-  h+='<div class="acttrois">'+[
-    ACT_PORTES[0], ACT_PORTES[1], ACT_PORTES[2], ACT_PORTES[4]
-  ].map(function(q){
-      return '<button class="actb3" onclick="actOuvrir(\''+q.k+'\')">'+
-        '<i style="color:'+q.c+'">'+P(q.p)+'</i><b>'+esc((q.lg||q.l).replace(/<br>/g,' '))+'</b></button>';
-    }).join('')+'</div>';
+  /* ⚠ LES TUILES NE SONT PLUS ÉCRITES ICI (28/08/2026) : la page et le Centre
+     affichent la MÊME grille, donc elle n'existe qu'à un endroit. Deux copies
+     finissent toujours par diverger — c'est ce qui était arrivé aux sections du
+     Centre, écrites deux fois pour deux vues. */
+  h+=actTuilesHTML('actOuvrir');
 
   /* L'ENCART WAKA — variante B, celle qu'elle a choisie : la bande des pictos
      d'activités plutôt que les prochaines dates. « On comprend WAKA sans lire. » */
@@ -24867,7 +24989,10 @@ function vTicket(){
      même information que l'encart WAKA et son panneau, en trois fois plus long, et
      avec un bouton dangereux à portée de pouce. L'ajout et le retrait restent
      possibles depuis l'Admin. */
-  h+=propositionsHTML();
+  /* ⚠ LE CARNET N'EST PLUS ÉCRIT ICI (Mag, 28/08/2026) : il a maintenant SA PORTE,
+     la tuile « Proposition d'activité », en haut de cette page et dans le Centre.
+     Le laisser aussi en bas, c'était la même liste deux fois sur le même écran —
+     et c'est en bas qu'on ne descendait pas. */
 
   /* Le contenu de l'ancienne page « Éduc », à la suite : d'abord ce qui se passe,
      ensuite les idées pour la suite. */
@@ -24894,6 +25019,51 @@ function actPanneau(){
   let corps='', titre=q.l.replace(/<br>/g,' '), sur='', pied='';
 
   if(ACT_PAN==='a27'){ corps=actPanA27(); sur='Théâtre, cinéma, concerts'; }
+  /* ═══ LE CALENDRIER DU MOIS, DANS UN TIROIR (Mag, 28/08/2026 : « remets le
+     calendrier ») ═══
+     Il n'avait pas été supprimé : depuis le 13/08, `agCalendrierHTML()` n'était plus
+     appelé nulle part. Il revient à la place qu'elle lui avait donnée le 12/08 — pas
+     en travers de la page, où il fallait le faire défiler avant de voir une sortie,
+     mais derrière une porte qu'on ouvre quand on le veut.
+     ⚠ Les flèches de mois appellent `render()` : le panneau reste ouvert (`ACT_PAN`
+     ne bouge pas), donc on change de mois sans sortir du tiroir. */
+  else if(ACT_PAN==='cal'){ corps=agCalendrierHTML(); sur='Ce qui tombe ce mois-ci';
+    if(!corps) corps='<p class="hint" style="padding:14px 2px">Rien d’encodé pour l’instant.</p>'; }
+  /* ═══ LGBTQI+ ═══
+     ⚠ AUCUNE ACTIVITÉ N'EST ENCODÉE POUR CE PUBLIC — on ne fabrique donc pas une
+     liste vide : la porte ouvre les associations du Réseau, qui existent et qui, pour
+     plusieurs d'entre elles, organisent elles-mêmes des activités. Le jour où une
+     activité arrive avec `pour_qui='lgbt'`, elle se pose AU-DESSUS d'elles, sans rien
+     changer d'autre. */
+  else if(ACT_PAN==='lgbt'){
+    const acts=activitesDatees().filter(function(x){ return x.pourQui==='lgbt'; });
+    const fs=(typeof fichesDe==='function')?fichesDe('lgbt'):[];
+    sur=fs.length+' association'+(fs.length>1?'s':'');
+    corps=acts.map(function(x){
+      const a=x.r||{}, pi=actPicto(a.titre);
+      return '<div class="actrow">'+
+        '<span class="tu" style="background:'+(pi?pi.c:'#fd8fd0')+'">'+(pi?P(pi.f):P('lgbtqi'))+'</span>'+
+        '<span class="tx"><em>'+esc(actJourFr(x))+'</em><b>'+esc(a.titre||'Sortie')+'</b>'+
+          (a.adr||a.lieu?'<i>'+esc(a.adr||a.lieu)+'</i>':'')+'</span></div>';
+    }).join('')+
+    fs.map(function(f){
+      return '<button class="actrow" style="width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #eae6de;font-family:inherit;cursor:pointer" '+
+        'onclick="go(\'#/f/'+f.sid+'\')">'+
+        '<span class="tu" style="background:#f9dcec">'+icon('rainbow')+'</span>'+
+        '<span class="tx"><em>'+esc(f.commune||'')+'</em><b>'+esc(f.nom)+'</b>'+
+          (f.public?'<i>'+esc(f.public)+'</i>':'')+'</span>'+
+        '<span class="chv" style="color:var(--enc2)">\u203A</span></button>';
+    }).join('');
+  }
+  /* ═══ LE CARNET DES PROPOSITIONS ═══
+     Il vivait tout en bas de la page, sans porte — donc on ne descendait pas jusqu'à
+     lui. Il devient une porte comme les autres (Mag, 28/08/2026 : « rajoute un bouton
+     proposition activité »). */
+  else if(ACT_PAN==='propo'){
+    const viv=PROPOS.filter(function(x){ return x.etat!=='faite'; });
+    sur=viv.length?viv.length+' proposition'+(viv.length>1?'s':''):'rien de noté';
+    corps='<div class="propan">'+propositionsHTML(true)+'</div>';
+  }
   else if(ACT_PAN==='parcs'){
     sur='À pied depuis le centre';
     const g=(QUARTIER||[]).find(function(x){ return /parcs/i.test(x.grp||''); });
