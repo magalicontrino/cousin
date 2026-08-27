@@ -13354,8 +13354,8 @@ function renderInterne(){
   }
   else if(current.view==='educ') view.innerHTML=vEduc();
   else if(current.view==='lexique') view.innerHTML=vLexique();
-  else if(current.view==='bibliotheque'){ FONGLET='livres'; view.innerHTML=vFormations(); }
-  else if(current.view==='podcasts'){ FONGLET='podcasts'; view.innerHTML=vFormations(); }
+  else if(current.view==='bibliotheque') view.innerHTML=vLivres();
+  else if(current.view==='podcasts') view.innerHTML=vPodcasts();
   else if(current.view==='partager') view.innerHTML=vPartager();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='recherche'){ view.innerHTML=vRecherche();
@@ -14407,13 +14407,21 @@ function vCentre(){
        ⚠ ET SEULEMENT QUAND C'EST VRAI : sans rien en cours, le sous-titre reprend le
        compte des portes. Un « 0 formation en cours » serait une ligne qui ne change
        rien à ce qu'on fait. */
-    {n:'Apprendre', c:'#b28b7a', p:'educatif',
+    /* ⚠ FORMATIONS SORT D'« APPRENDRE » (Mag, 28/08/2026). Elle était DEDANS pendant
+       que Livres et Podcasts étaient À CÔTÉ, en cartes — alors que les trois ouvrent
+       des pages du même genre. C'est ce mélange de niveaux qu'elle n'arrivait pas à
+       lire, et elle avait raison.
+       Les trois sont maintenant au même rang. « Apprendre » garde ce qui sert à
+       s'exercer et à chercher un mot : les jeux, le dictionnaire, les ressources. */
+    {n:'Formations', c:'#6cb392', p:'educatif',
      s:function(){
        const n=DATA.filter(function(p){
          return p.domaine==='formations' && fluLus(p.sid).length>0; }).length;
        return n ? n+' formation'+(n>1?'s':'')+' en cours' : '';
      },
-     k:['Formations','Les jeux','Le dictionnaire']},
+     k:['Formations']},
+    {n:'Apprendre', s:'', c:'#b28b7a', p:'star',
+     k:['Les jeux','Le dictionnaire']},
     /* ⚠ LES LIVRES ONT LEUR PROPRE CARTE (Mag, 27/08/2026 : « rajoute une carte avec
        livre, et mets la section des livres dedans, ce sera plus clair »). Ils étaient
        la quatrième ligne d'« Apprendre », coincés entre les jeux et le dictionnaire —
@@ -14658,7 +14666,13 @@ function vCentre(){
        là qu'ils vivent, une seule fois.
        ⚠ Ceci remplace la règle du matin (« toujours les ressources en premier dans
        les boutons ») : c'est elle qui l'a resserrée, ne pas la rétablir seul. */
-    const ress = (nDocs && fi===2) ? porteCentre('imprimer','Ressources',
+    /* ⚠ PAR LE NOM, PLUS PAR LA POSITION (28/08/2026). « Ressources » était accrochée
+       à `fi===2`, c'est-à-dire au TROISIÈME dépliant, quel qu'il soit. En sortant
+       Formations d'« Apprendre », les index ont glissé d'un cran et les documents
+       officiels seraient partis dans le mauvais tiroir — sans que rien ne le signale.
+       Le piège était écrit noir sur blanc dans ce fichier, et il s'est quand même
+       déclenché : un commentaire n'empêche rien, une règle si. */
+    const ress = (nDocs && FAMILLES[fi] && FAMILLES[fi].n==='Apprendre') ? porteCentre('imprimer','Ressources',
         nDocs+(nDocs>1?' documents officiels':' document officiel'),"go('#/ressources')") : '';
 
     const porte=function(nom){
@@ -14693,7 +14707,7 @@ function vCentre(){
        Un chiffre faux sur un bouton fermé, c'est pire que pas de chiffre : il sert à
        décider si ça vaut la peine d'ouvrir. */
     /* Seule « Apprendre » gagne la porte Ressources : le compte ne l'ajoute qu'à elle. */
-    const enPlus=((nDocs && fi===2)?1:0);
+    const enPlus=((nDocs && f.n==='Apprendre')?1:0);
     nPortes+=dedans.length+enPlus; nPortesFam.push(dedans.length+enPlus);
     const ouvert=(CENTRE_FAM===String(fi));
     const nDedans=dedans.length+enPlus;
@@ -18579,6 +18593,18 @@ function fRess(r){
     : '<div class="frow2 fext">'+corps+'</div>';
 }
 
+/* L'étagère des livres — sa page, son bandeau, rien d'autre dedans. */
+function vLivres(){
+  return heroBandeau('Livres', FORM_LIVRES.length+' volumes', '#b28b7a','book', false)+
+    '<div class="famdedans" style="border:0;padding-top:4px">'+fLivresHTML()+'</div>'+
+    '<div style="height:26px"></div>';
+}
+/* Les podcasts — leur page. Rangés par sujet, comme elle l'a demandé. */
+function vPodcasts(){
+  return heroBandeau('Podcasts', FORM_POD.length+' à écouter', '#b28b7a','chat', false)+
+    '<div class="famdedans" style="border:0;padding-top:4px">'+fPodcastsHTML()+'</div>'+
+    '<div style="height:26px"></div>';
+}
 function vFormations(){
   const mods=DATA.filter(p=>p.domaine==='formations');
   const commences=mods.filter(p=>fluLus(p.sid).length>0);
@@ -18611,7 +18637,7 @@ function vFormations(){
        haut) : la page s'ouvre alors directement sur les sujets.
      ⚠ « À reprendre » ne va pas dans les Livres (ta remarque du même jour) : ce sont
      des formations à finir, sous une étagère de livres ça ne veut rien dire. */
-  if(FONGLET!=='livres' && areprendre.length)
+  if(areprendre.length)
   h+='<div class="sect"><b>À reprendre</b><em>'+areprendre.length+' en cours</em></div>'+
     '<div class="frepr">'+areprendre.map(function(p){
       const ch=formationChapitres(p.page), lus=fluLus(p.sid).length, c=themeCoul(p.theme);
@@ -18641,21 +18667,14 @@ function vFormations(){
   /* ═══ DEUX ONGLETS (Mag, 27/08/2026) ═══
      Le même bandeau segmenté qu'« Autour d'ici » : deux vues d'une même page, pas
      deux pages. On ne perd pas « À reprendre » en passant à la bibliothèque. */
-  h+='<div class="qseg" style="margin-left:0;margin-right:0">'+
-    '<button class="qsegb'+(FONGLET==='sujets'?' on':'')+'" onclick="fOnglet(\'sujets\')">Par sujet</button>'+
-    '<button class="qsegb'+(FONGLET==='livres'?' on':'')+'" onclick="fOnglet(\'livres\')">Livres · '+FORM_LIVRES.length+'</button>'+
-    /* ⚠ TROISIÈME ONGLET (Mag, 27/08/2026 : « je voudrais les mettre comme quatrième
-       bouton aussi »). Les podcasts existaient déjà, rangés DANS chaque sujet — donc
-       introuvables si on cherche « un podcast » plutôt qu'« un sujet ». Ils gardent
-       leur place dans les sujets ET ont leur étagère, comme les livres.
-       ⚠ ILS RESTENT TRIÉS PAR SUJET ICI AUSSI (sa demande du même jour) : la liste
-       n'est pas à plat, elle est groupée par thème. */
-    '<button class="qsegb'+(FONGLET==='podcasts'?' on':'')+'" onclick="fOnglet(\'podcasts\')">Podcasts · '+FORM_POD.length+'</button>'+
-    '</div>';
-  if(FONGLET==='livres') return h+'<div class="famdedans" style="border:0;padding-top:4px">'+
-    fLivresHTML()+'</div><div style="height:26px"></div>';
-  if(FONGLET==='podcasts') return h+'<div class="famdedans" style="border:0;padding-top:4px">'+
-    fPodcastsHTML()+'</div><div style="height:26px"></div>';
+  /* ═══ PLUS D'ONGLETS : TROIS PAGES SÉPARÉES (Mag, 28/08/2026) ═══
+     Ses mots : « pourquoi tu as mélangé tout ça ? Pourquoi quand je vais dans le
+     livre, ça ouvre les podcasts ? Je ne comprends pas ta façon de trier. »
+     Elle avait raison, et c'était ma faute. Formations, Livres et Podcasts étaient
+     UNE page à trois onglets — mais rangés à DEUX niveaux dans le Centre :
+     Formations dans « Apprendre », Livres et Podcasts à côté, en cartes. Trois choses
+     qui vivaient ensemble, présentées comme si elles étaient séparées.
+     On clique Livres, on a les livres. Rien d'autre à un doigt. */
   ordre.forEach(function(t){
     const g=parTheme[t]||{};
     const n=SORTES.reduce(function(a,x){ return a+((g[x.k]||[]).length); },0);
