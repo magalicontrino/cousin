@@ -3107,8 +3107,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .chadd{display:flex;gap:8px;margin:10px 0 10px}
 .chadd input,.chadd textarea{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--noir);
   background:#f4f3f0;border:1px solid var(--ligne);border-radius:0;padding:11px 12px}
-/* Le champ de note grandit avec le texte : on doit voir ce qu'on écrit. */
-.chadd textarea{resize:none;overflow:hidden;line-height:1.4;min-height:44px;display:block}
+/* ═══ LE CHAMP DE NOTE : IL GRANDIT, ET IL NE PART PLUS D'UNE FENTE ═══
+   Ta remarque du 27/08/2026 : « la case pour écrire, il me semble qu'elle soit un
+   peu trop petite — j'espère que quand on écrit, ça grandit ».
+   Il grandissait déjà (`passGrandir` recalcule la hauteur à chaque frappe), mais il
+   PARTAIT de 44 px, c'est-à-dire une seule ligne. Un champ d'une ligne dit « écris
+   trois mots » ; ici on veut une phrase, parfois deux. Il s'ouvre donc sur trois
+   lignes, et continue de grandir au-delà.
+   ⚠ `min-height` et pas `height` : sinon `passGrandir` ne pourrait plus le
+   raccourcir quand on efface. */
+.chadd textarea{resize:none;overflow:hidden;line-height:1.45;min-height:76px;display:block}
 .chadd input:focus,.chadd textarea:focus{outline:0;border-color:var(--trait-fort)}
 .chaddbtn{flex:none;background:var(--noir);color:#f2eee6;border-radius:0;padding:11px 16px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
@@ -19323,7 +19331,17 @@ function avisCorpsHTML(sid){
 
   /* Le commentaire et SON bouton, sur la même ligne. Il est facultatif, et le champ
      le dit lui-même — une étiquette seule est une réponse complète. */
-  h+='<div class="chadd" style="margin-top:12px">'+
+  /* ⚠ EMPILÉ, COMME LE WIKI DES PAGES (27/08/2026). Côte à côte, « Partager à
+     l'équipe » prenait toute la largeur et le champ se réduisait à une colonne où le
+     texte descendait mot par mot. Et il n'y avait aucune raison que les deux wikis
+     de l'app se présentent différemment : même geste, même dessin. */
+  /* ⚠ `empile` OUI, `ecrire` NON. `empile` fait ce que tu as demandé : le champ prend
+     toute la largeur et le bouton descend dessous — côte à côte, « Partager à l'équipe »
+     mangeait la place et le texte s'écrivait mot par mot, en colonne.
+     `ecrire` (l'habillage du wiki des pages) apporterait EN PLUS un gros cadre noir
+     autour de la rangée. Tu ne l'as pas demandé, et sur une fiche déjà cadrée ça ferait
+     une boîte dans une boîte. */
+  h+='<div class="chadd empile" style="margin-top:12px">'+
      /* ⚠ UN TEXTAREA, PAS UN INPUT, et il grandit sous les doigts (`passGrandir`,
         déjà écrit pour Ma liste perso). 4000 caractères au lieu de 400 : de quoi
         écrire l'AMU, l'adresse de référence et le réquisitoire d'un seul tenant.
@@ -19332,11 +19350,20 @@ function avisCorpsHTML(sid){
         deux. On enregistre avec le bouton — ou Ctrl/⌘ + Entrée. */
      '<textarea id="avisTxt" rows="1" maxlength="4000" autocomplete="off" '+
      'oninput="avisTape();passGrandir(this)" '+
-     'placeholder="Ce que tu sais de cette adresse…" '+
+     /* ⚠ COURT : le champ est étroit (le bouton prend sa place à droite), et
+        « Ce que tu sais de cette adresse… » se coupait en plein mot — on lisait
+        « Ce que tu sais de cette / adresse » avec la seconde ligne rognée. */
+     'placeholder="Ce que tu sais d’ici…" '+
      'onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){event.preventDefault();avisCommentaire(\''+sid+'\');}">'+
      esc((mien&&mien.texte)||'')+'</textarea>'+
      '<button class="chaddbtn'+(AVIS_TAPE?'':' off')+'" onclick="avisCommentaire(\''+sid+'\')">'+
-     (mien&&mien.texte?'Modifier':'Poser')+'</button>'+
+     /* ⚠ « PARTAGER À L'ÉQUIPE », ton choix du 27/08/2026 (« j'aime pas Poser, ça me
+        fait rien »). Tu as raison : « poser » ne dit ni où ça va ni à qui — on posait
+        quelque chose quelque part, sans savoir quoi ni pour qui. Celui-ci dit les
+        deux, et c'est ce qui donne envie d'appuyer : on écrit POUR des collègues.
+        Il est plus long que les autres boutons de l'app, et c'est assumé — la
+        rangée passe à la ligne sous lui plutôt que de le rogner (voir .chaddbtn). */
+     (mien&&mien.texte?'Modifier':'Partager à l’équipe')+'</button>'+
      '</div>';
   /* ⚠ « SANS PHRASE » DISAIT CE QU'ON N'AVAIT PAS FAIT (18/08/2026). Quelqu'un qui
      voulait juste dire « c'est pour dormir » avait fini son travail — et l'écran lui
