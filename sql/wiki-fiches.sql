@@ -1,6 +1,6 @@
--- COUSIN — LE WIKI DES FICHES : UN SEUL TEXTE, ECRIT PAR TOUS (Mag, 27/08/2026)
+-- COUSIN -- LE WIKI DES FICHES : UN SEUL TEXTE, ECRIT PAR TOUS (Mag, 27/08/2026)
 --
--- Sa demande : « ce serait bien que ca fasse comme un Wikipedia ». Deux versions lui
+-- Sa demande : " ce serait bien que ca fasse comme un Wikipedia ". Deux versions lui
 -- ont ete dessinees ; elle a choisi la A : le texte commun et l historique, MAIS la
 -- validation reste la sienne.
 --
@@ -24,19 +24,19 @@
 -- (4) PERSONNE NE S AUTO-VALIDE. L insertion n accepte que etat = 'attente'.
 -- (5) UN REFUS PORTE UNE RAISON. Meme contrainte que conseils et wiki_centre.
 --
--- ⚠ L HISTORIQUE EST LE VRAI APPORT, pas le texte commun. Sans lui, un texte que
+-- /!\ L HISTORIQUE EST LE VRAI APPORT, pas le texte commun. Sans lui, un texte que
 -- tout le monde reecrit devient intenable : on ne sait plus qui a enleve quoi, ni
 -- comment revenir. `wiki_versions` garde TOUTES les versions, meme validees, meme
 -- remplacees. On n efface jamais une version.
 --
--- ⚠ LES ANCIENNES NOTES NE SONT PAS PERDUES : la migration en bas de ce fichier les
+-- /!\ LES ANCIENNES NOTES NE SONT PAS PERDUES : la migration en bas de ce fichier les
 -- assemble en une premiere version par fiche, avec leurs auteurs. La table `avis`
--- n est PAS supprimee — on ne detruit pas ce qu on vient de convertir, et les
+-- n est PAS supprimee -- on ne detruit pas ce qu on vient de convertir, et les
 -- etiquettes continuent d y vivre.
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 1. LE TEXTE PUBLIC — ce que l equipe lit sur la fiche
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
+-- 1. LE TEXTE PUBLIC -- ce que l equipe lit sur la fiche
+-- ===========================================================================
 create table if not exists public.wiki_fiches (
   sid        text        primary key,            -- la fiche du catalogue
   texte      text        not null default '',
@@ -46,14 +46,14 @@ create table if not exists public.wiki_fiches (
   constraint wiki_fiches_texte_borne check (char_length(texte) <= 4000)
 );
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 2. L HISTORIQUE — toutes les versions, y compris celles en attente
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
+-- 2. L HISTORIQUE -- toutes les versions, y compris celles en attente
+-- ===========================================================================
 create table if not exists public.wiki_versions (
   id          bigserial   primary key,
   sid         text        not null,
   texte       text        not null,
-  resume      text        not null default '',   -- « a ajoute le numero direct »
+  resume      text        not null default '',   -- " a ajoute le numero direct "
   auteur_uid  uuid        not null default auth.uid(),
   auteur_nom  text        not null default '',
   cree_le     timestamptz not null default now(),
@@ -64,25 +64,25 @@ create table if not exists public.wiki_versions (
   constraint wiki_versions_texte_plein  check (char_length(btrim(texte)) between 1 and 4000),
   constraint wiki_versions_resume_court check (char_length(resume) <= 120),
   constraint wiki_versions_etat_connu   check (etat in ('attente','ok','refus')),
-  -- ⚠ ON NE PEUT PAS REFUSER EN SILENCE. Un refus muet, dans une equipe, se lit
+  -- /!\ ON NE PEUT PAS REFUSER EN SILENCE. Un refus muet, dans une equipe, se lit
   -- comme un mepris. Meme regle que conseils.sql et wiki-centre.sql.
   constraint wiki_versions_refus_motive check (etat <> 'refus' or coalesce(motif,'') <> '')
 );
 
 -- Ce qu on lit : l historique d une fiche (recent d abord), et la file d attente de
--- la coordination (le plus vieux d abord — c est une file, pas un fil d actualite).
+-- la coordination (le plus vieux d abord -- c est une file, pas un fil d actualite).
 create index if not exists wiki_versions_sid_idx  on public.wiki_versions (sid, cree_le desc);
 create index if not exists wiki_versions_etat_idx on public.wiki_versions (etat, cree_le);
 
 alter table public.wiki_fiches   enable row level security;
 alter table public.wiki_versions enable row level security;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
 -- 3. QUI PEUT QUOI
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
 
 -- LE TEXTE PUBLIC : tout le monde le lit, SEULE la coordination l ecrit. C est ici
--- que tient la regle (3) — pas a l ecran. Si l ecran se trompait, la base tiendrait.
+-- que tient la regle (3) -- pas a l ecran. Si l ecran se trompait, la base tiendrait.
 drop policy if exists wiki_fiches_lire on public.wiki_fiches;
 create policy wiki_fiches_lire on public.wiki_fiches
   for select to authenticated
@@ -112,7 +112,7 @@ create policy wiki_versions_lire on public.wiki_versions
     )
   );
 
--- ECRIRE : tout membre actif, et SEULEMENT en « attente ». Regles (2) et (4).
+-- ECRIRE : tout membre actif, et SEULEMENT en " attente ". Regles (2) et (4).
 drop policy if exists wiki_versions_ecrire on public.wiki_versions;
 create policy wiki_versions_ecrire on public.wiki_versions
   for insert to authenticated
@@ -121,7 +121,7 @@ create policy wiki_versions_ecrire on public.wiki_versions
   );
 
 -- TRANCHER : la coordination. Celui qui a propose peut encore corriger SA proposition
--- tant qu elle attend — mais pas la faire passer en « ok ».
+-- tant qu elle attend -- mais pas la faire passer en " ok ".
 drop policy if exists wiki_versions_trancher on public.wiki_versions;
 create policy wiki_versions_trancher on public.wiki_versions
   for update to authenticated
@@ -135,8 +135,8 @@ create policy wiki_versions_trancher on public.wiki_versions
   );
 
 -- RETIRER : sa propre proposition tant qu elle attend, ou l administration.
--- ⚠ On ne supprime PAS une version validee : c est l historique, il doit rester
--- complet pour que « revenir » ait un sens.
+-- /!\ On ne supprime PAS une version validee : c est l historique, il doit rester
+-- complet pour que " revenir " ait un sens.
 drop policy if exists wiki_versions_retirer on public.wiki_versions;
 create policy wiki_versions_retirer on public.wiki_versions
   for delete to authenticated
@@ -145,8 +145,8 @@ create policy wiki_versions_retirer on public.wiki_versions
     or public.is_admin()
   );
 
--- ⚠ SANS CE GRANT, LES POLICIES NE SUFFISENT PAS : « permission denied ».
--- La lecon a deja coute une seance (voir la memoire « le grant des nouvelles tables »).
+-- /!\ SANS CE GRANT, LES POLICIES NE SUFFISENT PAS : " permission denied ".
+-- La lecon a deja coute une seance (voir la memoire " le grant des nouvelles tables ").
 grant select, insert, update, delete on public.wiki_fiches   to authenticated;
 grant select, insert, update, delete on public.wiki_versions to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
@@ -166,12 +166,12 @@ begin
   end if;
 end $$;
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 4. LA MIGRATION — les anciennes notes deviennent la premiere version
--- ═══════════════════════════════════════════════════════════════════════════
--- ⚠ ELLE NE S EXECUTE QU UNE FOIS : le `where not exists` fait qu un second passage
+-- ===========================================================================
+-- 4. LA MIGRATION -- les anciennes notes deviennent la premiere version
+-- ===========================================================================
+-- /!\ ELLE NE S EXECUTE QU UNE FOIS : le `where not exists` fait qu un second passage
 -- ne recree rien. On peut relancer ce fichier entier sans rien casser.
--- ⚠ ET ELLE NE TOUCHE PAS A `avis` : on ne detruit pas ce qu on vient de convertir.
+-- /!\ ET ELLE NE TOUCHE PAS A `avis` : on ne detruit pas ce qu on vient de convertir.
 -- Les etiquettes continuent d y vivre, seul le TEXTE demenage.
 
 -- Une version d origine par fiche, faite des notes existantes mises bout a bout,
@@ -199,9 +199,9 @@ where v.resume = 'reprise des notes de l equipe'
   and not exists (select 1 from public.wiki_fiches w where w.sid = v.sid)
 group by v.sid, v.texte;
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 5. VERIFICATION — doit repondre sans erreur
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
+-- 5. VERIFICATION -- doit repondre sans erreur
+-- ===========================================================================
 select
   (select count(*) from public.wiki_fiches)   as fiches_avec_un_texte,
   (select count(*) from public.wiki_versions) as versions_en_tout,

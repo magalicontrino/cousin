@@ -1719,6 +1719,47 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* ⚠ Il ne va PAS sur le papier : une feuille qu'on imprime peut se retrouver dans
    n'importe quelle main, justement. Le bloc entier est déjà exclu de l'impression. */
 @media print{ .wikiprive{display:none !important} }
+/* ── LE WIKI DES FICHES : le texte commun, l'historique, la relecture ── */
+.wftexte{background:var(--champ,#f4f3f0);border-left:3px solid var(--ligne);
+  padding:11px 13px;font-size:14.5px;line-height:1.55;white-space:normal}
+.wfmaj{margin:6px 0 0;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--enc2)}
+.wfbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.wfhb{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--noir);border:1px solid var(--trait);
+  padding:10px 13px;background:transparent}
+.wfhisto{margin-top:11px;border-top:1px solid var(--ligne)}
+/* ⚠ DEUX RANGS, PAS UN. Sur 375 px, « Afaf · 27/08 · a ajoute le vendredi · en
+   place » ne tient pas sur une ligne : « en place » sortait de l'ecran et le bouton
+   « Revenir » s'etirait sur toute la largeur, faisant un pave par version. Le nom et
+   la date en haut, le geste en dessous et a droite. */
+.wfh{display:grid;grid-template-columns:auto 1fr;gap:2px 9px;padding:9px 0;
+  border-bottom:1px solid var(--ligne)}
+.wfh b{grid-column:1}
+.wfh em{grid-column:2}
+/* ⚠ À GAUCHE, PAS À DROITE. Collés au bord droit, « EN PLACE » et « REVENIR À
+   CELLE-CI » — capitales espacées — sortaient de l'écran de quelques lettres. Et à
+   gauche ils se lisent mieux : l'œil descend le long des noms, il trouve le geste
+   au même endroit à chaque ligne. */
+.wfh .lienbas,.wfh .wfh-on{grid-column:2;justify-self:start;margin-top:3px;
+  width:auto;padding:2px 0;border:0;background:none;text-align:left}
+.wfh:last-child{border-bottom:0}
+.wfh b{font-size:13.5px;font-weight:600}
+.wfh em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--enc2)}
+
+.wfh-on{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--turq,#6cb392)}
+.wfh.on{background:rgba(108,179,146,.09)}
+/* ⚠ DANS LA FILE : le AVANT et le PROPOSÉ, l'un sous l'autre. Relire un texte sans
+   son précédent, c'est relire à l'aveugle — on ne voit pas ce qui a été ENLEVÉ. */
+.wfavant,.wfapres{font-size:13.5px;line-height:1.5;padding:9px 11px;margin-top:8px}
+.wfavant{background:rgba(27,27,27,.05);color:var(--enc2)}
+.wfapres{background:var(--champ,#f4f3f0);border-left:3px solid var(--turq,#6cb392)}
+.wfavant em,.wfapres em{display:block;font-style:normal;font-family:ui-monospace,monospace;
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-bottom:4px}
+/* Le wiki ne va pas sur le papier — la feuille qu'on donne garde les consignes. */
+@media print{ .wftexte,.wfbar,.wfhisto,.wfmaj{display:none !important} }
 .wiki-carnet{margin:22px var(--pad) 0}
 .wiki-att{background:#fdfdfc;border:1.25px dashed var(--trait);border-radius:10px;
   padding:11px 13px;margin-top:10px}
@@ -15748,6 +15789,10 @@ async function loadAdmin(){
       const b=await sb.rpc('gestion_demandes'); ADMIN.requests=(b&&b.data)||[];
     }catch(e){}
     await loadARanger();
+  /* La file du wiki des fiches se charge avec celle des avis : elles s'affichent
+     l'une sous l'autre dans « Wiki a ranger », et une file chargee a moitie donnerait
+     un compte faux sur le bouton. */
+  if(typeof loadWikiFile==='function') await loadWikiFile();
     adminLoaded=true; return;
   }
   try{
@@ -15763,6 +15808,10 @@ async function loadAdmin(){
     ADMIN.requests=data||[];
   }catch(e){}
   await loadARanger();
+  /* La file du wiki des fiches se charge avec celle des avis : elles s'affichent
+     l'une sous l'autre dans « Wiki a ranger », et une file chargee a moitie donnerait
+     un compte faux sur le bouton. */
+  if(typeof loadWikiFile==='function') await loadWikiFile();
   /* LES CONNEXIONS D'AVANT NOTRE COMPTEUR. Il n'existe que depuis le 2 août ;
      Supabase, lui, note depuis toujours la dernière ouverture de session. Sans ça,
      l'écran disait « personne ne s'est encore connecté » alors que toute l'équipe
@@ -16609,6 +16658,10 @@ function vAdmin(){
          moi »). Sans ça il faudrait faire le tour des huit pages pour voir s'il y a
          du neuf — donc on ne le ferait pas, et les corrections dormiraient. */
       gOutil+=wikiFileHTML();
+      /* ⚠ ET LA FILE DU WIKI DES FICHES, au meme endroit (27/08/2026). Sa regle du
+         26/08 : « tout sera ensemble mais d'abord valide par moi ». Deux files a
+         deux endroits, c'est une file qu'on oublie. */
+      if(typeof wfFileHTML==='function') gOutil+=wfFileHTML();
     }
     gOutil+='<button class="acc" onclick="go(\'#/modeles\')">'+
        '<b>Les modèles de check-lists</b><span class="n">ce que chaque rôle doit faire</span>'+
@@ -19101,6 +19154,14 @@ function etqsDe(a){
   return a.etiquette ? [a.etiquette] : [];
 }
 function rafraichirAvis(sid){
+  /* ⚠ LE WIKI DE LA FICHE SE CHARGE ICI AUSSI (27/08/2026). Les deux vivent sur la
+     meme fiche mais dans deux tables : `avis` pour les etiquettes, `wiki_fiches`
+     pour le texte commun. Charger l'une sans l'autre affiche des etiquettes sur un
+     texte vide, ou l'inverse — et on croit a une perte. */
+  if(typeof loadWikiFiche==='function') loadWikiFiche(sid).then(function(){
+    const ici = (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid));
+    if(ici) render();
+  });
   loadAvis(sid).then(function(){
     const ici = (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid));
     if(!ici) return;
@@ -19113,7 +19174,7 @@ function rafraichirAvis(sid){
     /* ⚠ L'EN-TÊTE AUSSI, ET AVANT LE CORPS : quand le carnet est REPLIÉ, `#aviszone`
        n'existe pas — c'était le seul morceau mis à jour, donc replié, le carnet
        restait sur « Chargement… » sans jamais annoncer ses mots. */
-    const nMots=AVIS.filter(function(a){ return (a.texte||'').trim(); }).length;
+    const nMots=!!(WF[AVIS_SID]&&(WF[AVIS_SID].texte||'').trim());
     const etats=document.querySelectorAll('.carnet-etat');
     for(let i=0;i<etats.length;i++) etats[i].innerHTML=carnetEtatHTML(true,nMots);
     const z=document.getElementById('aviszone');
@@ -19216,6 +19277,161 @@ function avisRetirer(id, sid){
       AVIS_ETQS=[]; rafraichirAvis(sid);
     },{ok:'Retirer',danger:true});
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE WIKI DES FICHES — LES FONCTIONS (Mag, 27/08/2026, choix A)
+   ═══════════════════════════════════════════════════════════════════════════
+   Un seul texte par fiche, écrit par tous, validé par elle. Voir le rendu dans
+   `avisBlocHTML` et les règles dans sql/wiki-fiches.sql. */
+let WF={}, WV=[], WF_SID='', WF_CHARGE=false, WF_EDIT=false, WF_HISTO=false;
+
+async function loadWikiFiche(sid){
+  WV=[]; WF_CHARGE=false; WF_SID=sid; WF_EDIT=false; WF_HISTO=false;
+  if(!sb||!sid){ WF_CHARGE=true; return; }
+  /* ⚠ ON LIT `.error` : sb.from() ne LÈVE PAS. Sans ça, une panne de base
+     s'afficherait comme « rien d'écrit sur ce lieu », ce qui est un mensonge — et
+     le pire genre, celui qui fait réécrire ce qui existe déjà. */
+  const a=await sb.from('wiki_fiches').select('*').eq('sid',sid).maybeSingle();
+  if(a.error){ panneNoter('lecture du wiki de la fiche', a.error.message); WF_CHARGE=true; return; }
+  if(a.data) WF[sid]=a.data; else delete WF[sid];
+  const b=await sb.from('wiki_versions').select('*').eq('sid',sid)
+    .order('cree_le',{ascending:false});
+  if(b.error){ panneNoter('lecture de l’historique', b.error.message); WF_CHARGE=true; return; }
+  WV=b.data||[]; WF_CHARGE=true;
+}
+
+function wfEditer(v){ WF_EDIT=!!v; if(WF_EDIT) WF_HISTO=false; render();
+  if(WF_EDIT) setTimeout(function(){ const t=document.getElementById('wfTxt');
+    if(t){ t.focus(); passGrandir(t); } },40); }
+function wfHisto(){ WF_HISTO=!WF_HISTO; render(); }
+
+/* PROPOSER une version. Elle part en « attente » — c'est la base qui l'impose, pas
+   cet écran : l'insertion n'accepte pas d'autre état. */
+async function wfProposer(sid){
+  const t=document.getElementById('wfTxt');
+  const r=document.getElementById('wfResume');
+  const txt=((t&&t.value)||'').trim();
+  if(!txt){ if(t) t.focus(); toast('Écris quelque chose'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  /* ⚠ RIEN À PROPOSER SI RIEN N'A CHANGÉ. Sans ce test, un clic distrait mettait
+     une copie conforme dans la file de relecture — du travail pour rien. */
+  const avant=(WF[sid]&&WF[sid].texte)||'';
+  if(txt===avant.trim()){ toast('Rien n’a changé'); WF_EDIT=false; render(); return; }
+  const res=await sb.from('wiki_versions').insert({
+    sid:sid, texte:txt.slice(0,4000), resume:((r&&r.value)||'').trim().slice(0,120),
+    auteur_uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  }).select();
+  if(res.error){ toast('Pas envoyé — '+res.error.message); return; }
+  toast('Partagé — la coordination va le relire');
+  WF_EDIT=false;
+  await loadWikiFiche(sid); render();
+}
+
+/* ANNULER sa propre proposition tant qu'elle attend. */
+function wfAnnuler(id, sid){
+  cousinConfirme('Annuler ta proposition ?','Elle ne sera pas relue.',
+    async function(){
+      const r=await sb.from('wiki_versions').delete().eq('id',id);
+      if(r.error){ toast('Pas annulé — '+r.error.message); return; }
+      await loadWikiFiche(sid); render();
+    },{ok:'Annuler la proposition',danger:true});
+}
+
+/* REVENIR à une ancienne version. ⚠ Ça ne réécrit PAS directement : ça propose
+   l'ancien texte, qui repasse par la relecture comme n'importe quelle modification.
+   Sinon « revenir » serait une porte dérobée qui contourne la règle du 26/08. */
+async function wfRevenir(id, sid){
+  const v=WV.find(function(x){ return x.id===id; }); if(!v) return;
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  const res=await sb.from('wiki_versions').insert({
+    sid:sid, texte:v.texte, resume:'retour à la version du '+(v.cree_le||'').slice(8,10)+'/'+(v.cree_le||'').slice(5,7),
+    auteur_uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  }).select();
+  if(res.error){ toast('Pas proposé — '+res.error.message); return; }
+  toast('Proposé — la coordination va le relire');
+  await loadWikiFiche(sid); render();
+}
+
+/* ═══ TRANCHER — la coordination seulement ═══
+   ⚠ DEUX ÉCRITURES, ET LA SECONDE EST CELLE QUI COMPTE. Marquer la version « ok »
+   ne suffit pas : le texte que l'équipe lit vit dans `wiki_fiches`, et c'est lui
+   qu'il faut poser. Une validation qui oublierait la seconde écriture afficherait
+   « validé » sans rien changer à l'écran — la pire des pannes, celle qui se croit
+   réussie. */
+async function wfTrancher(id, etat){
+  const v=(WV.find(function(x){ return x.id===id; })
+        || WF_FILE.find(function(x){ return x.id===id; }));
+  if(!v) return;
+  const i=document.getElementById('wfMotif-'+id);
+  const motif=((i&&i.value)||'').trim();
+  /* Un refus sans raison n'est pas un refus, c'est un silence. La base le tient
+     aussi, par une contrainte — ceci n'est que la politesse de le dire avant. */
+  if(etat==='refus' && !motif){ if(i) i.focus(); toast('Une raison, même courte'); return; }
+  if(!sb){ toast('Pas connectée'); return; }
+  const r=await sb.from('wiki_versions').update({
+    etat:etat, motif:motif||null, tranche_le:new Date().toISOString(),
+    tranche_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
+  }).eq('id',id).select();
+  if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
+  if(etat==='ok'){
+    const f=await sb.from('wiki_fiches').upsert({
+      sid:v.sid, texte:v.texte, version_id:v.id,
+      maj_le:new Date().toISOString(),
+      maj_nom:(typeof nomAffiche==='function'?nomAffiche():'')||''
+    },{onConflict:'sid'}).select();
+    if(f.error){ toast('Validé, mais pas affiché — '+f.error.message); return; }
+  }
+  toast(etat==='ok'?'Validé — c’est en ligne':'Refusé, la raison est notée');
+  await loadWikiFile();
+  if(WF_SID) await loadWikiFiche(WF_SID);
+  render();
+}
+
+/* ═══ LA FILE DE RELECTURE, DANS « WIKI À RANGER » ═══
+   Tout arrive au même endroit, avec le reste de ce qu'elle relit (sa règle du
+   26/08 : « tout sera ensemble mais d'abord validé par moi »). Sans ça il faudrait
+   faire le tour des fiches pour voir s'il y a du neuf — donc on ne le ferait pas,
+   et les corrections dormiraient. */
+let WF_FILE=[];
+async function loadWikiFile(){
+  if(!sb){ return; }
+  const r=await sb.from('wiki_versions').select('*').eq('etat','attente')
+    /* Les plus vieilles d'abord : c'est une file, pas un fil d'actualité. */
+    .order('cree_le',{ascending:true});
+  if(r.error){ panneNoter('file du wiki des fiches', r.error.message); return; }
+  WF_FILE=r.data||[];
+}
+function wfNomFiche(sid){
+  try{ const p=DATA.find(function(x){ return x.sid===sid; }); return p?p.nom:sid; }
+  catch(e){ return sid; }
+}
+function wfFileHTML(){
+  if(!WF_FILE.length) return '';
+  return '<div class="sectc" style="margin-top:18px"><b>'+
+      '<i style="background:#f8763f"></i>Wiki des fiches à relire</b>'+
+      '<em>'+WF_FILE.length+'</em></div>'+
+    WF_FILE.map(function(v){
+      const j=(v.cree_le||'').slice(8,10)+'/'+(v.cree_le||'').slice(5,7);
+      const avant=(WF[v.sid]&&WF[v.sid].texte)||'';
+      return '<div class="rgc">'+
+        '<p class="rgq"><b>'+esc(wfNomFiche(v.sid))+'</b> — '+
+          esc(v.auteur_nom||'une collègue')+' · '+esc(j)+
+          (v.resume?' · '+esc(v.resume):'')+'</p>'+
+        /* ⚠ ON MONTRE CE QU'IL Y AVAIT AVANT, pas seulement la nouvelle version.
+           Relire un texte sans son précédent, c'est relire à l'aveugle : on ne voit
+           pas ce qui a été ENLEVÉ, et c'est justement ce qui compte. */
+        (avant?'<div class="wfavant"><em>Avant</em>'+esc(avant).replace(/\n/g,'<br>')+'</div>':'')+
+        '<div class="wfapres"><em>Proposé</em>'+esc(v.texte).replace(/\n/g,'<br>')+'</div>'+
+        '<input id="wfMotif-'+v.id+'" type="text" maxlength="200" '+
+          'placeholder="Une raison, si tu refuses">'+
+        '<div class="rgbar">'+
+          '<button class="rgann" onclick="wfTrancher('+v.id+',\'refus\')">Refuser</button>'+
+          '<button class="rgok" onclick="wfTrancher('+v.id+',\'ok\')">Valider</button>'+
+        '</div></div>';
+    }).join('');
+}
+
 /* La pastille d'étiquette, telle qu'elle s'affiche partout. */
 function etqPastille(cle){
   if(!cle||!ETQ_LABELS[cle]) return '';
@@ -19259,139 +19475,108 @@ function avisCorpsHTML(sid){
       (enPlus.length===1?esc(ETQ_LABELS[enPlus[0]][1]):'posé par l’équipe')+'</span>'+
     '</div>';
 
-  const autres=AVIS.filter(function(a){ return !PROFILE || a.uid!==PROFILE.uid; })
-                   .filter(function(a){ return (a.texte||'').trim(); });
-  if(autres.length){
-    /* ═══ CE QUI VIENT DU WIKI NE SORT PAS DE L'ÉQUIPE ═══
-       Ta demande du 27/08/2026, et elle explique à quoi sert vraiment ce bloc :
-       « un CPAS aura un numéro général, mais nous on aura un numéro un peu plus
-       privé pour arriver à la source plus facilement, qu'on ne trouvera jamais sur
-       internet. Il faut que ce soit bien déclaré que c'est des informations de wiki
-       de l'équipe, pour qu'on sache que c'est un numéro qu'il faut pas redistribuer,
-       ni à un hébergé ni à personne d'ailleurs. »
-       ⚠ LE BANDEAU EST AU-DESSUS, PAS EN DESSOUS. Une mise en garde qui arrive après
-       ce qu'elle protège arrive trop tard : le numéro est déjà lu, déjà recopié. On
-       la lit avant de lire ce qu'elle couvre.
-       ⚠ ET ELLE NE S'AFFICHE QUE S'IL Y A QUELQUE CHOSE À PROTÉGER : pas de bandeau
-       au-dessus du vide. */
-    /* ⚠ PAS `confidentialite` : le fichier picto/confidentialite.svg existe, mais la
-       clé n'est pas dans le dictionnaire d'`icon()` — elle rendait un dessin vide,
-       donc un blanc à gauche du texte. `cle` dit la même chose et existe vraiment. */
+  /* ═══════════════════════════════════════════════════════════════════════════
+     LE WIKI DES FICHES — UN SEUL TEXTE, ÉCRIT PAR TOUS (Mag, 27/08/2026)
+     ═══════════════════════════════════════════════════════════════════════════
+     Ta demande : « ce serait bien que ça fasse comme un Wikipédia ». Deux versions
+     t'ont été dessinées ; tu as choisi la A — le texte commun et l'historique, mais
+     la validation reste la tienne.
+
+     CE QUE ÇA REMPLACE, ET POURQUOI. Jusqu'ici chacun avait SA note, et elles
+     s'empilaient. Mesuré sur le CPAS de Schaerbeek : trois personnes, trois notes,
+     et les deux premières disaient la même chose. Au bout de six mois il faut lire
+     dix notes pour reconstituer trois lignes.
+
+     ⚠ L'HISTORIQUE EST LE VRAI APPORT, pas le texte commun. Un texte que tout le
+     monde réécrit sans historique devient intenable : on ne sait plus qui a enlevé
+     quoi, ni comment revenir. Toutes les versions sont gardées, même remplacées.
+
+     ⚠ ET LA RÈGLE DU 26/08 TIENT, dans la BASE et pas ici : le texte public vit dans
+     `wiki_fiches`, où seule la coordination écrit. Si cet écran se trompait, la base
+     refuserait. Voir sql/wiki-fiches.sql.
+
+     ⚠ LES ÉTIQUETTES NE SONT PAS DANS LE WIKI : elles restent dans `avis`, une par
+     personne, et se posent au-dessus. Une étiquette dit ce qu'EST le lieu, le texte
+     dit ce qu'on en SAIT. Ne pas les fondre ensemble. */
+  const wtxt=(WF[sid]&&WF[sid].texte)||'';
+  const wmien=WV.filter(function(v){ return v.etat==='attente' && PROFILE && v.auteur_uid===PROFILE.uid; })[0];
+  const wvalides=WV.filter(function(v){ return v.etat==='ok'; });
+
+  /* ⚠ PAS LE TEXTE EN DOUBLE. En mode édition il est déjà dans le champ ; l'afficher
+     aussi au-dessus donnait deux fois les mêmes phrases l'une sur l'autre, et on
+     croyait en écrire une seconde à côté de la première. */
+  if(wtxt && !WF_EDIT){
+    /* Le bandeau d'abord : une mise en garde placée après ce qu'elle protège arrive
+       trop tard — le numéro est déjà lu, déjà recopié. */
     h+='<div class="wikiprive"><span class="ic">'+icon('cle')+'</span>'+
-       /* ⚠ CINQ MOTS, ET PAS UN INTERDIT (ta formule du 27/08/2026 : « plutôt ça,
-          infos de l'équipe pour l'équipe »). Deux versions plus longues sont tombées
-          avant celle-ci — la première expliquait la règle en trois morceaux, la
-          seconde la posait en défense (« ne se transmet à personne »).
-          Ta formule dit d'où vient l'information, et l'interdit s'en déduit tout
-          seul. C'est mieux : cette ligne se relit au-dessus de chaque wiki, tous les
-          jours — une consigne qu'on lit dix fois par jour cesse d'être lue si elle
-          gronde. Dire l'origine suffit à dire la limite. */
        '<span><b>Infos de l’équipe pour l’équipe</b></span></div>';
-    h+='<div class="rlist">'+autres.map(function(a){
-      const j=(a.cree_le||'').slice(8,10)+'/'+(a.cree_le||'').slice(5,7);
-      return '<div class="avisl"><b>'+esc(a.auteur_nom||'une collègue')+'</b>'+
-        '<em>'+esc(j)+'</em><p class="avistxt">'+esc(a.texte)+'</p></div>';
-    }).join('')+'</div>';
+    h+='<div class="wftexte">'+esc(wtxt).replace(/\n/g,'<br>')+'</div>';
+    if(WF[sid]&&WF[sid].maj_nom)
+      h+='<p class="wfmaj">Dernière relecture : '+esc(WF[sid].maj_nom)+'</p>';
+  }else if(!WF_EDIT){
+    h+='<p class="hint" style="margin:0 0 10px">Rien d’écrit sur ce lieu. '+
+       '<b>Si tu sais quelque chose, ajoute-le.</b></p>';
   }
 
-  /* LE FORMULAIRE. L'étiquette d'abord : c'est le geste le plus court, et le plus
-     utile quand on n'a rien à raconter. */
-  /* ═══ CHAQUE BOUTON CONTRE CE QU'IL ENREGISTRE (Mag, 18/08/2026) ═══
-     Ses mots : « c'était chouette quand il y avait un petit OK pour sélectionner
-     juste si on avait choisi jour, manger, sieste. On gardait la sélection et on
-     pouvait aussi, si on voulait, rajouter un commentaire. Il faut pouvoir
-     enregistrer le commentaire, by the way. »
+  /* ═══ ÉCRIRE : ON PART DE CE QUI EST DÉJÀ LÀ ═══
+     C'est ce qui sépare un wiki d'un livre d'or. On ne redonne pas un champ vide —
+     on ouvre le texte existant, et on le corrige. Sinon chacun recommence à zéro et
+     on retombe sur la pile de notes qu'on vient de quitter. */
+  if(WF_EDIT){
+    h+='<div class="chadd empile" style="margin-top:12px">'+
+       '<textarea id="wfTxt" rows="1" maxlength="4000" autocomplete="off" '+
+       'oninput="passGrandir(this)" '+
+       'placeholder="Ce que l’équipe doit savoir de ce lieu">'+esc(wtxt)+'</textarea>'+
+       /* ⚠ LE RÉSUMÉ EST CE QUI REND L'HISTORIQUE LISIBLE. Sans lui on lit
+          « Laura a modifié », ce qui ne dit rien ; avec, on lit « a ajouté le numéro
+          direct ». Il n'est PAS obligatoire — une correction d'orthographe n'a rien
+          à résumer, et un champ obligatoire de plus ferait renoncer. */
+       '<input id="wfResume" type="text" maxlength="120" autocomplete="off" '+
+       /* ⚠ COURT : au-delà, l'invite se coupe au bord du champ. */
+       'placeholder="Ce que tu changes (facultatif)">'+
+       '<div class="wfbar">'+
+         '<button class="lienbas" onclick="wfEditer(false)">Annuler</button>'+
+         '<button class="chaddbtn" onclick="wfProposer(\''+sid+'\')">Partager à l’équipe</button>'+
+       '</div></div>';
+  }else{
+    h+='<div class="wfbar" style="margin-top:10px">'+
+       '<button class="chaddbtn" onclick="wfEditer(true)">'+(wtxt?'Modifier':'Écrire')+'</button>'+
+       (wvalides.length?'<button class="wfhb" onclick="wfHisto()">'+
+          (WF_HISTO?'Masquer l’historique':'Historique · '+wvalides.length)+'</button>':'')+
+       '</div>';
+  }
 
-     TROIS ESSAIS, ET VOICI POURQUOI CELUI-CI TIENT :
-     · un OK pour les étiquettes + un bouton pour le texte, mais le premier flottait
-       au bout de la rangée et le second collait au champ → « il manque un ok » ;
-     · un seul bouton en bas pour tout → « si je ne veux pas écrire de commentaire,
-       comment je fais ? » : le bouton avait l'air d'appartenir au champ de texte ;
-     · MAINTENANT : deux gestes séparés, chacun COLLÉ à sa matière. Le OK vit dans
-       la rangée des étiquettes, le bouton du commentaire contre le champ. Ce n'est
-       pas le NOMBRE de boutons qui perdait — c'était leur distance à leur objet.
+  /* Sa propre proposition en attente : il faut qu'elle se voie, sinon on réécrit la
+     même chose le lendemain en croyant que ça n'est pas parti. */
+  if(wmien){
+    h+='<div class="wiki-att"><p>'+esc(wmien.texte).replace(/\n/g,'<br>')+'</p>'+
+       '<em>En attente de relecture</em>'+
+       '<button class="lienbas" onclick="wfAnnuler('+wmien.id+',\''+sid+'\')">Annuler</button></div>';
+  }
 
-     ⚠ ET LES DEUX SONT VRAIMENT INDÉPENDANTS : poser « Jour » n'efface pas le
-     commentaire écrit hier, et enregistrer un commentaire ne touche pas aux
-     étiquettes. C'est la moitié la plus importante, et elle ne se voit pas. */
-  /* ⚠ LES SEPT ÉTIQUETTES SONT RETIRÉES DU WIKI (Mag, 27/08/2026 : « ça fait
-     beaucoup d'informations qu'on ne comprend pas bien. Par exemple, pour les
-     réquisitoires, ça n'a pas lieu d'être »).
-     Elles étaient nées pour les lieux d'hébergement — « on y dort », « on y mange »,
-     « on peut s'y reposer ». Le wiki, lui, est sur TOUTES les fiches : sur un
-     réquisitoire au CPAS, sept boutons NUIT / SIESTE / MANGER ne veulent rien dire,
-     et ils s'affichaient avant le champ où l'on écrit. Le premier geste demandé
-     était donc celui qui n'avait pas de sens.
-     ⚠ RIEN N'EST SUPPRIMÉ : `ETQ_LABELS`, les couleurs, le rangement de l'Admin et
-     les étiquettes DÉJÀ POSÉES restent en place — elles s'affichent toujours sur
-     les fiches qui en ont. Seule la rangée de boutons du wiki s'en va.
-     ⚠ À REVOIR AVEC ELLE : « à mesure qu'on remplira, on pourra revoir ça ». Si
-     elles reviennent, ce sera sur les seules fiches où elles ont un sens
-     (hébergement), pas partout. */
-
-  /* Le commentaire et SON bouton, sur la même ligne. Il est facultatif, et le champ
-     le dit lui-même — une étiquette seule est une réponse complète. */
-  /* ⚠ EMPILÉ, COMME LE WIKI DES PAGES (27/08/2026). Côte à côte, « Partager à
-     l'équipe » prenait toute la largeur et le champ se réduisait à une colonne où le
-     texte descendait mot par mot. Et il n'y avait aucune raison que les deux wikis
-     de l'app se présentent différemment : même geste, même dessin. */
-  /* ⚠ `empile` OUI, `ecrire` NON. `empile` fait ce que tu as demandé : le champ prend
-     toute la largeur et le bouton descend dessous — côte à côte, « Partager à l'équipe »
-     mangeait la place et le texte s'écrivait mot par mot, en colonne.
-     `ecrire` (l'habillage du wiki des pages) apporterait EN PLUS un gros cadre noir
-     autour de la rangée. Tu ne l'as pas demandé, et sur une fiche déjà cadrée ça ferait
-     une boîte dans une boîte. */
-  h+='<div class="chadd empile" style="margin-top:12px">'+
-     /* ⚠ UN TEXTAREA, PAS UN INPUT, et il grandit sous les doigts (`passGrandir`,
-        déjà écrit pour Ma liste perso). 4000 caractères au lieu de 400 : de quoi
-        écrire l'AMU, l'adresse de référence et le réquisitoire d'un seul tenant.
-        ⚠ ENTRÉE FAIT UN RETOUR À LA LIGNE, elle n'envoie plus : dans un champ où
-        l'on fait des listes, envoyer au premier retour couperait la phrase en
-        deux. On enregistre avec le bouton — ou Ctrl/⌘ + Entrée. */
-     '<textarea id="avisTxt" rows="1" maxlength="4000" autocomplete="off" '+
-     'oninput="avisTape();passGrandir(this)" '+
-     /* ⚠ COURT : le champ est étroit (le bouton prend sa place à droite), et
-        « Ce que tu sais de cette adresse… » se coupait en plein mot — on lisait
-        « Ce que tu sais de cette / adresse » avec la seconde ligne rognée. */
-     'placeholder="Ce que tu sais d’ici…" '+
-     'onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){event.preventDefault();avisCommentaire(\''+sid+'\');}">'+
-     esc((mien&&mien.texte)||'')+'</textarea>'+
-     '<button class="chaddbtn'+(AVIS_TAPE?'':' off')+'" onclick="avisCommentaire(\''+sid+'\')">'+
-     /* ⚠ « PARTAGER À L'ÉQUIPE », ton choix du 27/08/2026 (« j'aime pas Poser, ça me
-        fait rien »). Tu as raison : « poser » ne dit ni où ça va ni à qui — on posait
-        quelque chose quelque part, sans savoir quoi ni pour qui. Celui-ci dit les
-        deux, et c'est ce qui donne envie d'appuyer : on écrit POUR des collègues.
-        Il est plus long que les autres boutons de l'app, et c'est assumé — la
-        rangée passe à la ligne sous lui plutôt que de le rogner (voir .chaddbtn). */
-     (mien&&mien.texte?'Modifier':'Partager à l’équipe')+'</button>'+
-     '</div>';
-  /* ⚠ « SANS PHRASE » DISAIT CE QU'ON N'AVAIT PAS FAIT (18/08/2026). Quelqu'un qui
-     voulait juste dire « c'est pour dormir » avait fini son travail — et l'écran lui
-     répondait « tu as posé une étiquette, SANS PHRASE », comme s'il manquait quelque
-     chose. Une étiquette seule est une réponse complète.
-     Le gros cadre « Toi » ne sert donc que s'il y a une phrase à montrer. Sinon il
-     reste ce dont on a besoin : de quoi revenir en arrière. */
-  /* ═══ CE QUI A ÉTÉ RELU SE VOIT — POUR SON AUTEURE SEULEMENT (Mag, 18/08/2026,
-     « fais au mieux » sur la question de la modération) ═══
-     CE QUE J'AI ÉCARTÉ : retenir les messages jusqu'à approbation. Un asile qui
-     ferme à 14 h aujourd'hui, écrit à 15 h, arriverait demain — trop tard pour la
-     personne qui est devant nous. Et ce n'est pas un forum : 35 collègues connues,
-     chaque mot signé. Le contrôle qui compte, c'est la signature.
-     CE QUE JE FAIS À LA PLACE : le message part tout de suite, et quand la
-     coordination l'a rangé, celle qui l'a écrit le voit. La boucle se ferme, sans
-     rien retarder ni jeter la suspicion sur ce qu'écrivent les collègues.
-     ⚠ SEULEMENT POUR SON AUTEURE. Coller « pas encore relu » sur le message d'une
-     collègue devant toute l'équipe, ce serait dire qu'on ne s'y fie pas — alors
-     qu'on lui confie des gens toute l'année. Et une pastille qui s'allume sur tout
-     ce qui est récent ne veut plus rien dire au bout d'une semaine.
-     ⚠ On ne dit rien tant que ce n'est PAS relu : « en attente » sur son propre
-     message donnerait envie de guetter, pour rien. */
+  /* ═══ L'HISTORIQUE ═══
+     Qui a changé quoi, et le retour en arrière. « Revenir » ne réécrit pas
+     directement : il PROPOSE l'ancienne version, qui repasse par la relecture comme
+     n'importe quelle autre modification. Sinon on aurait une porte dérobée qui
+     contourne la règle du 26/08. */
+  if(WF_HISTO && wvalides.length){
+    h+='<div class="wfhisto">'+wvalides.map(function(v,i){
+      const j=(v.cree_le||'').slice(8,10)+'/'+(v.cree_le||'').slice(5,7);
+      const courant=(WF[sid]&&WF[sid].version_id===v.id);
+      return '<div class="wfh'+(courant?' on':'')+'">'+
+        '<b>'+esc(v.auteur_nom||'une collègue')+'</b>'+
+        '<em>'+esc(j)+(v.resume?' · '+esc(v.resume):'')+'</em>'+
+        (courant?'<span class="wfh-on">en place</span>'
+                :'<button class="lienbas" onclick="wfRevenir('+v.id+',\''+sid+'\')">Revenir à celle-ci</button>')+
+        '</div>';
+    }).join('')+'</div>';
+  }
   const relu=mien && mien.range_le;
-  if(mien && mien.texte){
-    h+='<div class="avisl mien"><b>Toi</b><p>'+esc(mien.texte)+'</p>'+
-       (relu?'<span class="avisrelu">Relu par '+esc(mien.range_par||'la coordination')+'</span>':'')+
-       '<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">Retirer mon avis</button></div>';
-  } else if(mien){
+  /* ⚠ IL NE RESTE QUE LES ÉTIQUETTES ICI. Le TEXTE a déménagé dans le wiki commun
+     le 27/08/2026 : il n'appartient plus à personne, donc « retirer mon avis » n'a
+     plus d'objet. Les étiquettes, elles, restent une par personne dans `avis` —
+     chacun dit ce qu'il a constaté du lieu, et peut le reprendre. */
+  if(mien && etqsDe(mien).length){
     if(relu) h+='<p class="avisrelu">Relu par '+esc(mien.range_par||'la coordination')+'</p>';
     h+='<button class="lienbas" onclick="avisRetirer('+mien.id+',\''+sid+'\')">'+
        (etqsDe(mien).length>1?'Retirer mes étiquettes':'Retirer mon étiquette')+'</button>';
@@ -19436,7 +19621,7 @@ function avisBlocHTML(p){
        d'informations ».
      ⚠ Elle avait dit « nomme-le Wiki » le 18/08 : c'est elle qui rouvre. */
   const pret = (AVIS_SID===p.sid && AVIS_CHARGE);
-  const nMots = pret ? AVIS.filter(function(a){ return (a.texte||'').trim(); }).length : 0;
+  const nMots = pret && !!(WF[p.sid]&&(WF[p.sid].texte||'').trim());
   return '<div class="carnet'+(CARNET_OUV?' ouvert':'')+'">'+
       '<button class="ct" onclick="carnetBascule()" aria-expanded="'+(CARNET_OUV?'true':'false')+'">'+
         /* ⚠ LE NOM A FAIT TROIS TOURS (18/08 « nomme-le Wiki » → 20/08 « un titre
@@ -19459,10 +19644,15 @@ function avisBlocHTML(p){
         : '')+
     '</div>';
 }
-function carnetEtatHTML(pret,nMots){
+/* ⚠ IL NE COMPTE PLUS DES NOTES, IL DIT S'IL Y A QUELQUE CHOSE À LIRE (27/08/2026).
+   Le texte a déménagé des avis vers le wiki commun : compter les avis avec texte
+   aurait affiché « rien encore » sur toutes les fiches, y compris celles qui portent
+   un texte — le pire genre de compteur, celui qui fait croire à une perte.
+   Et « 3 mots » ne voulait déjà plus rien dire : il n'y a plus qu'un texte. */
+function carnetEtatHTML(pret,aTexte){
   if(!pret) return '<span class="n">Chargement…</span>';
-  return '<span class="cpt'+(nMots?'':' vide')+'"></span>'+
-         '<span class="n">'+(nMots ? nMots+' mot'+(nMots>1?'s':'') : 'rien encore')+'</span>';
+  return '<span class="cpt'+(aTexte?'':' vide')+'"></span>'+
+         '<span class="n">'+(aTexte ? 'à lire' : 'rien encore')+'</span>';
 }
 var CARNET_OUV=false;
 /* ═══ ⚠ ON NE REDESSINE PAS TOUTE LA PAGE POUR OUVRIR UN CARNET ═══
