@@ -4262,6 +4262,28 @@ body.pan-ouvert #view{animation:none;transform:none}
 .grp-in{display:flex;flex-direction:column;gap:0;margin-top:0}
 
 /* ---- le dock : ronds noirs (gardés) ---- */
+/* ═══ LE CLIC QUI PART AILLEURS QUE LÀ OÙ ON A APPUYÉ (Mag, 27/08/2026) ═══
+   Ses mots : « quand je clique sur le bouton Réseau, ça m'ouvre cette fenêtre —
+   c'est comme si c'était le clic dessous du menu du bas ». Elle était sur Le Centre,
+   page défilée, sur Chrome Android.
+
+   LA CAUSE, ET ELLE NE SE VOIT PAS SUR ORDINATEUR : sans `touch-action`, un
+   navigateur tactile ATTEND environ 300 ms après le doigt levé, pour savoir si un
+   deuxième tap arrive (le double-tap qui zoome). Pendant ces 300 ms la page continue
+   de vivre : la barre d'adresse de Chrome se rétracte au défilement et fait remonter
+   tout le contenu d'une soixantaine de pixels, le défilement par inertie finit sa
+   course. Le clic est alors résolu sur ce qui se trouve sous le doigt À LA FIN, pas
+   au début — on appuie sur Réseau, on ouvre la fiche qui a glissé dessous.
+
+   `manipulation` supprime cette attente : le clic part tout de suite. Le défilement
+   et le pincer-pour-zoomer continuent de marcher, seul le double-tap-zoom s'en va —
+   et personne ne double-tape une application dont tout le texte est déjà lisible.
+
+   ⚠ POSÉ SUR TOUT CE QUI SE CLIQUE, pas seulement sur la barre du bas : le même
+   piège vaut pour n'importe quel bouton d'une page qui défile.
+   ⚠ RIEN NE CHANGE À L'ŒIL. Si le problème persiste, c'est que la cause est
+   ailleurs — me le redire plutôt que de chercher soi-même. */
+button,a,.famz,.frow2,.acc,.fchip,.chip{touch-action:manipulation}
 #tabbar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--barre);
   border-top:1px solid var(--ligne);display:flex;justify-content:center;gap:14px;
   padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
@@ -19248,12 +19270,15 @@ function avisCorpsHTML(sid){
        clé n'est pas dans le dictionnaire d'`icon()` — elle rendait un dessin vide,
        donc un blanc à gauche du texte. `cle` dit la même chose et existe vraiment. */
     h+='<div class="wikiprive"><span class="ic">'+icon('cle')+'</span>'+
-       /* ⚠ COURT (ta correction du 27/08/2026 : « ne se transmet à personne en dehors
-          de l'équipe, c'est suffisant »). La version d'avant disait la règle en trois
-          morceaux — « écrit par l'équipe, pour l'équipe », puis l'interdit, puis deux
-          exemples. Trois fois la même chose : quatre lignes pour une consigne qui en
-          tient une, et qu'on relit au-dessus de chaque wiki, tous les jours. */
-       '<span><b>Ne se transmet à personne en dehors de l’équipe.</b></span></div>';
+       /* ⚠ CINQ MOTS, ET PAS UN INTERDIT (ta formule du 27/08/2026 : « plutôt ça,
+          infos de l'équipe pour l'équipe »). Deux versions plus longues sont tombées
+          avant celle-ci — la première expliquait la règle en trois morceaux, la
+          seconde la posait en défense (« ne se transmet à personne »).
+          Ta formule dit d'où vient l'information, et l'interdit s'en déduit tout
+          seul. C'est mieux : cette ligne se relit au-dessus de chaque wiki, tous les
+          jours — une consigne qu'on lit dix fois par jour cesse d'être lue si elle
+          gronde. Dire l'origine suffit à dire la limite. */
+       '<span><b>Infos de l’équipe pour l’équipe</b></span></div>';
     h+='<div class="rlist">'+autres.map(function(a){
       const j=(a.cree_le||'').slice(8,10)+'/'+(a.cree_le||'').slice(5,7);
       return '<div class="avisl"><b>'+esc(a.auteur_nom||'une collègue')+'</b>'+
