@@ -25601,7 +25601,18 @@ function wikiEnAttente(){
     /* Les plus vieilles en premier : c'est une file, pas un fil d'actualité. */
     .sort(function(a,b){ return String(a.cree_le||'').localeCompare(String(b.cree_le||'')); });
 }
-function wikiBascule(page){ WIKI_OUV=(WIKI_OUV===page?'':page); render(); }
+/* ⚠ `render()` NE SUFFIT PAS POUR LES LIVRES (Mag, 27/08/2026 : « je ne sais pas
+   cliquer sur le wiki, ça ne fonctionne pas »). render() réécrit `#view` ; or la
+   fiche d'un livre vit dans `livBg`, EN DEHORS de #view. Le clic changeait bien
+   WIKI_OUV, et rien ne bougeait à l'écran — le bouton avait l'air mort.
+   ⚠ J'avais posé `livRafraichir()` après l'écriture et la validation, et oublié
+   l'endroit le plus utilisé : l'ouverture. Toute fonction qui touche à l'état d'un
+   wiki doit le rappeler, sinon ça marche partout SAUF dans les livres. */
+function wikiBascule(page){
+  WIKI_OUV=(WIKI_OUV===page?'':page);
+  render();
+  if(typeof livRafraichir==='function') livRafraichir();
+}
 /* ⚠ LE BLOC EST LE MÊME PARTOUT, ET IL EST REPLIÉ PAR DÉFAUT. C'est le carnet des
    fiches, repris tel quel : un seul geste à apprendre pour toute l'app. La tache à
    droite dit s'il y a quelque chose dedans, sans avoir à ouvrir. */
