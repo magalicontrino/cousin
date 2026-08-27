@@ -2639,6 +2639,9 @@ body.pan-ouvert #view{animation:none;transform:none}
   border-radius:14px;background:#fff;color:var(--noir);padding:13px 6px 11px;text-align:center;
   font-family:inherit;cursor:pointer}
 .actb3 i{width:38px;height:38px;display:block}
+/* ⚠ `icon()` rend TANTÔT un <svg>, TANTÔT un <span class="pico"> masqué. Sans cette
+   ligne, les tuiles nourries par icon() avaient un picto minuscule au milieu du vide. */
+.actb3 i>svg,.actb3 i>.ic,.actb3 i>.ic>*{width:100%;height:100%;display:block}
 .actb3 i .pico{width:100%;height:100%;display:block;background:currentColor;
   -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:center;mask-position:center}
@@ -13152,7 +13155,11 @@ function parseRoute(){
   /* Deux volets, une seule page : `#/accueil-personne` reste le social (les liens
      déjà partagés continuent de marcher), `#/accueil-personne/med` ouvre le médical. */
   if(seg[0]==='accueil-personne') return {view:'accueilpersonne', volet:(seg[1]==='med'?'med':'')};
-  if(seg[0]==='educ') return {view:'educ'};
+  /* ⚠ L'ANCIENNE ADRESSE RENVOIE VERS ACTIVITÉS (28/08/2026). La page « Éduc » a
+     fusionné, mais son lien peut dormir dans un favori, un raccourci d'écran
+     d'accueil ou une conversation. Une adresse qui a existé ne doit jamais tomber
+     dans le vide — on redirige, on ne supprime pas. */
+  if(seg[0]==='educ') return {view:'ticket'};
   if(seg[0]==='lexique') return {view:'lexique'};
   if(seg[0]==='bibliotheque') return {view:'bibliotheque'};
   if(seg[0]==='podcasts') return {view:'podcasts'};
@@ -14327,7 +14334,7 @@ function vCentre(){
        montent sur la famille « Le travail avec la personne », et deux fois le même
        dessin sur un écran, c'est justement ce qu'elle a relevé. Le cotillon dit
        mieux ce qu'il y a derrière — sorties, culture, groupes de parole. */
-    ['Éduc','Sorties, culture, groupes de parole','fete','','#f8763f','#1b1b1b',"go('#/educ')"],
+
     /* LES JEUX ENTRENT DANS LE CENTRE (Mag, 13/08/2026 : « marque un bouton vers les
        jeux pour apprendre, comme ça il y aura trois boutons »). Ils vivaient à
        l'accueil et dans Quoi de neuf seulement — donc on tombait dessus, on ne les
@@ -14451,7 +14458,11 @@ function vCentre(){
        défiler — elle l'a accepté en connaissance de cause.
        ⚠ CES FAMILLES N'ONT QU'UNE PORTE, donc la règle du 27/08 les fait s'ouvrir
        directement : pas de dépliant qui s'ouvre sur une seule ligne. */
-    {n:'Éduc', s:'', c:'#f8763f', p:'fete', k:['Éduc']},
+    /* ⚠ « ÉDUC » A DISPARU DU CENTRE (28/08/2026) : sa page a fusionné dans Activités.
+       Deux cartes voisines menaient à deux pages qui parlaient de la même chose — on
+       ne savait pas laquelle ouvrir. Il n'en reste qu'une.
+       La section « Sortir » n'a donc plus qu'une carte, et c'est assumé : un titre de
+       section ne coûte pas un clic, contrairement à un dépliant. */
     {n:'Activités', s:'', c:'#f8763f', p:'palette', k:['Activités']},
     /* ⚠ APPRENDRE DIT CE QUI EST EN COURS, PAS COMBIEN DE PORTES (ton choix du
        27/08/2026). Une formation commencée et jamais finie, personne n'y revient :
@@ -22789,21 +22800,43 @@ function lxAller(ev,code){
   window.scrollTo({top:y, behavior:doux?'smooth':'auto'});
 }
 
-function vEduc(){
-  let h=heroBandeau('Éduc','','#f8763f','accomp',true);
+/* ═══ ÉDUC A FUSIONNÉ DANS ACTIVITÉS (Mag, 28/08/2026 : « on retire éduc ? on met
+   tout là dans activité ») ═══
+   Les deux pages parlaient de la même chose à deux endroits : d'un côté les groupes
+   de parole et deux raccourcis, de l'autre le calendrier et les propositions des
+   hébergés. On y arrivait par deux cartes voisines dans le Centre, sans savoir
+   laquelle ouvrir.
+   Le contenu d'Éduc vit maintenant ici, et s'affiche à la SUITE des activités : on
+   descend du concret (ce qui tombe ce mois-ci) vers les idées (ce qu'on pourrait
+   animer).
+   ⚠ RIEN N'EST PERDU — les trois groupes de parole, l'encart du ticket à 1,25 € et
+   les raccourcis ont suivi. Seul le bouton Imprimer a été retiré : la page Activités
+   avait déjà le sien, et deux boutons Imprimer sur une page, on ne sait plus lequel
+   imprime quoi. */
+function educCorpsHTML(){
+  let h='';
 
   /* ── LA CULTURE ET LES SORTIES : on ne recopie rien, on renvoie vers ce qui existe
      déjà et qui est tenu à jour ailleurs. */
+  /* ═══ DEUX RACCOURCIS, PAS QUATRE (Mag, 28/08/2026 : « c'est bon mais c'est des
+     doublons ») ═══
+     Il y en avait quatre, et deux ne servaient à rien :
+     · « Le calendrier du mois » menait EXACTEMENT au même endroit qu'« Activités » —
+       deux cartes, une seule page. Le doublon le plus coûteux, parce qu'on croit
+       avoir le choix.
+     · « Autour d'ici » est déjà une carte du Centre, quelques lignes plus haut.
+     Restent les deux qui mènent vraiment ailleurs : les activités du centre, et le
+     tiroir culture du Réseau.
+     ⚠ LE DESSIN EST CELUI DES TUILES D'ACTIVITÉS (`actb3`), qu'elle préfère : picto
+     en haut, centré, le mot dessous. C'est déjà celui de la page où ces boutons
+     mènent — on retrouve la même forme des deux côtés du clic. */
   h+='<div class="sect"><b>Culture et sorties</b><em>Ce qui est déjà dans l’app</em></div>'+
-    '<div class="ed-g">'+
-    [['Activités','Les sorties gratuites et l’Article 27','ticket','#6cb392',"go('#/ticket')"],
-     ['Le calendrier du mois','Ce qui tombe quel jour','de','#A9C8E8',"go('#/ticket')"],
-     ['Autour d’ici','Ce qu’il y a dans le quartier','pin','#f5c542',"go('#/quartier')"],
-     ['Activités & culture','Les fiches du réseau','ticket','#fd8fd0',"go('#/d/culture')"]]
+    '<div class="acttrois">'+
+    [['Activités','ticket','#6cb392',"go('#/ticket')"],
+     ['Activités & culture','ticket','#fd8fd0',"go('#/d/culture')"]]
     .map(function(x){
-      return '<button class="ed-c" onclick="'+x[4]+'">'+
-        '<span class="ic" style="color:'+x[3]+'">'+icon(x[2])+'</span>'+
-        '<b>'+esc(x[0])+'</b><em>'+esc(x[1])+'</em></button>';
+      return '<button class="actb3" onclick="'+x[3]+'">'+
+        '<i style="color:'+x[2]+'">'+icon(x[1])+'</i><b>'+esc(x[0])+'</b></button>';
     }).join('')+'</div>';
 
   h+='<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Le ticket à 1,25 €</b>'+
@@ -22822,9 +22855,9 @@ function vEduc(){
     '</div>';
   }).join('');
 
-  h+='<div class="imprligne">'+boutonImprimer()+'</div>';
-  return h+'<div style="height:26px"></div>';
+  h+='<div class="imprligne">'+boutonImprimer()+'</div>';  return h;
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    L'ONBOARDING (08/08/2026)
@@ -24804,6 +24837,9 @@ function vTicket(){
      possibles depuis l'Admin. */
   h+=propositionsHTML();
 
+  /* Le contenu de l'ancienne page « Éduc », à la suite : d'abord ce qui se passe,
+     ensuite les idées pour la suite. */
+  h+=educCorpsHTML();
   return h+actPanneau()+'<div style="height:26px"></div>';
 }
 
