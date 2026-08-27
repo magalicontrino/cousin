@@ -3,7 +3,7 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v1043';
+const CACHE = 'cousin-v1044';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './favicon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
@@ -20,6 +20,25 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest',
                    ⚠ À REGÉNÉRER quand des pictos sont ajoutés :
                       ls picto/*.svg | sed "s|.*|'./&', |"
                    ═══════════════════════════════════════════════════════════════════ */
+                /* ═══ LES COUVERTURES DES LIVRES (28/08/2026) ═══
+                   31 vignettes, 428 Ko. Elles sont ici pour la même raison que les
+                   pictos : une étagère qui se vide dès qu'on perd le réseau n'est pas
+                   une étagère. Les 19 livres sans couverture ont un dos dessiné, qui
+                   ne dépend de rien.
+                   ⚠ À REGÉNÉRER quand des couvertures sont ajoutées :
+                      ls couv/*.jpg | sed "s|.*|'./&', |"
+                   ═══════════════════════════════════════════════════════════ */
+                './couv/crane.jpg', './couv/dans-les-coulisses-du-social.jpg', './couv/dix-petites-anarchistes.jpg',
+                './couv/enterrez-moi-debout-l-odyssee-des-tziganes.jpg', './couv/essai-sur-le-don.jpg',
+                './couv/l-amour-et-la-justice-comme-competences.jpg', './couv/l-anarchie-une-histoire-de-revoltes.jpg', './couv/l-art-de-la-guerilla-sociale.jpg',
+                './couv/l-esprit-du-don.jpg', './couv/l-ironie.jpg', './couv/la-culture-du-pauvre.jpg',
+                './couv/la-discipline-est-elle-a-l-ordre-du-jour.jpg', './couv/la-drogue-ecrits-sur-la-toxicomanie.jpg',
+                './couv/la-faim-dans-le-monde-expliquee-a-mon-fils.jpg', './couv/la-peste-religieuse.jpg', './couv/la-schizophrenie-au-quotidien.jpg',
+                './couv/le-banquier-anarchiste.jpg', './couv/le-droit-a-la-paresse.jpg', './couv/le-travail-sans-qualites-les-consequences-hu.jpg',
+                './couv/les-naufrages-avec-les-clochards-de-paris.jpg', './couv/les-nevroses-l-homme-et-ses-conflits.jpg', './couv/les-pauvres.jpg',
+                './couv/maladie-mentale-et-psychologie.jpg', './couv/manifeste-du-parti-communiste.jpg', './couv/matiere-a-reflexion-pourquoi-nous-ne-savons-.jpg',
+                './couv/ou-va-l-argent-des-pauvres.jpg', './couv/psychologie-court-traite-de-philosophie.jpg', './couv/si-tu-m-aimes-ne-m-aime-pas.jpg',
+                './couv/une-logique-de-la-communication.jpg',
                 './picto/Arc.svg', './picto/accompagnement.svg', './picto/accueil.svg',
                 './picto/addictions.svg', './picto/adresse.svg', './picto/alarme.svg',
                 './picto/applaudir.svg', './picto/assise.svg', './picto/astuce.svg', './picto/avis.svg',

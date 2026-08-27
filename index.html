@@ -1723,7 +1723,19 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* ── LE DOS D'UN LIVRE : proportions d'un vrai (3 sur 4), la couleur de son sujet,
    une tranche plus foncée à gauche. Aucune image : ça se dessine, donc ça marche
    sans réseau et ça ne fait jamais de trou dans l'étagère. ── */
-.livdos{flex:none;width:34px;height:46px;border-radius:2px 4px 4px 2px;
+/* Dans la fiche d'un livre, la même vignette en plus grand : on a la place, et
+   c'est le portrait de l'objet qu'on vient d'ouvrir. */
+.livgrand{flex:none;display:block}
+.livgrand .livcouv,.livgrand .livdos{width:62px;height:84px}
+.livgrand .livdos::after{left:19px;right:7px;top:12px}
+.livcouv{flex:none;width:34px;height:46px;border-radius:2px 4px 4px 2px;overflow:hidden;
+  border:1px solid rgba(27,27,27,.22);box-shadow:1px 1px 0 rgba(27,27,27,.10);
+  background:var(--ligne);display:block}
+.livcouv img{width:100%;height:100%;object-fit:cover;display:block}
+/* ⚠ `display:block` : sans lui le dos reste en ligne et s'écrase à 2 px de large dès
+   qu'il n'est plus dans une rangée flex — c'est ce qui s'est passé dans la fiche du
+   livre, où il est seul dans son bloc. */
+.livdos{flex:none;display:block;width:34px;height:46px;border-radius:2px 4px 4px 2px;
   background:var(--dos);border:1px solid rgba(27,27,27,.22);
   box-shadow:inset 5px 0 0 rgba(27,27,27,.16), 1px 1px 0 rgba(27,27,27,.10);
   position:relative}
@@ -18524,6 +18536,57 @@ let FONGLET='sujets';
 function fOnglet(v){ FONGLET=v; FTHEME=null; render(); window.scrollTo(0,0); }
 /* La bibliothèque, rangée par sous-catégorie. Une catégorie vide ne s'écrit pas :
    « Récits » n'affichera son titre que le jour où il y aura un récit. */
+/* ═══ LES COUVERTURES (Mag, 28/08/2026 : « je préfère les couvertures ») ═══
+   31 des 50 titres ont été retrouvés dans le catalogue ouvert d'Open Library, et
+   leur vignette est DANS LE DÉPÔT — pas appelée chez eux à chaque affichage. C'est
+   ce qui permet à l'étagère de s'afficher dans un couloir sans wifi, et ce qui évite
+   qu'elle se vide le jour où un service change d'adresse.
+   ⚠ LES 19 AUTRES GARDENT LEUR DOS DESSINÉ, et c'est pour ça qu'il a été fait avant :
+   mêmes proportions, même cadre, même ombre. L'étagère reste régulière — on voit des
+   livres, pas une liste à trous.
+   ⚠ CETTE LISTE SE REGÉNÈRE : `ls couv/*.jpg`. Un nom qui ne correspond à aucun
+   fichier afficherait une image cassée, donc on ne devine jamais — on liste. */
+const LIV_COUV=[
+  'crane',
+  'dans-les-coulisses-du-social',
+  'dix-petites-anarchistes',
+  'enterrez-moi-debout-l-odyssee-des-tziganes',
+  'essai-sur-le-don',
+  'l-amour-et-la-justice-comme-competences',
+  'l-anarchie-une-histoire-de-revoltes',
+  'l-art-de-la-guerilla-sociale',
+  'l-esprit-du-don',
+  'l-ironie',
+  'la-culture-du-pauvre',
+  'la-discipline-est-elle-a-l-ordre-du-jour',
+  'la-drogue-ecrits-sur-la-toxicomanie',
+  'la-faim-dans-le-monde-expliquee-a-mon-fils',
+  'la-peste-religieuse',
+  'la-schizophrenie-au-quotidien',
+  'le-banquier-anarchiste',
+  'le-droit-a-la-paresse',
+  'le-travail-sans-qualites-les-consequences-hu',
+  'les-naufrages-avec-les-clochards-de-paris',
+  'les-nevroses-l-homme-et-ses-conflits',
+  'les-pauvres',
+  'maladie-mentale-et-psychologie',
+  'manifeste-du-parti-communiste',
+  'matiere-a-reflexion-pourquoi-nous-ne-savons-',
+  'ou-va-l-argent-des-pauvres',
+  'psychologie-court-traite-de-philosophie',
+  'si-tu-m-aimes-ne-m-aime-pas',
+  'une-logique-de-la-communication'
+];
+function livSlug(t){
+  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,44);
+}
+function livVignette(x, coul){
+  const sl=livSlug(x.t);
+  return (LIV_COUV.indexOf(sl)>=0)
+    ? '<span class="livcouv"><img src="couv/'+sl+'.jpg" alt="" loading="lazy"></span>'
+    : '<span class="livdos" style="--dos:'+coul+'"></span>';
+}
 function fLivresHTML(){
   let h='';
   LIVRES_CATS.forEach(function(cat){
@@ -18549,7 +18612,7 @@ function fLivresHTML(){
              Le dos est donc DESSINÉ : la couleur de son sujet, la tranche plus foncée
              à gauche, et rien d'autre. Cohérent à 100 %, hors ligne, et ça se parcourt
              du regard — ce qu'elle demandait vraiment. */
-          '<span class="livdos" style="--dos:'+cat.c+'"></span>'+
+          livVignette(x, cat.c)+
           '<span class="tx"><b>'+esc(x.t)+'</b>'+
             '<em class="fexts">'+esc([x.a, x.e].filter(Boolean).join(' · '))+'</em>'+
             (x.res?'<em class="fextd">'+esc(x.res)+'</em>':'')+'</span>'+
@@ -25570,8 +25633,12 @@ function livOuvrir(titre){
   const l=FORM_LIVRES.find(function(x){ return x.t===titre; }); if(!l) return;
   document.getElementById('livTit').textContent=l.t;
   const cat=LIVRES_CATS.find(function(c){ return c.k===l.c; });
+  /* ⚠ LA COUVERTURE DANS LA FICHE AUSSI (Mag, 28/08/2026 : « au clic on doit voir la
+     couverture aussi »). La liste montrait le livre, la fiche montrait un picto — on
+     ouvrait, et l'objet qu'on venait de reconnaître disparaissait. Même vignette,
+     simplement plus grande : ici on a la place, et c'est le portrait du livre. */
   let c='<div class="liv">'+
-    '<div class="liv-tete"><span class="rd" style="background:'+pastel(cat?cat.c:'#ecebe8')+'"><span class="ic">'+icon('book')+'</span></span>'+
+    '<div class="liv-tete"><span class="livgrand">'+livVignette(l, cat?cat.c:'#ecebe8')+'</span>'+
     '<span class="tx"><b>'+esc(l.t)+'</b>'+
       (l.a?'<em>'+esc(l.a)+'</em>':'')+
       (l.e?'<em class="ed">'+esc(l.e)+'</em>':'')+
