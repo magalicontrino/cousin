@@ -14340,6 +14340,13 @@ function vCentre(){
        sous-catégorie, leur fiche ouvre un résumé et un éventuel PDF. */
     ['Livres',FORM_LIVRES.length+' volumes','book','','#b28b7a','#1b1b1b',"go('#/bibliotheque')"],
     ['Podcasts',FORM_POD.length+' à écouter','chat','','#b28b7a','#1b1b1b',"go('#/podcasts')"],
+    /* ⚠ « RESSOURCES » DEVIENT UNE PORTE ORDINAIRE (28/08/2026). Elle était un cas
+       à part, greffé sur la famille « Apprendre » — d'où le piège des index de ce
+       matin. À plat, elle n'a plus besoin de traitement particulier.
+       Elle ne s'affiche que s'il y a des documents : pas de porte sur une pièce vide. */
+    ['Ressources',(function(){const n=(typeof tousLesDocs==='function')?tousLesDocs().length:0;
+       return n+(n>1?' documents officiels':' document officiel');})(),
+     'imprimer','','#A9C8E8','#1b1b1b',"go('#/ressources')"],
     /* « PARTAGER COUSIN » A QUITTÉ LE CENTRE le 08/08/2026 (Mag : « le mettre dans le
        centre, ça n'a aucun sens »). Elle a raison : cette page ne contient que des
        outils de TRAVAIL — protocole, démarches, mails, schémas, dictionnaire. Partager
@@ -14434,8 +14441,18 @@ function vCentre(){
        n'est pas éducateur. Ce qu'il y a dedans, ce sont des activités : c'est le mot
        qui reste. ⚠ La porte « Éduc » à l'intérieur, elle, garde son nom : là, c'est
        bien du contenu pour les éducateurs. */
-    {n:'Activités', s:'', c:'#f8763f', p:'palette',
-     k:['Éduc','Activités']},
+    /* ═══ TOUT À PLAT DANS « SORTIR » ET « APPRENDRE » (Mag, 28/08/2026 : « on doit
+       revoir ça, ça n'a aucun sens ») ═══
+       La section « Sortir » contenait une carte « Activités » qui contenait une porte
+       « Activités » : trois niveaux pour deux liens, et le même mot à deux étages.
+       « Apprendre » avait exactement le même défaut.
+       Chaque porte est donc une carte, au même rang. Aucune n'est cachée derrière une
+       autre, et plus aucun mot ne se répète. Le prix : un cran de plus à faire
+       défiler — elle l'a accepté en connaissance de cause.
+       ⚠ CES FAMILLES N'ONT QU'UNE PORTE, donc la règle du 27/08 les fait s'ouvrir
+       directement : pas de dépliant qui s'ouvre sur une seule ligne. */
+    {n:'Éduc', s:'', c:'#f8763f', p:'fete', k:['Éduc']},
+    {n:'Activités', s:'', c:'#f8763f', p:'palette', k:['Activités']},
     /* ⚠ APPRENDRE DIT CE QUI EST EN COURS, PAS COMBIEN DE PORTES (ton choix du
        27/08/2026). Une formation commencée et jamais finie, personne n'y revient :
        on l'ouvre entre deux tâches, on est interrompu, et elle ne se voit plus.
@@ -14453,13 +14470,16 @@ function vCentre(){
        avec les jeux, le dictionnaire et les ressources.
        La leçon vaut d'être gardée : quand un rangement ne se comprend pas, regarder
        d'abord ce qui se passe APRÈS le clic. */
-    {n:'Apprendre', c:'#b28b7a', p:'educatif',
+    {n:'Formations', c:'#6cb392', p:'educatif',
      s:function(){
        const n=DATA.filter(function(p){
          return p.domaine==='formations' && fluLus(p.sid).length>0; }).length;
        return n ? n+' formation'+(n>1?'s':'')+' en cours' : '';
      },
-     k:['Formations','Les jeux','Le dictionnaire']},
+     k:['Formations']},
+    {n:'Les jeux', s:'', c:'#6cb392', p:'star', k:['Les jeux']},
+    {n:'Le dictionnaire', s:'', c:'#b28b7a', p:'book', k:['Le dictionnaire']},
+    {n:'Ressources', s:'', c:'#A9C8E8', p:'imprimer', k:['Ressources']},
     /* ⚠ LES LIVRES ONT LEUR PROPRE CARTE (Mag, 27/08/2026 : « rajoute une carte avec
        livre, et mets la section des livres dedans, ce sera plus clair »). Ils étaient
        la quatrième ligne d'« Apprendre », coincés entre les jeux et le dictionnaire —
@@ -14710,7 +14730,10 @@ function vCentre(){
        officiels seraient partis dans le mauvais tiroir — sans que rien ne le signale.
        Le piège était écrit noir sur blanc dans ce fichier, et il s'est quand même
        déclenché : un commentaire n'empêche rien, une règle si. */
-    const ress = (nDocs && FAMILLES[fi] && FAMILLES[fi].n==='Apprendre') ? porteCentre('imprimer','Ressources',
+    /* ⚠ NEUTRALISÉ le 28/08/2026 : « Ressources » est devenue une porte ordinaire,
+       à plat. La greffe ferait doublon. Le code reste, au cas où une famille
+       redeviendrait un dépliant qui doive porter les documents. */
+    const ress = (false && nDocs) ? porteCentre('imprimer','Ressources',
         nDocs+(nDocs>1?' documents officiels':' document officiel'),"go('#/ressources')") : '';
 
     const porte=function(nom){
@@ -14745,7 +14768,7 @@ function vCentre(){
        Un chiffre faux sur un bouton fermé, c'est pire que pas de chiffre : il sert à
        décider si ça vaut la peine d'ouvrir. */
     /* Seule « Apprendre » gagne la porte Ressources : le compte ne l'ajoute qu'à elle. */
-    const enPlus=((nDocs && f.n==='Apprendre')?1:0);
+    const enPlus=0;   /* voir `ress` : plus de porte greffée sur une famille */
     nPortes+=dedans.length+enPlus; nPortesFam.push(dedans.length+enPlus);
     /* ⚠ ON RETIENT LE NOM, pas seulement le compte : une famille vide ne se rend pas
        (`if(!dedans.length) return`), donc les positions glissent. Découper les
@@ -14821,7 +14844,7 @@ function vCentre(){
      deux fois à l'identique (groupe D et vue complète), et deux copies finissent
      toujours par diverger. */
   const sectionsBas=(function(){
-    const dedansSortir=['Activités'];
+    const dedansSortir=['Éduc','Activités'];
     let sortir='', apprendre='', nS=0, nA=0;
     familles.forEach(function(html,k){
       const nom=nomsFam[k], n=nPortesFam[k]||0;
