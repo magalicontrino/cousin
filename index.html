@@ -2135,6 +2135,18 @@ body.pan-ouvert #view{animation:none;transform:none}
 .sectl{font-family:ui-monospace,monospace;font-size:10px;font-weight:500;letter-spacing:.18em;
   text-transform:uppercase;padding-bottom:9px;border-bottom:2px solid var(--noir);margin-top:20px}
 .flist{display:flex;flex-direction:column;gap:10px;padding-top:12px}
+/* ── « À reprendre », proposition C (27/08/2026) : des rangées empilées au lieu du
+   rail de pavés noirs. Le dessin est celui de `.frow2`, déjà partout ; il ne s'y
+   ajoute que l'espacement de la pile et la barre de progression. ── */
+.frepr{display:flex;flex-direction:column;gap:8px;margin:0 var(--pad)}
+.freprl .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.freprl .tx b{font-size:15px;font-weight:600;line-height:1.2}
+.freprl .tx em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--enc2)}
+/* ⚠ La jauge prend la couleur DU SUJET, pas une couleur d'état : ici elle dit où on
+   en est, pas si c'est bien ou mal. Un vert de réussite ferait un jugement. */
+.frjauge{display:block;height:4px;border-radius:2px;background:var(--ligne);margin-top:5px}
+.frjauge i{display:block;height:100%;border-radius:2px}
 .frow2{border-radius:6px;background:#fdfdfc;border:1.25px solid var(--trait);padding:12px 13px;
   display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--noir)}
 .frow2 .rd{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
@@ -18199,7 +18211,14 @@ function fRess(r){
 function vFormations(){
   const mods=DATA.filter(p=>p.domaine==='formations');
   const commences=mods.filter(p=>fluLus(p.sid).length>0);
-  const areprendre=(commences.length?commences:mods).slice(0,6);
+  /* ⚠ ON NE PROPOSE DE REPRENDRE QUE CE QUI EST COMMENCÉ (27/08/2026).
+     Avant, quand rien n'était commencé, la liste retombait sur `mods` : le bloc
+     annonçait « À reprendre » devant six formations que personne n'avait ouvertes,
+     chacune marquée « 0 / 7 chapitres ». Le titre mentait, et il mentait tout le
+     temps — puisque le compteur du bandeau juste au-dessus affichait « 0 commencé ».
+     Trois au plus : au-delà, ce n'est plus une reprise, c'est la liste des sujets
+     qui est juste en dessous. */
+  const areprendre=commences.slice(0,3);
   let h=heroBandeau('Formations', mods.length+' modules · '+commences.length+' commencé'+(commences.length>1?'s':''), '#6cb392','book', false);
 
   /* ⚠ « À REPRENDRE » NE VA PAS DANS LES LIVRES (Mag, 27/08/2026 : « je pense que
@@ -18209,16 +18228,31 @@ function vFormations(){
      sous une étagère de livres, ça ne veut rien dire.
      ⚠ L'ordre de la vue « Par sujet » ne bouge pas : le rail reste à sa place, on
      ne fait que le taire sur l'autre onglet. */
-  if(FONGLET!=='livres')
-  h+='<div class="sect"><b>À reprendre</b><em>Glisse →</em></div>'+
-    '<div class="rail2">'+areprendre.map(function(p,i){
+  /* ═══ « À REPRENDRE » — LA PROPOSITION C, CHOISIE LE 27/08/2026 ═══
+     Tes trois reproches, en une phrase : « trop dure, trop foncée, prend trop de
+     place ». Les pavés noirs qui glissaient de côté sont remplacés par des rangées
+     empilées — la forme que tu as validée le 20/08 et qui court dans toute l'app :
+     fond clair, rond pastel, chevron. Plus de noir, plus de geste latéral, et la
+     hauteur d'une rangée au lieu de celle d'une carte.
+     · La barre de progression dit d'un coup d'œil où on en est — c'est la seule
+       chose que le rail faisait bien, elle est gardée.
+     · LE BLOC ENTIER DISPARAÎT QUAND RIEN N'EST COMMENCÉ (voir `areprendre` plus
+       haut) : la page s'ouvre alors directement sur les sujets.
+     ⚠ « À reprendre » ne va pas dans les Livres (ta remarque du même jour) : ce sont
+     des formations à finir, sous une étagère de livres ça ne veut rien dire. */
+  if(FONGLET!=='livres' && areprendre.length)
+  h+='<div class="sect"><b>À reprendre</b><em>'+areprendre.length+' en cours</em></div>'+
+    '<div class="frepr">'+areprendre.map(function(p){
       const ch=formationChapitres(p.page), lus=fluLus(p.sid).length, c=themeCoul(p.theme);
-      const noir=(i%2===0);
-      return '<button class="fmod'+(noir?' noir':' plein')+'"'+(noir?'':' style="background:'+c+'"')+' onclick="go(\'#/f/'+p.sid+'\')">'+
-        '<span class="ic" style="color:'+(noir?c:'#1b1b1b')+'">'+icon('book')+'</span>'+
-        '<b>'+esc(p.nom)+'</b>'+
-        '<em'+(noir?' style="color:'+c+'"':'')+'>'+(ch.length?lus+' / '+ch.length+' chapitres · ':'')+formationDuree(p.page)+' min</em></button>';
-    }).join('')+'</div>'+pagination(areprendre.length);
+      const pc=ch.length?Math.round(lus/ch.length*100):0;
+      return '<button class="frow2 freprl" onclick="go(\'#/f/'+p.sid+'\')">'+
+        '<span class="rd" style="background:'+pastel(c)+'"><span class="ic">'+icon('book')+'</span></span>'+
+        '<span class="tx"><b>'+esc(p.nom)+'</b>'+
+          '<em>'+(ch.length?lus+' / '+ch.length+' chapitres · ':'')+formationDuree(p.page)+' min</em>'+
+          (ch.length?'<span class="frjauge"><i style="width:'+pc+'%;background:'+c+'"></i></span>':'')+
+        '</span>'+
+        '<span class="ic fextl">\u203A</span></button>';
+    }).join('')+'</div>';
 
   /* ═══ TOUT RANGÉ PAR SUJET ═══
      Chaque sujet réunit ce que l'app apprend ET ce qui se trouve dehors : on
