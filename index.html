@@ -13061,7 +13061,10 @@ window.addEventListener('hashchange',()=>{
      depuis un autre téléphone resterait invisible pendant des heures. */
   try{
     if(typeof loadWikiCentre==='function' &&
-       (WIKI_PAGES[current.view] || current.view==='ranger' || current.view==='admin'))
+       (WIKI_PAGES[current.view] || current.view==='ranger' || current.view==='admin'
+        /* Les livres portent chacun leur wiki : la bibliothèque doit charger la base
+           en arrivant, sinon la première fiche ouverte affiche « rien encore ». */
+        || current.view==='bibliotheque' || current.view==='formations'))
       loadWikiCentre().then(function(){ render(); });
   }catch(e){ panneNoter('wiki à l’arrivée', e); }
 });
@@ -14267,7 +14270,16 @@ function vCentre(){
     {n:'Activités', s:'', c:'#f8763f', p:'palette',
      k:['Éduc','Activités']},
     {n:'Apprendre', s:'', c:'#b28b7a', p:'educatif',
-     k:['Formations','Les jeux','Le dictionnaire','Livres']}
+     k:['Formations','Les jeux','Le dictionnaire']},
+    /* ⚠ LES LIVRES ONT LEUR PROPRE CARTE (Mag, 27/08/2026 : « rajoute une carte avec
+       livre, et mets la section des livres dedans, ce sera plus clair »). Ils étaient
+       la quatrième ligne d'« Apprendre », coincés entre les jeux et le dictionnaire —
+       or on ne vient pas chercher un livre dans le même geste qu'une révision.
+       ⚠ ELLE DOIT RESTER LA DERNIÈRE FAMILLE : « Ressources » est accrochée à
+       l'index 2 (Apprendre) dans `dedansHTML`. La glisser avant déplacerait les
+       documents officiels dans le mauvais dépliant, sans rien afficher d'anormal. */
+    {n:'Livres', s:'', c:'#b28b7a', p:'book',
+     k:['Livres']}
   ];
 
   /* ═══ TROIS SORTES DE GESTE, ET UNE SEULE PAR SORTE (Mag, 21/08/2026) ═══
@@ -24725,6 +24737,32 @@ function qLieuFermer(){ document.getElementById('qBg').classList.remove('on'); }
    « Quand on clique sur une carte, ça pourrait ouvrir une fenêtre qui glisse vers le
    bas, avec le résumé, tout ce qu'il y a à savoir, la préface » — et le PDF s'il y en
    a. Le résumé reste à écrire : on ne l'invente pas (voir le commentaire de FORM_LIVRES). */
+/* ═══ LA CLÉ DE WIKI D'UN LIVRE — ET POURQUOI ELLE EST SI COURTE ═══
+   Une seule définition : le rendu, l'écriture et le nom affiché dans la file
+   d'attente doivent tomber sur exactement la même chaîne.
+
+   ⚠ LA BASE REFUSE AU-DELÀ DE 40 CARACTÈRES (`wiki_centre_page_courte`, dans
+   sql/wiki-centre.sql). Avec le titre entier, six livres sur dix dépassaient : le
+   collègue aurait écrit son avis, appuyé sur Proposer, et reçu une erreur de base
+   qu'il ne pouvait pas comprendre. Trouvé avant la mise en ligne, pas après.
+
+   ⚠ ET LA TRONCATURE SEULE NE SUFFIT PAS : deux titres qui commencent pareil
+   donneraient la même clé, et les deux wikis se mélangeraient EN SILENCE. D'où les
+   quatre lettres de contrôle calculées sur le titre ENTIER — 6+26+1+4 = 37. */
+function livCle(t){
+  let h=0; const s=String(t||'');
+  for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; }
+  return h.toString(36).slice(-4);
+}
+function livPage(l){ return 'livre:'+slug(l.t).slice(0,26)+'-'+livCle(l.t); }
+/* ⚠ LA FEUILLE NE SE REDESSINE PAS TOUTE SEULE. `render()` refait `#view`, or la
+   fiche d'un livre vit dans `livBg`, en dehors. Sans ce rappel, on proposait une
+   note et rien ne bougeait : ni le champ vidé, ni le « en attente » — on croyait
+   que ça n'était pas parti, et on réécrivait. */
+function livRafraichir(){
+  const t=document.getElementById('livTit');
+  if(t && document.getElementById('livBg').classList.contains('on')) livOuvrir(t.textContent);
+}
 function livOuvrir(titre){
   const l=FORM_LIVRES.find(function(x){ return x.t===titre; }); if(!l) return;
   document.getElementById('livTit').textContent=l.t;
@@ -24738,11 +24776,20 @@ function livOuvrir(titre){
   if(l.res){
     c+='<div class="liv-sec"><em>Résumé</em><p>'+esc(l.res)+'</p></div>';
   }else{
-    c+='<div class="liv-vide">Le résumé n’est pas encore écrit. À ajouter par quelqu’un qui l’a lu.</div>';
+    /* ⚠ LE VIDE RENVOIE AU WIKI (Mag, 27/08/2026 : « plutôt que marquer que le résumé
+       n'est pas encore écrit, vous pouvez donner votre avis dans le wiki »). Un blanc
+       qui dit seulement « il manque quelque chose » ne fait rien arriver : celui qui a
+       lu le livre passe et referme. La même phrase, qui montre où écrire, le retient. */
+    c+='<div class="liv-vide">Pas encore de résumé — si tu l’as lu, dis ce que tu en as pensé dans le wiki, juste en dessous.</div>';
   }
   /* Le PDF s'il existe : on le télécharge, le livre entier n'est pas cherché. */
   if(l.pdf) c+='<a class="qlieu-map" href="'+esc(l.pdf)+'" target="_blank" rel="noopener">'+
     '<span class="ic">'+icon('imprimer')+'</span>Télécharger le PDF</a>';
+  /* ⚠ UN WIKI PAR LIVRE, PAS UN POUR LA BIBLIOTHÈQUE. La clé porte le titre
+     (`livre:les-naufrages`) : un avis sur Declerck n'a rien à faire sous Marx.
+     ⚠ ELLE EST BÂTIE SUR LE TITRE, donc renommer un livre déplace son wiki —
+     même piège que le `sid` des fiches. Si un titre change, reporter les notes. */
+  c+=wikiBloc(livPage(l));
   c+='</div>';
   document.getElementById('livCorps').innerHTML=c;
   document.getElementById('livBg').classList.add('on');
@@ -24940,6 +24987,20 @@ function vEau(){
    ══════════════════════════════════════════════════════════════════════════ */
 /* Le nom lisible de chaque page, pour la file d'attente : « une note sur linge »
    ne dit rien à celle qui relit. À tenir à jour en même temps que `wikiBloc()`. */
+/* ⚠ LE NOM LISIBLE PASSE PAR ICI, PAS PAR `WIKI_PAGES` DIRECTEMENT. Les pages fixes
+   sont dans le dictionnaire ; les clés qui portent leur objet (`livre:les-naufrages`)
+   n'y seront jamais, et affichaient leur slug brut dans la file d'attente — « une note
+   sur livre:les-naufrages » ne dit rien à celle qui relit. */
+function wikiNomPage(p){
+  if(WIKI_PAGES[p]) return WIKI_PAGES[p];
+  if(String(p).indexOf('livre:')===0){
+    /* ⚠ PASSER PAR `livPage()`, jamais recalculer la clé à la main : c'est ce qui
+       s'était cassé au premier essai — la file affichait le slug au lieu du titre. */
+    const l=FORM_LIVRES.find(function(x){ return livPage(x)===p; });
+    return 'Livres · '+(l?l.t:String(p).slice(6));
+  }
+  return p;
+}
 const WIKI_PAGES={
   linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres',
   print:'Les feuilles à imprimer', quartier:'Autour d’ici', reglement:'Le règlement',
@@ -24970,6 +25031,15 @@ function wikiBascule(page){ WIKI_OUV=(WIKI_OUV===page?'':page); render(); }
 /* ⚠ LE BLOC EST LE MÊME PARTOUT, ET IL EST REPLIÉ PAR DÉFAUT. C'est le carnet des
    fiches, repris tel quel : un seul geste à apprendre pour toute l'app. La tache à
    droite dit s'il y a quelque chose dedans, sans avoir à ouvrir. */
+/* ⚠ CE QU'ON ATTEND N'EST PAS LE MÊME PARTOUT. Sur une page de consignes, le wiki
+   corrige (« la buanderie a changé d'étage »). Sur un livre, il n'y a rien à
+   corriger : on donne son avis. Un champ qui demande « ce qui a changé » sous un
+   roman ne recueille rien — la question posée décide de ce qui s'écrit. */
+function wikiInvite(page){
+  if(String(page).indexOf('livre:')===0)
+    return 'Ce que tu en as pensé, et à qui ça peut servir';
+  return 'Ce qui a changé, ou ce qui manque sur cette page';
+}
 function wikiBloc(page){
   if(!sb) return '';                       /* pas connecté : pas de wiki */
   const ouvert=(WIKI_OUV===page);
@@ -25006,7 +25076,7 @@ function wikiBloc(page){
      un champ vide sous « wiki » recueille n'importe quoi. */
   h+='<div class="chadd empile ecrire" style="margin-top:12px">'+
      '<textarea id="wikiTxt-'+page+'" rows="2" maxlength="600" '+
-       'placeholder="Ce qui a changé, ou ce qui manque sur cette page" '+
+       'placeholder="'+esc(wikiInvite(page))+'" '+
        'oninput="passGrandir(this)"></textarea>'+
      '<button class="accb" onclick="wikiEcrire(\''+page+'\')">Proposer</button>'+
      '</div>';
@@ -25024,7 +25094,7 @@ async function wikiEcrire(page){
   if(r.error){ toast('Pas envoyé — '+r.error.message); return; }
   toast('Proposé — la coordination va le relire');
   if(i) i.value='';
-  await loadWikiCentre(); render();
+  await loadWikiCentre(); render(); livRafraichir();
 }
 async function wikiTrancher(id, etat){
   const i=document.getElementById('wikiMotif-'+id);
@@ -25039,7 +25109,7 @@ async function wikiTrancher(id, etat){
   }).eq('id',id).select();
   if(r.error){ toast('Pas enregistré — '+r.error.message); return; }
   toast(etat==='ok'?'Validé — c’est en ligne':'Refusé, la raison est notée');
-  await loadWikiCentre(); render();
+  await loadWikiCentre(); render(); livRafraichir();
 }
 function wikiRetirer(id){
   cousinConfirme('Retirer cette note ?','Elle ne s’affichera plus sur la page.',
@@ -25060,7 +25130,7 @@ function wikiFileHTML(){
     '<div class="rlist">'+f.map(function(n){
       const j=(n.cree_le||'').slice(8,10)+'/'+(n.cree_le||'').slice(5,7);
       return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
-        '<em>'+esc(WIKI_PAGES[n.page]||n.page)+' · '+esc(j)+'</em>'+
+        '<em>'+esc(wikiNomPage(n.page))+' · '+esc(j)+'</em>'+
         '<p>'+esc(n.texte)+'</p>'+
         '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" '+
           'placeholder="Raison, si tu refuses" autocomplete="off">'+
