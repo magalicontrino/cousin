@@ -2730,6 +2730,14 @@ body.pan-ouvert #view{animation:none;transform:none}
   .actpan .actpt{padding-top:16px}
 }
 @keyframes actD{from{transform:translateX(100%)}to{transform:none}}
+/* ═══ PAGE DES PARCS — PLAN + LISTE CÔTE À CÔTE (Mag, 28/08/2026) ═══ */
+.parcs-page{display:flex;flex-direction:column;gap:16px;margin:12px 0}
+@media(min-width:700px){.parcs-page{flex-direction:row}.parcs-map{flex:1;min-width:0}.parcs-list{flex:1;min-width:0}}
+.parcs-map .qplan{padding:0;border:none;margin:0}
+.parcs-map .qplan svg{display:block;width:100%;max-width:500px;margin:0 auto}
+.parcs-map .qplan p{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#555;text-align:center;margin-top:6px}
+.parcs-list .actrow{margin:0 -14px;padding:0 14px}
+.parcs-list .actrow .tu{width:24px;height:24px;font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none}
 /* ═══ LES IDÉES DE GROUPES DE PAROLE : UN RAIL QUI GLISSE (Mag, 28/08/2026) ═══
    « Il faut faire un slide et des cards plus petites avec moins d'info, et s'il faut
    plus d'info créer une pop-up qui arrive du bas. »
@@ -25597,10 +25605,14 @@ function vActivitePage(k){
     if(!acts.length&&!fs.length) h+='<p class="hint" style="padding:14px 2px">Rien pour l\'instant. Demande à Mag d\'en ajouter.</p>';
   } else if(k==='parcs'){
     const g=(QUARTIER||[]).find(x=>/parcs/i.test(x.grp||''));
-    h+=(g?g.lignes:[]).map(l=>'<div class="actrow">'+
-      '<span class="tu" style="background:#a8d8c1">'+P('adresse')+'</span>'+
+    h+='<div class="parcs-page">';
+    h+='<div class="parcs-map">'+parcsPlanSVG()+'</div>';
+    h+='<div class="parcs-list">';
+    h+=(g?g.lignes:[]).map((l,i)=>'<div class="actrow">'+
+      '<span class="tu" style="background:#a8d8c1">'+(i+1)+'</span>'+
       '<span class="tx"><b>'+esc(l.t)+'</b><em>'+esc(l.d||'')+'</em>'+(l.adr?'<i>'+esc(l.adr)+'</i>':'')+'</span>'+
       (l.adr?'<button class="actgo" onclick="window.open(\''+itiHref(l.adr)+'\',\'_blank\')">Y aller</button>':'')+'</div>').join('');
+    h+='</div></div>';
     h+='<button class="actimpr" onclick="imprimerParcs()">'+P('imprimer')+'Imprimer la liste</button>';
   } else if(k==='cal'){
     const c=agCalendrierHTML();
@@ -26050,6 +26062,44 @@ function quartierPlanSVG(){
     '<svg viewBox="0 0 '+W+' '+H+'" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
     '<p>Chaque cercle est une distance de marche. Les numéros renvoient à la liste '+
     'ci-dessous.</p></div>';
+}
+
+/* ═══ LE PLAN DES PARCS SEULEMENT (Mag, 28/08/2026) ═══
+   Même schéma que `quartierPlanSVG()` mais filtré pour ne montrer que les parcs.
+   Les numéros correspondent à la liste en dessous — pratique pour repérer
+   lequel est où, sans être distrait par l'Aldi et DoucheFLUX. */
+function parcsPlanSVG(){
+  const parcs=QUARTIER_PLAN.filter(x=>/parc/i.test(x.t));
+  if(!parcs.length) return '';
+  const W=660, H=400, cx=W/2, cy=H/2;
+  const anneaux=[62, 108, 152, 192];
+  let g='', num=1;
+  anneaux.forEach(rr=>{g+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rr+'" fill="none" stroke="#bbb" stroke-width="1" stroke-dasharray="3 4"/>';});
+  g+='<g transform="translate('+(W-38)+',30)"><path d="M0 16 L0 -14 M0 -14 L-5 -6 M0 -14 L5 -6" stroke="#000" stroke-width="1.6" fill="none"/><text x="0" y="30" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="#000">N</text></g>';
+  const pts=parcs.map(p=>{
+    const rad=(p.a-90)*Math.PI/180, rr=anneaux[p.r-1];
+    const x=cx+Math.cos(rad)*rr, y=cy+Math.sin(rad)*rr;
+    const dehors=rr+26, lx=cx+Math.cos(rad)*dehors, ly=cy+Math.sin(rad)*dehors;
+    return {p, n:num++, x, y, droite:Math.cos(rad)>=0, lx, ly};
+  });
+  ['droite','gauche'].forEach(cote=>{
+    const l=pts.filter(q=>cote==='droite'?q.droite:!q.droite).sort((a,b)=>a.ly-b.ly);
+    for(let k=1;k<l.length;k++) if(l[k].ly-l[k-1].ly<24) l[k].ly=l[k-1].ly+24;
+  });
+  pts.forEach(q=>{g+='<line x1="'+cx+'" y1="'+cy+'" x2="'+q.x.toFixed(1)+'" y2="'+q.y.toFixed(1)+'" stroke="#000" stroke-width="0.8" opacity="0.35"/>';});
+  pts.forEach(q=>{
+    g+='<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="11" fill="#fff" stroke="#a8d8c1" stroke-width="2"/>';
+    g+='<text x="'+q.x.toFixed(1)+'" y="'+(q.y+3.6).toFixed(1)+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" font-weight="700" fill="#3a3730">'+q.n+'</text>';
+  });
+  pts.forEach(q=>{
+    const anc=q.droite?'start':'end', halo='stroke="#fff" stroke-width="3" paint-order="stroke" ';
+    g+='<text x="'+q.lx.toFixed(1)+'" y="'+(q.ly-4).toFixed(1)+'" text-anchor="'+anc+'" '+halo+'font-family="ui-monospace,monospace" font-size="9.5" font-weight="600" fill="#000">'+esc(q.p.t)+'</text>';
+    g+='<text x="'+q.lx.toFixed(1)+'" y="'+(q.ly+7).toFixed(1)+'" text-anchor="'+anc+'" '+halo+'font-family="ui-monospace,monospace" font-size="8.5" fill="#444">'+q.p.min+' min à pied</text>';
+  });
+  g+='<circle cx="'+cx+'" cy="'+cy+'" r="16" fill="#a8d8c1"/><text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" font-weight="700" fill="#fff">ICI</text><text x="'+cx+'" y="'+(cy+34)+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="#000">Bd Prince de Liège 38</text>';
+  return '<div class="qplan">'+
+    '<svg viewBox="0 0 '+W+' '+H+'" width="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>'+
+    '<p>Les numéros renvoient à la liste ci-dessous.</p></div>';
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
