@@ -15103,8 +15103,12 @@ function listeCorps(){
            '<p>'+texte+'</p></details>';
   };
 
+  /* ⚠ « LES GENS À VOIR » PASSE AUSSI PAR LES DEUX SORTIES ANTICIPÉES : sans ça, la
+     carte n'existerait que pour ceux qui ont une check-list — c'est-à-dire pas pour
+     les travailleurs sociaux, qui sont précisément ceux qui vont voir les gens. Même
+     piège que la garde PFO en août. */
   if(!CHECKLISTS.length)
-    return h+carteMaListe()+
+    return h+carteAVoir()+carteMaListe()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -15112,7 +15116,7 @@ function listeCorps(){
       '<div style="height:26px"></div>';
 
   if(!miennes.length)
-    h+=carteMaListe()+
+    h+=carteAVoir()+carteMaListe()+
       replie('Liste de métier — aucune à toi',
         'Aucune liste n’est attribuée à ton rôle. Celles d’en dessous sont là pour '+
         'jeter un œil : ce que tu y coches ne compte que pour toi.');
@@ -15228,6 +15232,10 @@ function listeCorps(){
     h+=bloc(vue);
   }
   h+='</div>';
+  /* ⚠ JUSTE APRÈS LA CHECK-LIST, ET C'EST ELLE QUI L'A PLACÉE LÀ : on finit sa
+     check-list en début de service, et la question suivante est « qui je vais voir
+     aujourd'hui ? ». Avant Ma liste perso, qui est le fourre-tout de la journée. */
+  h+='<div class="ml3-c">'+carteAVoir()+'</div>';
   h+='<div class="ml3-c">'+carteMaListe()+'</div>';
   h+='<div class="ml3-c">'+passationsHTML()+'</div>';
   h+='</div>';
@@ -24226,15 +24234,30 @@ const ACC_CHAMPS_MED=[
  ]}
 ];
 const ACC_CHAMPS=[
- /* ⚠⚠ AUCUN NOM, AUCUNE DATE DE NAISSANCE, AUCUN ÂGE (Mag, 21/08/2026) : « ici, ne
-    jamais noter le nom entier, donc retire nom et prénom. C'est juste un canevas
-    pour s'aider, on n'a pas besoin d'autant de détails. Le téléphone, oui. »
-    Elle a raison et ça règle la contradiction de cette page : une trame d'entretien
-    n'a pas besoin d'identifier quelqu'un pour aider à mener l'entretien. Le nom
-    existe déjà dans KAIROS, c'est là que la note se colle.
-    ⚠ NE PAS LES REMETTRE, même « pour que la note soit complète » : la note se colle
-    DANS le dossier de la personne, qui porte déjà son nom.
+ /* ═══ LE NOM ET LA CHAMBRE SONT REVENUS, ET POUR UNE AUTRE RAISON (Mag, 28/08/2026) ═══
+    « Rajoute une section nom en premier, et chambre aussi. Pour qu'on puisse reprendre
+    avec la bonne personne. »
+
+    ⚠⚠ CECI REVIENT SUR SA RÈGLE DU 21/08 — « ici, ne jamais noter le nom entier, donc
+    retire nom et prénom » — ET C'EST VOULU. Le motif n'est plus le même. En août, la
+    question était : la note a-t-elle besoin du nom pour être complète ? Non — elle se
+    colle dans le dossier KAIROS, qui porte déjà le nom. Aujourd'hui la question est :
+    quand on revient sur un brouillon interrompu, sait-on DE QUI il parle ? Sans le
+    nom, non. Une trame reprise sur la mauvaise personne est pire qu'une trame vide.
+
+    ⚠ CE QUI N'A PAS CHANGÉ : ni date de naissance, ni âge, ni rien d'autre. On ajoute
+    de quoi RECONNAÎTRE le brouillon, pas de quoi constituer un dossier — le dossier,
+    c'est le 6D.
+    ⚠ ET LE BROUILLON VIT DANS LE TÉLÉPHONE, pas dans la base : un nom écrit ici reste
+    sur l'appareil tant qu'on n'a pas touché « Effacer ». Sur un téléphone partagé, ça
+    veut dire que la personne suivante peut le lire. C'est le prix de la reprise, et
+    elle le sait — mais « Effacer » n'est plus seulement un rangement.
+
     Le GSM reste : c'est le seul moyen de la rappeler, et c'est elle qui le donne. */
+  {s:'Nom et chambre', c:[
+    {k:'nom',    l:'nom',     n:'Nom'},
+    {k:'chambre',l:'chambre', n:'Chambre'}
+  ]},
  /* ⚠ LE CONSEIL EST ICI, PAS DANS UNE FICHE (Mag, 21/08/2026 : « ça, tu pourrais
     plutôt rajouter comme tips dans l'entretien d'accueil »). Il vivait dans le
     Protocole, où personne n'allait le chercher au bon moment. Le bon moment, c'est
@@ -27476,6 +27499,13 @@ async function chargerReglages(){
   } else if(premiere && MESRAPPELS.length){
     reglagePousser('ma_liste',MESRAPPELS);
   }
+  // LES GENS À VOIR : même règle que ses rappels, la base fait foi.
+  if(Array.isArray(lignes.a_voir)){
+    AVOIR=lignes.a_voir;
+    try{ localStorage.setItem('lux_a_voir',JSON.stringify(AVOIR)); }catch(e){}
+  } else if(premiere && AVOIR.length){
+    reglagePousser('a_voir',AVOIR);
+  }
   // SON PETIT NOM : la base fait foi, il la suit d'un téléphone à l'autre.
   if(typeof lignes.pseudo==='string'){
     PSEUDO=lignes.pseudo;
@@ -27697,6 +27727,102 @@ let RAP_CH_BROUILLON='';
    `RAP_TAGS` est un objet de booléens, indexé par clé — un seul endroit à tenir à
    jour, et `rappelAjouter` recopie ce qui est coché dans la note. */
 let RAP_TAGS={absence:false, desencodage:false};
+/* ═══════════════════════════════════════════════════════════
+   LES GENS À VOIR (Mag, 28/08/2026)
+
+   « On devrait avoir une liste des gens à voir, à part, dans ma liste. Juste après la
+   check-list. Et là on mettrait le nom et le numéro de chambre. Et puis un lien qui
+   ouvre directement vers la page "premier accueil social". »
+
+   C'est le chaînon qui manquait à la trame d'entretien : la page du Premier accueil
+   sait maintenant DE QUI elle parle (nom + chambre), mais rien ne disait QUI reste à
+   voir aujourd'hui. Les deux se répondent — la liste dit qui, la page dit quoi.
+
+   ⚠ UNE LISTE À PART, PAS DES LIGNES DE PLUS DANS « MA LISTE PERSO ». Mélangées, elles
+   auraient fait mentir son compte (« 0 / 5 faites ») et se seraient noyées dans les
+   choses à ne pas oublier. Ce sont des PERSONNES, pas des tâches.
+
+   ⚠ ELLE EST PERSONNELLE, comme sa liste : elle vit dans son tiroir à elle
+   (`reglages_perso`, clé « a_voir ») et suit son compte d'un téléphone à l'autre.
+   Personne d'autre ne la lit.
+
+   ⚠ DES NOMS DANS LA BASE : c'est la première fois sur cette page. C'est assumé — sans
+   nom, on ne sait pas qui reste à voir — mais ça veut dire qu'un nom effacé ici doit
+   l'être partout : le bouton « Retirer » supprime pour de bon, il ne masque pas.
+   ═══════════════════════════════════════════════════════════ */
+let AVOIR;
+try{ AVOIR=JSON.parse(localStorage.getItem('lux_a_voir')||'[]'); }catch(e){ AVOIR=[]; }
+if(!Array.isArray(AVOIR)) AVOIR=[];
+let AV_NOM='', AV_CH='';
+function avoirSauver(){
+  try{ localStorage.setItem('lux_a_voir',JSON.stringify(AVOIR)); }catch(e){}
+  if(typeof reglagePousser==='function') reglagePousser('a_voir',AVOIR);
+}
+function avoirAjouter(){
+  const n=(document.getElementById('avNom')||{}).value||'';
+  const c=(document.getElementById('avCh')||{}).value||'';
+  const nom=n.trim();
+  if(!nom){ const e=document.getElementById('avNom'); if(e) e.focus(); return; }
+  AVOIR.unshift({id:'a'+Date.now(), nom:nom.slice(0,80), chambre:c.trim().slice(0,12)});
+  AV_NOM=''; AV_CH=''; avoirSauver(); render();
+}
+function avoirCocher(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
+  r.vuLe = (r.vuLe===todayStr()) ? null : todayStr();
+  avoirSauver(); render();
+}
+function avoirVu(r){ return r && r.vuLe===todayStr(); }
+function avoirRetirer(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
+  cousinConfirme('Retirer de la liste ?', r.nom, function(){
+    AVOIR=AVOIR.filter(function(x){ return x.id!==id; });
+    avoirSauver(); render();
+  }, {ok:'Retirer', danger:true});
+}
+/* ⚠ LE LIEN OUVRE LA PAGE, IL NE REMPLIT RIEN. Préremplir le nom écraserait un
+   entretien commencé sur quelqu'un d'autre — et « reprendre sur la mauvaise personne »
+   est précisément ce qu'on essaie d'éviter. On ouvre, on lit le nom sur sa liste, on
+   l'écrit. */
+function avoirAccueil(){ go('#/accueil-personne'); }
+function carteAVoir(){
+  const tot=AVOIR.length, vus=AVOIR.filter(avoirVu).length;
+  const ligne=function(r){
+    const vu=avoirVu(r);
+    return '<div class="pl2'+(vu?' faite':'')+'">'+
+      '<div class="pl2-h">'+
+        '<button class="cas" onclick="avoirCocher(\''+r.id+'\')" aria-label="Cocher">'+
+          (vu?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+        '<span class="pl2-sep"></span>'+
+        '<button class="ib" onclick="avoirRetirer(\''+r.id+'\')" '+
+          'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
+        '<button class="rapPass mini" onclick="avoirAccueil()">Premier accueil</button>'+
+      '</div>'+
+      '<div class="pl2-t" onclick="avoirCocher(\''+r.id+'\')">'+
+        '<b>'+esc(r.nom||'')+'</b>'+
+        (r.chambre?'<em>ch. '+esc(r.chambre)+'</em>':'')+
+      '</div></div>';
+  };
+  return '<div class="pcarte">'+
+    '<div class="ptitre"><b>Les gens à voir</b>'+
+      '<span>'+(tot?vus+' / '+tot+' vus':'rien pour l’instant')+'</span></div>'+
+    /* ⚠ `empile` : sans elle, `.chadd` est une RANGÉE — le champ du nom se retrouvait
+       écrasé sur trois lettres à côté du numéro de chambre. Vu à l'écran. La classe
+       `ecrire` est celle des autres champs d'écriture de l'app (fond clair). */
+    '<div class="chadd empile ecrire">'+
+      '<textarea id="avNom" rows="1" placeholder="Le nom" autocomplete="off" '+
+        'oninput="AV_NOM=this.value;passGrandir(this)" '+
+        'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();avoirAjouter();}">'+esc(AV_NOM||'')+'</textarea>'+
+      '<div class="chadd-b">'+
+        '<input id="avCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
+          'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(AV_CH||'')+'" '+
+          'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');AV_CH=this.value" '+
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avoirAjouter();}">'+
+        '<button class="chaddbtn" onclick="avoirAjouter()">OK</button>'+
+      '</div>'+
+    '</div>'+
+    AVOIR.map(ligne).join('')+
+  '</div>';
+}
 function rappelsSauver(){
   try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
   if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
