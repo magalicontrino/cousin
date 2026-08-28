@@ -2743,6 +2743,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   overflow:hidden;margin-top:6px;font-size:12.5px;line-height:1.35;color:#57554f}
 .gpc i{font-style:normal;display:block;margin-top:9px;font-family:ui-monospace,monospace;
   font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#8b8984}
+/* Une proposition déjà faite reste dans son rail, mais elle s'efface : on la voit
+   sans qu'elle prenne la place de ce qui reste à lancer. */
+.gpc.faite{opacity:.55}
+.gpc.faite b{text-decoration:line-through}
 /* ⚠ ELLE MONTE PAR-DESSUS LE PANNEAU (z-index 95/96 contre 89) : on est déjà dans une
    feuille quand on l'ouvre. Fermer celle du haut ne doit pas fermer celle du bas. */
 .gpvoile{position:fixed;inset:0;background:rgba(20,19,17,.42);z-index:95}
@@ -22314,6 +22318,61 @@ function propRetirer(id){
     }catch(e){ toast('Suppression refusée'); }
   }, {ok:'Retirer', danger:true});
 }
+/* ═══ LES PROPOSITIONS EN RAILS (Mag, 28/08/2026) ═══
+   « Il faut aussi que, par proposition, on puisse noter dans le centre ou à
+   l'extérieur du centre — comme ça après il y aura par exemple deux slides : un pour
+   les propositions dans le centre et un pour les propositions à l'extérieur. »
+
+   La question « Où ? » existait déjà à l'écriture depuis ce matin ; ce qui manquait,
+   c'était la LECTURE. Deux rails, l'un sous l'autre, chacun avec son titre — on fait
+   glisser « au centre » sans traverser « dehors ».
+
+   ⚠ MÊME DESSIN QUE LES PISTES (`gpslide`/`gpc`) : un seul rail dans toute l'app.
+   Deux façons de faire glisser des cartes, ce serait deux gestes à apprendre pour la
+   même chose.
+   ⚠ LA PETITE CARTE NE PORTE AUCUN BOUTON, ET C'EST VOULU. « Demandé encore », « À
+   essayer », « On l'a faite », modifier, retirer : cinq gestes sur une carte de la
+   largeur d'un pouce, c'est la promesse d'appuyer sur le mauvais. Ils sont tous dans
+   la feuille, où il y a la place de viser.
+   ⚠ CE QUI RESTE SUR LA PETITE CARTE : d'où ça vient, et COMBIEN DE FOIS ça a été
+   demandé. C'est le chiffre qui dit quoi lancer en premier — le cacher derrière un
+   clic ferait perdre la seule chose qu'on lit en survolant la liste. */
+function propRailHTML(liste){
+  if(!liste || !liste.length) return '';
+  return '<div class="gpslide">'+liste.map(function(p){
+    const s=propSource(p.source), n=(p.demandee||1);
+    const bas=[s.court];
+    if(n>1) bas.push(n+' fois');
+    if(propLieu(p)==='dehors') bas.push('Dehors');
+    if(p.etat==='faite') bas.push('Faite');
+    return '<button class="gpc'+(p.etat==='faite'?' faite':'')+'" style="border-left-color:'+s.c+'" '+
+      'onclick="propOuvrir(\''+p.id+'\')">'+
+      '<b>'+esc(p.texte||'')+'</b>'+
+      (p.note?'<em>'+esc(p.note)+'</em>':'')+
+      '<i>'+esc(bas.join(' · '))+'</i></button>';
+  }).join('')+'</div>';
+}
+let PROP_OUVERT=null;
+function propOuvrir(id){ PROP_OUVERT=String(id); if(typeof GP_OUVERT!=='undefined') GP_OUVERT=null; render(); }
+function propFermer(){ PROP_OUVERT=null; render(); }
+/* La feuille reprend LA CARTE ENTIÈRE, boutons compris — une seule écriture de la
+   carte, donc rien à tenir à jour deux fois.
+   ⚠ SI LA LIGNE A ÉTÉ RETIRÉE, LA FEUILLE SE FERME D'ELLE-MÊME : sans ça, on
+   resterait devant une carte qui n'existe plus, avec des boutons qui ne répondent
+   à rien. */
+function propFeuilleHTML(){
+  if(PROP_OUVERT===null) return '';
+  const p=PROPOS.find(function(x){ return String(x.id)===String(PROP_OUVERT); });
+  if(!p){ PROP_OUVERT=null; return ''; }
+  return '<div class="gpvoile" onclick="propFermer()"></div>'+
+    '<div class="gpfeuille" role="dialog" aria-label="'+esc(p.texte||'')+'">'+
+      '<button class="actpoi" onclick="propFermer()" aria-label="Fermer" style="border:0;padding:0;cursor:pointer"></button>'+
+      '<div class="actpt"><span class="t"><em>Proposition d’activité</em>'+
+        '<b>'+esc(propLieu(p)==='dehors'?'Dehors':'Au centre')+'</b></span>'+
+        '<button class="actx" onclick="propFermer()" aria-label="Fermer">\u2715</button></div>'+
+      '<div class="gpf-c">'+propCarte(p, false)+'</div>'+
+    '</div>';
+}
 function propCarte(p, sansLieu){
   const s=propSource(p.source), mienne=!!(PROFILE && p.uid===PROFILE.uid);
   const qui=String(p.par||'').trim().split(/\s+/)[0];
@@ -22380,26 +22439,21 @@ function propositionsHTML(dansPanneau){
        Dans chacun, les plus demandées en tête (le tri vient de la base).
        ⚠ UN PAQUET VIDE NE S'ÉCRIT PAS. Un titre « Dehors » suivi de rien laisserait
        croire qu'on a perdu des lignes — alors que personne n'en a encore noté.
-       ⚠ ET SI TOUT EST DU MÊME CÔTÉ, ON N'ÉCRIT AUCUN DES DEUX TITRES : aujourd'hui
-       toutes les propositions sont au centre ; coiffer la liste entière d'un titre
-       « Au centre » n'apprendrait rien à personne. */
+       ⚠ DEPUIS LE PASSAGE EN RAILS, LE TITRE S'ÉCRIT TOUJOURS : un rail sans nom, on
+       ne sait pas ce qu'on fait glisser. C'est lui qui sépare les deux rails. */
     const parLieu={centre:[], dehors:[]};
     vivantes.forEach(function(x){ parLieu[propLieu(x)].push(x); });
-    const lesDeux=(parLieu.centre.length>0 && parLieu.dehors.length>0);
     PROP_LIEUX.forEach(function(L){
       const lot=parLieu[L.k];
       if(!lot.length) return;
-      if(lesDeux) h+='<div class="ghead" style="margin-top:14px">'+esc(L.l)+'</div>';
-      /* ⚠ SOUS UN TITRE « DEHORS », L'ÉTIQUETTE « DEHORS » NE DIT RIEN DE PLUS —
-         on la retire quand les deux paquets sont écrits. Elle reste quand il n'y a
-         qu'un paquet, et dans « Déjà faites », qui mélange les deux.
-         ⚠ PAS DE `.map(propCarte)` ICI : `map` passerait l'INDEX en deuxième
-         argument, et la première carte (index 0) se comporterait autrement que les
-         suivantes. */
-      h+=lot.map(function(x){ return propCarte(x, lesDeux); }).join('');
+      /* ⚠ LE TITRE S'ÉCRIT TOUJOURS (Mag, 28/08/2026 : « il y aura par exemple deux
+         slides, un pour les propositions dans le centre et un pour les propositions
+         à l'extérieur »). Un rail sans nom, on ne sait pas ce qu'on fait glisser —
+         et avec deux rails l'un sous l'autre, c'est le titre qui les sépare. */
+      h+='<div class="ghead" style="margin-top:14px">'+esc(L.l)+'</div>'+propRailHTML(lot);
     });
     if(faites.length) h+='<div class="ghead" style="margin-top:16px">Déjà faites</div>'+
-      faites.map(function(x){ return propCarte(x, false); }).join('');
+      propRailHTML(faites);
   }
   /* ⚠ LE TITRE ET LE PAVÉ D'AIDE (Mag, 12/08/2026) : « là note juste "proposition
      d'activité des hébergés" », puis « et retire ça » en montrant le paragraphe du
@@ -22969,7 +23023,7 @@ function lxAller(ev,code){
    une phrase d'explication — c'est un avertissement sur la nature du document, pour
    celui ou celle qui va animer. */
 let GP_OUVERT=null;                      /* l'indice de la piste ouverte, ou null */
-function gpOuvrir(i){ GP_OUVERT=i; render(); }
+function gpOuvrir(i){ GP_OUVERT=i; if(typeof PROP_OUVERT!=='undefined') PROP_OUVERT=null; render(); }
 function gpFermer(){ GP_OUVERT=null; render(); }
 function groupesParoleHTML(){
   if(typeof GROUPES_PAROLE==='undefined' || !GROUPES_PAROLE.length) return '';
@@ -24914,7 +24968,10 @@ function actOuvrir(k){
 }
 /* ⚠ FERMER LE PANNEAU FERME AUSSI LA FEUILLE POSÉE DESSUS : sinon elle resterait
    seule à l'écran, au-dessus d'une page qu'on croyait avoir quittée. */
-function actFermer(){ ACT_PAN=''; if(typeof GP_OUVERT!=='undefined') GP_OUVERT=null; render(); }
+function actFermer(){ ACT_PAN='';
+  if(typeof GP_OUVERT!=='undefined') GP_OUVERT=null;
+  if(typeof PROP_OUVERT!=='undefined') PROP_OUVERT=null;
+  render(); }
 function actPorte(k){ return ACT_PORTES.find(function(x){ return x.k===k; }); }
 function actListe(){
   /* On prend TOUT (y compris les sorties pour enfants, que le filtre par défaut
@@ -25458,7 +25515,8 @@ function actPanneau(){
       (pied?'<div class="actpied">'+pied+'</div>':'')+
     '</div>'+
     /* La feuille des pistes, par-dessus. Elle ne sort que si une piste est ouverte. */
-    ((typeof gpFeuilleHTML==='function')?gpFeuilleHTML():'');
+    ((typeof gpFeuilleHTML==='function')?gpFeuilleHTML():'')+
+    ((typeof propFeuilleHTML==='function')?propFeuilleHTML():'');
 }
 function actPanA27(){
   let h='';
