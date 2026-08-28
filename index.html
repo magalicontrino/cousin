@@ -29043,6 +29043,11 @@ function rappelsHTML(enCarte){
           '<span class="bx"></span>Désencodage</button>'+
         '</div>'+
       '</div>';
+  /* ⚠ LE RAPPEL AUTOMATIQUE EST POSÉ HORS DU `if(tot)`, et c'est tout le sujet : ce
+     bloc-là ne dépend PAS d'avoir écrit quelque chose soi-même. Placé dedans, il ne
+     serait apparu qu'aux gens qui ont déjà des notes — c'est-à-dire jamais le matin
+     où la liste est vide, le seul moment où on aurait le temps d'appeler. */
+  h+= listeAssosARecontacter();
   if(tot){
     /* ═══ RANGÉS PAR JOUR (08/08/2026) ═══
        Ce qui est passé et jamais coché d'abord : c'est le seul qui doive crier, parce
@@ -29146,6 +29151,43 @@ function rappelsHTML(enCarte){
      peu brouillon, est-ce qu'on ne pourrait pas faire une pop-up ? »). Voir
      `passFeuilleMaj` et le `<div id="passBg">`. */
   return h;
+}
+/* ═══ « À RECONTACTER » — LE RAPPEL AUTOMATIQUE (Mag, 28/08/2026) ═══
+   « Il faut me faire un rappel quand je dois les contacter », puis, après avoir pesé
+   le mail : « ok fais ça dans ma liste alors ».
+
+   Une association dont toutes les dates sont passées n'a plus de programme dans
+   COUSIN. Sa carte le dit déjà à l'écran — mais personne ne va ouvrir une page tous
+   les jours pour vérifier qu'il ne s'y passe rien. Ici, c'est la liste qu'elle ouvre
+   de toute façon chaque matin qui le lui dit.
+
+   ⚠ CE N'EST PAS UN RAPPEL QU'ON ÉCRIT, DONC IL NE SE COCHE PAS. Cocher ferait croire
+   que c'est réglé alors que rien n'aurait changé dans la base — et la ligne
+   reviendrait le lendemain, ce qui est le meilleur moyen de ne plus la lire. Elle
+   s'en va toute seule, le jour où une date est encodée. C'est la seule fin possible.
+
+   ⚠ ELLE NE S'AFFICHE QUE POUR L'ADMINISTRATION : appeler les associations n'est pas
+   le travail de l'équipe de nuit. Une ligne qu'on ne peut pas traiter est du bruit.
+
+   ⚠ LE NUMÉRO EST DANS LA LIGNE. Un rappel qui dit « les contacter » sans donner de
+   quoi le faire oblige à rouvrir le Réseau et à chercher — c'est là qu'on repousse. */
+function listeAssosARecontacter(){
+  if(!(typeof PROFILE!=='undefined' && PROFILE && PROFILE.admin)) return '';
+  if(typeof actAssosDe!=='function') return '';
+  const dues=actAssosDe(function(){ return true; }).filter(function(a){ return !a.items.length; });
+  if(!dues.length) return '';
+  return '<div class="pgt">À recontacter</div>'+dues.map(function(a){
+    const der=a.toutes.map(function(x){ return String(x.jour||''); }).filter(Boolean).sort().pop();
+    const f=(typeof DATA!=='undefined')?DATA.find(function(x){
+      return String(x.nom||'').toLowerCase()===String(a.asso).toLowerCase(); }):null;
+    return '<div class="cal-e" style="border-left-color:var(--rouge);margin-top:8px">'+
+      '<b>'+esc(a.asso)+' — plus aucune date</b>'+
+      (der?'<em>Dernière activité '+esc(acJourFr(der))+'</em>':'')+
+      '<p>Les contacter pour le programme du mois.</p>'+
+      (f && f.tel?'<p class="insc">'+esc(f.tel)+'</p>':'')+
+      (f?'<button class="actgo" onclick="go(\'#/f/'+f.sid+'\')">Sa fiche</button>':'')+
+    '</div>';
+  }).join('');
 }
 /* Envoyer en passation une ligne DÉJÀ écrite : elle sort de ma liste et le texte part
    dans la feuille, qui s'ouvre remplie. Même chemin que le bouton du champ d'écriture —
