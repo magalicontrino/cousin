@@ -3513,6 +3513,24 @@ body.pan-ouvert #view{animation:none;transform:none}
   font-weight:600}
 .chadd.ecrire .chadd-ch{background:#fdfdfc}
 .chadd-b{display:flex;gap:8px}
+/* ⚠ « LA LANGUE, LECTURE OU NON ? » (Mag, 28/08/2026) — deux choses qu'on veut savoir
+   AVANT d'aller voir quelqu'un : dans quelle langue on va se parler, et si un papier
+   servira à quelque chose. La langue prend la place qui reste à côté du numéro de
+   chambre ; la lecture est une question fermée, donc deux pastilles, pas un champ. */
+.chadd-lg{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--noir);
+  background:#fdfdfc;border:1.25px solid var(--trait);border-radius:0;padding:11px 12px}
+.chadd-lg:focus{outline:0;border-color:var(--trait-fort)}
+.avlec{align-items:center;flex-wrap:wrap}
+.avlec .passl-t{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:#a7a49e;flex:none}
+.avlec .chaddbtn{margin-left:auto}
+/* ⚠⚠ LES PASTILLES SONT INVERSÉES ICI, ET C'EST INDISPENSABLE : le cadre d'écriture a
+   un FOND NOIR, et `.fchip.on` est noir sur clair partout ailleurs — la pastille
+   choisie devenait noire sur noir, donc invisible. Vu à l'écran : « Ne lit pas » était
+   sélectionné et on ne voyait plus que « Lit ». Sur fond sombre, c'est le choix qui
+   s'allume en clair. */
+.avlec .fchip{background:transparent;color:#cfccc6;border-color:rgba(240,239,237,.34)}
+.avlec .fchip.on{background:#f2eee6;color:var(--noir);border-color:#f2eee6}
 /* Le numéro de chambre : étroit et à gauche, sur la ligne des boutons. Un champ de
    trois caractères qui prendrait toute la largeur ferait croire qu'on attend une
    phrase. */
@@ -27774,7 +27792,12 @@ let RAP_TAGS={absence:false, desencodage:false};
 let AVOIR;
 try{ AVOIR=JSON.parse(localStorage.getItem('lux_a_voir')||'[]'); }catch(e){ AVOIR=[]; }
 if(!Array.isArray(AVOIR)) AVOIR=[];
-let AV_NOM='', AV_CH='';
+let AV_NOM='', AV_CH='', AV_LG='', AV_LEC='';
+/* ⚠ TROIS ÉTATS, PAS DEUX : « on ne sait pas » est la valeur de départ, et c'est une
+   vraie réponse. Un « ne lit pas » posé par défaut se lirait comme une information
+   alors que personne ne l'a demandé — et on n'apporte pas un papier sur cette base.
+   Retoucher la pastille déjà choisie l'éteint : on peut revenir à « on ne sait pas ». */
+function avLecture(v){ AV_LEC=(AV_LEC===v)?'':v; render(); }
 function avoirSauver(){
   try{ localStorage.setItem('lux_a_voir',JSON.stringify(AVOIR)); }catch(e){}
   if(typeof reglagePousser==='function') reglagePousser('a_voir',AVOIR);
@@ -27784,8 +27807,10 @@ function avoirAjouter(){
   const c=(document.getElementById('avCh')||{}).value||'';
   const nom=n.trim();
   if(!nom){ const e=document.getElementById('avNom'); if(e) e.focus(); return; }
-  AVOIR.unshift({id:'a'+Date.now(), nom:nom.slice(0,80), chambre:c.trim().slice(0,12)});
-  AV_NOM=''; AV_CH=''; avoirSauver(); render();
+  const lg=(document.getElementById('avLg')||{}).value||'';
+  AVOIR.unshift({id:'a'+Date.now(), nom:nom.slice(0,80), chambre:c.trim().slice(0,12),
+                 langue:lg.trim().slice(0,40), lecture:AV_LEC||''});
+  AV_NOM=''; AV_CH=''; AV_LG=''; AV_LEC=''; avoirSauver(); render();
 }
 function avoirCocher(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
@@ -27820,7 +27845,18 @@ function carteAVoir(){
       '</div>'+
       '<div class="pl2-t" onclick="avoirCocher(\''+r.id+'\')">'+
         '<b>'+esc(r.nom||'')+'</b>'+
-        (r.chambre?'<em>ch. '+esc(r.chambre)+'</em>':'')+
+        /* ⚠ TOUT SUR UNE SEULE LIGNE, séparé par des points médians : trois `em`
+           empilés feraient une rangée haute comme une carte pour trois mots.
+           ⚠ ET « NE LIT PAS » S'ÉCRIT EN TOUTES LETTRES : c'est ce qui change ce
+           qu'on emporte. « Lecture : non » se lit deux fois avant d'être compris. */
+        (function(){
+          const b=[];
+          if(r.chambre) b.push('ch. '+r.chambre);
+          if(r.langue)  b.push(r.langue);
+          if(r.lecture==='non') b.push('ne lit pas');
+          else if(r.lecture==='oui') b.push('lit');
+          return b.length?'<em>'+esc(b.join(' · '))+'</em>':'';
+        })()+
       '</div></div>';
   };
   return '<div class="pcarte">'+
@@ -27838,6 +27874,17 @@ function carteAVoir(){
           'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(AV_CH||'')+'" '+
           'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');AV_CH=this.value" '+
           'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avoirAjouter();}">'+
+        '<input id="avLg" class="chadd-lg" type="text" placeholder="Langue" autocomplete="off" maxlength="40" '+
+          'aria-label="Langue parlée" value="'+esc(AV_LG||'')+'" '+
+          'oninput="AV_LG=this.value" '+
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avoirAjouter();}">'+
+      '</div>'+
+      '<div class="chadd-b avlec">'+
+        '<span class="passl-t">Lecture ?</span>'+
+        '<button class="fchip'+(AV_LEC==='oui'?' on':'')+'" onclick="avLecture(\'oui\')" '+
+          'aria-pressed="'+(AV_LEC==='oui'?'true':'false')+'">Lit</button>'+
+        '<button class="fchip'+(AV_LEC==='non'?' on':'')+'" onclick="avLecture(\'non\')" '+
+          'aria-pressed="'+(AV_LEC==='non'?'true':'false')+'">Ne lit pas</button>'+
         '<button class="chaddbtn" onclick="avoirAjouter()">OK</button>'+
       '</div>'+
     '</div>'+
