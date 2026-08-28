@@ -4528,10 +4528,7 @@ body.no-tabs #tabbar{display:none}
   body.at-centre #view > .hero,
   body.at-centre #view > .sectc,
   body.at-centre #view > .famz.ouvert,
-  body.at-centre #view > .famdedans,
-  /* La grille des tuiles d'Activités : elle est déjà bornée à 560 px et centrée,
-     la laisser dans une demi-colonne la coincerait à côté d'une carte. */
-  body.at-centre #view > .acttrois{grid-column:1/-1}
+  body.at-centre #view > .famdedans{grid-column:1/-1}
   /* ⚠ ET C'EST CE QUI CRÉAIT L'ÉCART : `.hero + .famz{margin-top:14px}` ne touche que
      la carte qui SUIT le bandeau — sur une seule colonne c'est la première de la
      page, sur deux colonnes c'est UNE DES DEUX. Sa voisine n'avait pas la marge, la
@@ -14896,12 +14893,14 @@ function vCentre(){
        derrière. Elles remontent ici, telles qu'elle les a dessinées le 12/08 — la
        même grille, les mêmes dessins, les mêmes mots.
        ⚠ LA CARTE « ACTIVITÉS » RESTE AU-DESSUS : la page ne se réduit pas à ces
-       tuiles (l'encart WAKA, les groupes de parole, la culture y vivent aussi).
+       portes (l'encart WAKA, les groupes de parole, la culture y vivent aussi).
        Retirer la carte, c'est fermer la seule porte vers eux.
-       ⚠ ET LE COMPTE DIT LA VÉRITÉ : la carte, plus les tuiles. Un titre qui
+       ⚠ ET LE COMPTE DIT LA VÉRITÉ : la carte, plus les sept portes. Un titre qui
        annonce « 1 porte » au-dessus de huit boutons, c'est le chiffre faux qu'elle
-       relève depuis le 21/08. */
-    const tuiles=(typeof actTuilesHTML==='function')?actTuilesHTML('actDe'):'';
+       relève depuis le 21/08.
+       ⚠ EN RANGÉES, PAS EN TUILES (Mag, 28/08/2026 : « fais les mêmes boutons que
+       dans Apprendre ») — voir `actRangeesHTML`. */
+    const tuiles=(typeof actRangeesHTML==='function')?actRangeesHTML('actDe'):'';
     const nT=(typeof ACT_GRILLE!=='undefined')?ACT_GRILLE.length:0;
     return {sortir:(nS?titre('#f8763f','Activités',nS+nT)+sortir+tuiles:''),
             apprendre:(nA?titre('#b28b7a','Apprendre',nA)+apprendre:'')};
@@ -24672,7 +24671,10 @@ const ACT_PORTES=[
    f:function(x){ return ACT_GRATUIT(x); }},
   {k:'femmes',  p:'femme', c:'#f3c6da', l:'Réservé<br>aux femmes',
    f:function(x){ return x.pourQui==='femmes'; }},
-  {k:'a27',     p:'ticket', c:'#6fc7d9', l:'Article 27<br>1,25 €'},
+  /* `lr` = le titre EN RANGÉE. La tuile a besoin du prix collé au nom (elle n'a que
+     deux lignes) ; la rangée a un sous-titre pour ça, et « Article 27 1,25 € » sur
+     une seule ligne se lit comme un prix qui ferait partie du nom. */
+  {k:'a27',     p:'ticket', c:'#6fc7d9', l:'Article 27<br>1,25 €', lr:'Article 27'},
   {k:'waka',    p:'gand',  c:'#f5c542', l:'WAKA UP',
    f:function(x){ return /waka/i.test(x.asso||''); }},
   {k:'parcs',   p:'adresse', c:'#a8d8c1', l:'Les parcs aux alentours', lg:'Les parcs'},
@@ -24714,6 +24716,62 @@ function actDe(k){ ACT_PAN=k;
    femmes il y a WAKA UP, en attendant d'autres »). Le jour où une deuxième asbl
    arrive, c'est une ligne de plus derrière la même porte, pas un bouton de plus. */
 const ACT_GRILLE=['gratuit','femmes','lgbt','a27','parcs','cal','propo'];
+/* ═══ LES MÊMES BOUTONS QUE DANS « APPRENDRE » (Mag, 28/08/2026) ═══
+   « Fais les mêmes boutons que dans Apprendre. » Elle a raison, et c'est la règle
+   écrite en tête de cette page depuis le début : LE CENTRE N'A QU'UNE SORTE DE
+   BOUTON, la rangée `.famz` — rond pastel, titre, sous-titre, chevron. Les tuiles
+   carrées sont la forme de la page Activités ; posées dans le Centre, elles y
+   faisaient un troisième dessin au milieu de deux sections qui ont le même.
+   ⚠ LES TUILES RESTENT SUR LA PAGE ACTIVITÉS : c'est SA forme, choisie le 12/08.
+   Une page, une forme — mais pas la même forme sur les deux pages.
+   ⚠ CHAQUE RANGÉE DIT QUELQUE CHOSE SOUS SON TITRE, comme « 20 modules » ou
+   « 51 volumes ». Un sous-titre vide ferait une rangée à moitié dessinée ; un
+   sous-titre qui explique le bouton ne servirait à rien. Donc : un COMPTE quand il
+   y en a un, un fait quand il n'y en a pas.
+   ⚠ ET LE COMPTE EST CELUI DU PANNEAU, pas un autre : même liste de départ, même
+   regroupement (`actGrouper`). Un chiffre sur la porte démenti en l'ouvrant, c'est
+   ce qu'elle relève depuis le 21/08. */
+const ACT_RONDS={gratuit:'pouce', femmes:'femme', lgbt:'rainbow', a27:'ticket',
+                 parcs:'ou', cal:'calendrier', propo:'bulb'};
+function actRangeesHTML(fn){
+  /* La liste de départ ne se calcule qu'UNE fois pour toutes les rangées. */
+  let base=null;
+  const compte=function(q){
+    if(!q.f) return null;
+    if(!base) base=agendaProchains(31, function(r){ return !r.enfants; }).concat(activitesDatees());
+    return actGrouper(base.filter(q.f)).length;
+  };
+  const d=new Date();
+  const sous=function(q){
+    if(q.k==='lgbt'){
+      const n=(typeof fichesDe==='function')?fichesDe('lgbt').length:0;
+      return n+' association'+(n>1?'s':'');
+    }
+    if(q.k==='a27')   return '1,25 € la place';
+    if(q.k==='parcs') return 'À pied depuis le centre';
+    if(q.k==='cal')   return MOIS_L[d.getMonth()].charAt(0).toUpperCase()+
+                             MOIS_L[d.getMonth()].slice(1)+' '+d.getFullYear();
+    if(q.k==='propo'){
+      const n=PROPOS.filter(function(x){ return x.etat!=='faite'; }).length;
+      return n?n+' proposition'+(n>1?'s':''):'rien de noté';
+    }
+    const n=compte(q);
+    /* ⚠ WAKA UP EST NOMMÉ ICI, et c'est ce qu'elle a demandé : « dans réservé aux
+       femmes il y a WAKA UP, en attendant d'autres ». On lit derrière quelle porte
+       il se trouve sans avoir à l'ouvrir. */
+    if(q.k==='femmes') return 'WAKA UP'+(n?' · '+n+' sortie'+(n>1?'s':''):'');
+    return n?n+' sortie'+(n>1?'s':''):'rien pour l’instant';
+  };
+  return ACT_GRILLE.map(function(k){
+    const q=actPorte(k); if(!q) return '';
+    return '<button class="famz" onclick="'+fn+'(\''+q.k+'\')">'+
+      '<span class="rd" style="background:'+pastel(q.c)+'"><span class="ic">'+
+        icon(ACT_RONDS[k]||q.ic||q.p)+'</span></span>'+
+      '<span class="tx"><b>'+esc(String(q.lr||q.l).replace(/<br>/g,' '))+'</b>'+
+        '<em>'+esc(sous(q))+'</em></span>'+
+      '<span class="chv">\u203A</span></button>';
+  }).join('');
+}
 function actTuilesHTML(fn){
   const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
   return '<div class="acttrois">'+ACT_GRILLE.map(function(k){
