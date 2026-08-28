@@ -3493,6 +3493,13 @@ body.pan-ouvert #view{animation:none;transform:none}
 .chadd.ecrire .absa .bx{width:15px;height:15px;border:1.5px solid rgba(242,238,230,.6);border-radius:3px;flex:none}
 .chadd.ecrire .absa.on{border-color:#e63329;color:#ffd9d4;background:rgba(230,51,41,.12)}
 .chadd.ecrire .absa.on .bx{border-color:#ff8d86;background:#e63329}
+/* ⚠ LE MI-PARCOURS N'EST PAS UNE ALERTE. Le rouge de `.absa.on` est celui des absences
+   et des désencodages — des choses qu'on ne doit pas rater. Un entretien à mi-parcours
+   n'est pas un incident, c'est un TYPE d'entretien : il s'allume en clair, comme les
+   pastilles de la lecture juste en dessous. Une couleur d'alerte posée sur une chose
+   ordinaire finit par rendre les vraies alertes ordinaires. */
+.chadd.ecrire .absa.avmi.on{border-color:#f2eee6;color:var(--noir);background:#f2eee6}
+.chadd.ecrire .absa.avmi.on .bx{border-color:var(--noir);background:var(--noir)}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
    ce qui est écrit ») ═══
@@ -27792,7 +27799,7 @@ let RAP_TAGS={absence:false, desencodage:false};
 let AVOIR;
 try{ AVOIR=JSON.parse(localStorage.getItem('lux_a_voir')||'[]'); }catch(e){ AVOIR=[]; }
 if(!Array.isArray(AVOIR)) AVOIR=[];
-let AV_NOM='', AV_CH='', AV_LG='', AV_LEC='';
+let AV_NOM='', AV_CH='', AV_LG='', AV_LEC='', AV_MI=false;
 /* ⚠ TROIS ÉTATS, PAS DEUX : « on ne sait pas » est la valeur de départ, et c'est une
    vraie réponse. Un « ne lit pas » posé par défaut se lirait comme une information
    alors que personne ne l'a demandé — et on n'apporte pas un papier sur cette base.
@@ -27809,8 +27816,8 @@ function avoirAjouter(){
   if(!nom){ const e=document.getElementById('avNom'); if(e) e.focus(); return; }
   const lg=(document.getElementById('avLg')||{}).value||'';
   AVOIR.unshift({id:'a'+Date.now(), nom:nom.slice(0,80), chambre:c.trim().slice(0,12),
-                 langue:lg.trim().slice(0,40), lecture:AV_LEC||''});
-  AV_NOM=''; AV_CH=''; AV_LG=''; AV_LEC=''; avoirSauver(); render();
+                 langue:lg.trim().slice(0,40), lecture:AV_LEC||'', mi:AV_MI?1:0});
+  AV_NOM=''; AV_CH=''; AV_LG=''; AV_LEC=''; AV_MI=false; avoirSauver(); render();
 }
 function avoirCocher(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
@@ -27851,6 +27858,10 @@ function carteAVoir(){
            qu'on emporte. « Lecture : non » se lit deux fois avant d'être compris. */
         (function(){
           const b=[];
+          /* ⚠ SEUL LE MI-PARCOURS S'ÉCRIT. Le premier accueil est le cas courant :
+             l'écrire sur presque toutes les lignes ferait disparaître celui qui
+             compte. Même règle que « Dehors » dans le carnet des propositions. */
+          if(r.mi) b.push('mi-parcours');
           if(r.chambre) b.push('ch. '+r.chambre);
           if(r.langue)  b.push(r.langue);
           if(r.lecture==='non') b.push('ne lit pas');
@@ -27859,9 +27870,13 @@ function carteAVoir(){
         })()+
       '</div></div>';
   };
+  /* ⚠ « LES ENTRETIENS », PAS « LES GENS À VOIR » (Mag, 28/08/2026 : « c'est plutôt
+     un entretien »). Elle nomme la CHOSE, comme toujours : ce qu'on note ici, ce n'est
+     pas une file d'attente, c'est un entretien à mener — premier accueil ou
+     mi-parcours. Et « faits » plutôt que « vus », pour la même raison. */
   return '<div class="pcarte">'+
-    '<div class="ptitre"><b>Les gens à voir</b>'+
-      '<span>'+(tot?vus+' / '+tot+' vus':'rien pour l’instant')+'</span></div>'+
+    '<div class="ptitre"><b>Les entretiens</b>'+
+      '<span>'+(tot?vus+' / '+tot+' faits':'rien pour l’instant')+'</span></div>'+
     /* ⚠ `empile` : sans elle, `.chadd` est une RANGÉE — le champ du nom se retrouvait
        écrasé sur trois lettres à côté du numéro de chambre. Vu à l'écran. La classe
        `ecrire` est celle des autres champs d'écriture de l'app (fond clair). */
@@ -27878,6 +27893,15 @@ function carteAVoir(){
           'aria-label="Langue parlée" value="'+esc(AV_LG||'')+'" '+
           'oninput="AV_LG=this.value" '+
           'onkeydown="if(event.key===\'Enter\'){event.preventDefault();avoirAjouter();}">'+
+      '</div>'+
+      /* ⚠ « C'EST PLUTÔT UN ENTRETIEN » (Mag, 28/08/2026) — et tous ne sont pas des
+         arrivées. La case dit lequel : un premier accueil ou un entretien à
+         mi-parcours. Même dessin que « Noter une absence » de la liste perso : dans
+         cette app, une case cochable avant d'écrire a cette forme-là. */
+      '<div class="absas">'+
+        '<button class="absa avmi'+(AV_MI?' on':'')+'" onclick="AV_MI=!AV_MI;render()" '+
+          'aria-pressed="'+(AV_MI?'true':'false')+'">'+
+          '<span class="bx"></span>Entretien mi-parcours</button>'+
       '</div>'+
       '<div class="chadd-b avlec">'+
         '<span class="passl-t">Lecture ?</span>'+
