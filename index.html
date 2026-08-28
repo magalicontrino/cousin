@@ -660,6 +660,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .cal-c.choisi .cal-n{color:#f0efed}
 .cal-c.auj{border:1.5px solid var(--trait-fort)}
 .legn{margin-top:14px;border-top:1px solid var(--ligne);padding-top:12px}
+/* ⚠ LE PASSÉ RESTE À L'ÉCRAN, MAIS IL EST HORS JEU (Mag, 28/08/2026 : « fais au mieux,
+   mais mets en évidence les choses passées »). Il ne disparaît pas — on veut savoir ce
+   qu'il y a EU dans le mois — et il ne se confond pas avec ce qui arrive : barré,
+   estompé, sous son propre titre. Le même dessin que les propositions déjà faites. */
+.legn-t.passe{margin-top:18px;padding-top:12px;border-top:1px dashed var(--ligne)}
+.legn-l.passe{opacity:.5}
+.legn-l.passe b{text-decoration:line-through}
 .legn-t{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--enc2);margin-bottom:10px}
 .legn-l{display:grid;grid-template-columns:11px 1fr;gap:9px;align-items:baseline;margin-bottom:10px}
@@ -22055,46 +22062,56 @@ function agDatesTexte(jours, base){
    ⚠ ET ON PEUT REGARDER UN MOIS À VENIR : là, tout est à venir, et rien n'est retiré.
    Le titre le dit — « ce qui reste » pour le mois en cours, « ce qu'il y a » sinon. */
 function agLegendeHTML(base){
-  const parNom={};
   const fin=new Date(base); fin.setMonth(fin.getMonth()+1); fin.setDate(0);
   const auj=new Date(); auj.setHours(0,0,0,0);
   const moisEnCours=(base.getFullYear()===auj.getFullYear() && base.getMonth()===auj.getMonth());
-  let passees=0;
+  const futur={}, passe={};
   for(let n=1;n<=fin.getDate();n++){
     const d=new Date(base); d.setDate(n); d.setHours(12,0,0,0);
-    /* ⚠ ON COMPTE CE QU'ON ÉCARTE : un bloc qui rétrécit sans rien dire fait croire
-       qu'on a perdu des lignes. La phrase du bas le dit en toutes lettres. */
-    if(d<auj){ if(agDuJour(d).length) passees++; continue; }
+    const bac=(d<auj)?passe:futur;
     agDuJour(d).forEach(function(e){
       /* Une famille compte pour UNE ligne ; les lieux qu'elle contient sont comptés
          à part, pour pouvoir écrire « 14 lieux ». */
       const cle=e.famille||e.t;
-      const o=parNom[cle]||(parNom[cle]={t:e.famille||e.t, fam:!!e.famille, lieux:{},
-                                         qui:e.qui||'', jours:{}, prix:'', lieu:''});
+      const o=bac[cle]||(bac[cle]={t:e.famille||e.t, fam:!!e.famille, lieux:{},
+                                   qui:e.qui||'', jours:{}, prix:'', lieu:''});
       o.jours[agIso(d)]=1;
       o.lieux[e.t]=1;
       if(!o.prix) o.prix=(e.regle&&e.regle.prix)||'';
       if(!o.fam && !o.lieu) o.lieu=(e.regle&&e.regle.lieu)||(e.act&&e.act.lieu)||'';
     });
   }
-  const noms=Object.keys(parNom);
-  const titre=moisEnCours?'Ce qui reste ce mois-ci':'Ce qu’il y a ce mois-ci';
-  /* ⚠ PLUS RIEN À VENIR N'EST PAS « RIEN » : sans cette ligne, le bloc disparaissait
-     et on ne savait pas s'il n'y avait rien ou si l'app avait cessé de répondre. */
-  if(!noms.length)
-    return passees?'<div class="legn"><div class="legn-t">'+titre+'</div>'+
-      '<div class="legn-l" style="color:var(--enc2)"><span>Plus rien à venir ce mois-ci. '+
-      'Ce qui est passé n’est plus listé.</span></div></div>':'';
-  const jours1=function(n){ return Object.keys(parNom[n].jours).sort()[0]; };
-  noms.sort(function(a,b){ return String(jours1(a)).localeCompare(String(jours1(b))); });
-  return '<div class="legn"><div class="legn-t">'+titre+'</div>'+
-    noms.map(function(n){
-      const o=parNom[n], p=agPublic(o.qui), nb=Object.keys(o.lieux).length;
-      return '<div class="legn-l"><i style="background:'+p.c+'"></i>'+
+  const rendu=function(bac, cl){
+    const noms=Object.keys(bac);
+    if(!noms.length) return '';
+    const jours1=function(n){ return Object.keys(bac[n].jours).sort()[0]; };
+    noms.sort(function(a,b){ return String(jours1(a)).localeCompare(String(jours1(b))); });
+    return noms.map(function(n){
+      const o=bac[n], pu=agPublic(o.qui), nb=Object.keys(o.lieux).length;
+      return '<div class="legn-l'+(cl?' '+cl:'')+'"><i style="background:'+pu.c+'"></i>'+
         '<b>'+esc(o.t)+(o.fam&&nb>1?' <span style="font-weight:500;color:var(--enc2)">('+nb+' lieux)</span>':'')+'</b>'+
-        '<span>'+esc(agDatesTexte(Object.keys(o.jours), base))+' · '+esc(p.l)+
+        '<span>'+esc(agDatesTexte(Object.keys(o.jours), base))+' · '+esc(pu.l)+
         (o.prix?' · '+esc(o.prix):'')+(o.lieu?' · '+esc(o.lieu):'')+'</span></div>';
-    }).join('')+'</div>';
+    }).join('');
+  };
+  const hF=rendu(futur,''), hP=rendu(passe,'passe');
+  if(!hF && !hP) return '';
+  /* ═══ CE QUI ARRIVE D'ABORD, LE PASSÉ EN DESSOUS (Mag, 28/08/2026) ═══
+     « Ici, je propose que tu mettes que les choses à venir », puis « fais au mieux,
+     mais mets en évidence les choses passées ».
+     Les deux tiennent ensemble : ce qui sert est en tête et en pleine encre ; ce qui
+     est derrière nous reste lisible — on veut savoir ce qu'il y a EU dans le mois —
+     mais barré et estompé, sous son propre titre. Impossible de confondre les deux
+     d'un coup d'œil, et rien n'a disparu.
+     ⚠ LA GRILLE, ELLE, NE TRIE RIEN : un calendrier sans ses jours passés n'est plus
+     un calendrier. C'est la liste qui range, pas la grille. */
+  let h='<div class="legn">';
+  h+='<div class="legn-t">'+(moisEnCours?'Ce qui reste ce mois-ci':'Ce qu’il y a ce mois-ci')+'</div>';
+  /* ⚠ « PLUS RIEN À VENIR » N'EST PAS « RIEN » : sans cette ligne, le titre resterait
+     seul au-dessus du vide et on ne saurait pas si l'app a cessé de répondre. */
+  h+= hF || '<div class="legn-l" style="color:var(--enc2)"><span>Plus rien à venir ce mois-ci.</span></div>';
+  if(hP) h+='<div class="legn-t passe">Déjà passé</div>'+hP;
+  return h+'</div>';
 }
 function agCalendrierHTML(){
   const base=AG_MOIS?new Date(AG_MOIS+'T12:00:00'):new Date();
