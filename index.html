@@ -3531,13 +3531,23 @@ body.pan-ouvert #view{animation:none;transform:none}
 .avlec .passl-t{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:#a7a49e;flex:none}
 .avlec .chaddbtn{margin-left:auto}
-/* ⚠⚠ LES PASTILLES SONT INVERSÉES ICI, ET C'EST INDISPENSABLE : le cadre d'écriture a
-   un FOND NOIR, et `.fchip.on` est noir sur clair partout ailleurs — la pastille
-   choisie devenait noire sur noir, donc invisible. Vu à l'écran : « Ne lit pas » était
-   sélectionné et on ne voyait plus que « Lit ». Sur fond sombre, c'est le choix qui
-   s'allume en clair. */
-.avlec .fchip{background:transparent;color:#cfccc6;border-color:rgba(240,239,237,.34)}
-.avlec .fchip.on{background:#f2eee6;color:var(--noir);border-color:#f2eee6}
+/* ═══ « UTILE MAIS PAS JOLI » (Mag, 28/08/2026) ═══
+   Deux pastilles séparées posaient DEUX questions à l'œil — « lit ? » et « ne lit
+   pas ? » — alors qu'il n'y en a qu'une, avec deux réponses. Et l'une pleine, l'autre
+   vide, elles n'avaient ni la même taille ni le même poids : ça se lisait comme un
+   bouton et une étiquette, pas comme un choix.
+   UN SEUL OBJET, COUPÉ EN DEUX : un galet cerclé, une moitié qui s'allume. On voit du
+   premier coup que c'est l'un OU l'autre.
+   ⚠ SUR FOND NOIR, C'EST LE CHOIX QUI S'ALLUME EN CLAIR — l'inverse de tout le reste
+   de l'app, où le sélectionné est noir. Ici le noir est déjà le fond : une moitié
+   noire sur du noir, c'est une moitié qui disparaît. */
+.avlec .segl{display:inline-flex;align-items:stretch;flex:none;
+  border:1px solid rgba(242,238,230,.34);border-radius:999px;overflow:hidden}
+.avlec .segl button{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;padding:7px 14px;line-height:1;
+  background:none;color:#cfccc6;border:0;cursor:pointer}
+.avlec .segl button + button{border-left:1px solid rgba(242,238,230,.34)}
+.avlec .segl button.on{background:#f2eee6;color:var(--noir)}
 /* Le numéro de chambre : étroit et à gauche, sur la ligne des boutons. Un champ de
    trois caractères qui prendrait toute la largeur ferait croire qu'on attend une
    phrase. */
@@ -12632,6 +12642,40 @@ function imprimerMaListe(){
     if(!liste.length) return '';
     return '<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2><table>'+liste.map(champ).join('')+'</table>';
   };
+  /* ═══ « UN PICTO PRINT POUR TOUT PRINTER » (Mag, 28/08/2026) ═══
+     Le bouton s'appelait déjà « Imprimer toute la page » depuis le 22/08 — et il ne
+     sortait que la liste perso. Sa demande du 22/08 était pourtant claire : « je dois
+     pouvoir imprimer ma liste, avec tout quoi ». La feuille porte donc maintenant ce
+     que la page porte, dans le même ordre qu'à l'écran.
+     ⚠ UN BLOC VIDE NE S'IMPRIME PAS (`bloc` s'en charge) : un titre au-dessus de rien
+     ferait chercher ce qui manque sur une feuille qu'on lit en marchant. */
+  const chOrdre=CHECKLISTS.filter(function(g){ return g.mienne; })
+    .concat(CHECKLISTS.filter(function(g){ return !g.mienne; }));
+  const chVue=chOrdre.find(function(g){ return g.liste===LISTE_VUE; }) || chOrdre[0] || null;
+  if(chVue && chVue.taches && chVue.taches.length){
+    corps+='<h2>Ta check-list — '+esc(LISTE_LABELS[chVue.liste]||chVue.liste)+'</h2><table>'+
+      chVue.taches.map(function(t){
+        return '<tr'+(DONE[t.id]?' class="fait"':'')+'>'+
+          '<td class="cc"><span class="bx"></span></td>'+
+          '<td colspan="3">'+esc(t.tache||'')+'</td></tr>';
+      }).join('')+'</table>';
+  }
+  /* Les entretiens : le nom, puis tout ce qui prépare la rencontre sur la même ligne. */
+  if(typeof AVOIR!=='undefined' && AVOIR.length){
+    corps+='<h2>Les entretiens</h2><table>'+AVOIR.map(function(r){
+      const bas=[];
+      if(r.mi) bas.push('mi-parcours');
+      if(r.chambre) bas.push('ch. '+r.chambre);
+      if(r.langue)  bas.push(r.langue);
+      if(r.lecture==='non') bas.push('ne lit pas');
+      else if(r.lecture==='oui') bas.push('lit');
+      return '<tr'+(avoirVu(r)?' class="fait"':'')+'>'+
+        '<td class="cc"><span class="bx"></span></td>'+
+        '<td colspan="3">'+esc(r.nom||'')+
+          (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
+        '</td></tr>';
+    }).join('')+'</table>';
+  }
   corps+= bloc('À dire en réunion', reunions, 'reunion')
     + bloc('Les absences', absences, 'absence')
     + bloc('En retard', pasMarque(parJour(-1)), 'presse')
@@ -12639,7 +12683,7 @@ function imprimerMaListe(){
     + bloc('Plus tard', pasMarque(aVenir))
     + bloc('Faits', pasMarque(MESRAPPELS.filter(rappelFait)));
 
-  if(!corps) corps='<p class="vide">Ta liste perso est vide : tu n’as rien noté.</p>';
+  if(!corps) corps='<p class="vide">Rien à imprimer : ni check-list, ni entretien, ni note.</p>';
 
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
@@ -15078,7 +15122,19 @@ function listeBarreHTML(ordre, vue){
      Le picto seul ne se reconnaît pas : le dessin d'imprimante de l'app ne parle pas
      de lui-même, et un bouton muet dans une barre grise, on ne le voit plus.
      Le mot revient donc, et le `nu` attend un vrai dessin. Ligne posée au chantier. */
-  return '<div class="mlbarre">'+dedans+'</div>';
+  /* ⚠ L'IMPRIMER GLOBAL REVIENT DANS CETTE BARRE (Mag, 28/08/2026 : « ici rajoute un
+     picto print pour tout printer »). Il en était parti le 24/08 — il ne servait alors
+     qu'à la liste perso, et il faisait double emploi avec celui de la carte. Il a
+     maintenant une raison d'être ici : depuis aujourd'hui, la feuille sort TOUTE la
+     page (check-list, entretiens, liste perso), et la barre du haut est le seul
+     endroit qui ne parle d'aucune carte en particulier.
+     ⚠ UN DESSIN SEUL, sans le mot : la barre doit rester discrète — c'est sa demande
+     du 22/08 sur cette barre-là. Le `title` et l'`aria-label` disent ce qu'il fait. */
+  return '<div class="mlbarre">'+dedans+
+    '<button class="mlb mlb-i" onclick="imprimerMaListe()" '+
+      'aria-label="Imprimer toute la page" title="Imprimer toute la page">'+
+      '<span class="ic">'+icon('imprimer')+'</span></button>'+
+  '</div>';
 }
 /* ═══ LE DÉROULANT NE S'ADRESSE PLUS À TOUT LE MONDE (Mag, 22/08/2026) ═══
    « Ça, il faut vraiment que ce soit que l'admin qui le voie. »
@@ -27905,10 +27961,12 @@ function carteAVoir(){
       '</div>'+
       '<div class="chadd-b avlec">'+
         '<span class="passl-t">Lecture ?</span>'+
-        '<button class="fchip'+(AV_LEC==='oui'?' on':'')+'" onclick="avLecture(\'oui\')" '+
-          'aria-pressed="'+(AV_LEC==='oui'?'true':'false')+'">Lit</button>'+
-        '<button class="fchip'+(AV_LEC==='non'?' on':'')+'" onclick="avLecture(\'non\')" '+
-          'aria-pressed="'+(AV_LEC==='non'?'true':'false')+'">Ne lit pas</button>'+
+        '<span class="segl" role="group" aria-label="Lecture">'+
+          '<button class="'+(AV_LEC==='oui'?'on':'')+'" onclick="avLecture(\'oui\')" '+
+            'aria-pressed="'+(AV_LEC==='oui'?'true':'false')+'">Lit</button>'+
+          '<button class="'+(AV_LEC==='non'?'on':'')+'" onclick="avLecture(\'non\')" '+
+            'aria-pressed="'+(AV_LEC==='non'?'true':'false')+'">Ne lit pas</button>'+
+        '</span>'+
         '<button class="chaddbtn" onclick="avoirAjouter()">OK</button>'+
       '</div>'+
     '</div>'+
