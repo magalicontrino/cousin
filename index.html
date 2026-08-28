@@ -24800,6 +24800,15 @@ function actListe(){
      la page ET la feuille imprimée. */
   const tout=agendaProchains(31, function(r){ return !r.enfants; }).concat(activitesDatees())
     .sort(function(a,b){ return a.d-b.d; });
+  /* ⚠ LE PANNEAU D'UNE ASSOCIATION PASSE PAR ICI AUSSI, et ce n'est pas un détail :
+     c'est `actListe()` qui nourrit LA FEUILLE IMPRIMÉE (`imprimerSorties`). Sans
+     cette ligne, imprimer depuis le programme d'une asso sortait une feuille vide —
+     et la feuille est le livrable. */
+  if(String(ACT_PAN).indexOf('asso:')===0){
+    const nom=ACT_PAN.slice(5);
+    return {q:{l:nom}, tout:tout,
+            items:tout.filter(function(x){ return String(x.asso||'').trim()===nom; })};
+  }
   const q=actPorte(ACT_PAN);
   return {q:q||{l:''}, tout:tout, items:(q&&q.f)?tout.filter(q.f):[]};
 }
@@ -25047,32 +25056,89 @@ function vTicket(){
       Un bouton qui ne mène nulle part est pire qu'un bouton absent — on appuie, rien
       ne change, et on croit avoir raté quelque chose (sa règle du 28/08 au matin,
       celle qui a fait retirer le bouton « Activités » de la page Activités). */
-function actWakaEncartHTML(dansPanneau){
-  const wk=actWaka();
-  if(!wk.length) return '';
+/* Les lignes d'une liste de sorties. Sortie du panneau le 28/08/2026 : « Réservé aux
+   femmes » s'en sert aussi, pour les sorties qui n'ont pas de nom d'association. Une
+   seule fabrique — deux copies finissent toujours par diverger. */
+function actLignesHTML(gr, P){
+  return gr.map(function(g){
+    const x=g.x, a=x.r||{}, pi=actPicto(a.titre);
+    return '<div class="actrow">'+
+      '<span class="tu" style="background:'+(pi?pi.c:'#f0efed')+'">'+(pi?P(pi.f):P('adresse'))+'</span>'+
+      '<span class="tx"><em>'+esc(actQuandGroupe(g))+'</em><b>'+esc(a.titre||'Sortie')+'</b>'+
+        (a.adr||a.lieu?'<i>'+esc(a.adr||a.lieu)+'</i>':'')+
+        (ACT_INSC(x)?'<span class="actinsc">Inscription</span>':'')+'</span>'+
+      /* ⚠ PLUS DE WHATSAPP SUR CHAQUE LIGNE (Mag, 20/08/2026 : « retire tous ces
+         pictos WhatsApp, 1 suffit au départ »). C'est le MÊME numéro sur toutes les
+         lignes — huit fois le même bouton vert, et c'est lui qu'on voyait au lieu du
+         nom de l'activité. Il est posé une fois, en tête de la liste. La place
+         libérée revient à « Y aller », qui, lui, change d'une ligne à l'autre. */
+      (a.adr?'<button class="actgo" onclick="window.open(\''+itiHref(a.adr)+'\',\'_blank\')">Y aller</button>':'')+
+    '</div>';
+  }).join('');
+}
+/* ═══ UNE CARTE PAR ASSOCIATION (Mag, 28/08/2026) ═══
+   « Quand tu rentres dans "pour les femmes", tu ouvres une page avec ça. Parce que
+   par la suite, il y aura sûrement d'autres associations d'aide aux femmes. Donc il
+   faut qu'on ait une carte, et qu'on clique sur "voir le programme" : il y a une
+   fenêtre qui s'ouvre et qui arrive vers le bas. »
+
+   C'est le bon niveau, et il n'était pas le mien : j'avais mis l'encart WAKA en tête
+   de la liste des sorties, comme si WAKA ÉTAIT « réservé aux femmes ». Il n'en est
+   qu'une association — la seule aujourd'hui. Derrière la porte, on trouve donc les
+   ASSOCIATIONS, une carte chacune ; le programme d'une association est un cran plus
+   loin, derrière son bouton.
+   ⚠ RIEN À RÉÉCRIRE LE JOUR OÙ UNE DEUXIÈME ARRIVE : les cartes sont fabriquées à
+   partir de ce qui est encodé (`asso`), pas écrites à la main. Une nouvelle asbl
+   dans la base = une carte de plus, sans toucher au code.
+   ⚠ LE SOUS-TITRE REDIT « réservé aux femmes » — et c'est voulu : la carte n'est pas
+   la propriété de ce panneau, elle dit ce qu'EST l'association, où qu'on la lise. */
+function actAssosDe(filtre){
+  const par={}, ordre=[];
+  activitesDatees().filter(filtre).forEach(function(x){
+    const a=String(x.asso||'').trim();
+    if(!a) return;                       /* sans nom d'asso : pas de carte, voir plus bas */
+    if(!par[a]){ par[a]=[]; ordre.push(a); }
+    par[a].push(x);
+  });
+  return ordre.map(function(a){ return {asso:a, items:par[a]}; });
+}
+function actOuvrirAsso(nom){ ACT_PAN='asso:'+nom; render(); }
+/* La carte d'une association : son nom, ce qu'elle propose en dessins, l'inscription,
+   et la porte vers son programme. C'est l'encart WAKA du 12/08, rendu général. */
+function actAssoCarteHTML(a){
   const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
   const vus={}, bande=[];
-  wk.forEach(function(x){
+  a.items.forEach(function(x){
     const pi=actPicto(x.r&&x.r.titre);
     if(pi && !vus[pi.f]){ vus[pi.f]=1; bande.push(pi); }
   });
-  return '<div class="actwaka"'+(dansPanneau?' style="margin-top:4px"':'')+'>'+
+  const n=a.items.length;
+  /* ⚠ « GRATUIT » NE S'INVENTE PAS, ET IL NE SE PERD PAS NON PLUS.
+     La table `activites` n'a pas de colonne prix : dès qu'une activité est « sur
+     inscription », `ACT_GRATUIT` répond non — et la carte de WAKA UP aurait perdu
+     en silence un mot qu'elle porte depuis le 12/08, alors qu'il est VRAI (sa fiche
+     du Réseau dit « Gratuit, et une garde d'enfants est assurée »).
+     On le lit donc là où il est écrit : dans la fiche de l'association. Et on écarte
+     « pas gratuit » / « non gratuit », qui diraient l'inverse. */
+  const fa=(typeof DATA!=='undefined')?DATA.find(function(f){
+    return String(f.nom||'').toLowerCase()===String(a.asso).toLowerCase(); }):null;
+  const txtFiche=fa?String(fa.desc||'')+' '+String(fa.notes||''):'';
+  const gratuit=a.items.every(function(x){ return ACT_GRATUIT(x); }) ||
+    (/(^|[^a-zéè])gratuit/i.test(txtFiche) && !/(pas|non)\s+gratuit/i.test(txtFiche));
+  const nom=esc(String(a.asso)).replace(/'/g,"\\'");
+  return '<div class="actwaka">'+
      '<div class="actwt"><i style="color:#e8308a">'+P('femme')+'</i>'+
-       '<span class="t"><b>WAKA UP</b><em>'+wk.length+' activités ce mois-ci · gratuit'+
-       (dansPanneau?'':', réservé aux femmes')+'</em></span></div>'+
+       '<span class="t"><b>'+esc(a.asso)+'</b><em>'+n+' activité'+(n>1?'s':'')+
+       ' ce mois-ci'+(gratuit?' · gratuit':'')+', réservé aux femmes</em></span></div>'+
      /* ⚠ PLUS DE CARRÉ DE COULEUR SOUS LE DESSIN (Mag, 20/08/2026 : « mets
         uniquement les pictos en noir pour WAKA, on dirait qu'on peut cliquer
         dessus là »). Six pastilles colorées alignées, bordées, arrondies : ça a
         la forme exacte d'une rangée de boutons — sauf que ce n'en est pas une,
-        c'est une PHRASE (« voilà ce qu'on y fait »). Un faux bouton coûte plus
-        cher qu'un dessin terne : on appuie, rien ne répond, et on doute du
-        reste de l'écran. */
+        c'est une PHRASE (« voilà ce qu'on y fait »). */
      (bande.length?'<div class="actwb">'+bande.slice(0,6).map(function(pi){
         return '<span>'+P(pi.f)+'</span>'; }).join('')+'</div>':'')+
      '<div class="actwc">'+
-       /* ⚠ « PLUS DISCRET, ET JUSTE "INSCRIPTION" » (Mag, 20/08/2026).
-          Le cadre fuchsia à 2 px et les capitales criaient « ATTENTION » pour une
-          chose qui n'est pas un danger : il faut s'inscrire, voilà tout. Un mot, un
+       /* ⚠ « PLUS DISCRET, ET JUSTE "INSCRIPTION" » (Mag, 20/08/2026). Un mot, un
           trait fin, et le bouton WhatsApp à côté : c'est LUI qui sert. */
        '<div class="actalerte"><b>Inscription</b>'+
          '<a href="https://wa.me/32474857825" target="_blank" rel="noopener" aria-label="Écrire sur WhatsApp">'+
@@ -25080,7 +25146,7 @@ function actWakaEncartHTML(dansPanneau){
             qu'on y écrit. `aria-label` reste : sans lui, un lecteur d'écran
             n'aurait plus rien à annoncer. */
          '<img src="picto/whatsapp.svg" alt="Écrire sur WhatsApp"></a></div>'+
-       (dansPanneau?'':'<button class="acttout" onclick="actOuvrir(\'waka\')">Voir le programme</button>')+
+       '<button class="acttout" onclick="actOuvrirAsso(\''+nom+'\')">Voir le programme</button>'+
      '</div></div>';
 }
 /* ═══ LE PANNEAU QUI MONTE (Mag, 12/08/2026) ═══
@@ -25094,7 +25160,10 @@ function actWakaEncartHTML(dansPanneau){
    ③ c'est la LISTE qui défile, pas la page derrière. */
 function actPanneau(){
   if(!ACT_PAN) return '';
-  const q=actPorte(ACT_PAN); if(!q) return '';
+  /* Une porte de la grille, OU le programme d'une association (clé « asso:Nom »).
+     Les deux se dessinent pareil : c'est la même feuille qui monte. */
+  const nomAsso=(String(ACT_PAN).indexOf('asso:')===0)?ACT_PAN.slice(5):'';
+  const q=nomAsso?{k:ACT_PAN, l:nomAsso}:actPorte(ACT_PAN); if(!q) return '';
   const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
   let corps='', titre=q.l.replace(/<br>/g,' '), sur='', pied='';
 
@@ -25168,36 +25237,31 @@ function actPanneau(){
        une feuille donnée à quelqu'un qui part à pied, un parc placé de travers coûte
        une heure de marche. À reprendre avec elle. */
     pied='<button class="actimpr" onclick="imprimerParcs()">'+P('imprimer')+'Imprimer la liste</button>';
-  } else {
+  }
+  /* ═══ « RÉSERVÉ AUX FEMMES » : LES ASSOCIATIONS, PAS LES SORTIES ═══
+     Mag, 28/08/2026 : « il faut qu'on ait une carte, et qu'on clique sur "voir le
+     programme" ». Une carte par association ; le programme est un cran plus loin.
+     ⚠ CE QUI N'A PAS DE NOM D'ASSOCIATION NE DISPARAÎT PAS : ces sorties-là sont
+     listées sous les cartes, comme avant. Sinon une activité encodée sans asbl
+     s'évaporerait de l'écran sans que rien ne le signale. */
+  else if(ACT_PAN==='femmes'){
+    const assos=actAssosDe(function(x){ return x.pourQui==='femmes'; });
+    const orphelines=actGrouper(actListe().items.filter(function(x){ return !String(x.asso||'').trim(); }));
+    sur=assos.length?assos.length+' association'+(assos.length>1?'s':''):'rien pour l’instant';
+    corps=assos.map(actAssoCarteHTML).join('');
+    if(orphelines.length) corps+=actLignesHTML(orphelines, P);
+    if(!corps) corps='<p class="hint" style="padding:14px 2px">Rien pour l’instant. Demande à Mag d’en ajouter.</p>';
+  }
+  else {
     const r=actListe(), gr=actGrouper(r.items);
     sur=gr.length+' sortie'+(gr.length>1?'s':'');
-    /* L'encart WAKA en tête de « Réservé aux femmes » (Mag, 28/08/2026). */
-    const enc=(ACT_PAN==='femmes')?actWakaEncartHTML(true):'';
-    corps=gr.length? gr.map(function(g){
-      const x=g.x, a=x.r||{}, pi=actPicto(a.titre);
-      return '<div class="actrow">'+
-        '<span class="tu" style="background:'+(pi?pi.c:'#f0efed')+'">'+(pi?P(pi.f):P('adresse'))+'</span>'+
-        '<span class="tx"><em>'+esc(actQuandGroupe(g))+'</em><b>'+esc(a.titre||'Sortie')+'</b>'+
-          (a.adr||a.lieu?'<i>'+esc(a.adr||a.lieu)+'</i>':'')+
-          (ACT_INSC(x)?'<span class="actinsc">Inscription</span>':'')+'</span>'+
-        /* ⚠ PLUS DE WHATSAPP SUR CHAQUE LIGNE (Mag, 20/08/2026 : « retire tous ces
-           pictos WhatsApp, 1 suffit au départ »). C'est le MÊME numéro sur toutes
-           les lignes — huit fois le même bouton vert, et c'est lui qu'on voyait au
-           lieu du nom de l'activité. Il est posé une fois, en tête de la liste.
-           La place libérée revient à « Y aller », qui, lui, change d'une ligne à
-           l'autre — et qui n'apparaissait pas quand il fallait s'inscrire, alors
-           que l'adresse est justement ce qu'on cherche ensuite. */
-        (a.adr?'<button class="actgo" onclick="window.open(\''+itiHref(a.adr)+'\',\'_blank\')">Y aller</button>':'')+
-      '</div>';
-    }).join('') : '<p class="hint" style="padding:14px 2px">Rien pour l\'instant. Demande à Mag d\'en ajouter.</p>';
+    corps=gr.length? actLignesHTML(gr, P)
+      : '<p class="hint" style="padding:14px 2px">Rien pour l\'instant. Demande à Mag d\'en ajouter.</p>';
     /* Le seul WhatsApp de la liste : en tête, une fois, s'il y a au moins une
        activité sur inscription. */
-    /* ⚠ PAS DEUX FOIS « INSCRIPTION » : quand l'encart WAKA est là, il porte déjà
-       le mot et le bouton WhatsApp, à deux centimètres au-dessus. */
-    if(!enc && gr.length && gr.some(function(g){ return ACT_INSC(g.x); }))
+    if(gr.length && gr.some(function(g){ return ACT_INSC(g.x); }))
       corps='<a class="actwa1" href="https://wa.me/32474857825" target="_blank" rel="noopener">'+
         '<img src="picto/whatsapp.svg" alt="">Inscription — écrire sur WhatsApp</a>'+corps;
-    corps=enc+corps;
     if(gr.length) pied='<button class="actimpr" onclick="imprimerSorties()">'+P('imprimer')+'Imprimer cette liste</button>';
   }
 
