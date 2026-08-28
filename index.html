@@ -24776,10 +24776,19 @@ function actRangeesHTML(fn){
       return n?n+' proposition'+(n>1?'s':''):'rien de noté';
     }
     const n=compte(q);
-    /* ⚠ WAKA UP EST NOMMÉ ICI, et c'est ce qu'elle a demandé : « dans réservé aux
-       femmes il y a WAKA UP, en attendant d'autres ». On lit derrière quelle porte
-       il se trouve sans avoir à l'ouvrir. */
-    if(q.k==='femmes') return 'WAKA UP'+(n?' · '+n+' sortie'+(n>1?'s':''):'');
+    /* ⚠ LES ASSOCIATIONS SONT NOMMÉES ICI, et c'est ce qu'elle a demandé : « dans
+       réservé aux femmes il y a WAKA UP, en attendant d'autres ». On lit derrière
+       quelle porte elles se trouvent sans avoir à l'ouvrir.
+       ⚠ ET LE NOM N'EST PAS ÉCRIT À LA MAIN : il vient de la base. « WAKA UP » en dur
+       serait devenu faux le jour de la deuxième association — et personne ne l'aurait
+       vu, puisque la rangée aurait continué d'afficher quelque chose. */
+    if(q.k==='femmes'){
+      const as=(typeof actAssosDe==='function')
+        ? actAssosDe(function(a){ return a.pour_qui==='femmes'; }) : [];
+      const noms=as.slice(0,2).map(function(x){ return x.asso; }).join(' · ')+
+        (as.length>2?' +'+(as.length-2):'');
+      return (noms||'aucune association')+(n?' · '+n+' sortie'+(n>1?'s':''):'');
+    }
     return n?n+' sortie'+(n>1?'s':''):'rien pour l’instant';
   };
   return ACT_GRILLE.map(function(k){
@@ -25111,24 +25120,46 @@ function actLignesHTML(gr, P){
    dans la base = une carte de plus, sans toucher au code.
    ⚠ LE SOUS-TITRE REDIT « réservé aux femmes » — et c'est voulu : la carte n'est pas
    la propriété de ce panneau, elle dit ce qu'EST l'association, où qu'on la lise. */
-function actAssosDe(filtre){
+/* ⚠ UNE ASSOCIATION NE DISPARAÎT PAS PARCE QUE SON PROGRAMME EST FINI.
+   Vu à l'écran, à minuit passé le 28/08/2026 : les deux activités de WAKA UP étaient
+   datées de la veille, `activitesDatees()` les a écartées (à raison — on n'envoie
+   personne à une sortie d'hier), et LA PAGE EST DEVENUE VIDE. WAKA UP n'avait pas
+   fermé pour autant.
+   C'est sa règle du 12/08 sur cette page-là : une question sans réponse reste
+   visible, en pâle — la faire disparaître fait croire qu'on n'y a pas pensé.
+   On construit donc la liste des associations sur TOUT ce qui est encodé (`ACTIVITES`
+   brut, dates passées comprises), et c'est la CARTE qui dit s'il y a des dates à
+   venir. Deux jeux : `items` (ce qui arrive) et `toutes` (ce qui a été encodé). */
+function actAssosDe(filtreBrut){
+  const brut=(typeof ACTIVITES!=='undefined' && Array.isArray(ACTIVITES))?ACTIVITES:[];
   const par={}, ordre=[];
-  activitesDatees().filter(filtre).forEach(function(x){
-    const a=String(x.asso||'').trim();
-    if(!a) return;                       /* sans nom d'asso : pas de carte, voir plus bas */
-    if(!par[a]){ par[a]=[]; ordre.push(a); }
-    par[a].push(x);
+  brut.filter(filtreBrut).forEach(function(a){
+    const nom=String(a.asso||'').trim();
+    if(!nom) return;                     /* sans nom d'asso : pas de carte, voir plus bas */
+    if(!par[nom]){ par[nom]={toutes:[], items:[]}; ordre.push(nom); }
+    par[nom].toutes.push(a);
   });
-  return ordre.map(function(a){ return {asso:a, items:par[a]}; });
+  /* Ce qui ARRIVE, mis en face de chaque association. */
+  activitesDatees().forEach(function(x){
+    const nom=String(x.asso||'').trim();
+    if(par[nom]) par[nom].items.push(x);
+  });
+  return ordre.map(function(nom){
+    return {asso:nom, items:par[nom].items, toutes:par[nom].toutes};
+  });
 }
 function actOuvrirAsso(nom){ ACT_PAN='asso:'+nom; render(); }
 /* La carte d'une association : son nom, ce qu'elle propose en dessins, l'inscription,
    et la porte vers son programme. C'est l'encart WAKA du 12/08, rendu général. */
 function actAssoCarteHTML(a){
   const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
+  /* ⚠ LA BANDE DE DESSINS VIENT DE TOUT CE QUI EST ENCODÉ, pas seulement de ce qui
+     arrive : c'est elle qui dit CE QU'ON FAIT chez eux (« on comprend WAKA sans lire
+     un mot »). Le mois où il n'y a plus de date, la carte garderait sinon un grand
+     vide au milieu — et on ne saurait plus de qui il s'agit. */
   const vus={}, bande=[];
-  a.items.forEach(function(x){
-    const pi=actPicto(x.r&&x.r.titre);
+  (a.toutes||[]).forEach(function(x){
+    const pi=actPicto(x.titre||(x.r&&x.r.titre));
     if(pi && !vus[pi.f]){ vus[pi.f]=1; bande.push(pi); }
   });
   const n=a.items.length;
@@ -25142,13 +25173,16 @@ function actAssoCarteHTML(a){
   const fa=(typeof DATA!=='undefined')?DATA.find(function(f){
     return String(f.nom||'').toLowerCase()===String(a.asso).toLowerCase(); }):null;
   const txtFiche=fa?String(fa.desc||'')+' '+String(fa.notes||''):'';
-  const gratuit=a.items.every(function(x){ return ACT_GRATUIT(x); }) ||
+  /* ⚠ `[].every()` RÉPOND VRAI : sans le test de longueur, une association sans date
+     à venir se serait déclarée « gratuite » toute seule. */
+  const gratuit=(a.items.length>0 && a.items.every(function(x){ return ACT_GRATUIT(x); })) ||
     (/(^|[^a-zéè])gratuit/i.test(txtFiche) && !/(pas|non)\s+gratuit/i.test(txtFiche));
   const nom=esc(String(a.asso)).replace(/'/g,"\\'");
   return '<div class="actwaka">'+
      '<div class="actwt"><i style="color:#e8308a">'+P('femme')+'</i>'+
-       '<span class="t"><b>'+esc(a.asso)+'</b><em>'+n+' activité'+(n>1?'s':'')+
-       ' ce mois-ci'+(gratuit?' · gratuit':'')+', réservé aux femmes</em></span></div>'+
+       '<span class="t"><b>'+esc(a.asso)+'</b><em>'+
+       (n? n+' activité'+(n>1?'s':'')+' ce mois-ci' : 'aucune date à venir')+
+       (gratuit?' · gratuit':'')+', réservé aux femmes</em></span></div>'+
      /* ⚠ PLUS DE CARRÉ DE COULEUR SOUS LE DESSIN (Mag, 20/08/2026 : « mets
         uniquement les pictos en noir pour WAKA, on dirait qu'on peut cliquer
         dessus là »). Six pastilles colorées alignées, bordées, arrondies : ça a
@@ -25184,7 +25218,10 @@ function vFemmes(){
   const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
   const q=actPorte('femmes');
   let h=heroBandeau('Réservé aux femmes','', (q&&q.c)||'#f3c6da', 'femme', true);
-  const assos=actAssosDe(function(x){ return x.pourQui==='femmes'; });
+  /* ⚠ LE FILTRE PORTE SUR LA LIGNE BRUTE DE LA BASE (`pour_qui`), pas sur l'objet
+     mis en forme (`pourQui`) : `actAssosDe` lit `ACTIVITES` pour que les
+     associations survivent à un programme terminé. */
+  const assos=actAssosDe(function(a){ return a.pour_qui==='femmes'; });
   /* ⚠ CE QUI N'A PAS DE NOM D'ASSOCIATION NE DISPARAÎT PAS : ces sorties-là sont
      listées sous les cartes. Sinon une activité encodée sans asbl s'évaporerait de
      l'écran sans que rien ne le signale. */
@@ -25293,7 +25330,7 @@ function actPanneau(){
      monte en feuille par-dessus cette page. */
   else {
     const r=actListe(), gr=actGrouper(r.items);
-    sur=gr.length+' sortie'+(gr.length>1?'s':'');
+    sur=gr.length?gr.length+' sortie'+(gr.length>1?'s':''):'aucune date à venir';
     corps=gr.length? actLignesHTML(gr, P)
       : '<p class="hint" style="padding:14px 2px">Rien pour l\'instant. Demande à Mag d\'en ajouter.</p>';
     /* Le seul WhatsApp de la liste : en tête, une fois, s'il y a au moins une
