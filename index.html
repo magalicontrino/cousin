@@ -13174,6 +13174,12 @@ function parseRoute(){
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
   if(seg[0]==='ticket') return {view:'ticket'};
+  /* ⚠ UNE PAGE, PAS UN TIROIR (Mag, 28/08/2026 : « je t'ai demandé de mettre ce
+     qu'il y a là dans une PAGE »). Les associations pour les femmes ont leur écran à
+     elles, avec son bandeau et son retour — et c'est le programme d'une association
+     qui monte en feuille par-dessus. J'avais tout mis dans la feuille ; elle voulait
+     une page, puis une feuille par-dessus. */
+  if(seg[0]==='femmes') return {view:'femmes'};
   if(seg[0]==='fil') return {view:'fil'};
   if(seg[0]==='liste') return {view:'liste'};
   if(seg[0]==='chambres') return {view:'chambres'};
@@ -13373,6 +13379,7 @@ function renderInterne(){
   else if(current.view==='profil') view.innerHTML=vProfil();
   else if(current.view==='duneuf') view.innerHTML=vDuNeuf();
   else if(current.view==='ticket') view.innerHTML=vTicket();
+  else if(current.view==='femmes') view.innerHTML=vFemmes();
   else if(current.view==='fil'){ view.innerHTML=vFil(); rafraichirFil(); }
   else if(current.view==='liste') view.innerHTML=vListe();
   else if(current.view==='chambres'){ view.innerHTML=vChambres(); rafraichirChambres(); }
@@ -15914,7 +15921,8 @@ function ecranActuel(){
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
     favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',fil:'le fil',quiz:'le quiz',
-    neuf:'quoi de neuf',ticket:'les activités',linge:'le linge',profil:'le profil',admin:"l'admin"};
+    neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
+    linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
 }
 function ouvrirIdee(){
@@ -16231,6 +16239,7 @@ let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
 const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', accueilpersonne:'Premier accueil', schemas:'Schéma parcours de soin', educ:'Éduc', lexique:'Le dictionnaire', bibliotheque:'Livres', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
+  femmes:'Réservé aux femmes',
   quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
@@ -24669,7 +24678,10 @@ const ACT_INSC=function(x){ return x.inscrire===true || /inscription/i.test((x.r
 const ACT_PORTES=[
   {k:'gratuit', p:'pouce', c:'#6cb392', l:'Gratuit',
    f:function(x){ return ACT_GRATUIT(x); }},
-  {k:'femmes',  p:'femme', c:'#f3c6da', l:'Réservé<br>aux femmes',
+  /* ⚠ CELLE-CI OUVRE UNE PAGE, PAS UNE FEUILLE (Mag, 28/08/2026). `route` est ce qui
+     fait la différence — une porte peut désormais mener à un écran à part entière.
+     `f` reste : c'est lui qui compte les sorties sous la rangée du Centre. */
+  {k:'femmes',  p:'femme', c:'#f3c6da', l:'Réservé<br>aux femmes', route:'#/femmes',
    f:function(x){ return x.pourQui==='femmes'; }},
   /* `lr` = le titre EN RANGÉE. La tuile a besoin du prix collé au nom (elle n'a que
      deux lignes) ; la rangée a un sous-titre pour ça, et « Article 27 1,25 € » sur
@@ -24711,7 +24723,10 @@ const ACT_PORTES=[
    et c'est `hashchange` qui appelle `render()` — or l'adresse ne change pas quand
    elle est déjà la bonne. Vu à l'écran : le panneau ne s'ouvrait pas depuis la page
    elle-même. */
-function actDe(k){ ACT_PAN=k;
+function actDe(k){
+  const q=actPorte(k);
+  if(q && q.route){ ACT_PAN=''; go(q.route); return; }
+  ACT_PAN=k;
   if(String(location.hash||'').indexOf('#/ticket')===0) render(); else go('#/ticket'); }
 /* L'ORDRE DES TUILES, et il est le sien : « une formule gratuite, réservée aux
    femmes, article vingt-sept, les parcs ». LGBTQI+ se pose contre « Réservé aux
@@ -24787,7 +24802,11 @@ function actTuilesHTML(fn){
   }).join('')+'</div>';
 }
 let ACT_PAN='';                        /* '' = aucun panneau ouvert */
-function actOuvrir(k){ ACT_PAN=k; render(); }
+function actOuvrir(k){
+  const q=actPorte(k);
+  if(q && q.route){ ACT_PAN=''; go(q.route); return; }   /* une porte peut mener à une page */
+  ACT_PAN=k; render();
+}
 function actFermer(){ ACT_PAN=''; render(); }
 function actPorte(k){ return ACT_PORTES.find(function(x){ return x.k===k; }); }
 function actListe(){
@@ -25149,6 +25168,36 @@ function actAssoCarteHTML(a){
        '<button class="acttout" onclick="actOuvrirAsso(\''+nom+'\')">Voir le programme</button>'+
      '</div></div>';
 }
+/* ═══ LA PAGE « RÉSERVÉ AUX FEMMES » (Mag, 28/08/2026) ═══
+   « Quand tu rentres dans "pour les femmes", tu ouvres une PAGE avec ça. Parce que
+   par la suite il y aura sûrement d'autres associations d'aide aux femmes. Donc il
+   faut qu'on ait une carte, et qu'on clique sur "voir le programme" : il y a une
+   fenêtre qui s'ouvre et qui arrive vers le bas. »
+
+   Deux niveaux, et c'est tout le sujet : la PAGE liste les associations, la FEUILLE
+   qui monte donne le programme de l'une d'elles. J'avais empilé les deux dans la
+   feuille — on ne pouvait plus rien mettre en dessous, et une association ne pouvait
+   pas avoir sa place à elle.
+   ⚠ LA FEUILLE VIT SUR CETTE PAGE AUSSI (`actPanneau()` en bas) : sans elle, « Voir
+   le programme » n'ouvrirait rien du tout depuis ici. */
+function vFemmes(){
+  const P=function(f){ return '<span class="pico" style="-webkit-mask-image:url(picto/'+f+'.svg);mask-image:url(picto/'+f+'.svg)"></span>'; };
+  const q=actPorte('femmes');
+  let h=heroBandeau('Réservé aux femmes','', (q&&q.c)||'#f3c6da', 'femme', true);
+  const assos=actAssosDe(function(x){ return x.pourQui==='femmes'; });
+  /* ⚠ CE QUI N'A PAS DE NOM D'ASSOCIATION NE DISPARAÎT PAS : ces sorties-là sont
+     listées sous les cartes. Sinon une activité encodée sans asbl s'évaporerait de
+     l'écran sans que rien ne le signale. */
+  const tout=agendaProchains(31, function(r){ return !r.enfants; }).concat(activitesDatees());
+  const orph=actGrouper(tout.filter(function(x){
+    return x.pourQui==='femmes' && !String(x.asso||'').trim(); }));
+  h+=assos.map(actAssoCarteHTML).join('');
+  if(orph.length) h+='<div class="sect" style="margin-top:26px"><b>Les autres sorties</b>'+
+    '<em>'+orph.length+' sortie'+(orph.length>1?'s':'')+'</em></div>'+actLignesHTML(orph, P);
+  if(!assos.length && !orph.length)
+    h+='<div class="cal-vide" style="margin-top:16px">Rien pour l’instant. Demande à Mag d’en ajouter.</div>';
+  return h+actPanneau()+'<div style="height:26px"></div>';
+}
 /* ═══ LE PANNEAU QUI MONTE (Mag, 12/08/2026) ═══
    « Une fenêtre qui monte, qui ne va pas jusqu'en haut, et qui repart quand on clique
    ailleurs. Ça donne une vue d'ensemble plus simple qu'une longue page. »
@@ -25238,20 +25287,10 @@ function actPanneau(){
        une heure de marche. À reprendre avec elle. */
     pied='<button class="actimpr" onclick="imprimerParcs()">'+P('imprimer')+'Imprimer la liste</button>';
   }
-  /* ═══ « RÉSERVÉ AUX FEMMES » : LES ASSOCIATIONS, PAS LES SORTIES ═══
-     Mag, 28/08/2026 : « il faut qu'on ait une carte, et qu'on clique sur "voir le
-     programme" ». Une carte par association ; le programme est un cran plus loin.
-     ⚠ CE QUI N'A PAS DE NOM D'ASSOCIATION NE DISPARAÎT PAS : ces sorties-là sont
-     listées sous les cartes, comme avant. Sinon une activité encodée sans asbl
-     s'évaporerait de l'écran sans que rien ne le signale. */
-  else if(ACT_PAN==='femmes'){
-    const assos=actAssosDe(function(x){ return x.pourQui==='femmes'; });
-    const orphelines=actGrouper(actListe().items.filter(function(x){ return !String(x.asso||'').trim(); }));
-    sur=assos.length?assos.length+' association'+(assos.length>1?'s':''):'rien pour l’instant';
-    corps=assos.map(actAssoCarteHTML).join('');
-    if(orphelines.length) corps+=actLignesHTML(orphelines, P);
-    if(!corps) corps='<p class="hint" style="padding:14px 2px">Rien pour l’instant. Demande à Mag d’en ajouter.</p>';
-  }
+  /* ⚠ « RÉSERVÉ AUX FEMMES » N'EST PLUS UN PANNEAU (Mag, 28/08/2026 : « je t'ai
+     demandé de mettre ce qu'il y a là dans une PAGE »). Voir `vFemmes` : sa porte
+     porte une `route`, et c'est le PROGRAMME d'une association (clé « asso:… ») qui
+     monte en feuille par-dessus cette page. */
   else {
     const r=actListe(), gr=actGrouper(r.items);
     sur=gr.length+' sortie'+(gr.length>1?'s':'');
@@ -26909,6 +26948,7 @@ const ECRANS_PARTAGES={
      — les chambres, les bacs, la passation — la gardent. */
   centre:    ['listes'],
   ticket:    ['activites'],
+  femmes:    ['activites'],
   admin:     ['admin','chantier'],
   chantier:  ['chantier']
 };
