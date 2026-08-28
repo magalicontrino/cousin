@@ -22041,11 +22041,30 @@ function agDatesTexte(jours, base){
   }
   return bouts.join(' · ');
 }
+/* ═══ LA LISTE SOUS LE CALENDRIER NE GARDE QUE CE QUI ARRIVE (Mag, 28/08/2026) ═══
+   « Ici, je propose que tu mettes que les choses à venir. Non ? »
+
+   Elle a raison, et c'est la même règle que partout ailleurs dans l'app : une sortie
+   du 5 août ne sert plus à personne le 28 — on n'y envoie pas quelqu'un. La liste
+   annonçait le mois ENTIER, donc, à la fin du mois, elle était surtout faite de
+   choses passées : il fallait lire cinq lignes mortes pour trouver la seule vivante.
+
+   ⚠ LA GRILLE, ELLE, NE CHANGE PAS. Un calendrier sans ses jours passés n'est plus
+   un calendrier : on ne saurait plus où l'on est dans le mois, et « le 17 » ne
+   voudrait plus rien dire. C'est la LISTE qui trie, pas la grille.
+   ⚠ ET ON PEUT REGARDER UN MOIS À VENIR : là, tout est à venir, et rien n'est retiré.
+   Le titre le dit — « ce qui reste » pour le mois en cours, « ce qu'il y a » sinon. */
 function agLegendeHTML(base){
   const parNom={};
   const fin=new Date(base); fin.setMonth(fin.getMonth()+1); fin.setDate(0);
+  const auj=new Date(); auj.setHours(0,0,0,0);
+  const moisEnCours=(base.getFullYear()===auj.getFullYear() && base.getMonth()===auj.getMonth());
+  let passees=0;
   for(let n=1;n<=fin.getDate();n++){
     const d=new Date(base); d.setDate(n); d.setHours(12,0,0,0);
+    /* ⚠ ON COMPTE CE QU'ON ÉCARTE : un bloc qui rétrécit sans rien dire fait croire
+       qu'on a perdu des lignes. La phrase du bas le dit en toutes lettres. */
+    if(d<auj){ if(agDuJour(d).length) passees++; continue; }
     agDuJour(d).forEach(function(e){
       /* Une famille compte pour UNE ligne ; les lieux qu'elle contient sont comptés
          à part, pour pouvoir écrire « 14 lieux ». */
@@ -22059,10 +22078,16 @@ function agLegendeHTML(base){
     });
   }
   const noms=Object.keys(parNom);
-  if(!noms.length) return '';
+  const titre=moisEnCours?'Ce qui reste ce mois-ci':'Ce qu’il y a ce mois-ci';
+  /* ⚠ PLUS RIEN À VENIR N'EST PAS « RIEN » : sans cette ligne, le bloc disparaissait
+     et on ne savait pas s'il n'y avait rien ou si l'app avait cessé de répondre. */
+  if(!noms.length)
+    return passees?'<div class="legn"><div class="legn-t">'+titre+'</div>'+
+      '<div class="legn-l" style="color:var(--enc2)"><span>Plus rien à venir ce mois-ci. '+
+      'Ce qui est passé n’est plus listé.</span></div></div>':'';
   const jours1=function(n){ return Object.keys(parNom[n].jours).sort()[0]; };
   noms.sort(function(a,b){ return String(jours1(a)).localeCompare(String(jours1(b))); });
-  return '<div class="legn"><div class="legn-t">Ce qu’il y a ce mois-ci</div>'+
+  return '<div class="legn"><div class="legn-t">'+titre+'</div>'+
     noms.map(function(n){
       const o=parNom[n], p=agPublic(o.qui), nb=Object.keys(o.lieux).length;
       return '<div class="legn-l"><i style="background:'+p.c+'"></i>'+
