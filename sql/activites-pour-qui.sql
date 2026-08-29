@@ -19,12 +19,12 @@
 alter table public.activites
   add column if not exists pour_qui text;
 
--- Trois valeurs, et rien d'autre. NULL reste permis : c'est « pas encore dit ».
+-- Quatre valeurs, et rien d'autre. NULL reste permis : c'est « pas encore dit ».
 alter table public.activites
   drop constraint if exists activites_pour_qui_check;
 alter table public.activites
   add constraint activites_pour_qui_check
-  check (pour_qui is null or pour_qui in ('mixte','femmes','hommes'));
+  check (pour_qui is null or pour_qui in ('mixte','femmes','hommes','lgbt'));
 
 -- ── À VÉRIFIER APRÈS AVOIR LANCÉ CECI ────────────────────────────────────────
 -- select pour_qui, count(*) from public.activites group by pour_qui;
