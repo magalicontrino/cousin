@@ -129,3 +129,4 @@ code** (il se publie par le dépôt) ; les comptes, listes, avis et chambres son
   de l'équipe.
 - **De Hoeksteen** absent du catalogue ; **Trempoline** relevé mais pas écrit (les
   conditions d'admission ne sont publiées nulle part).
+# Trigger rebuild
