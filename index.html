@@ -25217,8 +25217,11 @@ function actPicto(titre){
 function actGrouper(items){
   const par={}, ordre=[];
   items.forEach(function(x){
-    const cle=((x.r&&x.r.titre)||'')+'|'+((x.r&&(x.r.adr||x.r.lieu))||'');
-    if(!par[cle]){ par[cle]={x:x, dates:[]}; ordre.push(cle); }
+    /* Les musées gratuits ont une `famille` : on les regroupe sous un seul bloc
+       au lieu de lister chaque musée séparément (Mag, 28/08/2026). */
+    const fam=(x.r&&x.r.famille)||'';
+    const cle=fam||((x.r&&x.r.titre)||'')+'|'+((x.r&&(x.r.adr||x.r.lieu))||'');
+    if(!par[cle]){ par[cle]={x:x, dates:[], famille:fam}; ordre.push(cle); }
     par[cle].dates.push(x);
   });
   return ordre.map(function(c){ return par[c]; });
@@ -25428,17 +25431,17 @@ function vTicket(){
 function actLignesHTML(gr, P){
   return gr.map(function(g){
     const x=g.x, a=x.r||{}, pi=actPicto(a.titre);
+    /* Si le groupe a une famille (« Musées gratuits — le 1er dimanche »),
+       on affiche le nom de la famille et le nombre de lieux, pas chaque musée. */
+    const nom=g.famille||a.titre||'Sortie';
+    const nbLieux=g.famille?g.dates.length:0;
+    const lieuTxt=g.famille?(nbLieux+' lieu'+(nbLieux>1?'x':'')):(a.adr||a.lieu||'');
     return '<div class="actrow">'+
       '<span class="tu" style="background:'+(pi?pi.c:'#f0efed')+'">'+(pi?P(pi.f):P('adresse'))+'</span>'+
-      '<span class="tx"><em>'+esc(actQuandGroupe(g))+'</em><b>'+esc(a.titre||'Sortie')+'</b>'+
-        (a.adr||a.lieu?'<i>'+esc(a.adr||a.lieu)+'</i>':'')+
+      '<span class="tx"><em>'+esc(actQuandGroupe(g))+'</em><b>'+esc(nom)+'</b>'+
+        (lieuTxt?'<i>'+esc(lieuTxt)+'</i>':'')+
         (ACT_INSC(x)?'<span class="actinsc">Inscription</span>':'')+'</span>'+
-      /* ⚠ PLUS DE WHATSAPP SUR CHAQUE LIGNE (Mag, 20/08/2026 : « retire tous ces
-         pictos WhatsApp, 1 suffit au départ »). C'est le MÊME numéro sur toutes les
-         lignes — huit fois le même bouton vert, et c'est lui qu'on voyait au lieu du
-         nom de l'activité. Il est posé une fois, en tête de la liste. La place
-         libérée revient à « Y aller », qui, lui, change d'une ligne à l'autre. */
-      (a.adr?'<button class="actgo" onclick="window.open(\''+itiHref(a.adr)+'\',\'_blank\')">Y aller</button>':'')+
+      (!g.famille&&a.adr?'<button class="actgo" onclick="window.open(\''+itiHref(a.adr)+'\',\'_blank\')">Y aller</button>':'')+
     '</div>';
   }).join('');
 }
