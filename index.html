@@ -13319,6 +13319,7 @@ function parseRoute(){
   if(seg[0]==='partager') return {view:'partager'};
   if(seg[0]==='formations-asbl') return {view:'formationsasbl'};
   if(seg[0]==='immersion') return {view:'immersion'};
+  if(seg[0]==='samusocial') return {view:'samusocial'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -13574,6 +13575,7 @@ function renderInterne(){
   else if(current.view==='partager') view.innerHTML=vPartager();
   else if(current.view==='formationsasbl') view.innerHTML=vFormationsAsbl();
   else if(current.view==='immersion') view.innerHTML=vImmersion();
+  else if(current.view==='samusocial') view.innerHTML=vSamusocial();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='recherche'){ view.innerHTML=vRecherche();
     /* Le curseur est déjà dans le champ : on arrive ici pour taper, pas pour regarder.
@@ -14471,7 +14473,8 @@ function vCentre(){
   const outils=[
     ['Formations COUSIN', nFormations+' modules','book','noir',null,'#f5c542',"go('#/d/formations')"],
     ['Formations extérieures', FORM_EXT.filter(function(r){return r.k==='ext';}).length+' organismes','formations','noir',null,'#6cb392',"go('#/formations-asbl')"],
-    ['Immersion — Réseau Bitume', 'Stages dans le réseau','conduite','noir',null,'#fd8fd0',"go('#/immersion')"],
+    ['Immersion', 'Stages dans le réseau','conduite','noir',null,'#fd8fd0',"go('#/immersion')"],
+    ['Samusocial', 'Nos services internes','urgences','noir',null,'#e63329',"go('#/samusocial')"],
     ['Protocole', nMeth+' méthodes','clipboard','','#fd8fd0','#1b1b1b',"go('#/d/methodes')"],
     ['Activités', (auj.length?auj.length+' sorties aujourd\'hui':'Sorties · Article 27'),'ticket','noir large',null,'#6cb392',"go('#/ticket')"],
     ['Les démarches','Réquisitoire · AMU · RIS','demarche','large','#A9C8E8','#f2eee6',"go('#/d/demarches')"],
@@ -14671,7 +14674,8 @@ function vCentre(){
      },
 k:['Formations COUSIN']},
      {n:'Formations extérieures', s:'', c:'#6cb392', p:'formations', k:['Formations extérieures']},
-     {n:'Immersion — Réseau Bitume', s:'', c:'#fd8fd0', p:'conduite', k:['Immersion — Réseau Bitume']},
+     {n:'Immersion', s:'', c:'#fd8fd0', p:'conduite', k:['Immersion']},
+     {n:'Samusocial', s:'', c:'#e63329', p:'urgences', k:['Samusocial']},
      {n:'Les jeux', s:'', c:'#6cb392', p:'star', k:['Les jeux']},
     {n:'Le dictionnaire', s:'', c:'#b28b7a', p:'book', k:['Le dictionnaire']},
     {n:'Ressources', s:'', c:'#A9C8E8', p:'imprimer', k:['Ressources']},
@@ -18581,7 +18585,8 @@ function immersionTrouver(nom){
   return null;
 }
 function vImmersion(){
-  let h=heroBandeau('Immersion — Réseau Bitume', IMMERSION_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' institutions', '#fd8fd0', 'conduite', false);
+  let h=heroBandeau('Immersion', IMMERSION_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' institutions', '#fd8fd0', 'conduite', false);
+
   h+='<div class="famdedans" style="border:0;padding-top:4px">';
   h+='<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">';
   h+='Les institutions du réseau avec lesquelles on travaille au quotidien, ';
@@ -19185,6 +19190,56 @@ function vFormations(){
     h+='</div>';
   });
   return h+'<div style="height:26px"></div>';
+}
+
+/* ═══ SAMUSOCIAL — NOS PROPRES SERVICES (Charlotte, 01/09/2026)
+   Les services internes de l'ASBL : permanence, maraudes, hébergement,
+   centres spécialisés, housing et pôle asile & migration. */
+const SAMU_LIEUX=[
+  {g:'Permanence et maraudes', l:[
+    {n:'Permanence téléphonique 24h/24', t:'0800/99.340 — numéro vert gratuit', c:'#e63329', p:'urgences'},
+    {n:'Équipes mobiles d\'aide (maraudes)', t:'Jour et nuit, 7j/7 — chauffeur + infirmier·ère + assistant·e social·e et/ou psychologue', c:'#f8763f', p:'conduite'}
+  ]},
+  {g:'Hébergement d\'urgence', l:[
+    {n:'Hébergement d\'urgence 1re ligne', t:'Centre-ville, puis orientation vers centres spécialisés', c:'#f5c542', p:'hebergement'}
+  ]},
+  {g:'Centres spécifiques', l:[
+    {n:'Centre hommes isolés', t:'Hébergement pour hommes', c:'#6cb392', p:'homme'},
+    {n:'Centre femmes isolées — Louiza', t:'Hébergement pour femmes', c:'#f3c6da', p:'femme'},
+    {n:'Centre familles — Colmeia', t:'Hébergement pour familles', c:'#A9C8E8', p:'femme'},
+    {n:'Centre médicalisé — MediHalte', t:'Hébergement avec soins médicaux', c:'#fd8fd0', p:'medical'},
+    {n:'MENA — mineurs étrangers non accompagnés', t:'Hébergement et accompagnement', c:'#b28b7a', p:'accompagnement'},
+    {n:'Maison Alif', t:'Jeunes en extrême précarité', c:'#f6e7a8', p:'accompagnement'}
+  ]},
+  {g:'Housing / logement de transition', l:[
+    {n:'Step Forward — Housing First 18-25 ans', t:'Logement de transition pour jeunes', c:'#d8d3ef', p:'logement'},
+    {n:'Casa Resalto — femmes', t:'Logement de transition pour femmes', c:'#f3c6da', p:'femme'},
+    {n:'Casa Vesta', t:'Logement de transition', c:'#d8d3ef', p:'logement'},
+    {n:'Issue', t:'Logement de transition', c:'#d8d3ef', p:'logement'}
+  ]},
+  {g:'Pôle Asile & Migration', l:[
+    {n:'Centre Fedasil — Laeken', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'},
+    {n:'Centre Fedasil — Anderlecht', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'},
+    {n:'Centre Fedasil — Koekelberg', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'},
+    {n:'Centre Fedasil — Forest', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'}
+  ]}
+];
+function vSamusocial(){
+  let h=heroBandeau('Samusocial', SAMU_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' services', '#e63329', 'urgence', false);
+  h+='<div class="famdedans" style="border:0;padding-top:4px">';
+  h+='<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">';
+  h+='Nos propres services — ceux de l\'ASBL. Permanence, maraudes, hébergement, ';
+  h+='centres spécialisés, housing et pôle asile & migration.</p>';
+  SAMU_LIEUX.forEach(function(g){
+    h+='<div class="sectl">'+esc(g.g)+'</div><div class="flist">';
+    g.l.forEach(function(x){
+      h+='<div class="frow2 fext">'+
+        '<span class="rd" style="background:'+x.c+'"><span class="ic">'+icon(x.p)+'</span></span>'+
+        '<span class="tx"><b>'+esc(x.n)+'</b><em class="fexts">'+esc(x.t||'')+'</em></span></div>';
+    });
+    h+='</div>';
+  });
+  return h+'</div><div style="height:26px"></div>';
 }
 function vFormationsAsbl(){
   const asbls=FORM_EXT.filter(function(r){ return r.k==='ext'; });
