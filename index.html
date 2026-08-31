@@ -13317,6 +13317,8 @@ function parseRoute(){
   if(seg[0]==='bibliotheque') return {view:'bibliotheque'};
   if(seg[0]==='podcasts') return {view:'podcasts'};
   if(seg[0]==='partager') return {view:'partager'};
+  if(seg[0]==='formations-asbl') return {view:'formationsasbl'};
+  if(seg[0]==='immersion') return {view:'immersion'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -13344,6 +13346,11 @@ function parseRoute(){
   return {view:'home'};
 }
 window.addEventListener('hashchange',()=>{
+  /* ⚠ LE CHIEN DE GARDE (go(), 90ms) A PEUT-ÊTRE DÉJÀ DESSINÉ LA PAGE.
+     Si `_ecranDessine` correspond déjà à la nouvelle route, on ne redessine pas :
+     éviter le double scroll et le double render qui font sauter la page. */
+  const r = parseRoute();
+  if(NAV_CLIC && _ecranDessine === keyOf(r)){ NAV_CLIC=false; return; }
   /* Voir `retour()` : quand le déplacement ne vient PAS d'un `go()`, c'est la flèche
      du navigateur ou celle du téléphone — on a donc remonté d'un cran, et le compteur
      doit le savoir, sinon la flèche de l'app finirait par sortir de l'app. */
@@ -13565,6 +13572,8 @@ function renderInterne(){
   else if(current.view==='bibliotheque') view.innerHTML=vLivres();
   else if(current.view==='podcasts') view.innerHTML=vPodcasts();
   else if(current.view==='partager') view.innerHTML=vPartager();
+  else if(current.view==='formationsasbl') view.innerHTML=vFormationsAsbl();
+  else if(current.view==='immersion') view.innerHTML=vImmersion();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='recherche'){ view.innerHTML=vRecherche();
     /* Le curseur est déjà dans le champ : on arrive ici pour taper, pas pour regarder.
@@ -14460,7 +14469,9 @@ function vCentre(){
 
   /* Les tuiles des outils : [titre, sous-titre, picto, classe, fond, couleur du picto, lien] */
   const outils=[
-    ['Formations', nFormations+' modules','book','noir',null,'#f5c542',"go('#/d/formations')"],
+    ['Formations COUSIN', nFormations+' modules','book','noir',null,'#f5c542',"go('#/d/formations')"],
+    ['Formations extérieures', FORM_EXT.filter(function(r){return r.k==='ext';}).length+' organismes','formations','noir',null,'#6cb392',"go('#/formations-asbl')"],
+    ['Immersion — Réseau Bitume', 'Stages dans le réseau','conduite','noir',null,'#fd8fd0',"go('#/immersion')"],
     ['Protocole', nMeth+' méthodes','clipboard','','#fd8fd0','#1b1b1b',"go('#/d/methodes')"],
     ['Activités', (auj.length?auj.length+' sorties aujourd\'hui':'Sorties · Article 27'),'ticket','noir large',null,'#6cb392',"go('#/ticket')"],
     ['Les démarches','Réquisitoire · AMU · RIS','demarche','large','#A9C8E8','#f2eee6',"go('#/d/demarches')"],
@@ -14652,13 +14663,15 @@ function vCentre(){
        avec les jeux, le dictionnaire et les ressources.
        La leçon vaut d'être gardée : quand un rangement ne se comprend pas, regarder
        d'abord ce qui se passe APRÈS le clic. */
-    {n:'Formations', c:'#6cb392', p:'educatif',
+    {n:'Formations COUSIN', c:'#6cb392', p:'educatif',
      s:function(){
        const n=DATA.filter(function(p){
          return p.domaine==='formations' && fluLus(p.sid).length>0; }).length;
        return n ? n+' formation'+(n>1?'s':'')+' en cours' : '';
      },
-k:['Formations']},
+k:['Formations COUSIN']},
+     {n:'Formations extérieures', s:'', c:'#6cb392', p:'formations', k:['Formations extérieures']},
+     {n:'Immersion — Réseau Bitume', s:'', c:'#fd8fd0', p:'conduite', k:['Immersion — Réseau Bitume']},
      {n:'Les jeux', s:'', c:'#6cb392', p:'star', k:['Les jeux']},
     {n:'Le dictionnaire', s:'', c:'#b28b7a', p:'book', k:['Le dictionnaire']},
     {n:'Ressources', s:'', c:'#A9C8E8', p:'imprimer', k:['Ressources']},
@@ -18504,6 +18517,9 @@ const FORM_EXT=[
   {k:'ext', th:'Addictions', t:'Le Pélican', s:'Addictions · formations sur mesure',
    u:'https://lepelican-asbl.be/formations-de-professionnels/', ic:'mind', c:'#d8d3ef',
    d:'Substances et jeux d’argent. Ils construisent la formation avec le service qui la demande. 02 502 08 61.'},
+  {k:'ext', th:'Addictions', t:'Transit ASBL', s:'Assuétudes · formations sur mesure · gratuit',
+   u:'http://fr.transitasbl.be/formations/', ic:'mind', c:'#d8d3ef',
+   d:'Pour tout professionnel en contact avec des usagers de drogues. Réduction des risques, représentations, stratégies d’intervention. Durée min. 1/2 journée. Aussi opérateur ORBA pour les acteurs non-spécialisés (gardiens de la paix, police, STIB…). 02 215 89 90.'},
   {k:'ext', th:'Santé mentale', t:'Un pass dans l’impasse', s:'Suicide · en salle ou en visio',
    u:'https://un-pass.be/formations/', ic:'bouee', c:'#f7d9c6',
    d:'Sentinelles, crise suicidaire, adolescents, automutilation. 081 777 150.'},
@@ -18518,6 +18534,76 @@ const FORM_EXT=[
    u:'https://economie-emploi.brussels/conge-education-paye', ic:'clock', c:'#dcefe4',
    d:'Se former en journée ou en horaire décalé, en conservant tout ou partie du salaire. Sous conditions.'}
 ];
+
+/* ═══ IMMERSION — RÉSEAU BITUME (Charlotte, 31/08/2026)
+   Les institutions où l'équipe peut faire une immersion, en accord avec la
+   coordination. Chaque entrée cherche la fiche correspondante dans le catalogue
+   par son nom et crée un lien vers elle. Si la fiche n'est pas trouvée, le lieu
+   s'affiche sans lien. */
+const IMMERSION_LIEUX=[
+  /* ═══ Hôpitaux et cliniques ═══ */
+  {g:'Hôpitaux et cliniques', l:[
+    {n:'Saint-Pierre – Urgences', c:'#e63329', p:'urgences'},
+    {n:'Clinique Sans Souci', c:'#6cb392', p:'medical'},
+    {n:'Clinique Sanatia (Valisana)', c:'#6cb392', p:'medical'}
+  ]},
+  /* ═══ Services de rue ═══ */
+  {g:'Services de rue', l:[
+    {n:'Infirmiers de rue', c:'#f3c6da', p:'medical'},
+    {n:'Transit — Comptoir LAIRR', c:'#f3c6da', p:'addictions'},
+    {n:'Transit — SCMR GATE', c:'#f3c6da', p:'addictions'},
+    {n:'Transit — Hébergement de crise', c:'#f3c6da', p:'addictions'},
+    {n:'Équipe de liaison (Transit)', c:'#f3c6da', p:'addictions'}
+  ]},
+  /* ═══ Maisons d'accueil ═══ */
+  {g:'Maisons d’accueil', l:[
+    {n:'Home Baudouin (Œuvre de l’Hospitalité)', c:'#b28b7a', p:'hebergement'},
+    {n:'Foyer Georges Motte (Armée du Salut)', c:'#b28b7a', p:'hebergement'},
+    {n:'Maison d’accueil des Petits Riens', c:'#b28b7a', p:'hebergement'},
+    {n:'@ Home 18-24 (Petits Riens)', c:'#b28b7a', p:'hebergement'}
+  ]},
+  /* ═══ Ressources sociales ═══ */
+  {g:'Ressources sociales', l:[
+    {n:'Les Petits Riens', c:'#A9C8E8', p:'social'},
+    {n:'DIOGENES', c:'#A9C8E8', p:'logement'}
+  ]}
+];
+function immersionTrouver(nom){
+  for(var i=0;i<DATA.length;i++){
+    if(DATA[i].nom===nom) return DATA[i];
+  }
+  var court=nom.replace(/[—–].*$/,"").trim();
+  if(court!==nom){
+    for(var i=0;i<DATA.length;i++){
+      if(DATA[i].nom.indexOf(court)>=0) return DATA[i];
+    }
+  }
+  return null;
+}
+function vImmersion(){
+  let h=heroBandeau('Immersion — Réseau Bitume', IMMERSION_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' institutions', '#fd8fd0', 'conduite', false);
+  h+='<div class="famdedans" style="border:0;padding-top:4px">';
+  h+='<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">';
+  h+='Les institutions du réseau avec lesquelles on travaille au quotidien, ';
+  h+='où l’équipe peut faire une immersion en accord avec la coordination. ';
+  h+='(Charlotte, 31/08/2026)</p>';
+  IMMERSION_LIEUX.forEach(function(g){
+    h+='<div class="sectl">'+esc(g.g)+'</div><div class="flist">';
+    g.l.forEach(function(x){
+      const p=immersionTrouver(x.n);
+      const corps='<span class="rd" style="background:'+x.c+'"><span class="ic">'+icon(x.p)+'</span></span>'+
+        '<span class="tx"><b>'+esc(x.n)+'</b></span>';
+      if(p){
+        h+='<button class="frow2 fext" onclick="go(\'#/f/'+p.sid+'\')">'+corps+
+          '<span class="ic fextl">›</span></button>';
+      } else {
+        h+='<div class="frow2 fext">'+corps+'</div>';
+      }
+    });
+    h+='</div>';
+  });
+  return h+'</div><div style="height:26px"></div>';
+}
 function formExtHTML(){
   return '<div class="sectl">Se former ailleurs</div><div class="flist">'+
     FORM_EXT.map(function(f){
@@ -19041,15 +19127,13 @@ function vFormations(){
         '<span class="ic fextl">\u203A</span></button>';
     }).join('')+'</div>';
 
-  /* ═══ TOUT RANGÉ PAR SUJET ═══
-     Chaque sujet réunit ce que l'app apprend ET ce qui se trouve dehors : on
-     cherche « les addictions », pas « une formation extérieure ». */
-  const ress=[].concat(FORM_EXT, FORM_POD);
+/* ═══ TOUT RANGÉ PAR SUJET ═══
+      Seuls les modules COUSIN : les formations externes et les podcasts
+      ont leur propre page. */
+  const ress=[];
   const parTheme={};
   mods.forEach(function(p){ const t=themeDe(p);
     parTheme[t]=parTheme[t]||{}; (parTheme[t].cousin=parTheme[t].cousin||[]).push(p); });
-  ress.forEach(function(r){ const t=THEME_VERS[r.th||'']||r.th||'Le terrain';
-    parTheme[t]=parTheme[t]||{}; (parTheme[t][r.k]=parTheme[t][r.k]||[]).push(r); });
 
   const ordre=THEMES_ORDRE.filter(function(t){ return parTheme[t]; })
     .concat(Object.keys(parTheme).filter(function(t){ return THEMES_ORDRE.indexOf(t)<0; }).sort());
@@ -19101,6 +19185,16 @@ function vFormations(){
     h+='</div>';
   });
   return h+'<div style="height:26px"></div>';
+}
+function vFormationsAsbl(){
+  const asbls=FORM_EXT.filter(function(r){ return r.k==='ext'; });
+  return heroBandeau('Formations extérieures', asbls.length+' organismes', '#6cb392', 'formations', false)+
+    '<div class="famdedans" style="border:0;padding-top:4px">'+
+    '<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">'+
+    'Les formations extérieures — asbl, fonds, ressources en ligne — sont toutes ici, '+
+    'pas mélangées avec les modules de l\'app.</p>'+
+    '<div class="flist">'+asbls.map(fRess).join('')+'</div></div>'+
+    '<div style="height:26px"></div>';
 }
 function flCard(p){
   const ch=formationChapitres(p.page),lus=fluLus(p.sid),coul=themeCoul(p.theme);
