@@ -2630,6 +2630,15 @@ body.pan-ouvert #view{animation:none;transform:none}
 .jx-flip .jx-face b{font-size:21px;font-weight:700;line-height:1.2;margin-top:10px}
 .jx-flip .jx-face em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-top:14px}
+/* Le complément du dos : une phrase lisible (pas des capitales — on la LIT, on ne la
+   survole pas), puis la commune et la porte vers la fiche. */
+.jx-flip .jx-face .jx-dpq{font-size:13px;line-height:1.4;opacity:.88;margin-top:10px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.jx-flip .jx-face .jx-dbas{display:flex;align-items:center;gap:10px;margin-top:12px}
+.jx-flip .jx-face .jx-dbas>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jx-flip .jx-face .jx-dfiche{flex:none;border:1px solid rgba(242,238,230,.5);border-radius:999px;
+  background:none;color:#f2eee6;padding:6px 12px;cursor:pointer;
+  font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase}
 
 /* ═══ LA PAGE ACTIVITÉS — trois boutons, l'encart WAKA, le panneau qui monte ═══
    (Mag, 12-13/08/2026. Couleurs : sa palette validée uniquement. Pictos : les siens,
@@ -21840,6 +21849,34 @@ function jxDots(total, i){
   }
   return h+'</div>';
 }
+/* ═══ LE DOS DE LA CARTE DIT PLUS QUE LE NOM (Mag, 28/08/2026) ═══
+   « La réponse n'est pas assez explicative. » Sa capture : « Écrans, jeux vidéo, jeux
+   d'argent — consultations spécialisées. » et rien d'autre. On retourne la carte, on
+   lit six mots, et on n'a rien appris qu'on puisse utiliser lundi.
+
+   ⚠ ON N'INVENTE AUCUNE EXPLICATION. Ce qui s'ajoute vient de la fiche elle-même :
+   le « pourquoi » quand la question en porte un (les ~30 questions écrites à la main),
+   sinon POUR QUI c'est et OÙ c'est — les deux choses qui manquent le plus quand on
+   vient d'apprendre qu'un service existe. Et la fiche s'ouvre d'un doigt pour le
+   reste : le numéro, les horaires, ce qu'il faut savoir avant d'y envoyer quelqu'un.
+
+   ⚠ `stopPropagation` SUR LE BOUTON : toute la carte porte `onclick=jxFlip()`. Sans
+   lui, ouvrir la fiche retournerait la carte au passage — on partirait en ayant vu
+   la question clignoter.
+   ⚠ TROIS LIGNES AU MAXIMUM : la carte a une hauteur fixe et son contenu est calé en
+   bas ; ce qui déborde sort par le HAUT, c'est-à-dire que ça mange la réponse. */
+function jxDosPlus(Q){
+  const p = (Q && Q.src) ? DATA.find(function(x){ return x.id===Q.src; }) : null;
+  const dit = String(Q&&Q.pourquoi ? Q.pourquoi : (p&&p.public ? 'Pour qui : '+p.public : '')).trim();
+  const bas = [];
+  if(p && p.commune) bas.push(p.commune);
+  if(!dit && !p) return '';
+  return (dit?'<p class="jx-dpq">'+esc(qTrim(dit,150))+'</p>':'')+
+    (bas.length||p ? '<em class="jx-dbas">'+
+      (bas.length?'<span>'+esc(bas.join(' · '))+'</span>':'<span></span>')+
+      (p?'<button class="jx-dfiche" onclick="event.stopPropagation();go(\'#/f/'+p.sid+'\')">Ouvrir la fiche</button>':'')+
+    '</em>' : '');
+}
 /* Le bloc « pourquoi » + la fiche, sous la correction. */
 function jxPourquoi(Q){
   const p = Q && Q.src ? DATA.find(function(x){ return x.id===Q.src; }) : null;
@@ -21939,6 +21976,7 @@ function jxJeuHTML(){
           <div class="jx-face" style="background:#5b8fd4"><small>Carte ${JEU.i+1}</small><b>${esc(Q.q)}</b>
             <div class="jx-bandeau">${icoRetourner()}Retourner la carte</div></div>
           <div class="jx-face dos"><small>La réponse</small><b>${esc(Q.opts[Q.correct])}</b>
+            ${jxDosPlus(Q)}
             <div class="jx-bandeau">${icoRetourner()}Revenir à la question</div></div>
         </div>
       </div>
