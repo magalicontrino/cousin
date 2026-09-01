@@ -23855,6 +23855,11 @@ const SCHEMAS=[
 ];
 
 function schemaTrouve(){
+  /* ⚠ « Ouvrir ses droits » NE PASSE PAS PAR LES TROIS QUESTIONS : il ne dépend
+     d'aucune situation, il est le même pour tout le monde. En le rendant ici, la
+     feuille, les cinq langues, l'impression et la feuille de relecture marchent
+     sans qu'une seule de ces fonctions ait à le savoir. */
+  if(SCHEMA_OUVERT==='droits') return SCHEMA_DROITS;
   const r=SCHEMA_REP;
   if(!r.sejour) return null;
   return SCHEMAS.find(function(x){ return x.quand(r); }) || null;
@@ -25758,10 +25763,10 @@ const SCHEMAS_GALERIE=[
    d:'Où aller se faire soigner, selon sa situation. Trois questions, et la feuille sort prête à donner.',
    mini:'<i style="background:#A9C8E8"></i><b></b><i style="background:#f3c6da"></i><b></b>'+
         '<i style="background:#6cb392"></i><b></b><span class="fin" style="background:#1b1b1b"></span>'},
-  {k:'droits', t:'Ouvrir ses droits', pret:false, lg:'À construire',
+  {k:'droits', t:'Ouvrir ses droits', pret:true, lg:'5 langues · A4 · brouillon',
    d:'Ce qu’il faut demander, dans quel ordre, et ce qu’on emporte au guichet.',
-   mini:'<i style="background:#d6d4d0"></i><b></b><i style="background:#d6d4d0"></i><b></b>'+
-        '<span class="fin" style="background:#d6d4d0"></span>'},
+   mini:'<i style="background:#f6e7a8"></i><b></b><i style="background:#A9C8E8"></i><b></b>'+
+        '<i style="background:#6cb392"></i><b></b><span class="fin" style="background:#1b1b1b"></span>'},
   /* ⚠ « DORMIR CE SOIR » EST ÉCARTÉ (01/09/2026, tu m'as dit : « on n'en avait pas
      vraiment besoin, on est déjà dans un centre d'accueil »). Le vrai besoin est
      l'étape d'APRÈS : quand on a récupéré les droits et qu'il y a des revenus, la
@@ -25794,15 +25799,25 @@ function vSchemas(){
   const s=schemaTrouve();
   let h=heroBandeau('Schémas de soins','','#A9C8E8','medical',true);
   /* La porte de retour vers la galerie — le même geste que « changer de commune ». */
+  const nomOuvert=(SCHEMAS_GALERIE.find(function(x){return x.k===SCHEMA_OUVERT;})||{}).t||'Le parcours de soin';
   h+='<button class="famz" onclick="schemaOuvrir(\'\')" style="margin-bottom:10px">'+
     '<span class="rd" style="background:#A9C8E8"><span class="ic">'+icon('medical')+'</span></span>'+
-    '<span class="tx"><b>Le parcours de soin</b><em>Changer de schéma</em></span>'+
+    '<span class="tx"><b>'+esc(nomOuvert)+'</b><em>Changer de schéma</em></span>'+
     '<span class="chv">\u203a</span></button>';
+  /* ⚠ CE SCHÉMA-CI EST UN BROUILLON, ET ÇA SE DIT SUR LA PAGE. Une feuille qu'on
+     donne à quelqu'un ne peut pas cacher qu'elle n'a pas été relue. */
+  if(SCHEMA_OUVERT==='droits')
+    h+='<div class="fsavoir" style="margin:0 0 14px"><b><span class="ic">'+icon('alert')+
+       '</span>Premier jet, à relire</b><p>Cette feuille a été écrite d’un trait et '+
+       'n’a pas encore été vérifiée avec l’équipe. Corrige-la avant de la donner.</p></div>';
 
   /* Les questions : on ne montre la suivante que si la précédente est répondue —
      l'entonnoir se resserre, on ne remplit pas un formulaire. */
   h+='<div class="sch">';
-  let bloque=false;
+  /* ⚠ « Ouvrir ses droits » ne pose aucune question : la feuille est la même pour
+     tout le monde. On bloque l'entonnoir dès le départ plutôt que d'écrire une
+     deuxième page qui ferait la même chose. */
+  let bloque=(SCHEMA_OUVERT==='droits');
   SCHEMA_Q.forEach(function(q,i){
     if(bloque) return;
     const rep=SCHEMA_REP[q.k];
@@ -25855,6 +25870,54 @@ function vSchemas(){
    le même quelle que soit sa mutuelle. Un symbole abstrait n'aurait rien rappelé.
    ⚠ Le picto REMPLACE le numéro quand il existe : pour quelqu'un qui déchiffre, un
    dessin vaut mieux qu'un rang. Les étapes sans picto gardent leur chiffre. */
+/* ═══ OUVRIR SES DROITS — PREMIER JET (01/09/2026) ═══
+   Tu m'as dit : « celui d'ouvrir ses droits, fais-le tout seul, on corrigera après ».
+   ⚠⚠ C'EST UN BROUILLON, ET IL EST NOTÉ COMME TEL DANS LE CHANTIER. Le tiroir
+   « démarches » ne contient que deux fiches : il n'y avait rien à assembler. L'ordre
+   ci-dessous vient de tes propres cours — l'adresse de référence rend les droits, le
+   CPAS compétent est celui d'avant l'admission et il ne bouge pas, la date du passage
+   fixe les droits, la CAAMI pour qui n'a aucune mutuelle. Rien n'est inventé, mais
+   rien n'a été relu non plus.
+   ⚠ LES QUATRE TRADUCTIONS N'ONT PAS ÉTÉ RELUES : la feuille porte déjà le bandeau
+   qui le dit, et la « feuille de relecture » existe pour les faire vérifier. */
+const SCHEMA_DROITS={
+ k:'droits', c:'#f6e7a8',
+ fr:{t:'Ouvrir ses droits', s:'Dans cet ordre, et ce qu’on emporte.', e:[
+   {t:'D’abord une adresse', d:'Sans adresse, les droits s’arrêtent. Demandez une ADRESSE DE RÉFÉRENCE au CPAS de la commune où vous êtes habituellement.'},
+   {t:'Le bon CPAS', d:'C’est celui de la commune où vous étiez inscrit AVANT d’entrer dans le centre. Il ne change pas pendant le séjour. On ne vous renvoie pas ailleurs.'},
+   {t:'Demandez le revenu d’intégration', d:'La demande se fait à ce CPAS. C’est le JOUR DE VOTRE PASSAGE qui compte, pas le jour de la réponse : faites-le noter.'},
+   {t:'La mutuelle', d:'Si vous n’en avez aucune, inscrivez-vous à la CAAMI. Si elle est impayée, demandez un plan de paiement.'},
+   {t:'Ce qu’on emporte', d:'Carte d’identité ou attestation · composition de ménage · vos preuves de revenus s’il y en a · et le nom de la personne qui vous reçoit.'}],
+  a:'Demandez toujours un écrit. Un refus oral ne se conteste pas.'},
+ en:{t:'Opening your rights', s:'In this order, and what to bring.', e:[
+   {t:'An address first', d:'Without an address, rights stop. Ask for an ADRESSE DE RÉFÉRENCE at the CPAS of the municipality where you usually are.'},
+   {t:'The right CPAS', d:'It is the one of the municipality where you were registered BEFORE entering the centre. It does not change during your stay. They cannot send you elsewhere.'},
+   {t:'Ask for the integration income', d:'The request is made at that CPAS. What counts is the DAY YOU CAME, not the day of the answer: have it written down.'},
+   {t:'Health insurance', d:'If you have none, register with the CAAMI. If it is unpaid, ask for a payment plan.'},
+   {t:'What to bring', d:'Identity card or certificate · household composition · proof of income if any · and the name of the person who receives you.'}],
+  a:'Always ask for it in writing. A spoken refusal cannot be challenged.'},
+ ro:{t:'Deschiderea drepturilor', s:'În această ordine, și ce luați cu dumneavoastră.', e:[
+   {t:'Mai întâi o adresă', d:'Fără adresă, drepturile se opresc. Cereți o ADRESSE DE RÉFÉRENCE la CPAS-ul comunei unde vă aflați de obicei.'},
+   {t:'CPAS-ul potrivit', d:'Este cel al comunei unde erați înscris ÎNAINTE de a intra în centru. Nu se schimbă pe durata șederii. Nu vă pot trimite în altă parte.'},
+   {t:'Cereți venitul de integrare', d:'Cererea se face la acel CPAS. Contează ZIUA ÎN CARE AȚI VENIT, nu ziua răspunsului: cereți să fie notată.'},
+   {t:'Asigurarea de sănătate', d:'Dacă nu aveți niciuna, înscrieți-vă la CAAMI. Dacă este neplătită, cereți un plan de plată.'},
+   {t:'Ce luați cu dumneavoastră', d:'Carte de identitate sau adeverință · componența gospodăriei · dovezi de venit dacă există · și numele persoanei care vă primește.'}],
+  a:'Cereți întotdeauna în scris. Un refuz verbal nu poate fi contestat.'},
+ pl:{t:'Otwarcie swoich praw', s:'W tej kolejności i co zabrać.', e:[
+   {t:'Najpierw adres', d:'Bez adresu prawa się kończą. Poproś o ADRESSE DE RÉFÉRENCE w CPAS gminy, w której zwykle przebywasz.'},
+   {t:'Właściwy CPAS', d:'To ten z gminy, w której byłeś zameldowany PRZED wejściem do ośrodka. Nie zmienia się podczas pobytu. Nie mogą cię odesłać gdzie indziej.'},
+   {t:'Poproś o dochód integracyjny', d:'Wniosek składa się w tym CPAS. Liczy się DZIEŃ TWOJEJ WIZYTY, a nie dzień odpowiedzi: poproś o zapisanie.'},
+   {t:'Ubezpieczenie zdrowotne', d:'Jeśli nie masz żadnego, zapisz się do CAAMI. Jeśli jest nieopłacone, poproś o plan spłaty.'},
+   {t:'Co zabrać', d:'Dowód tożsamości lub zaświadczenie · skład gospodarstwa domowego · dowody dochodu, jeśli są · i nazwisko osoby, która cię przyjmuje.'}],
+  a:'Zawsze proś o pismo. Ustnej odmowy nie da się zaskarżyć.'},
+ ar:{t:'فتح حقوقك', s:'بهذا الترتيب، وما يجب أخذه معك.', e:[
+   {t:'أولاً عنوان', d:'بدون عنوان تتوقف الحقوق. اطلب عنوان مرجعي (Adresse de référence) في CPAS البلدية التي تتواجد فيها عادةً.'},
+   {t:'الـ CPAS الصحيح', d:'هو CPAS البلدية التي كنت مسجَّلاً فيها قبل دخولك المركز. لا يتغيّر طوال الإقامة. ولا يمكنهم إرسالك إلى مكان آخر.'},
+   {t:'اطلب دخل الإدماج', d:'يُقدَّم الطلب في ذلك الـ CPAS. المهم هو يوم حضورك، لا يوم الرد: اطلب تدوينه.'},
+   {t:'التأمين الصحي', d:'إن لم يكن لديك أي تأمين، سجّل في CAAMI. وإن كان غير مدفوع، اطلب خطة سداد.'},
+   {t:'ما تأخذه معك', d:'بطاقة الهوية أو شهادة · تركيبة الأسرة · إثباتات الدخل إن وُجدت · واسم الشخص الذي يستقبلك.'}],
+  a:'اطلب دائماً وثيقة مكتوبة. الرفض الشفهي لا يمكن الطعن فيه.'}
+};
 const SCHEMA_PICTOS={
   cpas:'<path d="M3 10 12 4l9 6M5 10v9M19 10v9M9 19v-5h6v5M3 19h18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
   medecin:'<path d="M6 3v6a6 6 0 0 0 12 0V3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="3" r="1.5"/><path d="M12 15v2a3 3 0 0 0 5.9.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18.5" cy="16" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/>',
@@ -25874,7 +25937,8 @@ const SCHEMA_P={
   legal_non:   ['mutuelle','cpas','papiers'],
   legal_impaye:['mutuelle','argent','papiers'],
   asile:       ['maison','soin','papiers'],
-  legal_ok:    ['medecin']
+  legal_ok:    ['medecin'],
+  droits:      ['papiers','cpas','argent','mutuelle','papiers']
 };
 function schemaPicto(k,i){
   const nom=(SCHEMA_P[k]||[])[i];
