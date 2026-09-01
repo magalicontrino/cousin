@@ -1864,6 +1864,31 @@ body.pan-ouvert #view{animation:none;transform:none}
 .fbtn.plein{border-color:transparent}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
+/* ═══ LA GALERIE DES SCHÉMAS (01/09/2026) ═══
+   ⚠ CE BLOC A DÉJÀ ÉTÉ EFFACÉ UNE FOIS, PAR ACCIDENT (01/09/2026). Il était collé
+   juste sous le style du bandeau d'étiquettes ; en retirant les étiquettes, la
+   coupe est partie trop loin et a emporté la galerie avec. La page des schémas est
+   alors sortie en texte brut — titres, phrases et « › » les uns sous les autres.
+   Il est remis ici, entouré de ses deux bornes, et il ne dépend d'aucun voisin. */
+.scgal{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:14px var(--pad) 0}
+@media (max-width:720px){ .scgal{grid-template-columns:1fr} }
+.scg{display:flex;flex-direction:column;text-align:left;width:100%;color:var(--noir);
+  background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;padding:18px}
+.scg.avenir{opacity:.62;border-style:dashed;cursor:default}
+.scg .scmini{display:block;background:#f6f5f3;border-radius:9px;padding:16px 14px;margin-bottom:15px}
+.scg.avenir .scmini{background:#efeeec}
+.scg .sctx b{display:block;font-size:17px;font-weight:600;line-height:1.25}
+.scg .scd{display:block;font-size:13.5px;color:#4a4844;margin-top:7px;line-height:1.45}
+.scg .scpied{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:13px}
+.scg .scpied em{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--enc2)}
+.scg .scpied i{font-style:normal;font-size:19px;color:var(--trait)}
+/* Le micro-schéma : des pastilles reliées. C'est la FORME du schéma, en petit. */
+.ms{display:flex;align-items:center;gap:0}
+.ms i{width:26px;height:26px;border-radius:50%;flex:none;display:block}
+.ms b{flex:1;height:2px;background:var(--ligne);display:block}
+.ms .fin{width:26px;height:26px;border-radius:6px;display:block}
+/* ═══ FIN DE LA GALERIE DES SCHÉMAS ═══ */
 .demlist{display:flex;flex-direction:column;gap:9px;margin-top:12px}
 
 
@@ -3651,6 +3676,9 @@ body.pan-ouvert #view{animation:none;transform:none}
   text-transform:uppercase;color:var(--enc2)}
 .mlb .ic{width:13px;height:13px;flex:none;color:var(--enc2)}
 .mlb:active{color:var(--noir);border-color:var(--trait)}
+/* Repris : le même bouton, mais dit. On le rappuie pour défaire. */
+.mlb-on{color:var(--noir);border-color:var(--noir);font-weight:600}
+.mlb-on .ic{color:var(--noir)}
 /* Le déroulant se fond dans la barre : même hauteur, même filet, même petit texte.
    Il ne doit pas peser plus que les boutons à côté — c'est un réglage, pas un titre. */
 .mlsel{display:inline-flex;min-width:0}
@@ -15531,11 +15559,15 @@ function vListe(){
    ⚠ L'IMPRIMER GLOBAL A QUITTÉ CETTE BARRE (Mag, 24/08/2026). Il survit dans les
    cartes de listes, là où la feuille se prépare — voir `boutonImprimer`. */
 function listeBarreHTML(ordre, vue){
+  /* ⚠ LE BOUTON DE REPRISE EST LÀ TOUS LES JOURS — voir `jeReprends` : il ne
+     disparaît plus une fois la reprise posée, il se coche et se décoche. */
   const dedans = listeSelecteurHTML(ordre, vue) +
     (!enReprise()
       ? '<button class="mlb" onclick="jeReprends()">'+
         '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle</button>'
-      : '');
+      : '<button class="mlb mlb-on" onclick="jeNeReprendsPas()" '+
+        'title="Ce n\'est pas une reprise" aria-pressed="true">'+
+        '<span class="ic">'+icon('check')+'</span>Tu reprends aujourd\u2019hui</button>');
   /* ⚠ « IMPRIMER » REVIENT EN TOUTES LETTRES (Mag, 22/08/2026 : « remets imprimé en
      écriture, c'est le truc — avec le picto qu'on trouvera par la suite »).
      Le picto seul ne se reconnaît pas : le dessin d'imprimante de l'app ne parle pas
@@ -29109,6 +29141,23 @@ function jeReprends(){
   cousinConfirme('Tu reprends aujourd’hui ?',
     'Les tâches de reprise passeront en rouge, tout en haut de ta liste, pour aujourd’hui.',
     function(){ reprisePoser(todayStr()); loadListes().then(render); }, {ok:'Oui, je reprends'});
+}
+/* ═══ ⚠ « JE RECOMMENCE MON SHIFT A DISPARU » (Mag, 01/09/2026) ═══
+   Le bouton ne s'affichait que TANT QU'ON N'AVAIT PAS REPRIS : `!enReprise()`. Dès
+   que la reprise était posée, il quittait la barre — et c'était censé être une
+   politesse (« un bouton qui ne fait plus rien encombre »).
+   Sauf que la reprise se pose AUSSI TOUTE SEULE : trois jours sans ouvrir l'app et
+   `devinerLaReprise` la coche à la place de la personne. Elle arrive donc le matin
+   sur une barre où le bouton d'hier n'est plus, sans avoir rien touché, sans savoir
+   qui l'a décidé, et sans pouvoir revenir dessus — alors que le même jour est une
+   reprise pour une équipe et un jour ordinaire pour une autre.
+   ⚠ LE GESTE NE DISPARAÎT PLUS, IL CHANGE D'ÉTAT. Avant : « Je reprends mon cycle ».
+   Après : « Tu reprends aujourd'hui », coché, et on peut le défaire. La barre garde
+   la même hauteur d'un jour à l'autre, et l'app ne décide plus rien en silence. */
+function jeNeReprendsPas(){
+  cousinConfirme('Ce n’est pas une reprise ?',
+    'Les tâches de reprise redescendront en bas de ta liste, en gris, comme un jour ordinaire.',
+    function(){ reprisePoser(''); loadListes().then(render); }, {ok:'Non, journée ordinaire'});
 }
 (function devinerLaReprise(){
   try{
