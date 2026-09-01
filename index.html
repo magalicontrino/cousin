@@ -5747,6 +5747,14 @@ body.no-tabs #tabbar{display:none}
     letter-spacing:.14em;text-transform:uppercase;color:var(--enc2)}
   .podc > p{font-size:13px;line-height:1.45;color:#4a4844;margin:6px 0 12px}
   .podif{display:block;width:100%;border:0;border-radius:12px}
+  /* Le bouton qui appelle le lecteur : la taille d'une vraie cible au doigt. */
+  .podplay{display:inline-flex;align-items:center;gap:9px;margin-top:12px;
+    background:#f6f5f3;border:1.25px solid var(--trait);border-radius:8px;
+    padding:11px 15px;color:var(--noir);cursor:pointer;
+    font-family:ui-monospace,monospace;font-size:9.5px;font-weight:500;
+    letter-spacing:.12em;text-transform:uppercase}
+  .podplay .ic{width:15px;height:15px}
+  .podz:not(:empty){margin-top:12px}
   .podl-a{display:inline-flex;align-items:center;gap:8px;margin-top:11px;
     font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;
     text-transform:uppercase;color:var(--noir);text-decoration:none;
@@ -19466,24 +19474,49 @@ function podAppleId(u){
   const m=/podcasts\.apple\.com\/([a-z]{2})\/podcast\/(?:[^/]+\/)?id(\d+)/.exec(u||'');
   return m ? {pays:m[1], id:m[2]} : null;
 }
+/* ═══ LE LECTEUR NE SE CHARGE QU'À LA DEMANDE (01/09/2026) ═══
+   Tu m'as dit : « quand ça devient trop long, il faut faire des slides ». Ici les
+   slides seraient un mauvais outil — un doigt posé sur un lecteur est pris par le
+   lecteur, pas par le carrousel, donc la page ne glisserait pas.
+   Le vrai coupable était ailleurs : CHAQUE podcast posait un lecteur de 232 px,
+   toujours là. Treize podcasts font plus de trois mille pixels de page — et treize
+   connexions à Spotify et à Apple dès l'ouverture, sur un téléphone qui est peut-être
+   dans un couloir sans wifi.
+   Maintenant la carte tient en quelques lignes et le lecteur arrive quand on appuie.
+   ⚠ LE LIEN RESTE SOUS LA CARTE, TOUJOURS — un lecteur peut refuser de démarrer
+   (réseau coupé, cookies bloqués, plateforme en panne), et sans le lien on serait
+   devant un cadre vide sans rien à faire. C'est la règle du 27/08, elle ne bouge pas. */
+var POD_LECTEURS={}, POD_N=0;
+function podJouer(cle){
+  var z=document.getElementById('pod-'+cle);
+  if(!z || !POD_LECTEURS[cle]) return;
+  z.innerHTML=POD_LECTEURS[cle];
+  var b=document.getElementById('podb-'+cle); if(b) b.remove();
+}
 function formPodCarte(p){
   const ap=podAppleId(p.u);
   let lecteur='';
   if(p.show){
     lecteur='<iframe class="podif" src="https://open.spotify.com/embed/show/'+esc(p.show)+'" '+
-      'height="232" frameborder="0" loading="lazy" title="'+esc(p.t)+'" '+
+      'height="232" frameborder="0" title="'+esc(p.t)+'" '+
       'allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>';
   }else if(ap){
     lecteur='<iframe class="podif" src="https://embed.podcasts.apple.com/'+esc(ap.pays)+
-      '/podcast/id'+esc(ap.id)+'" height="232" frameborder="0" loading="lazy" '+
+      '/podcast/id'+esc(ap.id)+'" height="232" frameborder="0" '+
       'title="'+esc(p.t)+'" sandbox="allow-forms allow-popups allow-same-origin '+
       'allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" '+
       'allow="autoplay *; encrypted-media *; clipboard-write"></iframe>';
   }
+  var cle=String(++POD_N);
+  if(lecteur) POD_LECTEURS[cle]=lecteur;
   return '<div class="podc">'+
     '<div class="podt"><b>'+esc(p.t)+'</b><em>'+esc(p.par||'')+'</em></div>'+
     (p.d?'<p>'+esc(p.d)+'</p>':'')+
-    lecteur+
+    (lecteur
+      ? '<div class="podz" id="pod-'+cle+'"></div>'+
+        '<button class="podplay" id="podb-'+cle+'" onclick="podJouer(\''+cle+'\')">'+
+          '<span class="ic">'+icon('chat')+'</span>Écouter ici</button>'
+      : '')+
     (p.u?'<a class="podl-a" href="'+p.u+'" target="_blank" rel="noopener">'+
       '<span class="ic">'+icon('lien')+'</span>'+esc(podLibelle(p))+'</a>':'')+
   '</div>';
