@@ -6075,6 +6075,15 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
 <!-- La fiche d'urgence qui monte du bas -->
 <div id="urgBg" class="urgbg" onclick="if(event.target.id==='urgBg')fermerUrg()"></div>
 <div id="toast" role="status"></div>
+
+<!-- ═══ FEUILLE « WIKI À RANGER » (Mag, 01/09/2026) ═══ -->
+<div id="rangerBg" class="partbg" onclick="if(event.target.id==='rangerBg')rangerFermer()">
+  <div class="partcard" role="dialog" aria-modal="true" aria-label="Wiki à ranger">
+    <div class="parttete"><b id="rangerTitre">Wiki à ranger</b>
+      <button onclick="rangerFermer()" aria-label="Fermer">Fermer</button></div>
+    <div id="rangerCorps"></div>
+  </div>
+</div>
 <script>
 /* Un identifiant unique par fiche créée par les petites fonctions du catalogue. */
 function uid(){return 'x'+Math.random().toString(36).slice(2,9)+Math.random().toString(36).slice(2,5)}
@@ -13515,6 +13524,7 @@ function parseRoute(){
   if(seg[0]==='formations-asbl') return {view:'formationsasbl'};
   if(seg[0]==='immersion') return {view:'immersion'};
   if(seg[0]==='samusocial') return {view:'samusocial'};
+  if(seg[0]==='contrib-demarches') return {view:'contribdemarches'};
   if(seg[0]==='neuf'||seg[0]==='sorties') return {view:'neuf'};
   if(seg[0]==='mobiliser') return {view:'neuf',mob:true};
   if(seg[0]==='duneuf') return {view:'duneuf'};
@@ -13779,6 +13789,7 @@ function renderInterne(){
   else if(current.view==='formationsasbl') view.innerHTML=vFormationsAsbl();
   else if(current.view==='immersion') view.innerHTML=vImmersion();
   else if(current.view==='samusocial') view.innerHTML=vSamusocial();
+  else if(current.view==='contribdemarches') view.innerHTML=vContribDemarches();
   else if(current.view==='neuf'){ view.innerHTML=vNeuf(); if(current.mob){ const m=document.getElementById('secmob'); if(m) setTimeout(function(){m.scrollIntoView();},30); } }
   else if(current.view==='recherche'){ view.innerHTML=vRecherche();
     /* Le curseur est déjà dans le champ : on arrive ici pour taper, pas pour regarder.
@@ -14677,6 +14688,7 @@ function vCentre(){
     ['Formations COUSIN', nFormations+' modules','book','noir',null,'#f5c542',"go('#/d/formations')"],
     ['Formations extérieures', FORM_EXT.filter(function(r){return r.k==='ext';}).length+' organismes','formations','noir',null,'#6cb392',"go('#/formations-asbl')"],
     ['Immersion', 'Stages dans le réseau','conduite','noir',null,'#fd8fd0',"go('#/immersion')"],
+    ['Contributions démarches', 'Remplir commune par commune','demarche','noir',null,'#b28b7a',"go('#/contrib-demarches')"],
     ['Samusocial', 'Nos services internes','urgences','noir',null,'#e63329',"go('#/samusocial')"],
     ['Protocole', nMeth+' méthodes','clipboard','','#fd8fd0','#1b1b1b',"go('#/d/methodes')"],
     ['Activités', (auj.length?auj.length+' sorties aujourd\'hui':'Sorties · Article 27'),'ticket','noir large',null,'#6cb392',"go('#/ticket')"],
@@ -14824,7 +14836,7 @@ function vCentre(){
        Même piège que la liste du groupe D le matin même : ces listes vont par NOM,
        un bouton renommé doit être reporté ici dans le même commit. */
     {n:'Social et médical', s:'', c:'#A9C8E8', p:'demarche',
-     k:['Les démarches','Schéma parcours de soin','Mails à envoyer','Notes à écrire']},
+     k:['Les démarches','Contributions démarches','Schéma parcours de soin','Mails à envoyer','Notes à écrire']},
     /* ⚠ RENOMMÉ « Activités » le 21/08/2026 (Mag : « note juste activités »).
        « Éduc / Activités » nommait un MÉTIER et une chose à la fois, séparés par une
        barre oblique — deux mots pour un seul bouton, et le premier ne dit rien à qui
@@ -19475,8 +19487,135 @@ const SAMU_LIEUX=[
     {n:'Centre Fedasil — Anderlecht', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'},
     {n:'Centre Fedasil — Koekelberg', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'},
     {n:'Centre Fedasil — Forest', t:'Centre pour demandeurs de protection internationale', c:'#A9C8E8', p:'etrangers'}
-  ]}
+]}
 ];
+/* ═══ CONTRIBUTIONS DÉMARCHES — MATRICE COMMUNE × TYPE (Mag, 01/09/2026)
+   Affiche ce qui est rempli et ce qui manque. Chaque case vide permet de
+   proposer du contenu via le wiki. L'admin valide dans « Wiki à ranger ». */
+const DEMARCHES_TYPES = ["Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale","Adresse de référence","RIS (revenu d'intégration)","Soins infirmiers"];
+const DEMARCHES_COMMUNES = ["Anderlecht","Auderghem","Berchem-Sainte-Agathe","Bruxelles-Ville","Etterbeek","Evere","Forest","Ganshoren","Ixelles","Jette","Koekelberg","Molenbeek-Saint-Jean","Saint-Gilles","Saint-Josse-ten-Noode","Schaerbeek","Uccle","Watermael-Boitsfort","Woluwe-Saint-Lambert","Woluwe-Saint-Pierre"];
+function demContenu(p){
+  if(!p) return false;
+  var champs=[p.ou||'',p.comment||'',p.attention||'',p.delai||''];
+  for(var i=0;i<champs.length;i++){
+    var c=champs[i].trim();
+    if(c && c!=='À compléter' && c!=='À compléter.' && c!='À compléter par CPAS' && c!=='À compléter :' && c.indexOf('À compléter')<0) return true;
+  }
+  return false;
+}
+function demWikiPage(commune,type){ return 'contrib-demarches:'+commune+':'+type; }
+function demTrouver(commune,type){
+  for(var i=0;i<DATA.length;i++){
+    if(DATA[i].domaine==='demarches' && DATA[i].demarche===type && DATA[i].commune===commune) return DATA[i];
+  }
+  return null;
+}
+function demWikiNotes(commune,type){
+  return WIKI_N.filter(function(n){ return n.page===demWikiPage(commune,type) && n.etat==='ok'; });
+}
+function demWikipAttente(commune,type){
+  return WIKI_N.filter(function(n){ return n.page===demWikiPage(commune,type) && n.etat==='attente'
+    && PROFILE && n.auteur_uid===PROFILE.uid; });
+}
+function demProposer(commune,type){
+  var p=demTrouver(commune,type);
+  var existant=p?'\n\nCe qu\'il y a déjà dans la fiche :\nOù : '+(p.ou||'—')+'\nComment : '+(p.comment||'—')+'\n⚠ : '+(p.attention||'—')+'\nDélai : '+(p.delai||'—'):'';
+  cousinDemande(
+    'Contribuer pour '+commune+' — '+type,
+    'Remplis ce que tu sais. Les champs vides seront ignorés.'+existant,
+    function(v,plus,etq){
+      var pieces=[];
+      if(v && v.trim()) pieces.push('📌 Où s\'adresser : '+v.trim());
+      if(plus && plus.ou2 && plus.ou2.trim()) pieces.push('📝 Comment : '+plus.ou2.trim());
+      if(plus && plus.att && plus.att.trim()) pieces.push('⚠ Attention : '+plus.att.trim());
+      if(plus && plus.del && plus.del.trim()) pieces.push('⏱ Délai : '+plus.del.trim());
+      if(plus && plus.pharma && plus.pharma.trim()) pieces.push('💊 Pharmacie(s) : '+plus.pharma.trim());
+      var txt=pieces.join('\n');
+      if(!txt){ toast('Rien à proposer'); return; }
+      demWikiEcrire(commune,type,txt);
+    },
+    {champ:'Où s\'adresser (adresse, mail, téléphone)', champ2:'Comment ça se passe (procédure, pièces)', champ3:'⚠ Attention (piège / spécificité)', etq:'Délai', plus:'💊 Pharmacie(s) attitrée(s)',ok:'Proposer',annuler:'Annuler'}
+  );
+}
+async function demWikiEcrire(commune,type,texte){
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connectée'); return; }
+  var r=await sb.from('wiki_centre').insert({
+    page:demWikiPage(commune,type), texte:texte.slice(0,600),
+    auteur_uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  }).select();
+  if(r.error){ toast('Pas envoyé — '+r.error.message); return; }
+  toast('Proposé — la coordination va le relire');
+  if(typeof loadWikiCentre==='function'){ await loadWikiCentre(); render(); }
+}
+function vContribDemarches(){
+  var h=heroBandeau('Contributions démarches', DEMARCHES_COMMUNES.length+' communes × '+DEMARCHES_TYPES.length+' démarches', '#b28b7a','demarche', false);
+  var nRemplies=0, nTotal=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
+  var nWikis=0;
+  var grille='<div class="cd-table-wrap" style="overflow-x:auto;margin-top:8px">'+
+    '<table class="cd-table" style="border-collapse:collapse;width:100%;font-size:12px">'+
+    '<thead><tr style="position:sticky;top:0;z-index:2">'+
+    '<th style="background:#1b1b1b;color:#fff;padding:6px 4px;text-align:left;min-width:80px;position:sticky;left:0;z-index:3">Commune</th>';
+  DEMARCHES_TYPES.forEach(function(t){
+    grille+='<th style="background:#1b1b1b;color:#fff;padding:6px 2px;text-align:center;min-width:120px;font-size:9px;line-height:1.2">'+esc(t)+'</th>';
+  });
+  grille+='</tr></thead><tbody>';
+  DEMARCHES_COMMUNES.forEach(function(c){
+    grille+='<tr><td style="font-weight:bold;background:#f0efed;padding:4px 6px;border:1px solid #ddd;position:sticky;left:0;z-index:1;white-space:nowrap">'+esc(c)+'</td>';
+    DEMARCHES_TYPES.forEach(function(t){
+      var p=demTrouver(c,t);
+      var ficheOk=demContenu(p);
+      var wikis=demWikiNotes(c,t).length;
+      var att=demWikipAttente(c,t).length;
+      if(ficheOk) nRemplies++;
+      if(wikis) nWikis+=wikis;
+      var stat=ficheOk?'ok':(p?'vide':'manque');
+      var bg=ficheOk?'#dcefe4':(att?'#fef9e0':'#fce8e8');
+      var ic=ficheOk?'✓':(att?'⏳':'+');
+      var titre=ficheOk?'Rempli':(att?'En attente de validation':'À remplir');
+      var contenu='';
+      if(wikis>0) contenu='<em style="font-size:9px;color:#888;display:block">'+(wikis)+' contribution'+(wikis>1?'s':'')+'</em>';
+      grille+='<td style="background:'+bg+';border:1px solid #ddd;padding:4px;text-align:center;cursor:'+(ficheOk?'default':'pointer')+';vertical-align:middle" onclick="'+(ficheOk?'':'demProposer(\"'+c+'\",\"'+t+'\")')+'" title="'+esc(titre)+'">'+
+        '<span style="font-size:16px;font-weight:bold;color:'+(ficheOk?'#2e7d32':(att?'#f57c00':'#c62828'))+'">'+ic+'</span>'+
+        contenu+'</td>';
+    });
+    grille+='</tr>';
+  });
+  grille+='</tbody></table></div>';
+  h+=grille+'<div style="padding:6px 0;font-size:11px;color:#888">'+
+    '<b>'+nRemplies+'</b> / '+nTotal+' rempli·es · <b>'+(nTotal-nRemplies)+'</b> vide'+(nTotal-nRemplies>1?'s':'') +
+    (nWikis?' · <b>'+nWikis+'</b> contribution'+(nWikis>1?'s':'')+' wiki':'')+
+    '</div><div style="padding:0 0 6px;font-size:10px;color:#888">'+
+    'Clique sur une case vide <span style="background:#fce8e8;padding:1px 4px;border-radius:3px;font-weight:bold;color:#c62828">+</span> pour proposer du contenu. '+
+    'L\'admin valide dans Wiki à ranger. '+
+    '<span style="background:#fef9e0;padding:1px 4px;border-radius:3px;font-weight:bold;color:#f57c00">⏳</span> en attente de validation. '+
+    '<span style="background:#dcefe4;padding:1px 4px;border-radius:3px;font-weight:bold;color:#2e7d32">✓</span> rempli.';
+
+  /* Ajouter le wiki de l'équipe pour chaque commune */
+  h+='<div style="margin-top:16px;border-top:1px solid var(--ligne);padding-top:12px">'+
+    '<div class="sectl">Propositions et notes de l\'équipe</div>';
+  DEMARCHES_COMMUNES.forEach(function(c){
+    DEMARCHES_TYPES.forEach(function(t){
+      var notes=demWikiNotes(c,t);
+      var att=demWikipAttente(c,t);
+      if(!notes.length && !att.length) return;
+      h+='<div style="margin:4px 0;padding:6px 8px;background:#f9f9f9;border-radius:6px">'+
+        '<b style="font-size:11px">'+esc(c)+' · '+esc(t)+'</b>';
+      if(notes.length){
+        h+='<div class="rlist">'+notes.map(function(n){
+          return '<div class="avisl" style="font-size:10px"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+            '<p>'+esc(n.texte)+'</p></div>';
+        }).join('')+'</div>';
+      }
+      att.forEach(function(n){
+        h+='<div style="font-size:10px;color:#888;font-style:italic;padding:2px 0">⏳ Proposition en attente</div>';
+      });
+      h+='</div>';
+    });
+  });
+  h+='</div><div style="height:26px"></div>';
+  return h;
+}
 function vSamusocial(){
   let h=heroBandeau('Samusocial', SAMU_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' services', '#e63329', 'urgence', true);
   h+='<div class="famdedans" style="border:0;padding-top:4px">';
@@ -27430,6 +27569,80 @@ function wikiRetirer(id){
 /* ═══ LA FILE D'ATTENTE, DANS « WIKI À RANGER » (règle ② plus haut) ═══
    Elle relit déjà les avis des fiches là — les précisions des pages la rejoignent,
    au lieu de l'obliger à faire le tour des huit pages pour voir s'il y a du neuf. */
+function rangerOuvrir(){
+  document.getElementById('rangerBg').classList.add('on');
+  figerFond(true);
+  var corps=rangerContenu();
+  document.getElementById('rangerCorps').innerHTML=corps;
+  document.getElementById('rangerTitre').textContent='Wiki à ranger';
+}
+function rangerFermer(){
+  document.getElementById('rangerBg').classList.remove('on');
+  figerFond(false);
+}
+function rangerContenu(){
+  if(!peutGerer()) return '<p style="padding:12px;color:var(--txt-muet)">Seule la coordination peut gérer les propositions.</p>';
+  var h='';
+  /* Contributions démarches */
+  var d=WIKI_N.filter(function(n){ return n.page.indexOf('contrib-demarches:')===0 && n.etat==='attente'; });
+  if(d.length){
+    h+='<div class="sectl" style="margin-top:12px">Contributions démarches — '+d.length+'</div>'+
+      '<div class="rlist">'+d.map(function(n){
+        var parts=n.page.split(':');
+        var commune=parts[1]||'', type=parts[2]||'';
+        return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+          '<em>'+esc(commune+' · '+type)+'</em>'+
+          '<p>'+esc(n.texte)+'</p>'+
+          '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" placeholder="Raison, si tu refuses" autocomplete="off">'+
+          '<div class="wiki-b">'+
+            '<button class="accb plein" onclick="wikiTrancher('+n.id+',\'ok\')">Valider</button>'+
+            '<button class="accb" onclick="wikiTrancher('+n.id+',\'refus\')">Refuser</button>'+
+          '</div></div>';
+      }).join('')+'</div>';
+  }
+  /* Pages du Centre */
+  var p=WIKI_N.filter(function(n){    var kw=n.page||'';    return kw.indexOf('contrib-demarches:')!==0 && kw.indexOf('livre:')!==0 && !/[a-z0-9]+/.test(kw) && n.etat==='attente';  });  var p2=WIKI_N.filter(function(n){    var kw=n.page||'';    return WIKI_PAGES[kw] && n.etat==='attente';  });  p=p2.length?p2:[];  if(p.length){    h+='<div class="sectl" style="margin-top:12px">Pages du Centre — '+p.length+'</div>'+
+      '<div class="rlist">'+p.map(function(n){
+        return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+          '<em>'+esc(WIKI_PAGES[n.page]||n.page)+'</em>'+
+          '<p>'+esc(n.texte)+'</p>'+
+          '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" placeholder="Raison, si tu refuses" autocomplete="off">'+
+          '<div class="wiki-b">'+
+            '<button class="accb plein" onclick="wikiTrancher('+n.id+',\'ok\')">Valider</button>'+
+            '<button class="accb" onclick="wikiTrancher('+n.id+',\'refus\')">Refuser</button>'+
+          '</div></div>';
+      }).join('')+'</div>';
+  }
+  /* Fiches du Réseau */
+  var f=wikiEnAttente().filter(function(n){    var kw=n.page||'';    return !WIKI_PAGES[kw] && kw.indexOf('livre:')!==0 && kw.indexOf('contrib-demarches:')!==0;  });  if(f.length){    h+='<div class="sectl" style="margin-top:12px">Fiches du Réseau — '+f.length+'</div>'+
+      '<div class="rlist">'+f.map(function(n){
+        return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+          '<em>'+esc(wikiNomPage(n.page))+'</em>'+
+          '<p>'+esc(n.texte)+'</p>'+
+          '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" placeholder="Raison, si tu refuses" autocomplete="off">'+
+          '<div class="wiki-b">'+
+            '<button class="accb plein" onclick="wikiTrancher('+n.id+',\'ok\')">Valider</button>'+
+            '<button class="accb" onclick="wikiTrancher('+n.id+',\'refus\')">Refuser</button>'+
+          '</div></div>';
+      }).join('')+'</div>';
+  }
+  /* Livres */
+  var l=wikiEnAttente().filter(function(n){ return (n.page||'').indexOf('livre:')===0; });  if(l.length){    h+='<div class="sectl" style="margin-top:12px">Livres — '+l.length+'</div>'+
+      '<div class="rlist">'+l.map(function(n){
+        return '<div class="avisl"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
+          '<em>'+esc(wikiNomPage(n.page))+'</em>'+
+          '<p>'+esc(n.texte)+'</p>'+
+          '<input id="wikiMotif-'+n.id+'" class="wiki-motif" type="text" placeholder="Raison, si tu refuses" autocomplete="off">'+
+          '<div class="wiki-b">'+
+            '<button class="accb plein" onclick="wikiTrancher('+n.id+',\'ok\')">Valider</button>'+
+            '<button class="accb" onclick="wikiTrancher('+n.id+',\'refus\')">Refuser</button>'+
+          '</div></div>';
+      }).join('')+'</div>';
+  }
+  if(!h) h='<p style="padding:12px;color:var(--txt-muet)">Rien en attente.</p>';
+  return h;
+}
+/* ═══ Fiches wiki en attente (reste dans #/ranger pour l'historique) ═══ */
 function wikiFileHTML(){
   if(!peutGerer()) return '';
   const f=wikiEnAttente();
