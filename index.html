@@ -1857,6 +1857,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
 /* La bande d'étiquettes en tête d'un tiroir. Couleur pleine, lisible sans lire. */
+.demlist{display:flex;flex-direction:column;gap:9px;margin-top:12px}
 .etqbande{display:flex;flex-wrap:wrap;gap:7px;padding:14px var(--pad) 0}
 .etqbande .etq{color:#fff;border-radius:100px;padding:5px 12px;
   font-family:ui-monospace,monospace;font-size:9px;font-weight:600;
@@ -19682,9 +19683,20 @@ var CONTRIB_COMMUNE='', CONTRIB_TYPE='';
 function contribOuvrir(commune,type){
   CONTRIB_COMMUNE=commune; CONTRIB_TYPE=type;
   document.getElementById('contribTitre').textContent=commune+' \u2014 '+type;
-  document.getElementById('contribSous').textContent='Remplis ce que tu sais. Les champs vides seront ignor\u00e9s.';
-  ['contribOu','contribComment','contribAtt','contribDelai','contribPharma'].forEach(function(id){
-    document.getElementById(id).value=''; document.getElementById(id).style.height='';
+  var p=demTrouver(commune,type);
+  var dejaLa=demContenu(p);
+  document.getElementById('contribSous').textContent = dejaLa
+    ? 'Corrige ou compl\u00e8te ce qui est \u00e9crit. Ce que tu effaces sera propos\u00e9 vide.'
+    : 'Remplis ce que tu sais. Les champs vides seront ignor\u00e9s.';
+  /* ⚠ ON REMET CE QUI EST DÉJÀ ÉCRIT. Sans ça, « corriger » obligeait à tout
+     retaper de mémoire — donc personne ne corrigeait. */
+  var depart={contribOu:(p&&p.ou)||'', contribComment:(p&&p.comment)||'',
+              contribAtt:(p&&p.attention)||'', contribDelai:(p&&p.delai)||'',
+              contribPharma:(p&&p.pharma)||''};
+  Object.keys(depart).forEach(function(id){
+    var e=document.getElementById(id); if(!e) return;
+    e.value = /^\s*\u00c0 compl\u00e9ter/.test(depart[id]) ? '' : depart[id];
+    e.style.height='';
   });
   document.getElementById('contribBg').classList.add('on'); figerFond(true);
 }
@@ -19722,7 +19734,7 @@ function vContribDemarches(){
   var selCommune=DEMARCHES_ACTIVE||'';
   var nTotal=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
   var nRemplies=0, nWikis=0;
-  var h=heroBandeau('Contributions d\u00e9marches', selCommune?'Commune s\u00e9lectionn\u00e9e':'Choisis une commune', '#b28b7a','demarche', false);
+  var h=heroBandeau('Contributions d\u00e9marches', selCommune?'Commune s\u00e9lectionn\u00e9e':'Choisis une commune', '#b28b7a','demarche', true);
   if(!selCommune){
     h+='<div class="famdedans" style="border:0;padding-top:4px">';
     DEMARCHES_COMMUNES.forEach(function(c){
@@ -19746,6 +19758,8 @@ function vContribDemarches(){
       '<span class="rd" style="background:#b28b7a"><span class="ic">'+icon('pin')+'</span></span>'+
       '<span class="tx"><b>'+esc(selCommune)+'</b><em>Changer de commune</em></span>'+
       '<span class="chv">\u203a</span></button>';
+    /* De l'air entre les rangées : elles se touchaient (Mag : « c'est collé »). */
+    h+='<div class="demlist">';
     DEMARCHES_TYPES.forEach(function(t){
       var p=demTrouver(selCommune,t);
       var ficheOk=demContenu(p);
@@ -19757,16 +19771,30 @@ function vContribDemarches(){
       var ic=ficheOk?'\u2713':(att.length?'\u23f3':'\u2795');
       var icc=ficheOk?'#2e7d32':(att.length?'#f57c00':'#c62828');
       var txt=ficheOk?'Rempli':(att.length?'En attente':'Ajouter');
-      h+='<div style="background:'+bg+';border:1px solid var(--ligne);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="'+(!ficheOk?'contribOuvrir(\''+selCommune+'\',\''+t+'\')':'')+'">'+
-        '<span style="font-size:18px;width:24px;text-align:center;color:'+icc+'">'+ic+'</span>'+
-        '<span style="flex:1"><b style="font-size:13px">'+esc(t)+'</b>'+
-        (wikis.length?'<br><em style="font-size:10px;color:var(--txt-muet)">'+wikis.length+' contribution'+(wikis.length>1?'s':'')+' wiki</em>':'')+
-        (att.length?'<br><em style="font-size:10px;color:var(--txt-muet)">\u23f3 En attente de validation</em>':'')+
-        '</span>'+
-        (!ficheOk?'<span style="font-size:13px;color:#888">\u203a</span>':'<span style="font-size:13px;color:#2e7d32">\u2713</span>')+
-        '</div>';
+      /* ═══ ON POUVAIT ÉCRIRE, PAS RELIRE NI CORRIGER (Mag, 01/09/2026) ═══
+         « Même si c'est vert, on ne peut pas modifier. Cette page n'est pas
+           intuitive et surtout elle ne fonctionne pas. »
+         Deux fautes en une ligne : la rangée remplie n'avait AUCUN `onclick`, et
+         elle gardait quand même `cursor:pointer` — elle se donnait pour cliquable
+         et ne faisait rien. Une démarche remplie une fois pour toutes, ça n'existe
+         pas : un CPAS change d'adresse, un délai bouge.
+         ⚠ Et la fenêtre vidait TOUJOURS ses champs à l'ouverture. Elle les
+         remplit maintenant avec ce qui est déjà écrit — sinon « corriger »
+         voudrait dire « tout retaper ».
+         ⚠ LE DESSIN EST CELUI DE L'APP (`.frow2`), plus des styles écrits à la
+         main : c'est ce qui faisait « collé ». La couleur ne remplit plus la
+         rangée, elle tient dans le rond — la règle du 20/08. */
+      var etat=ficheOk?'Rempli \u00b7 corriger':(att.length?'En attente de validation':'\u00c0 remplir');
+      var rond=ficheOk?'#6cb392':(att.length?'#f5c542':'#e6e3df');
+      var pic =ficheOk?'check':(att.length?'clock':'plus');
+      h+='<button class="frow2" onclick="contribOuvrir(\''+selCommune+'\',\''+t+'\')">'+
+        '<span class="rd" style="background:'+rond+'"><span class="ic">'+icon(pic)+'</span></span>'+
+        '<span class="tx"><b>'+esc(t)+'</b><em>'+etat+
+          (wikis.length?' \u00b7 '+wikis.length+' contribution'+(wikis.length>1?'s':''):'')+'</em></span>'+
+        '<span class="chv">\u203a</span></button>';
     });
-    h+='<div style="padding:6px 0;font-size:11px;color:var(--txt-muet)">'+
+    h+='</div>';
+    h+='<div style="padding:10px 0 6px;font-size:11px;color:var(--txt-muet)">'+
       '<b>'+nRemplies+'</b> / '+DEMARCHES_TYPES.length+' rempli\u00b7es'+
       (nWikis?' \u00b7 <b>'+nWikis+'</b> contribution'+(nWikis>1?'s':'')+' wiki':'')+'</div>';
     var anyWiki=false;
