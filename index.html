@@ -4329,6 +4329,15 @@ body.pan-ouvert #view{animation:none;transform:none}
    ⚠ LA COULEUR N'EST PAS DÉCORATIVE : chaque valeur garde LA SIENNE, posée par
    `--c`. On retrouve un filtre à sa teinte sans relire toute la rangée. */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:10px 0}
+/* La ligne « accès en chaise » du tiroir des maisons — voir `noteChaise`. */
+.chnote{margin:4px 0 10px;padding:11px 13px;border:1.25px solid var(--ligne);
+  border-left:3px solid #6fc7d9;border-radius:10px;background:#fdfdfc}
+.chnote b{display:flex;align-items:center;gap:7px;font-family:ui-monospace,monospace;
+  font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--enc2)}
+.chnote b .ic{width:14px;height:14px;flex:none;color:#1d5a8f}
+.chnote p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#4a4844}
+.chnote p b{display:inline;font-family:inherit;font-size:inherit;letter-spacing:0;
+  text-transform:none;color:var(--noir);font-weight:600}
 .chip{flex:none;display:inline-flex;align-items:center;gap:7px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
   padding:7px 11px;border-radius:8px;border:1.5px solid var(--ligne);
@@ -8960,7 +8969,7 @@ const TAGS_MAISONS = {
   "Source — La Rive":                                      ["Tout public","Couples","Avec enfants"],
   "@ Home 18-24 (Petits Riens)":                           ["Réservé aux hommes","Jeunes 18-24"],
   "Foyer Georges Motte (Armée du Salut)":                  ["Réservé aux hommes","Sans rendez-vous"],
-  "Home Baudouin (Œuvre de l'Hospitalité)":                ["Réservé aux hommes","Sans rendez-vous","Escaliers — difficile en chaise"],
+  "Home Baudouin (Œuvre de l'Hospitalité)":                ["Réservé aux hommes","Sans rendez-vous"],
   "L'Ilot — Le 38":                                        ["Réservé aux hommes"],
   "Maison d'accueil des Petits Riens":                     ["Réservé aux hommes"],
   "Accueil Montfort":                                      ["Réservé aux femmes","Sans enfants"],
@@ -8973,6 +8982,35 @@ const TAGS_MAISONS = {
   "Talita asbl":                                           ["Réservé aux femmes","Avec enfants"]
 };
 SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(TAGS_MAISONS[p.nom]); });
+
+/* ═══ L'ACCÈS EN CHAISE ROULANTE (Mag, 01/09/2026 : « les PMR ou chaise roulante ») ═══
+   Elle l'a demandé deux fois, et la rangée de filtres n'en disait rien.
+
+   ⚠ ON NE PEUT PAS INVENTER CETTE COLONNE, et c'est ta règle du 20/08 (« rajoute PMR
+   s'il y a ») : sur plus de 250 fiches, DEUX parlent d'accès en chaise — la Ludobox,
+   qui dit l'être, et Home Baudouin, qui dit ne pas l'être. Pour les autres maisons,
+   personne ne le sait. Une pastille « accessible » posée au jugé n'est pas un filtre :
+   c'est un perron au bout d'un trajet, pour quelqu'un qui ne peut pas le monter.
+
+   DONC : une table à part, à REMPLIR AU TÉLÉPHONE, maison par maison. Trois états —
+   'oui', 'non', et l'absence, qui veut dire « pas encore demandé » et se dit tel quel
+   à l'écran (voir `noteChaise`). Un seul endroit à tenir à jour, comme TAGS_MAISONS.
+
+   ⚠ ET LE FILTRE ARRIVE TOUT SEUL : dès que DEUX maisons portent 'oui', l'étiquette
+   « Accessible en chaise » devient un bouton dans la rangée, par la règle qui existe
+   déjà (une étiquette à une seule fiche n'est pas un filtre — 21/08). Rien d'autre
+   à coder ce jour-là : il n'y aura qu'à écrire les réponses ici.
+
+   LES QUATRE QUESTIONS À POSER, quand on les appelle — c'est ce qui décide vraiment :
+   plain-pied ou ascenseur · chambre adaptée · douche adaptée · toilettes adaptées. */
+const ACCES_CHAISE = {
+  "Home Baudouin (Œuvre de l'Hospitalité)": 'non'   /* « Escaliers — difficile en chaise », dit par la fiche. */
+  /* Les autres : à demander. On écrit ici 'oui' ou 'non' au fur et à mesure des appels. */
+};
+SAMPLE.forEach(function(p){
+  const a=ACCES_CHAISE[p.nom]; if(!a) return;
+  p.tags=(p.tags||[]).concat(a==='oui' ? 'Accessible en chaise' : 'Escaliers — difficile en chaise');
+});
 
 /* Point de départ des itinéraires : le centre. */
 const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
@@ -18420,7 +18458,8 @@ const TAG_COULEURS={
   'Violences conjugales':'#fd8fd0', 'Avec enfants':'#6cb392', 'Sans enfants':'#6fc7d9',
   'Familles':'#6cb392', 'Femmes enceintes':'#e8308a', 'Couples':'#a9c8e8',
   'Sans rendez-vous':'#f5c542', 'Urgence':'#e8308a', 'Insertion':'#b28b7a',
-  'Jeunes 18-24':'#f3c6da', 'Tout public':'#6cb392', 'PMR':'#6fc7d9'
+  'Jeunes 18-24':'#f3c6da', 'Tout public':'#6cb392', 'PMR':'#6fc7d9',
+  'Accessible en chaise':'#6fc7d9', 'Escaliers — difficile en chaise':'#e63329'
 };
 function tagCouleur(nom){
   if(TAG_COULEURS[nom]) return TAG_COULEURS[nom];
@@ -20178,6 +20217,9 @@ function vDomaine(key){
   }
   if(chipsGenre||boutonsOu) chips+='<div class="chips">'+chipsGenre+boutonsOu+'</div>';
   chips+=rangeeTags;
+  /* L'avertissement va SOUS les filtres et AU-DESSUS des cartes : c'est l'endroit
+     exact où l'on choisit une adresse. Voir `noteChaise`. */
+  if(key==='maisons') chips+=noteChaise(baseTiroir);
   items=triProximite(items);
   /* Social : les 19 CPAS se replient derrière un seul bouton. */
   let grpHtml='';
@@ -20221,6 +20263,28 @@ function vDomaine(key){
    la même chose — et un titre « Les notes à écrire » au-dessus d'une liste qui ne
    contient que des notes ne dit rien à personne.
    ⚠ Le filtre Médical / Social reste, lui : il croise, il ne répète pas. */
+/* ═══ CE QU'ON NE SAIT PAS SUR L'ACCÈS EN CHAISE, ÉCRIT SUR LA PAGE ═══
+   Sans cette ligne, l'absence de bouton « accessible » se lit comme « pas de
+   problème » : on cherche une place à 22 h, on ne voit rien qui parle de chaise,
+   et on envoie quelqu'un. Le trou doit donc se voir là où on choisit, pas au fond
+   d'une fiche que personne n'ouvre à ce moment-là.
+   Elle se retire d'elle-même le jour où les 22 maisons seront renseignées — il n'y
+   aura alors plus rien à avertir, et les étiquettes parleront toutes seules. */
+function noteChaise(items){
+  const n=items.length; if(!n) return '';
+  const su=items.filter(function(p){ return ACCES_CHAISE[p.nom]; });
+  /* Toutes renseignées : plus rien à avertir, les étiquettes disent tout. */
+  if(su.length===n) return '';
+  const oui=su.filter(function(p){ return ACCES_CHAISE[p.nom]==='oui'; }).length;
+  const releve = su.length
+    ? 'Relevé pour '+su.length+' maison'+(su.length>1?'s':'')+' sur '+n+
+      (oui?' \u2014 '+oui+' accessible'+(oui>1?'s':''):'')+'.'
+    : 'Pas encore relevé, pour aucune des '+n+' maisons.';
+  return '<div class="chnote"><b><span class="ic">'+icon('handicap')+'</span>Accès en chaise</b>'+
+    '<p>'+releve+' Pour les autres, on ne sait pas et on ne le devine pas : '+
+    '<b>appelle avant d\u2019orienter</b> quelqu\u2019un qui ne peut pas prendre '+
+    'l\u2019escalier. \u00c0 demander : plain-pied ou ascenseur, chambre, douche, toilettes.</p></div>';
+}
 function listeDuTiroir(d,items,key){
   const carte=d.isFormation?flCard:fcard;
   return items.map(carte).join('');
