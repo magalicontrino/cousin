@@ -1856,6 +1856,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .fbtn.plein{border-color:transparent}
 .fbtn .ic{width:17px;height:17px;flex:none}
 .fsrc{padding:20px 0 6px;text-align:center;font-size:12px;color:#a3a19c;white-space:pre-line}
+/* La bande d'étiquettes en tête d'un tiroir. Couleur pleine, lisible sans lire. */
+.etqbande{display:flex;flex-wrap:wrap;gap:7px;padding:14px var(--pad) 0}
+.etqbande .etq{color:#fff;border-radius:100px;padding:5px 12px;
+  font-family:ui-monospace,monospace;font-size:9px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase}
 
 
 /* ── LA PLANCHE DE L'ONBOARDING (réservée à l'administration) ── */
@@ -5924,6 +5929,17 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
 <div id="menuHaut" class="mh">
   <button onclick="menuHautAller('#/profil')"><span class="ic" data-ic="user"></span>Mon profil</button>
   <button onclick="menuHautAller('#/fil')"><span class="ic" data-ic="feed"></span>Le fil</button>
+  <!-- ═══ MOBILISATION (Mag, 01/09/2026) ═══
+       « Mets le poing levé de mobilisation et envoie vers une page avec toutes les
+         infos actus et les pétitions à signer. »
+       ⚠ ON NE CRÉE PAS UNE DEUXIÈME PAGE : « Se mobiliser » existe déjà, c'est une
+       section de Quoi de neuf, et `#/mobiliser` y descend directement. Une page
+       jumelle aurait fait deux endroits à tenir à jour, et un des deux aurait
+       fini périmé.
+       ⚠ PICTO : c'est `petition.svg`, celui qui coiffe déjà la section « Se
+       mobiliser » — les deux se répondent. Si Mag dessine un poing levé, il n'y a
+       que ce nom à changer. -->
+  <button onclick="menuHautAller('#/mobiliser')"><span class="ic" data-ic="petition"></span>Mobilisation</button>
   <button onclick="menuHautAller('#/favoris')"><span class="ic" data-ic="star"></span>Tes favoris</button>
   <button onclick="menuHautAller('#/partager')"><span class="ic" data-ic="partage"></span>Partager COUSIN</button>
   <button id="menuAdmin" onclick="menuHautAller('#/admin')" style="display:none"><span class="ic" data-ic="cog"></span>Admin</button>
@@ -13958,6 +13974,21 @@ function tile(d,reseau){
    revenait à l'accueil — c'est juste, mais la fiche affiche « CENTRE » au-dessus du
    titre, et ce mot ne menait nulle part. Deux chemins pour deux gestes : la flèche
    revient en arrière, le surtitre monte d'un cran. */
+/* Les étiquettes de la carte qui ouvre ce tiroir. Rien si la carte n'en porte pas. */
+const ETIQ_COUL={ 'NUIT':'#2f3d6b', 'URGENCE':'#e63329', 'SÉJOUR':'#b28b7a',
+                  'JOUR':'#c9940c', 'ORIENTATION':'#6cb392' };
+function etiquettesDuTiroir(key){
+  let etq=null;
+  try{
+    const c=RESEAU_V2_CATEGORIES.find(function(x){ return x.domaines && x.domaines[0]===key; });
+    etq=c && c.etiquettes;
+  }catch(e){ return ''; }
+  if(!etq || !etq.length) return '';
+  return '<div class="etqbande">'+etq.map(function(t){
+    /* ⚠ Le jaune de l'app ne se lit pas sur du blanc : JOUR prend #c9940c. */
+    return '<span class="etq" style="background:'+(ETIQ_COUL[t]||'#1b1b1b')+'">'+esc(t)+'</span>';
+  }).join('')+'</div>';
+}
 function heroBandeau(titre, surtitre, couleur, pic, retour, cls, surLien){
   return '<div class="hero'+(cls?' '+cls:'')+'">'+
     (retour!==false?'<button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
@@ -14746,7 +14777,7 @@ function vCentre(){
        qui est écrit dans les dossiers et que l'équipe emploie entre elle. Mes noms
        sont écrits pour être compris ; les siens sont écrits pour être reconnus.
        ⚠ « soin » au singulier est SON orthographe : on la garde. */
-    ['Schéma parcours de soin','La feuille à donner, dans sa langue','imprimer','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
+    ['Schémas de soins','La feuille à donner, dans sa langue','imprimer','','#A9C8E8','#1b1b1b',"go('#/schemas')"],
     /* LE RÈGLEMENT (Mag, 08/08/2026) : ce qu'on explique à quelqu'un le jour où il
        arrive. Il est ici, et pas dans « Gestion du centre », parce qu'il ne sert pas
        à faire tourner la maison — il sert à recevoir une personne. */
@@ -16693,7 +16724,7 @@ function boiteClasser(id){
    ══════════════════════════════════════════════════════════════════════════ */
 const STATS_PERIODES=[[7,'7 jours'],[30,'30 jours'],[90,'3 mois']];
 let STATS=null, STATS_JOURS=30, _statsEnCours=false, STATS_CACHE={};
-const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', accueilpersonne:'Premier accueil', schemas:'Schéma parcours de soin', educ:'Éduc', lexique:'Le dictionnaire', bibliotheque:'Livres', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
+const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressources', accueilpersonne:'Premier accueil', schemas:'Schémas de soins', educ:'Éduc', lexique:'Le dictionnaire', bibliotheque:'Livres', partager:'Partager COUSIN', favoris:'Tes favoris', liste:'Ma liste',
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Les jeux', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
@@ -19988,6 +20019,19 @@ function vDomaine(key){
   /* Le bouton d'impression d'une LISTE DE FICHES : c'est la feuille qu'on emporte
      en visite ou qu'on donne à quelqu'un qui n'a pas l'app. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
+    /* ═══ LES ÉTIQUETTES, ENFIN QUELQUE PART (Mag, 18/08 puis 01/09/2026) ═══
+       « Ça ne devrait pas être dans cette première page de recherche. Peut-être que
+         tu peux proposer après, quand on a déjà cliqué sur une carte. »
+       Elle avait raison de les faire retirer du Réseau : là-bas, il fallait deviner
+       le rayon avant de pouvoir cliquer une étiquette, donc elles rangeaient au lieu
+       d'informer. Depuis, elles ne s'affichaient PLUS NULLE PART — les données
+       dormaient dans `RESEAU_V2_CATEGORIES[].etiquettes`.
+       Elles sont ici, en tête du tiroir : le moment où l'on va choisir une adresse
+       est le moment où « ça ouvre la nuit ? » devient la bonne question.
+       ⚠ CE N'EST PAS UN FILTRE, ET ÇA NE PEUT PAS L'ÊTRE : l'étiquette décrit le
+       TIROIR, pas chaque fiche. Pour filtrer, il faudrait la poser fiche par fiche —
+       une saisie à faire avec l'équipe, pas une devinette de machine. */
+    etiquettesDuTiroir(key)+
     '<div class="imprligne">'+boutonImprimer()+'</div>'+
     /* ⚠ LE RAIL DES AUTRES DOMAINES A ÉTÉ RETIRÉ (Mag, 12/08/2026 : « retire le slide
        avec les boutons réseaux »). C'était une rangée horizontale — Médical, Social,
@@ -25531,7 +25575,7 @@ function accImprimer(volet){
 function imprimerAccueilVierge(volet){ const g=ACC; ACC={}; accImprimer(volet); ACC=g; }
 function vSchemas(){
   const s=schemaTrouve();
-  let h=heroBandeau('Parcours de soin','','#A9C8E8','medical',true);
+  let h=heroBandeau('Schémas de soins','','#A9C8E8','medical',true);
 
   /* Les questions : on ne montre la suivante que si la précédente est répondue —
      l'entonnoir se resserre, on ne remplit pas un formulaire. */
