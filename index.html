@@ -6083,6 +6083,39 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <button onclick="rangerFermer()" aria-label="Fermer">Fermer</button></div>
     <div id="rangerCorps"></div>
   </div>
+
+<div id="contribBg" class="partbg" onclick="if(event.target.id==='contribBg')contribFermer()">
+  <div class="partcard" role="dialog" aria-modal="true" aria-label="Contribuer">
+    <div class="parttete"><b id="contribTitre">Contribuer</b>
+      <button onclick="contribFermer()" aria-label="Fermer">Fermer</button></div>
+    <div id="contribCorps" style="padding-bottom:12px">
+      <p id="contribSous" style="color:var(--txt-muet);font-size:13px;margin:0 0 12px"></p>
+      <div class="chadd empile ecrire" style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📌 Où s'adresser (adresse, mail, téléphone)</label>
+        <textarea id="contribOu" rows="2" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+      </div>
+      <div class="chadd empile ecrire" style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📝 Comment ça se passe (procédure, pièces)</label>
+        <textarea id="contribComment" rows="2" maxlength="400" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+      </div>
+      <div class="chadd empile ecrire" style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⚠ Attention (piège / spécificité)</label>
+        <textarea id="contribAtt" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+      </div>
+      <div class="chadd empile ecrire" style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⏱ Délai (temps de réponse)</label>
+        <textarea id="contribDelai" rows="1" maxlength="200" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+      </div>
+      <div class="chadd empile ecrire" style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">💊 Pharmacie(s) attitrée(s)</label>
+        <textarea id="contribPharma" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+      </div>
+      <button class="accb plein" onclick="contribEnvoyer()" style="width:100%">Proposer</button>
+    </div>
+  </div>
+</div>
+
+
 </div>
 <script>
 /* Un identifiant unique par fiche créée par les petites fonctions du catalogue. */
@@ -19492,8 +19525,9 @@ const SAMU_LIEUX=[
 /* ═══ CONTRIBUTIONS DÉMARCHES — MATRICE COMMUNE × TYPE (Mag, 01/09/2026)
    Affiche ce qui est rempli et ce qui manque. Chaque case vide permet de
    proposer du contenu via le wiki. L'admin valide dans « Wiki à ranger ». */
+var DEMARCHES_ACTIVE="";
 const DEMARCHES_TYPES = ["Réquisitoire","Aide Médicale Urgente (AMU)","Carte médicale","Adresse de référence","RIS (revenu d'intégration)","Soins infirmiers"];
-const DEMARCHES_COMMUNES = ["Anderlecht","Auderghem","Berchem-Sainte-Agathe","Bruxelles-Ville","Etterbeek","Evere","Forest","Ganshoren","Ixelles","Jette","Koekelberg","Molenbeek-Saint-Jean","Saint-Gilles","Saint-Josse-ten-Noode","Schaerbeek","Uccle","Watermael-Boitsfort","Woluwe-Saint-Lambert","Woluwe-Saint-Pierre"];
+const DEMARCHES_COMMUNES = ["Anderlecht","Bruxelles-Ville","Forest","Molenbeek-Saint-Jean","Schaerbeek"];
 function demContenu(p){
   if(!p) return false;
   var champs=[p.ou||'',p.comment||'',p.attention||'',p.delai||''];
@@ -19548,74 +19582,121 @@ async function demWikiEcrire(commune,type,texte){
   toast('Proposé — la coordination va le relire');
   if(typeof loadWikiCentre==='function'){ await loadWikiCentre(); render(); }
 }
+var CONTRIB_COMMUNE='', CONTRIB_TYPE='';
+function contribOuvrir(commune,type){
+  CONTRIB_COMMUNE=commune; CONTRIB_TYPE=type;
+  document.getElementById('contribTitre').textContent=commune+' \u2014 '+type;
+  document.getElementById('contribSous').textContent='Remplis ce que tu sais. Les champs vides seront ignor\u00e9s.';
+  ['contribOu','contribComment','contribAtt','contribDelai','contribPharma'].forEach(function(id){
+    document.getElementById(id).value=''; document.getElementById(id).style.height='';
+  });
+  document.getElementById('contribBg').classList.add('on'); figerFond(true);
+}
+function contribFermer(){
+  document.getElementById('contribBg').classList.remove('on'); figerFond(false);
+  CONTRIB_COMMUNE=''; CONTRIB_TYPE='';
+}
+async function contribEnvoyer(){
+  var champs=[];
+  var ou=document.getElementById('contribOu').value.trim();
+  var comment=document.getElementById('contribComment').value.trim();
+  var att=document.getElementById('contribAtt').value.trim();
+  var delai=document.getElementById('contribDelai').value.trim();
+  var pharma=document.getElementById('contribPharma').value.trim();
+  if(ou) champs.push('O\u00f9 : '+ou);
+  if(comment) champs.push('Comment : '+comment);
+  if(att) champs.push('Attention : '+att);
+  if(delai) champs.push('D\u00e9lai : '+delai);
+  if(pharma) champs.push('Pharmacie(s) : '+pharma);
+  if(!champs.length){ toast('Remplis au moins un champ'); return; }
+  var texte=champs.join('\n');
+  if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connect\u00e9e'); return; }
+  var r=await sb.from('wiki_centre').insert({
+    page:'contrib-demarches:'+CONTRIB_COMMUNE+':'+CONTRIB_TYPE,
+    texte:texte.slice(0,600),
+    auteur_uid:PROFILE.uid,
+    auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
+  }).select();
+  if(r.error){ toast('Pas envoy\u00e9 \u2014 '+r.error.message); return; }
+  contribFermer();
+  toast('Propos\u00e9 \u2014 la coordination va le relire');
+  if(typeof loadWikiCentre==='function'){ await loadWikiCentre(); render(); }
+}
 function vContribDemarches(){
-  var h=heroBandeau('Contributions démarches', DEMARCHES_COMMUNES.length+' communes × '+DEMARCHES_TYPES.length+' démarches', '#b28b7a','demarche', false);
-  var nRemplies=0, nTotal=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
-  var nWikis=0;
-  var grille='<div class="cd-table-wrap" style="overflow-x:auto;margin-top:8px">'+
-    '<table class="cd-table" style="border-collapse:collapse;width:100%;font-size:12px">'+
-    '<thead><tr style="position:sticky;top:0;z-index:2">'+
-    '<th style="background:#1b1b1b;color:#fff;padding:6px 4px;text-align:left;min-width:80px;position:sticky;left:0;z-index:3">Commune</th>';
-  DEMARCHES_TYPES.forEach(function(t){
-    grille+='<th style="background:#1b1b1b;color:#fff;padding:6px 2px;text-align:center;min-width:120px;font-size:9px;line-height:1.2">'+esc(t)+'</th>';
-  });
-  grille+='</tr></thead><tbody>';
-  DEMARCHES_COMMUNES.forEach(function(c){
-    grille+='<tr><td style="font-weight:bold;background:#f0efed;padding:4px 6px;border:1px solid #ddd;position:sticky;left:0;z-index:1;white-space:nowrap">'+esc(c)+'</td>';
-    DEMARCHES_TYPES.forEach(function(t){
-      var p=demTrouver(c,t);
-      var ficheOk=demContenu(p);
-      var wikis=demWikiNotes(c,t).length;
-      var att=demWikipAttente(c,t).length;
-      if(ficheOk) nRemplies++;
-      if(wikis) nWikis+=wikis;
-      var stat=ficheOk?'ok':(p?'vide':'manque');
-      var bg=ficheOk?'#dcefe4':(att?'#fef9e0':'#fce8e8');
-      var ic=ficheOk?'✓':(att?'⏳':'+');
-      var titre=ficheOk?'Rempli':(att?'En attente de validation':'À remplir');
-      var contenu='';
-      if(wikis>0) contenu='<em style="font-size:9px;color:#888;display:block">'+(wikis)+' contribution'+(wikis>1?'s':'')+'</em>';
-      grille+='<td style="background:'+bg+';border:1px solid #ddd;padding:4px;text-align:center;cursor:'+(ficheOk?'default':'pointer')+';vertical-align:middle" onclick="'+(ficheOk?'':'demProposer(\"'+c+'\",\"'+t+'\")')+'" title="'+esc(titre)+'">'+
-        '<span style="font-size:16px;font-weight:bold;color:'+(ficheOk?'#2e7d32':(att?'#f57c00':'#c62828'))+'">'+ic+'</span>'+
-        contenu+'</td>';
-    });
-    grille+='</tr>';
-  });
-  grille+='</tbody></table></div>';
-  h+=grille+'<div style="padding:6px 0;font-size:11px;color:#888">'+
-    '<b>'+nRemplies+'</b> / '+nTotal+' rempli·es · <b>'+(nTotal-nRemplies)+'</b> vide'+(nTotal-nRemplies>1?'s':'') +
-    (nWikis?' · <b>'+nWikis+'</b> contribution'+(nWikis>1?'s':'')+' wiki':'')+
-    '</div><div style="padding:0 0 6px;font-size:10px;color:#888">'+
-    'Clique sur une case vide <span style="background:#fce8e8;padding:1px 4px;border-radius:3px;font-weight:bold;color:#c62828">+</span> pour proposer du contenu. '+
-    'L\'admin valide dans Wiki à ranger. '+
-    '<span style="background:#fef9e0;padding:1px 4px;border-radius:3px;font-weight:bold;color:#f57c00">⏳</span> en attente de validation. '+
-    '<span style="background:#dcefe4;padding:1px 4px;border-radius:3px;font-weight:bold;color:#2e7d32">✓</span> rempli.';
-
-  /* Ajouter le wiki de l'équipe pour chaque commune */
-  h+='<div style="margin-top:16px;border-top:1px solid var(--ligne);padding-top:12px">'+
-    '<div class="sectl">Propositions et notes de l\'équipe</div>';
-  DEMARCHES_COMMUNES.forEach(function(c){
-    DEMARCHES_TYPES.forEach(function(t){
-      var notes=demWikiNotes(c,t);
-      var att=demWikipAttente(c,t);
-      if(!notes.length && !att.length) return;
-      h+='<div style="margin:4px 0;padding:6px 8px;background:#f9f9f9;border-radius:6px">'+
-        '<b style="font-size:11px">'+esc(c)+' · '+esc(t)+'</b>';
-      if(notes.length){
-        h+='<div class="rlist">'+notes.map(function(n){
-          return '<div class="avisl" style="font-size:10px"><b>'+esc(n.auteur_nom||'une collègue')+'</b>'+
-            '<p>'+esc(n.texte)+'</p></div>';
-        }).join('')+'</div>';
-      }
-      att.forEach(function(n){
-        h+='<div style="font-size:10px;color:#888;font-style:italic;padding:2px 0">⏳ Proposition en attente</div>';
+  var selCommune=DEMARCHES_ACTIVE||'';
+  var nTotal=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
+  var nRemplies=0, nWikis=0;
+  var h=heroBandeau('Contributions d\u00e9marches', selCommune?'Commune s\u00e9lectionn\u00e9e':'Choisis une commune', '#b28b7a','demarche', false);
+  if(!selCommune){
+    h+='<div class="famdedans" style="border:0;padding-top:4px">';
+    DEMARCHES_COMMUNES.forEach(function(c){
+      var nOk=0, nAtt=0, nWik=0;
+      DEMARCHES_TYPES.forEach(function(t){
+        var p=demTrouver(c,t);
+        if(demContenu(p)) nOk++; else if(demWikipAttente(c,t).length) nAtt++;
+        nWik+=demWikiNotes(c,t).length;
       });
-      h+='</div>';
+      nRemplies+=nOk; nWikis+=nWik;
+      var txt=nOk===DEMARCHES_TYPES.length?'Tout rempli':(nOk?nOk+'/'+DEMARCHES_TYPES.length+' rempli\u00b7es':'Toutes vides');
+      h+='<button class="frow2" onclick="demChoisir(\''+c+'\')">'+
+        '<span class="rd" style="background:#b28b7a"><span class="ic">'+icon('pin')+'</span></span>'+
+        '<span class="tx"><b>'+esc(c)+'</b><em>'+txt+(nWik?' \u00b7 '+nWik+' contrib':'')+'</em></span>'+
+        '<span class="chv">\u203a</span></button>';
     });
-  });
-  h+='</div><div style="height:26px"></div>';
+    h+='</div><div style="padding:6px 0;font-size:11px;color:var(--txt-muet)">'+
+      '<b>'+nRemplies+'</b> / '+nTotal+' rempli\u00b7es</div><div style="height:26px"></div>';
+  } else {
+    h+='<button class="famz" onclick="demChoisir(\'\')" style="margin-bottom:10px">'+
+      '<span class="rd" style="background:#b28b7a"><span class="ic">'+icon('pin')+'</span></span>'+
+      '<span class="tx"><b>'+esc(selCommune)+'</b><em>Changer de commune</em></span>'+
+      '<span class="chv">\u203a</span></button>';
+    DEMARCHES_TYPES.forEach(function(t){
+      var p=demTrouver(selCommune,t);
+      var ficheOk=demContenu(p);
+      var wikis=demWikiNotes(selCommune,t);
+      var att=demWikipAttente(selCommune,t);
+      if(ficheOk) nRemplies++;
+      if(wikis.length) nWikis+=wikis.length;
+      var bg=ficheOk?'#dcefe4':(att.length?'#fef9e0':'#fff');
+      var ic=ficheOk?'\u2713':(att.length?'\u23f3':'\u2795');
+      var icc=ficheOk?'#2e7d32':(att.length?'#f57c00':'#c62828');
+      var txt=ficheOk?'Rempli':(att.length?'En attente':'Ajouter');
+      h+='<div style="background:'+bg+';border:1px solid var(--ligne);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="'+(!ficheOk?'contribOuvrir(\''+selCommune+'\',\''+t+'\')':'')+'">'+
+        '<span style="font-size:18px;width:24px;text-align:center;color:'+icc+'">'+ic+'</span>'+
+        '<span style="flex:1"><b style="font-size:13px">'+esc(t)+'</b>'+
+        (wikis.length?'<br><em style="font-size:10px;color:var(--txt-muet)">'+wikis.length+' contribution'+(wikis.length>1?'s':'')+' wiki</em>':'')+
+        (att.length?'<br><em style="font-size:10px;color:var(--txt-muet)">\u23f3 En attente de validation</em>':'')+
+        '</span>'+
+        (!ficheOk?'<span style="font-size:13px;color:#888">\u203a</span>':'<span style="font-size:13px;color:#2e7d32">\u2713</span>')+
+        '</div>';
+    });
+    h+='<div style="padding:6px 0;font-size:11px;color:var(--txt-muet)">'+
+      '<b>'+nRemplies+'</b> / '+DEMARCHES_TYPES.length+' rempli\u00b7es'+
+      (nWikis?' \u00b7 <b>'+nWikis+'</b> contribution'+(nWikis>1?'s':'')+' wiki':'')+'</div>';
+    var anyWiki=false;
+    DEMARCHES_TYPES.forEach(function(t){
+      var w=demWikiNotes(selCommune,t);
+      var a=demWikipAttente(selCommune,t);
+      if(!w.length && !a.length) return;
+      if(!anyWiki){ anyWiki=true;
+        h+='<div style="margin-top:12px;border-top:1px solid var(--ligne);padding-top:8px">'+
+          '<div class="sectl">Propositions valid\u00e9es par l\u2019\u00e9quipe</div>'; }
+      w.forEach(function(n){
+        h+='<div style="padding:6px 8px;margin:4px 0;background:#f9f9f9;border-radius:6px;font-size:10px">'+
+          '<b>'+esc(t)+'</b><p style="margin:2px 0">'+esc(n.texte)+'</p>'+
+          '<em style="color:var(--txt-muet)">par '+esc(n.auteur_nom||'une coll\u00e8gue')+'</em></div>';
+      });
+      a.forEach(function(n){
+        h+='<div style="padding:4px 8px;font-size:10px;color:var(--txt-muet);font-style:italic">'+
+          '\u23f3 '+esc(t)+' \u2014 ta proposition en attente</div>';
+      });
+    });
+    if(!nRemplies && !anyWiki) h+='<p style="color:var(--txt-muet);font-size:12px">Clique sur \u2795 pour proposer du contenu.</p>';
+    h+='<div style="height:26px"></div>';
+  }
   return h;
 }
+function demChoisir(c){ DEMARCHES_ACTIVE=c; render(); }
 function vSamusocial(){
   let h=heroBandeau('Samusocial', SAMU_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' services', '#e63329', 'urgence', true);
   h+='<div class="famdedans" style="border:0;padding-top:4px">';
