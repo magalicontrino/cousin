@@ -2118,6 +2118,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .f-note{margin:16px 0 0;border-radius:6px;background:var(--noir);color:#f2eee6;padding:15px;
   font-size:14px;line-height:1.5}
 .f-note b{font-weight:700}
+/* ⚠ LES SOURCES SE CLIQUENT (Mag, 01/09/2026 : « il faut toujours que les gens
+   puissent vérifier »). Sur le fond noir de la note, un lien bleu de navigateur
+   serait illisible : on garde la couleur du texte et on souligne — c'est le
+   soulignement qui dit « ça se clique », pas la couleur. Le trait est décollé de
+   la lettre pour que les jambages restent lisibles. */
+.f-note a.srclien{color:#f2eee6;text-decoration:underline;text-underline-offset:3px;
+  text-decoration-thickness:1px;text-decoration-color:rgba(242,238,230,.55);
+  word-break:break-word}
+.f-note a.srclien:hover{text-decoration-color:#f2eee6}
+.fsrc a.srclien{color:inherit;text-decoration:underline;text-underline-offset:3px;
+  word-break:break-word}
 .f-note .ic{width:15px;height:15px;vertical-align:-2px;margin-right:6px}
 /* Le violentomètre garde ses trois zones colorées. */
 .vm-z{border-radius:8px;padding:13px 15px;margin:0 0 10px}
@@ -18581,14 +18592,29 @@ const IMMERSION_LIEUX=[
     {n:'DIOGENES', c:'#A9C8E8', p:'logement'}
   ]}
 ];
+/* ⚠ L'APOSTROPHE QUI DECROCHAIT DEUX CARTES (Mag, 01/09/2026)
+   La liste d'Immersion est ecrite a la main, a cote du catalogue, et retrouvait sa
+   fiche en comparant les noms LETTRE PAR LETTRE. Deux ne correspondaient pas :
+     catalogue  Home Baudouin (Œuvre de l'Hospitalite)      apostrophe droite
+     immersion  Home Baudouin (Œuvre de l’Hospitalite)      apostrophe courbe
+   Meme chose pour la Maison d'accueil des Petits Riens. Ces deux cartes n'ouvraient
+   donc rien, en silence. On compare maintenant des noms NORMALISES : les deux
+   apostrophes valent l'une pour l'autre, les espaces en trop ne comptent pas, la
+   casse non plus. Le jour ou une fiche est renommee, la carte se decroche encore :
+   la vraie reparation, c'est une etiquette posee sur la fiche. */
+function immersionNorm(s){
+  return String(s||'').replace(/[’‘‛`´]/g,"'")
+    .replace(/\s+/g,' ').trim().toLowerCase();
+}
 function immersionTrouver(nom){
+  var cible=immersionNorm(nom);
   for(var i=0;i<DATA.length;i++){
-    if(DATA[i].nom===nom) return DATA[i];
+    if(immersionNorm(DATA[i].nom)===cible) return DATA[i];
   }
-  var court=nom.replace(/[—–].*$/,"").trim();
-  if(court!==nom){
+  var court=immersionNorm(String(nom).replace(/[—–].*$/,""));
+  if(court && court!==cible){
     for(var i=0;i<DATA.length;i++){
-      if(DATA[i].nom.indexOf(court)>=0) return DATA[i];
+      if(immersionNorm(DATA[i].nom).indexOf(court)>=0) return DATA[i];
     }
   }
   return null;
@@ -30283,6 +30309,163 @@ function onbOuvrirUneFois(){
 current=parseRoute();
 render();
 initAuth();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ① LE RETOUR FERME LA FENÊTRE, IL NE QUITTE PLUS LA PAGE (Mag, 01/09/2026)
+   « Dans les fenêtres qu'on ouvre, il n'y a pas de retour. Faut quand même
+     qu'on puisse revenir en arrière. »
+   Les onze fenêtres de l'app — Partager, Où ?, Le lieu, Le livre, Voir comme,
+   Une suggestion, Passer à l'équipe, la fiche d'urgence, le brouillon du
+   Premier accueil, le menu du haut, la fenêtre générique — n'existaient pas
+   pour le bouton RETOUR du téléphone. Ouverte une feuille, on appuyait sur
+   retour et on ne fermait pas la feuille : on QUITTAIT la page, parfois l'app.
+   Or sur téléphone c'est le geste que tout le monde fait en premier.
+
+   ⚠ ON NE TOUCHE À AUCUNE DES ONZE FONCTIONS D'OUVERTURE OU DE FERMETURE.
+   On surveille la classe `on` de leur fond : c'est le seul signal commun aux
+   onze, et toute fenêtre future en hérite sans qu'on ait à y penser.
+
+   ⚠ L'ÉTAPE D'HISTORIQUE NE CHANGE PAS L'ADRESSE. `hashchange` ne part donc
+   pas, et le compteur `NAV_PAS` de la flèche des pages n'est jamais touché :
+   les deux mécanismes ne se croisent pas.
+
+   ⚠ POURQUOI UN MARQUEUR PAR FENÊTRE ET PAS UN SIMPLE `var enCours` : les
+   rappels d'un MutationObserver arrivent APRÈS le bloc en cours, pas pendant.
+   Un drapeau remis à faux à la fin du gestionnaire `popstate` serait déjà
+   éteint quand l'observateur se réveille — on retirerait alors une deuxième
+   étape d'historique pour un seul appui.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var FENETRES=[
+    ['partBg','partageFermer'], ['ouBg','ouFermer'], ['qBg','qLieuFermer'],
+    ['livBg','livFermer'], ['vcBg','apercuFermer'], ['ideeBg','fermerIdee'],
+    ['urgBg','fermerUrg'], ['popBg','popFermer'], ['passBg','passFeuilleFermer'],
+    ['accBrBg','accBrFermer'], ['menuHautBg','menuHautFermer']
+  ];
+  var pile=[];         /* les fenêtres ouvertes, la dernière en haut */
+  var parRetour={};    /* id → la fermeture vient du bouton retour : ne pas reculer deux fois */
+  /* ⚠ DEUX FENÊTRES SE FERMAIENT POUR UN SEUL ÉCHAP (attrapé à l'essai, 01/09/2026)
+     Quand on ferme au bouton, on retire soi-même l'étape d'historique avec un
+     `history.back()`. Or ce recul-là déclenche un `popstate` — et on le relisait
+     comme un appui de l'utilisateur, donc on fermait aussi la fenêtre du dessous.
+     On compte les reculs qu'on provoque pour ne pas les confondre avec les siens. */
+  var reculsAnous=0;
+
+  function fermerLaHaute(){
+    if(!pile.length) return;
+    var haut=pile[pile.length-1], fn=window[haut.fermer];
+    if(typeof fn!=='function'){ pile.pop(); return; }
+    try{ fn(); }catch(e){ pile.pop(); try{ panneNoter('fermeture '+haut.id, e); }catch(_){} }
+  }
+
+  /* Le bouton retour du téléphone, et la flèche du navigateur. */
+  window.addEventListener('popstate', function(e){
+    if(reculsAnous>0){ reculsAnous--; return; }   /* c'est notre propre ménage */
+    if(!pile.length){
+      /* On retombe sur l'étape d'une fenêtre déjà partie (elle s'est fermée en
+         ouvrant une page). Elle ne montre rien : on la traverse. */
+      if(e && e.state && e.state.cousinFen){ try{ history.back(); }catch(_){} }
+      return;
+    }
+    parRetour[pile[pile.length-1].id]=true;
+    fermerLaHaute();
+  });
+
+  /* Échap : le même geste au clavier. Il n'y en avait que sur une fenêtre sur onze. */
+  document.addEventListener('keydown', function(e){
+    if(e.key!=='Escape' || !pile.length) return;
+    e.preventDefault();
+    fermerLaHaute();
+  });
+
+  function brancher(id, fermer){
+    var el=document.getElementById(id);
+    if(!el) return;
+    var etait=el.classList.contains('on');
+    new MutationObserver(function(){
+      var est=el.classList.contains('on');
+      if(est===etait) return;
+      etait=est;
+      if(est){
+        pile.push({id:id, fermer:fermer});
+        try{ history.pushState({cousinFen:id}, '', location.href); }catch(_){}
+        return;
+      }
+      for(var i=pile.length-1;i>=0;i--){ if(pile[i].id===id){ pile.splice(i,1); break; } }
+      if(parRetour[id]){ delete parRetour[id]; return; }
+      /* On ne retire notre étape QUE si c'est encore elle : si la fenêtre s'est
+         fermée pour ouvrir une page (le menu du haut fait exactement ça), l'étape
+         courante est celle de la page — reculer effacerait le clic. */
+      var st=null; try{ st=history.state; }catch(_){}
+      if(st && st.cousinFen===id){ reculsAnous++; try{ history.back(); }catch(_){ reculsAnous--; } }
+    }).observe(el, {attributes:true, attributeFilter:['class']});
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ② LES SOURCES SE VÉRIFIENT — DONC ELLES SE CLIQUENT (Mag, 01/09/2026)
+     « Les sources, il faut toujours que les gens puissent vérifier, parce que
+       nous on a fait des formations, mais c'est sourcé. »
+     Les blocs `Sources.` des cours citaient leurs adresses en texte mort : il
+     fallait les recopier à la main dans le navigateur — donc personne ne
+     vérifiait. On les rend cliquables APRÈS COUP, sur la page dessinée : pas une
+     seule des 43 notes n'a besoin d'être réécrite, et celles qu'on ajoutera
+     demain seront traitées pareil.
+     ⚠ On ne touche qu'aux textes, jamais à l'intérieur d'un lien qui existe déjà.
+     ⚠ La terminaison doit être dans la liste : sans ça « art. 3 » ou « p.ex »
+     deviendraient des liens.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  var FINS=/^(be|brussels|com|org|eu|net|fr|info|int|europa|blog|press)$/;
+  var ADRESSE=/(?:https?:\/\/)?(?:[a-z0-9][a-z0-9-]*\.)+[a-z]{2,10}(?:\/[^\s,;)»"'<]*)?/gi;
+
+  function lierUneNote(note){
+    if(note.getAttribute('data-src-liee')) return;
+    note.setAttribute('data-src-liee','1');
+    var aFaire=[], p=document.createTreeWalker(note, NodeFilter.SHOW_TEXT, null);
+    var n; while((n=p.nextNode())){
+      if(n.parentNode && n.parentNode.closest && n.parentNode.closest('a')) continue;
+      if(ADRESSE.test(n.nodeValue)){ ADRESSE.lastIndex=0; aFaire.push(n); }
+      ADRESSE.lastIndex=0;
+    }
+    aFaire.forEach(function(noeud){
+      var texte=noeud.nodeValue, bout=document.createDocumentFragment(), pos=0, m;
+      ADRESSE.lastIndex=0;
+      while((m=ADRESSE.exec(texte))!==null){
+        var trouve=m[0];
+        /* la ponctuation de fin de phrase n'appartient pas à l'adresse */
+        while(/[.,;:)»\]]$/.test(trouve)){ trouve=trouve.slice(0,-1); }
+        if(!trouve) continue;
+        var sansProto=trouve.replace(/^https?:\/\//i,''), chemin=sansProto.split('/')[0];
+        var fin=chemin.split('.').pop().toLowerCase();
+        if(!FINS.test(fin)) continue;
+        if(m.index>pos) bout.appendChild(document.createTextNode(texte.slice(pos,m.index)));
+        var a=document.createElement('a');
+        a.href=/^https?:\/\//i.test(trouve) ? trouve : 'https://'+trouve;
+        a.target='_blank'; a.rel='noopener noreferrer'; a.className='srclien';
+        a.textContent=trouve;
+        bout.appendChild(a);
+        pos=m.index+trouve.length;
+      }
+      if(!bout.childNodes.length) return;
+      if(pos<texte.length) bout.appendChild(document.createTextNode(texte.slice(pos)));
+      noeud.parentNode.replaceChild(bout, noeud);
+    });
+  }
+
+  function lierLesSources(){
+    var notes=document.querySelectorAll('.f-note:not([data-src-liee]),.fsrc:not([data-src-liee])');
+    for(var i=0;i<notes.length;i++){ try{ lierUneNote(notes[i]); }catch(_){} }
+  }
+
+  function poser(){
+    FENETRES.forEach(function(f){ brancher(f[0], f[1]); });
+    lierLesSources();
+    var vue=document.getElementById('view');
+    if(vue) new MutationObserver(lierLesSources).observe(vue,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', poser);
+  else poser();
+})();
+
 </script>
 </body>
 </html>
