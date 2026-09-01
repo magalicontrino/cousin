@@ -282,6 +282,14 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .sch-f.rtl .sch-e{flex-direction:row-reverse}
 .sch-e i{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;color:#1b1b1b;
   display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700}
+/* ⚠ LE ROND QUI PORTE UN PICTO EST PLUS GRAND QUE CELUI QUI PORTE UN CHIFFRE.
+   Un chiffre se lit à 24 px ; un dessin qui doit remplacer la lecture, non. C'est
+   toute la raison d'être de ces feuilles — Nadia les demandait pour des gens qui
+   déchiffrent à peine, et deux personnes doivent pouvoir se les montrer du doigt. */
+.sch-e i.pic{width:42px;height:42px;border-radius:11px;align-self:flex-start}
+.sch-e i.pic svg{width:25px;height:25px;display:block}
+.sch-e i.pic svg [stroke]{vector-effect:non-scaling-stroke}
+@media print{ .sch-e i.pic{width:38px;height:38px} .sch-e i.pic svg{width:23px;height:23px} }
 .sch-e b{display:block;font-size:15px;font-weight:700;line-height:1.25}
 .sch-e em{font-style:normal;display:block;font-size:13.5px;color:#3c3a36;line-height:1.45;margin-top:3px}
 .sch-mt{border:1px solid var(--ligne);background:#f6f5f3;border-radius:6px;padding:11px 13px;margin-top:14px}
@@ -25825,6 +25833,46 @@ function vSchemas(){
 }
 /* La feuille elle-même — la même en écran et à l'impression, pour qu'il n'y ait pas
    de surprise entre les deux. */
+/* ═══ UN PICTO PAR ÉTAPE, PAS UN LOGO (01/09/2026) ═══
+   Tu m'as dit : « on n'a pas de logo de mutuelle, il y a plusieurs mutuelles, on ne va
+   pas mettre tous les logos. Une croix, ou je ne sais pas, un truc qui rappelle. »
+   Exactement — et le picto vaut mieux qu'un logo ici : il dit la CHOSE (un guichet,
+   une vignette, un papier) au lieu de dire une marque. Nadia demandait ces feuilles
+   parce que « les gens ne savent pas lire » : c'est le dessin qui doit porter l'étape.
+
+   ⚠ PAS DE CROIX ROUGE. C'est un emblème protégé (Croix-Rouge, conventions de Genève) :
+   on n'a pas le droit de s'en servir sur un document de santé. La croix VERTE de la
+   pharmacie, elle, est le signe standard et personne ne s'y trompe.
+   ⚠ POUR LA MUTUELLE, C'EST LA VIGNETTE — l'objet que la personne a vraiment en main,
+   le même quelle que soit sa mutuelle. Un symbole abstrait n'aurait rien rappelé.
+   ⚠ Le picto REMPLACE le numéro quand il existe : pour quelqu'un qui déchiffre, un
+   dessin vaut mieux qu'un rang. Les étapes sans picto gardent leur chiffre. */
+const SCHEMA_PICTOS={
+  cpas:'<path d="M3 10 12 4l9 6M5 10v9M19 10v9M9 19v-5h6v5M3 19h18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+  medecin:'<path d="M6 3v6a6 6 0 0 0 12 0V3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="3" r="1.5"/><path d="M12 15v2a3 3 0 0 0 5.9.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18.5" cy="16" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/>',
+  soin:'<path d="M12 20.5S4 14.5 4 9.5A4.5 4.5 0 0 1 12 6.8 4.5 4.5 0 0 1 20 9.5c0 5-8 11-8 11z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 13h2.5l1.5-2.5 2 5 1.5-2.5H17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  mutuelle:'<rect x="3" y="6" width="18" height="12" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 11h4M7 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16.5 9.5v4M14.5 11.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+  papiers:'<path d="M6 3h8l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4M9 12h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+  argent:'<rect x="3" y="7" width="18" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.5"/>',
+  maison:'<path d="M4 11 12 4l8 7v9H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.7"/>',
+  /* La croix verte : le signe de la pharmacie. Elle garde sa couleur, c'est elle
+     qu'on reconnaît de loin — pas encore utilisée, elle attend son étape. */
+  pharmacie:'<path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z" fill="#2f8f5b" stroke="none"/>'
+};
+/* Quel picto pour quelle étape, situation par situation. Hors des langues, exprès :
+   un dessin ne se traduit pas, et il ne doit pas être à recopier cinq fois. */
+const SCHEMA_P={
+  irreg:       ['cpas','medecin','soin'],
+  legal_non:   ['mutuelle','cpas','papiers'],
+  legal_impaye:['mutuelle','argent','papiers'],
+  asile:       ['maison','soin','papiers'],
+  legal_ok:    ['medecin']
+};
+function schemaPicto(k,i){
+  const nom=(SCHEMA_P[k]||[])[i];
+  if(!nom || !SCHEMA_PICTOS[nom]) return '';
+  return '<svg viewBox="0 0 24 24" aria-hidden="true">'+SCHEMA_PICTOS[nom]+'</svg>';
+}
 function schemaFeuille(s,L,lg,pourPapier){
   const mt=SCHEMA_MT[SCHEMA_L]||SCHEMA_MT.fr;
   const rtl=lg.rtl?' dir="rtl" class="rtl"':'';
@@ -25832,7 +25880,9 @@ function schemaFeuille(s,L,lg,pourPapier){
     '<div class="sch-ft" style="border-color:'+s.c+'">'+
       '<b>'+esc(L.t)+'</b><em>'+esc(L.s)+'</em></div>'+
     L.e.map(function(e,i){
-      return '<div class="sch-e"><i style="background:'+s.c+'">'+(i+1)+'</i>'+
+      const pic=schemaPicto(s.k,i);
+      return '<div class="sch-e"><i class="'+(pic?'pic':'')+'" style="background:'+s.c+'">'+
+        (pic||(i+1))+'</i>'+
         '<span><b>'+esc(e.t)+'</b><em>'+esc(e.d).replace(/\n/g,'<br>')+'</em></span></div>';
     }).join('')+
     /* Le médecin traitant, dans TOUS les cas (demande de Mag, 08/08/2026). */
