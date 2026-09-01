@@ -1,0 +1,55 @@
+#!/bin/bash
+# Le garde-fou du chantier à deux.
+# Il se déclenche tout seul à chaque « git commit », quel que soit l'outil.
+# Pour passer outre en cas d'urgence : git commit --no-verify
+set -u
+racine="$(git rev-parse --show-toplevel)"
+cd "$racine" || exit 0
+rouge=$'\033[31m'; jaune=$'\033[33m'; vert=$'\033[32m'; fin=$'\033[0m'
+stop() { echo; echo "${rouge}✋ Commit refusé.${fin}"; echo "$1"; echo; exit 1; }
+
+index_modifie=$(git diff --cached --name-only | grep -c '^index\.html$' || true)
+
+# 1. Le code de index.html tient-il debout ?
+if [ "$index_modifie" -gt 0 ] && command -v node >/dev/null 2>&1; then
+  tmp=$(mktemp -t cousin-index)
+  git show :index.html > "$tmp" 2>/dev/null
+  if ! node "$racine/bin/verifier-index.js" "$tmp"; then
+    rm -f "$tmp"
+    stop "Le code de index.html est cassé : l'app afficherait une page blanche.
+Corrige l'erreur indiquée ci-dessus, puis recommence."
+  fi
+  rm -f "$tmp"
+fi
+
+# 2. Est-ce que ce commit efface une grosse part du fichier ?
+if [ "$index_modifie" -gt 0 ] && git rev-parse --verify -q HEAD >/dev/null; then
+  avant=$(git show HEAD:index.html 2>/dev/null | wc -l | tr -d ' ')
+  apres=$(git show :index.html | wc -l | tr -d ' ')
+  perdu=$(( avant - apres ))
+  if [ "$avant" -gt 0 ] && [ "$perdu" -gt 300 ]; then
+    stop "index.html perd ${perdu} lignes d'un coup (de ${avant} à ${apres}).
+C'est peut-être normal (un gros ménage), c'est peut-être le travail
+de l'autre session qui vient d'être écrasé. Vérifie avec :
+    git diff --cached --stat index.html
+Si c'est bien voulu :  git commit --no-verify -m \"...\""
+  fi
+fi
+
+# 3. Est-ce que du travail est arrivé pendant que j'écrivais ?
+branche=$(git rev-parse --abbrev-ref HEAD)
+if git fetch --quiet origin "$branche" 2>/dev/null; then
+  retard=$(git rev-list --count "HEAD..origin/$branche" 2>/dev/null || echo 0)
+  if [ "${retard:-0}" -gt 0 ]; then
+    stop "${retard} nouveau(x) commit(s) sont arrivés en ligne pendant ton travail.
+Si tu commites maintenant, vous partez chacun de votre côté.
+Range d'abord ce qui est arrivé :
+    git pull --rebase
+puis recommence ton commit."
+  fi
+else
+  echo "${jaune}⚠ Pas de réseau : impossible de vérifier si l'autre session a poussé.${fin}"
+fi
+
+echo "${vert}✓ Garde-fou passé.${fin}"
+exit 0
