@@ -17977,7 +17977,23 @@ const RESEAU_V2_CATEGORIES=[
      maintenant UN CLIC DE PLUS. Si l'équipe s'en plaint, la réponse n'est pas de
      remettre trois tuiles identiques — c'est de remonter « Réduction des risques »
      en tête de la rangée d'étiquettes. */
-  {title:'Drogues & addictions',domaines:['addictions','consommer','sevrer'],picto:'addictions.svg',etiquettes:['JOUR','SÉJOUR']},
+  /* ⚠ UNE CARTE N'OUVRE QUE `domaines[0]` : les deux autres noms cités ici étaient
+     des tiroirs vides, et ils faisaient croire au filet qu'ils étaient rangés.
+     On ne cite plus que celui qui s'ouvre. */
+  /* ═══ LES ADDICTIONS AVAIENT TROIS TIROIRS ET UNE SEULE PORTE (Mag, 01/09/2026) ═══
+     Le découpage existait déjà et il est bon : il suit les SOUS-CATÉGORIES des fiches
+     elles-mêmes, pas un jugement — `consommer` (réduction des risques), `sevrer`
+     (consultations, cliniques, alcool, cure, tabac) et `addictions` (le reste : les
+     proches, la prévention, l'écoute, le jeu et les écrans, la prison).
+     ⚠ MAIS DEUX DES TROIS N'AVAIENT PAS DE CARTE. Cette carte-ci les CITAIT tous les
+     trois — or une carte n'ouvre que `domaines[0]`. `consommer` et `sevrer` étaient
+     donc rangés sur le papier et introuvables à l'écran, pendant que le filet, lui,
+     les croyait posés. C'est ça, le tiroir « à 79 fiches » : pas un tiroir trop
+     plein, un tiroir dont deux portes sur trois étaient murées.
+     Chacun a maintenant la sienne. Aucune fiche n'a changé de domaine. */
+  {title:'Drogues & addictions',domaines:['addictions'],picto:'addictions.svg',etiquettes:['JOUR','SÉJOUR']},
+  {title:'Réduire les risques',domaines:['consommer'],picto:'addictions.svg',etiquettes:['JOUR']},
+  {title:'Se sevrer',domaines:['sevrer'],etiquettes:['SÉJOUR']},
   {title:'Santé mentale',domaines:['santementale'],picto:'sante-mentale.svg',etiquettes:['JOUR','SÉJOUR']},
   {title:'Planning familial',domaines:['planning'],etiquettes:['JOUR']},
   {title:'Urgences',domaines:['urgences'],picto:'urgences.svg',etiquettes:['URGENCE']},
@@ -17994,7 +18010,7 @@ const RESEAU_V2_CATEGORIES=[
      à l'écran (« Service social » / « Un service social ») : on ne savait pas
      lequel ouvrir.
      Ils entrent dans la MÊME tuile — 25 fiches, une seule porte. */
-  {title:'Service social',domaines:['servsoc','social','accompagnement'],etiquettes:['ORIENTATION']},
+  {title:'Service social',domaines:['servsoc'],etiquettes:['ORIENTATION']},
   {title:'Papiers, séjour',domaines:['etrangers'],picto:'cle.svg',etiquettes:['ORIENTATION']},
   {title:'Juridique',domaines:['juridique'],etiquettes:['ORIENTATION']},
   {title:'Violences',domaines:['violences'],picto:'femme.svg',etiquettes:['URGENCE','JOUR']},
@@ -18127,12 +18143,36 @@ function vReseauV2(){
      sans lui, 14 tiroirs et 136 fiches avaient disparu de la page sans un mot.
      Si cette section s'affiche, ce n'est pas une panne — c'est une question posée :
      « où range-t-on celui-là ? ». */
-  const poses={};
+  /* ═══ ⚠ LE FILET COMPTAIT LES TIROIRS, IL COMPTE MAINTENANT LES FICHES (01/09/2026)
+     Il marquait « rangé » TOUT tiroir cité par une carte. Or une carte peut en citer
+     plusieurs et **n'en ouvre qu'un seul** — le premier. Les autres étaient donc
+     déclarés rangés sans être atteignables, et le filet, qui existe précisément pour
+     ça, ne pouvait plus les rattraper.
+     Deux cartes étaient dans ce cas. `Drogues & addictions` cite deux tiroirs vides,
+     sans conséquence. Mais `Service social` cite `servsoc`, `social` et
+     `accompagnement` : seul `servsoc` s'ouvre, et c'est un tiroir VIRTUEL qui pioche
+     dans huit domaines à travers un filtre. Toute fiche de `social` que ce filtre ne
+     retenait pas — et aucun des quatre autres tiroirs virtuels non plus — n'était
+     atteignable depuis le Réseau. En silence, et sans que « Le reste » puisse le dire.
+     C'est la même famille que la panne des 136 fiches du 18/08 : on avait remplacé
+     une garantie par une promesse.
+     ⚠ ON NE COMPTE DONC PLUS LES TIROIRS MAIS LES FICHES. Une fiche est atteignable
+     si elle sort de `fichesDe()` du tiroir qu'une carte OUVRE vraiment — gardes des
+     tiroirs virtuels comprises. Ce qui reste, on le montre.
+     ⚠ Une fiche peut ressortir en double ici : c'est voulu. Vue deux fois n'a jamais
+     fait de mal ; jamais vue, si. */
+  const vues={};
   /* ⚠ `domaines` EST FACULTATIF depuis le 26/08/2026 : les fontaines et les toilettes
      ouvrent une page, pas un tiroir du catalogue. Sans cette garde, le filet a
      attrapé toute la page du Réseau — vu et corrigé le jour même. */
-  RESEAU_V2_CATEGORIES.forEach(function(c){ (c.domaines||[]).forEach(function(k){ poses[k]=1; }); });
-  const oublies=DOMAINES.filter(function(d){ return d.reseau && !poses[d.key] && fichesDe(d.key).length; });
+  RESEAU_V2_CATEGORIES.forEach(function(c){
+    const k=c.domaines&&c.domaines[0];
+    if(!k) return;
+    fichesDe(k).forEach(function(p){ vues[p.sid]=1; });
+  });
+  const oublies=DOMAINES.filter(function(d){
+    return d.reseau && fichesDe(d.key).some(function(p){ return !vues[p.sid]; });
+  });
   if(oublies.length && ray===''){
     html+='<div class="reseau-section-label" style="border-bottom-color:#b28b7a">Le reste</div>'+
       oublies.map(function(d){
@@ -19229,7 +19269,32 @@ function fOnglet(v){ FONGLET=v; FTHEME=null; render(); window.scrollTo(0,0); }
    prétend rien, il marche hors ligne, et l'étagère est régulière.
    ⚠ SI DES COUVERTURES REVIENNENT UN JOUR : seulement celles qu'elle aura
    photographiées elle-même, ou vérifiées une par une. Pas une recherche automatique. */
-const LIV_COUV=[];
+/* ═══ LES 13 COUVERTURES VALIDÉES PAR MAG (01/09/2026) ═══
+   Les 29 images ramenées automatiquement le 28/08 lui ont été remontrées une par
+   une, à côté du titre et de l'auteur auxquels elles étaient attachées
+   (`propositions/planche-couvertures.html`). Elle en a gardé 13 et écarté 16.
+   ⚠ CE SONT LES SEULES QUI S'AFFICHENT. Toutes les autres gardent le dos dessiné,
+   et c'est très bien : une image absente ne ment pas, une fausse si.
+   ⚠ POUR EN AJOUTER UNE : poser le fichier dans `couv/` sous le nom exact de la
+   ligne, et ajouter la ligne ici. Le tri du rayon la fait remonter en tête de son
+   sujet tout seul. JAMAIS par recherche automatique — c'est comme ça qu'un livre
+   sur la guérilla sociale s'était retrouvé avec la couverture d'un livre
+   d'histoire du Québec. */
+const LIV_COUV=[
+  "les-naufrages-avec-les-clochards-de-paris",
+  "une-logique-de-la-communication",
+  "ou-va-l-argent-des-pauvres",
+  "le-droit-a-la-paresse",
+  "la-schizophrenie-au-quotidien",
+  "la-discipline-est-elle-a-l-ordre-du-jour",
+  "la-culture-du-pauvre",
+  "l-ironie",
+  "l-esprit-du-don",
+  "l-anarchie-une-histoire-de-revoltes",
+  "l-amour-et-la-justice-comme-competences",
+  "enterrez-moi-debout-l-odyssee-des-tziganes",
+  "dix-petites-anarchistes"
+];
 function livSlug(t){
   return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,44);
