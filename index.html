@@ -5644,6 +5644,51 @@ body.no-tabs #tabbar{display:none}
   .liv-btn{width:100%;text-align:left;cursor:pointer}
   .liv-btn:hover{border-color:var(--trait-fort)}
 
+  /* ═══ LE RAYON : UNE RANGÉE QUI GLISSE, PUIS UNE GRILLE (Mag, 01/09/2026) ═══
+     UNE seule classe change de forme selon l'écran — pas deux listes à tenir. */
+  .livrang{display:flex;gap:12px;align-items:stretch;
+    overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+    padding:12px var(--pad) 6px;scroll-padding-left:var(--pad);
+    scrollbar-width:none;-ms-overflow-style:none}
+  .livrang::-webkit-scrollbar{display:none}
+  /* ⚠ 82 % ET PAS 100 % : le bord de la carte suivante doit dépasser, sinon rien ne
+     dit qu'il y en a d'autres — on croit le sujet fini au premier livre. */
+  .livrang > .livc{flex:0 0 82%;scroll-snap-align:start}
+
+  @media (min-width:760px){
+    .livrang{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));
+      gap:16px;overflow:visible;padding:14px var(--pad) 2px}
+    .livrang > .livc{flex:auto}
+  }
+
+  /* La carte d'un livre : l'objet en haut, le texte dessous. */
+  .livc{display:flex;flex-direction:column;text-align:left;width:100%;color:var(--noir);
+    background:#fdfdfc;border:1.25px solid var(--trait);border-radius:10px;padding:16px}
+  .livc .livdos,.livc .livcouv{width:84px;height:112px;margin-bottom:14px}
+  /* Les deux filets du dos sont tracés pour 44 px : à 84 il faut les replacer,
+     sinon ils se tassent dans le coin en haut à gauche. */
+  .livc .livdos::after{left:26px;right:10px;top:16px;box-shadow:0 5px 0 rgba(27,27,27,.13)}
+  .livc .lct{display:block;font-size:15.5px;font-weight:600;line-height:1.25}
+  .livc .lca{display:block;font-family:ui-monospace,monospace;font-size:9px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--enc2);margin-top:7px}
+  /* ⚠ QUATRE LIGNES, PAS PLUS : c'est ce qui donne à toutes les cartes la même
+     hauteur. Le résumé entier est dans la fiche, à un doigt. */
+  .livc .lcr{display:-webkit-box;-webkit-line-clamp:4;line-clamp:4;
+    -webkit-box-orient:vertical;overflow:hidden;
+    font-size:12.5px;line-height:1.45;color:#4a4844;margin-top:11px}
+  .livc .lcv{display:block;margin-top:auto;padding-top:12px;font-size:16px;color:var(--trait)}
+  .livc:hover{border-color:var(--trait-fort)}
+  .livc:active{background:#f4f2ee}
+
+  /* Sur papier, rien ne glisse : les livres se suivent, et le résumé n'est plus
+     coupé — une feuille n'a pas de « à un doigt ». */
+  @media print{
+    .livrang{display:block;overflow:visible;padding:0}
+    .livrang > .livc{break-inside:avoid;page-break-inside:avoid;margin:0 0 10px}
+    .livc .lcr{-webkit-line-clamp:unset;line-clamp:unset;overflow:visible;display:block}
+  }
+
   /* ── LES PODCASTS : le lecteur est DANS la page ──
      ⚠ Le cadre du lecteur vient de Spotify : on ne maîtrise ni sa hauteur exacte
      ni son thème. On lui donne la largeur, ses coins arrondis et rien d'autre. */
@@ -15643,7 +15688,7 @@ function feedQuand(iso){
   }catch(e){ return ''; }
 }
 function vFil(){
-  let h=heroBandeau('Le fil','','#f5c542','feed',false);
+  let h=heroBandeau('Le fil','','#f5c542','feed',true);
   if(!sb) return h+'<div class="empty" style="margin-top:16px"><b>Hors ligne.</b>'+
     '<p>Reconnecte-toi à internet pour voir le fil.</p></div>';
 
@@ -15772,7 +15817,7 @@ function vDuNeuf(){
      avec quoi (Mag, 08/08/2026 : « c'est pas du tout adapté à une lecture »). */
   const fmt=function(iso){const d=new Date(iso);return JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];};
   const auj=new Date().toISOString().slice(0,10);
-  let h=heroBandeau('Quoi de neuf','','#f5c542','bulb',false);
+  let h=heroBandeau('Quoi de neuf','','#f5c542','bulb',true);
   let jour='', premier=true;
   h+='<div class="qneuf">';
   NOUVEAUTES.forEach(function(n){
@@ -15794,7 +15839,7 @@ function vProfil(){
   const co=!!(PROFILE&&PROFILE.email);          // connectée pour de vrai ?
   const nomAff=nomAffiche()||(PROFILE&&PROFILE.nom)||'Sans prénom';
   const ini=(nomAff||'?').charAt(0).toUpperCase();
-  let h=heroBandeau('Profil','','#f3c6da','user',false);
+  let h=heroBandeau('Profil','','#f3c6da','user',true);
 
   if(!co){
     /* Pas connectée (hors ligne, ou base muette) : on ne lui invente ni métier ni vue. */
@@ -16873,7 +16918,7 @@ function vChantier(){
 }
 
 function vAdmin(){
-  let h=heroBandeau('Admin','','#f8763f','cog',false);
+  let h=heroBandeau('Admin','','#f8763f','cog',true);
   if(!vueGestion())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
@@ -17236,7 +17281,7 @@ function vAdmin(){
    passer via `vueGestion()`. Un coordinateur venu taper #/ranger à la main tombe sur
    le même écran « Réservé ». */
 function vRanger(){
-  let h=heroBandeau('Wiki à ranger','','#f8763f','cog',false);
+  let h=heroBandeau('Wiki à ranger','','#f8763f','cog',true);
   if(!vueAdmin())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
@@ -18709,7 +18754,7 @@ function immersionTrouver(nom){
   return null;
 }
 function vImmersion(){
-  let h=heroBandeau('Immersion', IMMERSION_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' institutions', '#fd8fd0', 'conduite', false);
+  let h=heroBandeau('Immersion', IMMERSION_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' institutions', '#fd8fd0', 'conduite', true);
 
   h+='<div class="famdedans" style="border:0;padding-top:4px">';
   h+='<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">';
@@ -19107,19 +19152,43 @@ function livVignette(x, coul){
     ? '<span class="livcouv"><img src="couv/'+sl+'.jpg" alt="" loading="lazy"></span>'
     : '<span class="livdos" style="--dos:'+coul+'"></span>';
 }
+/* ═══ LE RAYON REDESSINÉ (Mag, 01/09/2026) ═══
+   « Refais tout le design, mets ceux où il y a une couverture en premier et les
+     autres à la fin. Et sur téléphone, des slides avec une card. »
+
+   TROIS CHANGEMENTS.
+   ① La carte devient verticale : le livre EN HAUT, en 84 px au lieu de 44, puis le
+     titre, l'auteur, le résumé. On reconnaît un livre à son objet avant son nom —
+     c'est déjà ce qu'on avait admis le 28/08 pour la fiche, la liste ne suivait pas.
+   ② Le résumé est coupé à quatre lignes. C'est ce qui rendait le rayon irrégulier :
+     un livre à trois phrases et un livre à une ligne ne faisaient pas la même
+     hauteur, et le bord de la grille était en dents de scie. Le résumé entier est
+     dans la fiche, à un doigt.
+   ③ Sur téléphone, une seule rangée qui glisse : une carte à la fois, la suivante
+     qui dépasse pour dire qu'il y en a d'autres. Sur ordinateur, la même rangée
+     redevient une grille — c'est UNE classe, `.livrang`, qui change de forme.
+
+   ⚠ LE TRI « COUVERTURES D'ABORD NE DÉPLACE RIEN AUJOURD'HUI : `LIV_COUV` est vide
+   depuis le 28/08 (13 couvertures sur 29 étaient fausses, elle a demandé le picto).
+   Le code est écrit pour le jour où elle photographie les siennes : dès qu'un titre
+   entre dans `LIV_COUV`, son livre remonte en tête de son sujet, tout seul. */
 function fLivresHTML(){
   let h='';
   LIVRES_CATS.forEach(function(cat){
     const l=FORM_LIVRES.filter(function(x){ return x.c===cat.k; });
     if(!l.length) return;
-    h+='<div class="fsort">'+esc(cat.l)+'</div><div class="flist">'+
+    /* Ceux qui ont une couverture d'abord, les autres derrière — sans mélanger
+       l'ordre à l'intérieur de chaque groupe. */
+    const aCouv=function(x){ return LIV_COUV.indexOf(livSlug(x.t))>=0; };
+    const range=l.filter(aCouv).concat(l.filter(function(x){ return !aCouv(x); }));
+    h+='<div class="fsort">'+esc(cat.l)+'</div><div class="livrang">'+
       /* ⚠ AUTEUR ET ÉDITEUR SUR LA MÊME LIGNE, dans cet ordre. Séparés, l'éditeur
          passait en gros et l'auteur en petites capitales grises : on lisait « Plon »
          avant « Declerck ». C'est l'auteur qu'on cherche.
          ⚠ LA CARTE OUVRE LA FICHE DU LIVRE (Mag, 27/08/2026) : résumé et PDF, dans
          une feuille qui monte. Le chevron l'indique. */
-      l.map(function(x){
-        return '<button class="frow2 fext liv-btn" onclick="livOuvrir(\''+esc(x.t).replace(/'/g,"\\'")+'\')">'+
+      range.map(function(x){
+        return '<button class="livc" onclick="livOuvrir(\''+esc(x.t).replace(/'/g,"\\'")+'\')">'+
           /* ⚠ UN DOS DE LIVRE DESSINÉ, PAS UNE COUVERTURE ALLÉE LA CHERCHER DEHORS
              (Mag, 28/08/2026 : « tu ne pourrais pas aller chercher les couvertures ?
              on aurait un visuel »).
@@ -19133,10 +19202,10 @@ function fLivresHTML(){
              à gauche, et rien d'autre. Cohérent à 100 %, hors ligne, et ça se parcourt
              du regard — ce qu'elle demandait vraiment. */
           livVignette(x, cat.c)+
-          '<span class="tx"><b>'+esc(x.t)+'</b>'+
-            '<em class="fexts">'+esc([x.a, x.e].filter(Boolean).join(' · '))+'</em>'+
-            (x.res?'<em class="fextd">'+esc(x.res)+'</em>':'')+'</span>'+
-          '<span class="ic fextl">›</span></button>';
+          '<span class="lct">'+esc(x.t)+'</span>'+
+          '<span class="lca">'+esc([x.a, x.e].filter(Boolean).join(' · '))+'</span>'+
+          (x.res?'<span class="lcr">'+esc(x.res)+'</span>':'')+
+          '<span class="lcv">\u203A</span></button>';
       }).join('')+'</div>';
   });
   return h;
@@ -19200,13 +19269,13 @@ function fRess(r){
 
 /* L'étagère des livres — sa page, son bandeau, rien d'autre dedans. */
 function vLivres(){
-  return heroBandeau('Livres', FORM_LIVRES.length+' volumes', '#b28b7a','book', false)+
+  return heroBandeau('Livres', FORM_LIVRES.length+' volumes', '#b28b7a','book', true)+
     '<div class="famdedans" style="border:0;padding-top:4px">'+fLivresHTML()+'</div>'+
     '<div style="height:26px"></div>';
 }
 /* Audi / Radio — leur page. Rangés par sujet, comme elle l'a demandé. */
 function vPodcasts(){
-  return heroBandeau('Audi / Radio', (FORM_POD.length+1)+' à écouter', '#b28b7a','chat', false)+
+  return heroBandeau('Audi / Radio', (FORM_POD.length+1)+' à écouter', '#b28b7a','chat', true)+
     '<div class="famdedans" style="border:0;padding-top:4px">'+fPodcastsHTML()+'</div>'+
     '<div style="height:26px"></div>';
 }
@@ -19221,7 +19290,7 @@ function vFormations(){
      Trois au plus : au-delà, ce n'est plus une reprise, c'est la liste des sujets
      qui est juste en dessous. */
   const areprendre=commences.slice(0,3);
-  let h=heroBandeau('Formations', mods.length+' modules · '+commences.length+' commencé'+(commences.length>1?'s':''), '#6cb392','book', false);
+  let h=heroBandeau('Formations', mods.length+' modules · '+commences.length+' commencé'+(commences.length>1?'s':''), '#6cb392','book', true);
 
   /* ⚠ « À REPRENDRE » NE VA PAS DANS LES LIVRES (Mag, 27/08/2026 : « je pense que
      "à reprendre" n'a rien à faire dans les livres »). Elle a raison, et c'était un
@@ -19360,7 +19429,7 @@ const SAMU_LIEUX=[
   ]}
 ];
 function vSamusocial(){
-  let h=heroBandeau('Samusocial', SAMU_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' services', '#e63329', 'urgence', false);
+  let h=heroBandeau('Samusocial', SAMU_LIEUX.reduce(function(a,g){return a+g.l.length;},0)+' services', '#e63329', 'urgence', true);
   h+='<div class="famdedans" style="border:0;padding-top:4px">';
   h+='<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">';
   h+='Nos propres services — ceux de l\'ASBL. Permanence, maraudes, hébergement, ';
@@ -19378,7 +19447,7 @@ function vSamusocial(){
 }
 function vFormationsAsbl(){
   const asbls=FORM_EXT.filter(function(r){ return r.k==='ext'; });
-  return heroBandeau('Formations extérieures', asbls.length+' organismes', '#6cb392', 'formations', false)+
+  return heroBandeau('Formations extérieures', asbls.length+' organismes', '#6cb392', 'formations', true)+
     '<div class="famdedans" style="border:0;padding-top:4px">'+
     '<p style="margin:0 0 16px;color:var(--txt-muet);font-size:14px;line-height:1.5">'+
     'Les formations extérieures — asbl, fonds, ressources en ligne — sont toutes ici, '+
@@ -23429,7 +23498,7 @@ function vPartager(){
      l'époque où la page portait la notice d'installation — on imprimait la feuille
      pour l'afficher. Sans la notice, il n'imprimait plus qu'un QR et une adresse,
      que le QR sert justement à ne pas devoir recopier. */
-  let h=heroBandeau('Partager COUSIN','','#6cb392','envoyer',false);
+  let h=heroBandeau('Partager COUSIN','','#6cb392','envoyer',true);
   h+='<div class="pt">'+
      '<div class="pt-qr">'+qrSVG(COUSIN_URL,140)+'</div>'+
      '<div class="pt-url">'+esc(COUSIN_URL.replace('https://',''))+'</div>'+
