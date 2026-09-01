@@ -13089,6 +13089,19 @@ const PRINT_FEUILLES=[
        'notre feuille : c’est leur plan officiel, tenu à jour — on l’ouvre et on l’imprime.',
    pages:'PDF · à imprimer tel quel', pi:'pin',
    act:'ouvrirPlanEau()'},
+  /* ═══ LES DÉMARCHES, COMMUNE PAR COMMUNE (Mag, 01/09/2026) ═══
+     Tu l'avais faite dans l'autre session et elle dormait à la racine du dépôt, sans
+     titre et sans date. Elle a maintenant les deux, sur chacune de ses 19 pages —
+     une feuille par commune, et elles se séparent dès qu'on les distribue.
+     ⚠ ELLE COUVRE LES 19 COMMUNES DE BRUXELLES, là où la page « Contributions
+     démarches » n'en suit que cinq. C'est justement l'outil pour aller chercher
+     ce qui manque : on remplit le papier sur le terrain, on reverse dans l'app. */
+  {k:'demarches19', nom:'Les démarches, commune par commune',
+   sous:'Les 19 communes de Bruxelles · une page chacune',
+   det:'Le tableau vierge à remplir au stylo : où s’adresser, comment ça se passe, '+
+       'ce à quoi faire attention, le délai — pour le réquisitoire, l’AMU, la carte '+
+       'médicale, l’adresse de référence, le RIS et les soins infirmiers.',
+   pages:'19 pages · A4', pi:'demarche', act:'ouvrirFeuilleDemarches()'},
   {k:'congelateur', nom:'Feuille congélateur',
    sous:'Traitement des punaises · −40°, 24 h',
    det:'Deux fiches, une par congélateur. À remplir au stylo : nom / chambre, date de '+
@@ -13136,6 +13149,17 @@ function vPrint(){
    nôtre. Le lien passe par le mécanisme habituel pour que la confirmation d'ouverture
    s'affiche comme partout ailleurs. */
 const PLAN_EAU='https://www.bruxelles.be/sites/default/files/bxl/Plan%20fontaines%20toilettes%202025.pdf';
+/* La feuille des 19 communes : un document à part, pas une page de l'app — elle
+   s'ouvre dans un onglet, prête à imprimer. Même geste que le plan des points d'eau. */
+function ouvrirFeuilleDemarches(){
+  cousinConfirme('Ouvrir la feuille des démarches ?',
+    'Dix-neuf pages, une par commune de Bruxelles : le tableau vierge à remplir au '+
+    'stylo. Chaque page porte sa ligne « rempli le … par … », pour qu’on sache dans '+
+    'six mois si l’info est encore bonne.\n\n'+
+    'Ce qui est rempli sur papier se reverse ensuite dans « Contributions démarches ».',
+    function(){ window.open('documents/feuille-demarches-19-communes.html','_blank','noopener'); },
+    {ok:'Ouvrir la feuille'});
+}
 function ouvrirPlanEau(){
   cousinConfirme('Ouvrir le plan des points d’eau ?',
     'C’est le plan de la Ville de Bruxelles : les fontaines et les toilettes publiques '+
@@ -13620,10 +13644,19 @@ window.addEventListener('hashchange',()=>{
      `figerFond` compte les ouvertures ; s'il se désynchronise, la page ne défile
      même plus. On remet donc les deux à zéro à chaque changement d'écran :
      ouvrir une page, c'est repartir d'une page propre. */
+  /* ⚠ CETTE LISTE ÉTAIT ÉCRITE À LA MAIN, ET ELLE N'A PAS SUIVI (Mag, 01/09/2026 :
+     « rien ne fonctionne, même en cliquant, rien ne marche »).
+     Il en manquait quatre — `livBg`, `vcBg`, `menuHautBg`, et surtout `contribBg`,
+     arrivée après. Ouvrir la fenêtre des contributions puis changer de page laissait
+     donc son voile accroché par-dessus toute l'app : la page avait l'air normale et
+     plus un seul bouton ne répondait.
+     C'est exactement la panne que ce bloc existe pour empêcher — il a échoué parce
+     qu'il fallait penser à l'allonger. On ne nomme donc plus les feuilles UNE PAR UNE :
+     on ferme tout ce qui porte une classe de feuille ET la marque `on`. Toute feuille
+     future est couverte sans qu'on y pense, et c'est le but. */
   try{
-    ['ouBg','partBg','qBg','passBg','popBg','ideeBg','urgBg','accBrBg'].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.remove('on');
-    });
+    document.querySelectorAll('.partbg.on,.popbg.on,.ideebg.on,.urgbg.on,.mh-bg.on,.mh.on')
+      .forEach(function(el){ el.classList.remove('on'); });
     _figeN=0; document.documentElement.classList.remove('fond-fige');
   }catch(e){ panneNoter('fermeture des feuilles', e); }
   if(!NAV_CLIC) NAV_PAS=Math.max(0,NAV_PAS-1);
@@ -13990,9 +14023,22 @@ function etiquettesDuTiroir(key){
     return '<span class="etq" style="background:'+(ETIQ_COUL[t]||'#1b1b1b')+'">'+esc(t)+'</span>';
   }).join('')+'</div>';
 }
+/* ═══ LA FLÈCHE DE RETOUR NE PEUT PLUS DISPARAÎTRE PAR INADVERTANCE (01/09/2026) ═══
+   Mag, deux fois dans la même journée : « il n'y a pas de bouton retour » puis
+   « à chaque fois tu oublies les boutons ». Elle avait raison, et ce n'était pas
+   une distraction : le réglage se désactivait avec un simple `false` en cinquième
+   position, et QUINZE pages l'avaient. Réparées le matin — et une page neuve est
+   arrivée l'après-midi avec le même `false`.
+   Tant que l'oubli coûte un caractère, il se reproduira. Désormais la flèche est
+   là PAR DÉFAUT et un `false` ne la retire plus : il faut écrire `'aucun'`, en
+   toutes lettres, ce que personne n'écrit sans y penser.
+   ⚠ AUCUNE PAGE N'UTILISE `'aucun'` AUJOURD'HUI, et c'est normal : on tombe sur une
+   page de dix façons qui ne laissent pas d'historique (le raccourci de l'écran
+   d'accueil, un QR, un lien envoyé à un collègue) et `retour()` sait retrouver la
+   page parente dans tous ces cas. Une page sans sortie est un cul-de-sac. */
 function heroBandeau(titre, surtitre, couleur, pic, retour, cls, surLien){
   return '<div class="hero'+(cls?' '+cls:'')+'">'+
-    (retour!==false?'<button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
+    (retour!=='aucun'?'<button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>':'')+
     '<span class="htx">'+
       (surtitre
         ? (surLien
@@ -30989,7 +31035,9 @@ initAuth();
     ['partBg','partageFermer'], ['ouBg','ouFermer'], ['qBg','qLieuFermer'],
     ['livBg','livFermer'], ['vcBg','apercuFermer'], ['ideeBg','fermerIdee'],
     ['urgBg','fermerUrg'], ['popBg','popFermer'], ['passBg','passFeuilleFermer'],
-    ['accBrBg','accBrFermer'], ['menuHautBg','menuHautFermer']
+    ['accBrBg','accBrFermer'], ['menuHautBg','menuHautFermer'],
+    /* Arrivée après (contributions démarches) — le retour du téléphone la ferme aussi. */
+    ['contribBg','contribFermer']
   ];
   var pile=[];         /* les fenêtres ouvertes, la dernière en haut */
   var parRetour={};    /* id → la fermeture vient du bouton retour : ne pas reculer deux fois */
