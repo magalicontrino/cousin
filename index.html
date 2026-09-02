@@ -1923,6 +1923,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 @media (hover:hover){ .urg0800:hover{box-shadow:0 0 0 2px #e63329} }
 .urg0800:active{background:#252525}
 @media (max-width:380px){ .urg0800 .u8-n{font-size:29px} }
+/* La bande « à revérifier » — pour l'administration seulement, discrète. */
+.arevoir{display:flex;align-items:center;gap:8px;margin:-4px 0 12px;
+  background:#fdf6e0;border:1px solid #c9940c;border-radius:8px;padding:9px 12px;
+  font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:#8a6608;line-height:1.4}
+.arevoir .ic{width:14px;height:14px;flex:none}
 .petliste{display:flex;flex-direction:column;gap:16px;padding-top:6px}
 .pet{background:var(--barre);border:1.25px solid var(--trait);border-radius:12px;padding:22px 24px}
 /* Qui la lance passe AU-DESSUS du titre : on sait d'où ça vient avant de lire quoi. */
@@ -7122,7 +7128,7 @@ const SAMPLE = [
     ["Infirmiers de rue","Infirmiers de rue"]
   ])}
 
-</div>`, "Sans-abrisme"),
+</div>`, "Sans-abrisme", "", "2026-09-20"),
 
   formation("Article 27 — le ticket culture à 1,25 €",
     "Ce que c'est, qui y a droit, comment on obtient les tickets et comment on s'en sert. Et les 141 lieux qui les acceptent.",[],
@@ -8943,8 +8949,17 @@ function memo(dom,nom,desc,site,memoTxt){
 /* `perime` (facultatif, 'AAAA-MM-JJ') : une formation qui est un PROGRAMME DATÉ et
    non un repère permanent s'efface toute seule le lendemain. Voir la construction
    de DATA. */
-function formation(nom,desc,metiers,page,theme,perime){
-  const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.page=page; o.metiers=metiers||[]; o.theme=theme||""; if(perime) o.perime=perime; return o;
+/* ⚠ `arevoir` N'EST PAS `perime`, ET C'EST TOUT LE POINT (02/09/2026).
+   `perime` fait DISPARAÎTRE une fiche : bien pour un programme qui n'aura plus lieu.
+   Mais un cours peut rester juste et utile tout en contenant UNE information qui
+   vieillit — la date de la prochaine édition du dénombrement, par exemple. Le cacher
+   serait absurde, le laisser tel quel ferait déplacer quelqu'un le mauvais soir.
+   `arevoir:'AAAA-MM-JJ'` ne cache rien : passé ce jour, une bande discrète apparaît
+   sur la carte du cours, POUR L'ADMINISTRATION SEULEMENT. L'équipe ne voit rien,
+   Mag voit ce qu'il y a à revérifier — le rappel vit dans l'app, pas dans la tête de
+   quelqu'un ni dans une session qui se ferme. */
+function formation(nom,desc,metiers,page,theme,perime,arevoir){
+  const o=d("formations",nom,"Régional / Toutes communes",desc,"Professionnels","","","","","",""); o.page=page; o.metiers=metiers||[]; o.theme=theme||""; if(perime) o.perime=perime; if(arevoir) o.arevoir=arevoir; return o;
 }
 /* ═══ LE BOUTON QUI MÈNE D'UNE FORMATION À UNE FICHE DU RÉSEAU (08/08/2026) ═══
    Ces deux fonctions doivent rester DANS CE SCRIPT-CI, avec `formation()` : les
@@ -20173,7 +20188,10 @@ function flCard(p){
     return '<button class="fe'+(fait?' faite':'')+'" onclick="fluToggle(event,\''+p.sid+'\','+i+')">'+
       '<i>'+(fait?'✓':(i+1))+'</i><span>'+esc(t.replace(/^\d+\.\s*/,''))+'</span></button>';
   }).join('')+'</div>':'';
-  return '<div class="flc" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')">'+
+  const revoir=(PROFILE&&PROFILE.admin&&p.arevoir&&todayStr()>p.arevoir)
+    ? '<div class="arevoir"><span class="ic">'+icon('clock')+'</span>À revérifier — une date ou un chiffre de ce cours est arrivé à échéance</div>'
+    : '';
+  return '<div class="flc" role="button" tabindex="0" onclick="go(\'#/f/'+p.sid+'\')">'+revoir+
     '<div class="ft"><span class="frond" style="background:'+coul+'"><span class="ic">'+icon('book')+'</span></span>'+
     '<span class="ftx"><b>'+esc(p.nom)+'</b><em>'+esc((p.theme||'Formation')+met)+' · '+formationDuree(p.page)+' min</em></span>'+
     anneauProg(ch.length?lus.length/ch.length:0,'#6cb392')+'</div>'+
