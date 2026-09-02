@@ -6233,23 +6233,23 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <p id="contribSous" style="color:var(--txt-muet);font-size:13px;margin:0 0 12px"></p>
       <div class="chadd empile ecrire" style="margin-bottom:10px">
         <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📌 Où s'adresser (adresse, mail, téléphone)</label>
-        <textarea id="contribOu" rows="2" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+        <textarea id="contribOu" rows="2" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <div class="chadd empile ecrire" style="margin-bottom:10px">
         <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📝 Comment ça se passe (procédure, pièces)</label>
-        <textarea id="contribComment" rows="2" maxlength="400" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+        <textarea id="contribComment" rows="2" maxlength="400" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <div class="chadd empile ecrire" style="margin-bottom:10px">
         <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⚠ Attention (piège / spécificité)</label>
-        <textarea id="contribAtt" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+        <textarea id="contribAtt" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <div class="chadd empile ecrire" style="margin-bottom:10px">
         <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⏱ Délai (temps de réponse)</label>
-        <textarea id="contribDelai" rows="1" maxlength="200" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+        <textarea id="contribDelai" rows="1" maxlength="200" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <div class="chadd empile ecrire" style="margin-bottom:16px">
         <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">💊 Pharmacie(s) attitrée(s)</label>
-        <textarea id="contribPharma" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height="auto";this.style.height=this.scrollHeight+"px""></textarea>
+        <textarea id="contribPharma" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <button class="accb plein" onclick="contribEnvoyer()" style="width:100%">Proposer</button>
     </div>
@@ -20001,6 +20001,9 @@ async function demWikiEcrire(commune,type,texte){
   if(typeof loadWikiCentre==='function'){ await loadWikiCentre(); render(); }
 }
 var CONTRIB_COMMUNE='', CONTRIB_TYPE='';
+/* Le clic ne transporte plus que le numéro de la démarche : le nom, qui peut
+   contenir une apostrophe, ne traverse plus jamais un attribut HTML. */
+function contribOuvrirN(iT){ contribOuvrir(DEMARCHES_ACTIVE||'', DEMARCHES_TYPES[iT]||''); }
 function contribOuvrir(commune,type){
   CONTRIB_COMMUNE=commune; CONTRIB_TYPE=type;
   document.getElementById('contribTitre').textContent=commune+' \u2014 '+type;
@@ -20081,7 +20084,7 @@ function vContribDemarches(){
       '<span class="chv">\u203a</span></button>';
     /* De l'air entre les rangées : elles se touchaient (Mag : « c'est collé »). */
     h+='<div class="demlist">';
-    DEMARCHES_TYPES.forEach(function(t){
+    DEMARCHES_TYPES.forEach(function(t,iT){
       var p=demTrouver(selCommune,t);
       var ficheOk=demContenu(p);
       var wikis=demWikiNotes(selCommune,t);
@@ -20108,7 +20111,15 @@ function vContribDemarches(){
       var etat=ficheOk?'Rempli \u00b7 corriger':(att.length?'En attente de validation':'\u00c0 remplir');
       var rond=ficheOk?'#6cb392':(att.length?'#f5c542':'#e6e3df');
       var pic =ficheOk?'check':(att.length?'clock':'plus');
-      h+='<button class="frow2" onclick="contribOuvrir(\''+selCommune+'\',\''+t+'\')">'+
+      /* ═══ « QUAND ON CLIQUE SUR PLUS, IL NE SE PASSE RIEN » (Mag, 02/09/2026) ═══
+         Le nom de la démarche partait dans l'`onclick` entre apostrophes. Or l'une
+         d'elles EN CONTIENT une : « RIS (revenu d'intégration) ». L'apostrophe
+         fermait la chaîne au milieu du mot, le navigateur ne pouvait plus lire le
+         clic, et la rangée ne faisait RIEN — sans un mot, comme d'habitude.
+         ⚠ ON NE RECOLLE PLUS JAMAIS UN TEXTE DANS UN `onclick` : on passe le
+         NUMÉRO de la ligne, et la fonction va chercher le nom elle-même. Un titre
+         qui contient une apostrophe, il y en aura d'autres. */
+      h+='<button class="frow2" onclick="contribOuvrirN('+iT+')">'+
         '<span class="rd" style="background:'+rond+'"><span class="ic">'+icon(pic)+'</span></span>'+
         '<span class="tx"><b>'+esc(t)+'</b><em>'+etat+
           (wikis.length?' \u00b7 '+wikis.length+' contribution'+(wikis.length>1?'s':''):'')+'</em></span>'+
