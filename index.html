@@ -11439,7 +11439,12 @@ const TAGS_REGLES={
   [/à domicile|domicile/i,'Soins à domicile'],
   [/maison médicale|au forfait/i,'Maison médicale'],
   [/sans couverture|sans papiers|sans mutuelle|précar|Médecins du Monde/i,'Sans mutuelle'],
-  [/en rue|Infirmiers de rue|mobile|aller vers/i,'Aller vers'],
+  /* ⚠ LE MÊME MOT TOMBE ICI AUSSI, MAIS PAS AVEC LE MÊME NOM. Dans Logement, une
+     équipe accompagne quelqu'un vers un logement ; ici, ce sont des SOINS qui se
+     déplacent — deux choses différentes, deux noms. Sa règle : un nom colle à son
+     tiroir. Et « Soins à domicile » existe déjà deux lignes plus haut : celui-ci
+     dit la rue, pas le domicile. */
+  [/en rue|Infirmiers de rue|mobile|aller vers/i,'Soins en rue'],
   [/grossesse|périnatal|Aquarelle|maternité/i,'Grossesse'],
   [/réduction des risques|hépatite|assuétude|drogue/i,'Réduction des risques'],
   [/contraception|IVG|planning familial/i,'Contraception & IVG'],
@@ -11473,7 +11478,22 @@ const TAGS_REGLES={
   [/social|SLRB|AIS|Agences Immobilières/i,'Logement social'],
   [/transit|urgence|Housing First/i,'Transit & urgence'],
   [/aide|prime|allocation|garantie/i,'Aides & primes'],
-  [/rue|DIOGENES|aller vers|sans-abri/i,'Aller vers']],
+  /* ═══ « ALLER VERS » N'EST PLUS LE NOM (Mag, 02/09/2026) ═══
+     « J'aime pas du tout ce nom. » — c'était le mot du secteur, pas le sien, et
+     elle l'avait déjà fait retirer ailleurs le 13/08. Son nom : « ACCOMPAGNÉ PAR
+     UNE ÉQUIPE ». Il dit la chose et pas son effet : en face, « Logement social »,
+     on introduit un dossier et on attend ; ici, une équipe prend la personne là
+     où elle est et reste avec elle.
+     ⚠ `sans-abri` EST SORTI DE LA RÈGLE, et c'est le vrai correctif : ce mot
+     attrapait « Maisons d'accueil (AMA) », qui n'accompagne personne au-dehors —
+     une maison d'accueil, ON Y VIENT. Une étiquette fausse ne dérange pas, elle
+     range une fiche là où personne ne la cherche.
+     ⚠ ET « Housing First » EST NOMMÉ EN TOUTES LETTRES : il ne portait l'étiquette
+     que par le mot « sans-abri », et il l'a donc perdue en même temps qu'AMA. Or
+     c'est l'exemple même du tiroir — on donne le logement, PUIS une équipe
+     accompagne à domicile. Mesuré avant de pousser : sans cette ligne, il
+     disparaissait du filtre en silence. */
+  [/rue|DIOGENES|aller vers|Housing First/i,'Accompagné par une équipe']],
  educatif:[
   [/devoir|scolaire|école|accrochage/i,'École & devoirs'],
   [/jeunesse|AMO|SAJ|jeune/i,'Jeunes'],
@@ -18875,7 +18895,33 @@ function fichePan(sid){ FICHE_PAN=sid; CARNET_OUV=false; figerFond(true); render
      attendre la base avant d'afficher la fiche ferait patienter pour rien. */
   if(sid) rafraichirAvis(sid);
 }
-function fichePanFermer(){ FICHE_PAN=''; figerFond(false); render(); }
+function fichePanFermer(){ FICHE_PAN=''; FICHE_PAN_VU=''; figerFond(false); render(); }
+/* ═══ « CETTE DOUBLE ENTRÉE DE LA FENÊTRE, ÇA CLIGNOTE » (Mag, 02/09/2026) ═══
+   ENFIN REPRODUIT, et mesuré : après UN seul clic, le panneau était construit
+   DEUX fois — trois fois quand la base répond. Le coupable n'était pas le CSS.
+   `fichePan()` dessine, puis `rafraichirAvis()` charge le wiki et les avis et
+   rappelle `render()` à chaque réponse. Or le panneau vit DANS `#view`, que
+   `render()` réécrit en entier : le nœud est détruit et recréé, donc son
+   animation d'entrée (`actM`, 0,32 s) repart de zéro. D'où l'impression que la
+   fenêtre entre deux fois — elle entre vraiment deux fois.
+   ⚠ ON NE REDESSINE PLUS TOUTE LA PAGE POUR REMPLIR UN BLOC. `panRafraichir`
+   remplace le CONTENU du panneau existant, garde la boîte, et repose le
+   défilement là où il était — sinon on perdait aussi sa place dans la fiche.
+   Même famille que le tremblement du 20/08 : ne jamais réécrire `innerHTML`
+   quand on peut mettre à jour ce qui a changé. */
+var FICHE_PAN_VU='';
+function panRafraichir(){
+  const boite=document.querySelector('.actpan.fpan');
+  if(!boite || !FICHE_PAN) return false;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=fichePanHTML();
+  const neuf=tmp.querySelector('.actpan.fpan');
+  if(!neuf) return false;
+  const y=boite.scrollTop;
+  boite.innerHTML=neuf.innerHTML;
+  boite.scrollTop=y;
+  return true;
+}
 /* ═══════════════════════════════════════════════════════════════════════════
    LES NOTES D'UNE FICHE — PISTE A (Mag, 21/08/2026)
    ═══════════════════════════════════════════════════════════════════════════
@@ -21337,7 +21383,11 @@ function rafraichirAvis(sid){
      texte vide, ou l'inverse — et on croit a une perte. */
   if(typeof loadWikiFiche==='function') loadWikiFiche(sid).then(function(){
     const ici = (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid));
-    if(ici) render();
+    if(!ici) return;
+    /* Le panneau se remplit sur place ; la page entière n'est redessinée que si
+       c'est la PAGE de la fiche qui est ouverte, pas le panneau. */
+    if(FICHE_PAN===sid && panRafraichir()) return;
+    render();
   });
   loadAvis(sid).then(function(){
     const ici = (FICHE_PAN===sid || (current && current.view==='fiche' && current.sid===sid));
