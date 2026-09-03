@@ -30899,8 +30899,24 @@ function passRetirer(id){
 
    ⚠ LE GENRE `ajeun` N'EST PLUS PROPOSÉ mais reste connu de `passGenreDe` : des lignes
    l'ont porté dans la journée du 22/08, et elles doivent continuer de s'afficher. */
+/* ═══ UNE ABSENCE EST UN GENRE DE PASSATION (Mag, 03/09/2026) ═══
+   « Pour les absences, j'aimerais que ça puisse passer direct en passation. Je
+   voudrais qu'on puisse cocher : Absence. Et qu'on puisse modifier directement dans
+   la passation — parce que je vais devoir rajouter chaque fois les absences, les
+   changer. Le nombre de nuits. »
+   CE QUE ÇA RÉSOUT : une absence n'est pas une info qu'on lit et qu'on oublie, c'est
+   un COMPTE qui monte d'une nuit chaque soir — et à trois, la place est désencodée.
+   Elle devait donc réécrire la ligne tous les jours. Maintenant l'absence part en
+   passation comme les autres, et le crayon de la passation change le nombre de nuits
+   sans rien retaper.
+   ⚠ AUCUNE MIGRATION : `genre` est une colonne texte SANS contrainte (voir
+   sql/passations.sql) — un nouveau genre s'écrit tel quel. Rien à faire dans la base.
+   ⚠ PAS D'HEURE, MAIS UNE CHAMBRE : une absence ne se réveille pas.
+   ⚠ ET TOUJOURS AUCUN NOM DANS LA BASE — la règle du fichier SQL tient : chambre et
+   initiales. */
 const PASS_GENRES=[
   {k:'reveil',   l:'Un réveil', court:'Réveil', s:'quelqu’un à réveiller', c:'#E8308A', heure:true,  chambre:true},
+  {k:'absence',  l:'Une absence', court:'Absence', s:'compter les nuits',  c:'#f0a8a3', heure:false, chambre:true},
   {k:'passation',l:'Une info',  court:'Info',   s:'à transmettre',         c:'#a9c8e8', heure:false, chambre:true}
 ];
 /* Les anciens genres, pour que ce qui est déjà écrit continue de se lire. */
@@ -32196,9 +32212,13 @@ function listeAssosARecontacter(){
 function rappelPasser(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   const t=String(r.texte||'').trim(), ch=String(r.chambre||'').trim();
+  const estAbsence=!!r.absence;
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
   rappelsSauver();
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
+  /* Une note cochée « absence » arrive dans la passation DÉJÀ marquée absence :
+     c'est tout l'intérêt du bouton, sinon il faudrait le recocher chaque fois. */
+  PASS_GENRE = estAbsence ? 'absence' : 'passation';
   render();
   setTimeout(function(){
     const e=document.getElementById('passTxt');
