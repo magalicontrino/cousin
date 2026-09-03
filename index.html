@@ -30215,6 +30215,29 @@ function avoirCocher(id){
   avoirSauver(); render();
 }
 function avoirVu(r){ return r && r.vuLe===todayStr(); }
+/* ═══ MODIFIER ET COPIER SUR LES ENTRETIENS AUSSI (Mag, 03/09/2026) ═══
+   « On peut changer le texte ou mettre à la poubelle, mais on ne peut pas faire tout
+   le reste. Au moins modifier, ce serait bien — et un copier aussi. »
+   Ces rangées-là n'avaient que la corbeille et « Premier accueil » : un nom mal
+   orthographié se corrigeait en supprimant la ligne et en la réécrivant.
+   ⚠ LE CRAYON MODIFIE LE NOM. La chambre et la langue restent à leur place ; si elle
+   veut les changer ici aussi, il faudra une fenêtre à trois champs — à lui demander
+   plutôt qu'à deviner. */
+function avoirModifier(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
+  cousinDemande('Modifier le nom', r.chambre?('Chambre '+r.chambre):'', r.nom||'', function(v){
+    const t=(v||'').trim(); if(!t) return;
+    r.nom=t.slice(0,80); avoirSauver(); render(); toast('Modifié');
+  }, 80);
+}
+function avoirCopier(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r){ toast('Ligne introuvable'); return; }
+  const b=[r.nom||''];
+  if(r.chambre) b.push('ch. '+r.chambre);
+  if(r.langue) b.push(r.langue);
+  if(r.lecture==='non') b.push('ne lit pas');
+  copyTxt(b.join(' · '),'Copié');
+}
 function avoirRetirer(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
   cousinConfirme('Retirer de la liste ?', r.nom, function(){
@@ -30236,11 +30259,16 @@ function carteAVoir(){
         '<button class="cas" onclick="avoirCocher(\''+r.id+'\')" aria-label="Cocher">'+
           (vu?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
         '<span class="pl2-sep"></span>'+
+        '<button class="ib" onclick="avoirModifier(\''+r.id+'\')" '+
+          'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+        '<button class="ib" onclick="avoirCopier(\''+r.id+'\')" '+
+          'aria-label="Copier" title="Copier">'+icon('copy')+'</button>'+
         '<button class="ib" onclick="avoirRetirer(\''+r.id+'\')" '+
           'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
         '<button class="rapPass mini" onclick="avoirAccueil()">Premier accueil</button>'+
       '</div>'+
-      '<div class="pl2-t" onclick="avoirCocher(\''+r.id+'\')">'+
+      /* Même règle que Ma liste : le texte MODIFIE, la case coche. */
+      '<div class="pl2-t" onclick="avoirModifier(\''+r.id+'\')">'+
         '<b>'+esc(r.nom||'')+'</b>'+
         /* ⚠ TOUT SUR UNE SEULE LIGNE, séparé par des points médians : trois `em`
            empilés feraient une rangée haute comme une carte pour trois mots.
@@ -31560,6 +31588,15 @@ function rappelAjouter(){
    ⚠ LE TEXTE PEUT ÊTRE LONG : 400 caractères au lieu de 120. « On doit mettre vraiment
    beaucoup de choses. » La rangée l'affiche en entier, sur autant de lignes qu'il faut.
    ⚠ Le JOUR n'est pas ici : il a son propre bouton calendrier, à côté du crayon. */
+/* Copier ce qui est écrit sur la ligne — le texte seul, sans les étiquettes de
+   l'app : c'est ce qu'on recolle ailleurs, pas la mise en page d'ici. */
+function rappelCopier(id){
+  const r=MESRAPPELS.filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!r){ toast('Ligne introuvable'); return; }
+  let t=(r.texte||'').trim();
+  if(r.chambre) t='ch. '+r.chambre+' — '+t;
+  copyTxt(t,'Copié');
+}
 function rappelModifier(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   cousinPop({
@@ -31875,13 +31912,27 @@ function rappelsHTML(enCarte){
              voyant, pas en le cherchant. */
           '<button class="ib'+(r.reunion?' reunion':'')+'" onclick="rappelReunion(\''+r.id+'\')" '+
             'aria-label="À dire en réunion" title="À dire en réunion">'+icon('etoile5')+'</button>'+
+          /* ⚠ COPIER (Mag, 03/09/2026 : « pour la liste tu devrais mettre un bouton
+             ou icône pour copier le texte »). Ce qu'on note ici finit ailleurs — dans
+             le 6D, dans un mail, dans un message à une collègue. Le recopier à la main
+             depuis un téléphone, c'est là qu'on perd un nom ou une date. */
+          '<button class="ib" onclick="rappelCopier(\''+r.id+'\')" '+
+            'aria-label="Copier le texte" title="Copier le texte">'+icon('copy')+'</button>'+
            '<button class="ib sup" onclick="rappelRetirer(\''+r.id+'\')" '+
              'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
         '</div>'+
-        '<div class="pl2-t" onclick="rappelCocher(\''+r.id+'\')">'+
+        /* ═══ CLIQUER SUR LE TEXTE MODIFIE, IL NE COCHE PLUS (Mag, 03/09/2026) ═══
+           « Quand on clique sur le texte, la fenêtre doit s'ouvrir pour faire une
+           modification. Là ça part dans FAIT. C'est seulement quand on coche que ça
+           doit aller dans FAIT. »
+           Elle a raison et c'était un vrai piège : le texte est la plus grande zone
+           de la rangée, donc la plus facile à toucher — et c'était la zone qui
+           faisait DISPARAÎTRE la ligne. Relire une note qu'on a écrite ne devrait
+           jamais pouvoir la ranger. La case reste la seule à cocher. */
+        '<div class="pl2-t" onclick="rappelModifier(\''+r.id+'\')">'+
           '<b>'+passRiche(r.texte)+'</b>'+
           (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
         '</div></div>';
