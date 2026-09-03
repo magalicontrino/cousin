@@ -14238,7 +14238,11 @@ window.addEventListener('hashchange',()=>{
      sous le bandeau noir). Le raisonnement est le même partout : on OUVRE quelque
      chose, on commence en haut ; on REVIENT, on retrouve sa place. */
   const ouvre = NAV_CLIC;
-  window.scrollTo(0, ouvre ? 0 : (scrollMem[keyOf(current)]||0));
+  /* ⚠ ON NE POSE PLUS LA PLACE UNE SEULE FOIS : on la VISE. Une page qui attend la
+     base est courte à cet instant, et un `scrollTo` isolé s'y fait raboter. La place
+     visée est reposée à chaque rendu pendant 2,5 s — voir `viserPlace`. */
+  viserPlace(ouvre ? 0 : (scrollMem[keyOf(current)]||0));
+  window.scrollTo(0, _cible.y);
   NAV_CLIC=false;
   /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
      montrait l'état du monde au moment de son ouverture — et une collègue qui
@@ -14299,6 +14303,22 @@ function render(){
    commencer en haut — c'est la règle du 20/08, et elle ne bouge pas. Et le
    `hashchange` garde le dernier mot : sa ligne s'exécute APRÈS ce rendu. */
 var _dernierEcranRendu='';
+/* ═══ LA PLACE VISÉE, ET POURQUOI UN SIMPLE `scrollTo` NE SUFFIT PAS ═══
+   Mesuré le 03/09/2026 : quand une page arrive VIDE puis grandit (Ma liste attend la
+   base), le navigateur RABOTE la position au passage — on demande 1200, la page ne
+   fait que 400 de haut à cet instant, on obtient 132. Ensuite la page grandit… mais
+   132 est déjà la nouvelle position.
+   ⚠ ET MA CORRECTION DE v1143 POUVAIT EMPIRER LES CHOSES : elle relisait `scrollY` au
+   moment du rendu — donc parfois la valeur DÉJÀ rabotée — et la figeait.
+   On garde donc la place VISÉE, pas la place constatée, et on la repose à chaque
+   rendu tant que l'écran n'a pas changé et que le doigt n'a pas bougé (2,5 s). */
+var _cible={k:'', y:0, jusqua:0};
+function viserPlace(y){ _cible={k:keyOf(current), y:y||0, jusqua:Date.now()+2500}; }
+/* ⚠ DÈS QUE LE DOIGT BOUGE, ON LÂCHE. Sans ça l'app se battrait contre elle : on
+   ferait défiler, et la page reviendrait toute seule à l'endroit visé. */
+['wheel','touchstart','keydown'].forEach(function(ev){
+  try{ window.addEventListener(ev, function(){ _cible.jusqua=0; }, {passive:true}); }catch(e){}
+});
 function renderInterne(){
   const _memeEcran = (_dernierEcranRendu===keyOf(current));
   const _y = _memeEcran ? window.scrollY : -1;
@@ -14545,7 +14565,11 @@ function renderInterne(){
   /* ⚠ HORS DU `try` : reposer la place doit se faire même si un morceau de la page
      a raté son dessin. C'est la règle du filet — la page passe avant ses détails. */
   _dernierEcranRendu=keyOf(current);
-  if(_y>0 && Math.abs(window.scrollY-_y)>2){
+  /* La place VISÉE passe avant la place constatée : c'est elle qui survit au rabotage
+     d'une page qui n'a pas encore reçu ses données. */
+  if(_cible.k===keyOf(current) && Date.now()<_cible.jusqua){
+    if(Math.abs(window.scrollY-_cible.y)>2){ try{ window.scrollTo(0,_cible.y); }catch(e){} }
+  } else if(_y>0 && Math.abs(window.scrollY-_y)>2){
     try{ window.scrollTo(0,_y); }catch(e){}
   }
 }
