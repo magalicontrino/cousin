@@ -10692,6 +10692,14 @@ Object.assign(PICTOS,{
   user:'profil.svg', list:'listes.svg', bell:'notifications.svg',
   linge:'linge.svg', poubelle:'notif-poubelle.svg', colis:'colis.svg',
   cible:'cible.svg',
+  /* ⚠ « JE N'AIME PAS TROP CE PICTO, IL EST TROP PLEIN » (Mag, 03/09/2026).
+     Deux rectangles pleins font une tache noire au milieu d'une rangée de dessins au
+     trait. Le nouveau garde exactement la même forme — deux feuilles décalées — mais
+     évidées : la feuille de devant est un contour, celle de derrière n'est plus qu'un
+     angle. Même geste, moins de poids.
+     ⚠ `copier.svg` RESTE : il sert ailleurs (copier un mail, une note), et on ne
+     change pas huit endroits pour une remarque sur un seul. */
+  copyleger:'copier-trait.svg',
   /* Le contraire du cœur, et c'est LE MÊME cœur, fendu : les deux se répondent
      parce qu'ils viennent du même trait. Le triangle d'alerte ne s'opposait à
      rien — il avertit, il ne dit pas « le contraire de conseillé ». */
@@ -29861,20 +29869,86 @@ function changerPseudo(){
 
 const REG_MIGRE='lux_reglages_en_base';
 let _regEnAttente={}, _regMinuteur=null;
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⚠⚠ « J'AI FAIT DES MODIFICATIONS, ÇA NE LES A PAS ENREGISTRÉES, J'AI TOUT
+   PERDU. » (Mag, 03/09/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   TROIS DÉFAUTS SE SONT ADDITIONNÉS, et aucun ne se voyait :
+   ① L'ENVOI ATTENDAIT UNE SECONDE. Le délai existe pour ne pas faire cinq
+     allers-retours quand on coche cinq cases — mais fermer l'app, verrouiller le
+     téléphone ou recharger dans cette seconde-là, et **rien n'était parti**.
+   ② L'ENVOI ÉTAIT MUET. `envoiMuet` avale l'erreur ET la réussite : une écriture
+     refusée par la base ne disait rien du tout. C'est la règle déjà écrite le
+     28/08 — lire `.error`, sinon la panne s'affiche comme un silence.
+   ③ ET AU CHARGEMENT SUIVANT, « LA BASE FAIT FOI » : `MESRAPPELS` était remplacé
+     par la version de la base — plus ancienne — qui écrasait AUSSI la copie
+     locale. Ce qu'elle avait écrit n'existait plus nulle part.
+
+   CE QUI CHANGE. Les listes personnelles (`ma_liste`, `a_voir`) partent
+   IMMÉDIATEMENT, sans délai. Un échec se dit. Chaque envoi pose une date, et au
+   chargement la version LA PLUS RÉCENTE gagne — plus « la base fait foi », mais
+   « le dernier qui a écrit fait foi ». Et une copie de secours reste sur le
+   téléphone, qui n'est jamais écrasée par la base.
+   ⚠ NE PAS REMETTRE DE DÉLAI SUR CES DEUX CLÉS-LÀ. */
+const REG_URGENT={ma_liste:1, a_voir:1};
 function reglagePousser(cle,valeur){
+  try{ localStorage.setItem('lux_reg_maj_'+cle, String(Date.now())); }catch(e){}
   if(!sb||!PROFILE||!PROFILE.uid) return;
+  if(REG_URGENT[cle]){ reglageEnvoyer(cle,valeur); return; }
   _regEnAttente[cle]=valeur;
   /* On attend une seconde : cocher cinq chapitres à la suite ne doit pas déclencher
      cinq allers-retours vers la base. */
   clearTimeout(_regMinuteur);
   _regMinuteur=setTimeout(function(){
     const lot=_regEnAttente; _regEnAttente={};
-    Object.keys(lot).forEach(function(k){
-      envoiMuet(sb.from('reglages_perso').upsert(
-        {user_id:PROFILE.uid, cle:k, valeur:lot[k], maj_le:new Date().toISOString()},
-        {onConflict:'user_id,cle'}));
-    });
+    Object.keys(lot).forEach(function(k){ reglageEnvoyer(k,lot[k]); });
   },1000);
+}
+/* ⚠ ON LIT `.error`. Une écriture refusée doit se DIRE : sinon on referme l'app en
+   croyant avoir enregistré, et c'est exactement ce qui lui est arrivé. */
+function reglageEnvoyer(cle,valeur){
+  const q=sb.from('reglages_perso').upsert(
+    {user_id:PROFILE.uid, cle:cle, valeur:valeur, maj_le:new Date().toISOString()},
+    {onConflict:'user_id,cle'});
+  q.then(function(r){
+    if(r && r.error){
+      if(REG_URGENT[cle] && typeof toast==='function')
+        toast('⚠ PAS ENREGISTRÉ dans la base — ' + (r.error.message||'refus'));
+      panneNoter('reglage '+cle, (r.error&&r.error.message)||'refus');
+    }
+  }, function(e){
+    if(REG_URGENT[cle] && typeof toast==='function')
+      toast('⚠ PAS ENREGISTRÉ — pas de réseau ?');
+    panneNoter('reglage '+cle, (e&&e.message)||String(e));
+  });
+}
+/* ═══ QUI GAGNE, LA BASE OU LE TÉLÉPHONE ? LE PLUS RÉCENT ═══
+   `maj_le` de la base est comparé à la date posée ici à chaque écriture locale.
+   ⚠ ET UNE COPIE DE SECOURS EST GARDÉE À PART (`_secours`), que la base ne touche
+   JAMAIS. Si un jour l'arbitrage se trompe encore, ce qui a été écrit sur ce
+   téléphone est toujours quelque part. */
+function reglageGarderLePlusRecent(cle, deLaBase, dIci, cleLocale, premiere){
+  const localMaj=Number(localStorage.getItem('lux_reg_maj_'+cle)||0);
+  const baseMaj =Number(localStorage.getItem('lux_reg_base_'+cle)||0);
+  const aBase=Array.isArray(deLaBase);
+  /* Le téléphone a écrit APRÈS le dernier aller-retour connu avec la base :
+     c'est lui qui a raison, et on renvoie ce qu'il a. */
+  if(localMaj && localMaj>baseMaj && Array.isArray(dIci) && dIci.length){
+    if(typeof toast==='function' && aBase && JSON.stringify(deLaBase)!==JSON.stringify(dIci))
+      toast('Ta version du téléphone était plus récente — elle est gardée');
+    reglagePousser(cle, dIci);
+    return dIci;
+  }
+  if(aBase){
+    try{
+      localStorage.setItem(cleLocale, JSON.stringify(deLaBase));
+      localStorage.setItem('lux_reg_base_'+cle, String(Date.now()));
+      localStorage.setItem('lux_reg_maj_'+cle, String(Date.now()));
+    }catch(e){}
+    return deLaBase;
+  }
+  if(premiere && Array.isArray(dIci) && dIci.length) reglagePousser(cle, dIci);
+  return dIci;
 }
 /* Un record ne redescend jamais : si un appareil en connaît un meilleur, il gagne. */
 function fusionnerRecords(a,b){
@@ -29911,20 +29985,12 @@ async function chargerReglages(){
     }
     try{ localStorage.setItem('lux_formations',JSON.stringify(FLU)); }catch(e){}
   }
-  // SES RAPPELS À ELLE : la base fait foi, ils la suivent d'un téléphone à l'autre.
-  if(Array.isArray(lignes.ma_liste)){
-    MESRAPPELS=lignes.ma_liste;
-    try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
-  } else if(premiere && MESRAPPELS.length){
-    reglagePousser('ma_liste',MESRAPPELS);
-  }
-  // LES GENS À VOIR : même règle que ses rappels, la base fait foi.
-  if(Array.isArray(lignes.a_voir)){
-    AVOIR=lignes.a_voir;
-    try{ localStorage.setItem('lux_a_voir',JSON.stringify(AVOIR)); }catch(e){}
-  } else if(premiere && AVOIR.length){
-    reglagePousser('a_voir',AVOIR);
-  }
+  /* ⚠ CE N'EST PLUS « LA BASE FAIT FOI », C'EST « LE DERNIER QUI A ÉCRIT FAIT FOI ».
+     La base écrasait la liste locale sans regarder laquelle était la plus récente —
+     et écrasait la copie du téléphone au passage. Une modification faite juste avant
+     de fermer l'app disparaissait des DEUX endroits. */
+  MESRAPPELS=reglageGarderLePlusRecent('ma_liste', lignes.ma_liste, MESRAPPELS, 'lux_mes_rappels', premiere);
+  AVOIR    =reglageGarderLePlusRecent('a_voir',   lignes.a_voir,   AVOIR,      'lux_a_voir',      premiere);
   // SON PETIT NOM : la base fait foi, il la suit d'un téléphone à l'autre.
   if(typeof lignes.pseudo==='string'){
     PSEUDO=lignes.pseudo;
@@ -30197,6 +30263,7 @@ let AV_NOM='', AV_CH='', AV_LG='', AV_LEC='', AV_MI=false;
 function avLecture(v){ AV_LEC=(AV_LEC===v)?'':v; render(); }
 function avoirSauver(){
   try{ localStorage.setItem('lux_a_voir',JSON.stringify(AVOIR)); }catch(e){}
+  reglageSecours('a_voir', AVOIR);
   if(typeof reglagePousser==='function') reglagePousser('a_voir',AVOIR);
 }
 function avoirAjouter(){
@@ -30262,7 +30329,7 @@ function carteAVoir(){
         '<button class="ib" onclick="avoirModifier(\''+r.id+'\')" '+
           'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
         '<button class="ib" onclick="avoirCopier(\''+r.id+'\')" '+
-          'aria-label="Copier" title="Copier">'+icon('copy')+'</button>'+
+          'aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
         '<button class="ib" onclick="avoirRetirer(\''+r.id+'\')" '+
           'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
         '<button class="rapPass mini" onclick="avoirAccueil()">Premier accueil</button>'+
@@ -30337,7 +30404,22 @@ function carteAVoir(){
 }
 function rappelsSauver(){
   try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
+  /* ⚠ LE FILET : une copie que la base ne touche JAMAIS. Si l'arbitrage entre le
+     téléphone et la base se trompe encore un jour, ce qui a été écrit ICI est
+     toujours là. On garde les trois dernières versions, datées. */
+  reglageSecours('ma_liste', MESRAPPELS);
   if(typeof reglagePousser==='function') reglagePousser('ma_liste',MESRAPPELS);
+}
+/* Trois versions gardées, la plus récente devant. Ça ne se voit nulle part dans
+   l'app : c'est une bouée, pas une fonction. On la lit à la main le jour où il faut
+   (localStorage, clé `lux_secours_ma_liste`). */
+function reglageSecours(cle, valeur){
+  try{
+    const k='lux_secours_'+cle;
+    const v=JSON.parse(localStorage.getItem(k)||'[]');
+    v.unshift({t:new Date().toISOString(), n:(valeur||[]).length, v:valeur});
+    localStorage.setItem(k, JSON.stringify(v.slice(0,3)));
+  }catch(e){}
 }
 function rappelFait(r){ return r && r.faitLe===todayStr(); }
 /* Amener au champ d'ajout et y mettre le curseur — c'est le geste, pas un écran de
@@ -31917,7 +31999,7 @@ function rappelsHTML(enCarte){
              le 6D, dans un mail, dans un message à une collègue. Le recopier à la main
              depuis un téléphone, c'est là qu'on perd un nom ou une date. */
           '<button class="ib" onclick="rappelCopier(\''+r.id+'\')" '+
-            'aria-label="Copier le texte" title="Copier le texte">'+icon('copy')+'</button>'+
+            'aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
            '<button class="ib sup" onclick="rappelRetirer(\''+r.id+'\')" '+
              'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on

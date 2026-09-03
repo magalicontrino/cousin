@@ -3,7 +3,7 @@
    version en ligne — la mise à jour se fait donc toute seule, sans rien réinstaller.
    Si le téléphone est hors ligne, on ressert la dernière version mise en cache. */
 
-const CACHE = 'cousin-v1138';
+const CACHE = 'cousin-v1139';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './logo.png', './favicon.svg', './icon-192.png', './icon-512.png', './icon-180.png',
                 './font/eastman-regular.woff2', './font/eastman-medium.woff2',
@@ -26,7 +26,7 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest',
                 './picto/bouee.svg', './picto/camera.svg', './picto/centre.svg', './picto/chevron.svg',
                 './picto/cible.svg', './picto/cle.svg', './picto/coche.svg', './picto/coeur.svg', './picto/coeur-brise.svg',
                 './picto/colis.svg', './picto/conduite.svg', './picto/confidentialite.svg',
-                './picto/copier.svg', './picto/de.svg', './picto/deconnexion.svg', './picto/demarches.svg',
+                './picto/copier.svg', './picto/copier-trait.svg', './picto/de.svg', './picto/deconnexion.svg', './picto/demarches.svg',
                 './picto/demidisques.svg', './picto/donut.svg', './picto/educatif.svg',
                 './picto/envoyer.svg', './picto/escalade.svg', './picto/etrangers.svg',
                 './picto/favoris.svg', './picto/femme.svg', './picto/fete.svg', './picto/fil.svg',
