@@ -4156,6 +4156,16 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:8px 11px 4px;margin-top:16px}
 .pcarte .encgrp .pgt{color:#e63329;border-bottom-color:#e63329}
 .pcarte .encgrp .pl2{background:transparent}
+/* ═══ « À ENCODER » (Mag, 03/09/2026) ═══
+   Le geste inverse du désencodage, et on l'oublie tout autant. VERT, pas rouge : le
+   rouge est déjà pris par ce qui se perd (une absence, un désencodage), et deux
+   rouges côte à côte ne se distinguent plus. Le vert dit « à faire entrer ».
+   ⚠ PAS DE FOND PLEIN comme les désencodages : c'est un rappel, pas une alerte. */
+.pcarte .pl2.aencoder{box-shadow:inset 3px 0 0 #2f8f68;padding-left:11px}
+.pcarte .pgt.aencoder{color:#2f8f68;border-bottom-color:#6cb392}
+/* Sa case, dans la rangée des cases : elle s'allume en vert, pas en rouge. */
+.absa.enc.on{background:#e6f2ea;border-color:#6cb392;color:#215c44}
+.absa.enc.on .bx{background:#2f8f68;border-color:#2f8f68}
 /* La mention « Absence » posée sous le texte d'une note : case + mot, en rouge. */
 .pcarte .pl2 .absnote{display:inline-flex;align-items:center;gap:8px;margin-top:6px;
   font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
@@ -13418,12 +13428,53 @@ function imprimerMaListe(){
         '</td></tr>';
     }).join('')+'</table>';
   }
+  /* ═══ « IL FAUT QUE ABSOLUMENT TOUT » (Mag, 03/09/2026) ═══
+     Il manquait trois blocs sur la feuille, et pas les moins importants : ce qu'on
+     doit encoder, ce qu'on doit désencoder, et LA PASSATION — celle qu'on tend à
+     l'équipe qui arrive. Une feuille qui oublie la passation oblige à lire l'écran
+     à côté du papier, donc à faire deux fois le tour. */
+  const aEncoderP=MESRAPPELS.filter(function(r){ return r.encoder && !r.desencodage; });
+  const desencP  =MESRAPPELS.filter(function(r){ return r.desencodage; });
   corps+= bloc('À dire en réunion', reunions, 'reunion')
     + bloc('Les absences', absences, 'absence')
+    + bloc('À encoder', aEncoderP, 'aencoder')
+    + bloc('Désencodages', desencP, 'encodage')
     + bloc('En retard', pasMarque(parJour(-1)), 'presse')
     + bloc('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
     + bloc('Plus tard', pasMarque(aVenir))
     + bloc('Faits', pasMarque(MESRAPPELS.filter(rappelFait)));
+
+  /* ═══ LA PASSATION SUR LA MÊME FEUILLE ═══
+     ⚠ LES RÉVEILS D'ABORD, ET PAR HEURE : c'est la règle de l'écran depuis le 08/08,
+     et c'est celle qui compte à 5 h du matin. Un réveil noyé dans les infos se rate.
+     ⚠ ET C'EST CELUI QUI REÇOIT QUI COCHE : les cases sont vides, comme partout
+     ailleurs sur cette feuille. */
+  if(typeof PASSATIONS!=='undefined' && PASSATIONS.length){
+    const dujour=PASSATIONS.filter(function(l){
+      return !l.jour || String(l.jour)>=todayStr();
+    });
+    if(dujour.length){
+      const rang=function(l){ return (l.genre==='reveil'||l.genre==='ajeun')?0:1; };
+      const tri=dujour.slice().sort(function(a,b){
+        return (rang(a)-rang(b)) || String(a.heure||'~').localeCompare(String(b.heure||'~'));
+      });
+      corps+='<h2 class="passation">La passation — équipe de nuit</h2><table>'+
+        tri.map(function(l){
+          const g=(typeof passGenreDe==='function')?passGenreDe(l.genre):{court:'',c:'#999'};
+          const bas=[];
+          if(l.chambre) bas.push('ch. '+l.chambre);
+          if(l.a_jeun) bas.push('À JEUN');
+          if(l.par) bas.push('par '+String(l.par).split(/\s+/)[0]);
+          return '<tr>'+
+            '<td class="cc"><span class="bx"></span></td>'+
+            '<td class="hh">'+esc(l.heure||'')+'</td>'+
+            '<td colspan="2"><span class="pgen" style="background:'+(g.c||'#ddd')+'">'+
+              esc(g.court||'')+'</span> '+esc(l.texte||'')+
+              (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
+            '</td></tr>';
+        }).join('')+'</table>';
+    }
+  }
 
   if(!corps) corps='<p class="vide">Rien à imprimer : ni check-list, ni entretien, ni note.</p>';
 
@@ -13448,6 +13499,18 @@ function imprimerMaListe(){
     'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
     '.sous{font-size:14px;color:#444;margin:4px 0 2px}'+
     '.compte{font-size:12px;color:#666;margin-bottom:12px}'+
+    /* ⚠ « MÊME DES COULEURS UN PEU, PARCE QU'ON NE SAIT PAS COMMENT DIFFÉRENCIER »
+       (Mag, 03/09/2026). Chaque bloc porte sa couleur, la même qu'à l'écran : jaune
+       la réunion, rouge les absences et les désencodages, vert ce qu'il faut encoder,
+       rose la passation. La couleur est un FILET à gauche du titre, pas un aplat :
+       un fond plein sur une feuille qu'on photocopie devient une tache grise. */
+    'h2.aencoder{border-left:5px solid #2f8f68;padding-left:8px;color:#215c44}'+
+    'h2.encodage{border-left:5px solid #e63329;padding-left:8px;color:#a8241c}'+
+    'h2.passation{border-left:5px solid #E8308A;padding-left:8px;color:#a8146a}'+
+    'td.hh{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700;'+
+      'padding-right:8px;width:1%}'+
+    '.pgen{display:inline-block;border-radius:3px;padding:1px 6px;margin-right:6px;'+
+      'font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#1b1b1b}'+
     'h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#1b1b1b;'+
       'border-bottom:2px solid #1b1b1b;padding-bottom:4px;margin:20px 0 2px}'+
     /* Le titre « Réveil » prend le rose des réveils, celui de l'écran — la feuille et
@@ -30228,7 +30291,7 @@ let RAP_CH_BROUILLON='';
    Une note peut porter plus d'un repère à la fois (une absence, un désencodage…).
    `RAP_TAGS` est un objet de booléens, indexé par clé — un seul endroit à tenir à
    jour, et `rappelAjouter` recopie ce qui est coché dans la note. */
-let RAP_TAGS={absence:false, desencodage:false};
+let RAP_TAGS={absence:false, desencodage:false, encoder:false};
 /* ═══════════════════════════════════════════════════════════
    LES GENS À VOIR (Mag, 28/08/2026)
 
@@ -30720,7 +30783,7 @@ async function passAjouter(){
     if(rapi) rapi.value='';
     const rapch=document.getElementById('rapCh');
     if(rapch) rapch.value='';
-    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false};
+    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false};
     /* ⚠ LA FEUILLE SE REFERME UNE FOIS LA LIGNE PASSÉE : elle a fait son travail, et la
        ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
        croire que rien n'est parti. */
@@ -31655,8 +31718,9 @@ function rappelAjouter(){
   /* Chaque encodé coché (absence, désencodage…) recopie son drapeau sur la note. */
   if(RAP_TAGS.absence) ligne.absence=true;
   if(RAP_TAGS.desencodage) ligne.desencodage=true;
+  if(RAP_TAGS.encoder) ligne.encoder=true;
   MESRAPPELS.push(ligne);
-  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
   /* Le champ se vide sous les doigts : sans un mot, on ne sait pas si la note est
      partie dans la liste ou si on vient de la perdre. Le message dit lequel des deux. */
   toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
@@ -31688,8 +31752,8 @@ function rappelModifier(id){
     /* ═══ ON PEUT POSER OU RETIRER ABSENCE / DÉSENCODAGE ICI (Mag, 24/08/2026 : « comment
        je fais pour retirer cette note des absences ? »). La note cochée se décoche d'un
        doigt, sans recréer la ligne. */
-    etq:[{k:'absence', l:'Absence'},{k:'desencodage', l:'Désencodage'}],
-    etqSel:[r.absence?'absence':null, r.desencodage?'desencodage':null].filter(Boolean),
+    etq:[{k:'absence', l:'Absence'},{k:'encoder', l:'Encoder'},{k:'desencodage', l:'Désencodage'}],
+    etqSel:[r.absence?'absence':null, r.encoder?'encoder':null, r.desencodage?'desencodage':null].filter(Boolean),
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus, etq){
@@ -31700,6 +31764,7 @@ function rappelModifier(id){
       /* Les cases reflètent les marques cochées : cochée = posée, décochée = retirée. */
       if(etq&&etq.absence) r.absence=true; else delete r.absence;
       if(etq&&etq.desencodage) r.desencodage=true; else delete r.desencodage;
+      if(etq&&etq.encoder) r.encoder=true; else delete r.encoder;
       rappelsSauver(); render();
     }
   });
@@ -31946,6 +32011,12 @@ function rappelsHTML(enCarte){
         '<button class="absa'+(RAP_TAGS.absence?' on':'')+'" onclick="RAP_TAGS.absence=!RAP_TAGS.absence;render()" '+
           'aria-pressed="'+(RAP_TAGS.absence?'true':'false')+'">'+
           '<span class="bx"></span>Noter une absence</button>'+
+        /* ⚠ « RAJOUTE À COCHER : ENCODER » (Mag, 03/09/2026). Le désencodage avait sa
+           case, l'encodage non — alors que c'est le geste inverse et qu'on l'oublie
+           tout autant. Elle est posée AVANT le désencodage : on encode d'abord. */
+        '<button class="absa enc'+(RAP_TAGS.encoder?' on':'')+'" onclick="RAP_TAGS.encoder=!RAP_TAGS.encoder;render()" '+
+          'aria-pressed="'+(RAP_TAGS.encoder?'true':'false')+'">'+
+          '<span class="bx"></span>Encoder</button>'+
         '<button class="absa'+(RAP_TAGS.desencodage?' on':'')+'" onclick="RAP_TAGS.desencodage=!RAP_TAGS.desencodage;render()" '+
           'aria-pressed="'+(RAP_TAGS.desencodage?'true':'false')+'">'+
           '<span class="bx"></span>Désencodage</button>'+
@@ -31968,8 +32039,14 @@ function rappelsHTML(enCarte){
       const bas=[];
       if(r.chambre) bas.push('ch. '+esc(r.chambre));
       if(r.quand)   bas.push(esc(rappelQuandFr(r.quand)));
+      /* ⚠ LE FILET DE COULEUR À GAUCHE DEMANDE SA CLASSE SUR LA RANGÉE. `.pl2.absence`
+         était écrit dans le CSS depuis le 24/08 et n'a jamais rien peint : la classe
+         n'était posée que pour la réunion. Les absences (rouge) et « à encoder »
+         (vert) la portent maintenant aussi — c'est ce qui permet de les distinguer
+         d'un coup d'œil, à l'écran comme sur le papier. */
       return '<div class="pl2'+(ok?' faite':'')+((!ok&&d===-1)?' retard':'')+
-        (r.reunion?' reunion':'')+'">'+
+        (r.reunion?' reunion':'')+(r.absence?' absence':'')+
+        (r.encoder&&!r.desencodage?' aencoder':'')+'">'+
         '<div class="pl2-h">'+
           '<button class="cas" onclick="rappelCocher(\''+r.id+'\')" aria-label="Cocher">'+
             (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
@@ -32050,15 +32127,17 @@ function rappelsHTML(enCarte){
        arrête l'œil : fond rouge, le désencodage qu'on ne doit pas rater. Une note peut
        porter à la fois absence et désencodage — elle ne va qu'ici, pas aux absences. */
     const encodages=MESRAPPELS.filter(function(r){ return r.desencodage; });
+    const aEncoder=MESRAPPELS.filter(function(r){ return r.encoder && !r.desencodage; });
     /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
        automatiques : une ligne pointée ne doit pas apparaître deux fois. */
-    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage; }); };
+    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasMarque(aVenir))
       + groupe('Faits', pasMarque(faits))
       + groupe('Les absences', absences, 'absence')
+      + groupe('À encoder', aEncoder, 'aencoder')
       + groupe('Désencodages', encodages, 'encodage');
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
