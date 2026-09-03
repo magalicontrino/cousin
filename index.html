@@ -30874,6 +30874,19 @@ async function passSupprimer(id){
       }catch(e){ toast('Suppression refusée'); }
     }, {ok:'Supprimer', danger:true});
 }
+/* Copier une ligne de passation — le texte, et ce qui le rend utilisable ailleurs :
+   l'heure d'un réveil, la chambre, le commentaire. Pas les étiquettes de l'app. */
+function passCopier(id){
+  const p=(PASSATIONS||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!p){ toast('Ligne introuvable'); return; }
+  const t=[];
+  if(p.heure) t.push(p.heure);
+  if(p.chambre) t.push('ch. '+p.chambre);
+  const tete=t.join(' · ');
+  let s=(tete?tete+' — ':'')+String(p.texte||'').trim();
+  if(p.commentaire) s+='\n'+String(p.commentaire).trim();
+  copyTxt(s,'Copié');
+}
 function passRetirer(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -31088,15 +31101,30 @@ function passLigne(p, mienne, role, heure){
         que sur CE QU'ON A ÉCRIT SOI-MÊME — et sur ce qui m'est ADRESSÉ (Mag, 24/08/2026 :
         « on n'arrive pas à changer la note ni à la supprimer »). Les réveils écrits pour
         mon équipe m'appartiennent aussi : je dois pouvoir les corriger et les annuler. */
-    (passGerable(p)
-      ? '<span class="plact">'+
-          '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
+    /* ⚠ COPIER EST HORS DU `passGerable` (Mag, 03/09/2026 : « ici mets aussi un picto
+       pour copier le texte »). Modifier et supprimer ne regardent que ce qu'on a écrit
+       soi-même — mais COPIER regarde tout le monde : l'équipe de nuit recopie dans son
+       rapport ce que l'équipe de jour a écrit, et c'est justement là qu'un nom ou un
+       nombre de nuits se perd. */
+    /* ⚠ UNE SEULE RANGÉE DE BOUTONS. `.plact` prend toute la largeur : deux `.plact`
+       auraient fait DEUX lignes, le copier tout seul au-dessus des autres. Copier
+       entre donc dans la rangée existante — et quand il n'y a rien d'autre à
+       proposer, il en ouvre une à lui seul. */
+    '<span class="plact">'+
+      /* ⚠ COPIER EST POUR TOUT LE MONDE, pas seulement pour l'auteur. Modifier et
+         supprimer ne regardent que ce qu'on a écrit soi-même — mais l'équipe de nuit
+         recopie dans son rapport ce que l'équipe de jour a écrit, et c'est là qu'un
+         nom ou un nombre de nuits se perd. */
+      '<button class="ib" onclick="passCopier(\''+p.id+'\')" '+
+        'aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
+      (passGerable(p)
+        ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
             'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
           '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" '+
             'aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'+
-          '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Annuler la passation</button>'+
-        '</span>'
-      : '')+
+          '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Annuler la passation</button>'
+        : '')+
+    '</span>'+
   '</div>';
 }
 /* ═══ LA PASSATION SUR PAPIER (Mag, 13/08/2026) ═══
