@@ -14285,7 +14285,23 @@ function render(){
   try{ renderInterne(); }
   catch(e){ panneNoter('render', e); panneBandeau(); }
 }
+/* ═══ « QUAND JE REVIENS SUR LA PAGE, ELLE SAUTE ET REVIENT AU DÉBUT »
+   (Mag, 03/09/2026) ═══
+   Le retour de place existait déjà — mais SEULEMENT au changement d'adresse
+   (`scrollMem`, dans le `hashchange`). Or la moitié des retours ne changent pas
+   d'adresse : fermer la fenêtre d'une fiche, cocher une ligne, une réponse de la
+   base qui arrive… tout ça appelle `render()`, qui réécrit `#view` en entier — et
+   le navigateur remet le défilement à zéro.
+   Sur une page courte ça ne se voit pas. Sur SA liste, qui fait plusieurs écrans,
+   on referme une fenêtre et on est renvoyé tout en haut : il faut redescendre
+   chercher la ligne qu'on était en train de lire.
+   ⚠ ON NE REPOSE LA PLACE QUE SI L'ÉCRAN N'A PAS CHANGÉ. Ouvrir un tiroir doit
+   commencer en haut — c'est la règle du 20/08, et elle ne bouge pas. Et le
+   `hashchange` garde le dernier mot : sa ligne s'exécute APRÈS ce rendu. */
+var _dernierEcranRendu='';
 function renderInterne(){
+  const _memeEcran = (_dernierEcranRendu===keyOf(current));
+  const _y = _memeEcran ? window.scrollY : -1;
   document.body.classList.toggle('no-tabs',current.view==='fiche');
   /* Voir `body.en-apercu #view` : tant que l'aperçu est ouvert, #view ne doit porter
      AUCUN transform, sinon le calque fixe du téléphone se recale sur lui. */
@@ -14526,6 +14542,12 @@ function renderInterne(){
      rien à l'écran. Même raison que l'ancienne feuille de la check-list. */
   if(typeof passFeuilleMaj==='function') passFeuilleMaj();
   }catch(e){ panneNoter('le tour de la page', e); }
+  /* ⚠ HORS DU `try` : reposer la place doit se faire même si un morceau de la page
+     a raté son dessin. C'est la règle du filet — la page passe avant ses détails. */
+  _dernierEcranRendu=keyOf(current);
+  if(_y>0 && Math.abs(window.scrollY-_y)>2){
+    try{ window.scrollTo(0,_y); }catch(e){}
+  }
 }
 
 /* ---------- accueil ---------- */
