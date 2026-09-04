@@ -2966,7 +2966,11 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:12px;margin-bottom:10px}
 .jxf-c.ok{border-left-color:#6cb392}
 .jxf-q{font-size:14.5px;font-weight:500;line-height:1.35}
+.jxf-dit{display:block;font-size:14px;font-weight:500;color:rgba(240,239,237,.78);margin-top:5px}
 .jxf-tien{margin-top:10px;font-size:13px;color:#8b8984;text-decoration:line-through}
+.jxf-tien em,.jxf-bonne em{display:block;font-style:normal;text-decoration:none;
+  font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:#a3a19c;margin-bottom:1px}
 .jxf-bonne{margin-top:6px;font-size:13.5px;line-height:1.4;display:flex;gap:6px}
 .jxf-bonne i{font-style:normal;color:#6cb392;flex:none}
 .jxf-pq{margin-top:10px;border-top:1px solid var(--ligne);padding-top:9px;font-size:12.5px;
@@ -8791,7 +8795,7 @@ ${ficheLiens('Où l’envoyer', [['Médecins du Monde – CASO Bruxelles','CASO 
     "Bonjour,\n\nJe travaille au [votre service] et nous orientons régulièrement des personnes vers votre structure.\n\nAfin de ne pas envoyer quelqu'un pour rien, pourriez-vous me préciser :\n· le public que vous accueillez (femmes, hommes, familles, couples) ;\n· s'il faut un rendez-vous ou si l'accueil se fait sans rendez-vous ;\n· les documents et la participation financière demandés ;\n· et si vous êtes accessible en chaise roulante.\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
   mailtpl("Partenaire — demande d'accompagnement","Vers une équipe qui se déplace (rue, domicile, santé mentale).",["Accompagnement","Équipe mobile","Partenaire","Orientation"],
     "Demande d'accompagnement — [nom]",
-    "Bonjour,\n\nDans le cadre de l'accompagnement de [nom], je me permets de vous contacter afin de solliciter votre accompagnement.\n\nSituation en une ligne : [ce qui bloque].\n\nCe qui est déjà en place : [suivis existants].\n\n[nom] est informé·e de cette demande et marque son accord.\n\nMerci de me préciser vos critères et le délai avant une première rencontre.\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
+    "Bonjour,\n\nDans le cadre de l'accompagnement de [nom], je me permets de vous contacter afin de solliciter votre accompagnement.\n\nSituation : [ce qui bloque].\n\nCe qui est déjà en place : [suivis existants].\n\n[nom] est informé·e de cette demande et marque son accord.\n\nMerci de me préciser vos critères et le délai avant une première rencontre.\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
   /* ═══ DEUX MODÈLES DE RÉQUISITOIRE, ÉCRITS PAR ELLE (Mag, 03/09/2026) ═══
      Elle a collé ses deux textes tels qu'elle les envoie. Ils ne sont donc PAS de moi
      et n'ont pas à être « améliorés » : c'est la formulation que le CPAS reçoit déjà,
@@ -24010,7 +24014,14 @@ function jxStop(){ if(JXTIMER){ clearInterval(JXTIMER); JXTIMER=null; } }
 function jxChronoTic(){
   jxStop();
   JXTIMER=setInterval(function(){
-    if(!JEU||JEU.type!=='chrono'){ jxStop(); return; }
+    /* ⚠ ET IL S'ARRÊTE DÈS QU'ON QUITTE LES JEUX (05/09/2026). Rien n'arrêtait le
+       chrono quand on partait au milieu d'une partie : il continuait d'appeler
+       `render()` UNE FOIS PAR SECONDE sur toutes les pages de l'app. Or un render
+       réécrit l'écran — et le navigateur n'envoie un clic que si le doigt se lève sur
+       le MÊME élément qu'il a enfoncé. Un clic sur deux se perdait, partout.
+       C'est exactement la panne du 21/08 sur le rail (« ça tremble, je ne sais plus
+       cliquer »), par une autre porte. */
+    if(!JEU||JEU.type!=='chrono'||(typeof current!=='undefined'&&current.view!=='jeux')){ jxStop(); return; }
     JEU.reste--;
     if(JEU.reste<=0){ JEU.reste=0; JEU.fini=true; jxRecord('chrono',JEU.score); jxStop(); }
     render();
@@ -24551,8 +24562,12 @@ function jxFinLigne(x){
   const donnee = (x.donnee!==undefined && x.donnee!==null && x.opts) ? x.opts[x.donnee] : null;
   let h='<div class="jxf-c'+(x.juste?' ok':'')+'">'+
         '<div class="jxf-q">'+esc(x.q)+'</div>';
-  if(!x.juste && donnee) h+='<div class="jxf-tien">'+esc(donnee)+'</div>';
-  h+='<div class="jxf-bonne"><i>→</i><span>'+esc(x.opts?x.opts[x.correct]:'')+'</span></div>';
+  /* ⚠ ON NOMME LES DEUX LIGNES (Mag, 05/09/2026 : « je ne sais pas si j'ai bien
+     répondu ou pas »). Une phrase barrée en gris et une phrase avec une flèche, ça
+     se devine — et se deviner, ce n'est pas se lire. */
+  if(!x.juste && donnee) h+='<div class="jxf-tien"><em>Ta réponse</em>'+esc(donnee)+'</div>';
+  h+='<div class="jxf-bonne"><i>→</i><span>'+
+     (x.juste?'':'<em>La bonne réponse</em>')+esc(x.opts?x.opts[x.correct]:'')+'</span></div>';
   if(x.pourquoi) h+='<div class="jxf-pq"><b>Pourquoi :</b> '+esc(x.pourquoi)+'</div>';
   if(p) h+='<button class="jxf-fiche" onclick="go(\'#/f/'+p.sid+'\')">Ouvrir la fiche</button>';
   return h+'</div>';
@@ -24570,7 +24585,19 @@ function jxFin(k, gros, libelle, secondUn, secondDeux){
     '<div class="jxf-tete" style="--jc:'+j.c+'">'+
       '<span class="jxf-sur" style="color:'+jxSurNoir(j.c)+'">'+
         esc(j.nom.toUpperCase())+' · '+esc(jxNomTerrain((JEU&&JEU.terrain)||{t:'tout'}).toUpperCase())+'</span>'+
-      '<b>Fini</b></div>'+
+      /* ═══ « JE N'AI PAS COMPRIS LES POINTS. J'AI PERDU ? » (Mag, 05/09/2026) ═══
+         Le grand mot était « Fini » — qui ne dit rien — et les deux chiffres en dessous
+         (« 0 d'affilée », « 1 ton record ») ne disaient pas si elle avait bien répondu.
+         Le titre annonce maintenant le résultat en toutes lettres : combien de questions,
+         combien de justes. C'est la seule ligne qu'on lit vraiment sur cet écran. */
+      '<b>'+(jour.length
+        ? (bons.length+' sur '+jour.length)
+        : 'Fini')+'</b>'+
+      (jour.length?'<span class="jxf-dit">'+
+        (bons.length===jour.length ? 'Tout juste.'
+          : bons.length===0 ? (jour.length>1?'Aucune bonne réponse.':'Réponse fausse.')
+          : (faux.length+' erreur'+(faux.length>1?'s':'')+' à revoir plus bas.'))+
+        '</span>':'')+'</div>'+
     '<div class="jxf-chif">'+
       '<div><span class="g" style="color:'+jxSurCreme(j.c)+'">'+gros+'</span><em>'+esc(libelle)+'</em></div>'+
       (secondUn!==undefined?'<div><span class="g">'+secondUn+'</span><em>'+esc(secondDeux||'')+'</em></div>':'')+
