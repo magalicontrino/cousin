@@ -19335,12 +19335,26 @@ function fichePanHTML(){
         /* Les conditions d'abord : c'est ce qui décide d'y aller ou pas. */
         (p.conditions?'<p class="fpcond">'+esc(p.conditions)+'</p>':'')+
         (p.desc?'<p class="fpdesc">'+esc(p.desc)+'</p>':'')+
+        /* ═══ LE CORPS DE LA FICHE, ICI AUSSI (Mag, 04/09/2026) ═══
+           « Je ne comprends pas où tu as mis les mails types, je ne les trouve pas. »
+           Elle ouvrait le modèle « Affiliation à la mutuelle » et ne voyait qu'un nom
+           et « Pour qui » : le texte du mail et ses deux boutons n'étaient QUE dans la
+           fiche pleine page. Idem pour une démarche — « Où s'adresser », « Comment ça
+           se passe », « Attention », « Délai » : rien de tout ça n'arrivait ici.
+           C'est le même corps que la fiche entière, pas une copie. */
+        ficheCorpsHTML(p)+
         ligne('Où', p.adr)+
         ligne('Quand', p.horaires)+
         ligne('Pour qui', p.public)+
         ligne('Téléphone', p.tel)+
         ligne('Mail', p.mail)+
         ligne('Site', p.site)+
+        /* ⚠ ET LE MAIL TOUT PRÊT DE CETTE FICHE (Mag, 04/09/2026) : « quand tu vas
+           dans démarches et que tu cliques sur réquisitoire, je voudrais qu'il y ait
+           déjà un mail type à copier ou envoyer directement dans le brouillon ».
+           Il était sur la fiche pleine page depuis ce matin, pas dans le panneau —
+           c'est-à-dire pas là où on ouvre les fiches. */
+        mailFicheHTML(p)+
         notesHTML(p,'16px')+docsHTML(p)+
         /* ═══ CE QUE L'ÉQUIPE SAIT — DANS LE PANNEAU AUSSI (Mag, 15/08/2026) ═══
            Sa question : « comment je rajoute une notification positive et un
@@ -19355,6 +19369,22 @@ function fichePanHTML(){
         '<div style="height:14px"></div>'+
       '</div>'+
       '<div class="actpied fpied">'+
+        /* ═══ LES DEUX GESTES D'UN MODÈLE DE MAIL (Mag, 04/09/2026) ═══
+           « Je voudrais qu'il y ait déjà un mail type à copier ou envoyer directement
+           dans le brouillon. » Le pied du panneau ne connaissait que le téléphone,
+           l'itinéraire et le site — c'est-à-dire rien de ce dont un modèle de mail a
+           besoin. Il restait donc vide sous un modèle.
+           ⚠ « Ouvrir dans Gmail » ouvre un BROUILLON déjà rempli, objet et texte
+           dedans : il ne reste que le destinataire. On recalcule l'adresse AU CLIC,
+           sinon elle emporterait le modèle tel qu'il était au dessin de la page, sans
+           les [crochets] complétés depuis. */
+        (p.domaine==='mails'&&p.corps
+          ? '<button class="fpb" onclick="mailCopierTout(&quot;'+p.sid+'&quot;)">'+icon('copy')+
+              (p.genre==='Note'?'Copier la note':'Copier le mail')+'</button>'+
+            (p.genre==='Note'?''
+              : '<button class="fpb tel" onclick="window.open(gmailHref(BYSID[&quot;'+p.sid+'&quot;]),&quot;_blank&quot;)">'+
+                icon('send')+'Ouvrir dans Gmail</button>')
+          : '')+
         (tel?'<a class="fpb tel" href="tel:'+esc(tel)+'">'+icon('phone')+'Appeler</a>':'')+
         (p.adr?'<button class="fpb" onclick="window.open(\''+itiHref(p.adr)+'\',\'_blank\')">'+icon('pin')+'Y aller</button>':'')+
         /* ⚠ PASSER PAR urlHref(), COMME PARTOUT AILLEURS (27/08/2026). Ce bouton-ci
@@ -22345,13 +22375,20 @@ function mailFicheHTML(p){
         '</div></div>';
     }).join('')+'</div>';
 }
-function vFiche(p){
-  /* LA FICHE redessinée d'après le handoff Claude Design (06/08/2026) :
-     carte d'en-tête à bande de couleur (retour + pastille du domaine + étoile),
-     infos en lignes libellé/valeur, bloc noir « À savoir », deux boutons d'action. */
-  const d=DOM[p.domaine]||{}, c=dc(p.domaine);
-  document.title='COUSIN · '+p.nom;
-  noterVue(p.sid);
+/* ═══ LE CORPS D'UNE FICHE, ÉCRIT UNE SEULE FOIS (04/09/2026) ═══
+   Mag, ce jour-là, devant le modèle « Affiliation à la mutuelle » : « je ne comprends
+   pas où tu as mis les mails types, je ne les trouve pas ».
+   ELLE AVAIT RAISON, ET LE DÉFAUT ÉTAIT ICI. Le texte du mail, les boutons Copier et
+   Ouvrir dans Gmail, les blocs « Où s'adresser / Comment ça se passe / Attention /
+   Délai » d'une démarche : tout ça n'existait que dans la fiche pleine page. Or on
+   ouvre presque toujours une fiche par le PANNEAU qui glisse sur le côté — et le
+   panneau, lui, n'affichait que le nom, la description et « Pour qui ». On tombait
+   sur une feuille vide et on croyait que le mail n'existait pas.
+   Le panneau promettait pourtant « la fiche entière » depuis le 13/08/2026.
+   ⚠ UN SEUL DESSIN, DEUX ENDROITS : ce corps est maintenant écrit une fois et lu par
+   la fiche pleine page ET par le panneau. Ne pas le recopier dans l'un des deux — le
+   jour où l'on corrige une copie, c'est toujours l'autre qu'on regarde. */
+function ficheCorpsHTML(p){
   let body='';
   if(p.domaine==='demarches'){
     body+=(p.ou?'<div class="bloc"><b><span class="ic">'+icon('pin')+'</span>Où s’adresser</b><p>'+esc(p.ou)+'</p></div>':'')+
@@ -22416,6 +22453,17 @@ function vFiche(p){
         '<div class="rich">'+p.page+'</div></details>'
       : '<div class="rich">'+p.page+'</div>';
   }
+  return body;
+}
+
+function vFiche(p){
+  /* LA FICHE redessinée d'après le handoff Claude Design (06/08/2026) :
+     carte d'en-tête à bande de couleur (retour + pastille du domaine + étoile),
+     infos en lignes libellé/valeur, bloc noir « À savoir », deux boutons d'action. */
+  const d=DOM[p.domaine]||{}, c=dc(p.domaine);
+  document.title='COUSIN · '+p.nom;
+  noterVue(p.sid);
+  let body=ficheCorpsHTML(p);
   /* Les lignes d'information */
   function frow(lab,val,lien){
     if(!val) return '';
