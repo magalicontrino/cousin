@@ -2073,6 +2073,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Un trou dans la note : rouge et gras — c'est ce qu'on cherche du regard avant de
    coller dans un dossier. */
 .trou{color:#e63329;font-weight:600}
+/* Le bloc Contact : l'adresse (ou la case pour l'écrire) sur une ligne, la phrase qui
+   dit qui chercher juste en dessous, en petit. */
+.ctline{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+.ctline a{font-weight:600}
+.cthint{font-size:12px;color:var(--txt-muet);margin-top:5px;line-height:1.35}
 .nchoix.fait .nopt{opacity:.42}
 /* La case libre à côté des suggestions : elle prend la place qu'il lui faut et pas
    plus, et elle grandit avec le texte (Mag, 04/09/2026 — « il faut une ouverture »). */
@@ -8487,7 +8492,7 @@ ${ficheLiens('Où l’envoyer', [['Médecins du Monde – CASO Bruxelles','CASO 
   mailtpl("Demande de réquisitoire (CPAS)","Modèle à personnaliser.",
     ["Réquisitoire","CPAS","Soins","Kiné","Dentiste","Lunettes","Médicaments"],
     "Demande de réquisitoire — [nom]",
-    "Bonjour,\n\nDans le cadre de l'accompagnement de [nom], je me permets de vous contacter afin de solliciter un réquisitoire pour [soins / médicaments / autre].\n\nVous trouverez le document attendu en pièce jointe.\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
+    "Bonjour,\n\nDans le cadre de l'accompagnement de [nom], je me permets de vous contacter afin de solliciter un réquisitoire pour [préciser ce qui est demandé].\n\nVous trouverez le document attendu en pièce jointe.\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
   mailtpl("Aide Médicale Urgente (AMU)","Modèle à personnaliser.",["AMU","CPAS","Santé"],
     "Demande d'aide médicale urgente — [nom]",
     "Bonjour,\n\nDans le cadre de l'accompagnement de [nom], je me permets de vous contacter afin de solliciter l'ouverture d'une aide médicale urgente.\n\nAttestation médicale : [jointe / à suivre].\n\nMerci de me préciser la marche à suivre et les pièces nécessaires.\n\n⚠ [le CPAS compétent est celui de la résidence de fait : l'absence d'adresse n'enlève pas le droit]\n\nJe vous remercie par avance de votre retour.\n\nBien à vous,", "Social"),
@@ -14117,11 +14122,89 @@ function texteNote(p,champ){
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   À QUI ON ÉCRIT — LE BLOC « CONTACT » (Mag, 04/09/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ses mots, capture à l'appui : « On est dans le modèle des réquisitoires, mais dans
+   QUELLE COMMUNE ? On ne sait pas voir où on est. Il faudrait qu'au-dessus d'Objet il
+   y ait "contact", qui est déjà l'adresse mail. Si c'est une adresse commune, comme à
+   Bruxelles, elle est là. Mais si c'est le mail de l'assistante sociale attribuée à la
+   personne, alors ça doit être notifié : on doit pouvoir la remplir. »
+
+   Elle décrit exactement la différence que le catalogue porte déjà, commune par
+   commune : la Ville de Bruxelles a UNE cellule (celluleaidemedicale@cpasbxl.brussels),
+   Schaerbeek une adresse générale, et Anderlecht et Forest n'en ont pas — là, c'est
+   l'assistant·e social·e de la personne, et personne ne peut le deviner à sa place.
+   Le bloc dit donc les deux : l'adresse quand elle existe, et une case à remplir quand
+   elle n'existe pas — avec la phrase de la fiche pour dire QUI chercher.
+
+   ⚠ AUCUNE ADRESSE N'EST INVENTÉE. Ce qui s'affiche vient de la fiche de la commune
+   (`dem(...)`, champ `mail`). Si elle est vide, on écrit qu'elle est vide.
+   ⚠ CE QU'ELLE TAPE NE PART PAS EN BASE : c'est le mail d'un·e collègue d'un CPAS,
+   souvent nominatif. Il vit le temps de la page, comme les crochets. */
+const MAIL_DEM={'Réquisitoire':'Réquisitoire','AMU':'Aide Médicale Urgente (AMU)',
+  'Carte médicale':'Carte médicale','RIS':"RIS (revenu d'intégration)",
+  'Adresse de référence':'Adresse de référence'};
+/* Le premier mot-clé dit le SUJET du modèle — même règle que `mailsPourFiche`. */
+function mailDemarche(p){ return MAIL_DEM[((p&&p.keywords)||[])[0]]||''; }
+let MAIL_CONTACT={};
+function contactDe(sid){ return MAIL_CONTACT[sid]||(MAIL_CONTACT[sid]={c:'',a:''}); }
+function contactCommune(sid,c){
+  const e=contactDe(sid); e.c=(e.c===c)?'':c; e.a='';
+  const p=BYSID[sid]; if(!p) return;
+  const z=document.getElementById('mod-contact-'+sid);
+  if(z) z.innerHTML=contactInterieur(p);
+}
+function contactSaisie(sid,v){ contactDe(sid).a=v; }
+/* L'adresse retenue : celle de la fiche de la commune, ou celle qu'elle a tapée. */
+function contactAdresse(p){
+  if(!p) return '';
+  const e=contactDe(p.sid);
+  if(e.a && e.a.trim()) return e.a.trim();
+  const t=mailDemarche(p);
+  if(!t || !e.c) return '';
+  const f=(typeof demTrouver==='function') ? demTrouver(e.c,t) : null;
+  return (f&&f.mail)?f.mail:'';
+}
+function contactInterieur(p){
+  const t=mailDemarche(p), e=contactDe(p.sid);
+  const sid=p.sid;
+  let h='';
+  if(t){
+    const coms=DATA.filter(function(x){ return x.domaine==='demarches' && x.demarche===t && x.commune; })
+      .map(function(x){ return x.commune; })
+      .filter(function(v,i,a){ return a.indexOf(v)===i; });
+    if(coms.length>1){
+      h+='<span class="nchoix'+(e.c?' fait':'')+'">'+coms.map(function(c){
+        return '<button class="nopt'+(e.c===c?' on':'')+'" onclick="contactCommune(\''+sid+'\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
+      }).join('')+'</span>';
+    }
+  }
+  const f=(t&&e.c&&typeof demTrouver==='function')?demTrouver(e.c,t):null;
+  const auto=(f&&f.mail)?f.mail:'';
+  if(auto && !e.a){
+    h+='<div class="ctline"><a href="mailto:'+esc(auto)+'">'+esc(auto)+'</a>'+
+       '<button class="cbcop" onclick="copyTxt(\''+esc(auto)+'\',\'Adresse copiée\')">'+
+       '<span class="ic">'+icon('copy')+'</span>Copier</button></div>';
+  }else{
+    const dit=(f&&f.ou&&f.ou.indexOf('À compléter')<0)
+      ? f.ou.split('\n')[0]
+      : (e.c ? 'Pas d’adresse générale pour cette commune.' : 'Choisis la commune, ou écris l’adresse.');
+    h+='<div class="ctline"><input class="nfill" style="flex:1" value="'+esc(e.a||'')+'" '+
+       'placeholder="adresse mail" oninput="contactSaisie(\''+sid+'\',this.value)"></div>'+
+       '<div class="cthint">'+esc(dit)+'</div>';
+  }
+  return h;
+}
 /* Un brouillon Gmail tout prêt : objet et corps dedans, destinataire à remplir.
    « view=cm » = fenêtre de rédaction, « fs=1 » = plein écran. Si la personne a
    plusieurs comptes Google, Gmail lui demandera lequel — c'est normal. */
 function gmailHref(p){
+  /* ⚠ LE DESTINATAIRE PART AVEC, quand on le connaît : c'était la seule chose qu'il
+     restait à taper dans Gmail. S'il est vide, le brouillon s'ouvre comme avant. */
+  const a=(typeof contactAdresse==='function')?contactAdresse(p):'';
   return 'https://mail.google.com/mail/?view=cm&fs=1'+
+    (a?'&to='+encodeURIComponent(a):'')+
     '&su='+encodeURIComponent(texteNote(p,'objet')||p.nom||'')+
     '&body='+encodeURIComponent(texteNote(p,'corps'));
 }
@@ -22695,7 +22778,12 @@ function ficheCorpsHTML(p){
           '<span class="ic">'+icon('copy')+'</span>Copier</button></div>'+
         '<p id="mod-'+champ+'-'+p.sid+'">'+corpsInteractif(p,champ)+'</p></div>';
     };
-    body+=(p.objet?cbx('Objet','objet'):'')+
+    /* CONTACT EN PREMIER : on écrit à quelqu'un avant d'écrire quelque chose. */
+    body+=(p.genre!=='Note'
+      ? '<div class="copybox"><div class="lab">Contact</div>'+
+        '<div id="mod-contact-'+p.sid+'">'+contactInterieur(p)+'</div></div>'
+      : '')+
+      (p.objet?cbx('Objet','objet'):'')+
       (p.corps?cbx(p.genre==='Note'?'Canevas de note':'Corps du mail','corps'):'')+
       '<div class="fsrc" style="text-align:left;padding:8px 2px 0">Touche les mots entre crochets : '+
       'choisis, ou écris dedans. Le modèle se monte ici, tu ne copies que le texte fini.</div>';
