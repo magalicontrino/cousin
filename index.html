@@ -9942,6 +9942,40 @@ const SID_FIGES={
 };
 SAMPLE.forEach(function(p){ if(SID_FIGES[p.nom]) p.sidFige=SID_FIGES[p.nom]; });
 
+/* ═══ UNE ADRESSE PAR CPAS, PAS UNE PAR DÉMARCHE (Mag, 05/09/2026) ═══
+   Sa remarque, et elle est juste : « si c'est l'assistante sociale attitrée, ce sera
+   partout la même chose — pour le réquisitoire, pour l'AMU et pour la carte médicale.
+   Et à Bruxelles-Ville, si c'est la cellule générale, il faudra envoyer tout le reste à
+   la cellule aussi. Comment on fait pour que ce soit plus pragmatique ? »
+   C'est le même CPAS : on écrivait donc trois fois la même adresse par commune, et le
+   jour où l'une des trois change, les deux autres mentent.
+   CETTE TABLE EST LE DÉFAUT DE LA COMMUNE. Une fiche qui n'a pas d'adresse à elle prend
+   celle-ci. Remplir une commune une fois remplit ses trois démarches.
+
+   ⚠⚠ MAIS SA RÈGLE N'EST PAS VRAIE PARTOUT, ET C'EST IXELLES QUI LE PROUVE — la seule
+   commune qu'on ait vraiment documentée. Là-bas, la carte médicale passe par
+   l'assistant·e social·e, et le réquisitoire par LE SERVICE DES FRAIS HOSPITALIERS.
+   Deux portes différentes dans le même CPAS.
+   D'où le mot « défaut » : la fiche qui a sa propre adresse la GARDE. On simplifie ce
+   qui se ressemble, on n'écrase pas ce qui diffère.
+   ⚠ Molenbeek n'est pas dans la table : on ne sait pas. Une commune absente reste
+   vide, elle n'hérite de rien — mieux vaut un trou visible qu'une adresse devinée. */
+const ADRESSE_CPAS = {
+  "Anderlecht":      {ou:"L'assistant·e social·e de la personne."},
+  "Forest":          {ou:"L'assistante sociale de la personne."},
+  "Ixelles":         {ou:"L'assistant·e social·e de la personne."},
+  "Bruxelles-Ville": {ou:"Adresse générale.", mail:"celluleaidemedicale@cpasbxl.brussels"},
+  "Schaerbeek":      {ou:"Adresse générale.\nBd Auguste Reyers 70, 1030 Schaerbeek · 02 240 30 80\nLun-jeu 8h-12h et 12h50-16h · ven 8h-12h.",
+                      mail:"info@cpas-schaerbeek.brussels"}
+};
+SAMPLE.forEach(function(p){
+  if(p.domaine!=='demarches' || !p.demarche) return;
+  const a=ADRESSE_CPAS[p.commune]; if(!a) return;
+  const vide=function(x){ return !x || !String(x).trim() || String(x).indexOf('À compléter')>=0; };
+  if(vide(p.ou))   p.ou   = a.ou||'';
+  if(vide(p.mail)) p.mail = a.mail||'';
+});
+
 /* ⚠ SANS CE MOT, LA FICHE SERAIT INVISIBLE. Le tiroir « Les démarches »
    n'affiche que les fiches qui portent une `demarche` — c'est exactement le défaut
    qu'on vient de réparer, et le remettre par distraction serait le comble. */
