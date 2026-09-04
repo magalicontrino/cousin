@@ -20064,8 +20064,12 @@ function fichePanHTML(){
            sinon elle emporterait le modèle tel qu'il était au dessin de la page, sans
            les [crochets] complétés depuis. */
         (p.domaine==='mails'&&p.corps
-          ? '<button class="fpb" onclick="mailCopierTout(&quot;'+p.sid+'&quot;)">'+icon('copy')+
-              (p.genre==='Note'?'Copier la note':'Copier le mail')+'</button>'+
+          /* ⚠ « LE TEXTE », comme partout ailleurs depuis le 05/09 : ce bouton ne
+             copie que le corps. Une note, elle, n'a pas d'objet — son mot ne change
+             donc pas. */
+          ? '<button class="fpb" onclick="copyTxt(texteNote(BYSID[&quot;'+p.sid+'&quot;],&quot;corps&quot;),&quot;'+
+              (p.genre==='Note'?'Note copiée':'Texte copié')+'&quot;)">'+icon('copy')+
+              (p.genre==='Note'?'Copier la note':'Copier le texte')+'</button>'+
             (p.genre==='Note'?''
               : '<a class="fpb tel" href="'+esc(gmailHref(p))+'" target="_blank" rel="noopener" '+
                 'onpointerdown="this.href=gmailHref(BYSID[&quot;'+p.sid+'&quot;])">'+
@@ -23194,10 +23198,11 @@ function mailsPourFiche(p){
   return out.slice(0,3).map(function(x){ return x.m; });
 }
 /* Copier l'objet ET le corps d'un coup : c'est ce qu'on colle dans un mail. */
-function mailCopierTout(sid){
-  const m=BYSID[sid]; if(!m){ toast('Modèle introuvable'); return; }
-  copyTxt('Objet : '+(m.objet||'')+'\n\n'+(m.corps||''), 'Mail copié');
-}
+/* ⚠ `mailCopierTout` A ÉTÉ SUPPRIMÉE LE 05/09/2026. Elle copiait « Objet : … » et le
+   corps d'un seul bloc — pratique quand on collait dans un carnet, faux dès qu'on colle
+   dans Gmail : la ligne « Objet : » atterrissait DANS le message. Un mail se colle en
+   deux endroits, il se copie donc en deux gestes. Voir `mailFicheHTML`. */
+
 function mailFicheHTML(p){
   const L=mailsPourFiche(p);
   if(!L.length) return '';
@@ -23209,8 +23214,17 @@ function mailFicheHTML(p){
         (m.objet?'<em>'+esc(m.objet)+'</em>':'')+
         '<p>'+esc(m.corps||'').replace(/\n/g,'<br>')+'</p>'+
         '<div class="mf-b">'+
-          '<button class="mf-c" onclick="mailCopierTout(&quot;'+m.sid+'&quot;)">'+
-            '<span class="ic">'+icon('copyleger')+'</span>Copier le mail</button>'+
+          /* ═══ DEUX COPIES, PARCE QU'IL Y A DEUX CASES DANS GMAIL (Mag, 05/09/2026) ═══
+             « Je ne vais pas demander à l'informatique. On garde une solution pour
+             qu'on puisse copier-coller directement. »
+             Un mail se colle en DEUX endroits : l'objet dans la ligne d'objet, le texte
+             dans le corps. Un seul bouton « Copier le mail » obligeait à recouper le
+             bloc à la main, ou à coller « Objet : … » dans le corps du message.
+             Deux boutons, deux gestes, rien à découper. */
+          '<button class="mf-c" onclick="copyTxt(texteNote(BYSID[&quot;'+m.sid+'&quot;],&quot;objet&quot;),&quot;Objet copié&quot;)">'+
+            '<span class="ic">'+icon('copyleger')+'</span>Objet</button>'+
+          '<button class="mf-c" onclick="copyTxt(texteNote(BYSID[&quot;'+m.sid+'&quot;],&quot;corps&quot;),&quot;Texte copié&quot;)">'+
+            '<span class="ic">'+icon('copyleger')+'</span>Le texte</button>'+
           /* ═══ « OUVRIR » VA DANS GMAIL, PAS DANS UNE AUTRE PAGE (Mag, 04/09/2026) ═══
              « Quand on clique sur ouvrir, je veux que ça aille directement dans le
              brouillon de ta boîte Gmail. Je ne veux pas que tu ouvres une autre page,
@@ -23420,8 +23434,12 @@ function vFiche(p){
          mettre le destinataire et à compléter les [crochets]. */
       b1='<a class="fbtn" href="'+esc(gmailHref(p))+'" target="_blank" rel="noopener">'+
          '<span class="ic">'+icon('copy')+'</span>Copier le mail</a>';
-      b1='<button class="fbtn" onclick="copyTxt(texteNote(BYSID[\''+p.sid+'\'],\'corps\'),\'Mail copié\')">'+
-         '<span class="ic">'+icon('copy')+'</span>Copier le mail</button>';
+      /* ⚠ « LE TEXTE », PAS « LE MAIL » : ce bouton ne copie que le corps. « Copier
+         le mail » laissait croire que l'objet venait avec — et l'objet arrivait vide
+         dans Gmail sans qu'on s'en aperçoive. L'objet a son propre bouton, dans sa
+         boîte, juste au-dessus. */
+      b1='<button class="fbtn" onclick="copyTxt(texteNote(BYSID[\''+p.sid+'\'],\'corps\'),\'Texte copié\')">'+
+         '<span class="ic">'+icon('copy')+'</span>Copier le texte</button>';
       /* On recalcule l'adresse AU CLIC : sinon elle emporterait le modèle tel qu'il
          était au dessin de la page, sans les choix faits depuis. */
       /* ═══ UN VRAI LIEN, PAS `window.open` (Mag, 04/09/2026 : « j'ai cliqué sur
