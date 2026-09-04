@@ -2450,6 +2450,53 @@ body.pan-ouvert #view{animation:none;transform:none}
 .lbcase{display:flex;gap:10px;align-items:flex-start;margin:9px 0 2px;cursor:pointer;
   font-size:13px;line-height:1.35;color:rgba(242,238,230,.9)}
 .lbcase input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--jaune)}
+
+/* ═══ LE CHANTIER DES CONTRIBUTIONS (Mag, 05/09/2026) ═══
+   « Plus joyeux, plus chouette, beaucoup plus espacé — comme des boutons. Et le tableau
+   en dessous, il faut qu'il soit beau : fond blanc, bords légers, un peu de couleur,
+   agréable à lire, faisable sur téléphone. »
+   Les communes : une carte par commune, sa couleur en rond et en trait, de l'air entre
+   les cartes, et trois pastilles qui disent l'avancement sans qu'on lise un mot.
+   Le tableau : une grille, plus un <table>. Sur téléphone, les colonnes se resserrent
+   au lieu de déborder, et la première colonne reste lisible. */
+.cbcoms{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.cbcom{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
+  background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
+  border-radius:16px;padding:15px 16px;font:inherit}
+.cbcom .rd{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;background:color-mix(in srgb, var(--c) 34%, #fff)}
+.cbcom .rd .ic{width:19px;height:19px}
+.cbcom .tx{flex:1;min-width:0}
+.cbcom .tx b{display:block;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.cbcom .tx em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--enc2);margin-top:3px}
+.cbcom.plein .tx em{color:#2f6b4f}
+.cbcom .pts{display:flex;gap:4px;flex:none}
+.cbcom .pts i{width:9px;height:9px;border-radius:50%;background:#dcdad6}
+.cbcom .pts i.o{background:#6cb392}
+.cbcom .pts i.r{background:#f5c542}
+.cbcom .chv{flex:none;color:var(--enc2);font-size:19px}
+@media(max-width:400px){ .cbcom{padding:13px 13px;gap:10px} .cbcom .rd{width:34px;height:34px} }
+
+.cbtab{background:#fff;border:1.25px solid var(--ligne);border-radius:16px;padding:6px 10px 10px;
+  margin-top:10px;overflow:hidden}
+.cbt-l{display:grid;grid-template-columns:minmax(84px,1.4fr) repeat(var(--n),1fr);
+  align-items:center;gap:6px;padding:5px 0;border-top:1px solid var(--ligne)}
+.cbt-l:first-child{border-top:0}
+.cbt-tete span{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--enc2);text-align:center;line-height:1.25}
+.cbt-c{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cbt-p{height:36px;border:0;border-radius:10px;font:inherit;font-size:15px;font-weight:700;
+  cursor:pointer;background:#f0efed;color:#a3a19c}
+.cbt-p.o{background:#d7ecdf;color:#2f6b4f}
+.cbt-p.r{background:#faf0c8;color:#8b6a00}
+.cbt-p.n{background:transparent;border:1.25px dashed rgba(27,27,27,.22);color:#a3a19c}
+@media(max-width:400px){ .cbt-l{gap:4px;grid-template-columns:minmax(70px,1.2fr) repeat(var(--n),1fr)}
+  .cbt-p{height:32px;font-size:14px} .cbt-c{font-size:12px} }
+
+/* La jauge : ce qui est fait, d'un trait. Un pourcentage se lit, une barre se voit. */
+.cbjauge{height:8px;border-radius:99px;background:#e3e1dd;overflow:hidden;margin-top:16px}
+.cbjauge i{display:block;height:100%;background:#6cb392;border-radius:99px}
 @media(min-width:760px){ #ouBg .partcard{min-height:0} }
 
 /* ── LES PAGES DE FORMATION (08/08/2026) ──────────────────────────────────
@@ -21707,46 +21754,62 @@ function vContribDemarches(){
         selCommune?'Ce que fait ce CPAS':'Le chantier, commune par commune',
         '#b28b7a','demarche', true);
   if(!selCommune){
+    /* ═══ LA PAGE DU CHANTIER, REDESSINÉE (Mag, 05/09/2026) ═══
+       « Ça, de manière plus joyeuse, plus chouette, beaucoup plus espacé — comme des
+       boutons. Et le tableau en dessous, c'est encore pire : il faut qu'il soit beau,
+       fond blanc, bords légers, un peu de couleur, agréable à lire, et faisable sur
+       téléphone. »
+       CE QUI CLOCHAIT : les communes étaient des lignes grises collées les unes aux
+       autres, et leur avancement s'écrivait en toutes lettres — « 2 écrites ici · 1
+       règle générale » — c'est-à-dire une phrase à déchiffrer pour chaque commune.
+       Maintenant : une carte par commune, avec sa couleur, et TROIS PASTILLES qui
+       disent l'avancement d'un coup d'œil. On compare cinq communes sans lire un mot.
+       ⚠ LA COULEUR SUIT LE RANG dans la liste, comme partout ailleurs dans l'app :
+       une commune garde sa couleur d'un écran à l'autre. */
     var nOk=0, nTot=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
-    h+='<div class="famdedans" style="border:0;padding-top:4px">';
-    DEMARCHES_COMMUNES.forEach(function(c){
-      var o=0,r=0,n=0;
+    h+='<div class="cbcoms">';
+    DEMARCHES_COMMUNES.forEach(function(c,ic){
+      var o=0,r=0,n=0, pts='';
       DEMARCHES_TYPES.forEach(function(t){
         var e=demEtat(c,t); if(e==='o'){o++;nOk++;} else if(e==='r') r++; else n++;
+        pts+='<i class="'+e+'" title="'+esc(demCourt(t))+'"></i>';
       });
-      var bouts=[];
-      if(o) bouts.push(o+' écrite'+(o>1?'s':'')+' ici');
-      if(r) bouts.push(r+' règle'+(r>1?'s':'')+' générale'+(r>1?'s':''));
-      if(n) bouts.push(n+' rien');
-      h+='<button class="frow2" onclick="demChoisir(\''+c+'\')">'+
-        '<span class="rd" style="background:#b28b7a"><span class="ic">'+icon('pin')+'</span></span>'+
-        '<span class="tx"><b>'+esc(c)+'</b><em>'+bouts.join(' · ')+'</em></span>'+
+      var dit = (o===DEMARCHES_TYPES.length) ? 'Tout est écrit'
+              : o ? (o+' sur '+DEMARCHES_TYPES.length+' écrites')
+              : 'Rien d’écrit ici';
+      h+='<button class="cbcom'+(o===DEMARCHES_TYPES.length?' plein':'')+'" style="--c:'+chipCouleur(ic)+'" '+
+        'onclick="demChoisir(\''+c+'\')">'+
+        '<span class="rd"><span class="ic">'+icon('pin')+'</span></span>'+
+        '<span class="tx"><b>'+esc(c)+'</b><em>'+dit+'</em></span>'+
+        '<span class="pts">'+pts+'</span>'+
         '<span class="chv">›</span></button>';
     });
     h+='</div>';
-    /* LE TABLEAU, DISCRÈTEMENT : sous les portes, pas à leur place. Il ne sert pas
-       à naviguer, il sert à VOIR — et ce qu'il montre, c'est qu'une colonne entière
-       est vide. Un compte ne dit jamais ça. */
-    h+='<div class="sectl" style="margin-top:18px">Tout le chantier d’un coup d’œil</div>';
-    h+='<div style="overflow-x:auto"><table class="demgr"><tr><th></th>';
-    DEMARCHES_TYPES.forEach(function(t){
-      h+='<th>'+esc(demCourt(t)).replace(/ /g,'<br>')+'</th>';
-    });
-    h+='</tr>';
+    /* LE TABLEAU : il ne sert pas à naviguer, il sert à VOIR — et ce qu'il montre,
+       c'est qu'une colonne entière peut être vide. Un compte ne dit jamais ça. */
+    h+='<div class="sectl" style="margin-top:22px">Tout le chantier d’un coup d’œil</div>';
+    h+='<div class="cbtab" style="--n:'+DEMARCHES_TYPES.length+'">'+
+       '<div class="cbt-l cbt-tete"><span class="cbt-c"></span>'+
+       DEMARCHES_TYPES.map(function(t){ return '<span>'+esc(demCourt(t))+'</span>'; }).join('')+
+       '</div>';
     DEMARCHES_COMMUNES.forEach(function(c){
-      h+='<tr><td>'+esc(c==='Molenbeek-Saint-Jean'?'Molenbeek':(c==='Bruxelles-Ville'?'Bruxelles-V.':c))+'</td>';
-      DEMARCHES_TYPES.forEach(function(t){
-        var e=demEtat(c,t);
-        h+='<td><button class="pas '+e+'" onclick="demChoisir(\''+c+'\')" title="'+esc(c+' — '+t)+'">'+
-          (e==='o'?'✓':(e==='r'?'R':'+'))+'</button></td>';
-      });
-      h+='</tr>';
+      h+='<div class="cbt-l"><span class="cbt-c">'+
+        esc(c==='Molenbeek-Saint-Jean'?'Molenbeek':(c==='Bruxelles-Ville'?'Bruxelles-V.':c))+'</span>'+
+        DEMARCHES_TYPES.map(function(t){
+          var e=demEtat(c,t);
+          return '<button class="cbt-p '+e+'" onclick="demChoisir(\''+c+'\')" '+
+            'title="'+esc(c+' — '+t)+'">'+(e==='o'?'✓':(e==='r'?'R':'+'))+'</button>';
+        }).join('')+'</div>';
     });
-    h+='</table></div>';
-    h+='<p class="hint" style="margin:8px 2px 0"><b>✓</b> écrit pour cette commune · '+
-       '<b>R</b> on n’a que la règle générale · <b>+</b> rien du tout.</p>';
-    h+='<div style="padding:8px 2px 0;font-size:11px;color:var(--enc2)">'+
-      '<b>'+nOk+'</b> / '+nTot+' écrites commune par commune</div><div style="height:26px"></div>';
+    h+='</div>';
+    /* ⚠ PAS DE LÉGENDE (Mag, 05/09/2026 : « retire ça »). Le vert, le jaune et le
+       pointillé disent déjà ce qu'ils disent — et une légende qui explique trois
+       couleurs est le signe que les couleurs ne parlent pas d'elles-mêmes. Si elles ne
+       parlent pas, c'est le dessin qu'il faut refaire, pas la légende qu'il faut
+       écrire. Chaque case garde son `title` au survol pour le détail. */
+    h+='<div class="cbjauge"><i style="width:'+Math.round(nOk/nTot*100)+'%"></i></div>'+
+      '<div style="padding:7px 2px 0;font-size:12px;color:var(--enc2)">'+
+      '<b>'+nOk+'</b> sur '+nTot+' écrites commune par commune</div><div style="height:26px"></div>';
     return h;
   }
   h+='<div class="demtete"><span class="s">Commune</span>'+
