@@ -203,6 +203,27 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 /* Le bloc adresse / téléphone / horaires / conditions n'existe QUE sur le papier. */
 .pr-fiche{display:none}
+/* ═══ LE MAIL POSÉ SUR LA FICHE (03/09/2026) ═══
+   Le texte entier est là, lisible : on relit avant d'envoyer, on ne copie pas à
+   l'aveugle. Le bouton de copie prend l'objet ET le corps d'un coup — c'est ce
+   qu'on colle dans un mail. */
+.mfl{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+.mf{background:#fdfdfc;border:1.25px solid var(--trait);border-radius:11px;padding:13px}
+.mf>b{display:block;font-size:15px;font-weight:600;line-height:1.2}
+.mf>em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:5px}
+.mf>p{font-size:13.5px;line-height:1.5;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--ligne);white-space:normal}
+.mf-b{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.mf-c{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--noir);color:#f2eee6;border:0;border-radius:9px;padding:11px 14px;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  font-weight:600;cursor:pointer}
+.mf-c .pico{width:14px;height:14px;background:#f2eee6}
+.mf-o{border:1.25px solid var(--trait);background:transparent;border-radius:9px;padding:11px 14px;
+  font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--noir);cursor:pointer}
+@media print{ .mf-b{display:none !important} }
 /* ⚠ TOUT RÉTRÉCIT (Mag, 11/08/2026 : « mets en plus petit les boutons, le QR-code
    et le margin QR-code »). Sur un grand écran, le cadre du QR prenait toute la
    largeur et les deux boutons s'étiraient d'un bord à l'autre : une page qui ne
@@ -22224,6 +22245,106 @@ function constatHTML(p){
     '<b>'+esc(etqs.map(function(k){ return ETQ_LABELS[k][1]; }).join(' · '))+'</b></div></div>';
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE MAIL SUR LA FICHE (Mag, 03/09/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ses mots, avant de partir en réunion : « quand je clique sur une fiche, et
+   après par exemple réquisitoire, je veux qu'il y ait un mail là à copier qui
+   est déjà tout fait. Et ça pour tous les réseaux. Et quand tu vas dans
+   démarches aussi. »
+
+   CE QUE ÇA RÉPARE. Les modèles existaient — dans Le Centre, derrière deux
+   portes. Or on ne pense au mail QUE devant la fiche : on lit le CPAS de Forest,
+   on veut écrire au CPAS de Forest. Aller le chercher ailleurs, c'est quitter ce
+   qu'on est en train de faire, et c'est pour ça qu'on retape le mail à la main.
+
+   ⚠ « JE PENSE QU'AU FINISH, ÇA FERA DOUBLE EMPLOI LES DEUX » — elle a raison, et
+   c'est pour ça qu'il n'y a QU'UNE liste. Cette fonction ne recopie aucun texte :
+   elle VA CHERCHER les mêmes fiches de mail, par leurs mots-clés. Un modèle
+   corrigé une fois est corrigé partout. La page « Les mails à envoyer » reste
+   l'endroit où on les lit tous ; ici on n'en montre que ceux qui servent.
+
+   ⚠ COMMENT LE BON MAIL EST TROUVÉ, et pourquoi ce n'est pas de la devinette :
+   · une fiche de DÉMARCHE porte le nom de sa démarche (« Réquisitoire »,
+     « Carte médicale »…) — c'est exactement un mot-clé des modèles ;
+   · une fiche du RÉSEAU passe par une table écrite à la main, domaine par
+     domaine, en dessous. Rien n'est déduit d'un mot trouvé dans le texte.
+   ⚠ TROIS AU MAXIMUM. Une fiche qui proposerait huit mails ne ferait que
+   déplacer le problème : il faudrait encore choisir. */
+const MAILS_PAR_DOMAINE={
+  demarches:['CPAS'], cpas:['CPAS'], social:['CPAS'], servsoc:['CPAS'],
+  maisons:['Maison d\'accueil'], urgenceheb:['Maison d\'accueil'], orientation:['Maison d\'accueil'],
+  logement:['Maison d\'accueil'],
+  medical:['Rendez-vous','Plaies','Rapport médical'], mmed:['Rendez-vous','Plaies'],
+  sevrer:['Accompagnement'], addictions:['Accompagnement'], consommer:['Accompagnement'],
+  santementale:['Accompagnement'], accompagnement:['Accompagnement'],
+  handicap:['Handicap'],
+  juridique:['Avocat'], etrangers:['Avocat','Séjour'],
+  culture:['Activités'], educatif:['Activités'],
+  reperes:[], famille:[], violences:[], lgbt:[], manger:[], laver:[], journee:[],
+  francais:[], volontariat:[], vavers:['Accompagnement'], agir:[], planning:['Santé']
+};
+/* Le nom d'une démarche n'est pas toujours le mot-clé des modèles : « Aide Médicale
+   Urgente (AMU) » d'un côté, « AMU » de l'autre. Cette table fait le pont, à la main.
+   ⚠ SANS ELLE, LA FICHE AMU PROPOSAIT LE RÉQUISITOIRE EN PREMIER — vu à l'essai. */
+const MAIL_ALIAS={
+  'Aide Médicale Urgente (AMU)':'AMU',
+  "RIS (revenu d'intégration)":'RIS',
+  'Soins infirmiers':'Infirmière',
+  'Reconnaissance du handicap (DGPH)':'DGPH',
+  'Carte de stationnement':'Handicap',
+  'Allocations handicap (ARR/AI)':'Handicap'
+};
+function mailsPourFiche(p){
+  if(!p || p.domaine==='mails') return [];
+  const exact=[];
+  if(p.domaine==='demarches' && p.demarche){
+    exact.push(p.demarche);
+    if(MAIL_ALIAS[p.demarche]) exact.push(MAIL_ALIAS[p.demarche]);
+  }
+  const parSujet=MAILS_PAR_DOMAINE[p.domaine]||[];
+  if(!exact.length && !parSujet.length) return [];
+  const out=[];
+  for(let i=0;i<DATA.length;i++){
+    const m=DATA[i];
+    if(m.domaine!=='mails' || m.genre==='Note') continue;
+    const kw=m.keywords||[];
+    let score=0;
+    /* ① LA DÉMARCHE : elle peut être n'importe où dans les mots-clés, et elle pèse
+       lourd — sur la fiche « Réquisitoire », ce sont les réquisitoires qu'on veut. */
+    exact.forEach(function(k){ if(kw.indexOf(k)>=0) score+=10; });
+    /* ② LE DOMAINE : on ne regarde QUE le premier mot-clé, celui qui dit le SUJET du
+       modèle. Sans cette limite, la fiche d'une infirmière proposait « Demande de
+       rendez-vous RIS » — parce que ce modèle contient le mot « Rendez-vous » en
+       quatrième position. Un mot présent n'est pas un sujet. */
+    if(kw.length && parSujet.indexOf(kw[0])>=0) score+=2;
+    if(score) out.push({m:m, s:score});
+  }
+  out.sort(function(a,b){ return (b.s-a.s) || String(a.m.nom).localeCompare(String(b.m.nom),'fr'); });
+  return out.slice(0,3).map(function(x){ return x.m; });
+}
+/* Copier l'objet ET le corps d'un coup : c'est ce qu'on colle dans un mail. */
+function mailCopierTout(sid){
+  const m=BYSID[sid]; if(!m){ toast('Modèle introuvable'); return; }
+  copyTxt('Objet : '+(m.objet||'')+'\n\n'+(m.corps||''), 'Mail copié');
+}
+function mailFicheHTML(p){
+  const L=mailsPourFiche(p);
+  if(!L.length) return '';
+  return '<div class="f-h" style="margin-top:22px">'+
+      (L.length>1?'Les mails à envoyer':'Le mail à envoyer')+'</div>'+
+    '<div class="mfl">'+L.map(function(m){
+      return '<div class="mf">'+
+        '<b>'+esc(m.nom)+'</b>'+
+        (m.objet?'<em>'+esc(m.objet)+'</em>':'')+
+        '<p>'+esc(m.corps||'').replace(/\n/g,'<br>')+'</p>'+
+        '<div class="mf-b">'+
+          '<button class="mf-c" onclick="mailCopierTout(&quot;'+m.sid+'&quot;)">'+
+            '<span class="ic">'+icon('copyleger')+'</span>Copier le mail</button>'+
+          '<button class="mf-o" onclick="go(&quot;#/f/'+m.sid+'&quot;)">Ouvrir</button>'+
+        '</div></div>';
+    }).join('')+'</div>';
+}
 function vFiche(p){
   /* LA FICHE redessinée d'après le handoff Claude Design (06/08/2026) :
      carte d'en-tête à bande de couleur (retour + pastille du domaine + étoile),
@@ -22404,6 +22525,7 @@ function vFiche(p){
   return '<div class="imprligne">'+boutonImprimer()+'</div>'+tete+
     (infos?'<div class="frows">'+infos+'</div>':'')+
     (body?body:'')+
+    mailFicheHTML(p)+
     notesHTML(p)+docsHTML(p)+
     /* LE CHEMIN INVERSE : d'une fiche VERS sa formation (08/08/2026). Les formations
        renvoyaient vers le réseau, mais rien ne ramenait du réseau vers ce qu'on peut
