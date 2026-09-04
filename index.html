@@ -2068,6 +2068,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .dem3{background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;
   padding:12px;margin-bottom:9px}
 .dem3>b{display:block;font-size:15.5px;font-weight:600;line-height:1.2}
+/* Un choix fait : la retenue reste noire, les autres passent en gris clair — on voit
+   d'un coup ce qui est choisi ET qu'on peut encore changer (Mag, 04/09/2026). */
+/* Un trou dans la note : rouge et gras — c'est ce qu'on cherche du regard avant de
+   coller dans un dossier. */
+.trou{color:#e63329;font-weight:600}
+.nchoix.fait .nopt{opacity:.42}
+/* La case libre à côté des suggestions : elle prend la place qu'il lui faut et pas
+   plus, et elle grandit avec le texte (Mag, 04/09/2026 — « il faut une ouverture »). */
+.nchoix .nfill.libre{min-width:11ch;field-sizing:content}
+.nchoix.fait .nopt.on{opacity:1}
 .dem3 .niv{margin-top:8px;border-radius:9px;padding:9px 11px;font-size:13.5px;line-height:1.45}
 /* ⚠ « Adresse » et « Message » sont des ÉTIQUETTES, pas du texte : petites capitales
    machine, comme partout dans l'app. Le trait qui les sépare dit qu'il y a deux
@@ -13971,15 +13981,38 @@ function corpsInteractif(p,champ){
     i++; const idx=i, val=ch[idx];
     if(contenu.indexOf('/')>=0){
       const opts=contenu.split('/').map(function(o){ return o.trim(); });
-      /* Une fois le choix fait, les autres possibilités s'effacent : le modèle se
-         resserre au fur et à mesure. Un nouvel appui sur le mot choisi les ramène. */
-      const montres=(val===undefined)?opts:[val];
-      return '<span class="nchoix">'+montres.map(function(o){
+      /* ═══ LES AUTRES NE DISPARAISSENT PLUS (Mag, 04/09/2026) ═══
+         « Quand on sélectionne, les autres ne doivent pas disparaître. Il faut qu'on
+         ait une vue d'ensemble : celle qui est sélectionnée, et les autres grisées.
+         Comme ça on sait qu'on peut changer. »
+         Avant, choisir « le devis » effaçait « la prescription » et « l'attestation ».
+         Le texte se resserrait, mais on ne savait plus qu'un choix avait été fait, ni
+         qu'on pouvait en changer — il fallait deviner qu'un deuxième appui sur le mot
+         ramenait les autres. Personne ne devine ça.
+         Maintenant les trois restent : la choisie en noir, les autres en gris clair.
+         Un appui sur une grise change de choix, un appui sur la noire annule. */
+      /* ═══ ON DOIT POUVOIR ÉCRIRE, PAS SEULEMENT CHOISIR (Mag, 04/09/2026) ═══
+         « C'est trop délicat. Ça peut être subtil, ça ne peut pas être juste un choix
+         multiple comme ça. Il faut que ce soit une ouverture : on doit pouvoir écrire
+         ce qu'on veut et argumenter. »
+         Elle a raison, et c'est vrai de tous ces crochets : « soins / médicaments /
+         autre » ne dit rien de la situation qu'on doit expliquer à un CPAS. Trois mots
+         ne remplacent pas une phrase.
+         Les trois propositions RESTENT — elles font gagner du temps quand elles
+         suffisent — mais ce sont maintenant des SUGGESTIONS : appuyer sur l'une écrit
+         son mot dans la case, et la case s'écrit librement par-dessus. C'est ce qu'on
+         tape qui part dans le mail. */
+      return '<span class="nchoix'+(val===undefined?'':' fait')+'">'+opts.map(function(o){
         const sur=o.replace(/'/g,"\\'");
         return '<button class="nopt'+(val===o?' on':'')+'" onclick="choixNote(event,\''+p.sid+'\',\''+champ+'\','+idx+',\''+sur+'\')">'+esc(o)+'</button>';
-      }).join('')+'</span>';
+      }).join('')+
+      '<input class="nfill libre" data-i="'+idx+'" value="'+esc(val||'')+'" placeholder="ou écris…" '+
+        'onclick="event.stopPropagation()" oninput="saisieNote(\''+p.sid+'\',\''+champ+'\','+idx+',this.value)">'+
+      '</span>';
     }
-    return '<input class="nfill" value="'+esc(val||'')+'" placeholder="'+esc(contenu)+'" '+
+    /* `data-i` : le numéro du crochet. Il sert à retrouver un champ jumeau sans le
+       redessiner — redessiner pendant qu'on tape ferait sauter le curseur. */
+    return '<input class="nfill" data-i="'+idx+'" value="'+esc(val||'')+'" placeholder="'+esc(contenu)+'" '+
            'onclick="event.stopPropagation()" oninput="saisieNote(\''+p.sid+'\',\''+champ+'\','+idx+',this.value)">';
   });
 }
@@ -13993,11 +14026,48 @@ function choixNote(ev,sid,champ,idx,valeur){
   /* La note d'envoi reprend l'objet du mail : si on change un crochet, elle doit
      suivre, sinon on colle dans le dossier un objet qui n'est plus celui envoyé. */
   const zn=document.getElementById('mod-noteenvoi-'+sid);
-  if(zn) zn.textContent=noteMailEnvoye(p);
+  if(zn) zn.innerHTML=noteAvecTrous(noteMailEnvoye(p));
 }
+/* Les mots entre crochets d'un texte, dans l'ordre : « nom », « spécialité »… */
+function libellesDe(p,champ){
+  const l=[]; String((p&&p[champ])||'').replace(/\[([^\]]+)\]/g,function(m,c){ l.push(c.trim()); return m; });
+  return l;
+}
+/* ═══ LE NOM NE S'ÉCRIT QU'UNE FOIS (Mag, 04/09/2026) ═══
+   « Quand on écrit le nom dans l'objet, il faut que dans le corps du mail le nom
+   s'écrive automatiquement. On l'écrit qu'une seule fois. »
+   Elle a raison : « [nom] » revient dans l'objet ET deux ou trois fois dans le corps.
+   Le taper quatre fois, c'est quatre occasions de se tromper — et sur un mail qui part
+   à un CPAS, un prénom mal recopié, c'est un dossier qui revient.
+   LA RÈGLE : deux crochets qui portent LE MÊME MOT sont le même crochet. On écrit dans
+   l'un, les autres suivent.
+   ⚠ ON NE REDESSINE PAS LE CHAMP OÙ ELLE TAPE : on pose la valeur dans les autres
+   cases à la main (`data-i`). Redessiner pendant la frappe ferait sauter le curseur en
+   fin de ligne à chaque lettre — c'est le défaut qu'on a déjà corrigé sur Ma liste. */
 function saisieNote(sid,champ,idx,valeur){
   const cle=noteCle(sid,champ), c=NOTE_CHOIX[cle]||(NOTE_CHOIX[cle]={});
   c[idx]=valeur;
+  const p=BYSID[sid]; if(!p) return;
+  const mot=(libellesDe(p,champ)[idx]||'').trim();
+  if(!mot) return;
+  ['objet','corps'].forEach(function(ch){
+    const jumeaux=[];
+    libellesDe(p,ch).forEach(function(l,k){
+      if(l===mot && !(ch===champ && k===idx)) jumeaux.push(k);
+    });
+    if(!jumeaux.length) return;
+    const k2=noteCle(sid,ch), c2=NOTE_CHOIX[k2]||(NOTE_CHOIX[k2]={});
+    jumeaux.forEach(function(k){ c2[k]=valeur; });
+    const zone=document.getElementById('mod-'+ch+'-'+sid);
+    if(!zone) return;
+    if(ch!==champ){ zone.innerHTML=corpsInteractif(p,ch); return; }
+    jumeaux.forEach(function(k){
+      const e=zone.querySelector('input.nfill[data-i="'+k+'"]');
+      if(e && e.value!==valeur) e.value=valeur;
+    });
+  });
+  const zn=document.getElementById('mod-noteenvoi-'+sid);
+  if(zn) zn.innerHTML=noteAvecTrous(noteMailEnvoye(p));
 }
 /* ═══ LA NOTE D'ENVOI, SOUS CHAQUE MAIL (Mag, 08/08/2026) ═══
    « Je veux qu'il y ait des notes chaque fois qu'on écrit des mails, parce que je veux
@@ -14026,6 +14096,16 @@ function saisieNote(sid,champ,idx,valeur){
    pas à dire d'où vient l'outil. */
 function noteMailEnvoye(p){
   return texteNote(p,'corps');
+}
+/* ═══ CE QUI N'EST PAS REMPLI SE VOIT EN ROUGE (Mag, 04/09/2026) ═══
+   « Dans la note, quand quelque chose n'est pas rempli, il faut que ça reste en rouge. »
+   Un crochet resté en place — [nom], [préciser] — se lisait en noir comme le reste du
+   texte. On copie, on colle dans le dossier, et le trou part avec : c'est le genre
+   d'oubli qu'on ne voit qu'une semaine plus tard, dans un dossier.
+   ⚠ SEULEMENT À L'ÉCRAN : ce qu'on copie reste le texte brut, crochets compris. Le
+   rouge sert à VOIR, il ne s'ajoute pas au texte. */
+function noteAvecTrous(txt){
+  return esc(txt).replace(/\[([^\]]+)\]/g, function(m){ return '<span class="trou">'+m+'</span>'; });
 }
 /* Le texte FINI : les choix faits et les mots écrits remplacent les crochets ; ce
    qu'on n'a pas rempli reste entre crochets, pour qu'on voie ce qui manque. */
@@ -19487,8 +19567,9 @@ function fichePanHTML(){
           ? '<button class="fpb" onclick="mailCopierTout(&quot;'+p.sid+'&quot;)">'+icon('copy')+
               (p.genre==='Note'?'Copier la note':'Copier le mail')+'</button>'+
             (p.genre==='Note'?''
-              : '<button class="fpb tel" onclick="window.open(gmailHref(BYSID[&quot;'+p.sid+'&quot;]),&quot;_blank&quot;)">'+
-                icon('send')+'Ouvrir dans Gmail</button>')
+              : '<a class="fpb tel" href="'+esc(gmailHref(p))+'" target="_blank" rel="noopener" '+
+                'onpointerdown="this.href=gmailHref(BYSID[&quot;'+p.sid+'&quot;])">'+
+                icon('send')+'Ouvrir dans Gmail</a>')
           : '')+
         (tel?'<a class="fpb tel" href="tel:'+esc(tel)+'">'+icon('phone')+'Appeler</a>':'')+
         (p.adr?'<button class="fpb" onclick="window.open(\''+itiHref(p.adr)+'\',\'_blank\')">'+icon('pin')+'Y aller</button>':'')+
@@ -22624,7 +22705,7 @@ function ficheCorpsHTML(p){
       body+='<div class="copybox" style="margin-top:14px"><div class="lab">La note pour le dossier'+
         '<button class="cbcop" onclick="copyTxt(noteMailEnvoye(BYSID[\''+p.sid+'\']),\'Note copiée\')">'+
           '<span class="ic">'+icon('copy')+'</span>Copier</button></div>'+
-        '<p id="mod-noteenvoi-'+p.sid+'" style="white-space:pre-wrap">'+esc(noteMailEnvoye(p))+'</p></div>'+
+        '<p id="mod-noteenvoi-'+p.sid+'" style="white-space:pre-wrap">'+noteAvecTrous(noteMailEnvoye(p))+'</p></div>'+
         /* ⚠ LA PHRASE SUIVAIT L'ANCIENNE NOTE (Mag, 04/09/2026 : « tu peux retirer ça »).
            Elle expliquait une fiche de suivi qui n'existe plus : « colle ça dans le
            dossier : la date, le service, et l'objet ». La note, c'est le mail — il n'y
@@ -22689,8 +22770,21 @@ function vFiche(p){
          '<span class="ic">'+icon('copy')+'</span>Copier le mail</button>';
       /* On recalcule l'adresse AU CLIC : sinon elle emporterait le modèle tel qu'il
          était au dessin de la page, sans les choix faits depuis. */
-      b2='<button class="fbtn plein" style="background:'+c+'" onclick="window.open(gmailHref(BYSID[\''+p.sid+'\']),\'_blank\')">'+
-         '<span class="ic">'+icon('send')+'</span>Ouvrir dans Gmail</button>';
+      /* ═══ UN VRAI LIEN, PAS `window.open` (Mag, 04/09/2026 : « j'ai cliqué sur
+         ouvrir dans Gmail, mais ça n'ouvre pas Gmail ») ═══
+         `window.open()` est refusé sans un mot par les bloqueurs de fenêtres, et
+         surtout par une app INSTALLÉE sur l'écran d'accueil — c'est comme ça qu'elle
+         ouvre COUSIN. Rien ne se passait, et rien ne le disait.
+         Un `<a target="_blank">` passe partout : c'est un lien, pas une fenêtre qu'on
+         force.
+         ⚠ L'ADRESSE EST RECALCULÉE AU DERNIER MOMENT (`onpointerdown`, qui arrive
+         avant le clic) : sinon le lien emporterait le modèle tel qu'il était au dessin
+         de la page, sans les crochets remplis depuis. C'est la raison pour laquelle
+         `window.open` avait été choisi — elle tient toujours, la solution change. */
+      b2='<a class="fbtn plein" style="background:'+c+'" href="'+esc(gmailHref(p))+'" '+
+         'target="_blank" rel="noopener" '+
+         'onpointerdown="this.href=gmailHref(BYSID[\''+p.sid+'\'])">'+
+         '<span class="ic">'+icon('send')+'</span>Ouvrir dans Gmail</a>';
     }
   }
   /* Le téléphone a QUITTÉ cette chaîne : il est devenu b0, son propre bouton. Avant,
