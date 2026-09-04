@@ -14817,16 +14817,25 @@ function demCouleur(){ return (demChoisie() && DEM_COUL[filt.dem]) || '#dcdad6';
    d'équipe. Et enveloppé de try/catch — un navigateur qui refuse le stockage ne doit
    pas empêcher la page de s'ouvrir. */
 var DEM_MEM_FAIT=false;
+/* ⚠ ANDERLECHT PAR DÉFAUT, PARCE QUE LE CENTRE Y EST (Mag, 04/09/2026) : « comme on
+   est dans un centre, quand on arrive ça doit toujours être Anderlecht — c'est là qu'on
+   va vraiment le plus souvent. »
+   C'est la même règle que l'ordre des communes du catalogue (08/08 : « mets les communes
+   les plus proches en premier ») : on part d'ici, et on s'éloigne.
+   ⚠ SEULEMENT LA PREMIÈRE FOIS. Le jour où elle choisit « Toutes les communes », c'est
+   « Toutes » qu'elle retrouve — sinon le bouton aurait l'air de refuser son choix. D'où
+   `vu` : il distingue « jamais choisi » de « a choisi Toutes ». */
 function demMemLire(){
   try{
-    const m=JSON.parse(localStorage.getItem('cousin_dem_choix')||'{}');
-    if(m.c) filt.communes=[m.c];
-    if(m.d) filt.dem=m.d;
-  }catch(e){}
+    const m=JSON.parse(localStorage.getItem('cousin_dem_choix')||'null');
+    if(!m || !m.vu){ filt.communes=['Anderlecht']; return; }
+    filt.communes = m.c ? [m.c] : [];
+    filt.dem = m.d || 'Toutes';
+  }catch(e){ filt.communes=['Anderlecht']; }
 }
 function demMemEcrire(){
   try{ localStorage.setItem('cousin_dem_choix', JSON.stringify({
-    c: demCommuneChoisie(), d: demChoisie()?filt.dem:'' })); }catch(e){}
+    vu:true, c: demCommuneChoisie(), d: demChoisie()?filt.dem:'' })); }catch(e){}
 }
 function demCommunes(){
   return COMMUNES.filter(function(c){
