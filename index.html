@@ -9683,7 +9683,44 @@ function src(fiche, sources){ fiche.notes=sources||''; return fiche; }
    rend muette, sans erreur. */
 const ETIQUETTES = {
   "Planning familial de Woluwe-Saint-Pierre":
-    ["Sans rendez-vous","Mineurs sans accord parental","Tarif adapté","IVG : à vérifier"]
+    ["Sans rendez-vous","Mineurs sans accord parental","Tarif adapté","IVG : à vérifier"],
+
+  /* ═══ LES MAISONS D'ACCUEIL (05/09/2026) ═══
+     Ce qu'on cherche à 22 h, dans l'ordre : est-ce qu'on peut entrer CE SOIR (accueil
+     direct, ou entretien préalable un autre jour), combien ça coûte, et ce qui bloque.
+     Le champ « Pour qui » dit déjà à qui la maison s'adresse : les étiquettes disent
+     donc ce qu'il ne dit pas.
+     ⚠ CHAQUE PRIX EST CELUI ÉCRIT DANS LA FICHE, au centime. Un prix arrondi, ou
+     recopié de la maison d'à côté, ferait refermer une porte sur une question d'argent.
+     ⚠ « Entretien préalable » n'est pas un détail de procédure : ça veut dire QU'ON
+     N'ENTRE PAS CE SOIR. C'est l'étiquette la plus décisive de tout le tiroir. */
+  "Centre d'accueil d'urgence Ariane":      ["24h/24","Appeler avant"],
+  "Pierre d'Angle":                          ["20h → 8h","Appeler avant"],
+  "Armée du Salut – Le Foyer":               ["Dire l'âge au téléphone"],
+  "CAW Archipel":                            ["Numéro gratuit"],
+  "Albatros":                                ["Appeler avant"],
+  "Bruss'help – Cellule d'orientation":      ["Pour trouver une place"],
+  "L'Elan — maison d'accueil (Accueil Famenne asbl)": ["Entretien préalable","Hors Bruxelles"],
+  "Opvanghuis Albatros (CAW Brussel)":       ["En néerlandais"],
+  "CAW Huis Brussel — la porte d'entrée néerlandophone": ["En néerlandais","Numéro gratuit"],
+  "Les Trois Pommiers":                      ["Entretien préalable","13,32 €/jour","24h/24"],
+  "L'Ilot — Le 160 (accueil d'urgence)":     ["Accueil 24h/24 si place","23,17 €/jour","Pas d'homme seul"],
+  "Source — La Rive":                        ["Entretien préalable","23,17 €/jour","Aucune restriction"],
+  "@ Home 18-24 (Petits Riens)":             ["Entretien préalable","15 €/jour","18 à 24 ans"],
+  "Foyer Georges Motte (Armée du Salut)":    ["Entretien préalable","22,50 €/jour"],
+  "Home Baudouin (Œuvre de l'Hospitalité)":  ["Accueil 24h/24 si place","23,17 €/jour"],
+  "L'Ilot — Le 38":                          ["Entretien préalable","23,17 €/jour"],
+  "Maison d'accueil des Petits Riens":       ["Entretien préalable","15 €/jour"],
+  "Accueil Montfort":                        ["Entretien préalable","15 €/jour"],
+  "Centre de prévention des violences conjugales et familiales": ["Entretien préalable","13 €/jour"],
+  "Chèvrefeuille":                           ["Accueil 24h/24 si place","21 €/jour","Enfants de 6 ans max"],
+  "Home Victor Du Pré (Œuvre de l'Hospitalité)": ["Accueil 24h/24 si place","23,17 €/jour","Pas de garçon de plus de 11 ans"],
+  "La Maison Rue Verte":                     ["Entretien préalable","10 €/jour","Crèche"],
+  "Le Chant d'Oiseau":                       ["Entretien préalable","13,32 €/jour","Pas de garçon de plus de 12 ans"],
+  "Maison de la Mère et de l'Enfant (Armée du Salut)": ["Entretien préalable","23,17 €/jour","Enfants de 6 ans max"],
+  "Talita asbl":                             ["Sur rendez-vous","20 €/jour","Accueil en 7 langues"],
+  "Foyer Aurore – logement collectif adapté (ANAÏS)": ["Inscription PHARE obligatoire"],
+  "Messidor & Carrefour — habitations protégées (IHP)": ["Candidatures : 02 223 49 54"]
 };
 const TAGS_MAISONS = {
   "Plateforme Informative de la Strada (PILS)":            ["Places libres en direct"],
@@ -20124,7 +20161,8 @@ function fichePanHTML(){
                 'onpointerdown="this.href=gmailHref(BYSID[&quot;'+p.sid+'&quot;])">'+
                 icon('send')+'Ouvrir dans Gmail</a>')
           : '')+
-        (tel?'<a class="fpb tel" href="tel:'+esc(tel)+'">'+icon('phone')+'Appeler</a>':'')+
+        /* Le numéro plutôt que « Appeler » — voir vFiche, même raison. */
+        (tel?'<a class="fpb tel" href="tel:'+esc(tel)+'" aria-label="Appeler">'+icon('phone')+esc(p.tel||tel)+'</a>':'')+
         (p.adr?'<button class="fpb" onclick="window.open(\''+itiHref(p.adr)+'\',\'_blank\')">'+icon('pin')+'Y aller</button>':'')+
         /* ⚠ PASSER PAR urlHref(), COMME PARTOUT AILLEURS (27/08/2026). Ce bouton-ci
              retirait le préfixe et recollait `https://` de force : un site qui n'existe
@@ -23380,7 +23418,21 @@ function ficheCorpsHTML(p){
          ⚠ C'EST LE MÊME CŒUR QUE « CONSEILLÉ PAR L'ÉQUIPE » (tranché le 03/09, contre
          mon avis, et elle avait raison) : un seul signe pour une seule idée — ce que
          l'équipe sait et transmet. */
-      (p.attention?'<div class="bloc warn"><b><span class="ic">'+icon('coeur')+'</span>Note de l’équipe</b><p>'+esc(p.attention)+'</p></div>':'')+
+      /* ═══ UN POINT QUI OUVRE UNE LISTE, PAS UN TRIANGLE (Mag, 05/09/2026) ═══
+         « Plutôt qu'un petit icône attention, ce serait mieux qu'il y ait un point, un
+         point qui démarre une liste. »
+         Le bloc s'appelle déjà « Note de l'équipe » et porte un cœur : le ⚠ répétait
+         l'alerte à chaque ligne, et trois triangles d'affilée ne disent plus rien. Un
+         point rond ouvre une liste — et une liste se lit ligne par ligne, ce qu'un
+         paragraphe ne fait pas.
+         ⚠ SEULEMENT À L'AFFICHAGE : le ⚠ reste dans le texte des fiches, où il sert
+         encore ailleurs (le corps des démarches, les notes). C'est ici qu'il est de
+         trop, pas dans les données. */
+      (p.attention?'<div class="bloc warn"><b><span class="ic">'+icon('coeur')+'</span>Note de l’équipe</b><p>'+
+        esc(p.attention).split('\n').map(function(l){
+          l=l.replace(/^\s*⚠️?\s*/,'').trim();
+          return l?'· '+l:'';
+        }).filter(Boolean).join('\n')+'</p></div>':'')+
       (p.delai?'<div class="bloc"><b><span class="ic">'+icon('clock')+'</span>Délai</b><p>'+esc(p.delai)+'</p></div>':'');
     /* ═══ LA BOUCLE EST FERMÉE (Mag, 02/09/2026) ═══
        Sa question : « quand ce sera rempli, ça passe par ce chantier-là, et après
@@ -23536,8 +23588,17 @@ function vFiche(p){
      bien avant l'itinéraire. Sur téléphone les libellés disparaissent : trois pictos
      côte à côte se comprennent sans qu'on les nomme (sa remarque). */
   let b0='';
+  /* ═══ LE NUMÉRO, PAS LE MOT « APPELER » (Mag, 05/09/2026) ═══
+     « Je préfère que tu mettes le numéro de téléphone, comme ça on peut aussi le noter
+     quelque part, si on doit le donner à quelqu'un. »
+     Elle a raison, et ça dépasse le confort : ce bouton sert deux gestes différents —
+     appeler soi-même, et DONNER le numéro à la personne qu'on accompagne. « Appeler »
+     ne sert que le premier. Le numéro sert les deux : on le lit, on le recopie, on le
+     dicte, et il s'appelle toujours d'un doigt.
+     ⚠ `aria-label` garde le verbe : pour quelqu'un qui écoute la page, « 02 762 00 67 »
+     tout seul ne dit pas que c'est un bouton d'appel. */
   if(p.tel) b0='<a class="fbtn plein" style="background:'+c+'" href="tel:'+esc(String(p.tel).replace(/[^0-9+]/g,''))+'" aria-label="Appeler '+esc(p.nom)+'">'+
-    '<span class="ic">'+icon('phone')+'</span><span class="lb">Appeler</span></a>';
+    '<span class="ic">'+icon('phone')+'</span><span class="lb">'+esc(p.tel)+'</span></a>';
   /* Pas de numéro dans la fiche : on le DIT, au lieu de laisser un trou que personne
      ne remarque. C'est ce qui manquait sur Aquarelle et Médecins du Monde. */
   const sansTel = !p.tel && DOM[p.domaine] && DOM[p.domaine].reseau
