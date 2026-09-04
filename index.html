@@ -2363,18 +2363,23 @@ body.pan-ouvert #view{animation:none;transform:none}
    communes, donc une bande basse qui n'avait pas l'air d'une feuille. */
 #ouBg .partcard{min-height:62vh}
 /* La liste de la feuille : une ligne = un choix, assez haute pour un doigt. */
-/* Les deux boutons du haut des Démarches : une étiquette, la valeur choisie, un
-   chevron. Même famille que les rangées de l'app. */
-.demdeux{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
-.demsel{flex:1;min-width:150px;display:flex;align-items:baseline;gap:8px;background:#fff;
-  border:1.25px solid var(--trait);border-radius:11px;padding:10px 12px;font:inherit;
-  text-align:left;cursor:pointer}
-.demsel em{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--enc2);flex:none}
-.demsel b{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.demsel:not(.on) b{font-weight:400;color:var(--enc2)}
-.demsel .chv{margin-left:auto;color:var(--enc2);flex:none}
-.demsel.on{border-color:var(--noir)}
+/* Les deux lignes du haut des Démarches : rond pastel, la question, la réponse, le
+   chevron — la forme de l'app. L'une SOUS l'autre : côte à côte, « Aide Médicale
+   Urgente » se coupait en « Aide Mé… » (Mag, 04/09/2026). */
+.demdeux{display:flex;flex-direction:column;gap:9px;margin:4px 0 14px}
+.demsel{display:flex;align-items:center;gap:12px;background:#fff;border:1.25px solid var(--trait);
+  border-radius:14px;padding:13px 15px;font:inherit;text-align:left;cursor:pointer;width:100%}
+.demsel .rd{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center}
+.demsel .rd .ic{width:20px;height:20px}
+.demsel .tx{min-width:0;flex:1}
+.demsel em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--enc2);margin-bottom:2px}
+.demsel b{display:block;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.demsel:not(.on) b{font-weight:500;color:var(--enc2)}
+.demsel .chv{margin-left:auto;color:var(--enc2);flex:none;font-size:19px}
+.demsel.on{border-color:var(--noir);border-width:1.5px}
 .picklist{padding-bottom:10px}
 .pickb{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;
   border:0;border-bottom:1px solid var(--ligne);padding:14px 2px;font:inherit;font-size:16px;
@@ -14801,16 +14806,31 @@ function demPickType(){
       return demRempli(c,v) ? 'écrit' : 'rien encore';
     });
 }
+/* ═══ LES DEUX LIGNES, TROIS CORRECTIONS D'ELLE (04/09/2026) ═══
+   ① « J'aime bien ton petit "Où" avec le point map, le petit picto. Reprends ça. » —
+     chaque ligne retrouve son rond pastel et son dessin : la punaise pour la commune,
+     les calques pour la démarche. C'est la forme de l'app (la ligne du 20/08).
+   ② « Ça pourrait plus aérer. » — les deux boutons étaient côte à côte, serrés, et sur
+     téléphone le nom se coupait : « Aide Mé… ». Ils passent l'un SOUS l'autre, pleine
+     largeur : plus de troncature, et de l'air entre les deux.
+   ③ « Je ne vois pas pourquoi tu mets "démarche" : tu pourrais mettre "quelle
+     démarche ?" avec un point d'interrogation. » — l'étiquette pose la QUESTION à
+     laquelle le bouton répond. « Démarche » nommait une catégorie ; « Quelle démarche ? »
+     dit ce qu'on attend de toi.
+   ⚠ LE SIGLE S'AFFICHE SUR LE BOUTON (AMU), le nom entier reste dans la feuille : sur
+   une ligne, c'est le mot qu'on dit à l'oral qui doit tenir. */
 function demDeuxBoutons(){
   const c=demCommuneChoisie(), t=demChoisie()?filt.dem:'';
-  const b=function(lab,val,vide,fn){
+  const court=(DEM_TITRE[t]||[])[0]||t;
+  const ligne=function(picto,coul,question,val,vide,fn){
     return '<button class="demsel'+(val?' on':'')+'" onclick="'+fn+'()">'+
-      '<em>'+lab+'</em><b>'+esc(val||vide)+'</b>'+
+      '<span class="rd" style="background:'+pastel(coul)+'"><span class="ic">'+icon(picto)+'</span></span>'+
+      '<span class="tx"><em>'+question+'</em><b>'+esc(val||vide)+'</b></span>'+
       '<span class="chv">›</span></button>';
   };
   return '<div class="demdeux">'+
-    b('Commune', c, DEM_TOUTES_C, 'demPickCommune')+
-    b('Démarche', t, DEM_TOUTES_D, 'demPickType')+
+    ligne('ou','#6FC7D9','Quelle commune ?', c, 'Toutes', 'demPickCommune')+
+    ligne('demarche','#A9C8E8','Quelle démarche ?', court, 'Toutes', 'demPickType')+
   '</div>';
 }
 /* ═══ UN DEUXIÈME CLIC DÉCOCHE (Mag, 04/09/2026) ═══
@@ -21724,8 +21744,13 @@ function vDomaine(key){
   if(d.isFormation && !filt.tags.length && !filt.communes.length) return vFormations();
   /* Le bouton d'impression d'une LISTE DE FICHES : c'est la feuille qu'on emporte
      en visite ou qu'on donne à quelqu'un qui n'a pas l'app. */
+  /* ⚠ PAS D'IMPRESSION SUR LES DÉMARCHES (Mag, 04/09/2026 : « retire l'impression pour
+     cette page, ça n'a aucun sens »). Ailleurs, imprimer un tiroir a un sens : c'est la
+     feuille d'adresses qu'on emporte en visite ou qu'on donne à quelqu'un. Ici, ce
+     serait une liste de procédures internes au CPAS — on ne la donne à personne, et on
+     ne l'emporte pas : on la lit devant son écran au moment d'écrire le mail. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
-    '<div class="imprligne">'+boutonImprimer()+'</div>'+
+    (d.isDem?'':'<div class="imprligne">'+boutonImprimer()+'</div>')+
     /* ⚠ LE RAIL DES AUTRES DOMAINES A ÉTÉ RETIRÉ (Mag, 12/08/2026 : « retire le slide
        avec les boutons réseaux »). C'était une rangée horizontale — Médical, Social,
        Accompagnement, Jeunesse… — posée entre le titre du domaine et les filtres de
