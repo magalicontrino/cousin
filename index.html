@@ -2077,6 +2077,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 .trou{color:#e63329;font-weight:600}
 /* Le bloc Contact : l'adresse (ou la case pour l'écrire) sur une ligne, la phrase qui
    dit qui chercher juste en dessous, en petit. */
+/* L'adresse d'un CPAS, sous le texte : elle se lit d'un coup et se copie d'un doigt. */
+.adrline{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:9px;
+  padding-top:9px;border-top:1px solid var(--ligne)}
+.adrline a{font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
 .ctline{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
 .ctline a{font-weight:600}
 .cthint{font-size:12px;color:var(--txt-muet);margin-top:5px;line-height:1.35}
@@ -7709,12 +7713,12 @@ const SAMPLE = [
   // DÉMARCHES CPAS — trames à compléter par l'équipe.
   // ⚠ Ne jamais écrire ici le nom d'un hébergé : ce sont des procédures, pas des dossiers.
   dem("Réquisitoire","CPAS d'Anderlecht","Anderlecht",
-    "L'assistant·e social·e de la personne, au CPAS. Pas d'adresse générale.",
+    "L'assistant·e social·e de la personne, au CPAS.",
     "",
     "⚠ Plus de réquisitoire pour la kiné.\nAnderlecht marche par antennes : une adresse unique ne passe pas.",
     "",""),
   dem("Réquisitoire","CPAS de la Ville de Bruxelles","Bruxelles-Ville",
-    "Une seule adresse pour toute la Ville : celluleaidemedicale@cpasbxl.brussels",
+    "Adresse générale, pour toute la Ville.",
     "",
     "Réquisitoires ET AMU passent par cette adresse. Pas d'envoi par antenne.",
     "","celluleaidemedicale@cpasbxl.brussels"),
@@ -7729,7 +7733,7 @@ const SAMPLE = [
     "Anderlecht marche par antennes : l'assistant·e social·e, pas une adresse unique.",
     "60 jours pour décider, à partir du début des soins. Après, l’État ne rembourse plus.",""),
   dem("Aide Médicale Urgente (AMU)","CPAS de la Ville de Bruxelles","Bruxelles-Ville",
-    "Une seule adresse pour toute la Ville : celluleaidemedicale@cpasbxl.brussels",
+    "Adresse générale, pour toute la Ville.",
     "Pareil dans tous les CPAS.\n\n1. Le médecin remplit l’attestation d’aide médicale urgente. Sans elle, rien ne part.\n2. Le CPAS décide dans MEDIPRIMA. Le prestataire de soins la consulte lui-même.\n3. Engagement de paiement valable 30 jours.\n4. Couvre le curatif ET le préventif.\n\n⚠ Pas d’adresse : ça ne bloque pas. C’est le CPAS de là où la personne se trouve.\n\nSource : Primabook (SPP Intégration sociale), 27/08/2026.",
     "Même adresse que pour les réquisitoires.",
     "60 jours pour décider, à partir du début des soins. Après, l’État ne rembourse plus.","celluleaidemedicale@cpasbxl.brussels"),
@@ -7741,7 +7745,7 @@ const SAMPLE = [
      qu'un envoi qui traîne trois jours dans une boîte générale, personne ne le voit
      passer. Vérifié sur cpas-schaerbeek.brussels le 27/08/2026. */
   dem("Réquisitoire","CPAS de Schaerbeek","Schaerbeek",
-    "info@cpas-schaerbeek.brussels — l'adresse générale.\nBd Auguste Reyers 70, 1030 Schaerbeek · 02 240 30 80\nLun-jeu 8h-12h et 12h50-16h · ven 8h-12h.",
+    "Adresse générale.\nBd Auguste Reyers 70, 1030 Schaerbeek · 02 240 30 80\nLun-jeu 8h-12h et 12h50-16h · ven 8h-12h.",
     "",
     "⚠ Pas de cellule médicale ici, pas d'adresse dédiée. Demander confirmation de réception.",
     "","info@cpas-schaerbeek.brussels"),
@@ -14273,7 +14277,7 @@ function contactInterieur(p){
   }else{
     const dit=(f&&f.ou&&f.ou.indexOf('À compléter')<0)
       ? f.ou.split('\n')[0]
-      : (e.c ? 'Pas d’adresse générale pour cette commune.' : 'Choisis la commune, ou écris l’adresse.');
+      : (e.c ? 'Écris l’adresse de l’assistant·e social·e de la personne.' : 'Choisis la commune, ou écris l’adresse.');
     h+='<div class="ctline"><input class="nfill" style="flex:1" value="'+esc(e.a||'')+'" '+
        'placeholder="adresse mail" oninput="contactSaisie(\''+sid+'\',this.value)"></div>'+
        '<div class="cthint">'+esc(dit)+'</div>';
@@ -22863,7 +22867,23 @@ function ficheCorpsHTML(p){
      C'est ce qui serait arrivé aux trois fiches du handicap en changeant de
      tiroir. Une fiche porte son contenu partout où on la range. */
   if(p.demarche || p.domaine==='demarches'){
-    body+=(p.ou?'<div class="bloc"><b><span class="ic">'+icon('pin')+'</span>Où s’adresser</b><p>'+avecMails(p.ou)+'</p></div>':'')+
+    /* ═══ L'ADRESSE SE COPIE, ELLE NE SE RECOPIE PAS (Mag, 04/09/2026) ═══
+       « Retire "pas d'adresse générale". Et dans le cas contraire, tu mets juste
+       "adresse générale". Et là où est notée l'adresse, elle doit être copiable, avec
+       un petit icône. »
+       Deux choses :
+       ① Le texte dit QUI on contacte — « l'assistant·e social·e de la personne, au
+         CPAS » — et rien de plus. « Pas d'adresse générale » disait ce qui n'existe
+         pas : sur une fiche, une phrase qui décrit un manque prend la place d'une
+         phrase qui décrit ce qu'on fait.
+       ② Quand une adresse existe, elle sort du paragraphe et devient une LIGNE À
+         ELLE, avec son bouton pour la copier. Recopier une adresse mail à la main sur
+         un téléphone, c'est la faute de frappe qui fait revenir la demande. */
+    body+=(p.ou?'<div class="bloc"><b><span class="ic">'+icon('pin')+'</span>Où s’adresser</b><p>'+avecMails(p.ou)+'</p>'+
+      (p.mail?'<div class="adrline"><a href="mailto:'+esc(p.mail)+'">'+esc(p.mail)+'</a>'+
+        '<button class="cbcop" onclick="copyTxt(\''+esc(p.mail)+'\',\'Adresse copiée\')">'+
+        '<span class="ic">'+icon('copy')+'</span>Copier</button></div>':'')+
+      '</div>':'')+
       (p.comment?'<div class="bloc"><b><span class="ic">'+icon('list')+'</span>Comment ça se passe</b><p>'+esc(p.comment)+'</p></div>':'')+
       /* ═══ « NOTE DE L'ÉQUIPE », PAS « ATTENTION » (Mag, 04/09/2026) ═══
          « Pas en mode attention, en mode petit cœur — qu'on voie que c'est l'ÉQUIPE qui
