@@ -2069,6 +2069,12 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:12px;margin-bottom:9px}
 .dem3>b{display:block;font-size:15.5px;font-weight:600;line-height:1.2}
 .dem3 .niv{margin-top:8px;border-radius:9px;padding:9px 11px;font-size:13.5px;line-height:1.45}
+/* ⚠ « Adresse » et « Message » sont des ÉTIQUETTES, pas du texte : petites capitales
+   machine, comme partout dans l'app. Le trait qui les sépare dit qu'il y a deux
+   choses, sans ajouter un deuxième cadre (Mag, 04/09/2026). */
+.dem3 .dcase+.dcase{margin-top:9px;padding-top:9px;border-top:1px solid rgba(27,27,27,.14)}
+.dem3 .dcase em{display:block;font-style:normal;font-family:ui-monospace,monospace;
+  font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.62;margin-bottom:3px}
 .dem3 .qui{display:block;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;
   text-transform:uppercase;margin-bottom:3px}
 .dem3 .socle{background:rgba(27,27,27,.05)}
@@ -6426,25 +6432,21 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <button onclick="contribFermer()" aria-label="Fermer">Fermer</button></div>
     <div id="contribCorps" style="padding-bottom:12px">
       <p id="contribSous" style="color:var(--txt-muet);font-size:13px;margin:0 0 12px"></p>
+      <!-- ═══ DEUX CASES, PLUS CINQ (Mag, 04/09/2026) ═══
+           « Il faudrait mettre une case adresse et un message. » Cinq champs devant
+           quelqu'un qui a deux minutes entre deux entretiens, c'est cinq raisons de
+           refermer la fenêtre. Les deux questions qu'on se pose vraiment devant un
+           CPAS : OÙ j'envoie, et QUOI je dis.
+           ⚠ RIEN N'EST PERDU DE CE QUI EST DÉJÀ ÉCRIT : ce que les fiches portaient
+           dans « Comment », « Attention » et « Délai » revient dans Message, une
+           ligne chacun — voir `contribOuvrir`. -->
       <div class="chadd empile ecrire" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📌 Où s'adresser (adresse, mail, téléphone)</label>
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📌 Adresse — où on envoie (mail, adresse, téléphone)</label>
         <textarea id="contribOu" rows="2" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
-      <div class="chadd empile ecrire" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📝 Comment ça se passe (procédure, pièces)</label>
-        <textarea id="contribComment" rows="2" maxlength="400" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-      </div>
-      <div class="chadd empile ecrire" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⚠ Attention (piège / spécificité)</label>
-        <textarea id="contribAtt" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-      </div>
-      <div class="chadd empile ecrire" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">⏱ Délai (temps de réponse)</label>
-        <textarea id="contribDelai" rows="1" maxlength="200" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-      </div>
       <div class="chadd empile ecrire" style="margin-bottom:16px">
-        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">💊 Pharmacie(s) attitrée(s)</label>
-        <textarea id="contribPharma" rows="1" maxlength="300" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+        <label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">📝 Message — ce qu'on dit, ce qu'il faut joindre, les pièges, le délai</label>
+        <textarea id="contribComment" rows="4" maxlength="900" style="width:100%;resize:none" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       </div>
       <button class="accb plein" onclick="contribEnvoyer()" style="width:100%">Proposer</button>
     </div>
@@ -20712,12 +20714,35 @@ function demRegles(type){
   return r;
 }
 /* Ce qu'on lit d'une fiche, en une phrase : « Où » d'abord, puis « Comment ». */
+/* ═══ ADRESSE ET MESSAGE, SÉPARÉS (Mag, 04/09/2026) ═══
+   « Dans les contributions démarches — par exemple réquisitoire — il faudrait mettre
+   une case adresse et un message. Aide médicale : adresse, message. »
+   Elle a raison, et sa capture le montre : les deux textes étaient COLLÉS bout à bout
+   en un seul paragraphe, puis coupés à 210 caractères. On lisait « L'assistant·e
+   social·e de la personne, au CPAS. Pareil dans tous les CPAS. 1. Le médecin remplit
+   l'attestation… » — l'adresse et la procédure dans la même phrase, et la fin manquante.
+   Or ce sont deux choses qu'on cherche à deux moments : OÙ j'envoie, et QUOI je dis.
+   ⚠ `demVide` sert aux deux : un « À compléter » n'est pas un contenu, il ne doit
+   remplir aucune des deux cases. */
+function demVide(x){ return !x || !x.trim() || x.indexOf('À compléter')>=0; }
+function demCouper(t,max){
+  t=String(t||'').trim(); max=max||210;
+  return t.length>max ? t.slice(0,max-1).replace(/\s+\S*$/,'')+'…' : t;
+}
+function demAdresse(f,max){ return (!f||demVide(f.ou))?'':demCouper(f.ou,max||160); }
+/* Le message, c'est tout ce qui n'est pas l'adresse : la procédure, le piège, le délai.
+   Chacun garde sa ligne — les coller ferait le paragraphe qu'on vient de défaire. */
+function demMessage(f,max){
+  if(!f) return '';
+  return [f.comment,f.attention,f.delai].filter(function(x){ return !demVide(x); })
+    .map(function(x){ return demCouper(x,max||260); }).join('\n');
+}
+/* Gardé pour le TABLEAU et pour `demRegles` : là, un seul mot suffit à dire
+   « il y a quelque chose d'écrit ». */
 function demResume(f,max){
   if(!f) return '';
-  var t=[f.ou||'',f.comment||''].filter(function(x){
-    return x.trim() && x.indexOf('À compléter')<0; }).join(' ');
-  t=t.trim(); max=max||210;
-  return t.length>max ? t.slice(0,max-1).replace(/\s+\S*$/,'')+'…' : t;
+  var t=[f.ou||'',f.comment||''].filter(function(x){ return !demVide(x); }).join(' ');
+  return demCouper(t,max);
 }
 /* L'état d'une case du tableau : écrit ici · seulement la règle · rien. */
 function demEtat(commune,type){
@@ -20783,13 +20808,18 @@ function contribOuvrir(commune,type){
     : 'Remplis ce que tu sais. Les champs vides seront ignor\u00e9s.';
   /* ⚠ ON REMET CE QUI EST DÉJÀ ÉCRIT. Sans ça, « corriger » obligeait à tout
      retaper de mémoire — donc personne ne corrigeait. */
-  var depart={contribOu:(p&&p.ou)||'', contribComment:(p&&p.comment)||'',
-              contribAtt:(p&&p.attention)||'', contribDelai:(p&&p.delai)||'',
-              contribPharma:(p&&p.pharma)||''};
+  /* ⚠ LES QUATRE ANCIENS CHAMPS SE VERSENT DANS « MESSAGE », une ligne chacun.
+     Sans ça, passer de cinq cases à deux aurait effacé de l'écran ce que les fiches
+     portent déjà — et « corriger » aurait voulu dire « retaper de mémoire ». */
+  var vide=function(x){ return !x || !x.trim() || /^\s*\u00c0 compl\u00e9ter/.test(x); };
+  var depart={
+    contribOu: vide(p&&p.ou) ? '' : p.ou,
+    contribComment: [p&&p.comment, p&&p.attention, p&&p.delai, p&&p.pharma]
+      .filter(function(x){ return !vide(x); }).join('\n')
+  };
   Object.keys(depart).forEach(function(id){
     var e=document.getElementById(id); if(!e) return;
-    e.value = /^\s*\u00c0 compl\u00e9ter/.test(depart[id]) ? '' : depart[id];
-    e.style.height='';
+    e.value=depart[id]; e.style.height='';
   });
   document.getElementById('contribBg').classList.add('on'); figerFond(true);
 }
@@ -20801,20 +20831,17 @@ async function contribEnvoyer(){
   var champs=[];
   var ou=document.getElementById('contribOu').value.trim();
   var comment=document.getElementById('contribComment').value.trim();
-  var att=document.getElementById('contribAtt').value.trim();
-  var delai=document.getElementById('contribDelai').value.trim();
-  var pharma=document.getElementById('contribPharma').value.trim();
-  if(ou) champs.push('O\u00f9 : '+ou);
-  if(comment) champs.push('Comment : '+comment);
-  if(att) champs.push('Attention : '+att);
-  if(delai) champs.push('D\u00e9lai : '+delai);
-  if(pharma) champs.push('Pharmacie(s) : '+pharma);
-  if(!champs.length){ toast('Remplis au moins un champ'); return; }
+  if(ou) champs.push('Adresse : '+ou);
+  if(comment) champs.push('Message : '+comment);
+  if(!champs.length){ toast('Remplis au moins une case'); return; }
   var texte=champs.join('\n');
   if(!sb||!PROFILE||!PROFILE.uid){ toast('Pas connect\u00e9e'); return; }
   var r=await sb.from('wiki_centre').insert({
     page:'contrib-demarches:'+CONTRIB_COMMUNE+':'+CONTRIB_TYPE,
-    texte:texte.slice(0,600),
+    /* ⚠ 1200, pas 600 : « Message » ramasse maintenant à lui seul ce qui tenait
+       dans quatre champs. À 600, la fin d'une contribution partait à la poubelle
+       sans un mot — c'est le genre de perte qu'on ne voit qu'après. */
+    texte:texte.slice(0,1200),
     auteur_uid:PROFILE.uid,
     auteur_nom:(typeof nomAffiche==='function'?nomAffiche():'')||'', etat:'attente'
   }).select();
@@ -20907,12 +20934,22 @@ function vContribDemarches(){
     var wikis=demWikiNotes(selCommune,t);
     var att=demWikipAttente(selCommune,t);
     h+='<div class="dem3"><b>'+esc(t)+'</b>';
+    /* Une case par chose : l'adresse d'abord — c'est elle qu'on cherche en premier —
+       puis le message. Une case absente ne s'écrit pas : un cadre vide fait croire
+       à une panne. */
+    var deuxCases=function(f){
+      var a=demAdresse(f), m=demMessage(f);
+      if(!a && !m) return '';
+      return (a?'<div class="dcase"><em>Adresse</em>'+esc(a)+'</div>':'')+
+             (m?'<div class="dcase"><em>Message</em>'+esc(m).replace(/\n/g,'<br>')+'</div>':'');
+    };
     if(regles.length){
-      h+='<div class="niv socle"><span class="qui">La règle, partout</span>'+
-         regles.map(function(r){ return esc(demResume(r,240)); }).join('<br><br>')+'</div>';
+      var socle=regles.map(deuxCases).filter(Boolean).join('');
+      if(socle) h+='<div class="niv socle"><span class="qui">La règle, partout</span>'+socle+'</div>';
     }
     if(ici){
-      h+='<div class="niv ici"><span class="qui">Au CPAS de '+esc(selCommune)+'</span>'+esc(ici)+'</div>';
+      h+='<div class="niv ici"><span class="qui">Au CPAS de '+esc(selCommune)+'</span>'+
+         deuxCases(p)+'</div>';
     }else{
       h+='<div class="niv ici vide"><span class="qui">'+
          (regles.length?'À '+esc(selCommune):'Rien, nulle part')+'</span>'+
