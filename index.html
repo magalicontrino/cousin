@@ -2377,7 +2377,18 @@ body.pan-ouvert #view{animation:none;transform:none}
    Les deux lignes du haut des Démarches : la question, la réponse, le
    chevron. L'une SOUS l'autre : côte à côte, « Aide Médicale
    Urgente » se coupait en « Aide Mé… » (Mag, 04/09/2026). */
-.demdeux{display:flex;flex-direction:column;gap:9px;margin:4px 0 14px}
+/* Le cadre qui tient les deux choix ET la réponse : c'est lui qui manquait — sans lui,
+   les deux cartes flottaient au-dessus d'une grille de fiches sans lien visible. */
+.demcadre{background:var(--creme);border:1.5px solid var(--ligne);border-radius:20px;
+  padding:13px;margin:6px 0 16px}
+.demcadre .cards{border-top:0;padding-top:0;background:transparent;margin-top:11px}
+/* L'invitation, quand rien n'est encore choisi : une phrase qui dit quoi faire, dans
+   le cadre, à la place des fiches. Pas un « rien à montrer ». */
+.deminvite{background:#fff;border-radius:14px;padding:16px;margin-top:11px}
+.deminvite b{display:block;font-size:15.5px;margin-bottom:4px}
+.deminvite span{font-size:13.5px;color:var(--enc2);line-height:1.45}
+.demdeux{display:flex;gap:9px;flex-wrap:wrap}
+.demdeux>*{flex:1 1 46%;min-width:150px}
 .demsel{display:flex;align-items:center;gap:12px;border:0;
   border-radius:16px;padding:14px 16px;font:inherit;text-align:left;cursor:pointer;width:100%;
   transition:background .25s ease}
@@ -14801,6 +14812,27 @@ const DEM_TOUTES_C='Toutes les communes', DEM_TOUTES_D='Toutes les démarches';
 const DEM_COUL={'Réquisitoire':'#6FC7D9','Aide Médicale Urgente (AMU)':'#A9C8E8',
   'Carte médicale':'#6cb392'};
 function demCouleur(){ return (demChoisie() && DEM_COUL[filt.dem]) || '#dcdad6'; }
+/* ═══ ON SE SOUVIENT DU DERNIER CHOIX (Mag, 04/09/2026) ═══
+   « Quand tu arrives, il n'y a rien et tu choisis — en gardant en mémoire ce que tu
+   avais fait en partant. »
+   Les deux ne se contredisent pas : la PREMIÈRE fois, la page est vide et pose ses deux
+   questions. Ensuite elle rouvre là où on l'avait laissée — on travaille souvent
+   plusieurs jours de suite sur la même commune.
+   ⚠ DANS LE TÉLÉPHONE, PAS EN BASE : c'est un confort de navigation, pas une donnée
+   d'équipe. Et enveloppé de try/catch — un navigateur qui refuse le stockage ne doit
+   pas empêcher la page de s'ouvrir. */
+var DEM_MEM_FAIT=false;
+function demMemLire(){
+  try{
+    const m=JSON.parse(localStorage.getItem('cousin_dem_choix')||'{}');
+    if(m.c) filt.communes=[m.c];
+    if(m.d) filt.dem=m.d;
+  }catch(e){}
+}
+function demMemEcrire(){
+  try{ localStorage.setItem('cousin_dem_choix', JSON.stringify({
+    c: demCommuneChoisie(), d: demChoisie()?filt.dem:'' })); }catch(e){}
+}
 function demCommunes(){
   return COMMUNES.filter(function(c){
     return DATA.some(function(p){ return p.domaine==='demarches' && p.commune===c; }); });
@@ -14814,7 +14846,7 @@ function demCommuneChoisie(){ return (filt.communes && filt.communes.length===1)
 function demPickCommune(){
   pickOuvrir('Quelle commune ?', [DEM_TOUTES_C].concat(demCommunes()),
     demCommuneChoisie()||DEM_TOUTES_C,
-    function(v){ filt.communes = (v===DEM_TOUTES_C) ? [] : [v]; render(); window.scrollTo(0,0); },
+    function(v){ filt.communes = (v===DEM_TOUTES_C) ? [] : [v]; demMemEcrire(); render(); window.scrollTo(0,0); },
     function(v){
       if(v===DEM_TOUTES_C) return '';
       const n=demTypes().filter(function(t){ return demRempli(v,t); }).length;
@@ -14825,7 +14857,7 @@ function demPickType(){
   const c=demCommuneChoisie();
   pickOuvrir('Quelle démarche ?', [DEM_TOUTES_D].concat(demTypes()),
     demChoisie()?filt.dem:DEM_TOUTES_D,
-    function(v){ filt.dem = (v===DEM_TOUTES_D) ? 'Toutes' : v; render(); window.scrollTo(0,0); },
+    function(v){ filt.dem = (v===DEM_TOUTES_D) ? 'Toutes' : v; demMemEcrire(); render(); window.scrollTo(0,0); },
     function(v){
       if(v===DEM_TOUTES_D || !c) return '';
       return demRempli(c,v) ? 'écrit' : 'rien encore';
@@ -14855,7 +14887,13 @@ function demDeuxBoutons(){
       '<span class="tx"><em>'+question+'</em><b>'+esc(val||vide)+'</b></span>'+
       '<span class="chv">›</span></button>';
   };
-  return '<div class="demdeux">'+
+  /* ⚠ LES DEUX CÔTE À CÔTE, DANS UN CADRE — c'est la maquette A, telle qu'elle l'a
+     vue (Mag : « ça ne ressemble pas, ce n'est pas encadré, ce n'est pas ce que tu
+     m'as montré »). Le cadre s'ouvre ici et se referme après le résultat.
+     Elles se remettent l'une sous l'autre en dessous de ~340 px de large : deux
+     cartes de 150 px ne tiennent pas côte à côte sur les petits téléphones, et un
+     nom coupé est pire que deux lignes. */
+  return '<div class="demcadre"><div class="demdeux">'+
     ligne('ou','#6FC7D9','Quelle commune ?', c, 'Toutes', 'demPickCommune')+
     ligne('demarche',demCouleur(),'Quelle démarche ?', court, 'Toutes', 'demPickType')+
   '</div>';
@@ -21577,6 +21615,10 @@ function vDomaine(key){
        « il faut mettre les communes, il faut mettre où ! ». Une seule cause.
        LA RÈGLE : rien de choisi = tout est montré. Un filtre qu'on n'a pas posé ne
        doit rien retirer. */
+    /* ⚠ UNE SEULE FOIS PAR OUVERTURE DE L'APP : si on relisait la mémoire à chaque
+       dessin, choisir « Toutes » serait aussitôt écrasé par l'ancien choix — le bouton
+       aurait l'air de ne pas répondre. */
+    if(!DEM_MEM_FAIT){ DEM_MEM_FAIT=true; demMemLire(); }
     chips+=demDeuxBoutons();
     if(demChoisie()) items=items.filter(p=>p.demarche===filt.dem);
   }
@@ -21776,7 +21818,16 @@ function vDomaine(key){
      feuille d'adresses qu'on emporte en visite ou qu'on donne à quelqu'un. Ici, ce
      serait une liste de procédures internes au CPAS — on ne la donne à personne, et on
      ne l'emporte pas : on la lit devant son écran au moment d'écrire le mail. */
-  return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
+  /* ═══ « QUAND TU ARRIVES, IL N'Y A RIEN ET TU CHOISIS » (Mag, 04/09/2026) ═══
+     La page ouvrait sur les seize fiches à la fois — trois démarches × cinq communes,
+     en vrac. « Le but, c'est qu'on choisit, c'est qu'il n'y ait pas trop. »
+     Tant que rien n'est choisi, on ne montre donc AUCUNE fiche : les deux questions,
+     et une phrase qui dit ce qu'on attend. Le jour où les dix-neuf communes seront
+     remplies, cette page ferait cinquante-sept cartes en vrac à l'ouverture.
+     ⚠ CE N'EST PAS UNE PAGE VIDE, c'est une page qui POSE UNE QUESTION. La différence
+     se joue sur la phrase : elle doit dire quoi faire, pas constater qu'il n'y a rien. */
+  const demVierge = d.isDem && !demChoisie() && !demCommuneChoisie();
+  return heroBandeau(d.label, demVierge?'Choisis pour commencer':((items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':'')), dc(key), d.ic)+
     (d.isDem?'':'<div class="imprligne">'+boutonImprimer()+'</div>')+
     /* ⚠ LE RAIL DES AUTRES DOMAINES A ÉTÉ RETIRÉ (Mag, 12/08/2026 : « retire le slide
        avec les boutons réseaux »). C'était une rangée horizontale — Médical, Social,
@@ -21787,7 +21838,12 @@ function vDomaine(key){
        filtre qu'on cherche est celui qu'on ne voit pas. Pour changer de domaine, on
        revient au Réseau — c'est un geste, et il est clair. */
     chips+
-    '<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>'+
+    (demVierge
+      ? '<div class="deminvite"><b>Deux questions, et la réponse arrive.</b>'+
+        '<span>Choisis la commune de la personne, puis la démarche. '+
+        'La page se souviendra de ton choix la prochaine fois.</span></div></div>'
+      : '')+
+    (demVierge?'':'<div class="cards"'+(d.isFormation?' style="border-top:0;padding-top:6px"':'')+'>')+
     /* PRINT en tête de « Gestion du centre » (Mag, 13/08/2026). Ce n'est pas une fiche
        du réseau — c'est le tiroir des feuilles vierges qu'on réimprime tout le temps.
        Il passe devant parce qu'on vient ici pour ça, pas au bout d'une liste. */
@@ -21798,9 +21854,10 @@ function vDomaine(key){
         PRINT_FEUILLES.length+' pour l’instant</small></span>'+
         '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>'
       : '')+
-    (items.length||grpHtml?listeDuTiroir(d,items,key)+grpHtml:
+    (demVierge?'':
+      (items.length||grpHtml?listeDuTiroir(d,items,key)+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
-    '</div>'+
+      '</div>'+(d.isDem?'</div>':''))+
     fichePanHTML();
 }
 
