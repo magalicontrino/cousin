@@ -2382,8 +2382,12 @@ body.pan-ouvert #view{animation:none;transform:none}
    Urgente » se coupait en « Aide Mé… » (Mag, 04/09/2026). */
 /* Le cadre qui tient les deux choix ET la réponse : c'est lui qui manquait — sans lui,
    les deux cartes flottaient au-dessus d'une grille de fiches sans lien visible. */
+/* ⚠ DE L'AIR SOUS LE BANDEAU NOIR (Mag, 05/09/2026 : « c'est trop collé, ça manque
+   vraiment de pixels entre le bord noir en haut et le cadre »). Six pixels séparaient
+   un aplat noir d'un cadre clair : les deux se touchaient et se lisaient comme un seul
+   bloc. */
 .demcadre{background:var(--creme);border:1.5px solid var(--ligne);border-radius:20px;
-  padding:13px;margin:6px 0 16px}
+  padding:14px;margin:18px 0 16px}
 .demcadre .cards{border-top:0;padding-top:0;background:transparent;margin-top:11px}
 .demdeux{display:flex;gap:9px;flex-wrap:wrap}
 .demdeux>*{flex:1 1 46%;min-width:150px}
@@ -2396,8 +2400,15 @@ body.pan-ouvert #view{animation:none;transform:none}
 .demsel .tx{min-width:0;flex:1}
 .demsel em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
   letter-spacing:.16em;text-transform:uppercase;color:rgba(27,27,27,.62);margin-bottom:2px}
-.demsel b{display:block;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.01em;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ⚠ LA RÉPONSE PASSE À LA LIGNE, ELLE NE SE COUPE PLUS (Mag, 05/09/2026). Elle était
+   sur une seule ligne avec des points de suspension : « Molenbeek-Saint-Jean » devenait
+   « Mol… », et une commune à moitié écrite ne se lit pas — on l'ouvre pour vérifier,
+   donc le bouton a échoué. Deux lignes coûtent quelques pixels, un mot coupé coûte un
+   clic. */
+.demsel b{display:block;font-size:16.5px;font-weight:700;line-height:1.2;letter-spacing:-.015em;
+  overflow-wrap:anywhere;hyphens:auto}
+@media(max-width:400px){ .demsel b{font-size:15px} .demsel{padding:12px 13px;gap:10px}
+  .demsel .rd{width:36px;height:36px} }
 .demsel:not(.on) b{font-weight:500;color:rgba(27,27,27,.62)}
 .demsel .chv{margin-left:auto;color:rgba(27,27,27,.5);flex:none;font-size:19px}
 /* Les pastilles de la feuille : la même grille que « Où ? » dans le Réseau, parce que
@@ -14921,11 +14932,16 @@ var DEM_MEM_FAIT=false;
    `vu` : il distingue « jamais choisi » de « a choisi Toutes ». */
 function demMemLire(){
   try{
+    /* ⚠ ON ARRIVE SUR « TOUTES », PAS SUR ANDERLECHT (Mag, 05/09/2026) : « quand tu
+       arrives, tu mets toutes les communes, toutes les démarches — tu laisses la
+       liste ». Elle avait demandé Anderlecht par défaut la veille, puis a vu l'écran :
+       une commune imposée cache les six autres, et on ne sait pas qu'elles existent.
+       La liste entière au départ, et ce qu'elle choisit lui revient ensuite. */
     const m=JSON.parse(localStorage.getItem('cousin_dem_choix')||'null');
-    if(!m || !m.vu){ filt.communes=['Anderlecht']; return; }
+    if(!m || !m.vu){ filt.communes=[]; filt.dem='Toutes'; return; }
     filt.communes = m.c ? [m.c] : [];
     filt.dem = m.d || 'Toutes';
-  }catch(e){ filt.communes=['Anderlecht']; }
+  }catch(e){ filt.communes=[]; }
 }
 function demMemEcrire(){
   try{ localStorage.setItem('cousin_dem_choix', JSON.stringify({
@@ -14991,8 +15007,12 @@ function demDeuxBoutons(){
      Elles se remettent l'une sous l'autre en dessous de ~340 px de large : deux
      cartes de 150 px ne tiennent pas côte à côte sur les petits téléphones, et un
      nom coupé est pire que deux lignes. */
+  /* ⚠ « OÙ ? » AU LIEU DE « QUELLE COMMUNE ? » (Mag, 05/09/2026) : sur téléphone,
+     l'étiquette prenait trois lignes et la réponse était coupée — « And… », « Réq… ».
+     Deux mots de moins en haut, c'est toute la place rendue à la réponse. Et « Où ? »
+     est déjà le mot de l'app pour cette question, depuis la feuille du Réseau. */
   return '<div class="demcadre"><div class="demdeux">'+
-    ligne('ou','#6FC7D9','Quelle commune ?', c, 'Toutes', 'demPickCommune')+
+    ligne('ou','#6FC7D9','Où ?', c, 'Toutes', 'demPickCommune')+
     ligne('demarche',demCouleur(),'Quelle démarche ?', court, 'Toutes', 'demPickType')+
   '</div>';
 }
