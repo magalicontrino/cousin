@@ -2363,6 +2363,14 @@ body.pan-ouvert #view{animation:none;transform:none}
    communes, donc une bande basse qui n'avait pas l'air d'une feuille. */
 #ouBg .partcard{min-height:62vh}
 /* La liste de la feuille : une ligne = un choix, assez haute pour un doigt. */
+/* ═══ LA GRANDE CARTE COLORÉE (maquette D, choisie le 04/09/2026) ═══
+   Elle enveloppe les deux lignes ET les fiches. La couleur vient de la démarche, elle
+   change avec elle. Les fiches restent blanches dedans : c'est le contraste qui les
+   rend lisibles, pas la couleur. */
+.demcarte{background:#dcdad6;border-radius:20px;padding:14px;margin:6px 0 18px;
+  transition:background .25s ease}
+.demcarte .cards{border-top:0;padding-top:0;background:transparent}
+.demcarte .empty{background:#fff;border-radius:14px;padding:22px 16px;margin-top:2px}
 /* Les deux lignes du haut des Démarches : rond pastel, la question, la réponse, le
    chevron — la forme de l'app. L'une SOUS l'autre : côte à côte, « Aide Médicale
    Urgente » se coupait en « Aide Mé… » (Mag, 04/09/2026). */
@@ -14776,6 +14784,20 @@ function demChoisie(){ return !!filt.dem && filt.dem!=='Toutes'; }
    d'or : aucun bouton de tri ne mène à une page vide.
    ⚠ « Toutes » RESTE EN TÊTE des deux listes : c'est ainsi qu'on ressort d'un choix. */
 const DEM_TOUTES_C='Toutes les communes', DEM_TOUTES_D='Toutes les démarches';
+/* ═══ UNE COULEUR PAR DÉMARCHE (Mag, 04/09/2026 : elle a choisi la maquette D) ═══
+   « L'idée est géniale, mais c'est très fade. Un truc plus peps, plus coloré, où tu as
+   envie de bosser. » Sur la planche des cinq habillages : « D · la grande carte,
+   j'aime beaucoup ça. »
+   Tout l'écran prend la couleur de la démarche choisie : on sait dans quoi on est sans
+   relire le bouton, et changer de démarche se VOIT avant de se lire.
+   ⚠ L'AMU N'EST PAS EN JAUNE, contrairement à la maquette. Sa règle de palette du
+   12/08 : le jaune est réservé à ce qui presse. Un aplat jaune sur tout un écran le
+   userait pour de bon — c'est ce qu'on vient de défaire sur « Attention ici ». Elle
+   prend le bleu du Centre. Si elle le veut jaune quand même, c'est une ligne.
+   ⚠ Rien de choisi : un gris chaud, pour que la carte existe sans crier. */
+const DEM_COUL={'Réquisitoire':'#6FC7D9','Aide Médicale Urgente (AMU)':'#A9C8E8',
+  'Carte médicale':'#6cb392'};
+function demCouleur(){ return (demChoisie() && DEM_COUL[filt.dem]) || '#dcdad6'; }
 function demCommunes(){
   return COMMUNES.filter(function(c){
     return DATA.some(function(p){ return p.domaine==='demarches' && p.commune===c; }); });
@@ -14828,9 +14850,9 @@ function demDeuxBoutons(){
       '<span class="tx"><em>'+question+'</em><b>'+esc(val||vide)+'</b></span>'+
       '<span class="chv">›</span></button>';
   };
-  return '<div class="demdeux">'+
-    ligne('ou','#6FC7D9','Quelle commune ?', c, 'Toutes', 'demPickCommune')+
-    ligne('demarche','#A9C8E8','Quelle démarche ?', court, 'Toutes', 'demPickType')+
+  return '<div class="demcarte" style="background:'+demCouleur()+'"><div class="demdeux">'+
+    ligne('ou','#ffffff','Quelle commune ?', c, 'Toutes', 'demPickCommune')+
+    ligne('demarche','#ffffff','Quelle démarche ?', court, 'Toutes', 'demPickType')+
   '</div>';
 }
 /* ═══ UN DEUXIÈME CLIC DÉCOCHE (Mag, 04/09/2026) ═══
@@ -21773,7 +21795,11 @@ function vDomaine(key){
       : '')+
     (items.length||grpHtml?listeDuTiroir(d,items,key)+grpHtml:
       '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>')+
-    '</div>'+fichePanHTML();
+    '</div>'+
+    /* La grande carte colorée s'ouvre avec les deux lignes (`demDeuxBoutons`) et se
+       referme APRÈS la liste : les fiches sont dedans, comme sur sa maquette D. */
+    (d.isDem?'</div>':'')+
+    fichePanHTML();
 }
 
 /* ═══ LA DOUBLE SECTION EST RETIRÉE (Mag, 21/08/2026) ═══
