@@ -2077,6 +2077,12 @@ body.pan-ouvert #view{animation:none;transform:none}
    coller dans un dossier. */
 /* Le nom entier sous le sigle : petit, gris, sur sa ligne. */
 .frow2.c3 .demsous{display:block;font-size:12.5px;color:#8b8984;margin-top:2px;line-height:1.3}
+/* Les étiquettes en tête de fiche : des pastilles pleines, lisibles d'un coup d'œil.
+   Même couleur que sur la carte du tiroir — une étiquette doit se reconnaître d'un
+   écran à l'autre (Mag, 05/09/2026). */
+.fetq{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 2px}
+.fetqp{display:inline-flex;align-items:center;border-radius:999px;padding:7px 13px;
+  font-size:13px;font-weight:600;color:var(--noir);line-height:1.2}
 .trou{color:#e63329;font-weight:600}
 /* Le bloc Contact : l'adresse (ou la case pour l'écrire) sur une ligne, la phrase qui
    dit qui chercher juste en dessous, en petit. */
@@ -9660,6 +9666,25 @@ function src(fiche, sources){ fiche.notes=sources||''; return fiche; }
    ⚠ MANQUE PARTOUT : l'accessibilité (ascenseur, plain-pied, chambre PMR).
    Une seule maison en parle aujourd'hui, Home Baudouin, et c'est pour dire que
    c'est difficile. À remplir à la main dès qu'on a l'information. */
+/* ═══ LES ÉTIQUETTES D'UNE FICHE (Mag, 05/09/2026) ═══
+   Elle a choisi la maquette A — les gestes d'abord — « mais j'aime bien ça aussi » en
+   montrant les étiquettes de la maquette B. « Fais un mélange des deux. »
+   CE QU'ELLES FONT : quatre mots en tête de fiche, et on a compris avant d'avoir lu.
+   C'est ce qui se retient — « celui-là, mineurs OK, mais l'IVG est à vérifier ».
+   ⚠⚠ ELLES SONT ÉCRITES ICI À LA MAIN, FICHE PAR FICHE, ET JAMAIS DÉDUITES DU TEXTE.
+   C'est SA règle, et elle est plus forte que l'envie d'aller vite : une étiquette
+   fausse ne dérange pas — elle CACHE. « Tarif adapté » résume trois lignes qui disent
+   « sauf le psychologue » : posée à la légère, elle envoie quelqu'un sans argent chez
+   le psy. Chacune de celles qui suivent a été relue dans le texte de sa fiche.
+   ⚠ QUATRE AU MAXIMUM, et les plus décisives d'abord : au-delà, on ne les lit plus et
+   la fiche redevient un mur.
+   ⚠ POUR EN AJOUTER UNE : la ligne se met ici, sous le nom EXACT de la fiche. Le nom
+   fait la clé — le renommer déplace l'étiquette avec, mais une faute de frappe la
+   rend muette, sans erreur. */
+const ETIQUETTES = {
+  "Planning familial de Woluwe-Saint-Pierre":
+    ["Sans rendez-vous","Mineurs sans accord parental","Tarif adapté","IVG : à vérifier"]
+};
 const TAGS_MAISONS = {
   "Plateforme Informative de la Strada (PILS)":            ["Places libres en direct"],
   /* ═══ « FEMMES » / « HOMMES » DEVIENNENT « RÉSERVÉ AUX… » (Mag, 20/08/2026) ═══
@@ -9699,6 +9724,9 @@ const TAGS_MAISONS = {
   "Talita asbl":                                           ["Réservé aux femmes","Avec enfants"]
 };
 SAMPLE.forEach(function(p){ if(TAGS_MAISONS[p.nom]) p.tags=(p.tags||[]).concat(TAGS_MAISONS[p.nom]); });
+/* Les étiquettes écrites à la main passent dans le même sac que les autres : elles
+   héritent des couleurs, du filtre du tiroir et de l'affichage sur la carte. */
+SAMPLE.forEach(function(p){ if(ETIQUETTES[p.nom]) p.tags=(p.tags||[]).concat(ETIQUETTES[p.nom].slice(0,4)); });
 
 /* ═══ L'ACCÈS EN CHAISE ROULANTE (Mag, 01/09/2026 : « les PMR ou chaise roulante ») ═══
    Elle l'a demandé deux fois, et la rangée de filtres n'en disait rien.
@@ -20040,6 +20068,7 @@ function fichePanHTML(){
         /* Les conditions d'abord : c'est ce qui décide d'y aller ou pas. */
         (p.conditions?'<p class="fpcond">'+esc(p.conditions)+'</p>':'')+
         (p.desc?'<p class="fpdesc">'+esc(p.desc)+'</p>':'')+
+        etqRangee(p)+
         /* ═══ LE CORPS DE LA FICHE, ICI AUSSI (Mag, 04/09/2026) ═══
            « Je ne comprends pas où tu as mis les mails types, je ne les trouve pas. »
            Elle ouvrait le modèle « Affiliation à la mutuelle » et ne voyait qu'un nom
@@ -23305,6 +23334,15 @@ function avecMails(txt){
    ⚠ UN SEUL DESSIN, DEUX ENDROITS : ce corps est maintenant écrit une fois et lu par
    la fiche pleine page ET par le panneau. Ne pas le recopier dans l'un des deux — le
    jour où l'on corrige une copie, c'est toujours l'autre qu'on regarde. */
+/* La rangée d'étiquettes en tête de fiche. Elle ne s'affiche que s'il y en a : une
+   rangée vide laisserait un blanc que l'œil prend pour une erreur. */
+function etqRangee(p){
+  const t=(p&&p.tags)||[];
+  if(!t.length) return '';
+  return '<div class="fetq">'+t.slice(0,4).map(function(x){
+    return '<span class="fetqp" style="background:'+tagCouleur(x)+'">'+esc(x)+'</span>';
+  }).join('')+'</div>';
+}
 function ficheCorpsHTML(p){
   let body='';
   /* ⚠ ON REGARDE LA FICHE, PAS SON TIROIR (04/09/2026). Ces quatre blocs ne
@@ -23557,7 +23595,17 @@ function vFiche(p){
            elles arriveraient trop tard. */
         (p.conditions?'<p class="fcond">'+esc(p.conditions)+'</p>':'')+
       '</div></div>';
+  /* ═══ LES GESTES D'ABORD, PUIS LES FAITS (Mag, 05/09/2026 — maquette A) ═══
+     « Appeler », « Y aller », « Ouvrir » vivaient tout en bas, après le texte : sur une
+     fiche longue, il fallait franchir cinq écrans pour composer un numéro. Or c'est le
+     geste le plus fréquent, et souvent le seul.
+     Ils remontent donc juste sous le titre, avec les étiquettes — « ce qu'on fait » et
+     « ce qu'il faut savoir » en premier, le détail ensuite.
+     ⚠ ILS NE SONT PLUS EN BAS : ne pas les y remettre « au cas où ». Deux fois les
+     mêmes boutons sur un écran, c'est celui qu'on n'utilise pas qui a l'air en panne. */
   return '<div class="imprligne">'+boutonImprimer()+'</div>'+tete+
+    etqRangee(p)+
+    boutons+
     (infos?'<div class="frows">'+infos+'</div>':'')+
     (body?body:'')+
     mailFicheHTML(p)+
@@ -23567,7 +23615,6 @@ function vFiche(p){
        apprendre. Une fiche porte `formation:"<nom>"` et le bouton apparaît. */
     (p.formation?'<div class="f-h" style="margin-top:22px">Se former là-dessus</div>'+
       '<div class="fboutons n1">'+ficheBtn(p.formation,p.formationTxt||'La formation')+'</div>':'')+
-    boutons+
     /* Le lien CPAS ↔ maison médicale, juste AVANT la boîte d'avis : quand il est
        vide, il renvoie vers elle — les deux doivent donc se suivre. */
     lienCpasMMHTML(p)+
