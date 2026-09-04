@@ -2362,6 +2362,28 @@ body.pan-ouvert #view{animation:none;transform:none}
    plus haut »). Sans plancher, elle s'arrêtait à la hauteur de son contenu — dix
    communes, donc une bande basse qui n'avait pas l'air d'une feuille. */
 #ouBg .partcard{min-height:62vh}
+/* La liste de la feuille : une ligne = un choix, assez haute pour un doigt. */
+/* Les deux boutons du haut des Démarches : une étiquette, la valeur choisie, un
+   chevron. Même famille que les rangées de l'app. */
+.demdeux{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+.demsel{flex:1;min-width:150px;display:flex;align-items:baseline;gap:8px;background:#fff;
+  border:1.25px solid var(--trait);border-radius:11px;padding:10px 12px;font:inherit;
+  text-align:left;cursor:pointer}
+.demsel em{font-style:normal;font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2);flex:none}
+.demsel b{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.demsel:not(.on) b{font-weight:400;color:var(--enc2)}
+.demsel .chv{margin-left:auto;color:var(--enc2);flex:none}
+.demsel.on{border-color:var(--noir)}
+.picklist{padding-bottom:10px}
+.pickb{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;
+  border:0;border-bottom:1px solid var(--ligne);padding:14px 2px;font:inherit;font-size:16px;
+  color:var(--noir);cursor:pointer}
+.pickb:last-child{border-bottom:0}
+.pickb em{margin-left:auto;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;color:#a3a19c;flex:none}
+.pickb.on{font-weight:700}
+.pickb.on::before{content:'✓';flex:none;font-weight:700}
 /* Les titres des deux cases à écrire : petites capitales machine, comme les
    étiquettes de toute l'app. Pas d'emoji — voir le commentaire de la fenêtre. */
 .lbfld{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.18em;
@@ -6324,6 +6346,23 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
      fenêtre vers le bas qui glisse — ça fait comme une application. »
      Elle emprunte SA CLASSE à la feuille de partage : même glissement, mêmes bords,
      même voile. Deux feuilles qui montent du bas ne doivent pas monter différemment. -->
+<!-- ═══ LA FEUILLE QUI MONTE POUR CHOISIR UNE SEULE CHOSE (Mag, 04/09/2026) ═══
+     « Je n'aime pas du tout du tout les trucs déroulants comme ça. Je préfère comme tu
+     avais fait en mode pop-up, comme pour "Où". On clique, on choisit la commune, ça se
+     referme. Après on choisit réquisitoire, ça se referme. »
+     Le menu déroulant du navigateur est le seul morceau d'interface que l'app ne dessine
+     pas : sur téléphone il ouvre une roulette système, minuscule, qui ne ressemble à
+     rien d'autre ici. La feuille qui monte, elle, est déjà le geste de la maison.
+     ⚠ UNE SEULE FEUILLE POUR TOUS LES CHOIX de ce genre : le titre, la liste et ce
+     qu'on fait du choix sont passés à l'ouverture (`pickOuvrir`). Deux feuilles jumelles
+     auraient fini par diverger. -->
+<div id="pickBg" class="partbg" onclick="if(event.target.id==='pickBg')pickFermer()">
+  <div class="partcard" role="dialog" aria-modal="true">
+    <div class="parttete"><b id="pickTitre">Choisir</b>
+      <button onclick="pickFermer()" aria-label="Fermer">Fermer</button></div>
+    <div id="pickCorps" class="picklist"></div>
+  </div>
+</div>
 <div id="ouBg" class="partbg" onclick="if(event.target.id==='ouBg')ouFermer()">
   <div class="partcard">
     <div class="parttete"><b>Où ?</b>
@@ -11641,6 +11680,31 @@ function figerFond(oui){
     document.documentElement.classList.remove('fond-fige');
   }
 }
+/* ═══ CHOISIR UNE CHOSE DANS UNE FEUILLE QUI MONTE (04/09/2026) ═══
+   `pickOuvrir('Quelle commune ?', COMMUNES, 'Anderlecht', function(v){ … })`
+   Un appui choisit ET referme : c'est ce qu'elle décrit — « on choisit, ça se referme ».
+   Pas de bouton « OK » : il ferait un geste de plus pour dire ce que le doigt vient déjà
+   de dire. Le seul bouton est « Fermer », pour ressortir sans rien changer.
+   ⚠ `pickAide` : ce qui est déjà rempli est marqué. Un choix de commune qui mène à une
+   page vide, on veut le savoir AVANT d'appuyer. */
+let PICK={cb:null};
+function pickOuvrir(titre,valeurs,actif,cb,aide){
+  PICK.cb=cb;
+  document.getElementById('pickTitre').textContent=titre;
+  document.getElementById('pickCorps').innerHTML=valeurs.map(function(v){
+    const m=aide?aide(v):'';
+    return '<button class="pickb'+(actif===v?' on':'')+'" onclick="pickChoisir('+
+      JSON.stringify(v).replace(/"/g,'&quot;')+')">'+esc(v)+
+      (m?'<em>'+esc(m)+'</em>':'')+'</button>';
+  }).join('');
+  document.getElementById('pickBg').classList.add('on'); figerFond(true);
+}
+function pickFermer(){
+  document.getElementById('pickBg').classList.remove('on'); figerFond(false); PICK.cb=null;
+}
+function pickChoisir(v){
+  const cb=PICK.cb; pickFermer(); if(cb) cb(v);
+}
 function ouOuvrir(){ document.getElementById('ouBg').classList.add('on'); figerFond(true); ouRemplir(); }
 function ouFermer(){ document.getElementById('ouBg').classList.remove('on'); figerFond(false); }
 
@@ -14694,6 +14758,61 @@ function keyOf(r){return r.view+(r.key||r.sid||'')+
 let filt={};
 /* Une démarche est-elle vraiment choisie ? « Toutes », vide ou rien du tout : non. */
 function demChoisie(){ return !!filt.dem && filt.dem!=='Toutes'; }
+/* ═══ LA COMMUNE, PUIS LA DÉMARCHE — DEUX BOUTONS, DEUX FEUILLES (Mag, 04/09/2026) ═══
+   Sa demande : « en priorité on choisit la commune, et après quelle démarche. Et là,
+   les choses apparaissent. » Puis, devant la maquette B : « je n'aime pas du tout les
+   trucs déroulants. Comme tu avais fait pour "Où" : on clique, on choisit, ça se
+   referme. »
+   POURQUOI DEUX BOUTONS ET PLUS UNE RANGÉE : trois démarches × dix-neuf communes, ça
+   fait cinquante-sept cases. Une rangée de boutons tient tant qu'il y en a cinq ; à
+   dix-neuf elle devient un mur qu'on fait défiler du doigt pour trouver sa commune.
+   ⚠ LA FEUILLE DIT CE QUI EST REMPLI, à droite de chaque ligne. Choisir une commune
+   pour tomber sur une page vide, on veut le savoir AVANT d'appuyer — c'est la règle
+   d'or : aucun bouton de tri ne mène à une page vide.
+   ⚠ « Toutes » RESTE EN TÊTE des deux listes : c'est ainsi qu'on ressort d'un choix. */
+const DEM_TOUTES_C='Toutes les communes', DEM_TOUTES_D='Toutes les démarches';
+function demCommunes(){
+  return COMMUNES.filter(function(c){
+    return DATA.some(function(p){ return p.domaine==='demarches' && p.commune===c; }); });
+}
+function demTypes(){
+  return DEMARCHES.filter(function(t){
+    return DATA.some(function(p){ return p.domaine==='demarches' && p.demarche===t; }); });
+}
+function demRempli(c,t){ const f=demTrouver(c,t); return !!(f && (demAdresse(f)||demMessage(f))); }
+function demCommuneChoisie(){ return (filt.communes && filt.communes.length===1) ? filt.communes[0] : ''; }
+function demPickCommune(){
+  pickOuvrir('Quelle commune ?', [DEM_TOUTES_C].concat(demCommunes()),
+    demCommuneChoisie()||DEM_TOUTES_C,
+    function(v){ filt.communes = (v===DEM_TOUTES_C) ? [] : [v]; render(); window.scrollTo(0,0); },
+    function(v){
+      if(v===DEM_TOUTES_C) return '';
+      const n=demTypes().filter(function(t){ return demRempli(v,t); }).length;
+      return n ? n+' sur '+demTypes().length : 'rien encore';
+    });
+}
+function demPickType(){
+  const c=demCommuneChoisie();
+  pickOuvrir('Quelle démarche ?', [DEM_TOUTES_D].concat(demTypes()),
+    demChoisie()?filt.dem:DEM_TOUTES_D,
+    function(v){ filt.dem = (v===DEM_TOUTES_D) ? 'Toutes' : v; render(); window.scrollTo(0,0); },
+    function(v){
+      if(v===DEM_TOUTES_D || !c) return '';
+      return demRempli(c,v) ? 'écrit' : 'rien encore';
+    });
+}
+function demDeuxBoutons(){
+  const c=demCommuneChoisie(), t=demChoisie()?filt.dem:'';
+  const b=function(lab,val,vide,fn){
+    return '<button class="demsel'+(val?' on':'')+'" onclick="'+fn+'()">'+
+      '<em>'+lab+'</em><b>'+esc(val||vide)+'</b>'+
+      '<span class="chv">›</span></button>';
+  };
+  return '<div class="demdeux">'+
+    b('Commune', c, DEM_TOUTES_C, 'demPickCommune')+
+    b('Démarche', t, DEM_TOUTES_D, 'demPickType')+
+  '</div>';
+}
 /* ═══ UN DEUXIÈME CLIC DÉCOCHE (Mag, 04/09/2026) ═══
    « Il faudrait que tout soit décoché, qu'il y ait tout. Et qu'il y ait une croix,
    on peut décocher ou alors on peut recocher. »
@@ -21411,8 +21530,7 @@ function vDomaine(key){
        « il faut mettre les communes, il faut mettre où ! ». Une seule cause.
        LA RÈGLE : rien de choisi = tout est montré. Un filtre qu'on n'a pas posé ne
        doit rien retirer. */
-    const dems=DEMARCHES.filter(t=>DATA.some(p=>p.domaine===key&&p.demarche===t));
-    chips+=chipRow('dem',dems,filt.dem,'Toutes');
+    chips+=demDeuxBoutons();
     if(demChoisie()) items=items.filter(p=>p.demarche===filt.dem);
   }
   if(d.isMail){
@@ -21585,7 +21703,10 @@ function vDomaine(key){
        soit le filtre en cours. La feuille, elle, ne propose que les communes qui ont
        encore quelque chose à montrer — sinon on cocherait pour rien. */
     const comsTiroir=COMMUNES.filter(function(c){ return baseTiroir.some(function(p){ return p.commune===c; }); });
-    if(comsTiroir.length>1) boutonsOu=rangCommunes(coms.length?coms:comsTiroir);
+    /* ⚠ PAS DE RANGÉE « OÙ ? » SUR LES DÉMARCHES : le bouton Commune, en haut, fait
+       déjà ce travail. Deux façons de choisir la même chose sur le même écran, c'est
+       celle qu'on n'a pas utilisée qui a l'air en panne. */
+    if(comsTiroir.length>1 && !d.isDem) boutonsOu=rangCommunes(coms.length?coms:comsTiroir);
     if(filt.communes.length) items=items.filter(p=>filt.communes.indexOf(p.commune)>=0);
   }
   if(chipsGenre||boutonsOu) chips+='<div class="chips">'+chipsGenre+boutonsOu+'</div>';
