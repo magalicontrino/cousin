@@ -33691,6 +33691,14 @@ async function passAjouter(){
     const rapch=document.getElementById('rapCh');
     if(rapch) rapch.value='';
     RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false};
+    /* ⚠ ET C'EST ICI, ET NULLE PART AVANT, QU'UNE NOTE DE MA LISTE DISPARAÎT : la
+       passation est insérée, donc le texte existe ailleurs. Le retirer plus tôt, c'est
+       ce qui l'a fait perdre le 05/09/2026. */
+    if(PASS_DEPUIS_RAPPEL){
+      MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==PASS_DEPUIS_RAPPEL; });
+      rappelsSauver();
+      PASS_DEPUIS_RAPPEL=null;
+    }
     /* ⚠ LA FEUILLE SE REFERME UNE FOIS LA LIGNE PASSÉE : elle a fait son travail, et la
        ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
        croire que rien n'est parti. */
@@ -34597,6 +34605,9 @@ function passFeuilleMaj(){
    deuxième fenêtre à entretenir : un seul endroit où l'on écrit une passation, qu'on
    la crée ou qu'on la corrige. */
 var PASS_EDIT=null, PASS_OUVRIR=false, PASS_FEUILLE=false, PASS_GARDE=null;
+/* D'où vient la feuille : l'id de la note de Ma liste, quand elle a été ouverte depuis
+   une note déjà rangée. La note n'est retirée QUE si la passation part vraiment. */
+var PASS_DEPUIS_RAPPEL=null;
 function passModifier(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
@@ -34616,10 +34627,12 @@ function passModifier(id){
     if(e){ passGrandir(e); e.focus(); }
   }, 40);
 }
-function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; render(); }
+function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; render(); }
 /* Le bouton qui referme la feuille sans rien enregistrer, quand on n'était pas en train
    de corriger : sinon, une feuille ouverte par erreur ne se referme jamais. */
-function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; render(); }
+/* ⚠ ON OUBLIE D'OÙ ON VENAIT EN FERMANT : sinon une note ouverte puis abandonnée
+   partirait à la prochaine passation, celle d'une AUTRE note. */
+function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; render(); }
 
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
@@ -34735,6 +34748,9 @@ function rappelVersPassation(){
      quand la passation est réellement envoyée (voir `passAjouter`). */
   const c=document.getElementById('rapCh');
   const ch=((c&&c.value)||'').trim();
+  /* ⚠ ON VIENT DU CHAMP, PAS D'UNE NOTE RANGÉE : si une ouverture précédente avait
+     laissé un id derrière elle, il effacerait la mauvaise note à l'envoi. */
+  PASS_DEPUIS_RAPPEL=null;
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   render();
   setTimeout(function(){
@@ -35144,12 +35160,25 @@ function listeAssosARecontacter(){
 /* Envoyer en passation une ligne DÉJÀ écrite : elle sort de ma liste et le texte part
    dans la feuille, qui s'ouvre remplie. Même chemin que le bouton du champ d'écriture —
    on ne passe jamais rien à personne sans avoir dit à qui. */
+/* ═══ ⚠⚠ LE TEXTE SE PERDAIT (Mag, 05/09/2026) ═══
+   « Je suis rentrée dans une note dans Ma liste perso pour y rajouter un réveil, ça a
+   ouvert une fenêtre pop-up, et le texte s'est perdu. »
+   LA CAUSE, ET ELLE ÉTAIT ICI, EN DEUX LIGNES : la note était RETIRÉE DE MA LISTE
+   AVANT que la passation existe. On ouvrait la feuille, et si on la refermait — parce
+   qu'on s'est trompé de bouton, parce qu'on hésite, parce que le téléphone sonne — la
+   note n'était plus nulle part. Ni dans Ma liste, ni dans la passation.
+   ⚠ ET LA RÈGLE ÉTAIT DÉJÀ ÉCRITE JUSTE AU-DESSUS, dans `rappelVersPassation`, avec
+   ses mots du 24/08 : « il faut que ça reste en mémoire tant que je n'ai pas fait
+   passation ». Elle valait pour le champ d'écriture et pas pour les notes déjà
+   rangées. Une règle appliquée à un seul des deux chemins n'est pas une règle.
+   ⚠ MAINTENANT : la note RESTE. On retient seulement d'où l'on vient, et elle n'est
+   retirée que quand la passation est réellement partie (voir `passAjouter`). Fermer la
+   feuille ne coûte plus rien. */
 function rappelPasser(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   const t=String(r.texte||'').trim(), ch=String(r.chambre||'').trim();
   const estAbsence=!!r.absence;
-  MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
-  rappelsSauver();
+  PASS_DEPUIS_RAPPEL=id;
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   /* Une note cochée « absence » arrive dans la passation DÉJÀ marquée absence :
      c'est tout l'intérêt du bouton, sinon il faudrait le recocher chaque fois. */
