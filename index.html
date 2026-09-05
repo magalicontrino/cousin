@@ -27396,20 +27396,37 @@ function demChercher(q){
                'aux','elle','ils','mais','donc','plus','chez','faire','peut','tout','cette','son',
                'où','comment','quel','quelle','est-ce','y-a-t-il','a-t-il',
                'quelqu','quelquun','quelque','gens','besoin','trouver','aller','avoir','etre',
+               'endroit','lieu','place','truc','chose','possible','existe','connais',
                'nous','vous','ceux','celle','celui','leur','vers','apres','avant','encore'];
   const mots=(q||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
     .split(/[^a-z0-9]+/).filter(function(m){ return m.length>2 && vides.indexOf(m)<0; });
   if(!mots.length) return [];
   const sansAccent=function(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
-  return DATA.map(function(p){
+  /* ⚠ ON CHERCHE AUSSI LA RACINE DU MOT (05/09/2026). « un endroit pour se DOUCHER »
+     ne trouvait pas DoucheFLUX : la fiche dit « douche », la question dit « doucher ».
+     On essaie donc le mot, puis le mot moins sa dernière lettre, puis moins deux —
+     ce qui rattrape les pluriels et la plupart des verbes conjugués. Rustique, mais
+     ça marche sur du français courant, et ça se lit. */
+  const racines=function(m){
+    const r=[m];
+    if(m.length>=6) r.push(m.slice(0,-1));
+    if(m.length>=7) r.push(m.slice(0,-2));
+    return r;
+  };
+  const dedans=function(txt,m){ return racines(m).some(function(r){ return txt.indexOf(r)>=0; }); };
+  const notes=DATA.map(function(p){
     const nom=sansAccent(p.nom), reste=sansAccent([p.desc,p.notes,p.public,p.commune,p.domaine,
       (p.tags||[]).join(' '),p.conditions].join(' '));
     let s=0;
-    mots.forEach(function(m){ if(nom.indexOf(m)>=0) s+=3; else if(reste.indexOf(m)>=0) s+=1; });
+    mots.forEach(function(m){ if(dedans(nom,m)) s+=3; else if(dedans(reste,m)) s+=1; });
     return {p:p,s:s};
-  }).filter(function(x){ return x.s>0; })
-    .sort(function(a,b){ return b.s-a.s; })
-    .slice(0,6).map(function(x){ return x.p; });
+  }).filter(function(x){ return x.s>0; }).sort(function(a,b){ return b.s-a.s; });
+  if(!notes.length) return [];
+  /* ⚠ ON NE COMPLÈTE PAS LA LISTE AVEC DU TIÈDE. Six fiches dont trois sans rapport,
+     c'est une réponse assurée à côté de la question — pire que « je n'ai pas trouvé ».
+     On ne garde que ce qui approche la meilleure. */
+  const seuil=Math.max(1,notes[0].s/2);
+  return notes.filter(function(x){ return x.s>=seuil; }).slice(0,6).map(function(x){ return x.p; });
 }
 
 let DEM_Q='', DEM_REP='', DEM_FICHES=[], DEM_ENCOURS=false, DEM_PANNE='';
