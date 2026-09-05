@@ -77,7 +77,11 @@ function nettoie(fiche: Record<string, unknown>) {
 Deno.serve(async (req: Request) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
+    /* ⚠ `apikey` DOIT ÊTRE LÀ. Sans lui, le navigateur pose sa question préalable
+       (le « préflight »), n'obtient pas son autorisation, et l'appel n'a même pas
+       lieu : on ne voit qu'un « Failed to fetch » qui ne dit rien. Une heure perdue
+       le 05/09/2026. Le client Supabase envoie toujours cet en-tête. */
+    'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
     'Content-Type': 'application/json',
   };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
