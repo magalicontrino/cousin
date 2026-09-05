@@ -249,6 +249,33 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   .pt-b{flex-wrap:wrap}
   .pt-c,.pt-c.wa{font-size:8px;padding:9px 6px}
 }
+/* ═══ DEMANDER — le dessin de la page (Mag, 05/09/2026) ═══
+   Rien de neuf : c'est la rangée de l'app, le blanc cassé, les traits déteints.
+   La réponse porte le cadre noir — comme partout, le noir garde la première chose
+   à lire, et le reste vient en clair. */
+.demhaut{margin:14px 0 0}
+.demchamp{width:100%;background:#fdfdfc;border:1.5px solid var(--trait);border-radius:11px;
+  padding:12px 13px;font-family:inherit;font-size:15px;color:var(--noir);resize:vertical;
+  line-height:1.4}
+.demchamp:focus{outline:0;border-color:var(--trait-fort)}
+.dembtns{display:flex;gap:8px;margin-top:9px}
+.dembtn{background:var(--noir);color:#f2eee6;border:1.5px solid var(--trait-fort);
+  border-radius:9px;padding:10px 18px;font-family:inherit;font-size:14px;font-weight:600;
+  cursor:pointer}
+.dembtn[disabled]{opacity:.55}
+.dembtn.clair{background:#fdfdfc;color:var(--noir);border-color:var(--trait);font-weight:500}
+.demrep{margin:14px 0 0;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:11px;
+  padding:13px 14px;font-size:15px;line-height:1.55}
+.dempanne{margin:13px 0 0;background:#fdfdfc;border:1.5px solid #c8553d;border-radius:11px;
+  padding:11px 13px;font-size:14px;line-height:1.5}
+.demvide{margin:14px 0 0;color:var(--enc2);font-size:14px;line-height:1.5}
+.demlbl{margin:18px 0 8px;font-family:ui-monospace,monospace;font-size:11px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--enc2)}
+.demfiche{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;
+  text-align:left;background:#fdfdfc;border:1px solid var(--ligne);border-radius:10px;
+  padding:11px 13px;margin-bottom:7px;font-family:inherit;cursor:pointer}
+.demf-t{font-size:15px;font-weight:600;color:var(--noir)}
+.demf-s{font-size:12.5px;color:var(--enc2)}
 .pt-qr{background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;padding:11px;
   display:flex;justify-content:center}
 .pt-url{font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.04em;text-align:center;
@@ -15362,6 +15389,7 @@ function parseRoute(){
   if(seg[0]==='quartier') return {view:'quartier'};
   if(seg[0]==='eau') return {view:'eau', onglet:(seg[1]==='wc'?'wc':'eau')};
   if(seg[0]==='favoris') return {view:'favoris'};
+  if(seg[0]==='demander') return {view:'demander'};
   if(seg[0]==='urgences') return {view:'urgences'};
   /* ═══ PORTES DE LA PAGE ACTIVITÉS, CHACUNE SA PAGE (Mag, 28/08/2026) ═══ */
   if(seg[0]==='a') return {view:'a-'+seg[1]};
@@ -15821,6 +15849,9 @@ function renderInterne(){
     requestAnimationFrame(qPlacerNoms); }
   else if(current.view==='eau') view.innerHTML=vEau();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
+  else if(current.view==='demander'){ view.innerHTML=vDemander();
+    /* Le curseur est dans le champ : on arrive ici pour écrire, pas pour lire. */
+    setTimeout(function(){ const c=document.getElementById('demChamp'); if(c && !DEM_ENCOURS) c.focus(); },30); }
   else if(current.view==='urgences') view.innerHTML=vUrgences();
     _ecranDessine=keyOf(current);
   }catch(e){
@@ -27286,6 +27317,157 @@ const COUSIN_URL='https://cousin.magalicontrino.com';
    pas dans le téléphone. Un import qui persiste fabriquerait un catalogue fantôme que
    Mag seule verrait, et qui masquerait les vraies mises à jour publiées. */
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEMANDER — poser une question, en langage normal (Mag, 05/09/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ce que ça fait : on écrit sa question, l'app cherche les fiches qui vont avec,
+   et Claude dit laquelle regarder. Rien de plus.
+
+   ⚠ TROIS RÈGLES POSÉES PAR MAG, ET ELLES SONT DANS LA CONSTRUCTION, PAS DANS UNE
+     CONSIGNE — une consigne, ça se contourne ; une construction, non :
+
+   1. IL NE VOIT QUE CE QU'ON LUI MONTRE. C'est `demChercher()` ici qui choisit les
+      fiches, et on n'envoie que celles-là. Il ne peut pas parler d'un service qu'on
+      ne lui a pas mis sous les yeux, ni en inventer un.
+
+   2. IL N'ÉCRIT AUCUN NUMÉRO. Sous sa réponse, l'app pose les VRAIES cartes, lues
+      dans le catalogue. Le numéro qu'on lit vient donc toujours de la base, jamais
+      de lui. C'est la règle « jamais un numéro incertain », tenue par le dessin.
+
+   3. RÈGLE B : les contacts directs ne partent pas. `demNettoyer()` les retire
+      avant l'envoi, et la fonction chez Supabase les retire une deuxième fois.
+      La bulle sait qu'un contact existe, pas lequel — elle dit d'ouvrir la fiche.
+
+   OÙ VIT LA CLÉ : chez Supabase, dans un réglage nommé « Cousin Agent ». JAMAIS
+   ici : cette page est publique, la clé serait lisible par n'importe qui.
+   Le code de l'autre bout est dans supabase/functions/bulle/index.ts.
+
+   QUI Y A DROIT : Mag (ses deux adresses), Imene Cherfaoui (ses deux), Nadia
+   Draoui. C'est Mag qui paie chaque question, d'où la porte fermée.
+   ⚠ Les adresses ne sont PAS écrites ici — ce dépôt est public. On garde leur
+   empreinte : elle suffit pour reconnaître, elle ne se relit pas à l'envers.
+   Le serveur, lui, revérifie de son côté (réglage BULLE_ACCES) : le bouton caché
+   n'est qu'une politesse, la vraie porte est là-bas. */
+
+const DEM_ACCES=['810e887c3382ae03a60b','5ebcacb1f4b0595fb430','9f1b24a3ae16f896a048',
+                 '002ca1ceaaeca5d4ac60','47902f26f04dae3775a8'];
+let DEM_OK=false;
+
+/* On calcule l'empreinte de l'adresse connectée une fois, à l'arrivée. Si elle est
+   dans la liste, le bouton apparaît dans le rail — sinon rien ne se voit. */
+async function demVerifierAcces(){
+  try{
+    const mail=(PROFILE&&PROFILE.email||'').trim().toLowerCase();
+    if(!mail){ DEM_OK=false; return; }
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(mail));
+    const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,20);
+    const avant=DEM_OK; DEM_OK=DEM_ACCES.indexOf(hex)>=0;
+    if(avant!==DEM_OK) render();
+  }catch(e){ DEM_OK=false; }
+}
+
+/* CE QU'ON RETIRE AVANT D'ENVOYER. Les champs où vit un contact direct. Le jour où
+   Mag ajoutera les mails perso du réseau, ils s'ajoutent à cette liste et ils
+   cessent de partir — sans rien changer d'autre. */
+const DEM_PRIVE=['mailDirect','telDirect','contact','refPerso','confidentiel'];
+function demNettoyer(p){
+  const o={}; let cache=false;
+  ['nom','domaine','commune','desc','public','tel','mail','site','adr','horaires','notes','tags','conditions']
+    .forEach(function(k){ if(p[k]) o[k]=p[k]; });
+  DEM_PRIVE.forEach(function(k){ if(p[k]) cache=true; });
+  if(cache) o.contactDirect='oui — il est dans la fiche';
+  return o;
+}
+
+/* LA RECHERCHE. Elle est volontairement bête et lisible : on coupe la question en
+   mots, on compte lesquels se retrouvent dans la fiche, le nom pèse plus lourd que
+   le reste. On garde les six meilleures.
+   ⚠ ON N'ENVOIE QUE CE QUI A UN VRAI RAPPORT (score > 0) : envoyer six fiches au
+   hasard ferait répondre à côté avec assurance, ce qui est pire que « je n'ai pas
+   trouvé ». */
+function demChercher(q){
+  const vides=['dans','pour','avec','sans','les','des','une','qui','que','quoi','est','sur','par',
+               'aux','elle','ils','mais','donc','plus','chez','faire','peut','tout','cette','son',
+               'où','comment','quel','quelle','est-ce','y-a-t-il','a-t-il'];
+  const mots=(q||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .split(/[^a-z0-9]+/).filter(function(m){ return m.length>2 && vides.indexOf(m)<0; });
+  if(!mots.length) return [];
+  const sansAccent=function(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
+  return DATA.map(function(p){
+    const nom=sansAccent(p.nom), reste=sansAccent([p.desc,p.notes,p.public,p.commune,p.domaine,
+      (p.tags||[]).join(' '),p.conditions].join(' '));
+    let s=0;
+    mots.forEach(function(m){ if(nom.indexOf(m)>=0) s+=3; else if(reste.indexOf(m)>=0) s+=1; });
+    return {p:p,s:s};
+  }).filter(function(x){ return x.s>0; })
+    .sort(function(a,b){ return b.s-a.s; })
+    .slice(0,6).map(function(x){ return x.p; });
+}
+
+let DEM_Q='', DEM_REP='', DEM_FICHES=[], DEM_ENCOURS=false, DEM_PANNE='';
+
+async function demEnvoyer(){
+  const c=document.getElementById('demChamp');
+  const q=c?(c.value||'').trim():'';
+  if(!q || DEM_ENCOURS) return;
+  DEM_Q=q; DEM_REP=''; DEM_PANNE=''; DEM_ENCOURS=true; DEM_FICHES=demChercher(q); render();
+  try{
+    /* ⚠ IL FAUT LE JETON DE LA PERSONNE, pas la clé publique de l'app : c'est lui
+       qui dit au serveur QUI demande. Sans session, on ne part même pas. */
+    const ses=await sb.auth.getSession();
+    const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
+    if(!jeton){ DEM_PANNE="Ta connexion s'est perdue. Reconnecte-toi et redemande."; DEM_ENCOURS=false; render(); return; }
+    const r=await fetch(SB_URL+'/functions/v1/bulle',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+jeton,'apikey':SB_KEY},
+      body:JSON.stringify({question:q,fiches:DEM_FICHES.map(demNettoyer)})
+    });
+    const d=await r.json().catch(function(){ return {}; });
+    /* ⚠ « ÇA N'A PAS RÉPONDU » N'EST JAMAIS « NON ». On dit ce qui s'est passé, sinon
+       on croit que la réponse est « rien », et on part sans rien. */
+    if(!r.ok){ DEM_PANNE=d.erreur || ("La réponse n'est pas arrivée (erreur "+r.status+"). Ce n'est pas ta faute — réessaie."); }
+    else DEM_REP=d.texte||'';
+  }catch(e){
+    DEM_PANNE="La réponse n'est pas arrivée. Regarde si tu as du réseau, puis réessaie.";
+  }
+  DEM_ENCOURS=false; render();
+}
+
+function demEffacer(){ DEM_Q=''; DEM_REP=''; DEM_FICHES=[]; DEM_PANNE=''; render();
+  setTimeout(function(){ const c=document.getElementById('demChamp'); if(c){ c.value=''; c.focus(); } },20); }
+
+function demTouche(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); demEnvoyer(); } }
+
+function vDemander(){
+  if(!DEM_OK) return heroBandeau('Demander','','#2e8f8a','question',true)+
+    '<div class="demvide">Cette page n\'est pas ouverte à ton compte.</div>';
+  let h=heroBandeau('Demander','','#2e8f8a','question',true);
+  h+='<div class="demhaut">'+
+       '<textarea id="demChamp" class="demchamp" rows="2" placeholder="Ta question…" '+
+       'onkeydown="demTouche(event)">'+esc(DEM_Q)+'</textarea>'+
+       '<div class="dembtns">'+
+         '<button class="dembtn" onclick="demEnvoyer()"'+(DEM_ENCOURS?' disabled':'')+'>'+
+           (DEM_ENCOURS?'…':'Demander')+'</button>'+
+         (DEM_Q?'<button class="dembtn clair" onclick="demEffacer()">Effacer</button>':'')+
+       '</div></div>';
+  if(DEM_PANNE) h+='<div class="dempanne">'+esc(DEM_PANNE)+'</div>';
+  if(DEM_ENCOURS) h+='<div class="demvide">Je cherche dans le catalogue…</div>';
+  if(DEM_REP) h+='<div class="demrep">'+esc(DEM_REP).replace(/\n/g,'<br>')+'</div>';
+  if(!DEM_ENCOURS && DEM_FICHES.length){
+    h+='<div class="demlbl">Les fiches</div>';
+    DEM_FICHES.forEach(function(p){
+      h+='<button class="demfiche" onclick="go(\'#/fiche/'+p.sid+'\')">'+
+           '<span class="demf-t">'+esc(p.nom)+'</span>'+
+           '<span class="demf-s">'+esc(p.commune||'')+'</span>'+
+         '</button>';
+    });
+  }
+  if(!DEM_ENCOURS && !DEM_REP && !DEM_PANNE && !DEM_Q)
+    h+='<div class="demvide">Il ne répond qu\'avec les fiches de COUSIN. Les numéros restent ceux des fiches.</div>';
+  return h+'<div style="height:26px"></div>';
+}
+
 function vPartager(){
   /* ⚠ LES DEUX PAVÉS NOIRS ONT ÉTÉ RETIRÉS (Mag, 11/08/2026 : « retire ça »).
      C'étaient « Pour l'avoir comme une vraie app » (les gestes iPhone/Android pour
@@ -31884,10 +32066,15 @@ function renderTabs(){
               la page la plus ouverte de la journée. Sa réponse : « laisse où elle est ».
               NE PAS LE REPROPOSER. */
            ['#/liste','Ma liste','list'],
+           /* ⚠ DEMANDER NE SE VOIT QUE POUR CELLES QUI Y ONT DROIT (Mag, 05/09/2026).
+              Chaque question est payée sur sa clé : montrer la porte à toute l'équipe,
+              c'est promettre quelque chose qui refusera. Le serveur revérifie de son
+              côté — ce bouton caché n'est qu'une politesse, pas une serrure. */
+           ].concat(DEM_OK?[['#/demander','Demander','question']]:[]).concat([
            ['#/mobilisation','Mobilisation','petition'],
            ['#/favoris','Tes favoris','star'],['#/fil','Le fil','feed'],
            ['#/partager','Partager COUSIN','partage'],
-           ['#/profil','Profil','user']]
+           ['#/profil','Profil','user']])
           .concat(vueAdmin()?[['#/admin','Admin','cog']]:[])
           /* « Voir comme » vit dans le rail noir, discrètement, plutôt que de flotter
              sur l'écran (Mag, 06/08/2026). Sur téléphone il n'y a pas de rail : c'est
@@ -32347,6 +32534,10 @@ async function loadProfile(){
       if(me[0].email) email=me[0].email;
     }
     PROFILE={email,nom,equipe,pfo,admin,uid,listes,paves:pavesPerso};
+    /* Le bouton « Demander » n'apparaît que pour les adresses qui y ont droit.
+       On le calcule ici, dès qu'on sait qui est connecté. Ne bloque rien : si le
+       calcul échoue, la porte reste simplement fermée. */
+    try{ demVerifierAcces(); }catch(e){}
     /* « Ma liste du jour » = MA liste, pas celle de tout le monde. La base laisse les PFO
        et l'administration voir toutes les listes (c'est utile ailleurs), mais ici on ne
        garde que les siennes : celles qu'on lui a attribuées, sinon celles que son métier
