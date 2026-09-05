@@ -6614,7 +6614,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
        est payée sur la clé de Mag. Pour tous les autres, la barre ne change pas. -->
   <button id="dembtn" onclick="go('#/demander')" aria-label="Demander" title="Demander" style="display:none"></button>
   <!-- Les notes, juste à côté. Même règle : caché pour qui n'y a pas droit. -->
-  <button id="notbtn" onclick="go('#/notes')" aria-label="Notes" title="Notes" style="display:none"></button>
+  <button id="notbtn" onclick="go('#/d/notes')" aria-label="Notes" title="Notes" style="display:none"></button>
   <button id="listebtn" onclick="go('#/liste')" aria-label="Ma liste" title="Ma liste"></button>
   <!-- ═══ LES QUATRE AUTRES PASSENT DANS UN MENU (Mag, 11/08/2026) ═══
        « Mets un menu contextuel en haut à droite pour les icônes. »
@@ -15450,7 +15450,9 @@ function parseRoute(){
   if(seg[0]==='eau') return {view:'eau', onglet:(seg[1]==='wc'?'wc':'eau')};
   if(seg[0]==='favoris') return {view:'favoris'};
   if(seg[0]==='demander') return {view:'demander'};
-  if(seg[0]==='notes') return {view:'notes'};
+  /* ⚠ L'adresse #/notes n'a vécu que quelques heures : elle mène maintenant à la page
+     du Centre, où tout a déménagé. Une adresse qui a circulé ne tombe pas dans le vide. */
+  if(seg[0]==='notes') return {view:'domaine',key:'notes'};
   if(seg[0]==='urgences') return {view:'urgences'};
   /* ═══ PORTES DE LA PAGE ACTIVITÉS, CHACUNE SA PAGE (Mag, 28/08/2026) ═══ */
   if(seg[0]==='a') return {view:'a-'+seg[1]};
@@ -15816,7 +15818,7 @@ function renderInterne(){
   if(nbt){
     if(!nbt.innerHTML) nbt.innerHTML='<span class="ic">'+icon('note')+'</span>';
     nbt.style.display=(typeof DEM_OK!=='undefined'&&DEM_OK)?'':'none';
-    nbt.classList.toggle('on',current.view==='notes');
+    nbt.classList.toggle('on',current.view==='domaine'&&current.key==='notes');
   }
   const lb=document.getElementById('listebtn');
   if(lb){
@@ -15924,7 +15926,6 @@ function renderInterne(){
     requestAnimationFrame(qPlacerNoms); }
   else if(current.view==='eau') view.innerHTML=vEau();
   else if(current.view==='favoris') view.innerHTML=vFavoris();
-  else if(current.view==='notes') view.innerHTML=vNotes();
   else if(current.view==='demander'){ view.innerHTML=vDemander();
     /* Le curseur est dans le champ : on arrive ici pour écrire, pas pour lire. */
     setTimeout(function(){ const c=document.getElementById('demChamp'); if(c && !DEM_ENCOURS) c.focus(); },30); }
@@ -22981,7 +22982,15 @@ function vDomaine(key){
      ⚠ NE PAS REMETTRE D'ÉTAT VIDE ICI. Si la liste devient trop longue le jour où les
      dix-neuf communes seront remplies, c'est le TRI qu'il faudra revoir, pas
      l'affichage. */
+  /* ⚠ LE NOUVEAU SYSTÈME DE NOTES VIT ICI (Mag, 05/09/2026 : « dans démarche, Centre,
+     il y a une page notes. C'est dans cette page à cet endroit que doit se trouver
+     notre nouveau système de notes »).
+     Il se pose en tête, avant les canevas : on vient d'abord ici pour écrire, pas pour
+     lire des trames. Les canevas restent en dessous — ils sont cités dans deux fiches
+     du réseau (« les trames sont dans Mails et notes »), les effacer casserait ces
+     renvois. Ils ont juste reculé d'un cran. */
   return heroBandeau(d.label, (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':''), dc(key), d.ic)+
+    (key==='notes'?notesCorps():'')+
     (d.isDem?'':'<div class="imprligne">'+boutonImprimer()+'</div>')+
     /* ⚠ LE RAIL DES AUTRES DOMAINES A ÉTÉ RETIRÉ (Mag, 12/08/2026 : « retire le slide
        avec les boutons réseaux »). C'était une rangée horizontale — Médical, Social,
@@ -27812,10 +27821,11 @@ function notHeure(iso){
   }catch(e){ return ''; }
 }
 
-function vNotes(){
-  if(!DEM_OK) return heroBandeau('Notes','','#2e8f8a','note',true)+
-    '<div class="demvide">Cette page n\'est pas ouverte à ton compte.</div>';
-  let h=heroBandeau('Notes','','#2e8f8a','note',true);
+/* Le corps seul, sans bandeau : il s'insère dans la page « Les notes à écrire », qui
+   a déjà le sien. */
+function notesCorps(){
+  if(!DEM_OK) return '';
+  let h='';
   /* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
   h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
        '<span class="notpt"></span>'+(NOT_ECOUTE?'J\'écoute — appuie pour arrêter':'Parler')+
@@ -27863,7 +27873,8 @@ function vNotes(){
          '</div>';
     });
   }
-  return h+'<div style="height:30px"></div>';
+  /* Ce titre annonce ce qui suit : les canevas de la page, qui viennent après. */
+  return h+'<div class="demlbl" style="margin-top:26px">Les canevas</div>';
 }
 
 function vPartager(){
@@ -32469,7 +32480,7 @@ function renderTabs(){
               c'est promettre quelque chose qui refusera. Le serveur revérifie de son
               côté — ce bouton caché n'est qu'une politesse, pas une serrure. */
            ].concat(DEM_OK?[['#/demander','Demander','question'],
-                            ['#/notes','Notes','note']]:[]).concat([
+                            ['#/d/notes','Notes','note']]:[]).concat([
            ['#/mobilisation','Mobilisation','petition'],
            ['#/favoris','Tes favoris','star'],['#/fil','Le fil','feed'],
            ['#/partager','Partager COUSIN','partage'],
