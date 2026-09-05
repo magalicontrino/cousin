@@ -2481,16 +2481,39 @@ body.pan-ouvert #view{animation:none;transform:none}
    Le tableau : une grille, plus un <table>. Sur téléphone, les colonnes se resserrent
    au lieu de déborder, et la première colonne reste lisible. */
 /* ═══ LA BASCULE LISTE / TABLEAU ═══
-   Deux vues de la même chose : un seul rail, celle qui est allumée est en noir. Pas de
-   survol qui bouge (règle du 18/08 : rien ne glisse sous le curseur). */
-.dvue{display:flex;gap:6px;margin-top:14px;background:#e7e5e1;border-radius:12px;padding:4px}
-.dvue button{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
-  border:0;background:none;border-radius:9px;padding:10px 8px;color:var(--enc2);font:inherit;
-  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
-  cursor:pointer}
-.dvue button.on{background:var(--noir);color:#f0efed}
-.dvue .ic{width:15px;height:15px;flex:none;display:flex;align-items:center;justify-content:center}
-.dvue .ic svg,.dvue .ic .pico{width:15px;height:15px;display:block}
+   ⚠ « SUR LE TÉLÉPHONE, JE NE VOIS PAS QU'IL Y A UN CHANGEMENT LISTE/TABLEAU »
+   (Mag, 05/09/2026). Vérifié à 375 px : la bascule s'affichait bien — mais elle avait
+   raison sur le fond. Le bouton éteint était gris sur un rail gris : ça se lisait
+   comme une étiquette morte, pas comme un choix qu'on peut faire.
+   MAINTENANT LES DEUX SONT DES BOUTONS : celui qui est éteint est BLANC avec un
+   contour, celui qui est allumé est noir. Deux pastilles côte à côte, on voit
+   immédiatement qu'il y en a une autre à prendre.
+   ⚠ Pas de survol qui bouge (règle du 18/08 : rien ne glisse sous le curseur). */
+.dvue{display:flex;gap:6px;margin-top:14px;background:#e3e1dd;border-radius:14px;padding:5px}
+.dvue button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+  border:1.25px solid var(--ligne);background:#fff;border-radius:10px;padding:12px 8px;
+  color:var(--enc2);font:inherit;
+  font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:600;cursor:pointer}
+.dvue button.on{background:var(--noir);border-color:var(--noir);color:#f0efed}
+.dvue .ic{width:16px;height:16px;flex:none;display:flex;align-items:center;justify-content:center}
+.dvue .ic svg,.dvue .ic .pico{width:16px;height:16px;display:block}
+@media(max-width:400px){ .dvue button{gap:6px;padding:12px 4px;font-size:10.5px;letter-spacing:.06em} }
+/* Une question ouverte : le lieu en surtitre, la QUESTION en gros — c'est elle qu'on
+   pose au téléphone —, le numéro tout de suite en dessous, puis ce que la réponse
+   change. Le filet de couleur à gauche, comme les étapes d'une feuille. */
+.qopl{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.qop{background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
+  border-radius:14px;padding:14px 15px}
+.qop-l{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--enc2);margin-bottom:6px;line-height:1.4}
+.qop-q{display:block;font-size:15.5px;font-weight:700;line-height:1.3}
+.qop-t{font-family:ui-monospace,monospace;font-size:14px;font-weight:700;letter-spacing:.06em;
+  margin-top:7px}
+.qop-p{font-size:13.5px;line-height:1.45;color:#3c3a36;margin-top:8px}
+.qop-d{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--enc2);margin-top:10px;padding-top:8px;
+  border-top:1px solid var(--ligne)}
 .cbcoms{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .cbcom{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
   background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
@@ -18233,17 +18256,32 @@ function apercuCorps(){
    était — mais il change dès qu'on navigue DANS le téléphone, et l'iframe se
    refabriquait alors toute seule, ramenant l'aperçu à son point de départ à chaque
    clic. On l'ouvre donc sur l'accueil, et on navigue dedans librement. */
+/* ═══ ⚠ L'APERÇU REPARTAIT DE L'ACCUEIL (Mag, 05/09/2026) ═══
+   « Quand je suis sur une page et que je mets la vue téléphone, ça revient à
+   l'accueil dans le téléphone. Moi je veux voir directement comment c'est LÀ OÙ JE
+   SUIS. »
+   La cause tient en un mot manquant : l'adresse du cadre se construisait avec
+   `location.pathname` et les paramètres — **jamais avec le `#`**. Le téléphone
+   rouvrait donc l'app à sa route par défaut, c'est-à-dire l'accueil, quelle que soit
+   la page regardée. Il fallait retrouver son chemin à la main pour voir une page,
+   donc on ne s'en servait pas.
+   ⚠ ET ÇA NE CASSE PAS LA NAVIGATION DANS LE CADRE : quand on clique DANS l'iframe,
+   c'est l'adresse de l'iframe qui change, pas celle de la page qui la contient. Le
+   `data-url` calculé ici reste donc identique, et le cadre n'est pas rechargé — la
+   règle écrite plus haut (« on ne touche à l'iframe que si son adresse a vraiment
+   changé ») continue de tenir. */
 function apercuTelUrl(){
   return location.pathname+'?apercu=tel'
     +(APERCU_GRP?'&grp='+encodeURIComponent(APERCU_GRP):'')
-    +(APERCU_METIER?'&met='+encodeURIComponent(APERCU_METIER):'');
+    +(APERCU_METIER?'&met='+encodeURIComponent(APERCU_METIER):'')
+    +(location.hash||'');
 }
 /* Le cadre du téléphone : l'app se rouvre dedans, à 414 px de large. */
 function cadreTelephone(){
   const url=apercuTelUrl();
   return '<div class="teltest"><div class="telzoom" id="telzoom"><div class="telcadre">'+
     '<iframe src="'+esc(url)+'" title="Aperçu téléphone"></iframe></div></div>'+
-    '<p>C’est exactement ce que voit un téléphone. Navigue dedans comme sur le tien.</p></div>';
+    '<p>C’est exactement ce que voit un téléphone, sur la page où tu es. Navigue dedans comme sur le tien.</p></div>';
 }
 /* LE TÉLÉPHONE TIENT TOUJOURS EN ENTIER DANS LA HAUTEUR DE L'ÉCRAN (Mag, 06/08/2026).
    On le dessine plus petit s'il le faut — proportionnellement, jamais écrasé. Son
@@ -22121,7 +22159,12 @@ function vContribDemarches(){
        c'est elle qui apprend ce que vaut une case. */
     h+='<div class="cbjauge"><i style="width:'+Math.round(nOk/nTot*100)+'%"></i></div>'+
       '<div style="padding:7px 2px 0;font-size:12px;color:var(--enc2)">'+
-      '<b>'+nOk+'</b> sur '+nTot+' vérifiées avec le CPAS</div><div style="height:26px"></div>';
+      '<b>'+nOk+'</b> sur '+nTot+' vérifiées avec le CPAS</div>';
+    /* ═══ LA DEUXIÈME SECTION EXISTE, ON PEUT DONC LA POSER (Mag, 05/09/2026) ═══
+       Elle annonçait ce matin que la page porterait plusieurs sections ; celle-ci est
+       la première à arriver. Elle se pose SOUS celle des démarches, comme elle l'a
+       dit — « ça pourrait être en dessous, juste de notre section ». */
+    h+=vQuestionsOuvertes()+'<div style="height:26px"></div>';
     return h;
   }
   h+='<div class="demtete"><span class="s">Commune</span>'+
@@ -22181,6 +22224,66 @@ function demCourt(t){
 }
 
 function demChoisir(c){ DEMARCHES_ACTIVE=c; render(); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES QUESTIONS SANS RÉPONSE — LE CHANTIER DE L'ÉQUIPE (Mag, 05/09/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   Ses mots : « ce serait NOTRE chantier, en fait. Moi j'ai un chantier dans Admin,
+   mais ça n'a rien à voir. J'aimerais que le chantier des travailleurs sociaux pour
+   les démarches, ça ne passe QUE par cette page. Ce serait par exemple tout ce genre
+   de questions où tu n'as pas trouvé la réponse. »
+
+   ⚠ DEUX CHANTIERS QUI NE SE MÉLANGENT PAS. Celui d'Admin est le sien — sa liste de
+   travail privée sur l'app elle-même. Celui-ci est celui de L'ÉQUIPE : ce qu'on ne
+   sait pas encore sur le terrain, et qu'un appel réglerait.
+
+   ⚠ C'EST ICI QUE JE POSE MES PROPRES TROUS. Jusqu'à aujourd'hui, quand je ne
+   trouvais pas une réponse, je l'écrivais dans un commentaire du code — c'est-à-dire
+   nulle part pour l'équipe. Une question qui n'est lue par personne n'est pas une
+   question, c'est un oubli qui prend son temps.
+   RÈGLE : chaque fois que je bute sur « je n'ai pas trouvé », la ligne se met ICI,
+   avec QUI appeler et POURQUOI ça change quelque chose. Pas de question dont la
+   réponse ne changerait rien à ce qu'on fait — c'est la règle du 18/08.
+
+   ⚠ CHAQUE QUESTION PORTE SON NUMÉRO. Une question sans le numéro de qui peut y
+   répondre, c'est une deuxième recherche à faire avant de pouvoir appeler. */
+const QUESTIONS_OUVERTES=[
+  {q:'Peut-on y amener quelqu’un le soir même, ou faut-il un entretien avant ?',
+   lieu:'L’Ilot — Maison d’accueil (femmes & familles)', tel:'02 538 59 09',
+   pourquoi:'C’est la seule maison du catalogue qui ne dit nulle part comment on entre. Tant qu’on ne sait pas, elle reste hors de « Dormir ce soir » — et une place pour une femme avec enfants ne se voit pas la nuit.',
+   pose:'05/09/2026'},
+  {q:'Est-ce accessible en chaise roulante ? (plain-pied ou ascenseur · chambre adaptée · douche adaptée · toilettes adaptées)',
+   lieu:'Les 31 maisons d’accueil, une par une', tel:'',
+   pourquoi:'Une seule réponse sur trente et une aujourd’hui. On ne devine pas l’accessibilité : envoyer quelqu’un en chaise devant un perron, c’est la version « adresse » du numéro de téléphone inventé. Elles s’appellent déjà tous les matins — la question peut se poser là.',
+   pose:'01/09/2026'},
+  {q:'La cellule aide médicale traite-t-elle aussi l’AMU et la carte médicale, ou seulement les réquisitoires ?',
+   lieu:'CPAS de la Ville de Bruxelles — cellule aide médicale', tel:'',
+   pourquoi:'Seuls les réquisitoires sont confirmés. On envoie l’AMU à la même adresse faute de mieux — si ce n’est pas la bonne boîte, la demande dort sans que personne le sache.',
+   pose:'05/09/2026'},
+  {q:'À quelle adresse envoie-t-on les réquisitoires, l’AMU et la carte médicale ?',
+   lieu:'CPAS de Molenbeek-Saint-Jean', tel:'',
+   pourquoi:'C’est le seul CPAS des cinq dont on n’a aucune adresse. La commune est absente de la table : ses fiches n’héritent de rien et restent vides — mieux vaut un trou visible qu’une adresse devinée, mais il faut le combler.',
+   pose:'05/09/2026'}
+];
+/* Une question se raye en l'effaçant d'ici et en écrivant la réponse dans la fiche
+   concernée. Elle ne se « coche » pas : une question résolue qui reste affichée fait
+   rappeler pour rien. */
+function vQuestionsOuvertes(){
+  if(!QUESTIONS_OUVERTES.length) return '';
+  var h='<div class="sectl" style="margin-top:26px">Les questions sans réponse'+
+        ' \u00b7 '+QUESTIONS_OUVERTES.length+'</div>';
+  h+='<div class="qopl">';
+  QUESTIONS_OUVERTES.forEach(function(x,i){
+    h+='<div class="qop" style="--c:'+chipCouleur(i)+'">'+
+       '<div class="qop-l">'+esc(x.lieu)+'</div>'+
+       '<b class="qop-q">'+esc(x.q)+'</b>'+
+       (x.tel?'<div class="qop-t">'+esc(x.tel)+'</div>':'')+
+       '<div class="qop-p">'+esc(x.pourquoi)+'</div>'+
+       '<div class="qop-d">Posée le '+esc(x.pose)+'</div>'+
+       '</div>';
+  });
+  return h+'</div>';
+}
 /* La liste à l'arrivée, toujours : c'est elle qu'on ouvre pour travailler. Le choix
    ne se garde pas d'une visite à l'autre — on ne veut pas revenir sur la page et
    tomber sur le tableau sans savoir pourquoi. */
