@@ -249,6 +249,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   .pt-b{flex-wrap:wrap}
   .pt-c,.pt-c.wa{font-size:8px;padding:9px 6px}
 }
+/* La note d'un entretien : le même champ d'écriture que partout, en plus haut. */
+.notetxt{width:100%;background:#fdfdfc;border:1.5px solid var(--trait);border-radius:11px;
+  padding:12px 13px;font-family:inherit;font-size:15px;color:var(--noir);resize:vertical;
+  line-height:1.5;margin-top:10px}
+.notetxt:focus{outline:0;border-color:var(--trait-fort)}
+.noteetat{font-size:13px;color:var(--enc2);margin-top:8px;min-height:18px}
+.note-b{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
 /* ═══ DEMANDER — le dessin de la page (Mag, 05/09/2026) ═══
    Rien de neuf : c'est la rangée de l'app, le blanc cassé, les traits déteints.
    La réponse porte le cadre noir — comme partout, le noir garde la première chose
@@ -6729,6 +6736,31 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <b id="accBrTitre"></b>
     <p id="accBrTexte"></p>
     <div class="accbr-b" id="accBrBoutons"></div>
+  </div>
+</div>
+<!-- ═══ LA NOTE D'UN ENTRETIEN (Mag, 05/09/2026) ═══
+     « Et pour faire des notes ? Un truc qu'on peut copier après. Peut-on
+     enregistrer ? » — « dans la liste perso, dans entretien ».
+     On écrit en vrac pendant l'entretien, on demande la mise au propre, on copie,
+     et ça reste attaché à la personne dans SA liste.
+     ⚠ LA NOTE NE QUITTE PAS L'APPAREIL : elle est rangée avec l'entretien
+     (`lux_a_voir`), au même endroit et par le même chemin que le reste de sa liste.
+     ⚠ CE QUI PART POUR LA MISE AU PROPRE, C'EST LE TEXTE SEUL. Jamais le nom, jamais
+     la chambre, jamais la langue — ils vivent dans leurs propres champs et l'app ne
+     les joint pas. La règle « on écrit Monsieur X » se dit à l'oral à l'équipe ; le
+     champ le rappelle en gris. -->
+<div id="noteBg" class="popbg" onclick="if(event.target.id==='noteBg')noteFermer()">
+  <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="noteTitre">
+    <b id="noteTitre">La note</b>
+    <textarea id="noteTxt" class="notetxt" rows="9"
+      placeholder="Tes notes en vrac — Monsieur X, pas de nom"></textarea>
+    <div id="noteEtat" class="noteetat"></div>
+    <div class="note-b">
+      <button class="dembtn clair" onclick="notePropre()" id="noteBtnP">Mettre au propre</button>
+      <button class="dembtn clair" onclick="noteRevenir()" id="noteBtnR" style="display:none">Revenir</button>
+      <button class="dembtn clair" onclick="noteCopier()">Copier</button>
+      <button class="dembtn" onclick="noteGarder()">Garder</button>
+    </div>
   </div>
 </div>
 <div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popFermer()">
@@ -15437,6 +15469,15 @@ window.addEventListener('hashchange',()=>{
      on ferme tout ce qui porte une classe de feuille ET la marque `on`. Toute feuille
      future est couverte sans qu'on y pense, et c'est le but. */
   try{
+    /* ⚠ LA NOTE D'ENTRETIEN SE GARDE AVANT QUE SA FENÊTRE PARTE (05/09/2026).
+       Ce bloc ferme toutes les feuilles d'un coup, sans passer par leur propre
+       fermeture — c'est voulu, et c'est ce qui répare les voiles accrochés. Mais la
+       note est la seule feuille où on ÉCRIT quelque chose qui doit rester : sans
+       cette ligne, revenir en arrière pendant qu'on écrit effacerait la note.
+       C'est exactement le défaut qui lui a fait perdre son travail une fois. */
+    try{ const nb=document.getElementById('noteBg');
+      if(nb && nb.classList.contains('on') && typeof noteGarder==='function') noteGarder(true);
+    }catch(e){}
     document.querySelectorAll('.partbg.on,.popbg.on,.ideebg.on,.urgbg.on,.mh-bg.on,.mh.on')
       .forEach(function(el){ el.classList.remove('on'); });
     _figeN=0; document.documentElement.classList.remove('fond-fige');
@@ -33154,6 +33195,82 @@ function avoirCopier(id){
   if(r.lecture==='non') b.push('ne lit pas');
   copyTxt(b.join(' · '),'Copié');
 }
+/* ═══ LA NOTE D'UN ENTRETIEN ═══
+   ⚠ RÈGLE DE SAUVEGARDE, LA MÊME QUE POUR SA LISTE : on n'écrase jamais sans avoir
+   gardé l'avant. `NOTE_AVANT` retient le texte tel qu'il était avant la mise au
+   propre, et le bouton « Revenir » le remet. Une mise au propre ratée ne doit pas
+   coûter une note d'entretien. */
+let NOTE_ID='', NOTE_AVANT='', NOTE_ENCOURS=false;
+function noteOuvrir(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
+  NOTE_ID=id; NOTE_AVANT=''; NOTE_ENCOURS=false;
+  const t=document.getElementById('noteTitre'); if(t) t.textContent=r.nom||'La note';
+  const c=document.getElementById('noteTxt'); if(c) c.value=r.note||'';
+  const e=document.getElementById('noteEtat'); if(e) e.textContent='';
+  const br=document.getElementById('noteBtnR'); if(br) br.style.display='none';
+  const bg=document.getElementById('noteBg'); if(bg) bg.classList.add('on');
+  setTimeout(function(){ if(c) c.focus(); },40);
+}
+function noteFermer(){
+  /* ⚠ ON GARDE EN FERMANT. Fermer une fenêtre ne doit jamais effacer ce qu'on vient
+     d'écrire — c'est exactement le défaut qui lui a fait perdre ses notes une fois. */
+  noteGarder(true);
+  const bg=document.getElementById('noteBg'); if(bg) bg.classList.remove('on');
+  NOTE_ID=''; NOTE_AVANT='';
+}
+function noteGarder(muet){
+  const r=AVOIR.find(function(x){ return x.id===NOTE_ID; });
+  const c=document.getElementById('noteTxt');
+  if(!r||!c) return;
+  r.note=(c.value||'').slice(0,6000);
+  avoirSauver();
+  if(!muet){ toast('Gardé ✓'); render(); }
+}
+function noteCopier(){
+  const c=document.getElementById('noteTxt');
+  copyTxt((c&&c.value)||'', 'Copié ✓');
+}
+function noteRevenir(){
+  if(!NOTE_AVANT) return;
+  const c=document.getElementById('noteTxt'); if(c) c.value=NOTE_AVANT;
+  const e=document.getElementById('noteEtat'); if(e) e.textContent='Revenu à ce que tu avais écrit.';
+  const br=document.getElementById('noteBtnR'); if(br) br.style.display='none';
+  NOTE_AVANT='';
+}
+async function notePropre(){
+  if(NOTE_ENCOURS) return;
+  const c=document.getElementById('noteTxt');
+  const e=document.getElementById('noteEtat');
+  const bp=document.getElementById('noteBtnP');
+  const txt=(c&&c.value||'').trim();
+  if(!txt){ if(e) e.textContent='Écris d\'abord tes notes.'; return; }
+  NOTE_ENCOURS=true; if(bp){ bp.disabled=true; bp.textContent='…'; }
+  if(e) e.textContent='Je mets au propre…';
+  try{
+    const ses=await sb.auth.getSession();
+    const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
+    if(!jeton){ if(e) e.textContent='Ta connexion s\'est perdue. Ta note n\'a pas bougé.'; }
+    else{
+      const rp=await fetch(SB_URL+'/functions/v1/bulle',{
+        method:'POST',
+        headers:{'content-type':'application/json','authorization':'Bearer '+jeton,'apikey':SB_KEY},
+        /* ⚠ `mode:note` ET RIEN D'AUTRE QUE LE TEXTE. Pas de nom, pas de chambre. */
+        body:JSON.stringify({mode:'note', question:txt})
+      });
+      const d=await rp.json().catch(function(){ return {}; });
+      if(!rp.ok){ if(e) e.textContent=(d.erreur||'La mise au propre n\'est pas arrivée.')+' Ta note n\'a pas bougé.'; }
+      else if(d.texte){
+        NOTE_AVANT=txt;
+        if(c) c.value=d.texte;
+        if(e) e.textContent='Mis au propre. Relis avant de garder.';
+        const br=document.getElementById('noteBtnR'); if(br) br.style.display='';
+      }
+    }
+  }catch(err){
+    if(e) e.textContent='La mise au propre n\'est pas arrivée. Ta note n\'a pas bougé.';
+  }
+  NOTE_ENCOURS=false; if(bp){ bp.disabled=false; bp.textContent='Mettre au propre'; }
+}
 function avoirRetirer(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
   cousinConfirme('Retirer de la liste ?', r.nom, function(){
@@ -33179,6 +33296,10 @@ function carteAVoir(){
           'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
         '<button class="ib" onclick="avoirCopier(\''+r.id+'\')" '+
           'aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
+        /* La note de l'entretien. Le picto s'allume quand il y a déjà quelque chose
+           d'écrit : on voit d'un coup d'œil les entretiens qui ont une note. */
+        '<button class="ib'+(r.note?' on':'')+'" onclick="noteOuvrir(\''+r.id+'\')" '+
+          'aria-label="La note" title="La note">'+icon('note')+'</button>'+
         '<button class="ib" onclick="avoirRetirer(\''+r.id+'\')" '+
           'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
         '<button class="rapPass mini" onclick="avoirAccueil()">Premier accueil</button>'+

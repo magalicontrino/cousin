@@ -63,6 +63,36 @@ RÈGLES, dans l'ordre :
 6. Aucun nom de personne accueillie ne doit apparaître dans ta réponse. Si la
    question en contient un, écris « Monsieur X » ou « Madame Y ».`;
 
+/* ═══ LE DEUXIÈME MÉTIER : METTRE DES NOTES AU PROPRE (Mag, 05/09/2026) ═══
+   On écrit en vrac pendant l'entretien — des bouts de phrases, des mots jetés. On
+   veut le récupérer lisible, pour le coller dans le 6D.
+
+   ⚠ CE CADRE EST PLUS SÉVÈRE QUE L'AUTRE, et il doit le rester : une note d'entretien
+   est un document de travail sur quelqu'un. Ce qu'on n'a pas écrit ne doit pas
+   apparaître. Un modèle qui « complète » une note sociale invente la vie d'une
+   personne — et c'est cette version-là qui finira dans un dossier.
+
+   ⚠ LE NOM NE VIENT JAMAIS ICI : il vit dans son propre champ, dans l'application,
+   et l'app n'envoie que le texte de la note. C'est la règle dite à l'oral à l'équipe :
+   on écrit « Monsieur X ». */
+const CADRE_NOTE = `Tu remets au propre les notes d'un travailleur social du
+Samusocial de Bruxelles, prises pendant un entretien.
+
+CE QUE TU FAIS : tu rends le texte lisible. Phrases courtes. Tu gardes l'ordre des
+idées. Tu corriges l'orthographe et tu déplies les abréviations évidentes.
+
+CE QUE TU NE FAIS JAMAIS :
+- tu n'ajoutes RIEN. Pas un détail, pas une hypothèse, pas une transition inventée.
+  Si une phrase est incomplète, elle reste incomplète.
+- tu n'interprètes pas, tu ne diagnostiques pas, tu ne conseilles pas. Tu n'écris
+  aucune appréciation sur la personne.
+- tu ne remplaces pas les mots du métier par des synonymes : AMU reste AMU, RIS
+  reste RIS, CPAS reste CPAS.
+- si un nom apparaît, tu écris « Monsieur X » ou « Madame Y ».
+
+TU RENDS LE TEXTE, RIEN D'AUTRE. Pas d'introduction, pas de commentaire sur ton
+travail, pas de titre.`;
+
 function nettoie(fiche: Record<string, unknown>) {
   const propre: Record<string, unknown> = {};
   let cache = false;
@@ -106,9 +136,35 @@ Deno.serve(async (req: Request) => {
     if (!liste.includes(email)) return refus('La bulle n\'est pas ouverte à ce compte.', 403);
 
     /* 2. CE QU'ON ENVOIE. */
-    const { question, fiches } = await req.json();
+    const { question, fiches, mode } = await req.json();
     if (!question || typeof question !== 'string') return refus('Pas de question.');
-    if (question.length > 2000) return refus('Question trop longue.');
+    if (question.length > 6000) return refus('Texte trop long — coupe-le en deux.');
+
+    /* METTRE AU PROPRE : pas de fiches, pas de catalogue, un autre cadre. Le texte
+       part seul — l'app ne joint ni le nom, ni la chambre, ni la langue. */
+    if (mode === 'note') {
+      const cle0 = Deno.env.get('ANTHROPIC_API_KEY') || Deno.env.get('Cousin Agent');
+      if (!cle0) return refus('La clé n\'est pas installée sur le serveur.', 500);
+      const rn = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': cle0, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: MODELE, max_tokens: 1500, system: CADRE_NOTE,
+          messages: [{ role: 'user', content: question }],
+        }),
+      });
+      if (!rn.ok) {
+        const dn = await rn.text();
+        console.error('Anthropic a refusé (note) :', rn.status, dn);
+        if (rn.status === 400 && dn.includes('credit')) return refus('Le compte n\'a plus de crédit.', 402);
+        return refus('La mise au propre n\'est pas arrivée. Ta note n\'a pas bougé — réessaie.', 502);
+      }
+      const dj = await rn.json();
+      const propre = (dj.content || []).filter((b: { type: string }) => b.type === 'text')
+        .map((b: { text: string }) => b.text).join('\n').trim();
+      console.log('note', email, dj.usage?.input_tokens, '→', dj.usage?.output_tokens);
+      return new Response(JSON.stringify({ texte: propre }), { headers: cors });
+    }
 
     const lot = Array.isArray(fiches) ? fiches.slice(0, 8).map(nettoie) : [];
     if (!lot.length) {
