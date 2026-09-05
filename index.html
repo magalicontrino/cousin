@@ -21815,10 +21815,53 @@ function demResume(f,max){
   var t=[f.ou||'',f.comment||''].filter(function(x){ return !demVide(x); }).join(' ');
   return demCouper(t,max);
 }
-/* L'état d'une case du tableau : écrit ici · seulement la règle · rien. */
+/* ═══ ⚠ ÉCRIT N'EST PAS VÉRIFIÉ (Mag, 05/09/2026) ═══
+   « Tout va passer R. Mais laisse quand même les textes dedans — c'est juste que ça
+   doit partir en vérification. »
+   Elle a raison, et le tableau mentait sans le vouloir : le ✓ voulait dire
+   « QUELQU'UN A ÉCRIT quelque chose pour cette commune ». Or ce qui est écrit vient
+   de sources, de mails et de souvenirs — **personne n'a confirmé avec le CPAS**. Un
+   tableau vert à 14 sur 15 dit « c'est bon », alors que rien n'a été recoupé.
+   Le ✓ ne se gagne donc plus en écrivant, mais en VÉRIFIANT : une case passe au vert
+   quand elle est inscrite dans `DEM_VERIFIES`, et pas avant.
+   ⚠ AUCUN TEXTE N'EST TOUCHÉ : tout ce qui est écrit reste affiché, se lit et
+   s'imprime comme avant. Seule la pastille change de sens.
+   ⚠ Et le « + » reste réservé au vrai vide : ni règle générale, ni ligne de commune.
+   C'est la seule case où il n'y a rien du tout à relire. */
+const DEM_VERIFIES={
+  /* Une ligne par case CONFIRMÉE AVEC LE CPAS, sous la forme :
+       "Commune|Démarche": "qui a vérifié, quand",
+     par exemple  "Ixelles|Carte médicale": "Mag, appel du 12/09/2026".
+     Tant que la ligne n'existe pas, la case reste R — à vérifier.
+     ⚠ Le nom de la commune et celui de la démarche doivent être EXACTS (ceux de
+     DEMARCHES_COMMUNES et DEMARCHES_TYPES) : une faute de frappe laisse la case
+     en R, sans message — d'où le contrôle juste en dessous, qui crie dans la console.
+
+     ⚠ BRUXELLES-VILLE EST LA SEULE COMMUNE VÉRIFIÉE, et c'est elle qui l'a dite :
+     « à Bruxelles-Ville, si c'est la cellule générale, il faudra envoyer tout le
+     reste à la cellule aussi » (05/09/2026). Une SEULE adresse —
+     celluleaidemedicale@cpasbxl.brussels — vaut pour les trois démarches. Ce n'est
+     pas une supposition de ma part : c'est ce qu'elle sait du terrain. */
+  "Bruxelles-Ville|Réquisitoire":               "Mag, 05/09/2026 — la cellule aide médicale traite tout",
+  "Bruxelles-Ville|Aide Médicale Urgente (AMU)":"Mag, 05/09/2026 — même cellule",
+  "Bruxelles-Ville|Carte médicale":             "Mag, 05/09/2026 — même cellule"
+};
+/* ⚠ UNE CLÉ MAL ORTHOGRAPHIÉE NE FAIT AUCUN BRUIT : la case reste simplement en R,
+   et on croit que la vérification n'a pas été faite. Même famille que le drapeau
+   d'urgence qui tombe quand un nom de maison change. */
+(function controleDemVerifies(){
+  Object.keys(DEM_VERIFIES).forEach(function(k){
+    var c=k.split('|')[0], t=k.split('|')[1];
+    if(DEMARCHES_COMMUNES.indexOf(c)<0 || DEMARCHES_TYPES.indexOf(t)<0)
+      console.warn('COUSIN — DEM_VERIFIES : clé introuvable « '+k+' »');
+  });
+})();
+function demVerifie(commune,type){ return !!DEM_VERIFIES[commune+'|'+type]; }
+/* L'état d'une case : vérifié avec le CPAS · à vérifier · rien du tout. */
 function demEtat(commune,type){
-  if(demContenu(demTrouver(commune,type))) return 'o';
-  if(demWikiNotes(commune,type).length) return 'o';
+  if(demVerifie(commune,type)) return 'o';
+  if(demContenu(demTrouver(commune,type))) return 'r';
+  if(demWikiNotes(commune,type).length) return 'r';
   return demRegles(type).length ? 'r' : 'n';
 }
 function demTrouver(commune,type){
@@ -21965,9 +22008,11 @@ function vContribDemarches(){
         var e=demEtat(c,t); if(e==='o'){o++;nOk++;} else if(e==='r') r++; else n++;
         pts+='<i class="'+e+'" title="'+esc(demCourt(t))+'"></i>';
       });
-      var dit = (o===DEMARCHES_TYPES.length) ? 'Tout est écrit'
-              : o ? (o+' sur '+DEMARCHES_TYPES.length+' écrites')
-              : 'Rien d’écrit ici';
+      /* ⚠ « VÉRIFIÉ », PAS « ÉCRIT » (05/09/2026). Le compte disait ce qui était écrit,
+         et l'app avait donc l'air finie alors que rien n'était recoupé avec les CPAS. */
+      var dit = (o===DEMARCHES_TYPES.length) ? 'Tout est vérifié'
+              : o ? (o+' sur '+DEMARCHES_TYPES.length+' vérifiées')
+              : 'À vérifier avec le CPAS';
       h+='<button class="cbcom'+(o===DEMARCHES_TYPES.length?' plein':'')+'" style="--c:'+chipCouleur(ic)+'" '+
         'onclick="demChoisir(\''+c+'\')">'+
         '<span class="rd"><span class="ic">'+icon('pin')+'</span></span>'+
@@ -22000,7 +22045,7 @@ function vContribDemarches(){
        écrire. Chaque case garde son `title` au survol pour le détail. */
     h+='<div class="cbjauge"><i style="width:'+Math.round(nOk/nTot*100)+'%"></i></div>'+
       '<div style="padding:7px 2px 0;font-size:12px;color:var(--enc2)">'+
-      '<b>'+nOk+'</b> sur '+nTot+' écrites commune par commune</div><div style="height:26px"></div>';
+      '<b>'+nOk+'</b> sur '+nTot+' vérifiées avec le CPAS</div><div style="height:26px"></div>';
     return h;
   }
   h+='<div class="demtete"><span class="s">Commune</span>'+
