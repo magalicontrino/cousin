@@ -78,8 +78,14 @@ RÈGLES, dans l'ordre :
 const CADRE_NOTE = `Tu remets au propre les notes d'un travailleur social du
 Samusocial de Bruxelles, prises pendant un entretien.
 
-CE QUE TU FAIS : tu rends le texte lisible. Phrases courtes. Tu gardes l'ordre des
-idées. Tu corriges l'orthographe et la ponctuation.
+CE QUE TU FAIS : tu rends UNE version, recadrée. Phrases courtes. Orthographe et
+ponctuation corrigées. Si la dictée part dans tous les sens, tu remets les idées dans
+l'ordre. Tu enlèves les « euh », les « alors », les hésitations et les répétitions de
+l'oral. Le ton d'une note professionnelle : ni familier, ni administratif.
+
+⚠ C'EST LA VERSION QU'ELLE A CHOISIE sur trois essayées le 05/09/2026 — « je préfère
+celle du milieu ». Ni le mot à mot brut, ni le résumé en deux lignes : le texte
+entier, remis d'aplomb. Elle corrige à la main ensuite.
 
 CE QUE TU NE FAIS JAMAIS :
 - tu n'ajoutes RIEN. Pas un détail, pas une hypothèse, pas une transition inventée.
@@ -102,45 +108,6 @@ CE QUE TU NE FAIS JAMAIS :
 
 TU RENDS LE TEXTE, RIEN D'AUTRE. Pas d'introduction, pas de commentaire sur ton
 travail, pas de titre.`;
-
-/* ═══ TROIS PROPOSITIONS SUR UNE NOTE DICTÉE (Mag, 05/09/2026) ═══
-   « Il faut juste faire parler et ça s'écrit dans une case texte, c'est tout. Et
-   quand on fait ok, tu proposes trois corrections. » Elle a écarté les formes, les
-   étiquettes et le découpage : « on aime bien parler, on n'aime pas devoir cliquer ».
-
-   Les trois ne sont pas trois styles au hasard, elles répondent à trois besoins :
-   ① le texte tel quel, juste sans les fautes — pour qui veut garder ses mots ;
-   ② recadré, phrases courtes — la version qu'on colle dans le dossier ;
-   ③ l'essentiel en deux lignes — pour une passation ou un message rapide.
-
-   ⚠ MÊMES INTERDITS QUE POUR LA MISE AU PROPRE, et ils comptent double ici :
-   trois versions, c'est trois occasions d'inventer. */
-const CADRE_TROIS = `Tu reçois une note dictée à la voix par un travailleur social du
-Samusocial de Bruxelles. La dictée est brute : pas de ponctuation, des fautes, des
-mots avalés.
-
-Tu rends TROIS versions de cette note, dans cet ordre, séparées par une ligne
-contenant seulement ---
-
-① SES MOTS, SANS LES FAUTES. Tu ne changes que l'orthographe, la ponctuation et les
-   majuscules. Tu ne déplaces rien, tu ne reformules rien.
-② RECADRÉE. Phrases courtes, ordre des idées remis d'aplomb si la dictée part dans
-   tous les sens. Le ton d'une note professionnelle : ni familier, ni administratif.
-③ L'ESSENTIEL. Deux ou trois lignes, ce qu'il faut retenir et ce qui doit suivre.
-
-CE QUE TU NE FAIS DANS AUCUNE DES TROIS :
-- tu n'ajoutes RIEN. Aucun détail, aucune hypothèse, aucune transition inventée.
-- ⚠ TU NE DÉPLIES JAMAIS UNE ABRÉVIATION, même évidente. Elles ont un sens local que
-  tu ne connais pas : ici « MM » veut dire MAISON MÉDICALE. Un modèle a écrit
-  « Médecins du Monde » le 05/09/2026 — cette phrase serait partie dans un dossier.
-  MM reste MM, AMU reste AMU, RIS reste RIS, CPAS reste CPAS, MENA reste MENA.
-- tu n'ajoutes pas de sujet à une phrase qui n'en a pas : « arrive hier soir » devient
-  « Arrivé hier soir. », jamais « Monsieur X est arrivé hier soir ».
-- tu ne juges pas, tu ne diagnostiques pas, tu ne conseilles pas.
-- si un nom de personne apparaît, tu écris « Monsieur X » ou « Madame Y ».
-
-Tu rends les trois textes et les deux séparateurs, rien d'autre. Pas de titre, pas de
-numéro, pas de commentaire.`;
 
 function nettoie(fiche: Record<string, unknown>) {
   const propre: Record<string, unknown> = {};
@@ -191,35 +158,6 @@ Deno.serve(async (req: Request) => {
 
     /* METTRE AU PROPRE : pas de fiches, pas de catalogue, un autre cadre. Le texte
        part seul — l'app ne joint ni le nom, ni la chambre, ni la langue. */
-    /* LES TROIS PROPOSITIONS. Même chemin que la mise au propre, un cadre en plus. */
-    if (mode === 'trois') {
-      const cle3 = Deno.env.get('ANTHROPIC_API_KEY') || Deno.env.get('Cousin Agent');
-      if (!cle3) return refus('La clé n\'est pas installée sur le serveur.', 500);
-      const r3 = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': cle3, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: MODELE, max_tokens: 2000, system: CADRE_TROIS,
-          messages: [{ role: 'user', content: question }],
-        }),
-      });
-      if (!r3.ok) {
-        const d3 = await r3.text();
-        console.error('Anthropic a refusé (trois) :', r3.status, d3);
-        if (r3.status === 400 && d3.includes('credit')) return refus('Le compte n\'a plus de crédit.', 402);
-        return refus('Les propositions ne sont pas arrivées. Ta note n\'a pas bougé — réessaie.', 502);
-      }
-      const dd = await r3.json();
-      const brut = (dd.content || []).filter((b: { type: string }) => b.type === 'text')
-        .map((b: { text: string }) => b.text).join('\n');
-      /* Le séparateur est une ligne de tirets. On coupe dessus, on nettoie, et on
-         ne renvoie que ce qui n'est pas vide — si le modèle n'en rend que deux, on
-         en montre deux plutôt que d'afficher une case vide. */
-      const trois = brut.split(/\n\s*-{3,}\s*\n/).map((x: string) => x.trim()).filter(Boolean).slice(0, 3);
-      console.log('trois', email, dd.usage?.input_tokens, '→', dd.usage?.output_tokens);
-      return new Response(JSON.stringify({ trois }), { headers: cors });
-    }
-
     if (mode === 'note') {
       const cle0 = Deno.env.get('ANTHROPIC_API_KEY') || Deno.env.get('Cousin Agent');
       if (!cle0) return refus('La clé n\'est pas installée sur le serveur.', 500);
