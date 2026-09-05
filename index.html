@@ -2514,6 +2514,22 @@ body.pan-ouvert #view{animation:none;transform:none}
 .qop-d{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--enc2);margin-top:10px;padding-top:8px;
   border-top:1px solid var(--ligne)}
+/* Une réponse validée : elle prend la couleur de la question, pour qu'on voie d'un
+   coup d'œil laquelle a trouvé preneur. */
+.qop-r{background:color-mix(in srgb, var(--c) 16%, #fff);border-radius:10px;
+  padding:11px 12px;margin-top:10px}
+.qop-r b{font-size:13px;font-weight:700}
+.qop-r em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.1em;color:var(--enc2);margin-left:8px}
+.qop-r p{margin:5px 0 0;font-size:13.5px;line-height:1.45}
+.qop-att{background:#f6f5f3;border:1.25px dashed var(--ligne);border-radius:10px;
+  padding:11px 12px;margin-top:10px}
+.qop-att p{margin:0;font-size:13.5px;line-height:1.45}
+.qop-att em{font-style:normal;display:block;font-family:ui-monospace,monospace;
+  font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--enc2);margin-top:6px}
+/* Répondue : le titre s'allège, la carte ne crie plus. Elle reste tant que la réponse
+   n'est pas reportée dans la fiche. */
+.qop.repondu .qop-q{font-weight:600;color:#3c3a36}
 .cbcoms{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .cbcom{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
   background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
@@ -22248,39 +22264,78 @@ function demChoisir(c){ DEMARCHES_ACTIVE=c; render(); }
    ⚠ CHAQUE QUESTION PORTE SON NUMÉRO. Une question sans le numéro de qui peut y
    répondre, c'est une deuxième recherche à faire avant de pouvoir appeler. */
 const QUESTIONS_OUVERTES=[
-  {q:'Peut-on y amener quelqu’un le soir même, ou faut-il un entretien avant ?',
+  {k:'ilot-femmes-admission',
+   q:'Peut-on y amener quelqu’un le soir même, ou faut-il un entretien avant ?',
    lieu:'L’Ilot — Maison d’accueil (femmes & familles)', tel:'02 538 59 09',
    pourquoi:'C’est la seule maison du catalogue qui ne dit nulle part comment on entre. Tant qu’on ne sait pas, elle reste hors de « Dormir ce soir » — et une place pour une femme avec enfants ne se voit pas la nuit.',
    pose:'05/09/2026'},
-  {q:'Est-ce accessible en chaise roulante ? (plain-pied ou ascenseur · chambre adaptée · douche adaptée · toilettes adaptées)',
+  {k:'maisons-chaise-roulante',
+   q:'Est-ce accessible en chaise roulante ? (plain-pied ou ascenseur · chambre adaptée · douche adaptée · toilettes adaptées)',
    lieu:'Les 31 maisons d’accueil, une par une', tel:'',
    pourquoi:'Une seule réponse sur trente et une aujourd’hui. On ne devine pas l’accessibilité : envoyer quelqu’un en chaise devant un perron, c’est la version « adresse » du numéro de téléphone inventé. Elles s’appellent déjà tous les matins — la question peut se poser là.',
    pose:'01/09/2026'},
-  {q:'La cellule aide médicale traite-t-elle aussi l’AMU et la carte médicale, ou seulement les réquisitoires ?',
+  {k:'bxl-cellule-amu-carte',
+   q:'La cellule aide médicale traite-t-elle aussi l’AMU et la carte médicale, ou seulement les réquisitoires ?',
    lieu:'CPAS de la Ville de Bruxelles — cellule aide médicale', tel:'',
    pourquoi:'Seuls les réquisitoires sont confirmés. On envoie l’AMU à la même adresse faute de mieux — si ce n’est pas la bonne boîte, la demande dort sans que personne le sache.',
    pose:'05/09/2026'},
-  {q:'À quelle adresse envoie-t-on les réquisitoires, l’AMU et la carte médicale ?',
+  {k:'molenbeek-adresse',
+   q:'À quelle adresse envoie-t-on les réquisitoires, l’AMU et la carte médicale ?',
    lieu:'CPAS de Molenbeek-Saint-Jean', tel:'',
    pourquoi:'C’est le seul CPAS des cinq dont on n’a aucune adresse. La commune est absente de la table : ses fiches n’héritent de rien et restent vides — mieux vaut un trou visible qu’une adresse devinée, mais il faut le combler.',
    pose:'05/09/2026'}
 ];
-/* Une question se raye en l'effaçant d'ici et en écrivant la réponse dans la fiche
-   concernée. Elle ne se « coche » pas : une question résolue qui reste affichée fait
-   rappeler pour rien. */
+/* ═══ ON DOIT POUVOIR Y RÉPONDRE (Mag, 05/09/2026) ═══
+   « On doit pouvoir y répondre. C'est comme un wiki, mais on rassemble tes questions
+   à toi. Disons qu'il y a les wikis de base — si jamais quelqu'un a envie de rajouter
+   un truc, une info complémentaire ; et ça, c'est les wikis où il MANQUE une info. »
+   La distinction est juste, et c'est elle qui décide de la forme :
+     · le WIKI DE BASE est ouvert — on y ajoute ce qu'on veut, quand on veut ;
+     · ICI, la question est POSÉE : il n'y a qu'une chose à écrire, la réponse.
+   D'où un champ qui attend une réponse, et pas un carnet à déplier.
+   ⚠ MÊME PLOMBERIE QUE LE WIKI, exprès : `wikiEcrire` écrit dans la même table, avec
+   le même « en attente de relecture », et la coordination valide au même endroit.
+   Deux files de validation pour deux formulaires, c'est la seconde qu'on oublie.
+   ⚠ CHAQUE QUESTION A UNE CLÉ FIGÉE (`k`) : c'est elle qui porte les réponses.
+   Réécrire le texte d'une question ne doit JAMAIS déplacer ses réponses — même piège
+   que le sid d'une fiche qu'on renomme.
+   ⚠ UNE QUESTION RÉPONDUE NE SE COCHE PAS, elle se RAYE : on efface sa ligne d'ici et
+   on écrit la réponse dans la fiche concernée. Une question résolue qui reste
+   affichée fait rappeler pour rien. Tant qu'elle est là, la réponse validée s'affiche
+   dessous — c'est ce qui me dit, à moi, ce qu'il reste à reporter dans les fiches. */
+function qopPage(k){ return 'question:'+k; }
 function vQuestionsOuvertes(){
   if(!QUESTIONS_OUVERTES.length) return '';
+  var reste=QUESTIONS_OUVERTES.filter(function(x){ return !wikiDe(qopPage(x.k)).length; }).length;
   var h='<div class="sectl" style="margin-top:26px">Les questions sans réponse'+
-        ' \u00b7 '+QUESTIONS_OUVERTES.length+'</div>';
+        ' \u00b7 '+reste+' sur '+QUESTIONS_OUVERTES.length+'</div>';
   h+='<div class="qopl">';
   QUESTIONS_OUVERTES.forEach(function(x,i){
-    h+='<div class="qop" style="--c:'+chipCouleur(i)+'">'+
+    var page=qopPage(x.k), rep=wikiDe(page), att=(typeof wikiMiennesEnAttente==='function')?wikiMiennesEnAttente(page):[];
+    h+='<div class="qop'+(rep.length?' repondu':'')+'" style="--c:'+chipCouleur(i)+'">'+
        '<div class="qop-l">'+esc(x.lieu)+'</div>'+
        '<b class="qop-q">'+esc(x.q)+'</b>'+
        (x.tel?'<div class="qop-t">'+esc(x.tel)+'</div>':'')+
-       '<div class="qop-p">'+esc(x.pourquoi)+'</div>'+
-       '<div class="qop-d">Posée le '+esc(x.pose)+'</div>'+
-       '</div>';
+       '<div class="qop-p">'+esc(x.pourquoi)+'</div>';
+    rep.forEach(function(n){
+      var j=(n.cree_le||'').slice(8,10)+'/'+(n.cree_le||'').slice(5,7);
+      h+='<div class="qop-r"><b>'+esc(n.auteur_nom||'une collègue')+'</b><em>'+esc(j)+'</em>'+
+         '<p>'+esc(n.texte)+'</p>'+
+         (peutGerer()?'<button class="lienbas" onclick="wikiRetirer('+n.id+')">Retirer</button>':'')+
+         '</div>';
+    });
+    att.forEach(function(n){
+      h+='<div class="qop-att"><p>'+esc(n.texte)+'</p><em>En attente de relecture</em>'+
+         '<button class="lienbas" onclick="wikiRetirer('+n.id+')">Annuler</button></div>';
+    });
+    /* ⚠ PAS DE CHAMP SI ON N'EST PAS CONNECTÉE : un champ qui refuse à l'envoi est
+       pire qu'un champ absent — on a tapé la réponse pour rien. */
+    if(sb) h+='<div class="chadd empile ecrire" style="margin-top:12px">'+
+       '<textarea id="wikiTxt-'+page+'" rows="2" maxlength="600" '+
+         'placeholder="La réponse, telle qu’on te l’a donnée au téléphone" '+
+         'oninput="passGrandir(this)"></textarea>'+
+       '<button class="accb" onclick="wikiEcrire(\''+page+'\')">Répondre</button></div>';
+    h+='<div class="qop-d">Posée le '+esc(x.pose)+'</div></div>';
   });
   return h+'</div>';
 }
@@ -31116,6 +31171,11 @@ function vEau(){
    sur livre:les-naufrages » ne dit rien à celle qui relit. */
 function wikiNomPage(p){
   if(WIKI_PAGES[p]) return WIKI_PAGES[p];
+  if(String(p).indexOf('question:')===0){
+    /* Filet : normalement la ligne existe déjà (voir juste au-dessus de WIKI_PAGES). */
+    const q=QUESTIONS_OUVERTES.find(function(x){ return qopPage(x.k)===p; });
+    return 'Question — '+(q?q.lieu:String(p).slice(9));
+  }
   if(String(p).indexOf('livre:')===0){
     /* ⚠ PASSER PAR `livPage()`, jamais recalculer la clé à la main : c'est ce qui
        s'était cassé au premier essai — la file affichait le slug au lieu du titre. */
@@ -31140,6 +31200,12 @@ const WIKI_PAGES={
   activites:'Activités', urgences:'Urgences', podcasts:'Audio / Radio',
   formationsext:'Formations extérieures', mobilisation:'Mobilisation'
 };
+/* ⚠ CHAQUE QUESTION OUVERTE A SA PAGE DE WIKI, ET ELLE SE NOMME ICI TOUTE SEULE
+   (05/09/2026). La règle du 01/09 dit : toute page qui affiche un wiki doit être
+   nommée, sinon ses notes tombent dans « Wiki à ranger » SANS NOM et personne ne les
+   range. En la construisant depuis la liste elle-même, on ne peut plus l'oublier —
+   ajouter une question suffit. */
+QUESTIONS_OUVERTES.forEach(function(q){ WIKI_PAGES[qopPage(q.k)]='Question — '+q.lieu; });
 let WIKI_N=[];            /* toutes les notes que la base veut bien nous rendre */
 let WIKI_CHARGE=false;
 let WIKI_OUV='';          /* la page dont le carnet est déplié — une seule à la fois */
