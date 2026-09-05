@@ -27401,6 +27401,26 @@ function demChercher(q){
   const mots=(q||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
     .split(/[^a-z0-9]+/).filter(function(m){ return m.length>2 && vides.indexOf(m)<0; });
   if(!mots.length) return [];
+  /* ⚠ ON PASSE PAR LE DICTIONNAIRE DE LA LOUPE (RECH_MOTS). C'est lui qui sait que
+     l'équipe dit « dormir » et que les fiches écrivent « hébergement », ou qu'un
+     sigle de l'oral ne s'écrit nulle part. Sans lui, la recherche ne trouve que les
+     mots déjà écrits dans les fiches — c'est-à-dire les mots qu'on n'a pas besoin
+     de chercher. Le dictionnaire se complète avec l'équipe : ce qu'on y ajoute
+     profite à la loupe ET à cette page, d'un coup. */
+  try{
+    if(typeof RECH_MOTS!=='undefined' && RECH_MOTS.length){
+      const phrase=(q||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      RECH_MOTS.forEach(function(pa){
+        const dit=(pa[0]||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+        if(dit && phrase.indexOf(dit)>=0){
+          (pa[1]||[]).forEach(function(v){
+            (v||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+              .split(/[^a-z0-9]+/).forEach(function(m){ if(m.length>2 && mots.indexOf(m)<0) mots.push(m); });
+          });
+        }
+      });
+    }
+  }catch(e){}
   const sansAccent=function(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
   /* ⚠ ON CHERCHE AUSSI LA RACINE DU MOT (05/09/2026). « un endroit pour se DOUCHER »
      ne trouvait pas DoucheFLUX : la fiche dit « douche », la question dit « doucher ».
