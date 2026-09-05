@@ -270,6 +270,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   padding:11px 13px;margin-bottom:8px}
 .notgard-h{display:flex;align-items:center;gap:7px;margin-bottom:5px}
 .notgard-h span{font-size:12px;color:var(--enc2);margin-right:auto}
+.notgb{background:#fdfdfc;border:1px solid var(--trait);border-radius:7px;padding:4px 10px;
+  font-family:inherit;font-size:12.5px;color:var(--noir);cursor:pointer}
+.notgb[disabled]{opacity:.55}
 .notgard-t{font-size:14.5px;line-height:1.5}
 /* ═══ DEMANDER — le dessin de la page (Mag, 05/09/2026) ═══
    Rien de neuf : c'est la rangée de l'app, le blanc cassé, les traits déteints.
@@ -27756,6 +27759,46 @@ function notGarder(){
   NOT_TXT=''; NOT_AVANT=''; notBrouillon();
   render(); toast('Gardée ✓');
 }
+/* ═══ CORRIGER UNE NOTE DÉJÀ GARDÉE (Mag, 05/09/2026) ═══
+   « Il y a aussi les notes qu'on a gardées. Il faudrait pouvoir les corriger. À la
+   main ou marquer corriger — donc ça, c'est toi qui le ferait. »
+   Deux gestes, donc, sur chaque note gardée : le crayon (elle réécrit) et Corriger
+   (je repasse dessus). Une note gardée n'est pas figée : on relit le lendemain et on
+   voit la faute.
+   ⚠ CORRIGER NE FAIT PAS DISPARAÎTRE L'AVANT : la version d'origine est gardée dans
+   la note (`av`), et « Revenir » la remet. C'est la même règle que dans la page. */
+function notModifier(id){
+  const n=NOTES.find(function(x){ return x.id===id; }); if(!n) return;
+  cousinPop({titre:'Modifier la note', texte:'', champ:n.t||'', multi:true, ok:'Enregistrer',
+    quandOui:function(v){
+      const t=(v||'').trim(); if(!t) return;
+      n.t=t.slice(0,6000); notesSauver(); render(); toast('Modifié ✓');
+    }});
+}
+async function notCorrigerGardee(id){
+  const n=NOTES.find(function(x){ return x.id===id; }); if(!n || n.encours) return;
+  n.encours=true; render();
+  try{
+    const ses=await sb.auth.getSession();
+    const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
+    if(!jeton){ toast("Connexion perdue — la note n'a pas bougé"); }
+    else{
+      const r=await fetch(SB_URL+'/functions/v1/bulle',{
+        method:'POST',
+        headers:{'content-type':'application/json','authorization':'Bearer '+jeton,'apikey':SB_KEY},
+        body:JSON.stringify({mode:'note', question:n.t})
+      });
+      const d=await r.json().catch(function(){ return {}; });
+      if(!r.ok) toast((d.erreur||"La correction n'est pas arrivée")+" — la note n'a pas bougé");
+      else if(d.texte){ n.av=n.t; n.t=d.texte; notesSauver(); toast('Corrigée ✓'); }
+    }
+  }catch(e){ toast("La correction n'est pas arrivée — la note n'a pas bougé"); }
+  n.encours=false; render();
+}
+function notRevenirGardee(id){
+  const n=NOTES.find(function(x){ return x.id===id; }); if(!n||!n.av) return;
+  n.t=n.av; delete n.av; notesSauver(); render(); toast('Revenu ✓');
+}
 function notRetirer(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n) return;
   cousinConfirme('Effacer cette note ?', (n.t||'').slice(0,90)+'…', function(){
@@ -27806,6 +27849,11 @@ function vNotes(){
     NOTES.forEach(function(n){
       h+='<div class="notgard">'+
            '<div class="notgard-h"><span>'+esc(notHeure(n.q))+'</span>'+
+             '<button class="notgb" onclick="notCorrigerGardee(\''+n.id+'\')"'+
+               (n.encours?' disabled':'')+'>'+(n.encours?'…':'Corriger')+'</button>'+
+             (n.av?'<button class="notgb" onclick="notRevenirGardee(\''+n.id+'\')">Revenir</button>':'')+
+             '<button class="ib" onclick="notModifier(\''+n.id+'\')" '+
+               'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
              '<button class="ib" onclick="notCopier('+JSON.stringify(n.t).replace(/"/g,'&quot;')+')" '+
                'aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
              '<button class="ib" onclick="notRetirer(\''+n.id+'\')" '+
