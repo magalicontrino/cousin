@@ -27635,6 +27635,8 @@ let NOT_REC=null;
 let NOTES=[];
 try{ NOTES=JSON.parse(localStorage.getItem('lux_notes')||'[]'); }catch(e){ NOTES=[]; }
 if(!Array.isArray(NOTES)) NOTES=[];
+/* Ce qui était en train d'être écrit quand la page s'est fermée. */
+try{ NOT_TXT=localStorage.getItem('lux_note_brouillon')||''; }catch(e){}
 
 function notesSauver(){
   try{ localStorage.setItem('lux_notes',JSON.stringify(NOTES)); }catch(e){}
@@ -27656,15 +27658,21 @@ function notParler(){
     /* ⚠ ON N'EFFACE JAMAIS CE QUI EST DÉJÀ ÉCRIT : on ajoute à la suite. Reprendre la
        parole après une pause ne doit pas jeter la première moitié de la note. */
     const depart=NOT_TXT;
+    /* ⚠ ON RECALCULE, ON N'AJOUTE PAS (Mag, 05/09/2026 : « ça écrit dix fois les
+       mêmes phrases »). J'accumulais : à chaque annonce du navigateur, je collais le
+       nouveau morceau au bout de ce qu'il y avait. Or le navigateur ne renvoie pas
+       que le nouveau — il renvoie régulièrement toute la dictée depuis le début, et
+       il repasse en « définitif » ce qu'il avait déjà dit. Chaque passage doublait
+       donc la phrase.
+       Ici on relit TOUS les morceaux et on refabrique le texte entier à partir du
+       point de départ. Le même morceau annoncé dix fois ne s'écrit qu'une fois. */
     NOT_REC.onresult=function(ev){
-      let fini='', encours='';
-      for(let i=ev.resultIndex;i<ev.results.length;i++){
-        const t=ev.results[i][0].transcript;
-        if(ev.results[i].isFinal) fini+=t; else encours+=t;
-      }
-      if(fini) NOT_TXT=(NOT_TXT+' '+fini).replace(/\s+/g,' ').trim();
+      let tout='';
+      for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
+      NOT_TXT=(depart+' '+tout).replace(/\s+/g,' ').trim();
       const c=document.getElementById('notTxt');
-      if(c) c.value=(NOT_TXT+(encours?' '+encours:'')).trim();
+      if(c) c.value=NOT_TXT;
+      notBrouillon();
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
@@ -27688,7 +27696,16 @@ function notStop(){
   const c=document.getElementById('notTxt'); if(c) NOT_TXT=c.value||'';
   render();
 }
-function notSaisie(v){ NOT_TXT=v||''; }
+/* ⚠ CE QU'ON EST EN TRAIN D'ÉCRIRE SURVIT AU RECHARGEMENT (Mag, 05/09/2026 : « si je
+   relance la page, le deuxième que je suis en train d'écrire, il part »).
+   Une note dictée dans un couloir ne doit pas dépendre du fait que la page tienne.
+   Même filet que le brouillon du Premier accueil : on garde à chaque frappe, sur
+   l'appareil, et on le retrouve en revenant. « Garder » l'efface, puisqu'il est
+   alors rangé dans les notes gardées. */
+function notBrouillon(){
+  try{ localStorage.setItem('lux_note_brouillon', NOT_TXT||''); }catch(e){}
+}
+function notSaisie(v){ NOT_TXT=v||''; notBrouillon(); }
 
 async function notOk(){
   if(NOT_ENCOURS) return;
@@ -27716,7 +27733,7 @@ async function notOk(){
         /* ⚠ UNE SEULE VERSION, ET ELLE REMPLACE LE TEXTE (Mag, 05/09/2026 : « je
            préfère celle du milieu. Tu peux garder qu'une proposition et on change à
            la main »). On garde l'avant : « Revenir » le remet. */
-        NOT_AVANT=NOT_TXT; NOT_TXT=d.texte;
+        NOT_AVANT=NOT_TXT; NOT_TXT=d.texte; notBrouillon();
       }
     }
   }catch(e){
@@ -27727,7 +27744,7 @@ async function notOk(){
 
 function notRevenir(){
   if(!NOT_AVANT) return;
-  NOT_TXT=NOT_AVANT; NOT_AVANT=''; render();
+  NOT_TXT=NOT_AVANT; NOT_AVANT=''; notBrouillon(); render();
 }
 function notCopier(txt){ copyTxt(txt||NOT_TXT,'Copié ✓'); }
 function notGarder(){
@@ -27736,7 +27753,7 @@ function notGarder(){
   if(!t) return;
   NOTES.unshift({id:'n'+Date.now(), t:t.slice(0,6000), q:new Date().toISOString()});
   notesSauver();
-  NOT_TXT=''; NOT_AVANT='';
+  NOT_TXT=''; NOT_AVANT=''; notBrouillon();
   render(); toast('Gardée ✓');
 }
 function notRetirer(id){
@@ -27766,8 +27783,13 @@ function vNotes(){
   h+='<div class="notb">'+
        '<button class="dembtn" onclick="notOk()"'+(NOT_ENCOURS?' disabled':'')+'>'+
          (NOT_ENCOURS?'…':'OK')+'</button>'+
-       (NOT_TXT?'<button class="dembtn clair" onclick="notCopier()">Copier</button>'+
-                '<button class="dembtn clair" onclick="notGarder()">Garder</button>':'')+
+       /* ⚠ LES BOUTONS SONT TOUJOURS LÀ (Mag, 05/09/2026 : « la deuxième note ne
+          marche pas »). Ils n'apparaissaient que si le texte n'était pas vide — or
+          le texte tapé ne redessine pas la page, donc après avoir gardé une note,
+          on écrivait la suivante et Copier et Garder restaient invisibles. Un bouton
+          qui apparaît selon ce qu'on tape est un bouton qu'on croit cassé. */
+       '<button class="dembtn clair" onclick="notCopier()">Copier</button>'+
+       '<button class="dembtn clair" onclick="notGarder()">Garder</button>'+
        (NOT_AVANT?'<button class="dembtn clair" onclick="notRevenir()">Revenir</button>':'')+
      '</div>';
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
