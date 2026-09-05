@@ -2480,6 +2480,17 @@ body.pan-ouvert #view{animation:none;transform:none}
    les cartes, et trois pastilles qui disent l'avancement sans qu'on lise un mot.
    Le tableau : une grille, plus un <table>. Sur téléphone, les colonnes se resserrent
    au lieu de déborder, et la première colonne reste lisible. */
+/* ═══ LA BASCULE LISTE / TABLEAU ═══
+   Deux vues de la même chose : un seul rail, celle qui est allumée est en noir. Pas de
+   survol qui bouge (règle du 18/08 : rien ne glisse sous le curseur). */
+.dvue{display:flex;gap:6px;margin-top:14px;background:#e7e5e1;border-radius:12px;padding:4px}
+.dvue button{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  border:0;background:none;border-radius:9px;padding:10px 8px;color:var(--enc2);font:inherit;
+  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer}
+.dvue button.on{background:var(--noir);color:#f0efed}
+.dvue .ic{width:15px;height:15px;flex:none;display:flex;align-items:center;justify-content:center}
+.dvue .ic svg,.dvue .ic .pico{width:15px;height:15px;display:block}
 .cbcoms{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .cbcom{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
   background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
@@ -11470,6 +11481,14 @@ var QUARTIER = [
 /* Ses pictos « par fonction » : un fichier par rôle, redessinable au même nom (sa planche).
    On branche ici TOUS ceux qui ont leur place dans Lux. */
 ICONS.cible='<circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="12" cy="12" r="3.6"/>';
+/* Un tableau, c'est une rangée d'EN-TÊTE puis des cases : c'est la barre du haut qui
+   le distingue d'une grille de vignettes. Dessiné le 05/09/2026 faute d'en avoir un —
+   à redessiner quand elle veut, il suffira d'une ligne `tableau:'tableau.svg'` ici. */
+ICONS.tableau='<rect x="2.4" y="4" width="19.2" height="4" rx="1.4"/>'+
+  '<rect x="2.4" y="9.8" width="8.8" height="4.5" rx="1.2"/>'+
+  '<rect x="12.8" y="9.8" width="8.8" height="4.5" rx="1.2"/>'+
+  '<rect x="2.4" y="15.7" width="8.8" height="4.5" rx="1.2"/>'+
+  '<rect x="12.8" y="15.7" width="8.8" height="4.5" rx="1.2"/>';
 Object.assign(PICTOS,{
   demarche:'demarches.svg', medical:'medical.svg', educatif:'educatif.svg',
   globe:'etrangers.svg', mind:'sante-mentale.svg', home:'logement.svg',
@@ -22006,49 +22025,87 @@ function vContribDemarches(){
        disent l'avancement d'un coup d'œil. On compare cinq communes sans lire un mot.
        ⚠ LA COULEUR SUIT LE RANG dans la liste, comme partout ailleurs dans l'app :
        une commune garde sa couleur d'un écran à l'autre. */
+    /* ═══ LA LISTE **OU** LE TABLEAU, PAS L'UN SOUS L'AUTRE (Mag, 05/09/2026) ═══
+       « J'aime beaucoup les deux. Il faudrait que tu mettes la liste en premier quand
+       on arrive, et qu'on ait une petite icône liste et tableau qu'on puisse changer.
+       Mais PAS le tableau en dessous de la liste — parce que sinon, quand la liste
+       sera trop longue, ce sera très compliqué. »
+       Elle a raison, et ça se voit déjà à cinq communes : pour atteindre le tableau il
+       faut passer toute la liste. À quinze, personne n'y descendra jamais.
+       Ce sont donc DEUX VUES DE LA MÊME CHOSE, et on choisit. La liste à l'arrivée :
+       c'est elle qu'on ouvre pour travailler ; le tableau sert à comparer.
+       ⚠ LA JAUGE RESTE SOUS LES DEUX. C'est l'avancement du chantier entier, pas d'une
+       vue — la déplacer avec l'onglet la ferait disparaître une fois sur deux.
+       ⚠ ET LE COMPTE SE FAIT AVANT LE CHOIX DE VUE : calculé dans la boucle des cartes,
+       il tombait à zéro dès qu'on affichait le tableau.
+
+       ⏸ CE QU'ELLE ANNONCE POUR PLUS TARD, ET QUI N'EST PAS CONSTRUIT (05/09/2026) :
+       « là, on est clairement dans le médical, donc on pourrait même se dire qu'après
+       il pourrait y avoir des sections différentes de médical. Par exemple si après on
+       passe par un endroit où on explique le passeport, ça pourrait être en dessous,
+       juste de notre section. »
+       Autrement dit : la page finira par porter PLUSIEURS SECTIONS (le médical, les
+       papiers…), chacune avec sa propre liste et son propre tableau — pas une seule
+       liste qui gonfle. C'est la raison pour laquelle la bascule et le compte sont
+       écrits ici, dans le bloc de la vue, et pas dans des variables de page : le jour
+       où il y aura deux sections, il faudra deux bascules et deux comptes.
+       ⚠ NE PAS LE CONSTRUIRE TANT QU'IL N'Y A QU'UNE SECTION : trois démarches
+       médicales sous un titre « Médical » tout seul, c'est un rangement qui ne range
+       rien. Ça s'ouvre le jour où la deuxième section existe. */
     var nOk=0, nTot=DEMARCHES_COMMUNES.length*DEMARCHES_TYPES.length;
-    h+='<div class="cbcoms">';
-    DEMARCHES_COMMUNES.forEach(function(c,ic){
-      var o=0,r=0,n=0, pts='';
-      DEMARCHES_TYPES.forEach(function(t){
-        var e=demEtat(c,t); if(e==='o'){o++;nOk++;} else if(e==='r') r++; else n++;
-        pts+='<i class="'+e+'" title="'+esc(demCourt(t))+'"></i>';
-      });
-      /* ⚠ « VÉRIFIÉ », PAS « ÉCRIT » (05/09/2026). Le compte disait ce qui était écrit,
-         et l'app avait donc l'air finie alors que rien n'était recoupé avec les CPAS. */
-      var dit = (o===DEMARCHES_TYPES.length) ? 'Tout est vérifié'
-              : o ? (o+' sur '+DEMARCHES_TYPES.length+' vérifiées')
-              : 'À vérifier avec le CPAS';
-      h+='<button class="cbcom'+(o===DEMARCHES_TYPES.length?' plein':'')+'" style="--c:'+chipCouleur(ic)+'" '+
-        'onclick="demChoisir(\''+c+'\')">'+
-        '<span class="rd"><span class="ic">'+icon('pin')+'</span></span>'+
-        '<span class="tx"><b>'+esc(c)+'</b><em>'+dit+'</em></span>'+
-        '<span class="pts">'+pts+'</span>'+
-        '<span class="chv">›</span></button>';
-    });
-    h+='</div>';
-    /* LE TABLEAU : il ne sert pas à naviguer, il sert à VOIR — et ce qu'il montre,
-       c'est qu'une colonne entière peut être vide. Un compte ne dit jamais ça. */
-    h+='<div class="sectl" style="margin-top:22px">Tout le chantier d’un coup d’œil</div>';
-    h+='<div class="cbtab" style="--n:'+DEMARCHES_TYPES.length+'">'+
-       '<div class="cbt-l cbt-tete"><span class="cbt-c"></span>'+
-       DEMARCHES_TYPES.map(function(t){ return '<span>'+esc(demCourt(t))+'</span>'; }).join('')+
-       '</div>';
+    var etats={};
     DEMARCHES_COMMUNES.forEach(function(c){
-      h+='<div class="cbt-l"><span class="cbt-c">'+
-        esc(c==='Molenbeek-Saint-Jean'?'Molenbeek':(c==='Bruxelles-Ville'?'Bruxelles-V.':c))+'</span>'+
-        DEMARCHES_TYPES.map(function(t){
-          var e=demEtat(c,t);
-          return '<button class="cbt-p '+e+'" onclick="demChoisir(\''+c+'\')" '+
-            'title="'+esc(c+' — '+t)+'">'+(e==='o'?'✓':(e==='r'?'R':'+'))+'</button>';
-        }).join('')+'</div>';
+      etats[c]={o:0,pts:''};
+      DEMARCHES_TYPES.forEach(function(t){
+        var e=demEtat(c,t); etats[c][t]=e;
+        if(e==='o'){ etats[c].o++; nOk++; }
+        etats[c].pts+='<i class="'+e+'" title="'+esc(demCourt(t))+'"></i>';
+      });
     });
-    h+='</div>';
-    /* ⚠ PAS DE LÉGENDE (Mag, 05/09/2026 : « retire ça »). Le vert, le jaune et le
-       pointillé disent déjà ce qu'ils disent — et une légende qui explique trois
-       couleurs est le signe que les couleurs ne parlent pas d'elles-mêmes. Si elles ne
-       parlent pas, c'est le dessin qu'il faut refaire, pas la légende qu'il faut
-       écrire. Chaque case garde son `title` au survol pour le détail. */
+
+    h+='<div class="dvue">'+
+      '<button class="'+(DEM_VUE==='liste'?'on':'')+'" onclick="demVue(\'liste\')">'+
+        '<span class="ic">'+icon('list')+'</span>Liste</button>'+
+      '<button class="'+(DEM_VUE==='tableau'?'on':'')+'" onclick="demVue(\'tableau\')">'+
+        '<span class="ic">'+icon('tableau')+'</span>Tableau</button>'+
+      '</div>';
+
+    if(DEM_VUE!=='tableau'){
+      h+='<div class="cbcoms">';
+      DEMARCHES_COMMUNES.forEach(function(c,ic){
+        var o=etats[c].o;
+        var dit = (o===DEMARCHES_TYPES.length) ? 'Tout est vérifié'
+                : o ? (o+' sur '+DEMARCHES_TYPES.length+' vérifiées')
+                : 'À vérifier avec le CPAS';
+        h+='<button class="cbcom'+(o===DEMARCHES_TYPES.length?' plein':'')+'" style="--c:'+chipCouleur(ic)+'" '+
+          'onclick="demChoisir(\''+c+'\')">'+
+          '<span class="rd"><span class="ic">'+icon('pin')+'</span></span>'+
+          '<span class="tx"><b>'+esc(c)+'</b><em>'+dit+'</em></span>'+
+          '<span class="pts">'+etats[c].pts+'</span>'+
+          '<span class="chv">›</span></button>';
+      });
+      h+='</div>';
+    } else {
+      /* LE TABLEAU : il ne sert pas à naviguer, il sert à VOIR — et ce qu'il montre,
+         c'est qu'une colonne entière peut être vide. Un compte ne dit jamais ça. */
+      h+='<div class="cbtab" style="--n:'+DEMARCHES_TYPES.length+'">'+
+         '<div class="cbt-l cbt-tete"><span class="cbt-c"></span>'+
+         DEMARCHES_TYPES.map(function(t){ return '<span>'+esc(demCourt(t))+'</span>'; }).join('')+
+         '</div>';
+      DEMARCHES_COMMUNES.forEach(function(c){
+        h+='<div class="cbt-l"><span class="cbt-c">'+
+          esc(c==='Molenbeek-Saint-Jean'?'Molenbeek':(c==='Bruxelles-Ville'?'Bruxelles-V.':c))+'</span>'+
+          DEMARCHES_TYPES.map(function(t){
+            var e=etats[c][t];
+            return '<button class="cbt-p '+e+'" onclick="demChoisir(\''+c+'\')" '+
+              'title="'+esc(c+' — '+t)+'">'+(e==='o'?'✓':(e==='r'?'R':'+'))+'</button>';
+          }).join('')+'</div>';
+      });
+      h+='</div>';
+    }
+    /* ⚠ PAS DE LÉGENDE (Mag, 05/09/2026 : « retire ça »). Chaque case garde son
+       `title` au survol pour le détail, et la ligne sous la jauge dit le compte —
+       c'est elle qui apprend ce que vaut une case. */
     h+='<div class="cbjauge"><i style="width:'+Math.round(nOk/nTot*100)+'%"></i></div>'+
       '<div style="padding:7px 2px 0;font-size:12px;color:var(--enc2)">'+
       '<b>'+nOk+'</b> sur '+nTot+' vérifiées avec le CPAS</div><div style="height:26px"></div>';
@@ -22111,6 +22168,11 @@ function demCourt(t){
 }
 
 function demChoisir(c){ DEMARCHES_ACTIVE=c; render(); }
+/* La liste à l'arrivée, toujours : c'est elle qu'on ouvre pour travailler. Le choix
+   ne se garde pas d'une visite à l'autre — on ne veut pas revenir sur la page et
+   tomber sur le tableau sans savoir pourquoi. */
+var DEM_VUE='liste';
+function demVue(v){ DEM_VUE=v; render(); }
 /* ═══ MOBILISATION — QUE LES PÉTITIONS (Mag, 02/09/2026) ═══
    « Dans la page, ne mets que les pétitions. » La section « Se mobiliser » de Quoi de
    neuf mélangeait les pétitions avec le quiz, les jeux et la boîte à idées : on
