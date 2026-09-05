@@ -2530,6 +2530,19 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Répondue : le titre s'allège, la carte ne crie plus. Elle reste tant que la réponse
    n'est pas reportée dans la fiche. */
 .qop.repondu .qop-q{font-weight:600;color:#3c3a36}
+/* Le pont entre les deux chantiers : le sien et celui de l'équipe. Même dessin qu'une
+   rangée de l'app — rond pastel, texte, chevron. */
+.chpont{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
+  background:#fff;border:1.25px solid var(--ligne);border-left:5px solid #b28b7a;
+  border-radius:16px;padding:14px 16px;margin-top:18px;font:inherit}
+.chpont .rd{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;background:color-mix(in srgb, #b28b7a 30%, #fff)}
+.chpont .rd .ic{width:18px;height:18px}
+.chpont .tx{flex:1;min-width:0}
+.chpont .tx b{display:block;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.chpont .tx em{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:9px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--enc2);margin-top:3px}
+.chpont .chv{flex:none;color:var(--enc2);font-size:19px}
 .cbcoms{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .cbcom{display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;
   background:#fff;border:1.25px solid var(--ligne);border-left:5px solid var(--c);
@@ -18992,6 +19005,24 @@ function vChantier(){
       '<p>Cette page n’est qu’à toi.</p></div><div style="height:26px"></div>';
   if(!chantierLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
 
+  /* ═══ LE PONT VERS LE CHANTIER DE L'ÉQUIPE (Mag, 05/09/2026) ═══
+     « Dans le chantier, tu mets des trucs un peu techniques, mais tu peux reporter
+     sur cette page des questions qui sont d'ordre de démarche. Dans mon chantier, tu
+     devrais rajouter un petit bouton qui renvoie vers cette page-là. »
+     Le partage est le sien, et il est net :
+       · ICI, son chantier à elle — l'app, les bugs, ce qu'il reste à construire ;
+       · LÀ-BAS, le chantier de l'équipe — ce qu'on ne sait pas encore du TERRAIN, et
+         qu'un appel réglerait.
+     ⚠ LE BOUTON PORTE LE COMPTE. Un lien qui ne dit pas s'il y a quelque chose
+     derrière, on cesse de l'ouvrir au bout de trois fois. */
+  var qOuv=(typeof QUESTIONS_OUVERTES!=='undefined')
+    ? QUESTIONS_OUVERTES.filter(function(x){ return !wikiDe(qopPage(x.k)).length; }).length : 0;
+  h+='<button class="chpont" onclick="go(\'#/contrib-demarches\')">'+
+     '<span class="rd"><span class="ic">'+icon('demarche')+'</span></span>'+
+     '<span class="tx"><b>Le chantier de l’équipe</b>'+
+       '<em>'+(qOuv? qOuv+' question'+(qOuv>1?'s':'')+' sans réponse' : 'tout est répondu')+'</em></span>'+
+     '<span class="chv">›</span></button>';
+
   /* LA BOÎTE d'abord : ce que l'équipe vient d'envoyer ne doit pas attendre. */
   h+='<div class="sect" style="margin-top:20px"><b>La boîte</b>'+
      '<em>'+(BOITE.length?BOITE.length+' mot'+(BOITE.length>1?'s':'')+' de l’équipe':'vide')+'</em></div>';
@@ -26636,10 +26667,19 @@ let SCHEMA_L='fr', SCHEMA_REP={};
 
 /* Les trois questions de l'entonnoir. */
 const SCHEMA_Q=[
+  /* ═══ ⚠ DEUX INTITULÉS QUI ENVOYAIENT AU MAUVAIS PAYEUR (Mag, 05/09/2026) ═══
+     Quelqu'un qui a introduit un 9bis, un 9ter ou un regroupement familial a bien
+     « une demande en cours » — et cliquait donc « Demande d'asile en cours ». Il
+     repartait avec la feuille de Fedasil, qui ne le connaît pas.
+     Or l'introduction d'un 9ter NE MODIFIE EN RIEN la situation de séjour : tant que
+     rien n'est accordé, la personne reste en séjour irrégulier, et ses soins passent
+     par l'AMU du CPAS. Les deux intitulés le disent maintenant.
+     Source : adde.be et medimmigrant.be, relevés le 05/09/2026. Voir le cours
+     « Demande d'asile ou demande de séjour ». */
   {k:'sejour', q:'Quel est son séjour ?', o:[
     {v:'legal',   t:'Belge ou séjour légal'},
-    {v:'asile',   t:'Demande d’asile en cours'},
-    {v:'irreg',   t:'Séjour irrégulier'}]},
+    {v:'asile',   t:'Demande d’asile (protection internationale)'},
+    {v:'irreg',   t:'Séjour irrégulier — y compris 9bis ou 9ter en cours'}]},
   {k:'mut', q:'A-t-elle une mutuelle ?', o:[
     {v:'ok',      t:'Oui, en ordre'},
     {v:'impaye',  t:'Oui, mais impayée'},
@@ -26831,27 +26871,32 @@ const SCHEMAS=[
    02 227 41 51, relevé le 05/09/2026 (adresse et numéro confirmés). */
 {k:'asile', c:'#6FC7D9', mt:true,
   quand:function(r){ return r.sejour==='asile'; },
-  fr:{t:'Soins pendant la demande d’asile', s:'Demande d’asile en cours.', e:[
+  /* ⚠ LE SOUS-TITRE PORTE LE MESSAGE (Mag, 05/09/2026) : « il faut expliquer que
+     normalement il devrait être à Fedasil, parce que c'est Fedasil qui paie tout ça.
+     De manière très schématique, très claire, très simple. »
+     Il disait « Demande d'asile en cours » — c'est-à-dire ce que la personne sait
+     déjà. Il dit maintenant QUI PAIE, en une ligne, avant toute étape. */
+  fr:{t:'Soins pendant la demande d’asile', s:'Pendant votre demande, c’est FEDASIL qui paie vos soins — pas le CPAS.', e:[
     {t:'Si vous n’avez pas de place', d:'Allez au CENTRE D’ARRIVÉE — Boulevard du 9e de Ligne 27, 1000 Bruxelles — 02 227 41 51. C’est là qu’on demande une place. ⚠ Même sans place, VOS SOINS RESTENT PAYÉS : ce droit-là ne se perd pas.'},
     {t:'Si vous avez une place', d:'Les soins sont pris en charge par FEDASIL, pas par le CPAS. Parlez-en au service social de votre centre.'},
     {t:'Gardez tous vos papiers', d:'L’annexe et l’attestation d’enregistrement prouvent votre droit aux soins.'}],
    a:'Ne passez pas par le CPAS : ce n’est pas lui qui paie pendant la procédure.'},
-  en:{t:'Healthcare during the asylum procedure', s:'Asylum application in progress.', e:[
+  en:{t:'Healthcare during the asylum procedure', s:'During your application, FEDASIL pays for your care — not the CPAS.', e:[
     {t:'If you have no place', d:'Go to the ARRIVAL CENTRE — Boulevard du 9e de Ligne 27, 1000 Brussels — 02 227 41 51. That is where a place is requested. ⚠ Even with no place, YOUR CARE IS STILL COVERED: that right is not lost.'},
     {t:'If you have a place', d:'Care is covered by FEDASIL, not by the CPAS. Speak to your centre’s social service.'},
     {t:'Keep all your papers', d:'The annex and the registration certificate prove your right to care.'}],
    a:'Do not go through the CPAS: it does not pay during the procedure.'},
-  ro:{t:'Îngrijiri în timpul cererii de azil', s:'Cerere de azil în curs.', e:[
+  ro:{t:'Îngrijiri în timpul cererii de azil', s:'În timpul cererii, FEDASIL plătește îngrijirile — nu CPAS.', e:[
     {t:'Dacă nu aveți loc', d:'Mergeți la CENTRUL DE SOSIRE — Boulevard du 9e de Ligne 27, 1000 Bruxelles — 02 227 41 51. Acolo se cere un loc. ⚠ Chiar și fără loc, ÎNGRIJIRILE RĂMÂN PLĂTITE: acest drept nu se pierde.'},
     {t:'Dacă aveți un loc', d:'Îngrijirile sunt acoperite de FEDASIL, nu de CPAS. Vorbiți cu serviciul social al centrului dumneavoastră.'},
     {t:'Păstrați toate actele', d:'Anexa și atestatul de înregistrare dovedesc dreptul la îngrijiri.'}],
    a:'Nu mergeți la CPAS: nu el plătește în timpul procedurii.'},
-  pl:{t:'Opieka w trakcie procedury azylowej', s:'Wniosek o azyl w toku.', e:[
+  pl:{t:'Opieka w trakcie procedury azylowej', s:'W trakcie procedury opiekę opłaca FEDASIL — nie CPAS.', e:[
     {t:'Jeśli nie masz miejsca', d:'Idź do CENTRUM PRZYJĘĆ — Boulevard du 9e de Ligne 27, 1000 Bruksela — 02 227 41 51. Tam prosi się o miejsce. ⚠ Nawet bez miejsca TWOJA OPIEKA JEST NADAL POKRYWANA: tego prawa się nie traci.'},
     {t:'Jeśli masz miejsce', d:'Opiekę pokrywa FEDASIL, nie CPAS. Porozmawiaj ze służbą socjalną swojego ośrodka.'},
     {t:'Zachowaj wszystkie dokumenty', d:'Aneks i zaświadczenie o rejestracji potwierdzają prawo do opieki.'}],
    a:'Nie idź do CPAS: to nie on płaci w trakcie procedury.'},
-  ar:{t:'الرعاية الصحية أثناء طلب اللجوء', s:'طلب لجوء قيد الدراسة.', e:[
+  ar:{t:'الرعاية الصحية أثناء طلب اللجوء', s:'خلال طلبك، FEDASIL هي من تدفع تكاليف علاجك — وليس CPAS.', e:[
     {t:'إذا لم يكن لديك مكان', d:'اذهب إلى مركز الوصول (Centre d’arrivée) — Boulevard du 9e de Ligne 27, 1000 Bruxelles — 02 227 41 51. هناك يُطلب المكان. ⚠ وحتى بدون مكان، يبقى العلاج مدفوعاً: هذا الحق لا يسقط.'},
     {t:'إذا كان لديك مكان', d:'العلاج تتكفّل به FEDASIL وليس CPAS. تحدّث مع الخدمة الاجتماعية في مركزك.'},
     {t:'احتفظ بكل أوراقك', d:'الملحق وشهادة التسجيل تثبتان حقك في العلاج.'}],
