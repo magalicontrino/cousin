@@ -14569,8 +14569,10 @@ function imprimerMaListe(){
      l'écran au moment du clic — deux impressions à dix minutes d'intervalle ne
      donnaient pas la même feuille. La feuille de Ma liste ne porte donc plus que ce
      qu'on emporte : les entretiens, sa liste perso, la passation. */
-  /* Les entretiens : le nom, puis tout ce qui prépare la rencontre sur la même ligne. */
-  if(typeof AVOIR!=='undefined' && AVOIR.length){
+  /* Les entretiens : le nom, puis tout ce qui prépare la rencontre sur la même ligne.
+     ⚠ Pas pour le groupe D, comme à l'écran : une feuille ne doit pas porter ce que la
+     page ne montre pas — sinon on cherche à l'écran ce qu'on a lu sur le papier. */
+  if(typeof AVOIR!=='undefined' && AVOIR.length && !estGroupeD()){
     corps+='<h2>Les entretiens</h2><table>'+AVOIR.map(function(r){
       const bas=[];
       if(r.mi) bas.push('mi-parcours');
@@ -18522,6 +18524,19 @@ function peutGerer(){ return !!(PROFILE&&PROFILE.admin) || estCoordi(); }
 function vueAdmin(){ return !!(PROFILE&&PROFILE.admin) && !APERCU_GRP; }
 function vueGestion(){ return peutGerer() && !APERCU_GRP; }
 function voitOutilsCentre(){ return APERCU_GRP!=='D'; }
+/* ═══ LE GROUPE D, POUR DE VRAI (Mag, 07/09/2026) ═══
+   « Pour le groupe D, tu peux retirer l'entretien dans la liste : ils ne feront pas
+   d'entretien. Eux, ils vont faire des notes, peut-être pour eux-mêmes, et pouvoir
+   les imprimer aux passations. »
+   ⚠ CELLE-CI REGARDE LE MÉTIER RÉEL, pas seulement l'aperçu de l'administration —
+   c'est ce qui la distingue de `voitOutilsCentre()` juste au-dessus.
+   ⚠ UN MÉTIER INCONNU N'EST PAS « D » : `grpDuMetier` répond « C » par défaut, et on
+   ne retire donc rien à quelqu'un dont le métier n'est pas renseigné. Mieux vaut une
+   carte en trop qu'une carte qui manque sans qu'on sache pourquoi. */
+function estGroupeD(){
+  if(APERCU_GRP) return APERCU_GRP==='D';
+  try{ return grpDuMetier(String((PROFILE&&PROFILE.equipe)||''))==='D'; }catch(e){ return false; }
+}
 /* ⚠ LE BOUTON NE PORTE QUE L'ŒIL (Mag, 27/08/2026 : « en cliquant dessus, ça devient
    un dé, j'ai pas compris pourquoi — laisse le petit picto avec l'œil comme il était
    avant »). Il portait la lettre du groupe regardé dès qu'un aperçu tournait : à
@@ -28011,6 +28026,54 @@ function notRevenirGardee(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n||!n.av) return;
   n.t=n.av; delete n.av; notesSauver(); render(); toast('Revenu ✓');
 }
+/* ═══ LA FEUILLE DES NOTES (Mag, 07/09/2026) ═══
+   « Ils vont faire des notes, peut-être même pour eux-mêmes, et pouvoir les imprimer
+   aux passations. » Copier ne suffit pas : ce qui se transmet à l'équipe suivante,
+   c'est une feuille.
+   ⚠ CE QUI NE PART PAS SUR LE PAPIER : l'alerte rouge des chiffres et des côtés (elle
+   n'est pas du texte — sa règle), et le brouillon en cours dans la case (il n'est pas
+   encore gardé, donc pas encore une note).
+   ⚠ Gros caractères et marges dans @page : certains de l'équipe lisent mal. */
+function imprimerNotes(){
+  if(!NOTES.length){ toast('Aucune note gardée'); return; }
+  const d=new Date();
+  const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
+             ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
+  const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
+  const corps=NOTES.map(function(n){
+    return '<div class="n"><div class="h">'+esc(notHeure(n.q))+'</div>'+
+      '<div class="t">'+esc(n.t||'').replace(/\n/g,'<br>')+'</div></div>';
+  }).join('');
+  const w=window.open('','_blank');
+  if(!w){ toast("Le navigateur a bloqué la fenêtre d'impression"); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>Mes notes — '+esc(jour)+'</title><style>'+
+    'body{font-family:-apple-system,Segoe UI,sans-serif;background:#f0efed;margin:0;'+
+      'color:#1b1b1b;font-size:16px;line-height:1.5}'+
+    '.bar{position:sticky;top:0;background:#1b1b1b;color:#f0efed;padding:10px 14px;'+
+      'display:flex;gap:10px;align-items:center}'+
+    '.bar b{margin-right:auto}'+
+    '.bar button{font:inherit;padding:7px 14px;border-radius:7px;border:1px solid #f0efed;'+
+      'background:transparent;color:#f0efed;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b;font-weight:600}'+
+    '.pg{max-width:190mm;margin:14px auto;background:#fff;padding:16mm 15mm}'+
+    'h1{font-size:26px;margin:0 0 3px}'+
+    '.sous{color:#555;margin:0 0 22px;font-size:15px}'+
+    '.n{border-top:1px solid #d6d4d0;padding:13px 0}'+
+    '.n:first-of-type{border-top:0}'+
+    '.h{font-size:13px;color:#555;margin-bottom:4px}'+
+    '.t{font-size:17px;line-height:1.55}'+
+    '@media print{.bar{display:none}body{background:#fff}'+
+      '.pg{max-width:100%;margin:0;padding:0}@page{margin:14mm 15mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Mes notes — aperçu</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    '<div class="pg"><h1>Mes notes</h1>'+
+      '<p class="sous">'+esc(jour)+(qui?' · '+esc(qui):'')+'</p>'+
+      corps+'</div></body></html>');
+  w.document.close();
+}
 function notToutEffacer(){
   const n=NOTES.length; if(!n) return;
   cousinConfirme('Effacer les '+n+' note'+(n>1?'s':'')+' ?',
@@ -28100,6 +28163,7 @@ function notesCorps(){
        quand même les trois dernières versions — c'est la bouée, pas un bouton. */
     h+='<div class="demlbl" style="display:flex;align-items:center;gap:10px">'+
          '<span style="margin-right:auto">Gardées · '+NOTES.length+'</span>'+
+         '<button class="notgb" onclick="imprimerNotes()">Imprimer</button>'+
          '<button class="notgb" onclick="notToutEffacer()">Tout effacer</button>'+
        '</div>';
     NOTES.forEach(function(n){
@@ -33806,6 +33870,9 @@ function avoirRetirer(id){
    l'écrit. */
 function avoirAccueil(){ go('#/accueil-personne'); }
 function carteAVoir(){
+  /* ⚠ PAS D'ENTRETIENS POUR LE GROUPE D : ce n'est pas leur travail, et une carte
+     qu'on ne remplira jamais est une carte qui encombre tous les jours. */
+  if(estGroupeD()) return '';
   const tot=AVOIR.length, vus=AVOIR.filter(avoirVu).length;
   const ligne=function(r){
     const vu=avoirVu(r);
