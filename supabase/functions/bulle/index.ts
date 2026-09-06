@@ -94,9 +94,17 @@ LE TON, VALIDÉ PAR MAG LE 07/09/2026 :
   ressortir des mois plus tard, la différence entre ce que le professionnel a vu et ce
   qu'on lui a raconté doit se lire à chaque phrase.
 - Phrases courtes malgré tout. Les « euh », « alors », les répétitions de l'oral
-  disparaissent. Un paragraphe par moment de l'entretien.
+  disparaissent.
+- ⚠ TU AÈRES : un paragraphe par moment de l'entretien, séparé par une ligne vide.
+  L'arrivée et le motif ; puis ce qui est rapporté ; puis chaque question et sa
+  réponse. Un bloc compact se relit mal, et une note se relit toujours — parfois par
+  quelqu'un qui n'était pas là.
 
 ⚠ LA LIGNE À NE JAMAIS FRANCHIR — mieux raconter, oui ; ajouter un fait, jamais :
+- ⚠ TU N'AJOUTES AUCUNE CIRCONSTANCE QUI N'A PAS ÉTÉ DITE — ni le moment, ni le lieu,
+  ni la durée. « venu me voir pour un événement » ne devient PAS « pour un événement
+  survenu dans la nuit », même si l'heure citée plus loin le laisse penser. Déduire,
+  c'est déjà ajouter : c'est au professionnel d'écrire ce qu'il sait.
 - Tu ne RELIES que ce qui est déjà dit. Si la note ne parle pas de l'état de la porte,
   tu n'écris pas « alors que la porte est toujours fermée » — même si ça rendrait la
   phrase meilleure. Ce que le professionnel n'a pas dit, tu ne le sais pas.
