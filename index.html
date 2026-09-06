@@ -18361,8 +18361,13 @@ function popEtqToggle(k, btn){
 function cousinConfirme(titre,texte,quandOui,opt){
   cousinPop({titre:titre,texte:texte,ok:(opt&&opt.ok)||'Confirmer',danger:!!(opt&&opt.danger),quandOui:quandOui});
 }
-function cousinDemande(titre,texte,valeur,quandRempli,max){
-  cousinPop({titre:titre,texte:texte,champ:valeur||'',ok:'Enregistrer',max:max,quandOui:quandRempli});
+/* ⚠ `multi` OUVRE LE GRAND CHAMP (05/09/2026). Il existait déjà dans la fenêtre, avec
+   sa barre gras/souligné et sa hauteur qui grandit — il n'était simplement branché
+   nulle part ici. Une fenêtre « écris ton texte » à une seule ligne, c'est un texte
+   qu'on n'écrit pas. */
+function cousinDemande(titre,texte,valeur,quandRempli,max,multi){
+  cousinPop({titre:titre,texte:texte,champ:valeur||'',ok:'Enregistrer',max:max,
+             multi:!!multi,quandOui:quandRempli});
 }
 /* Entrée valide, Échap referme — comme une vraie fenêtre. */
 document.addEventListener('keydown',function(e){
@@ -33528,10 +33533,22 @@ function avoirVu(r){ return r && r.vuLe===todayStr(); }
    plutôt qu'à deviner. */
 function avoirModifier(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
-  cousinDemande('Modifier le nom', r.chambre?('Chambre '+r.chambre):'', r.nom||'', function(v){
+  /* ═══ ⚠ « ON N'ARRIVE PAS À ÉCRIRE PLUS QU'UNE LIGNE » (Mag, 05/09/2026) ═══
+     « Je ne sais pas écrire un entretien, et souvent les entretiens sont extrêmement
+     longs. »
+     Deux défauts d'un coup, et le deuxième était muet :
+     ① le champ était une LIGNE UNIQUE — impossible d'aller à la ligne, donc impossible
+       d'écrire autre chose qu'un nom ;
+     ② et il coupait à 80 SIGNES SANS RIEN DIRE. On tapait, ça rentrait, et la fin
+       partait à la poubelle à l'enregistrement.
+     Le grand champ existait déjà dans la fenêtre (avec sa barre gras/souligné et sa
+     hauteur qui grandit) : il est branché ici, et la limite passe à 4 000 signes.
+     ⚠ LA RANGÉE AFFICHE DÉJÀ LES RETOURS À LA LIGNE (`white-space:pre-wrap`) : rien
+     à faire de ce côté, et surtout pas ajouter des `<br>` qui doubleraient tout. */
+  cousinDemande('Modifier le texte', r.chambre?('Chambre '+r.chambre):'', r.nom||'', function(v){
     const t=(v||'').trim(); if(!t) return;
-    r.nom=t.slice(0,80); avoirSauver(); render(); toast('Modifié');
-  }, 80);
+    r.nom=t.slice(0,4000); avoirSauver(); render(); toast('Modifié');
+  }, 4000, true);
 }
 function avoirCopier(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r){ toast('Ligne introuvable'); return; }
@@ -33572,6 +33589,9 @@ function carteAVoir(){
       '</div>'+
       /* Même règle que Ma liste : le texte MODIFIE, la case coche. */
       '<div class="pl2-t" onclick="avoirModifier(\''+r.id+'\')">'+
+        /* ⚠ PAS DE `<br>` ICI : `.pl2-t b` est déjà en `white-space:pre-wrap`, les
+           retours à la ligne s'affichent tout seuls. En ajouter doublerait les
+           interlignes d'un entretien écrit en paragraphes. */
         '<b>'+esc(r.nom||'')+'</b>'+
         /* ⚠ TOUT SUR UNE SEULE LIGNE, séparé par des points médians : trois `em`
            empilés feraient une rangée haute comme une carte pour trois mots.
