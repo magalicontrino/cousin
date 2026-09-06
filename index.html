@@ -6764,6 +6764,31 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
      fenêtre attachée à chaque personne de Ma liste. Tout se passe maintenant dans la
      page Notes (#/notes) : on parle, ça s'écrit, OK corrige. Deux endroits pour
      écrire une note, c'est un de trop — et c'est elle qui l'a dit. -->
+<!-- ═══ LA NOTE D'UN ENTRETIEN — LE MÊME SYSTÈME QUE LA PAGE (Mag, 07/09/2026 :
+     « tu pourrais mettre le même système dans entretien ? ») ═══
+     On parle, ça s'écrit, Corriger repasse dessus, Garder range la note SUR LA
+     PERSONNE. Ce sont exactement les mêmes fonctions que la page des notes — une
+     seule mécanique pour les deux endroits, sinon l'une des deux finirait par
+     prendre du retard sur l'autre.
+     ⚠ CETTE FENÊTRE NE SE FERME PAS EN CLIQUANT À CÔTÉ, comme les autres feuilles où
+     l'on écrit : on garde d'abord. -->
+<div id="entBg" class="popbg">
+  <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="entTitre">
+    <b id="entTitre">La note</b>
+    <button id="entMic" class="notmic" onclick="notParler()"><span class="notpt"></span>Parler</button>
+    <div id="entAide" class="notaide"></div>
+    <textarea id="entTxt" class="notchamp" rows="8"
+      placeholder="Ce que tu dis s'écrit ici"></textarea>
+    <div id="entPanne" class="dempanne" style="display:none"></div>
+    <div class="notb">
+      <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
+      <button class="dembtn clair" onclick="notGarder()">Garder</button>
+      <button class="dembtn clair" onclick="notCopier()">Copier</button>
+      <button class="dembtn clair" id="entBtnR" style="display:none" onclick="notRevenir()">Revenir</button>
+      <button class="dembtn clair" onclick="entFermer()">Fermer</button>
+    </div>
+  </div>
+</div>
 <div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popFermer()">
   <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="popTitre">
     <b id="popTitre"></b>
@@ -15467,6 +15492,13 @@ window.addEventListener('hashchange',()=>{
      on ferme tout ce qui porte une classe de feuille ET la marque `on`. Toute feuille
      future est couverte sans qu'on y pense, et c'est le but. */
   try{
+    /* ⚠ LA NOTE D'ENTRETIEN SE GARDE AVANT QUE SA FENÊTRE PARTE. Ce bloc ferme toutes
+       les feuilles d'un coup, sans passer par leur propre fermeture — c'est voulu, et
+       c'est ce qui répare les voiles restés accrochés. Mais celle-ci est la seule où
+       l'on ÉCRIT quelque chose qui doit rester. */
+    try{ const eb=document.getElementById('entBg');
+      if(eb && eb.classList.contains('on')){ if(NOT_ECOUTE) notStop(); notGarder(); NOT_CIBLE=''; }
+    }catch(e){}
     document.querySelectorAll('.partbg.on,.popbg.on,.ideebg.on,.urgbg.on,.mh-bg.on,.mh.on')
       .forEach(function(el){ el.classList.remove('on'); });
     _figeN=0; document.documentElement.classList.remove('fond-fige');
@@ -27647,6 +27679,21 @@ function vDemander(){
 
 let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='';
 let NOT_REC=null, NOT_STOP=false;
+/* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
+   entretien ? ») ═══
+   Le même micro et le même bouton Corriger servent à deux endroits : la page des
+   notes, et la note d'un entretien de Ma liste. `NOT_CIBLE` dit lequel — vide pour la
+   page, l'identifiant de l'entretien sinon.
+   ⚠ UN SEUL JEU DE FONCTIONS POUR LES DEUX. Deux copies auraient fini par diverger :
+   on aurait corrigé le micro d'un côté et pas de l'autre, comme pour la fiche qui
+   existait en deux dessins. */
+let NOT_CIBLE='';
+function notChamp(){ return NOT_CIBLE ? 'entTxt' : 'notTxt'; }
+function notLire(){ const c=document.getElementById(notChamp()); return c ? (c.value||'') : ''; }
+function notEcrire(t){
+  const c=document.getElementById(notChamp()); if(c) c.value=t;
+  if(!NOT_CIBLE){ NOT_TXT=t; notBrouillon(); }
+}
 /* iPhone et iPad : leur écoute se comporte autrement (voir `notParler`). */
 const NOT_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
@@ -27689,7 +27736,7 @@ function notLirePermission(){
 function notParler(){
   if(NOT_ECOUTE){ notStop(); return; }
   const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!R){ NOT_PANNE="Ce navigateur ne sait pas écouter. Appuie dans la case et utilise le micro de ton clavier — ça marche pareil."; render(); return; }
+  if(!R){ NOT_PANNE="Ce navigateur ne sait pas écouter. Appuie dans la case et utilise le micro de ton clavier — ça marche pareil."; notRedessine(); return; }
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
@@ -27702,7 +27749,7 @@ function notParler(){
     NOT_REC.interimResults=true;
     /* ⚠ ON N'EFFACE JAMAIS CE QUI EST DÉJÀ ÉCRIT : on ajoute à la suite. Reprendre la
        parole après une pause ne doit pas jeter la première moitié de la note. */
-    const depart=NOT_TXT;
+    const depart=notLire();
     /* ⚠ ON RECALCULE, ON N'AJOUTE PAS (Mag, 05/09/2026 : « ça écrit dix fois les
        mêmes phrases »). J'accumulais : à chaque annonce du navigateur, je collais le
        nouveau morceau au bout de ce qu'il y avait. Or le navigateur ne renvoie pas
@@ -27714,10 +27761,7 @@ function notParler(){
     NOT_REC.onresult=function(ev){
       let tout='';
       for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
-      NOT_TXT=(depart+' '+tout).replace(/\s+/g,' ').trim();
-      const c=document.getElementById('notTxt');
-      if(c) c.value=NOT_TXT;
-      notBrouillon();
+      notEcrire((depart+' '+tout).replace(/\s+/g,' ').trim());
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
@@ -27728,33 +27772,32 @@ function notParler(){
         : (q==='audio-capture') ? "Aucun micro trouvé sur cet appareil."
         : (q==='network') ? "L'écoute a besoin du réseau, et il manque. Le micro du clavier, lui, marche hors ligne."
         : "L'écoute s'est arrêtée"+(q?' ('+q+')':'')+". Ce que tu avais dit est gardé.";
-      render();
+      notRedessine();
     };
     NOT_REC.onend=function(){
-      NOT_TXT=(document.getElementById('notTxt')||{}).value||NOT_TXT;
-      notBrouillon();
+      notEcrire(notLire());
       /* On relance tant que la personne n'a pas dit d'arrêter : sur iPhone l'écoute se
          coupe toute seule après chaque phrase, et sans ça il faudrait rappuyer à chaque
          fois. `NOT_STOP` est mis à vrai par le bouton d'arrêt, et par lui seul. */
       if(NOT_ECOUTE && !NOT_STOP){
         try{ NOT_REC.start(); return; }catch(e){}
       }
-      NOT_ECOUTE=false; render();
+      NOT_ECOUTE=false; notRedessine();
     };
     NOT_STOP=false; NOT_REC.start();
-    NOT_ECOUTE=true; NOT_PANNE=''; render();
+    NOT_ECOUTE=true; NOT_PANNE=''; notRedessine();
   }catch(e){
     NOT_ECOUTE=false;
     NOT_PANNE="Le micro n'a pas démarré. Utilise celui de ton clavier, dans la case.";
-    render();
+    notRedessine();
   }
 }
 function notStop(){
   NOT_STOP=true;
   try{ if(NOT_REC) NOT_REC.stop(); }catch(e){}
   NOT_ECOUTE=false;
-  const c=document.getElementById('notTxt'); if(c) NOT_TXT=c.value||'';
-  render();
+  notEcrire(notLire());
+  if(NOT_CIBLE) entRafraichir(); else render();
 }
 /* ⚠ CE QU'ON EST EN TRAIN D'ÉCRIRE SURVIT AU RECHARGEMENT (Mag, 05/09/2026 : « si je
    relance la page, le deuxième que je suis en train d'écrire, il part »).
@@ -27804,12 +27847,19 @@ async function notOk(){
 
 function notRevenir(){
   if(!NOT_AVANT) return;
-  NOT_TXT=NOT_AVANT; NOT_AVANT=''; notBrouillon(); render();
+  notEcrire(NOT_AVANT); NOT_AVANT=''; notRedessine();
 }
-function notCopier(txt){ copyTxt(txt||NOT_TXT,'Copié ✓'); }
+function notCopier(txt){ copyTxt(txt||notLire(),'Copié ✓'); }
 function notGarder(){
-  const c=document.getElementById('notTxt'); if(c) NOT_TXT=c.value||'';
-  const t=NOT_TXT.trim();
+  const t=notLire().trim();
+  /* ⚠ DANS UN ENTRETIEN, « GARDER » RANGE LA NOTE SUR LA PERSONNE, pas dans la liste
+     des notes libres. Le même bouton, deux tiroirs — et c'est bien ce qu'elle veut :
+     une note d'entretien reste attachée à qui elle concerne. */
+  if(NOT_CIBLE){
+    const r=AVOIR.find(function(x){ return x.id===NOT_CIBLE; });
+    if(r){ r.note=t.slice(0,6000); avoirSauver(); toast('Gardée ✓'); render(); }
+    return;
+  }
   if(!t) return;
   NOTES.unshift({id:'n'+Date.now(), t:t.slice(0,6000), q:new Date().toISOString()});
   notesSauver();
@@ -33558,6 +33608,49 @@ function avoirCopier(id){
   if(r.lecture==='non') b.push('ne lit pas');
   copyTxt(b.join(' · '),'Copié');
 }
+/* ═══ LA NOTE D'UN ENTRETIEN ═══ */
+function entOuvrir(id){
+  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
+  NOT_CIBLE=id; NOT_AVANT=''; NOT_PANNE='';
+  const t=document.getElementById('entTitre'); if(t) t.textContent=r.nom||'La note';
+  const c=document.getElementById('entTxt'); if(c) c.value=r.note||'';
+  if(!NOT_PERM) notLirePermission();
+  entRafraichir();
+  const bg=document.getElementById('entBg'); if(bg) bg.classList.add('on');
+  setTimeout(function(){ if(c) c.focus(); },40);
+}
+/* Remettre à jour ce qui bouge dans la fenêtre : le bouton de parole, l'aide, la
+   panne, le bouton Revenir. On ne réécrit PAS le champ — on écrit dedans. */
+function entRafraichir(){
+  const m=document.getElementById('entMic');
+  if(m){
+    m.className='notmic'+(NOT_ECOUTE?' ecoute':'');
+    m.innerHTML='<span class="notpt"></span>'+(NOT_ECOUTE?"J'écoute — appuie pour arrêter":'Parler');
+  }
+  const a=document.getElementById('entAide');
+  if(a){
+    a.textContent = !notMicroDispo()
+      ? "Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier, dans la case."
+      : NOT_PERM==='denied' ? "Le micro est bloqué pour ce site. Clique sur le cadenas à gauche de l'adresse pour le remettre sur « Autoriser »."
+      : NOT_PERM==='prompt' ? "La première fois, ton navigateur demande l'autorisation du micro : réponds Autoriser."
+      : '';
+    a.style.display=a.textContent?'':'none';
+  }
+  const p=document.getElementById('entPanne');
+  if(p){ p.textContent=NOT_PANNE||''; p.style.display=NOT_PANNE?'':'none'; }
+  const b=document.getElementById('entBtnC');
+  if(b){ b.disabled=!!NOT_ENCOURS; b.textContent=NOT_ENCOURS?'…':'Corriger'; }
+  const rv=document.getElementById('entBtnR');
+  if(rv) rv.style.display=NOT_AVANT?'':'none';
+}
+function entFermer(){
+  /* ⚠ ON GARDE EN FERMANT. Fermer une fenêtre ne doit jamais effacer ce qu'on vient
+     d'écrire — c'est le défaut qui lui a fait perdre son travail une fois. */
+  if(NOT_ECOUTE) notStop();
+  notGarder();
+  const bg=document.getElementById('entBg'); if(bg) bg.classList.remove('on');
+  NOT_CIBLE=''; NOT_AVANT=''; NOT_PANNE='';
+}
 function avoirRetirer(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
   cousinConfirme('Retirer de la liste ?', r.nom, function(){
@@ -33583,6 +33676,9 @@ function carteAVoir(){
           'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
         '<button class="ib" onclick="avoirCopier(\''+r.id+'\')" '+
           'aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
+        /* La note de l'entretien : le picto s'allume quand elle existe déjà. */
+        '<button class="ib'+(r.note?' on':'')+'" onclick="entOuvrir(\''+r.id+'\')" '+
+          'aria-label="La note" title="La note">'+icon('note')+'</button>'+
         '<button class="ib" onclick="avoirRetirer(\''+r.id+'\')" '+
           'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
         '<button class="rapPass mini" onclick="avoirAccueil()">Premier accueil</button>'+
