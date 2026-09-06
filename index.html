@@ -27831,6 +27831,12 @@ function notesSauver(){
   try{ localStorage.setItem('lux_notes',JSON.stringify(NOTES)); }catch(e){}
   /* Le même filet que sa liste : une copie que rien d'autre ne touche. */
   if(typeof reglageSecours==='function') reglageSecours('notes', NOTES);
+  /* ⚠ ET LA BASE (07/09/2026). Le téléphone seul ne suffisait pas : les notes
+     survivaient à une fermeture de navigateur, mais pas à un appareil changé ni à
+     des données de navigation effacées. Elles montent maintenant par le même chemin
+     que Ma liste et Les entretiens — et un refus d'écriture se dit à l'écran au lieu
+     de laisser croire que c'est enregistré. */
+  if(typeof reglagePousser==='function') reglagePousser('notes', NOTES);
 }
 
 /* Le navigateur sait-il écouter ? Chrome et Safari récents, oui. Sinon on le dit. */
@@ -33442,7 +33448,10 @@ let _regEnAttente={}, _regMinuteur=null;
    « le dernier qui a écrit fait foi ». Et une copie de secours reste sur le
    téléphone, qui n'est jamais écrasée par la base.
    ⚠ NE PAS REMETTRE DE DÉLAI SUR CES DEUX CLÉS-LÀ. */
-const REG_URGENT={ma_liste:1, a_voir:1};
+/* ⚠ « URGENT » = on n'attend pas la seconde de regroupement, et un refus se DIT à
+   l'écran. Les notes en font partie depuis le 07/09/2026 : Mag a répondu « il faut
+   ABSOLUMENT garder les notes », et une note d'entretien perdue ne se réécrit pas. */
+const REG_URGENT={ma_liste:1, a_voir:1, notes:1};
 function reglagePousser(cle,valeur){
   try{ localStorage.setItem('lux_reg_maj_'+cle, String(Date.now())); }catch(e){}
   if(!sb||!PROFILE||!PROFILE.uid) return;
@@ -33543,6 +33552,10 @@ async function chargerReglages(){
      de fermer l'app disparaissait des DEUX endroits. */
   MESRAPPELS=reglageGarderLePlusRecent('ma_liste', lignes.ma_liste, MESRAPPELS, 'lux_mes_rappels', premiere);
   AVOIR    =reglageGarderLePlusRecent('a_voir',   lignes.a_voir,   AVOIR,      'lux_a_voir',      premiere);
+  /* Les notes suivent la même règle que le reste : le dernier qui a écrit fait foi,
+     et une copie de secours reste sur le téléphone quoi qu'il arrive. */
+  try{ NOTES=reglageGarderLePlusRecent('notes', lignes.notes, NOTES, 'lux_notes', premiere)||[]; }catch(e){}
+  if(!Array.isArray(NOTES)) NOTES=[];
   // SON PETIT NOM : la base fait foi, il la suit d'un téléphone à l'autre.
   if(typeof lignes.pseudo==='string'){
     PSEUDO=lignes.pseudo;
