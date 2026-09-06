@@ -27939,6 +27939,13 @@ function notRevenirGardee(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n||!n.av) return;
   n.t=n.av; delete n.av; notesSauver(); render(); toast('Revenu ✓');
 }
+function notToutEffacer(){
+  const n=NOTES.length; if(!n) return;
+  cousinConfirme('Effacer les '+n+' note'+(n>1?'s':'')+' ?',
+    'Elles ne reviendront pas. Copie d\'abord celles que tu veux garder.',
+    function(){ NOTES=[]; notesSauver(); render(); toast('Effacées'); },
+    {ok:'Tout effacer', danger:true});
+}
 function notRetirer(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n) return;
   cousinConfirme('Effacer cette note ?', (n.t||'').slice(0,90)+'…', function(){
@@ -28012,7 +28019,16 @@ function notesCorps(){
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
   if(NOT_ENCOURS) h+='<div class="demvide">Je corrige…</div>';
   if(NOTES.length){
-    h+='<div class="demlbl">Gardées</div>';
+    /* ⚠ « SI ON NE PEUT PAS EFFACER LES NOTES, ON VA EN AVOIR TROP AU BOUT D'UN
+       MOMENT » (Mag, 07/09/2026). Le bouton est à côté du titre, pas perdu en bas de
+       page : c'est là qu'on regarde quand la liste devient longue.
+       ⚠ CELUI-CI DEMANDE CONFIRMATION, contrairement à l'Effacer de la case : il
+       emporte tout, et rien ne le remet. La copie de secours de `notesSauver()` garde
+       quand même les trois dernières versions — c'est la bouée, pas un bouton. */
+    h+='<div class="demlbl" style="display:flex;align-items:center;gap:10px">'+
+         '<span style="margin-right:auto">Gardées · '+NOTES.length+'</span>'+
+         '<button class="notgb" onclick="notToutEffacer()">Tout effacer</button>'+
+       '</div>';
     NOTES.forEach(function(n){
       h+='<div class="notgard">'+
            '<div class="notgard-h"><span>'+esc(notHeure(n.q))+'</span>'+
