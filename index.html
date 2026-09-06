@@ -6790,6 +6790,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
       <button class="dembtn clair" onclick="notGarder()">Garder</button>
       <button class="dembtn clair" onclick="notCopier()">Copier</button>
+      <button class="dembtn clair" onclick="notEffacer()">Effacer</button>
       <button class="dembtn clair" id="entBtnR" style="display:none" onclick="notRevenir()">Revenir</button>
       <button class="dembtn clair" onclick="entFermer()">Fermer</button>
     </div>
@@ -27712,8 +27713,16 @@ const NOT_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
    Un bouton qui marche une fois sur trois est pire que pas de bouton : on ne sait
    jamais si c'est lui ou soi. Le micro du clavier, lui, marche partout — c'est le
    geste qu'elle fait déjà pour dicter ses messages. */
-const NOT_TEL=/Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
+const NOT_TEL_APPAREIL=/Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
   || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches && window.innerWidth<1024);
+/* ⚠ L'APERÇU TÉLÉPHONE DOIT MONTRER CE QUE VOIT UN TÉLÉPHONE. Sans cette ligne,
+   l'aperçu affichait encore le bouton Parler — donc il mentait sur ce que l'équipe
+   verra. Même règle que pour l'administration : l'aperçu cache ce qui n'existe pas
+   de l'autre côté. */
+function NOT_TEL_(){
+  try{ if(typeof APERCU_TEL!=='undefined' && APERCU_TEL) return true; }catch(e){}
+  return NOT_TEL_APPAREIL;
+}
 let NOTES=[];
 try{ NOTES=JSON.parse(localStorage.getItem('lux_notes')||'[]'); }catch(e){ NOTES=[]; }
 if(!Array.isArray(NOTES)) NOTES=[];
@@ -27863,6 +27872,12 @@ async function notOk(){
   NOT_ENCOURS=false; notRedessine();
 }
 
+function notEffacer(){
+  const t=notLire();
+  if(!t){ return; }
+  if(NOT_ECOUTE) notStop();
+  NOT_AVANT=t; notEcrire(''); notRedessine();
+}
 function notRevenir(){
   if(!NOT_AVANT) return;
   notEcrire(NOT_AVANT); NOT_AVANT=''; notRedessine();
@@ -27944,7 +27959,7 @@ function notesCorps(){
   if(!NOT_PERM) notLirePermission();
   let h='';
   /* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
-  if(!NOT_TEL)
+  if(!NOT_TEL_())
     h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
          '<span class="notpt"></span>'+(NOT_ECOUTE?'J\'écoute — appuie pour arrêter':'Parler')+
        '</button>';
@@ -27952,7 +27967,7 @@ function notesCorps(){
      fonctionne pas du tout »). Un bouton qui ne répond pas, on le croit cassé. Quand
      ce navigateur ne sait pas écouter, la ligne est là dès l'arrivée, et elle donne le
      chemin qui marche partout : le micro du clavier. */
-  if(NOT_TEL)
+  if(NOT_TEL_())
     h+='<div class="notaide" style="margin-top:12px">Pour dicter : appuie dans la case, '+
        'puis sur le micro de ton clavier.</div>';
   else if(!notMicroDispo())
@@ -27987,6 +28002,11 @@ function notesCorps(){
           on écrivait la suivante et Copier et Garder restaient invisibles. Un bouton
           qui apparaît selon ce qu'on tape est un bouton qu'on croit cassé. */
        '<button class="dembtn clair" onclick="notCopier()">Copier</button>'+
+       /* ⚠ EFFACER NE PERD RIEN (Mag, 07/09/2026 : « dans les notes, j'aimerais qu'on
+          puisse effacer ce qu'on a fait »). Il vide la case, mais garde le texte de
+          côté : « Revenir » le remet. Pas de fenêtre « êtes-vous sûr » — un geste
+          réversible n'a pas besoin qu'on le confirme. */
+       '<button class="dembtn clair" onclick="notEffacer()">Effacer</button>'+
        (NOT_AVANT?'<button class="dembtn clair" onclick="notRevenir()">Revenir</button>':'')+
      '</div>';
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
@@ -33646,14 +33666,14 @@ function entOuvrir(id){
 function entRafraichir(){
   const m=document.getElementById('entMic');
   if(m){
-    /* Sur téléphone, le bouton n'existe pas : voir `NOT_TEL`. */
-    m.style.display=NOT_TEL?'none':'';
+    /* Sur téléphone, le bouton n'existe pas : voir `NOT_TEL_()`. */
+    m.style.display=NOT_TEL_()?'none':'';
     m.className='notmic'+(NOT_ECOUTE?' ecoute':'');
     m.innerHTML='<span class="notpt"></span>'+(NOT_ECOUTE?"J'écoute — appuie pour arrêter":'Parler');
   }
   const a=document.getElementById('entAide');
   if(a){
-    a.textContent = NOT_TEL
+    a.textContent = NOT_TEL_()
       ? "Pour dicter : appuie dans la case, puis sur le micro de ton clavier."
       : !notMicroDispo()
       ? "Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier, dans la case."
