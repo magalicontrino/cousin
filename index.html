@@ -4860,6 +4860,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .fpl em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.13em;
   text-transform:uppercase;color:#8b8984;flex:none;width:74px;padding-top:3px}
 .fpl span{flex:1;min-width:0}
+/* ⚠ UN LIEN DOIT SE VOIR AVANT D'ÊTRE TOUCHÉ (05/09/2026). Souligné, et il coupe
+   n'importe où : une adresse de site longue sortait de l'écran sur téléphone.
+   Le `padding` vertical élargit la cible : un doigt n'est pas une souris. */
+.fpl a{color:inherit;text-decoration:underline;text-underline-offset:3px;
+  overflow-wrap:anywhere;word-break:break-word;display:inline-block;padding:2px 0}
 .fpied{display:flex;gap:8px;padding:10px 14px 14px}
 .fpb{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   border:1.25px solid var(--trait);border-radius:10px;background:#fdfdfc;color:var(--noir);
@@ -20784,7 +20789,24 @@ function fichePanHTML(){
   const p=BYSID[FICHE_PAN]; if(!p) return '';
   const d=DOM[p.domaine]||{}, c=dc(p.domaine);
   const tel=(p.tel||'').replace(/\s/g,'');
-  const ligne=function(lab,val){ return val?'<div class="fpl"><em>'+lab+'</em><span>'+esc(val)+'</span></div>':''; };
+  /* ═══ ⚠ RIEN N'ÉTAIT CLIQUABLE DANS LE PANNEAU (Mag, 05/09/2026) ═══
+     « Je clique sur le site, ça ne marche pas. Donc c'est vraiment nul. »
+     Elle a raison, et c'était pire qu'un lien : dans le panneau qui glisse, NI le
+     site, NI le téléphone, NI le mail n'étaient des liens. Trois lignes de texte
+     mort, qu'on tape du doigt sans que rien se passe.
+     ⚠ ET LA FICHE PLEINE PAGE, ELLE, LES AVAIT DEPUIS TOUJOURS. C'est exactement le
+     piège des deux dessins d'une même fiche : ce qu'on ajoute à l'une manque à
+     l'autre, et personne ne s'en aperçoit tant qu'on ne tape pas dessus.
+     ⚠ VÉRIFIÉ AVANT DE CORRIGER : les données sont saines — 274 sites, 132 mails,
+     275 numéros dans le catalogue, aucun mal formé. Il n'y avait rien à réparer dans
+     les fiches, tout était dans l'affichage. */
+  const ligne=function(lab,val,lien){
+    if(!val) return '';
+    const dedans = lien
+      ? '<a href="'+lien+'"'+(/^https?:/.test(lien)?' target="_blank" rel="noopener"':'')+'>'+esc(val)+'</a>'
+      : esc(val);
+    return '<div class="fpl"><em>'+lab+'</em><span>'+dedans+'</span></div>';
+  };
   return '<div class="actvoile" onclick="fichePanFermer()"></div>'+
     '<div class="actpan fpan" role="dialog" aria-label="'+esc(p.nom)+'">'+
       '<div class="actpoi"></div>'+
@@ -20816,9 +20838,9 @@ function fichePanHTML(){
         ligne('Où', p.adr)+
         ligne('Quand', p.horaires)+
         ligne('Pour qui', p.public)+
-        ligne('Téléphone', p.tel)+
-        (mailDejaDit(p)?'':ligne('Mail', p.mail))+
-        ligne('Site', p.site)+
+        ligne('Téléphone', p.tel, telHref(p.tel))+
+        (mailDejaDit(p)?'':ligne('Mail', p.mail, p.mail?('mailto:'+p.mail):''))+
+        ligne('Site', p.site, p.site?urlHref(p.site):'')+
         /* ⚠ ET LE MAIL TOUT PRÊT DE CETTE FICHE (Mag, 04/09/2026) : « quand tu vas
            dans démarches et que tu cliques sur réquisitoire, je voudrais qu'il y ait
            déjà un mail type à copier ou envoyer directement dans le brouillon ».
@@ -36096,8 +36118,13 @@ initAuth();
   function poser(){
     FENETRES.forEach(function(f){ brancher(f[0], f[1]); });
     lierLesSources();
-    var vue=document.getElementById('view');
-    if(vue) new MutationObserver(lierLesSources).observe(vue,{childList:true,subtree:true});
+    /* ⚠ ON SURVEILLE TOUTE LA PAGE, PLUS SEULEMENT `#view` (05/09/2026). Les panneaux
+       qui glissent et les fenêtres vivent HORS de `#view` — une source affichée
+       là-dedans n'était donc jamais rendue cliquable, alors qu'elle l'était sur la
+       page pleine. Même famille que les liens du panneau réparés le même jour.
+       ⚠ Ça ne coûte rien : `lierUneNote` marque ce qu'elle a traité
+       (`data-src-liee`), donc repasser sur le même bloc ne fait rien. */
+    new MutationObserver(lierLesSources).observe(document.body,{childList:true,subtree:true});
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', poser);
   else poser();
