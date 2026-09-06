@@ -27661,6 +27661,26 @@ function notesSauver(){
 function notMicroDispo(){
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
+/* ═══ EST-CE QUE LE MICRO EST AUTORISÉ POUR CE SITE ? (Mag, 06/09/2026) ═══
+   « Le bouton pour parler ne fonctionne pas du tout. » Mesuré dans SON navigateur :
+   l'écoute était disponible, le micro branché, tout allait — mais l'autorisation
+   n'avait jamais été donnée. Chrome pose la question dans une petite fenêtre en haut
+   à gauche ; tant qu'on n'a pas répondu, rien ne s'écrit. Vu de la page, ça ressemble
+   exactement à un bouton mort.
+   On lit donc l'état AVANT, et on écrit ce qu'il faut faire. */
+let NOT_PERM='';
+function notLirePermission(){
+  try{
+    if(!navigator.permissions || !navigator.permissions.query) return;
+    navigator.permissions.query({name:'microphone'}).then(function(p){
+      const avant=NOT_PERM; NOT_PERM=p.state;
+      if(avant!==NOT_PERM && current && current.view==='domaine' && current.key==='notes') render();
+      /* Si elle répond à la fenêtre de Chrome, la page se met à jour toute seule. */
+      p.onchange=function(){ NOT_PERM=p.state;
+        if(current && current.view==='domaine' && current.key==='notes') render(); };
+    },function(){});
+  }catch(e){}
+}
 function notParler(){
   if(NOT_ECOUTE){ notStop(); return; }
   const R=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -27848,6 +27868,7 @@ function notHeure(iso){
    a déjà le sien. */
 function notesCorps(){
   if(!DEM_OK) return '';
+  if(!NOT_PERM) notLirePermission();
   let h='';
   /* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
   h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
@@ -27860,9 +27881,15 @@ function notesCorps(){
   if(!notMicroDispo())
     h+='<div class="notaide">Ce navigateur ne sait pas écouter. Appuie dans la case et '+
        'utilise le micro de ton clavier — ça écrit pareil.</div>';
+  else if(NOT_PERM==='denied')
+    h+='<div class="notaide"><b>Le micro est bloqué pour ce site.</b> Clique sur le petit '+
+       'cadenas à gauche de l\'adresse, en haut, et remets le micro sur « Autoriser ». '+
+       'En attendant, le micro de ton clavier marche dans la case.</div>';
+  else if(NOT_PERM==='prompt')
+    h+='<div class="notaide">La première fois, ton navigateur va demander l\'autorisation '+
+       'du micro, en haut de l\'écran : réponds <b>Autoriser</b>. Sans ça, rien ne s\'écrit.</div>';
   else if(NOT_IOS)
-    h+='<div class="notaide">Sur iPhone, il faut autoriser le micro à la première '+
-       'fois. Si rien ne s\'écrit, le micro de ton clavier marche toujours.</div>';
+    h+='<div class="notaide">Si rien ne s\'écrit, le micro de ton clavier marche toujours.</div>';
   h+='<textarea id="notTxt" class="notchamp" rows="7" '+
        'placeholder="Ce que tu dis s\'écrit ici — Monsieur X, pas de nom" '+
        'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
