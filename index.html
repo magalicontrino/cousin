@@ -6776,6 +6776,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
   <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="entTitre">
     <b id="entTitre">La note</b>
     <button id="entMic" class="notmic" onclick="notParler()"><span class="notpt"></span>Parler</button>
+
     <div id="entAide" class="notaide"></div>
     <textarea id="entTxt" class="notchamp" rows="8"
       placeholder="Ce que tu dis s'écrit ici"></textarea>
@@ -27699,6 +27700,15 @@ function notEcrire(t){
 /* iPhone et iPad : leur écoute se comporte autrement (voir `notParler`). */
 const NOT_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+/* ⚠ PAS DE BOUTON PARLER SUR TÉLÉPHONE (Mag, 07/09/2026 : « sur téléphone, je préfère
+   que tu retires le bouton »). L'écoute du navigateur y est trop capricieuse : elle
+   coupe au bout d'une phrase, redemande l'autorisation, et se fait bloquer quand
+   l'app est ouverte depuis le raccourci de l'écran d'accueil.
+   Un bouton qui marche une fois sur trois est pire que pas de bouton : on ne sait
+   jamais si c'est lui ou soi. Le micro du clavier, lui, marche partout — c'est le
+   geste qu'elle fait déjà pour dicter ses messages. */
+const NOT_TEL=/Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
+  || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches && window.innerWidth<1024);
 let NOTES=[];
 try{ NOTES=JSON.parse(localStorage.getItem('lux_notes')||'[]'); }catch(e){ NOTES=[]; }
 if(!Array.isArray(NOTES)) NOTES=[];
@@ -27929,14 +27939,18 @@ function notesCorps(){
   if(!NOT_PERM) notLirePermission();
   let h='';
   /* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
-  h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
-       '<span class="notpt"></span>'+(NOT_ECOUTE?'J\'écoute — appuie pour arrêter':'Parler')+
-     '</button>';
+  if(!NOT_TEL)
+    h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
+         '<span class="notpt"></span>'+(NOT_ECOUTE?'J\'écoute — appuie pour arrêter':'Parler')+
+       '</button>';
   /* ⚠ ON LE DIT AVANT LE CLIC, PAS APRÈS (Mag, 05/09/2026 : « le bouton pour parler ne
      fonctionne pas du tout »). Un bouton qui ne répond pas, on le croit cassé. Quand
      ce navigateur ne sait pas écouter, la ligne est là dès l'arrivée, et elle donne le
      chemin qui marche partout : le micro du clavier. */
-  if(!notMicroDispo())
+  if(NOT_TEL)
+    h+='<div class="notaide" style="margin-top:12px">Pour dicter : appuie dans la case, '+
+       'puis sur le micro de ton clavier.</div>';
+  else if(!notMicroDispo())
     h+='<div class="notaide">Ce navigateur ne sait pas écouter. Appuie dans la case et '+
        'utilise le micro de ton clavier — ça écrit pareil.</div>';
   else if(NOT_PERM==='denied')
@@ -33627,12 +33641,16 @@ function entOuvrir(id){
 function entRafraichir(){
   const m=document.getElementById('entMic');
   if(m){
+    /* Sur téléphone, le bouton n'existe pas : voir `NOT_TEL`. */
+    m.style.display=NOT_TEL?'none':'';
     m.className='notmic'+(NOT_ECOUTE?' ecoute':'');
     m.innerHTML='<span class="notpt"></span>'+(NOT_ECOUTE?"J'écoute — appuie pour arrêter":'Parler');
   }
   const a=document.getElementById('entAide');
   if(a){
-    a.textContent = !notMicroDispo()
+    a.textContent = NOT_TEL
+      ? "Pour dicter : appuie dans la case, puis sur le micro de ton clavier."
+      : !notMicroDispo()
       ? "Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier, dans la case."
       : NOT_PERM==='denied' ? "Le micro est bloqué pour ce site. Clique sur le cadenas à gauche de l'adresse pour le remettre sur « Autoriser »."
       : NOT_PERM==='prompt' ? "La première fois, ton navigateur demande l'autorisation du micro : réponds Autoriser."
