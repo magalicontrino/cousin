@@ -267,6 +267,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .notchamp:focus{outline:0;border-color:var(--trait-fort)}
 .notb{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .notaide{font-size:13px;color:var(--enc2);margin-top:7px;line-height:1.45}
+/* ⚠ L'alerte des chiffres et des côtés. Elle ne fait PAS partie de la note : ni
+   copiée, ni gardée, ni imprimée — voir `notVerifier`. */
+.notalerte{margin-top:10px;background:#fdfdfc;border:1.5px solid #c8553d;color:#c8553d;
+  border-radius:9px;padding:10px 12px;font-size:14px;line-height:1.45;font-weight:600}
+@media print{ .notalerte{display:none!important} }
 .notgard{background:#fdfdfc;border:1px solid var(--ligne);border-radius:10px;
   padding:11px 13px;margin-bottom:8px}
 .notgard-h{display:flex;align-items:center;gap:7px;margin-bottom:5px}
@@ -6785,6 +6790,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <div id="entAide" class="notaide"></div>
     <textarea id="entTxt" class="notchamp" rows="8"
       placeholder="Ce que tu dis s'écrit ici"></textarea>
+    <div id="entAlerte" class="notalerte" style="display:none"></div>
     <div id="entPanne" class="dempanne" style="display:none"></div>
     <div class="notb">
       <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
@@ -27846,7 +27852,7 @@ async function notOk(){
   const t=notLire().trim();
   if(!t){ NOT_PANNE="Parle d'abord, ou écris quelque chose."; notRedessine(); return; }
   if(NOT_ECOUTE) notStop();
-  NOT_ENCOURS=true; NOT_PANNE=''; notRedessine();
+  NOT_ENCOURS=true; NOT_PANNE=''; NOT_ALERTE=''; notRedessine();
   try{
     const ses=await sb.auth.getSession();
     const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
@@ -27865,7 +27871,7 @@ async function notOk(){
         /* ⚠ UNE SEULE VERSION, ET ELLE REMPLACE LE TEXTE (Mag, 05/09/2026 : « je
            préfère celle du milieu. Tu peux garder qu'une proposition et on change à
            la main »). On garde l'avant : « Revenir » le remet. */
-        NOT_AVANT=t; notEcrire(d.texte);
+        NOT_AVANT=t; notEcrire(d.texte); notVerifier(t, d.texte);
       }
     }
   }catch(e){
@@ -27874,6 +27880,39 @@ async function notOk(){
   NOT_ENCOURS=false; notRedessine();
 }
 
+/* ═══ LE GARDE-FOU DES CHIFFRES ET DES CÔTÉS (Mag, 07/09/2026) ═══
+   Bientôt des infirmiers écriront ici. Le danger n'est pas le style : c'est le détail
+   qui bouge. « Pied DROIT » qui devient « pied gauche », une dose recopiée de travers,
+   une heure changée. Ce serait rare — une fois suffit, et ça finit dans un dossier de
+   soins.
+   On compare donc la dictée et la correction sur ce qui ne doit JAMAIS bouger : les
+   nombres, et les côtés. Ce qui a disparu ou apparu est signalé.
+
+   ⚠ CE SIGNALEMENT N'EST PAS DU TEXTE (sa règle, dite le 07/09) : il n'est ni copié,
+   ni gardé, ni imprimé. Il vit à l'écran, sous la note, et c'est tout. Copier et
+   Garder lisent la CASE — jamais cette alerte. Ne pas l'y faire entrer un jour. */
+let NOT_ALERTE='';
+function notJetons(t){
+  const p=(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const l=[];
+  (p.match(/\d+(?:[.,]\d+)?/g)||[]).forEach(function(x){ l.push(x.replace(',','.')); });
+  /* « droit » et « droite » comptent pour la même chose : ce qui importe est le côté,
+     pas l'accord. */
+  (p.match(/\b(droite|droit|gauche)\b/g)||[]).forEach(function(x){ l.push(x==='gauche'?'gauche':'droit'); });
+  return l;
+}
+function notVerifier(avant, apres){
+  const compte=function(l){ const m={}; l.forEach(function(x){ m[x]=(m[x]||0)+1; }); return m; };
+  const a=compte(notJetons(avant)), b=compte(notJetons(apres));
+  const partis=[], venus=[];
+  Object.keys(a).forEach(function(k){ if((b[k]||0)<a[k]) partis.push(k); });
+  Object.keys(b).forEach(function(k){ if((a[k]||0)<b[k]) venus.push(k); });
+  if(!partis.length && !venus.length){ NOT_ALERTE=''; return; }
+  const bouts=[];
+  if(partis.length) bouts.push('disparu : '+partis.join(', '));
+  if(venus.length)  bouts.push('apparu : '+venus.join(', '));
+  NOT_ALERTE='À vérifier avant de copier — '+bouts.join(' · ')+'.';
+}
 function notEffacer(){
   const t=notLire();
   if(!t){ return; }
@@ -28018,6 +28057,7 @@ function notesCorps(){
        '<button class="dembtn clair" onclick="notEffacer()">Effacer</button>'+
        (NOT_AVANT?'<button class="dembtn clair" onclick="notRevenir()">Revenir</button>':'')+
      '</div>';
+  if(NOT_ALERTE) h+='<div class="notalerte">'+esc(NOT_ALERTE)+'</div>';
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
   if(NOT_ENCOURS) h+='<div class="demvide">Je corrige…</div>';
   if(NOTES.length){
@@ -33671,7 +33711,7 @@ function avoirCopier(id){
 /* ═══ LA NOTE D'UN ENTRETIEN ═══ */
 function entOuvrir(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
-  NOT_CIBLE=id; NOT_AVANT=''; NOT_PANNE='';
+  NOT_CIBLE=id; NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
   const t=document.getElementById('entTitre'); if(t) t.textContent=r.nom||'La note';
   const c=document.getElementById('entTxt'); if(c) c.value=r.note||'';
   if(!NOT_PERM) notLirePermission();
@@ -33700,6 +33740,8 @@ function entRafraichir(){
       : '';
     a.style.display=a.textContent?'':'none';
   }
+  const al=document.getElementById('entAlerte');
+  if(al){ al.textContent=NOT_ALERTE||''; al.style.display=NOT_ALERTE?'':'none'; }
   const p=document.getElementById('entPanne');
   if(p){ p.textContent=NOT_PANNE||''; p.style.display=NOT_PANNE?'':'none'; }
   const b=document.getElementById('entBtnC');
@@ -33713,7 +33755,7 @@ function entFermer(){
   if(NOT_ECOUTE) notStop();
   notGarder();
   const bg=document.getElementById('entBg'); if(bg) bg.classList.remove('on');
-  NOT_CIBLE=''; NOT_AVANT=''; NOT_PANNE='';
+  NOT_CIBLE=''; NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
 }
 function avoirRetirer(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
