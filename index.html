@@ -27812,14 +27812,15 @@ function notBrouillon(){
 }
 function notSaisie(v){ NOT_TXT=v||''; notBrouillon(); }
 
+/* Redessiner : la page entière, ou seulement la fenêtre de l'entretien. */
+function notRedessine(){ if(NOT_CIBLE) entRafraichir(); else render(); }
+
 async function notOk(){
   if(NOT_ENCOURS) return;
-  const c=document.getElementById('notTxt');
-  if(c) NOT_TXT=(c.value||'');
-  const t=NOT_TXT.trim();
-  if(!t){ NOT_PANNE="Parle d'abord, ou écris quelque chose."; render(); return; }
+  const t=notLire().trim();
+  if(!t){ NOT_PANNE="Parle d'abord, ou écris quelque chose."; notRedessine(); return; }
   if(NOT_ECOUTE) notStop();
-  NOT_ENCOURS=true; NOT_PANNE=''; render();
+  NOT_ENCOURS=true; NOT_PANNE=''; notRedessine();
   try{
     const ses=await sb.auth.getSession();
     const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
@@ -27838,13 +27839,13 @@ async function notOk(){
         /* ⚠ UNE SEULE VERSION, ET ELLE REMPLACE LE TEXTE (Mag, 05/09/2026 : « je
            préfère celle du milieu. Tu peux garder qu'une proposition et on change à
            la main »). On garde l'avant : « Revenir » le remet. */
-        NOT_AVANT=NOT_TXT; NOT_TXT=d.texte; notBrouillon();
+        NOT_AVANT=t; notEcrire(d.texte);
       }
     }
   }catch(e){
     NOT_PANNE="Les propositions ne sont pas arrivées. Ta note n'a pas bougé.";
   }
-  NOT_ENCOURS=false; render();
+  NOT_ENCOURS=false; notRedessine();
 }
 
 function notRevenir(){
