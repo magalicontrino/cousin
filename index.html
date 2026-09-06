@@ -295,6 +295,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   cursor:pointer}
 .dembtn[disabled]{opacity:.55}
 .dembtn.clair{background:#fdfdfc;color:var(--noir);border-color:var(--trait);font-weight:500}
+/* Un bouton qui ne porte qu'un picto : carré, à la taille du doigt. */
+.dembtn.pic{padding:0;width:44px;height:44px;display:inline-flex;align-items:center;
+  justify-content:center}
+.dembtn.pic .ic{width:19px;height:19px;display:block}
+.dembtn.pic svg{width:19px;height:19px;display:block}
 .demrep{margin:14px 0 0;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:11px;
   padding:13px 14px;font-size:15px;line-height:1.55}
 .dempanne{margin:13px 0 0;background:#fdfdfc;border:1.5px solid #c8553d;border-radius:11px;
@@ -4188,11 +4193,38 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* ═══ LES CASES « ABSENCE » / « DÉSENCODAGE » SOUS LE CHAMP (Mag, 24/08/2026) ═══
    Une ligne de bouton, avec une vraie case à cocher et le mot écrit — pas un picto
    muet qu'on coche sans savoir. Cochee, elle passe en rouge (la couleur des encodés). */
-.chadd.ecrire .absas{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.chadd.ecrire .absa{display:flex;align-items:center;gap:10px;flex:1;min-width:0;
-  border:1px solid rgba(242,238,230,.3);border-radius:6px;padding:11px 12px;
+/* ═══ ⚠ « LA MISE EN PAGE DÉCONNE À CAUSE DU TEXTE SUR LES BOUTONS »
+   (Mag, 05/09/2026) ═══
+   Sa capture le montrait : « DÉSENCODAGE » SORTAIT de son bouton par la droite,
+   pendant que « NOTER UNE ABSENCE » se cassait en trois lignes et rendait le premier
+   bouton plus haut que les deux autres.
+   LA CAUSE : les trois boutons étaient en `flex:1`, donc à parts strictement égales.
+   Sur un téléphone, un tiers de la rangée laisse environ 75 px au texte — et
+   « DÉSENCODAGE » en écriture machine, en capitales, avec .13em d'interlettrage, en
+   demande un peu plus. Rien ne l'autorisait à passer à la ligne : il débordait.
+   CE QUI CHANGE : une grille qui se replie toute seule. Trois colonnes quand ça tient,
+   deux puis une quand ça ne tient plus — au lieu de trois colonnes trop étroites de
+   force. Les boutons gardent la même hauteur (la grille les étire), le texte peut
+   couper, et l'interlettrage se resserre sur les écrans étroits.
+   ⚠ LES MOTS NE CHANGENT PAS. « Noter une absence » est ce qu'elle a écrit ; c'est la
+   boîte qui devait s'adapter au mot, pas l'inverse. */
+.chadd.ecrire .absas{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));
+  gap:8px;margin-top:10px}
+.chadd.ecrire .absa{display:flex;align-items:center;gap:9px;min-width:0;text-align:left;
+  border:1px solid rgba(242,238,230,.3);border-radius:6px;padding:11px 11px;
   color:#e8e5df;background:none;font-family:ui-monospace,monospace;font-size:9.5px;
-  letter-spacing:.13em;text-transform:uppercase;font-weight:600;cursor:pointer}
+  letter-spacing:.11em;text-transform:uppercase;font-weight:600;cursor:pointer;
+  line-height:1.3;overflow-wrap:anywhere;hyphens:none}
+/* ⚠ SUR TÉLÉPHONE, LE PLUS LONG MOT DÉCIDE DE TOUT. « DÉSENCODAGE » fait onze
+   signes : à 9,5 px avec .11em d'interlettrage il dépasse d'un cheveu la colonne, et
+   se cassait en « DÉSENCODAG / E » — un E tout seul sur sa ligne. On resserre juste
+   assez pour qu'il tienne d'un bloc, plutôt que d'élargir la colonne et de perdre la
+   troisième. */
+@media(max-width:430px){
+  .chadd.ecrire .absas{gap:6px;grid-template-columns:repeat(auto-fit,minmax(94px,1fr))}
+  .chadd.ecrire .absa{font-size:9px;letter-spacing:.02em;padding:10px 8px;gap:7px}
+  .chadd.ecrire .absa .bx{width:14px;height:14px}
+}
 .chadd.ecrire .absa .bx{width:15px;height:15px;border:1.5px solid rgba(242,238,230,.6);border-radius:3px;flex:none}
 .chadd.ecrire .absa.on{border-color:#e63329;color:#ffd9d4;background:rgba(230,51,41,.12)}
 .chadd.ecrire .absa.on .bx{border-color:#ff8d86;background:#e63329}
@@ -6799,10 +6831,10 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <div id="entPanne" class="dempanne" style="display:none"></div>
     <div class="notb">
       <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
-      <button class="dembtn clair" onclick="notGarder()">Garder</button>
-      <button class="dembtn clair" onclick="notCopier()">Copier</button>
-      <button class="dembtn clair" onclick="notEffacer()">Effacer</button>
-      <button class="dembtn clair" id="entBtnR" style="display:none" onclick="notRevenir()">Revenir</button>
+      <button class="dembtn clair pic" onclick="notGarder()" title="Garder" aria-label="Garder"><span class="ic" data-ic="check"></span></button>
+      <button class="dembtn clair pic" onclick="notCopier()" title="Copier" aria-label="Copier"><span class="ic" data-ic="copyleger"></span></button>
+      <button class="dembtn clair pic" onclick="notEffacer()" title="Effacer" aria-label="Effacer"><span class="ic" data-ic="trash"></span></button>
+      <button class="dembtn clair pic" id="entBtnR" style="display:none" onclick="notRevenir()" title="Revenir" aria-label="Revenir"><span class="ic" data-ic="chevron"></span></button>
       <button class="dembtn clair" onclick="entFermer()">Fermer</button>
     </div>
   </div>
@@ -28134,22 +28166,33 @@ function notesCorps(){
      ⚠ ET GARDER EST JUSTE APRÈS, pas à la fin : c'est son geste le plus fréquent
      (« je préférerais le garder, comme ça je les ai toutes et je peux les copier
      après »). Copier vient en dernier — on copie une note choisie, pas chaque note. */
+  /* ⚠ QUATRE BOUTONS PASSENT AU PICTO (Mag, 07/09/2026) : garder devient une coche,
+     copier son picto, effacer une corbeille, revenir un chevron. CORRIGER GARDE SON
+     MOT — c'est la seule action qu'on ne devine pas d'un dessin, et c'est la seule où
+     quelque chose part au dehors.
+     ⚠ CHAQUE PICTO GARDE SON `title` ET SON `aria-label` : au survol et pour qui lit
+     l'écran à voix haute, le mot revient. Une rangée de dessins muets, c'est
+     exactement ce qu'elle avait fait retirer de la barre du haut en août. */
   h+='<div class="notb">'+
        '<button class="dembtn" onclick="notOk()"'+(NOT_ENCOURS?' disabled':'')+'>'+
          (NOT_ENCOURS?'…':'Corriger')+'</button>'+
-       '<button class="dembtn clair" onclick="notGarder()">Garder</button>'+
+       '<button class="dembtn clair pic" onclick="notGarder()" title="Garder" '+
+         'aria-label="Garder">'+icon('check')+'</button>'+
        /* ⚠ LES BOUTONS SONT TOUJOURS LÀ (Mag, 05/09/2026 : « la deuxième note ne
           marche pas »). Ils n'apparaissaient que si le texte n'était pas vide — or
           le texte tapé ne redessine pas la page, donc après avoir gardé une note,
           on écrivait la suivante et Copier et Garder restaient invisibles. Un bouton
           qui apparaît selon ce qu'on tape est un bouton qu'on croit cassé. */
-       '<button class="dembtn clair" onclick="notCopier()">Copier</button>'+
+       '<button class="dembtn clair pic" onclick="notCopier()" title="Copier" '+
+         'aria-label="Copier">'+icon('copyleger')+'</button>'+
        /* ⚠ EFFACER NE PERD RIEN (Mag, 07/09/2026 : « dans les notes, j'aimerais qu'on
           puisse effacer ce qu'on a fait »). Il vide la case, mais garde le texte de
           côté : « Revenir » le remet. Pas de fenêtre « êtes-vous sûr » — un geste
           réversible n'a pas besoin qu'on le confirme. */
-       '<button class="dembtn clair" onclick="notEffacer()">Effacer</button>'+
-       (NOT_AVANT?'<button class="dembtn clair" onclick="notRevenir()">Revenir</button>':'')+
+       '<button class="dembtn clair pic" onclick="notEffacer()" title="Effacer" '+
+         'aria-label="Effacer">'+icon('trash')+'</button>'+
+       (NOT_AVANT?'<button class="dembtn clair pic" onclick="notRevenir()" title="Revenir" '+
+         'aria-label="Revenir">'+icon('chevron')+'</button>':'')+
      '</div>';
   if(NOT_ALERTE) h+='<div class="notalerte">'+esc(NOT_ALERTE)+'</div>';
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
@@ -33815,6 +33858,10 @@ function entOuvrir(id){
   const t=document.getElementById('entTitre'); if(t) t.textContent=r.nom||'La note';
   const c=document.getElementById('entTxt'); if(c) c.value=r.note||'';
   if(!NOT_PERM) notLirePermission();
+  /* Les pictos de cette fenêtre sont posés une fois, à la première ouverture. */
+  document.querySelectorAll('#entBg .ic[data-ic]').forEach(function(e){
+    if(!e.innerHTML) e.innerHTML=icon(e.getAttribute('data-ic'));
+  });
   entRafraichir();
   const bg=document.getElementById('entBg'); if(bg) bg.classList.add('on');
   setTimeout(function(){ if(c) c.focus(); },40);
