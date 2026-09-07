@@ -10348,7 +10348,7 @@ const ITI_DEPART = 'Bd Prince de Liège 38, 1070 Anderlecht';
    publication. Il était figé à « v439 » depuis des mois et n'était affiché nulle
    part : un numéro de version que personne ne voit ne sert à rien — on ne peut même
    pas se dire au téléphone « tu es sur laquelle ? ». */
-const APP_VERSION = 'cousin-v1268';
+const APP_VERSION = 'cousin-v1269';
 /* 01/08/2026 : deux travaux se rejoignent ici — les CPAS d'Anderlecht, de la Ville de
    Bruxelles et de Forest, l'adresse de référence ; et le domaine Handicap, DoucheFLUX,
    le Syndicat des immenses, les soins infirmiers extérieurs. Le numéro passe au-dessus
@@ -33538,7 +33538,28 @@ function reglageEnvoyer(cle,valeur){
       if(REG_URGENT[cle] && typeof toast==='function')
         toast('⚠ PAS ENREGISTRÉ dans la base — ' + (r.error.message||'refus'));
       panneNoter('reglage '+cle, (r.error&&r.error.message)||'refus');
+      return;
     }
+    /* ═══ ⚠⚠ SANS CES DEUX LIGNES, LE TÉLÉPHONE GAGNAIT POUR TOUJOURS (05/09/2026) ═══
+       « Quand je clique sur les boutons, il y a marqué : ta version du téléphone était
+       plus récente. »
+       L'envoi réussissait mais NE NOTAIT RIEN. `lux_reg_base_…` restait donc figé à
+       une vieille date, pendant que `lux_reg_maj_…` était remis à MAINTENANT à chaque
+       envoi. La comparaison « le téléphone a écrit après le dernier aller-retour »
+       était donc vraie À TOUT JAMAIS : à chaque chargement des réglages, on
+       réaffichait le message, on repoussait vers la base, ce qui remettait la date
+       locale à maintenant… et ainsi de suite. Une boucle qui ne pouvait pas s'arrêter.
+       ⚠ CE QU'ELLE COÛTAIT : un message qui revient sans cesse, des écritures inutiles
+       vers la base à chaque ouverture, et surtout du remue-ménage permanent dans la
+       page — c'est-à-dire des clics qui se perdent.
+       MAINTENANT : quand l'envoi passe, les deux dates sont posées AU MÊME INSTANT.
+       L'arbitrage se calme, et il ne se réveille que si le téléphone écrit vraiment
+       après le dernier aller-retour — ce pour quoi il a été fait. */
+    var t=String(Date.now());
+    try{
+      localStorage.setItem('lux_reg_base_'+cle, t);
+      localStorage.setItem('lux_reg_maj_'+cle, t);
+    }catch(e){}
   }, function(e){
     if(REG_URGENT[cle] && typeof toast==='function')
       toast('⚠ PAS ENREGISTRÉ — pas de réseau ?');
@@ -33557,7 +33578,17 @@ function reglageGarderLePlusRecent(cle, deLaBase, dIci, cleLocale, premiere){
   /* Le téléphone a écrit APRÈS le dernier aller-retour connu avec la base :
      c'est lui qui a raison, et on renvoie ce qu'il a. */
   if(localMaj && localMaj>baseMaj && Array.isArray(dIci) && dIci.length){
-    if(typeof toast==='function' && aBase && JSON.stringify(deLaBase)!==JSON.stringify(dIci))
+    /* ⚠ ON NE RENVOIE QUE SI ÇA DIFFÈRE VRAIMENT. Repousser une liste identique, c'est
+       une écriture pour rien — et c'est ce qui entretenait la boucle. Quand c'est
+       pareil, on aligne simplement les deux dates et on se tait. */
+    var pareil = aBase && JSON.stringify(deLaBase)===JSON.stringify(dIci);
+    if(pareil){
+      var t2=String(Date.now());
+      try{ localStorage.setItem('lux_reg_base_'+cle, t2);
+           localStorage.setItem('lux_reg_maj_'+cle, t2); }catch(e){}
+      return dIci;
+    }
+    if(typeof toast==='function' && aBase)
       toast('Ta version du téléphone était plus récente — elle est gardée');
     reglagePousser(cle, dIci);
     return dIci;
