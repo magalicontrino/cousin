@@ -269,15 +269,18 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .notspin .sp1{width:14px;height:14px;border-radius:50%;border:2px solid rgba(242,238,230,0.3);border-top-color:#f2eee6;animation:spinner 0.7s linear infinite;flex:none}
 @keyframes spinner{to{transform:rotate(360deg)}}
 .notchamp{width:100%;background:#fdfdfc;border:1.5px solid var(--trait);border-radius:11px;
-  padding:12px 13px;margin-top:11px;font-family:inherit;font-size:16px;color:var(--noir);
+  padding:12px 13px 52px;margin-top:11px;font-family:inherit;font-size:16px;color:var(--noir);
   resize:vertical;line-height:1.5}
 .notchamp{min-height:11vh;max-height:75vh}
 @media (max-width:500px){.notchamp{min-height:10vh}}
 .notchamp:focus{outline:0;border-color:var(--trait-fort)}
+.notwrap{position:relative}
+.notwrap .notmic{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2}
 /* ⚠ Dans la fenêtre d'un entretien, la case ne peut pas prendre la moitié de l'écran :
    la fenêtre a ses propres bords, et les boutons doivent rester visibles dessous. */
 #entTxt.notchamp{min-height:0}
-.notb{display:flex;gap:7px;flex-wrap:nowrap;margin-top:10px;margin-bottom:18px;align-items:center}
+.notb{display:flex;gap:6px;flex-wrap:nowrap;margin-top:10px;margin-bottom:18px;align-items:center;
+  max-width:100%;overflow:hidden}
 .notaide{font-size:13px;color:var(--enc2);margin-top:7px;line-height:1.45}
 /* ⚠ L'alerte des chiffres et des côtés. Elle ne fait PAS partie de la note : ni
    copiée, ni gardée, ni imprimée — voir `notVerifier`. */
@@ -309,12 +312,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .demchamp:focus{outline:0;border-color:var(--trait-fort)}
 .dembtns{display:flex;gap:8px;margin-top:9px}
 .dembtn{background:var(--noir);color:#f2eee6;border:1.5px solid var(--trait-fort);
-  border-radius:9px;padding:10px 18px;font-family:inherit;font-size:14px;font-weight:600;
-  cursor:pointer;min-width:110px}
+  border-radius:9px;padding:10px 14px;font-family:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;min-width:0}
 .dembtn[disabled]{opacity:.55}
 .dembtn.clair{background:#fdfdfc;color:var(--noir);border-color:var(--trait);font-weight:500}
 /* Un bouton qui ne porte qu'un picto : carré, à la taille du doigt. */
-.dembtn.pic{padding:0;width:44px;height:44px;display:inline-flex;align-items:center;
+.dembtn.pic{padding:0;width:38px;height:38px;display:inline-flex;align-items:center;
   justify-content:center}
 .dembtn.pic .ic{width:19px;height:19px;display:block}
 .dembtn.pic svg{width:19px;height:19px;display:block}
@@ -28209,38 +28212,18 @@ function notesCorps(){
   if(!DEM_OK) return '';
   if(!NOT_PERM) notLirePermission();
   let h='';
-  /* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
+/* LE BOUTON DE PAROLE EST LE PREMIER ET LE PLUS GROS. C'est le geste. */
   if(!NOT_TEL_())
-    h+='<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
+    h+='<div class="notwrap"><textarea id="notTxt" class="notchamp" rows="14" '+
+         'placeholder="..." '+
+         'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>'+
+        '<button class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
          (NOT_ECOUTE
            ?'<span class="notpt"><span class="nd1">●</span><span class="nd2">●</span><span class="nd3">●</span></span>Stop'
            :'<span class="ic">'+icon('play')+'</span>Audio')+
-       '</button>';
-  /* ⚠ ON LE DIT AVANT LE CLIC, PAS APRÈS (Mag, 05/09/2026 : « le bouton pour parler ne
-     fonctionne pas du tout »). Un bouton qui ne répond pas, on le croit cassé. Quand
-     ce navigateur ne sait pas écouter, la ligne est là dès l'arrivée, et elle donne le
-     chemin qui marche partout : le micro du clavier. */
-  if(NOT_TEL_())
-    /* ⚠ SA PHRASE, MOT POUR MOT (Mag, 07/09/2026). La mienne expliquait un geste
-       technique — appuie ici, puis là. La sienne dit ce qu'on peut FAIRE. C'est la
-       même règle que pour les titres : nommer la chose, pas décrire la manœuvre. */
-    h+='<div class="notaide" style="margin-top:12px">Tu peux dicter ou écrire, '+
-       'et ensuite corriger avec Claude.</div>';
-  else if(!notMicroDispo())
-    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Appuie dans la case et '+
-       'utilise le micro de ton clavier — ça écrit pareil.</div>';
-  else if(NOT_PERM==='denied')
-    h+='<div class="notaide"><b>Le micro est bloqué pour ce site.</b> Clique sur le petit '+
-       'cadenas à gauche de l\'adresse, en haut, et remets le micro sur « Autoriser ». '+
-       'En attendant, le micro de ton clavier marche dans la case.</div>';
-else if(NOT_PERM==='prompt')
-    h+='<div class="notaide">Autorise le micro.</div>';
-  else if(NOT_IOS)
-    h+='<div class="notaide">Si rien ne s\'écrit, le micro de ton clavier marche toujours.</div>';
-  /* ⚠ UNE GRANDE CASE (Mag, 07/09/2026 : « on met beaucoup de texte en général dans
-     les notes »). Une note d'entretien fait dix à quinze lignes : dans une case de
-     sept, on écrit en regardant par un hublot, et on ne se relit pas. */
-h+='<textarea id="notTxt" class="notchamp" rows="14" '+
+        '</button></div>';
+  else
+    h+='<textarea id="notTxt" class="notchamp" rows="14" '+
         'placeholder="..." '+
         'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>';
   /* ⚠ « OK » NE DISAIT PAS CE QU'IL FAIT (Mag, 05/09/2026 : « j'aimerais que tu
