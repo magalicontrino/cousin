@@ -27924,8 +27924,22 @@ function notLirePermission(){
   }catch(e){}
 }
 function notParler(){
-  var c=document.getElementById(notChamp());
-  if(c) c.focus();
+  var R=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!R){ NOT_PANNE="Pas de reconnaissance vocale dans ce navigateur."; notRedessine(); return; }
+  try{
+    var rec=new R();
+    rec.lang='fr-FR';
+    rec.continuous=true;
+    rec.interimResults=false;
+    rec.onresult=function(ev){
+      var t='';
+      for(var i=0;i<ev.results.length;i++) if(ev.results[i].isFinal) t+=ev.results[i][0].transcript+' ';
+      var actuel=notLire(), plein=(actuel+' '+t).replace(/\s+/g,' ').trim();
+      if(plein!==actuel) notEcrire(plein);
+    };
+    rec.onend=function(){ rec.start(); };
+    rec.start();
+  }catch(e){ NOT_PANNE="Le micro n'a pas démarré."; notRedessine(); }
 }
 function notStop(){
   notEcrire(notLire());
