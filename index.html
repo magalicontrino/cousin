@@ -27844,7 +27844,7 @@ function vDemander(){
    ⚠ CE QUI PART POUR LES PROPOSITIONS, C'EST LE TEXTE SEUL. La règle « on écrit
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
-let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='', NOT_DEPART='';
+let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='', NOT_DERNIER='';
 let NOT_REC=null, NOT_STOP=false;
 /* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
    entretien ? ») ═══
@@ -27923,64 +27923,45 @@ function notLirePermission(){
     },function(){});
   }catch(e){}
 }
-function notDemarrer(){
+function notParler(){
+  if(NOT_ECOUTE){ notStop(); return; }
   var R=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!R) return false;
+  if(!R){ NOT_PANNE="Le micro n'est pas disponible sur ce navigateur."; notRedessine(); return; }
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
     NOT_REC.continuous=true;
     NOT_REC.interimResults=true;
+    NOT_DERNIER='';
     NOT_REC.onresult=function(ev){
-      /* On ne prend que le DERNIER résultat final — le navigateur renvoie tout depuis
-         le début, mais on ne veut que la nouvelle phrase qui vient d'arriver. */
-      for(var i=ev.results.length-1;i>=0;i--){
+      var actuel=notLire();
+      for(var i=0;i<ev.results.length;i++){
         if(ev.results[i].isFinal){
           var t=ev.results[i][0].transcript;
-          var actuel=notLire();
-          /* ⚠ Si c'est une phrase différente de ce qu'on a déjà, on l'ajoute. */
-          if(t && t.length>2 && actuel.toLowerCase().indexOf(t.toLowerCase().trim())===-1)
-            notEcrire((actuel+' '+t).replace(/\s+/g,' ').trim());
-          break;
+          if(t && t!==NOT_DERNIER){
+            NOT_DERNIER=t;
+            if(actuel.toLowerCase().indexOf(t.toLowerCase().trim())===-1)
+              notEcrire((actuel+' '+t).replace(/\s+/g,' ').trim());
+            actuel=notLire();
+          }
         }
       }
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
       var q=(ev&&ev.error)||'';
-      NOT_PANNE = (q==='not-allowed'||q==='service-not-allowed')
+      NOT_PANNE = (q==='not-allowed')
         ? "Le micro est refusé pour ce site. Autorise-le dans les réglages du navigateur."
-        : (q==='no-speech') ? "Je n'ai rien entendu. Réappuie sur Parler."
-        : (q==='audio-capture') ? "Aucun micro trouvé sur cet appareil."
+        : (q==='no-speech') ? "Je n'ai rien entendu."
         : "L'écoute s'est arrêtée.";
       notRedessine();
     };
-    NOT_REC.onend=function(){
-      /* continuous=true devrait tenir — si ça coupe quand même, on relance. */
-      if(NOT_ECOUTE && !NOT_STOP){
-        if(!notDemarrer()){ NOT_ECOUTE=false; notRedessine(); }
-      }else{ NOT_ECOUTE=false; notRedessine(); }
-    };
+    NOT_REC.onend=function(){ if(NOT_ECOUTE && !NOT_STOP){ try{ NOT_REC.start(); }catch(e){ NOT_ECOUTE=false; notRedessine(); } }else{ NOT_ECOUTE=false; notRedessine(); } };
     NOT_STOP=false; NOT_REC.start();
-    return true;
-  }catch(e){ return false; }
-}
-
-function notParler(){
-  if(NOT_ECOUTE){ notStop(); return; }
-  if(NOT_TEL_APPAREIL){
-    var c=document.getElementById(notChamp());
-    if(c){ c.focus(); c.setSelectionRange(c.value.length,c.value.length); }
-    return;
-  }
-  if(!(window.SpeechRecognition||window.webkitSpeechRecognition)){
-    NOT_PANNE="Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier.";
-    notRedessine(); return;
-  }
-  var ok=notDemarrer();
-  if(ok){ NOT_ECOUTE=true; NOT_PANNE=''; notRedessine(); }
-  else{
-    NOT_PANNE="Le micro n'a pas démarré. Utilise celui de ton clavier.";
+    NOT_ECOUTE=true; NOT_PANNE=''; notRedessine();
+  }catch(e){
+    NOT_ECOUTE=false;
+    NOT_PANNE="Le micro n'a pas démarré.";
     notRedessine();
   }
 }
