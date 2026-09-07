@@ -15612,7 +15612,7 @@ window.addEventListener('hashchange',()=>{
        c'est ce qui répare les voiles restés accrochés. Mais celle-ci est la seule où
        l'on ÉCRIT quelque chose qui doit rester. */
     try{ const eb=document.getElementById('entBg');
-      if(eb && eb.classList.contains('on')){ if(NOT_ECOUTE) notStop(); notGarder(); NOT_CIBLE=''; }
+      if(eb && eb.classList.contains('on')){ notGarder(); NOT_CIBLE=''; }
     }catch(e){}
     document.querySelectorAll('.partbg.on,.popbg.on,.ideebg.on,.urgbg.on,.mh-bg.on,.mh.on')
       .forEach(function(el){ el.classList.remove('on'); });
@@ -27844,8 +27844,7 @@ function vDemander(){
    ⚠ CE QUI PART POUR LES PROPOSITIONS, C'EST LE TEXTE SEUL. La règle « on écrit
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
-let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='', NOT_DERNIER='';
-let NOT_REC=null, NOT_STOP=false;
+let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_AVANT='';
 /* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
    entretien ? ») ═══
    Le même micro et le même bouton Corriger servent à deux endroits : la page des
@@ -27924,22 +27923,8 @@ function notLirePermission(){
   }catch(e){}
 }
 function notParler(){
-  var R=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!R){ NOT_PANNE="Pas de reconnaissance vocale dans ce navigateur."; notRedessine(); return; }
-  try{
-    var rec=new R();
-    rec.lang='fr-FR';
-    rec.continuous=true;
-    rec.interimResults=false;
-    rec.onresult=function(ev){
-      var t='';
-      for(var i=0;i<ev.results.length;i++) if(ev.results[i].isFinal) t+=ev.results[i][0].transcript+' ';
-      var actuel=notLire(), plein=(actuel+' '+t).replace(/\s+/g,' ').trim();
-      if(plein!==actuel) notEcrire(plein);
-    };
-    rec.onend=function(){ rec.start(); };
-    rec.start();
-  }catch(e){ NOT_PANNE="Le micro n'a pas démarré."; notRedessine(); }
+  var c=document.getElementById(notChamp());
+  if(c) c.focus();
 }
 function notStop(){
   notEcrire(notLire());
@@ -27963,7 +27948,6 @@ async function notOk(){
   if(NOT_ENCOURS) return;
   const t=notLire().trim();
   if(!t){ NOT_PANNE="Parle d'abord, ou écris quelque chose."; notRedessine(); return; }
-  if(NOT_ECOUTE) notStop();
   NOT_ENCOURS=true; NOT_PANNE=''; NOT_ALERTE=''; notRedessine();
   try{
     const ses=await sb.auth.getSession();
@@ -28028,7 +28012,6 @@ function notVerifier(avant, apres){
 function notEffacer(){
   const t=notLire();
   if(!t){ return; }
-  if(NOT_ECOUTE) notStop();
   NOT_AVANT=t; notEcrire(''); notRedessine();
 }
 function notRevenir(){
@@ -28166,16 +28149,10 @@ function notesCorps(){
   if(!DEM_OK) return '';
   if(!NOT_PERM) notLirePermission();
   let h='';
-  if(!NOT_TEL_())
-h+='<div class="notwrap"><textarea id="notTxt" class="notchamp" '+
-         'placeholder="..." '+
-         'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>'+
-        '<button class="notmic" onclick="notParler()"><span class="ic">'+icon('play')+'</span>Audio</button></div>';
-  else
-    h+='<div class="notwrap"><textarea id="notTxt" class="notchamp" '+
-        'placeholder="..." '+
-        'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>'+
-       '<button class="notmic" onclick="notParler()"><span class="ic">'+icon('play')+'</span>Audio</button></div>';
+  h+='<textarea id="notTxt" class="notchamp" '+
+      'placeholder="..." '+
+      'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>';
+  h+='<button class="notmic" onclick="notParler()"><span class="ic">'+icon('play')+'</span>Audio</button>';
   if(!notMicroDispo())
     h+='<div class="notaide">Ce navigateur ne sait pas écouter. Appuie dans la case et utilise le micro de ton clavier.</div>';
   else if(NOT_PERM==='denied')
@@ -33942,12 +33919,7 @@ function entOuvrir(id){
    panne, le bouton Revenir. On ne réécrit PAS le champ — on écrit dedans. */
 function entRafraichir(){
   const m=document.getElementById('entMic');
-  if(m){
-    /* Sur téléphone, le bouton n'existe pas : voir `NOT_TEL_()`. */
-    m.style.display=NOT_TEL_()?'none':'';
-    m.className='notmic'+(NOT_ECOUTE?' ecoute':'');
-    m.innerHTML='<span class="notpt"></span>'+(NOT_ECOUTE?"J'écoute — appuie pour arrêter":'Parler');
-  }
+  if(m) m.style.display=NOT_TEL_()?'none':'';
   const a=document.getElementById('entAide');
   if(a){
     a.textContent = NOT_TEL_()
