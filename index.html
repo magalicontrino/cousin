@@ -27844,7 +27844,7 @@ function vDemander(){
    ⚠ CE QUI PART POUR LES PROPOSITIONS, C'EST LE TEXTE SEUL. La règle « on écrit
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
-let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='';
+let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_ECOUTE=false, NOT_AVANT='', NOT_DEPART='';
 let NOT_REC=null, NOT_STOP=false;
 /* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
    entretien ? ») ═══
@@ -27930,28 +27930,13 @@ function notParler(){
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
-    /* ⚠ SUR IPHONE, `continuous` NE MARCHE PAS (05/09/2026 : « le bouton pour parler ne
-       fonctionne pas du tout »). Safari accepte la propriété, puis coupe l'écoute au
-       bout d'une phrase — ou ne démarre jamais. On la laisse donc à false chez lui, et
-       c'est `onend` qui relance tant qu'on n'a pas appuyé sur arrêter. On garde le
-       mode continu ailleurs, où il tient. */
-    NOT_REC.continuous=!NOT_IOS;
+    NOT_REC.continuous=true;
     NOT_REC.interimResults=true;
-    /* ⚠ ON N'EFFACE JAMAIS CE QUI EST DÉJÀ ÉCRIT : on ajoute à la suite. Reprendre la
-       parole après une pause ne doit pas jeter la première moitié de la note. */
-    const depart=notLire();
-    /* ⚠ ON RECALCULE, ON N'AJOUTE PAS (Mag, 05/09/2026 : « ça écrit dix fois les
-       mêmes phrases »). J'accumulais : à chaque annonce du navigateur, je collais le
-       nouveau morceau au bout de ce qu'il y avait. Or le navigateur ne renvoie pas
-       que le nouveau — il renvoie régulièrement toute la dictée depuis le début, et
-       il repasse en « définitif » ce qu'il avait déjà dit. Chaque passage doublait
-       donc la phrase.
-       Ici on relit TOUS les morceaux et on refabrique le texte entier à partir du
-       point de départ. Le même morceau annoncé dix fois ne s'écrit qu'une fois. */
+    NOT_DEPART=notLire();
     NOT_REC.onresult=function(ev){
       let tout='';
       for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
-      notEcrire((depart+' '+tout).replace(/\s+/g,' ').trim());
+      notEcrire((NOT_DEPART+' '+tout).replace(/\s+/g,' ').trim());
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
@@ -27966,10 +27951,8 @@ function notParler(){
     };
     NOT_REC.onend=function(){
       notEcrire(notLire());
-      /* On relance tant que la personne n'a pas dit d'arrêter : sur iPhone l'écoute se
-         coupe toute seule après chaque phrase, et sans ça il faudrait rappuyer à chaque
-         fois. `NOT_STOP` est mis à vrai par le bouton d'arrêt, et par lui seul. */
       if(NOT_ECOUTE && !NOT_STOP){
+        NOT_DEPART=notLire();
         try{ NOT_REC.start(); return; }catch(e){}
       }
       NOT_ECOUTE=false; notRedessine();
