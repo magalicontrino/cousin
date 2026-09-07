@@ -27923,10 +27923,9 @@ function notLirePermission(){
     },function(){});
   }catch(e){}
 }
-function notParler(){
-  if(NOT_ECOUTE){ notStop(); return; }
-  const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!R){ NOT_PANNE="Ce navigateur ne sait pas écouter. Appuie dans la case et utilise le micro de ton clavier — ça marche pareil."; notRedessine(); return; }
+function notDemarrer(){
+  var R=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!R) return false;
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
@@ -27934,34 +27933,54 @@ function notParler(){
     NOT_REC.interimResults=true;
     NOT_DEPART=notLire();
     NOT_REC.onresult=function(ev){
-      let tout='';
-      for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
-      notEcrire((NOT_DEPART+' '+tout).replace(/\s+/g,' ').trim());
+      var tout='', dernier='', dernierIdx=-1;
+      for(var i=0;i<ev.results.length;i++){
+        var t=ev.results[i][0].transcript;
+        if(ev.results[i].isFinal){ tout+=t+' '; dernierIdx=i; }
+        else{ dernier=t; }
+      }
+      var txt=tout+dernier;
+      /* ⚠ NE PAS RÉÉCRIRE SI LE TEXTE N'A PAS CHANGÉ (Chrome Android renvoie
+         parfois les mêmes résultats plusieurs fois dans une session continue). */
+      var full=(NOT_DEPART+' '+txt).replace(/\s+/g,' ').trim();
+      if(full!==notLire()) notEcrire(full);
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
-      const q=(ev&&ev.error)||'';
+      var q=(ev&&ev.error)||'';
       NOT_PANNE = (q==='not-allowed'||q==='service-not-allowed')
-        ? "Le micro est refusé pour ce site. Autorise-le dans les réglages du navigateur — ou utilise le micro de ton clavier, dans la case."
+        ? "Le micro est refusé pour ce site. Autorise-le dans les réglages du navigateur."
         : (q==='no-speech') ? "Je n'ai rien entendu. Réappuie sur Parler."
         : (q==='audio-capture') ? "Aucun micro trouvé sur cet appareil."
-        : (q==='network') ? "L'écoute a besoin du réseau, et il manque. Le micro du clavier, lui, marche hors ligne."
-        : "L'écoute s'est arrêtée"+(q?' ('+q+')':'')+". Ce que tu avais dit est gardé.";
+        : "L'écoute s'est arrêtée.";
       notRedessine();
     };
     NOT_REC.onend=function(){
       notEcrire(notLire());
+      /* ⚠ NE PAS RÉUTILISER LE MÊME OBJET : chaque nouveau `start()` sur une
+         instance qui a déjà fini peut renvoyer les anciens résultats en boucle. */
       if(NOT_ECOUTE && !NOT_STOP){
         NOT_DEPART=notLire();
-        try{ NOT_REC.start(); return; }catch(e){}
+        if(!notDemarrer()){ NOT_ECOUTE=false; notRedessine(); }
+        return;
       }
       NOT_ECOUTE=false; notRedessine();
     };
     NOT_STOP=false; NOT_REC.start();
-    NOT_ECOUTE=true; NOT_PANNE=''; notRedessine();
-  }catch(e){
-    NOT_ECOUTE=false;
-    NOT_PANNE="Le micro n'a pas démarré. Utilise celui de ton clavier, dans la case.";
+    return true;
+  }catch(e){ return false; }
+}
+
+function notParler(){
+  if(NOT_ECOUTE){ notStop(); return; }
+  if(!(window.SpeechRecognition||window.webkitSpeechRecognition)){
+    NOT_PANNE="Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier.";
+    notRedessine(); return;
+  }
+  var ok=notDemarrer();
+  if(ok){ NOT_ECOUTE=true; NOT_PANNE=''; notRedessine(); }
+  else{
+    NOT_PANNE="Le micro n'a pas démarré. Utilise celui de ton clavier.";
     notRedessine();
   }
 }
