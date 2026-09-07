@@ -284,6 +284,14 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media print{ .notalerte{display:none!important} }
 .notgard{background:#fdfdfc;border:1px solid var(--ligne);border-radius:10px;
   padding:15px 16px;margin-bottom:10px}
+.mlong{display:flex;gap:0;border-bottom:1.5px solid var(--ligne);margin:0 14px 8px}
+.mlong-btn{flex:1;padding:10px 0;font-family:inherit;font-size:13.5px;font-weight:600;
+  border:0;background:none;cursor:pointer;color:var(--enc2);position:relative;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.mlong-btn .pico,.mlong-btn .ic{width:16px;height:16px;display:block}
+.mlong-btn.on{color:var(--noir)}
+.mlong-btn.on::after{content:'';position:absolute;bottom:-1.5px;left:25%;width:50%;height:3px;
+  background:var(--noir);border-radius:4px}
 .notgard-h{display:flex;align-items:center;gap:7px;margin-bottom:12px}
 .notgard-h span{font-size:12px;color:var(--enc2);margin-right:auto}
 .notgb{background:#fdfdfc;border:1px solid var(--trait);border-radius:7px;padding:4px 10px;
@@ -7139,6 +7147,7 @@ const ICONS = {
   arbre:    '<path d="M12 2.5c3.2 0 5.8 2.4 5.8 5.4 0 .7-.1 1.4-.4 2 1.2.6 2 1.9 2 3.4 0 1.7-1.1 3.1-2.6 3.7.3.5.4 1.1.4 1.7 0 2.1-1.7 3.8-3.8 3.8h-2.8c-2.1 0-3.8-1.7-3.8-3.8 0-.6.1-1.2.4-1.7-1.5-.6-2.6-2-2.6-3.7 0-1.5.8-2.8 2-3.4-.3-.6-.4-1.3-.4-2 0-3 2.6-5.4 5.8-5.4z"/>',
   panier:   '<path d="M3.5 8.5h17l-1.6 11a1.5 1.5 0 0 1-1.5 1.3H6.6a1.5 1.5 0 0 1-1.5-1.3L3.5 8.5z"/><path d="M8 8.5V7a4 4 0 0 1 8 0v1.5" fill="none" stroke="currentColor" stroke-width="1.4"/>',
   douche:   '<path d="M4 3h12a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4M20 2v3M20 5a3 3 0 0 1 3 3M5.5 10v10a1 1 0 0 0 3 0v-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  folder:   '<path d="M3 5h7l2 2.5h9v11.5H3z"/>',
   note:     '<path fill-rule="evenodd" d="M6 2.8h7.2L18 7.6V21.2H6zM13 3.6V8h4.4zM8.6 11.6h6.8v1.5H8.6zM8.6 14.8h6.8v1.5H8.6z"/>',
   trash:    '<path d="M9.4 3h5.2l.8 1.6H19V6.7H5V4.6h3.6z"/><path fill-rule="evenodd" d="M6.3 8h11.4l-.8 12.3a1.6 1.6 0 0 1-1.6 1.5H8.7a1.6 1.6 0 0 1-1.6-1.5zm3.1 2.4v8h1.5v-8zm4.2 0v8h1.5v-8z"/>',
   bulb:     '<path d="M12 2.8A6 6 0 0 0 8.4 13.6c.7.6 1 1.1 1.1 1.9h5c.1-.8.4-1.3 1.1-1.9A6 6 0 0 0 12 2.8z"/><path d="M9.5 17h5v1.5h-5zM10 19.6h4V21h-4z"/>',
@@ -15945,7 +15954,7 @@ function renderInterne(){
       +(typeof passPourMoi==='function'?passPourMoi().filter(function(p){ return !passFait(p); }).length:0);
     /* Même garde que pour le rail (voir `renderTabs`) : on ne réécrit que si ça a
        changé, sinon le bouton est détruit et refait à chaque redessin. */
-    const lbHTML='<span class="ic">'+icon('list')+'</span>'+(reste?'<i class="dot"></i>':'');
+    const lbHTML='<span class="ic">'+icon('folder')+'</span>'+(reste?'<i class="dot"></i>':'');
     if(lb.__html!==lbHTML){ lb.__html=lbHTML; lb.innerHTML=lbHTML; }
     lb.classList.toggle('on',current.view==='liste');
   }
@@ -17736,6 +17745,7 @@ k:['Formations COUSIN']},
 function nCentreFiches(){ return fichesDe('coord').length; }
 
 /* MA LISTE DU JOUR — les vraies check-lists de la base, par rôle. */
+let ML_ACTIF='liste';
 function vListe(){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
@@ -17744,7 +17754,14 @@ function vListe(){
      LIGNE dans le rail et son propre bouton dans la barre du haut — c'est une
      destination, pas une sous-page. Une flèche de retour sur une destination renvoie
      n'importe où, selon d'où l'on vient. Même raisonnement que pour l'Accueil. */
-  return heroBandeau('Ma liste', dateTxt, '#A9C8E8','list', true)+listeCorps();
+  let ML_ACTIF=ML_ACTIF||'liste';
+  return heroBandeau('Ma liste', dateTxt, '#A9C8E8','folder', true)+
+    '<div class="mlong"><button class="mlong-btn'+(ML_ACTIF==='liste'?' on':'')+'" '+
+      'onclick="ML_ACTIF=\'liste\';render()">'+icon('list')+' Liste</button>'+
+    '<button class="mlong-btn'+(ML_ACTIF==='notes'?' on':'')+'" '+
+      'onclick="ML_ACTIF=\'notes\';render()">'+icon('note')+' Notes</button></div>'+
+    '<div id="ml-liste"'+(ML_ACTIF!=='liste'?' style="display:none"':'')+'>'+listeCorps()+'</div>'+
+    '<div id="ml-notes"'+(ML_ACTIF!=='notes'?' style="display:none"':'')+'>'+notesCorps()+'</div>';
 }
 /* ═══ LA CHECK-LIST EST DÉCOUPÉE EN DEUX (Mag, 21/08/2026) ═══
    Le bandeau d'un côté, TOUT LE RESTE de l'autre. Pas par goût du rangement : depuis
@@ -32902,7 +32919,7 @@ function renderTabs(){
               J'avais proposé de la monter en 5ème gros bouton du rail, au motif que c'est
               la page la plus ouverte de la journée. Sa réponse : « laisse où elle est ».
               NE PAS LE REPROPOSER. */
-           ['#/liste','Ma liste','list'],
+           ['#/liste','Ma liste','folder'],
            /* ⚠ DEMANDER NE SE VOIT QUE POUR CELLES QUI Y ONT DROIT (Mag, 05/09/2026).
               Chaque question est payée sur sa clé : montrer la porte à toute l'équipe,
               c'est promettre quelque chose qui refusera. Le serveur revérifie de son
