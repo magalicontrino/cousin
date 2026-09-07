@@ -27929,21 +27929,18 @@ function notDemarrer(){
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
-    NOT_REC.continuous=true;
+    NOT_REC.continuous=false;
     NOT_REC.interimResults=true;
-    NOT_DEPART=notLire();
     NOT_REC.onresult=function(ev){
-      var tout='', dernier='', dernierIdx=-1;
       for(var i=0;i<ev.results.length;i++){
-        var t=ev.results[i][0].transcript;
-        if(ev.results[i].isFinal){ tout+=t+' '; dernierIdx=i; }
-        else{ dernier=t; }
+        if(ev.results[i].isFinal){
+          var t=ev.results[i][0].transcript;
+          var actuel=notLire();
+          if(t && actuel.indexOf(t)===-1){
+            notEcrire((actuel+' '+t).replace(/\s+/g,' ').trim());
+          }
+        }
       }
-      var txt=tout+dernier;
-      /* ⚠ NE PAS RÉÉCRIRE SI LE TEXTE N'A PAS CHANGÉ (Chrome Android renvoie
-         parfois les mêmes résultats plusieurs fois dans une session continue). */
-      var full=(NOT_DEPART+' '+txt).replace(/\s+/g,' ').trim();
-      if(full!==notLire()) notEcrire(full);
     };
     NOT_REC.onerror=function(ev){
       NOT_ECOUTE=false;
@@ -27956,11 +27953,7 @@ function notDemarrer(){
       notRedessine();
     };
     NOT_REC.onend=function(){
-      notEcrire(notLire());
-      /* ⚠ NE PAS RÉUTILISER LE MÊME OBJET : chaque nouveau `start()` sur une
-         instance qui a déjà fini peut renvoyer les anciens résultats en boucle. */
       if(NOT_ECOUTE && !NOT_STOP){
-        NOT_DEPART=notLire();
         if(!notDemarrer()){ NOT_ECOUTE=false; notRedessine(); }
         return;
       }
