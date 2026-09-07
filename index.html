@@ -27929,16 +27929,19 @@ function notDemarrer(){
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
-    NOT_REC.continuous=false;
+    NOT_REC.continuous=true;
     NOT_REC.interimResults=true;
     NOT_REC.onresult=function(ev){
-      for(var i=0;i<ev.results.length;i++){
+      /* On ne prend que le DERNIER résultat final — le navigateur renvoie tout depuis
+         le début, mais on ne veut que la nouvelle phrase qui vient d'arriver. */
+      for(var i=ev.results.length-1;i>=0;i--){
         if(ev.results[i].isFinal){
           var t=ev.results[i][0].transcript;
           var actuel=notLire();
-          if(t && actuel.indexOf(t)===-1){
+          /* ⚠ Si c'est une phrase différente de ce qu'on a déjà, on l'ajoute. */
+          if(t && t.length>2 && actuel.toLowerCase().indexOf(t.toLowerCase().trim())===-1)
             notEcrire((actuel+' '+t).replace(/\s+/g,' ').trim());
-          }
+          break;
         }
       }
     };
@@ -27953,11 +27956,10 @@ function notDemarrer(){
       notRedessine();
     };
     NOT_REC.onend=function(){
+      /* continuous=true devrait tenir — si ça coupe quand même, on relance. */
       if(NOT_ECOUTE && !NOT_STOP){
         if(!notDemarrer()){ NOT_ECOUTE=false; notRedessine(); }
-        return;
-      }
-      NOT_ECOUTE=false; notRedessine();
+      }else{ NOT_ECOUTE=false; notRedessine(); }
     };
     NOT_STOP=false; NOT_REC.start();
     return true;
