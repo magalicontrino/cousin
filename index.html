@@ -34312,7 +34312,19 @@ async function loadPassations(){
       .or('jour.gte.'+agIso(h)+',jour.is.null')
       .order('jour',{ascending:false}).limit(200);
     if(error) throw error;
-    PASSATIONS=data||[]; PASS_PANNE='';
+    /* ⚠ ON NE PERD PAS UNE LIGNE QU'ON VIENT D'ÉCRIRE. Si la relecture arrive avant que
+       la base ait propagé l'insertion, elle rendrait invisible la ligne à peine posée —
+       c'est le défaut du 08/09/2026, pris par l'autre bout.
+       ⚠ MAIS SEULEMENT PENDANT UNE MINUTE, et c'est tout aussi important : garder pour
+       toujours ce que la base ne renvoie pas, ce serait empêcher une passation SUPPRIMÉE
+       par un collègue de disparaître de l'écran. On soigne un décalage d'une seconde ; on
+       ne fabrique pas une ligne fantôme. */
+    const recu=data||[];
+    const ilYAPeu=Date.now()-60000;
+    const fraiches=(PASSATIONS||[]).filter(function(p){
+      return p && p.id && p._pose && p._pose>ilYAPeu && !recu.some(function(x){ return x.id===p.id; });
+    });
+    PASSATIONS=fraiches.concat(recu); PASS_PANNE='';
   }catch(e){ PASSATIONS=[]; PASS_PANNE=(e&&e.message)||String(e); }
   PASS_CHARGE=true;
 }
@@ -34538,8 +34550,24 @@ async function passAjouter(){
       if(error) throw error;
       PASS_EDIT=null;
     } else {
-      const {error}=await sb.from('passations').insert(l);
+      /* ⚠ ON RÉCUPÈRE LA LIGNE CRÉÉE, ET ON LA POSE TOUT DE SUITE À L'ÉCRAN (Mag,
+         08/09/2026 : « la note n'est apparue qu'au rafraîchissement de la page »).
+         LA CAUSE : on écrivait, puis on RELISAIT la base dans la foulée — et la
+         relecture ne contenait pas toujours la ligne qu'on venait d'insérer. Rien
+         n'était perdu ; elle arrivait au rechargement suivant. Mais entre les deux, on
+         croit que la passation n'est pas partie, et on la réécrit.
+         On ne dépend donc plus de la relecture pour l'afficher : `.select()` rend la
+         ligne telle que la base l'a enregistrée, et on l'ajoute nous-mêmes. La
+         relecture qui suit ne fait plus que remettre tout le monde d'accord. */
+      const {data:cree,error}=await sb.from('passations').insert(l).select();
       if(error) throw error;
+      try{
+        const ligne=(cree&&cree[0])||null;
+        if(ligne && !PASSATIONS.some(function(x){ return x.id===ligne.id; })){
+          ligne._pose=Date.now();   // l'heure où on l'a posée : voir `loadPassations`
+          PASSATIONS.unshift(ligne);
+        }
+      }catch(e){}
     }
     ['passTxt','passHeure','passCh','passCom'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
