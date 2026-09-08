@@ -27844,6 +27844,13 @@ function vDemander(){
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
 let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_AVANT='';
+/* ⚠ L'ÉCOUTE REVIENT SUR ORDINATEUR (Mag, 08/09/2026 : « fais-le »). Elle avait été
+   retirée au profit d'un bouton qui ne fait que poser le curseur dans la case. Mesuré
+   ce jour-là : sur ordinateur, AUCUN bouton d'une page web ne peut déclencher la
+   dictée du système — ni celle du Mac, ni celle du clavier. Le bouton ne menait donc
+   nulle part. Sur téléphone c'est l'inverse : le curseur ouvre le clavier, et le micro
+   est sur le clavier. D'où deux comportements pour un seul bouton. */
+let NOT_ECOUTE=false, NOT_REC=null, NOT_STOP=false;
 /* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
    entretien ? ») ═══
    Le même micro et le même bouton Corriger servent à deux endroits : la page des
@@ -27922,12 +27929,80 @@ function notLirePermission(){
   }catch(e){}
 }
 function notParler(){
-  var c=document.getElementById(notChamp());
-  if(c) c.focus();
+  /* SUR TÉLÉPHONE : on pose le curseur, le clavier s'ouvre, son micro prend le
+     relais. C'est tout ce qu'un site peut faire là-bas, et c'est suffisant. */
+  if(NOT_TEL_()){
+    const c=document.getElementById(notChamp());
+    if(c) c.focus();
+    return;
+  }
+  if(NOT_ECOUTE){ notStop(); return; }
+  const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!R){ NOT_PANNE="Ce navigateur ne sait pas écouter. Écris dans la case, puis Corriger."; notRedessine(); return; }
+  try{
+    NOT_REC=new R();
+    NOT_REC.lang='fr-FR';
+    NOT_REC.continuous=!NOT_IOS;
+    NOT_REC.interimResults=true;
+    /* ⚠ ON RECALCULE, ON N'AJOUTE PAS. Le navigateur ne renvoie pas que le nouveau
+       morceau : il repasse régulièrement toute la dictée depuis le début et repromeut
+       en « définitif » ce qu'il avait déjà dit. En collant chaque annonce au bout, on
+       écrivait dix fois la même phrase (vu le 05/09/2026). */
+    const depart=notLire();
+    NOT_REC.onresult=function(ev){
+      let tout='';
+      for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
+      notEcrire((depart+' '+tout).replace(/\s+/g,' ').trim());
+      notMajEcoute();
+    };
+    NOT_REC.onerror=function(ev){
+      NOT_ECOUTE=false;
+      const q=(ev&&ev.error)||'';
+      NOT_PANNE = (q==='not-allowed'||q==='service-not-allowed')
+        ? "Le micro est refusé pour ce site. Clique sur le cadenas à gauche de l'adresse et remets-le sur « Autoriser »."
+        : (q==='no-speech') ? "Je n'ai rien entendu. Réappuie sur Parler."
+        : (q==='audio-capture') ? "Aucun micro trouvé sur cet appareil."
+        : (q==='network') ? "L'écoute a besoin du réseau, et il manque."
+        : "L'écoute s'est arrêtée"+(q?' ('+q+')':'')+". Ce que tu avais dit est gardé.";
+      notRedessine();
+    };
+    NOT_REC.onend=function(){
+      notEcrire(notLire());
+      /* On relance tant qu'elle n'a pas dit d'arrêter : l'écoute se coupe toute seule
+         après un silence, et sans ça il faudrait rappuyer à chaque phrase. */
+      if(NOT_ECOUTE && !NOT_STOP){
+        try{ setTimeout(function(){ try{ NOT_REC.start(); }catch(e){} },250); return; }catch(e){}
+      }
+      NOT_ECOUTE=false; notRedessine();
+    };
+    NOT_STOP=false; NOT_REC.start();
+    NOT_ECOUTE=true; NOT_PANNE=''; notRedessine();
+  }catch(e){
+    NOT_ECOUTE=false;
+    NOT_PANNE="Le micro n'a pas démarré ("+((e&&e.message)||'?')+"). Écris dans la case, puis Corriger.";
+    notRedessine();
+  }
 }
+/* Pendant l'écoute, on ne redessine PAS la page : on met à jour le bouton, et rien
+   d'autre. Réécrire #view en pleine dictée détruirait la case à chaque mot. */
+function notMajEcoute(){
+  const b=document.getElementById('notMicBtn');
+  if(b){
+    b.className='notmic'+(NOT_ECOUTE?' ecoute':'');
+    b.innerHTML=(NOT_ECOUTE?'<span class="notpt"></span>J\'écoute — appuie pour arrêter'
+                          :'<span class="ic">'+icon('play')+'</span>'+notMotBouton());
+  }
+  if(NOT_CIBLE) entRafraichir();
+}
+/* Le mot du bouton dit ce qui va se passer, et ce n'est pas la même chose des deux
+   côtés : ici l'app écoute, là-bas c'est le clavier. */
+function notMotBouton(){ return NOT_TEL_() ? 'Écrire à la voix' : 'Parler'; }
 function notStop(){
+  NOT_STOP=true;
+  try{ if(NOT_REC) NOT_REC.stop(); }catch(e){}
+  NOT_ECOUTE=false;
   notEcrire(notLire());
-  if(NOT_CIBLE) entRafraichir(); else render();
+  notRedessine();
 }
 /* ⚠ CE QU'ON EST EN TRAIN D'ÉCRIRE SURVIT AU RECHARGEMENT (Mag, 05/09/2026 : « si je
    relance la page, le deuxième que je suis en train d'écrire, il part »).
@@ -28148,13 +28223,21 @@ function notesCorps(){
   if(!DEM_OK) return '';
   if(!NOT_PERM) notLirePermission();
   let h='';
-  h+='<div style="position:relative">'+
-     '<textarea id="notTxt" class="notchamp" '+
-      'placeholder="..." '+
-      'oninput="notSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(NOT_TXT)+'</textarea>'+
-     '<button class="notmic" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:1" onclick="notParler()"><span class="ic">'+icon('play')+'</span>Audio</button></div>';
-  if(!notMicroDispo())
-    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Appuie dans la case et utilise le micro de ton clavier.</div>';
+  /* ⚠ LE BOUTON EST AU-DESSUS DE LA CASE, PAS DESSUS (08/09/2026). Mesuré : posé en
+     `position:absolute` dans la case, il en barrait les 72 px du bas sur toute la
+     largeur — cliquer en bas du texte touchait le bouton, et les dernières lignes
+     d'une note longue passaient dessous. */
+  h+='<button id="notMicBtn" class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()">'+
+       (NOT_ECOUTE?'<span class="notpt"></span>J\'écoute — appuie pour arrêter'
+                 :'<span class="ic">'+icon('play')+'</span>'+notMotBouton())+
+     '</button>';
+  h+='<textarea id="notTxt" class="notchamp" '+
+      'placeholder="Ce que tu dis s\'écrit ici" '+
+      'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
+  if(NOT_TEL_())
+    h+='<div class="notaide">Tu peux dicter ou écrire, et ensuite corriger avec Claude.</div>';
+  else if(!notMicroDispo())
+    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Écris dans la case, puis Corriger.</div>';
   else if(NOT_PERM==='denied')
     h+='<div class="notaide"><b>Le micro est bloqué.</b> Clique sur le cadenas à gauche de l\'adresse et mets « Autoriser ».</div>';
   else if(NOT_PERM==='prompt')
@@ -33919,7 +34002,14 @@ function entOuvrir(id){
    panne, le bouton Revenir. On ne réécrit PAS le champ — on écrit dedans. */
 function entRafraichir(){
   const m=document.getElementById('entMic');
-  if(m) m.style.display=NOT_TEL_()?'none':'';
+  if(m){
+    /* Le bouton sert des deux côtés, mais pas au même : ici l'app écoute, sur
+       téléphone il ouvre le clavier pour que son micro prenne le relais. */
+    m.style.display='';
+    m.className='notmic'+(NOT_ECOUTE?' ecoute':'');
+    m.innerHTML=(NOT_ECOUTE?'<span class="notpt"></span>J\'écoute — appuie pour arrêter'
+                          :'<span class="ic">'+icon('play')+'</span>'+notMotBouton());
+  }
   const a=document.getElementById('entAide');
   if(a){
     a.textContent = NOT_TEL_()
