@@ -14649,6 +14649,58 @@ function imprimer(){
      mélangé aux infos se rate ([[cousin-passation-nuit]]).
    · CASES CARRÉES VIDES, UNE SEULE ENCRE : on coche au stylo. Et gros caractères,
      marges dans @page — certains de l'équipe lisent mal. */
+/* ═══ COPIER TOUTE LA LISTE, EN TEXTE (Mag, 08/09/2026) ═══
+   « Si je veux aussi copier d'une manière simplifiée pour que je puisse le coller dans
+   le rapport, tu sais faire ça ? »
+   La feuille sert à emporter ; ce texte sert à coller. Ce sont deux besoins différents
+   et ils ne se remplacent pas : une feuille se photocopie, un rapport se rédige.
+
+   ⚠ MÊMES GROUPES QUE LA FEUILLE, dans le même ordre : si les deux ne disaient pas la
+   même chose, on ne saurait plus laquelle fait foi.
+   ⚠ AUCUNE MISE EN FORME : pas de puces exotiques, pas de gras, pas de tirets longs.
+   Ça finit dans KAIROS ou dans un mail, où la mise en forme d'ailleurs se colle mal.
+   ⚠ LES FAITES SONT À LA FIN, et marquées « (fait) » : un rapport raconte aussi ce
+   qui a été réglé — c'est ce qui le distingue de la feuille du matin, qui ne montre
+   que ce qui reste. */
+function rappelsCopierTout(){
+  if(!MESRAPPELS.length){ toast('Ta liste est vide'); return; }
+  const d=new Date();
+  const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
+             ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
+  const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
+  const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
+  const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand||'').localeCompare(String(b.quand||'')); });
+  const marquee=function(r){ return r.reunion||r.absence||r.desencodage||r.encoder||
+    r.entretien||r.miparcours||r.info||r.noteTag; };
+  const pasMarque=function(l){ return l.filter(function(r){ return !marquee(r); }); };
+  const par=function(k){ return MESRAPPELS.filter(function(r){ return r[k]; }); };
+  /* Une ligne : le texte, puis ce qui l'accompagne entre parenthèses. */
+  const ligne=function(r){
+    const bouts=[];
+    if(r.chambre) bouts.push('ch. '+r.chambre);
+    if(r.quand && typeof rappelQuandFr==='function') bouts.push(rappelQuandFr(r.quand));
+    if(rappelFait(r)) bouts.push('fait');
+    return '- '+(r.texte||'').replace(/\s+/g,' ').trim()+(bouts.length?' ('+bouts.join(', ')+')':'');
+  };
+  const bloc=function(titre, liste){
+    if(!liste.length) return '';
+    return titre.toUpperCase()+'\n'+liste.map(ligne).join('\n')+'\n\n';
+  };
+  let t='Ma liste — '+jour+(qui?' — '+qui:'')+'\n\n';
+  t+=bloc('À dire en réunion', par('reunion'));
+  t+=bloc('Les absences',      par('absence'));
+  t+=bloc('À encoder',         MESRAPPELS.filter(function(r){ return r.encoder && !r.desencodage; }));
+  t+=bloc('Désencodages',      par('desencodage'));
+  t+=bloc('Entretiens',        MESRAPPELS.filter(function(r){ return r.entretien && !r.miparcours; }));
+  t+=bloc('Mi-parcours',       par('miparcours'));
+  t+=bloc('Infos',             par('info'));
+  t+=bloc('Notes',             par('noteTag'));
+  t+=bloc('En retard',         pasMarque(parJour(-1)));
+  t+=bloc('Aujourd’hui',       pasMarque(parJour(0).concat(parJour(null))));
+  t+=bloc('Plus tard',         pasMarque(aVenir));
+  t+=bloc('Faites',            pasMarque(MESRAPPELS.filter(rappelFait)));
+  copyTxt(t.trim(),'Liste copiée ✓');
+}
 function imprimerMaListe(){
   const d=new Date();
   const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
@@ -35801,6 +35853,10 @@ function carteMaListe(){
       (tot
         ? '<button class="ptitre-b" onclick="rappelsEffacer()">Effacer la liste</button>'
         : '')+
+      /* ⚠ COPIER À CÔTÉ D'IMPRIMER, et pas à la place : la feuille sert à emporter,
+         le texte sert à coller dans un rapport. Deux besoins, deux boutons. */
+      '<button class="ptitre-i" onclick="rappelsCopierTout()" aria-label="Copier toute la liste" '+
+        'title="Copier toute la liste">'+icon('copyleger')+'</button>'+
       '<button class="ptitre-i" onclick="imprimerMaListe()" aria-label="Imprimer toute la page" '+
         'title="Imprimer toute la page">'+icon('note')+'</button>'+
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
