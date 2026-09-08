@@ -14707,12 +14707,14 @@ function imprimerMaListe(){
      le pas, comme le désencodage sur l'encodage : une note ne tombe jamais dans deux. */
   const entretP =MESRAPPELS.filter(function(r){ return r.entretien && !r.miparcours; });
   const miparcP =MESRAPPELS.filter(function(r){ return r.miparcours; });
+  const infoP   =MESRAPPELS.filter(function(r){ return r.info; });
   corps+= bloc('À dire en réunion', reunions, 'reunion')
     + bloc('Les absences', absences, 'absence')
     + bloc('À encoder', aEncoderP, 'aencoder')
     + bloc('Désencodages', desencP, 'encodage')
     + bloc('Entretiens', entretP)
     + bloc('Mi-parcours', miparcP)
+    + bloc('Infos', infoP)
     + bloc('En retard', pasMarque(parJour(-1)), 'presse')
     + bloc('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
     + bloc('Plus tard', pasMarque(aVenir))
@@ -33922,7 +33924,7 @@ let RAP_CH_BROUILLON='';
 /* ⚠ « Entretien » et « mi-parcours » ajoutés le 08/09/2026, à sa demande. Ce sont des
    étiquettes de SA liste — elles disent de quoi parle la note, elles ne créent pas
    d'entretien dans la carte du dessus. */
-let RAP_TAGS={absence:false, desencodage:false, encoder:false, entretien:false, miparcours:false};
+let RAP_TAGS={absence:false, desencodage:false, encoder:false, entretien:false, miparcours:false, info:false};
 /* ═══════════════════════════════════════════════════════════
    LES GENS À VOIR (Mag, 28/08/2026)
 
@@ -34511,7 +34513,7 @@ async function passAjouter(){
     if(rapi) rapi.value='';
     const rapch=document.getElementById('rapCh');
     if(rapch) rapch.value='';
-    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false};
+    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false};
     /* ⚠ ET C'EST ICI, ET NULLE PART AVANT, QU'UNE NOTE DE MA LISTE DISPARAÎT : la
        passation est insérée, donc le texte existe ailleurs. Le retirer plus tôt, c'est
        ce qui l'a fait perdre le 05/09/2026. */
@@ -35506,8 +35508,9 @@ function rappelAjouter(){
   if(RAP_TAGS.encoder) ligne.encoder=true;
   if(RAP_TAGS.entretien) ligne.entretien=true;
   if(RAP_TAGS.miparcours) ligne.miparcours=true;
+  if(RAP_TAGS.info) ligne.info=true;
   MESRAPPELS.push(ligne);
-  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
   /* Le champ se vide sous les doigts : sans un mot, on ne sait pas si la note est
      partie dans la liste ou si on vient de la perdre. Le message dit lequel des deux. */
   toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
@@ -35540,9 +35543,11 @@ function rappelModifier(id){
        je fais pour retirer cette note des absences ? »). La note cochée se décoche d'un
        doigt, sans recréer la ligne. */
     etq:[{k:'absence', l:'Absence'},{k:'encoder', l:'Encoder'},{k:'desencodage', l:'Désencodage'},
-         {k:'entretien', l:'Entretien'},{k:'miparcours', l:'Mi-parcours'}],
+         {k:'entretien', l:'Entretien'},{k:'miparcours', l:'Mi-parcours'},
+         {k:'info', l:'Info'}],
     etqSel:[r.absence?'absence':null, r.encoder?'encoder':null, r.desencodage?'desencodage':null,
-            r.entretien?'entretien':null, r.miparcours?'miparcours':null].filter(Boolean),
+            r.entretien?'entretien':null, r.miparcours?'miparcours':null,
+            r.info?'info':null].filter(Boolean),
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus, etq){
@@ -35556,6 +35561,7 @@ function rappelModifier(id){
       if(etq&&etq.encoder) r.encoder=true; else delete r.encoder;
       if(etq&&etq.entretien) r.entretien=true; else delete r.entretien;
       if(etq&&etq.miparcours) r.miparcours=true; else delete r.miparcours;
+      if(etq&&etq.info) r.info=true; else delete r.info;
       rappelsSauver(); render();
     }
   });
@@ -35823,6 +35829,12 @@ function rappelsHTML(enCarte){
         '<button class="absa avmi'+(RAP_TAGS.miparcours?' on':'')+'" onclick="RAP_TAGS.miparcours=!RAP_TAGS.miparcours;render()" '+
           'aria-pressed="'+(RAP_TAGS.miparcours?'true':'false')+'">'+
           '<span class="bx"></span>Mi-parcours</button>'+
+        /* ⚠ INFO (Mag, 08/09/2026). Comme Entretien et Mi-parcours : dessin clair, pas
+           le rouge des absences — une info n'est pas une alerte, c'est ce qu'on veut
+           faire savoir sans que personne ait à agir. */
+        '<button class="absa avmi'+(RAP_TAGS.info?' on':'')+'" onclick="RAP_TAGS.info=!RAP_TAGS.info;render()" '+
+          'aria-pressed="'+(RAP_TAGS.info?'true':'false')+'">'+
+          '<span class="bx"></span>Info</button>'+
         '</div>'+
       '</div>';
   /* ⚠ LE RAPPEL AUTOMATIQUE EST POSÉ HORS DU `if(tot)`, et c'est tout le sujet : ce
@@ -35933,9 +35945,10 @@ function rappelsHTML(enCarte){
     const aEncoder=MESRAPPELS.filter(function(r){ return r.encoder && !r.desencodage; });
     const entretiens=MESRAPPELS.filter(function(r){ return r.entretien && !r.miparcours; });
     const miparcours=MESRAPPELS.filter(function(r){ return r.miparcours; });
+    const infos=MESRAPPELS.filter(function(r){ return r.info; });
     /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
        automatiques : une ligne pointée ne doit pas apparaître deux fois. */
-    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours; }); };
+    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours && !r.info; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
@@ -35945,7 +35958,8 @@ function rappelsHTML(enCarte){
       + groupe('À encoder', aEncoder, 'aencoder')
       + groupe('Désencodages', encodages, 'encodage')
       + groupe('Entretiens', entretiens)
-      + groupe('Mi-parcours', miparcours);
+      + groupe('Mi-parcours', miparcours)
+      + groupe('Infos', infos);
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
