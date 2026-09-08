@@ -27881,6 +27881,24 @@ let NOT_ECOUTE=false, NOT_REC=null, NOT_STOP=false;
    existait en deux dessins. */
 let NOT_CIBLE='';
 function notChamp(){ return NOT_CIBLE ? 'entTxt' : 'notTxt'; }
+/* ⚠ LA FENÊTRE SERT AUSSI AUX LIGNES DE MA LISTE PERSO (Mag, 08/09/2026 : « mets le
+   principe de note pop-up sur la liste perso »). La cible est un identifiant : on
+   regarde d'abord dans sa liste, puis dans les entretiens. Les deux ne se confondent
+   pas — un rappel commence par `r`, un entretien par `a`.
+   ⚠ UN SEUL JEU DE FONCTIONS pour les deux, comme depuis le début : deux copies
+   auraient fini par diverger. */
+function notCibleObjet(){
+  if(!NOT_CIBLE) return null;
+  try{
+    const r=MESRAPPELS.find(function(x){ return x.id===NOT_CIBLE; });
+    if(r) return {o:r, sauver:rappelsSauver, titre:(r.texte||'').slice(0,60)};
+  }catch(e){}
+  try{
+    const a=AVOIR.find(function(x){ return x.id===NOT_CIBLE; });
+    if(a) return {o:a, sauver:avoirSauver, titre:a.nom||'La note'};
+  }catch(e){}
+  return null;
+}
 function notLire(){ const c=document.getElementById(notChamp()); return c ? (c.value||'') : ''; }
 function notEcrire(t){
   const c=document.getElementById(notChamp()); if(c) c.value=t;
@@ -28137,8 +28155,8 @@ function notGarder(){
      des notes libres. Le même bouton, deux tiroirs — et c'est bien ce qu'elle veut :
      une note d'entretien reste attachée à qui elle concerne. */
   if(NOT_CIBLE){
-    const r=AVOIR.find(function(x){ return x.id===NOT_CIBLE; });
-    if(r){ r.note=t.slice(0,6000); avoirSauver(); toast('Gardée ✓'); render(); }
+    const c=notCibleObjet();
+    if(c){ c.o.note=t.slice(0,6000); c.sauver(); toast('Gardée ✓'); render(); }
     return;
   }
   if(!t) return;
@@ -34026,10 +34044,12 @@ function avoirCopier(id){
 }
 /* ═══ LA NOTE D'UN ENTRETIEN ═══ */
 function entOuvrir(id){
-  const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
-  NOT_CIBLE=id; NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
-  const t=document.getElementById('entTitre'); if(t) t.textContent=r.nom||'La note';
-  const c=document.getElementById('entTxt'); if(c) c.value=r.note||'';
+  NOT_CIBLE=id;
+  const cible=notCibleObjet();
+  if(!cible){ NOT_CIBLE=''; return; }
+  NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
+  const t=document.getElementById('entTitre'); if(t) t.textContent=cible.titre||'La note';
+  const c=document.getElementById('entTxt'); if(c) c.value=cible.o.note||'';
   if(!NOT_PERM) notLirePermission();
   /* Les pictos de cette fenêtre sont posés une fois, à la première ouverture. */
   document.querySelectorAll('#entBg .ic[data-ic]').forEach(function(e){
@@ -35894,6 +35914,12 @@ function rappelsHTML(enCarte){
              depuis un téléphone, c'est là qu'on perd un nom ou une date. */
           '<button class="ib" onclick="rappelCopier(\''+r.id+'\')" '+
             'aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
+          /* ⚠ LA NOTE DICTÉE, SUR CHAQUE LIGNE (Mag, 08/09/2026). Une ligne de liste
+             dit ce qu'il y a à faire ; la note dit ce qui s'est passé. Le picto
+             s'allume quand une note existe — on voit d'un coup d'œil les lignes qui
+             en portent une. */
+          '<button class="ib'+(r.note?' on':'')+'" onclick="entOuvrir(\''+r.id+'\')" '+
+            'aria-label="La note" title="La note">'+icon('note')+'</button>'+
            '<button class="ib sup" onclick="rappelRetirer(\''+r.id+'\')" '+
              'aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
