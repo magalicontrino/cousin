@@ -14793,6 +14793,7 @@ function imprimerMaListe(){
   const miparcP =MESRAPPELS.filter(function(r){ return r.miparcours; });
   const infoP   =MESRAPPELS.filter(function(r){ return r.info; });
   const noteP   =MESRAPPELS.filter(function(r){ return r.noteTag; });
+  const viderP  =MESRAPPELS.filter(function(r){ return r.vider; });
   corps+= bloc('À dire en réunion', reunions, 'reunion')
     + bloc('Les absences', absences, 'absence')
     + bloc('À encoder', aEncoderP, 'aencoder')
@@ -14801,6 +14802,7 @@ function imprimerMaListe(){
     + bloc('Mi-parcours', miparcP)
     + bloc('Infos', infoP)
     + bloc('Notes', noteP)
+    + bloc('Chambres à vider', viderP)
     + bloc('En retard', pasMarque(parJour(-1)), 'presse')
     + bloc('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
     + bloc('Plus tard', pasMarque(aVenir))
@@ -34075,7 +34077,7 @@ let RAP_CH_BROUILLON='';
 /* ⚠ « Entretien » et « mi-parcours » ajoutés le 08/09/2026, à sa demande. Ce sont des
    étiquettes de SA liste — elles disent de quoi parle la note, elles ne créent pas
    d'entretien dans la carte du dessus. */
-let RAP_TAGS={absence:false, desencodage:false, encoder:false, entretien:false, miparcours:false, info:false, note:false};
+let RAP_TAGS={absence:false, desencodage:false, encoder:false, entretien:false, miparcours:false, info:false, note:false, vider:false};
 /* ═══════════════════════════════════════════════════════════
    LES GENS À VOIR (Mag, 28/08/2026)
 
@@ -34694,7 +34696,7 @@ async function passAjouter(){
     if(rapi) rapi.value='';
     const rapch=document.getElementById('rapCh');
     if(rapch) rapch.value='';
-    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false};
+    RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
     /* ⚠ ET C'EST ICI, ET NULLE PART AVANT, QU'UNE NOTE DE MA LISTE DISPARAÎT : la
        passation est insérée, donc le texte existe ailleurs. Le retirer plus tôt, c'est
        ce qui l'a fait perdre le 05/09/2026. */
@@ -35694,8 +35696,9 @@ function rappelAjouter(){
      note dictée. Deux sens sur un même mot, et cocher la case aurait effacé ce qui
      était écrit dedans. */
   if(RAP_TAGS.note) ligne.noteTag=true;
+  if(RAP_TAGS.vider) ligne.vider=true;
   MESRAPPELS.push(ligne);
-  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
   /* Le champ se vide sous les doigts : sans un mot, on ne sait pas si la note est
      partie dans la liste ou si on vient de la perdre. Le message dit lequel des deux. */
   toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
@@ -35729,10 +35732,11 @@ function rappelModifier(id){
        doigt, sans recréer la ligne. */
     etq:[{k:'absence', l:'Absence'},{k:'encoder', l:'Encoder'},{k:'desencodage', l:'Désencodage'},
          {k:'entretien', l:'Entretien'},{k:'miparcours', l:'Mi-parcours'},
-         {k:'info', l:'Info'},{k:'noteTag', l:'Note'}],
+         {k:'info', l:'Info'},{k:'noteTag', l:'Note'},{k:'vider', l:'Vider la chambre'}],
     etqSel:[r.absence?'absence':null, r.encoder?'encoder':null, r.desencodage?'desencodage':null,
             r.entretien?'entretien':null, r.miparcours?'miparcours':null,
-            r.info?'info':null, r.noteTag?'noteTag':null].filter(Boolean),
+            r.info?'info':null, r.noteTag?'noteTag':null,
+            r.vider?'vider':null].filter(Boolean),
     autre:'Retirer',
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus, etq){
@@ -35748,6 +35752,7 @@ function rappelModifier(id){
       if(etq&&etq.miparcours) r.miparcours=true; else delete r.miparcours;
       if(etq&&etq.info) r.info=true; else delete r.info;
       if(etq&&etq.noteTag) r.noteTag=true; else delete r.noteTag;
+      if(etq&&etq.vider) r.vider=true; else delete r.vider;
       rappelsSauver(); render();
     }
   });
@@ -36030,6 +36035,12 @@ function rappelsHTML(enCarte){
         '<button class="absa avmi'+(RAP_TAGS.note?' on':'')+'" onclick="RAP_TAGS.note=!RAP_TAGS.note;render()" '+
           'aria-pressed="'+(RAP_TAGS.note?'true':'false')+'">'+
           '<span class="bx"></span>Note</button>'+
+        /* ⚠ VIDER LA CHAMBRE (Mag, 09/09/2026). Dessin clair : c'est une tâche à faire,
+           pas une alerte. Mais elle a sa place à part parce qu'une chambre non vidée
+           bloque un lit — et ça, ça se voit à l'oeil quand les lignes sont groupées. */
+        '<button class="absa avmi'+(RAP_TAGS.vider?' on':'')+'" onclick="RAP_TAGS.vider=!RAP_TAGS.vider;render()" '+
+          'aria-pressed="'+(RAP_TAGS.vider?'true':'false')+'">'+
+          '<span class="bx"></span>Vider la chambre</button>'+
         '</div>'+
       '</div>';
   /* ⚠ LE RAPPEL AUTOMATIQUE EST POSÉ HORS DU `if(tot)`, et c'est tout le sujet : ce
@@ -36150,9 +36161,10 @@ function rappelsHTML(enCarte){
     const miparcours=MESRAPPELS.filter(function(r){ return r.miparcours; });
     const infos=MESRAPPELS.filter(function(r){ return r.info; });
     const notesT=MESRAPPELS.filter(function(r){ return r.noteTag; });
+    const aVider=MESRAPPELS.filter(function(r){ return r.vider; });
     /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
        automatiques : une ligne pointée ne doit pas apparaître deux fois. */
-    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours && !r.info && !r.noteTag; }); };
+    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours && !r.info && !r.noteTag && !r.vider; }); };
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
@@ -36164,7 +36176,8 @@ function rappelsHTML(enCarte){
       + groupe('Entretiens', entretiens)
       + groupe('Mi-parcours', miparcours)
       + groupe('Infos', infos)
-      + groupe('Notes', notesT);
+      + groupe('Notes', notesT)
+      + groupe('Chambres à vider', aVider);
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
