@@ -15755,8 +15755,24 @@ window.addEventListener('hashchange',()=>{
   /* ⚠ ON NE POSE PLUS LA PLACE UNE SEULE FOIS : on la VISE. Une page qui attend la
      base est courte à cet instant, et un `scrollTo` isolé s'y fait raboter. La place
      visée est reposée à chaque rendu pendant 2,5 s — voir `viserPlace`. */
-  viserPlace(ouvre ? 0 : (scrollMem[keyOf(current)]||0));
-  window.scrollTo(0, _cible.y);
+  /* ⚠⚠ « QUAND JE REVIENS SUR LA PAGE, ELLE SAUTE ET REVIENT AU DÉBUT » (Mag,
+     09/09/2026, et déjà le 03/09). CE QUI RESTAIT : quand aucune place n'était
+     mémorisée pour cet écran, on VISAIT LE HAUT — et on l'y ramenait de force pendant
+     deux secondes et demie, même en revenant. Or la place n'est mémorisée qu'au
+     changement d'adresse : refermer une feuille, revenir par le bouton du téléphone,
+     et il n'y avait rien en mémoire. Le remède d'août fabriquait donc lui-même le saut
+     qu'il devait empêcher.
+     ⚠ LA RÈGLE NE CHANGE PAS POUR AUTANT : on OUVRE quelque chose, on commence en
+     haut ; on REVIENT, on retrouve sa place — et si personne ne sait où était cette
+     place, on NE TOUCHE À RIEN. Ne rien faire vaut mieux que remonter d'autorité. */
+  const memoire = scrollMem[keyOf(current)];
+  if(ouvre){
+    viserPlace(0); window.scrollTo(0,0);
+  } else if(memoire>0){
+    viserPlace(memoire); window.scrollTo(0,_cible.y);
+  } else {
+    _cible={k:'',y:0,jusqua:0};
+  }
   NAV_CLIC=false;
   /* ⚠ EN ARRIVANT SUR UN ÉCRAN D'ÉQUIPE, ON REDEMANDE À LA BASE. Sans ça, l'app
      montrait l'état du monde au moment de son ouverture — et une collègue qui
@@ -17850,7 +17866,11 @@ k:['Formations COUSIN']},
 function nCentreFiches(){ return fichesDe('coord').length; }
 
 /* MA LISTE DU JOUR — les vraies check-lists de la base, par rôle. */
-let ML_ACTIF='notes';
+/* ⚠ ON ARRIVE SUR LA LISTE, PAS SUR LES NOTES (Mag, 09/09/2026 : « mets finalement
+   la liste en onglet prioritaire »). C'est ce qu'on vient voir en ouvrant la page :
+   ce qu'il reste à faire. Écrire une note est un geste qu'on décide, pas un écran
+   qu'on subit en arrivant. */
+let ML_ACTIF='liste';
 function vListe(){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
