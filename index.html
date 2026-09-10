@@ -4498,6 +4498,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .mlbarre{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;
   max-width:620px}
 .mlbarre .mlb-sep{flex:1;min-width:0}
+/* L'imprimante est seule dans sa barre depuis le 11/09 : elle se range à droite,
+   au bout de la ligne, au lieu de flotter toute seule à gauche. */
+.mlbarre .mlb-i{margin-left:auto}
+/* ═══ LES DEUX BOUTONS AU-DESSUS DE LA CHECK-LIST (Mag, 11/09/2026) ═══
+   Côte à côte quand la place le permet, l'un sous l'autre sur un téléphone — jamais un
+   mot coupé, jamais rien qui sorte de l'écran. */
+.mlrep{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 9px;max-width:620px}
+.mlrep .mlb{flex:1 1 200px;justify-content:center;white-space:normal;text-align:center;
+  padding:7px 11px;line-height:1.35}
+.mlrep .mlsel{flex:1 1 200px}
+.mlrep .mlsel select{width:100%;max-width:none}
 .mlb{display:inline-flex;align-items:center;gap:7px;min-height:34px;
   border:1px solid var(--ligne);border-radius:5px;background:#fdfdfc;padding:0 11px;
   font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.13em;
@@ -7101,6 +7112,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
       <button class="dembtn clair pic" onclick="notGarder()" title="Garder" aria-label="Garder"><span class="ic" data-ic="check"></span></button>
       <button class="dembtn clair pic" onclick="notCopier()" title="Copier" aria-label="Copier"><span class="ic" data-ic="copyleger"></span></button>
+      <button class="dembtn clair pic" onclick="notCollerIci()" title="Coller" aria-label="Coller dans la case"><span class="ic" data-ic="collerleger"></span></button>
       <button class="dembtn clair pic" onclick="notEffacer()" title="Effacer" aria-label="Effacer"><span class="ic" data-ic="trash"></span></button>
       <button class="dembtn clair pic" id="entBtnR" style="display:none" onclick="notRevenir()" title="Revenir" aria-label="Revenir"><span class="ic" data-ic="undo"></span></button>
       <button class="dembtn clair" onclick="entFermer()">Fermer</button>
@@ -18440,16 +18452,14 @@ function vListe(){
    filet fin, du texte gris.
    ⚠ L'IMPRIMER GLOBAL A QUITTÉ CETTE BARRE (Mag, 24/08/2026). Il survit dans les
    cartes de listes, là où la feuille se prépare — voir `boutonImprimer`. */
-function listeBarreHTML(ordre, vue){
-  /* ⚠ LE BOUTON DE REPRISE EST LÀ TOUS LES JOURS — voir `jeReprends` : il ne
-     disparaît plus une fois la reprise posée, il se coche et se décoche. */
-  const dedans = listeSelecteurHTML(ordre, vue) +
-    (!enReprise()
-      ? '<button class="mlb" onclick="jeReprends()">'+
-        '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle</button>'
-      : '<button class="mlb mlb-on" onclick="jeNeReprendsPas()" '+
-        'title="Ce n\'est pas une reprise" aria-pressed="true">'+
-        '<span class="ic">'+icon('check')+'</span>Tu reprends aujourd\u2019hui</button>');
+/* ═══ LA BARRE DU HAUT NE GARDE QUE L'IMPRIMANTE (Mag, 11/09/2026, capture à l'appui) ═══
+   « Ça, je préférerais que tu le mettes en dessous de passation, au-dessus de la
+   check-list, mais peut-être en deux boutons. Le bouton print, lui, reste en haut. »
+   Le choix de liste et la reprise de cycle ne parlent que de LA CHECK-LIST : ils sont
+   descendus juste au-dessus d'elle (voir `listeReprendreHTML`). L'imprimante reste
+   ici, parce qu'elle est la seule à ne parler d'aucune carte en particulier — elle
+   sort TOUTE la page. */
+function listeBarreHTML(){
   /* ⚠ « IMPRIMER » REVIENT EN TOUTES LETTRES (Mag, 22/08/2026 : « remets imprimé en
      écriture, c'est le truc — avec le picto qu'on trouvera par la suite »).
      Le picto seul ne se reconnaît pas : le dessin d'imprimante de l'app ne parle pas
@@ -18463,7 +18473,7 @@ function listeBarreHTML(ordre, vue){
      endroit qui ne parle d'aucune carte en particulier.
      ⚠ UN DESSIN SEUL, sans le mot : la barre doit rester discrète — c'est sa demande
      du 22/08 sur cette barre-là. Le `title` et l'`aria-label` disent ce qu'il fait. */
-  return '<div class="mlbarre">'+dedans+
+  return '<div class="mlbarre">'+
     '<button class="mlb mlb-i" onclick="imprimerMaListe()" '+
       'aria-label="Imprimer toute la page" title="Imprimer toute la page">'+
       '<span class="ic">'+icon('imprimer')+'</span></button>'+
@@ -18479,6 +18489,29 @@ function listeBarreHTML(ordre, vue){
    plus de la sienne) doit pouvoir passer de l'une à l'autre. Il garde donc un
    déroulant, mais qui ne contient QUE les siennes. Une seule liste à soi et pas
    admin : pas de déroulant du tout, il n'y aurait rien à choisir. */
+/* ═══ LES DEUX BOUTONS DE LA CHECK-LIST (Mag, 11/09/2026) ═══
+   Le choix de liste (administration seulement) et « Je reprends mon cycle », côte à
+   côte, juste au-dessus de la carte qu'ils règlent.
+   ⚠ ILS SONT LÀ OÙ ILS AGISSENT. La reprise ne colore rien d'autre que le bloc « À la
+   reprise » de la check-list : deux étages plus haut, dans une barre grise, on ne
+   voyait pas ce qu'elle changeait. Conséquence assumée : **qui n'a aucune check-list ne
+   voit plus le bouton** — il n'y avait rien à colorer chez lui. Si elle le redemande
+   pour tout le monde, il faut le remettre AVANT les deux `return` anticipés de
+   `listeCorps` (c'est le piège d'août : ils sautaient le bouton sans rien dire).
+   ⚠ ILS PASSENT À LA LIGNE PLUTÔT QUE DE DÉBORDER : à 375 px, « JE REPRENDS MON
+   CYCLE » ne tient pas à côté du déroulant — les deux prennent alors toute la largeur,
+   l'un sous l'autre. Un mot coupé au milieu, c'est ce qu'elle relève depuis août. */
+function listeReprendreHTML(ordre, vue){
+  /* ⚠ LE BOUTON DE REPRISE EST LÀ TOUS LES JOURS — voir `jeReprends` : il ne
+     disparaît plus une fois la reprise posée, il se coche et se décoche. */
+  const bouton = !enReprise()
+    ? '<button class="mlb" onclick="jeReprends()">'+
+      '<span class="ic">'+icon('check')+'</span>Je reprends mon cycle</button>'
+    : '<button class="mlb mlb-on" onclick="jeNeReprendsPas()" '+
+      'title="Ce n\'est pas une reprise" aria-pressed="true">'+
+      '<span class="ic">'+icon('check')+'</span>Tu reprends aujourd\u2019hui</button>';
+  return '<div class="mlrep">'+listeSelecteurHTML(ordre, vue)+bouton+'</div>';
+}
 function listeSelecteurHTML(ordre, vue){
   const admin=!!(PROFILE && PROFILE.admin);
   /* ⚠ LE DÉROULANT N'EST PLUS QUE POUR L'ADMINISTRATION (Mag, 08/09/2026 : « retire
@@ -18516,7 +18549,7 @@ function listeCorps(){
   const ordre=miennes.concat(autres);
   /* La liste montrée : son dernier choix s'il tient encore, sinon la sienne. */
   const vue=ordre.find(function(g){ return g.liste===LISTE_VUE; }) || ordre[0] || {liste:'',mienne:true};
-  h+=listeBarreHTML(ordre, vue);
+  h+=listeBarreHTML();
 
   /* L'ABSENCE DE LISTE, REPLIÉE. On l'explique à qui va la chercher, pas à tout le
      monde et pas en premier. */
@@ -18656,9 +18689,10 @@ function listeCorps(){
   h+='<div class="ml3-c">'+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
-    /* ⚠ LE DÉROULANT N'EST PLUS ICI : il est monté dans la barre du haut, et il ne
-       s'adresse plus au même monde (voir `listeSelecteurHTML`). Le titre de section,
-       lui, reste : c'est lui qui dit si on lit sa propre liste ou celle d'un autre. */
+    /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
+       il était monté dans la barre du haut le 22/08, deux étages au-dessus de la carte
+       qu'il règle. Voir `listeReprendreHTML`. */
+    h+=listeReprendreHTML(ordre, vue);
     h+=bloc(vue);
   }
   h+='</div>';
@@ -29027,6 +29061,14 @@ function notRevenir(){
   notEcrire(NOT_AVANT); NOT_AVANT=''; notRedessine();
 }
 function notCopier(txt){ copyTxt(txt||notLire(),'Copié ✓'); }
+/* ⚠ COLLER EST DANS LA RANGÉE, PAS AU-DESSUS (Mag, 11/09/2026 : « à côté de Corriger
+   il y a le bouton copier — et là, tu pourrais mettre le bouton coller »). Ailleurs
+   dans l'app, copier et coller vivent au-dessus de la case, dans la barre G / S ; ici
+   la rangée existe déjà et porte DÉJÀ Copier. Deux gestes qui vont ensemble ne se
+   rangent pas à deux endroits différents.
+   Il colle dans la case où l'on écrit — la page des notes ou la fenêtre d'une note,
+   c'est `notChamp()` qui le sait. */
+function notCollerIci(){ return txColler(notChamp()); }
 function notGarder(){
   const t=notLire().trim();
   /* ⚠ DANS UN ENTRETIEN, « GARDER » RANGE LA NOTE SUR LA PERSONNE, pas dans la liste
@@ -29165,13 +29207,12 @@ function notesCorps(){
        'title="'+(NOT_ECOUTE?'Appuie pour arrêter':'Dicter')+'" '+
        'aria-label="'+(NOT_ECOUTE?'Arrêter l\'enregistrement':'Dicter')+'">'+
        notContenuBouton()+'</button>';
-  /* ⚠ ICI, SEULEMENT « COLLER » : cette page a déjà son bouton Copier dans la rangée
-     du dessous. Deux boutons Copier à trente pixels l'un de l'autre feraient douter
-     lequel copie quoi. C'est le retour qui manquait — coller ce qu'on a pris ailleurs
-     (Mag, 10/09/2026 : « ou l'inverse »). */
-  h+='<div class="txligne notcc"><button type="button" class="txb pic" '+
-      'onmousedown="event.preventDefault()" onclick="txColler(\'notTxt\')" '+
-      'title="Coller ici" aria-label="Coller ici">'+icon('collerleger')+'</button></div>';
+  /* ⚠ « COLLER » N'EST PLUS AU-DESSUS DE LA CASE (Mag, 11/09/2026 : « à côté de
+     Corriger il y a le bouton copier — et là, tu pourrais mettre le bouton coller »).
+     Il y était depuis la veille, seul sur sa ligne, parce que Copier vivait déjà dans
+     la rangée du dessous. Deux gestes qui vont ensemble à deux étages différents : on
+     cherchait Coller là où était Copier. Les deux sont maintenant côte à côte dans la
+     rangée — voir `notCollerIci`. */
   h+='<textarea id="notTxt" class="notchamp" '+
       'placeholder="Ce que tu dis s\'écrit ici" '+
       'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
@@ -29217,6 +29258,8 @@ h+='<div class="notb">'+
           qui apparaît selon ce qu'on tape est un bouton qu'on croit cassé. */
        '<button class="dembtn clair pic" onclick="notCopier()" title="Copier" '+
          'aria-label="Copier">'+icon('copyleger')+'</button>'+
+       '<button class="dembtn clair pic" onclick="notCollerIci()" title="Coller" '+
+         'aria-label="Coller dans la case">'+icon('collerleger')+'</button>'+
        /* ⚠ EFFACER NE PERD RIEN (Mag, 07/09/2026 : « dans les notes, j'aimerais qu'on
           puisse effacer ce qu'on a fait »). Il vide la case, mais garde le texte de
           côté : « Revenir » le remet. Pas de fenêtre « êtes-vous sûr » — un geste
