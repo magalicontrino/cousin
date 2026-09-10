@@ -4531,6 +4531,16 @@ body.pan-ouvert #view{animation:none;transform:none}
 .mlsel select:focus{outline:0;box-shadow:0 0 0 3px rgba(27,27,27,.12)}
 /* Le picto seul : carré, pas de mot dedans. */
 .imprbtn.nu{padding:0;width:34px;min-height:34px;justify-content:center;gap:0}
+/* ═══ LE BANDEAU DU BROUILLON RETROUVÉ (Mag, 11/09/2026) ═══
+   Jaune, comme tout ce qui demande une décision dans l'app, et posé AU-DESSUS du champ :
+   on doit le voir avant de recommencer à écrire par-dessus. */
+.poprepr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 10px;
+  padding:10px 11px;background:#fdf6e0;border:1px solid #f5c542;border-radius:7px}
+.poprepr b{flex:1 1 100%;font-size:13.5px;font-weight:600;line-height:1.35}
+.poprb{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.13em;
+  text-transform:uppercase;min-height:32px;padding:0 12px;border-radius:5px;
+  border:1px solid var(--noir);background:var(--noir);color:#f2eee6;cursor:pointer}
+.poprb.clair{background:transparent;color:var(--noir)}
 .visuallyhidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 .lsel{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
@@ -4695,7 +4705,18 @@ body.pan-ouvert #view{animation:none;transform:none}
 .pcarte .pl2{padding:12px 0 12px 11px;border-bottom:1px solid var(--ligne);
   box-shadow:inset 3px 0 0 #a9c8e8}
 .pcarte .pl2:last-child{border-bottom:0}
-.pcarte .pl2-h{display:flex;align-items:center;gap:8px}
+/* ⚠ « JE NE VEUX PAS QUE ÇA DÉPASSE COMME ÇA » (Mag, 11/09/2026, capture à l'appui) :
+   le bouton PASSATION sortait de la carte par la droite. La rangée porte sept choses —
+   la case, le crayon, le calendrier, l'étoile, copier, la corbeille, et un bouton qui
+   porte un MOT. À 375 px, ça ne rentre pas, et ce qui dépasse ne se touche pas.
+   ⚠ ELLE PASSE DONC À LA LIGNE, collée à droite — la même solution qu'aux chips de
+   filtre et qu'au titre de Ma liste : dans cette app, ce qui ne rentre pas descend, ça
+   ne déborde jamais. Deux rangées valent mieux qu'un bouton hors de l'écran.
+   ⚠ ET PAS DE PICTO MUET À LA PLACE DU MOT : « Passation » est une DESTINATION (le
+   texte part à l'équipe de nuit), pas un geste qu'on devine d'un dessin. C'est la règle
+   qu'elle a posée en août sur la barre du haut. */
+.pcarte .pl2-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  justify-content:flex-end;row-gap:8px}
 .pcarte .pl2-h .pl2-sep{flex:1;min-width:0}
 .pcarte .pl2-t{margin-top:9px;cursor:pointer}
 /* Même règle qu'au-dessus : depuis que le champ est multi-ligne, ce qu'on écrit ici
@@ -7145,11 +7166,14 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
      participer au tremblement qui mange les clics. -->
 
 
-<div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popFermer()">
+<div id="popBg" class="popbg" onclick="if(event.target.id==='popBg')popDehors()">
   <div class="popcard" role="dialog" aria-modal="true" aria-labelledby="popTitre">
     <b id="popTitre"></b>
     <p id="popTexte"></p>
-    <input id="popChamp" type="text" autocomplete="off">
+    <!-- ⚠ CE QU'ON ÉCRIT ICI NE SE PERD PLUS (Mag, 11/09/2026) : si la fenêtre s'est
+         fermée sans qu'on enregistre, ce bandeau repropose le texte. Voir `popSaisie`. -->
+    <div id="popRepr" class="poprepr" style="display:none"></div>
+    <input id="popChamp" type="text" autocomplete="off" oninput="popSaisie(this)">
     <!-- ═══ LE MÊME CHAMP, EN GRAND (Mag, 22/08/2026) ═══
          « Quand je veux modifier un texte et que je fais espace à la ligne, ça se ferme.
          On ne sait pas faire un grand texte, ça n'a aucun sens. Si c'est un grand texte,
@@ -7163,7 +7187,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
          valide — c'est ce qu'on veut quand on tape trois caractères. -->
     <div id="popBarre" style="display:none"></div>
     <textarea id="popChampM" rows="3" autocomplete="off" style="display:none"
-      oninput="passGrandir(this)"></textarea>
+      oninput="popSaisie(this)"></textarea>
     <!-- ═══ DEUX CHAMPS DE PLUS (Mag, 22/08/2026) ═══
          « On peut changer le nom, mais on ne peut pas changer la phrase, ni le
          nombre de demandes. » Une proposition d'activité, c'est un titre, une
@@ -15266,14 +15290,15 @@ function rappelsCopierTout(){
    sortaient EXACTEMENT la même feuille (toute la page), la check-list n'en avait aucun
    — et les cartes portaient un dessin de FEUILLE quand la barre du haut portait une
    IMPRIMANTE. Deux dessins pour le même geste : c'est ça qu'on ne reconnaissait pas.
-   MAINTENANT, et toujours avec le dessin d'imprimante :
-   · en haut de la page → TOUT (`imprimerMaListe()`) ;
-   · sur Ta check-list  → sa feuille (`imprimerChecklist()`) ;
-   · sur Ma liste       → sa feuille seule (`imprimerListePerso()`) ;
-   · sur La passation   → sa feuille (`imprimerPassation()`, elle existait déjà).
-   ⚠ « TOUT » NE CONTIENT PAS LA CHECK-LIST, et c'est sa décision du 07/09 : elle
-   changeait de contenu selon la liste affichée au moment du clic. Elle a sa feuille. */
-function imprimerMaListe(quoi){
+   MAINTENANT, DEUX BOUTONS EN TOUT, tous les deux avec le dessin d'imprimante :
+   · sur Ma liste     → sa liste ET la passation (`imprimerMaListe`) ;
+   · sur La passation → la passation seule (`imprimerPassation`).
+   Plus rien en haut de la page, plus rien sur la check-list : « ça fait trop de
+   boutons impression, ce n'est pas clair. »
+   ⚠ LA CHECK-LIST N'EST SUR AUCUNE FEUILLE. Deux raisons, deux jours : elle changeait
+   de contenu selon la liste affichée au moment du clic (07/09), et on ne l'emporte
+   pas — on la coche à l'écran (11/09). */
+function imprimerMaListe(){
   const d=new Date();
   const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
              ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
@@ -15378,9 +15403,7 @@ function imprimerMaListe(quoi){
      et c'est celle qui compte à 5 h du matin. Un réveil noyé dans les infos se rate.
      ⚠ ET C'EST CELUI QUI REÇOIT QUI COCHE : les cases sont vides, comme partout
      ailleurs sur cette feuille. */
-  /* La passation ne part que sur la feuille « tout » : la carte a son bouton à elle,
-     et Ma liste a maintenant le sien (Mag, 11/09/2026). */
-  if(quoi!=='perso' && typeof PASSATIONS!=='undefined' && PASSATIONS.length){
+  if(typeof PASSATIONS!=='undefined' && PASSATIONS.length){
     const dujour=PASSATIONS.filter(function(l){
       return !l.jour || String(l.jour)>=todayStr();
     });
@@ -15407,13 +15430,11 @@ function imprimerMaListe(quoi){
     }
   }
 
-  if(!corps) corps='<p class="vide">'+(quoi==='perso'
-    ? 'Rien à imprimer : ta liste est vide.'
-    : 'Rien à imprimer : ni note, ni passation.')+'</p>';
+  if(!corps) corps='<p class="vide">Rien à imprimer : ni note, ni passation.</p>';
 
   feuilleImprimer({
     onglet:'Ma liste — '+jour,
-    entete:(quoi==='perso'?'Ma liste — aperçu':'Ma liste et la passation — aperçu'),
+    entete:'Ma liste et la passation — aperçu',
     titre:'Ma liste perso',
     sous:jour+(qui?' · '+qui:''),
     compte:(tot
@@ -15422,67 +15443,11 @@ function imprimerMaListe(quoi){
     corps:corps
   });
 }
-/* Ma liste, sa feuille à elle : la même, sans la passation. */
-function imprimerListePerso(){ return imprimerMaListe('perso'); }
-/* ═══ LA FEUILLE DE LA CHECK-LIST (Mag, 11/09/2026) ═══
-   Elle n'existait pas : la seule carte des trois qui n'avait pas de bouton. Et c'est
-   pourtant celle qu'on tient à la main en faisant le tour.
-   ⚠ ELLE IMPRIME LA LISTE AFFICHÉE, celle du déroulant — comme l'écran. C'est la
-   raison pour laquelle la check-list ne part pas dans la feuille « tout » (07/09) :
-   là-bas, on ne saurait pas de quelle liste on parle ; ici, son nom est en tête.
-   ⚠ L'ORDRE DES BLOCS EST CELUI DE L'ÉCRAN : la reprise en premier le jour où l'on
-   reprend son cycle, en dernier les autres jours. C'est sa règle du 08/08.
-   ⚠ LES CASES SONT VIDES, comme sur les deux autres feuilles : on coche au stylo. Ce
-   qui est déjà fait ne s'imprime pas dans les blocs — il est rappelé en bas, barré. */
-function imprimerChecklist(){
-  if(typeof CHECKLISTS==='undefined' || !CHECKLISTS.length){ toast('Aucune check-list'); return; }
-  const miennes=CHECKLISTS.filter(function(g){ return g.mienne; });
-  const ordre=miennes.concat(CHECKLISTS.filter(function(g){ return !g.mienne; }));
-  const g=ordre.find(function(x){ return x.liste===LISTE_VUE; }) || ordre[0];
-  if(!g){ toast('Aucune check-list'); return; }
-  const d=new Date();
-  const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
-             ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
-  const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
-  const nom=LISTE_LABELS[g.liste]||g.liste;
-  const faites=g.taches.filter(function(t){ return DONE[t.id]; });
-  const ligne=function(t){
-    return '<tr><td class="cc"><span class="bx"></span></td>'+
-           '<td colspan="3">'+esc(t.tache)+'</td></tr>';
-  };
-  const bloc=function(titre, liste, cl){
-    if(!liste.length) return '';
-    return '<h2'+(cl?' class="'+cl+'"':'')+'>'+esc(titre)+'</h2><table>'+
-           liste.map(ligne).join('')+'</table>';
-  };
-  const aFaire=function(r){
-    return g.taches.filter(function(t){ return rythmeDe(t)===r && !DONE[t.id]; });
-  };
-  const rep=aFaire('reprise');
-  const blocReprise=bloc(enReprise()?'À faire en reprenant':'À la reprise de ton cycle',
-                         rep, enReprise()?'presse':'');
-  let corps='';
-  if(enReprise()) corps+=blocReprise;
-  corps+= bloc('Aujourd’hui', aFaire('jour'))
-        + bloc('Au cours de la semaine', aFaire('semaine'));
-  if(!enReprise()) corps+=blocReprise;
-  if(faites.length)
-    corps+='<h2>Faites</h2><table>'+faites.map(function(t){
-      return '<tr class="fait"><td class="cc"><span class="bx"></span></td>'+
-             '<td colspan="3">'+esc(t.tache)+'</td></tr>';
-    }).join('')+'</table>';
-  if(!corps) corps='<p class="vide">Cette check-list est vide.</p>';
-  feuilleImprimer({
-    onglet:'Ta check-list — '+jour,
-    entete:'Ta check-list — aperçu',
-    titre:'Ta check-list',
-    sous:nom+' · '+jour+(qui?' · '+qui:''),
-    compte:(g.taches.length
-      ? faites.length+' sur '+g.taches.length+' déjà faites — elles sont en bas de la feuille.'
-      : ''),
-    corps:corps
-  });
-}
+/* ⚠ LA FEUILLE DE LA CHECK-LIST A ÉTÉ CONSTRUITE PUIS RETIRÉE LE MÊME JOUR
+   (11/09/2026). Elle imprimait la liste affichée, avec son nom en tête et les blocs
+   dans l'ordre de l'écran. Mag l'a écartée : « ça n'a aucun intérêt » — on ne
+   l'emporte pas sur papier. Elle est dans l'historique du dépôt (commit 47da0db) si
+   elle revient un jour ; il n'y a pas de code mort ici. */
 /* ═══ UNE SEULE FEUILLE POUR TOUTES LES IMPRESSIONS DE LA PAGE (11/09/2026) ═══
    Le papier, les marges, les gros caractères, les cases à cocher vides, les couleurs
    qui survivent à la photocopie : tout cela était écrit DANS `imprimerMaListe`. Il en
@@ -18569,26 +18534,17 @@ function vListe(){
    descendus juste au-dessus d'elle (voir `listeReprendreHTML`). L'imprimante reste
    ici, parce qu'elle est la seule à ne parler d'aucune carte en particulier — elle
    sort TOUTE la page. */
-function listeBarreHTML(){
-  /* ⚠ « IMPRIMER » REVIENT EN TOUTES LETTRES (Mag, 22/08/2026 : « remets imprimé en
-     écriture, c'est le truc — avec le picto qu'on trouvera par la suite »).
-     Le picto seul ne se reconnaît pas : le dessin d'imprimante de l'app ne parle pas
-     de lui-même, et un bouton muet dans une barre grise, on ne le voit plus.
-     Le mot revient donc, et le `nu` attend un vrai dessin. Ligne posée au chantier. */
-  /* ⚠ L'IMPRIMER GLOBAL REVIENT DANS CETTE BARRE (Mag, 28/08/2026 : « ici rajoute un
-     picto print pour tout printer »). Il en était parti le 24/08 — il ne servait alors
-     qu'à la liste perso, et il faisait double emploi avec celui de la carte. Il a
-     maintenant une raison d'être ici : depuis aujourd'hui, la feuille sort TOUTE la
-     page (check-list, entretiens, liste perso), et la barre du haut est le seul
-     endroit qui ne parle d'aucune carte en particulier.
-     ⚠ UN DESSIN SEUL, sans le mot : la barre doit rester discrète — c'est sa demande
-     du 22/08 sur cette barre-là. Le `title` et l'`aria-label` disent ce qu'il fait. */
-  return '<div class="mlbarre">'+
-    '<button class="mlb mlb-i" onclick="imprimerMaListe()" '+
-      'aria-label="Imprimer toute la page" title="Imprimer toute la page">'+
-      '<span class="ic">'+icon('imprimer')+'</span></button>'+
-  '</div>';
-}
+/* ⚠ IL N'Y A PLUS DE BARRE EN HAUT DE MA LISTE (Mag, 11/09/2026) ═══
+   « Enlève le petit picto en haut, parce que sinon ça fait trop de boutons impression,
+   ce n'est pas clair. »
+   HISTOIRE DE CETTE BARRE, pour ne pas la refaire une quatrième fois : née le 22/08
+   (le choix de liste, la reprise de cycle, imprimer), l'imprimante en est partie le
+   24/08, revenue le 28/08 (« ici rajoute un picto print pour tout printer »), le choix
+   de liste et la reprise sont descendus sur la check-list le 11/09 au matin — et le
+   soir, l'imprimante est partie avec. Il ne restait qu'elle, seule sur sa ligne, à
+   faire la même chose que le bouton de Ma liste.
+   ⚠ DEUX IMPRIMANTES DANS TOUTE LA PAGE, ET PAS UNE DE PLUS : celle de Ma liste (qui
+   sort la liste ET la passation) et celle de la passation (qui ne sort qu'elle). */
 /* ═══ LE DÉROULANT NE S'ADRESSE PLUS À TOUT LE MONDE (Mag, 22/08/2026) ═══
    « Ça, il faut vraiment que ce soit que l'admin qui le voie. »
    Ce qu'il ouvrait, c'était les listes des AUTRES rôles — utile pour elle, qui les
@@ -18659,7 +18615,6 @@ function listeCorps(){
   const ordre=miennes.concat(autres);
   /* La liste montrée : son dernier choix s'il tient encore, sinon la sienne. */
   const vue=ordre.find(function(g){ return g.liste===LISTE_VUE; }) || ordre[0] || {liste:'',mienne:true};
-  h+=listeBarreHTML();
 
   /* L'ABSENCE DE LISTE, REPLIÉE. On l'explique à qui va la chercher, pas à tout le
      monde et pas en premier. */
@@ -18712,20 +18667,15 @@ function listeCorps(){
        ⚠ LE COMPTE RESTE VISIBLE PLIÉE, et c'est tout l'intérêt : « 5 / 5 » sur une
        carte fermée dit que c'est fini ; une carte fermée muette ferait douter. */
     const plie=clReplie();
-    /* ⚠ LE MÊME TITRE QUE LES DEUX AUTRES CARTES (Mag, 11/09/2026) : un bouton-pli,
-       le bouton d'impression, puis le chevron. C'était la seule carte sans feuille —
-       et pourtant celle qu'on tient à la main en faisant le tour. */
+    /* ⚠ PAS D'IMPRIMANTE SUR LA CHECK-LIST (Mag, 11/09/2026 : « il faut enlever
+       l'imprimante de ma check-list, ça n'a aucun intérêt »). J'en avais posé une le
+       matin même, et sa feuille avec. Sa raison est simple : on ne l'emporte pas — on
+       la coche à l'écran, au fil du service. Ne pas la remettre. */
     let s='<div class="pcarte'+(plie?' plie':'')+'">'+
-      '<div class="ptitre ptitre-lire">'+
-        '<button class="ptitre-pli" onclick="clPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
-          '<b>Ta check-list</b>'+
-          '<span>'+esc(LISTE_LABELS[g.liste]||g.liste)+' · '+fait+' / '+tot+'</span>'+
-        '</button>'+
-        '<button class="ptitre-i" onclick="imprimerChecklist()" '+
-          'aria-label="Imprimer la check-list" title="Imprimer la check-list">'+
-          icon('imprimer')+'</button>'+
-        '<em class="ch" onclick="clPlier()" aria-hidden="true">›</em>'+
-      '</div>';
+      '<button class="ptitre ptitre-pli" onclick="clPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
+        '<b>Ta check-list</b>'+
+        '<span>'+esc(LISTE_LABELS[g.liste]||g.liste)+' · '+fait+' / '+tot+'</span>'+
+        '<em class="ch">›</em></button>';
     if(plie) return s+'</div>';
     /* ═══ TROIS RYTHMES, TROIS BLOCS (Mag, 08/08/2026) ═══
        « À la reprise » d'abord et en rouge le jour où on reprend son 4-4 ou son 7-7 :
@@ -19203,6 +19153,66 @@ function vProfil(){
    · cousinDemande(titre, texte, valeurDeDépart, quandRempli)          */
 let _popMulti=false;
 let _popQuandOui=null, _popQuandAutre=null, _popChamp=false, _popPlus=false, _popEtq=false, _popEtqSel={};
+/* ═══ CE QU'ON ÉCRIT DANS UNE FENÊTRE NE SE PERD PLUS (Mag, 11/09/2026) ═══
+   « Quand je vais modifier une note et que je ne suis pas dedans, parfois ça saute et
+   ça se ferme — et je perds toute ma note. C'est surtout quand je fais un retour à la
+   ligne. »
+   TROIS CHEMINS MENAIENT À LA PERTE, et aucun ne disait rien :
+   ① un doigt posé À CÔTÉ de la fenêtre la fermait — c'est le plus fréquent sur un
+      téléphone, et c'est ce que « je ne suis pas dedans » décrit ;
+   ② le geste de retour du téléphone la ferme aussi (voulu depuis le 30/08) ;
+   ③ Échap au clavier.
+   ⚠ C'EST LA QUATRIÈME FOIS QU'ELLE PERD DU TRAVAIL DE CETTE FAMILLE. Sa règle du
+   24/08 vaut ici : « il faut que ça reste en mémoire tant que je n'ai pas fait ». On
+   garde donc à CHAQUE FRAPPE, sur l'appareil, et on le repropose à l'ouverture
+   suivante — le même filet que le brouillon du Premier accueil.
+   ⚠ NE PAS REMPLACER CE FILET PAR UNE FENÊTRE « ES-TU SÛRE ? » : elle en aurait une à
+   chaque fermeture, et on ne lit plus ce qu'on voit vingt fois par jour. */
+const POP_BR='lux_pop_brouillons';
+let _popCle='';
+function popBrLire(){
+  try{ return JSON.parse(localStorage.getItem(POP_BR)||'{}')||{}; }catch(e){ return {}; }
+}
+function popBrEcrire(o){
+  try{ localStorage.setItem(POP_BR, JSON.stringify(o)); }catch(e){}
+}
+/* On garde une semaine. Un brouillon d'il y a dix jours ne se repropose pas : il ferait
+   douter de ce qu'on vient d'écrire. */
+function popBrNettoyer(o){
+  const limite=Date.now()-7*24*3600*1000;
+  Object.keys(o).forEach(function(k){ if(!o[k]||!o[k].q||o[k].q<limite) delete o[k]; });
+  return o;
+}
+function popSaisie(el){
+  if(el && el.tagName==='TEXTAREA' && typeof passGrandir==='function') passGrandir(el);
+  if(!_popCle) return;
+  const o=popBrNettoyer(popBrLire());
+  o[_popCle]={t:(el&&el.value)||'', q:Date.now()};
+  popBrEcrire(o);
+}
+function popBrJeter(cle){
+  if(!cle) return;
+  const o=popBrLire(); delete o[cle]; popBrEcrire(o);
+}
+function popReprCacher(){
+  const e=document.getElementById('popRepr');
+  if(e){ e.style.display='none'; e.innerHTML=''; }
+}
+function popReprendre(){
+  const b=popBrLire()[_popCle]; if(!b) return;
+  const c=document.getElementById(_popMulti?'popChampM':'popChamp');
+  if(c){
+    c.value=b.t||'';
+    if(_popMulti && typeof passGrandir==='function') passGrandir(c);
+    try{ c.focus(); c.setSelectionRange(c.value.length, c.value.length); }catch(e){}
+  }
+  popReprCacher();
+}
+function popJeterBrouillon(){ popBrJeter(_popCle); popReprCacher(); }
+/* ⚠ UN DOIGT À CÔTÉ NE FERME PLUS UNE FENÊTRE OÙ L'ON ÉCRIT. C'est la règle de la
+   fenêtre des notes depuis le début — « on garde d'abord ». Les fenêtres sans champ
+   (une confirmation, un choix) se ferment toujours d'un doigt à côté. */
+function popDehors(){ if(!_popChamp) popFermer(); }
 function popFermer(){
   /* ⚠ ON COUPE LE MICRO EN FERMANT (10/09/2026). La fenêtre VIDE ses cases en se
      fermant : une dictée qui continuerait écrirait dans une case invisible, micro
@@ -19218,7 +19228,8 @@ function popFermer(){
   if(au) au.style.display='none';
   const et=document.getElementById('popEtq');
   if(et){ et.style.display='none'; et.innerHTML=''; }
-  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false; _popEtq=false;
+  popReprCacher();
+  _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false; _popEtq=false; _popCle='';
 }
 function popValider(){
   const c=document.getElementById(_popMulti?'popChampM':'popChamp');
@@ -19232,6 +19243,9 @@ function popValider(){
      revient comme vrai — on ne lit pas le HTML, on lit `_popEtqSel`. */
   const etq = _popEtq ? _popEtqSel : null;
   const f=_popQuandOui;
+  /* Enregistré : le brouillon n'a plus de raison d'être, et le reproposer demain
+     ferait croire à du travail perdu. ⚠ AVANT `popFermer`, qui vide la clé. */
+  popBrJeter(_popCle);
   popFermer();
   if(f) f(v, plus, etq);
 }
@@ -19324,6 +19338,25 @@ function cousinPop(o){
           'onclick="popEtqToggle(\''+opt.k+'\',this)">'+
           '<span class="bx"></span>'+esc(opt.l)+'</button>';
       }).join('')+'</div>';
+    }
+  }
+  /* ⚠ LA CLÉ EST CE QUI PERMET DE RETROUVER LE BROUILLON. Sans elle, pas de filet :
+     une fenêtre qui accepte du texte long doit en passer une (voir `notModifier`,
+     `rappelModifier`). La ligne qu'on corrige a son identifiant, donc sa clé. */
+  _popCle = o.cle || '';
+  popReprCacher();
+  if(_popCle){
+    const b=popBrNettoyer(popBrLire())[_popCle];
+    /* On ne repropose que ce qui DIFFÈRE de ce que la fenêtre affiche déjà : sinon on
+       proposerait de reprendre ce qui est sous les yeux. */
+    if(b && (b.t||'')!==(typeof o.champ==='string'?o.champ:'')){
+      const e=document.getElementById('popRepr');
+      if(e){
+        e.style.display='flex';
+        e.innerHTML='<b>Tu avais écrit quelque chose ici, et ça ne s\'est pas enregistré.</b>'+
+          '<button type="button" class="poprb" onclick="popReprendre()">Reprendre</button>'+
+          '<button type="button" class="poprb clair" onclick="popJeterBrouillon()">Jeter</button>';
+      }
     }
   }
   ok.textContent=o.ok||'Confirmer';
@@ -29215,6 +29248,7 @@ function notGarder(){
 function notModifier(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n) return;
   cousinPop({titre:'Modifier la note', texte:'', champ:n.t||'', multi:true, ok:'Enregistrer',
+    cle:'note-'+id,
     quandOui:function(v){
       const t=(v||'').trim(); if(!t) return;
       n.t=t.slice(0,6000); notesSauver(); render(); toast('Modifié ✓');
@@ -36807,6 +36841,7 @@ function rappelModifier(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   cousinPop({
     titre:'Modifier', texte:'', champ:r.texte||'', max:4000, multi:true, ok:'Enregistrer',
+    cle:'rappel-'+id,
     plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
            deuxPlaceholder:'N° de chambre' },
     /* ═══ ON PEUT POSER OU RETIRER ABSENCE / DÉSENCODAGE ICI (Mag, 24/08/2026 : « comment
@@ -36988,11 +37023,15 @@ function carteMaListe(){
          le texte sert à coller dans un rapport. Deux besoins, deux boutons. */
       '<button class="ptitre-i" onclick="rappelsCopierTout()" aria-label="Copier toute la liste" '+
         'title="Copier toute la liste">'+icon('copyleger')+'</button>'+
-      /* ⚠ SA FEUILLE, PAS TOUTE LA PAGE (Mag, 11/09/2026) : ce bouton-ci sortait
-         exactement la même feuille que celui de la barre du haut. Deux boutons pour
-         la même chose, c'est ce qui l'a perdue. */
-      '<button class="ptitre-i" onclick="imprimerListePerso()" aria-label="Imprimer ma liste" '+
-        'title="Imprimer ma liste">'+icon('imprimer')+'</button>'+
+      /* ⚠ CETTE FEUILLE PORTE LA LISTE **ET** LA PASSATION (Mag, 11/09/2026 : « quand
+         on imprime la liste perso, ça met aussi la passation ; et quand on fait la
+         passation, ça ne met que la passation »). C'est la feuille de fin de service :
+         ce qu'on garde et ce qu'on transmet, sur le même papier. Le bouton de la
+         passation, lui, ne sort qu'elle — c'est celle qu'on tend à l'équipe qui
+         arrive. */
+      '<button class="ptitre-i" onclick="imprimerMaListe()" '+
+        'aria-label="Imprimer ma liste et la passation" '+
+        'title="Imprimer ma liste et la passation">'+icon('imprimer')+'</button>'+
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
       '<em class="ch" onclick="rapPlier()" aria-hidden="true">›</em>'+
     '</div>'+
