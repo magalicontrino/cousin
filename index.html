@@ -4762,6 +4762,62 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:8px 11px 4px;margin-top:16px}
 .pcarte .encgrp .pgt{color:#e63329;border-bottom-color:#e63329}
 .pcarte .encgrp .pl2{background:transparent}
+/* ═══ LE TRI DU BAS : DES BLOCS QU'ON DISTINGUE (Mag, 10/09/2026) ═══
+   « Fais un design qu'on arrive à distinguer le tri, c'est très important. »
+   Avant, les treize groupes se suivaient en une seule colonne, séparés par un simple
+   titre en petites capitales : à l'œil, une seule longue liste. Chaque groupe marqué
+   a maintenant SON CADRE, son compte, et sa place dans une paire.
+
+   ⚠ LA PRIORITÉ SE LIT AU CADRE, PAS À UN NUMÉRO. Trois crans :
+   · ENCODER — vert, trait épais, seul sur sa ligne, en tête. C'est le premier.
+   · DÉSENCODER et CHAMBRES À VIDER — rouge : ce qui se perd si on l'oublie.
+   · le reste — trait clair : ce dont on parle, pas ce qui brûle.
+   Le fond reste presque blanc partout : c'est le TRAIT qui classe, pas l'aplat.
+   Sa règle du 20/08 tient ici aussi — la couleur ne remplit plus les fonds. */
+.pcarte .pgsep{display:flex;align-items:center;gap:10px;margin:20px 0 4px}
+.pcarte .pgsep:before,.pcarte .pgsep:after{content:'';flex:1;height:1px;background:var(--ligne)}
+.pcarte .pgsep span{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:#b4b2a9}
+/* ⚠ DEUX COLONNES MÊME SUR TÉLÉPHONE : « entretien à gauche et mi-parcours à droite ».
+   C'est là qu'elle lit l'app — les mettre côte à côte seulement sur grand écran aurait
+   répondu à côté. Un groupe dont le voisin est vide reprend toute la largeur. */
+.pcarte .pgpaire{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;align-items:start}
+.pcarte .pgpaire.seule{grid-template-columns:1fr}
+.pcarte .pgbloc{border:1px solid var(--ligne);border-radius:10px;background:#fdfdfc;
+  padding:9px 10px 3px;min-width:0}
+.pcarte .pgbloc .pgt{border-bottom:0;margin:0 0 5px;display:flex;align-items:baseline;gap:6px}
+/* Le compte, dans le titre du bloc : le chiffre dit s'il faut s'en occuper maintenant. */
+.pcarte .pgbloc .pgt i{font-style:normal;margin-left:auto;font-size:11px;font-weight:700;
+  letter-spacing:0;opacity:.85}
+/* ⚠ LES LIGNES SE RESSERRENT DANS UNE COLONNE ÉTROITE — 165 px à 375 px d'écran. Sans
+   ça, deux mots par ligne et une carte trois fois trop haute. */
+.pcarte .pgpaire .pl2{padding:7px 0;font-size:13px}
+/* ⚠ LES COMMANDES DE LA LIGNE SORTAIENT DE LA COLONNE — vu à l'écran : sept boutons
+   en rangée insécable dans 165 px, la case, le crayon et la corbeille passaient
+   dehors. Elles se replient maintenant sur deux rangées, et le séparateur qui les
+   écartait ne prend plus toute la place à lui seul. */
+.pcarte .pgpaire .pl2-h{flex-wrap:wrap;gap:6px}
+.pcarte .pgpaire .pl2-h .pl2-sep{flex:0 0 0;min-width:0}
+.pcarte .pgpaire .pl2 em,.pcarte .pgpaire .pl2 .pmeta{font-size:10.5px}
+/* ① Encoder — le premier, et le seul en vert. */
+.pcarte .pgbloc.aencoder{border:1.5px solid #6cb392;background:#f3f8f5}
+.pcarte .pgbloc.aencoder .pgt{color:#2f8f68}
+/* ② Ce qui se perd si on l'oublie. */
+.pcarte .pgbloc.encodage,.pcarte .pgbloc.vider{border:1.5px solid var(--rouge);background:#fdeeed}
+.pcarte .pgbloc.encodage .pgt,.pcarte .pgbloc.vider .pgt{color:var(--rouge)}
+/* ③ Ce dont on parle : trait clair, titre en encre grise. */
+.pcarte .pgbloc.entretien .pgt,.pcarte .pgbloc.miparcours .pgt,
+.pcarte .pgbloc.notetag .pgt,.pcarte .pgbloc.info .pgt{color:var(--enc2)}
+/* Les absences ferment la liste, en rouge mais sans fond : c'est un compteur. */
+.pcarte .pgbloc.absence{border-color:var(--rouge)}
+.pcarte .pgbloc.absence .pgt{color:var(--rouge)}
+/* ⚠ À L'IMPRESSION, LES DEUX COLONNES REDEVIENNENT UNE SEULE. Sur papier on lit de
+   haut en bas, et une colonne de 8 cm coupe les phrases en deux. Et les blocs ne se
+   coupent pas entre deux pages. */
+@media print{
+  .pcarte .pgpaire{display:block}
+  .pcarte .pgbloc{break-inside:avoid;page-break-inside:avoid;margin-bottom:8px}
+}
 /* ═══ « À ENCODER » (Mag, 03/09/2026) ═══
    Le geste inverse du désencodage, et on l'oublie tout autant. VERT, pas rouge : le
    rouge est déjà pris par ce qui se perd (une absence, un désencodage), et deux
@@ -15146,7 +15202,7 @@ function rappelsCopierTout(){
   t+=bloc('À dire en réunion', par('reunion'));
   t+=bloc('Les absences',      par('absence'));
   t+=bloc('À encoder',         MESRAPPELS.filter(function(r){ return r.encoder && !r.desencodage; }));
-  t+=bloc('Désencodages',      par('desencodage'));
+  t+=bloc('Désencoder',      par('desencodage'));
   t+=bloc('Entretiens',        MESRAPPELS.filter(function(r){ return r.entretien && !r.miparcours; }));
   t+=bloc('Mi-parcours',       par('miparcours'));
   t+=bloc('Infos',             par('info'));
@@ -15246,7 +15302,7 @@ function imprimerMaListe(){
   corps+= bloc('À dire en réunion', reunions, 'reunion')
     + bloc('Les absences', absences, 'absence')
     + bloc('À encoder', aEncoderP, 'aencoder')
-    + bloc('Désencodages', desencP, 'encodage')
+    + bloc('Désencoder', desencP, 'encodage')
     + bloc('Entretiens', entretP)
     + bloc('Mi-parcours', miparcP)
     + bloc('Infos', infoP)
@@ -36557,7 +36613,7 @@ function rappelModifier(id){
     /* ═══ ON PEUT POSER OU RETIRER ABSENCE / DÉSENCODAGE ICI (Mag, 24/08/2026 : « comment
        je fais pour retirer cette note des absences ? »). La note cochée se décoche d'un
        doigt, sans recréer la ligne. */
-    etq:[{k:'absence', l:'Absence'},{k:'encoder', l:'Encoder'},{k:'desencodage', l:'Désencodage'},
+    etq:[{k:'absence', l:'Absence'},{k:'encoder', l:'Encoder'},{k:'desencodage', l:'Désencoder'},
          {k:'entretien', l:'Entretien'},{k:'miparcours', l:'Mi-parcours'},
          {k:'info', l:'Info'},{k:'noteTag', l:'Note'},{k:'vider', l:'Vider la chambre'}],
     etqSel:[r.absence?'absence':null, r.encoder?'encoder':null, r.desencodage?'desencodage':null,
@@ -36838,44 +36894,40 @@ function rappelsHTML(enCarte){
            désencodage… On coche, on écrit, et la note porte le drapeau. L'absence
            part dans « Les absences » ; les encodés dans « Désencodages » en bas. */
         '<div class="absas">'+
-        '<button class="absa'+(RAP_TAGS.absence?' on':'')+'" onclick="RAP_TAGS.absence=!RAP_TAGS.absence;render()" '+
-          'aria-pressed="'+(RAP_TAGS.absence?'true':'false')+'">'+
-          '<span class="bx"></span>Absence</button>'+
-        /* ⚠ « RAJOUTE À COCHER : ENCODER » (Mag, 03/09/2026). Le désencodage avait sa
-           case, l'encodage non — alors que c'est le geste inverse et qu'on l'oublie
-           tout autant. Elle est posée AVANT le désencodage : on encode d'abord. */
+        /* ═══ L'ORDRE DES CASES, DICTÉ PAR MAG LE 10/09/2026 ═══
+           « Encoder en tout premier. Vider la chambre en face de désencodage.
+           Entretien à gauche et mi-parcours à droite. Info en face de notes. »
+           La grille fait DEUX COLONNES : chaque paire se lit donc sur une rangée,
+           gauche puis droite. L'ordre d'écriture ci-dessous EST l'ordre à l'écran —
+           déplacer une case, c'est casser une paire.
+           ① Encoder · Absence   ② Désencoder · Vider la chambre
+           ③ Entretien · Mi-parcours   ④ Note · Info
+           ⚠ ENCODER GARDE SON DESSIN VERT (`enc`) : c'est le geste qui fait entrer,
+           les rouges sont ceux qui font sortir. */
         '<button class="absa enc'+(RAP_TAGS.encoder?' on':'')+'" onclick="RAP_TAGS.encoder=!RAP_TAGS.encoder;render()" '+
           'aria-pressed="'+(RAP_TAGS.encoder?'true':'false')+'">'+
           '<span class="bx"></span>Encoder</button>'+
+        '<button class="absa'+(RAP_TAGS.absence?' on':'')+'" onclick="RAP_TAGS.absence=!RAP_TAGS.absence;render()" '+
+          'aria-pressed="'+(RAP_TAGS.absence?'true':'false')+'">'+
+          '<span class="bx"></span>Absence</button>'+
         '<button class="absa'+(RAP_TAGS.desencodage?' on':'')+'" onclick="RAP_TAGS.desencodage=!RAP_TAGS.desencodage;render()" '+
           'aria-pressed="'+(RAP_TAGS.desencodage?'true':'false')+'">'+
-          '<span class="bx"></span>Désencodage</button>'+
-        /* ⚠ ENTRETIEN ET MI-PARCOURS (Mag, 08/09/2026). Ils portent le dessin CLAIR,
-           pas le rouge des absences : ce ne sont pas des alertes, c'est de quoi parle
-           la note. Même règle que le mi-parcours de la carte des entretiens. */
+          '<span class="bx"></span>Désencoder</button>'+
+        '<button class="absa avmi'+(RAP_TAGS.vider?' on':'')+'" onclick="rapViderCocher()" '+
+          'aria-pressed="'+(RAP_TAGS.vider?'true':'false')+'">'+
+          '<span class="bx"></span>Vider la chambre</button>'+
         '<button class="absa avmi'+(RAP_TAGS.entretien?' on':'')+'" onclick="RAP_TAGS.entretien=!RAP_TAGS.entretien;render()" '+
           'aria-pressed="'+(RAP_TAGS.entretien?'true':'false')+'">'+
           '<span class="bx"></span>Entretien</button>'+
         '<button class="absa avmi'+(RAP_TAGS.miparcours?' on':'')+'" onclick="RAP_TAGS.miparcours=!RAP_TAGS.miparcours;render()" '+
           'aria-pressed="'+(RAP_TAGS.miparcours?'true':'false')+'">'+
           '<span class="bx"></span>Mi-parcours</button>'+
-        /* ⚠ INFO (Mag, 08/09/2026). Comme Entretien et Mi-parcours : dessin clair, pas
-           le rouge des absences — une info n'est pas une alerte, c'est ce qu'on veut
-           faire savoir sans que personne ait à agir. */
-        '<button class="absa avmi'+(RAP_TAGS.info?' on':'')+'" onclick="RAP_TAGS.info=!RAP_TAGS.info;render()" '+
-          'aria-pressed="'+(RAP_TAGS.info?'true':'false')+'">'+
-          '<span class="bx"></span>Info</button>'+
-        /* ⚠ NOTE (Mag, 08/09/2026, capture à l'appui : « c'est là que je voudrais
-           rajouter note »). Septième case, même dessin clair que les trois dernières. */
         '<button class="absa avmi'+(RAP_TAGS.note?' on':'')+'" onclick="RAP_TAGS.note=!RAP_TAGS.note;render()" '+
           'aria-pressed="'+(RAP_TAGS.note?'true':'false')+'">'+
           '<span class="bx"></span>Note</button>'+
-        /* ⚠ VIDER LA CHAMBRE (Mag, 09/09/2026). Dessin clair : c'est une tâche à faire,
-           pas une alerte. Mais elle a sa place à part parce qu'une chambre non vidée
-           bloque un lit — et ça, ça se voit à l'oeil quand les lignes sont groupées. */
-        '<button class="absa avmi'+(RAP_TAGS.vider?' on':'')+'" onclick="rapViderCocher()" '+
-          'aria-pressed="'+(RAP_TAGS.vider?'true':'false')+'">'+
-          '<span class="bx"></span>Vider la chambre</button>'+
+        '<button class="absa avmi'+(RAP_TAGS.info?' on':'')+'" onclick="RAP_TAGS.info=!RAP_TAGS.info;render()" '+
+          'aria-pressed="'+(RAP_TAGS.info?'true':'false')+'">'+
+          '<span class="bx"></span>Info</button>'+
         '</div>'+
       '</div>';
   /* ⚠ LE RAPPEL AUTOMATIQUE EST POSÉ HORS DU `if(tot)`, et c'est tout le sujet : ce
@@ -36960,12 +37012,16 @@ function rappelsHTML(enCarte){
           (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
         '</div></div>';
     };
+    /* Les groupes MARQUÉS À LA MAIN portent chacun leur cadre et leur compte ; ceux
+       que l'app range toute seule (retard, aujourd'hui…) gardent leur simple titre.
+       ⚠ LE COMPTE EST DANS LE TITRE : « Désencoder · 3 » se lit sans compter les
+       lignes, et c'est le chiffre qui dit s'il faut s'en occuper maintenant. */
+    const CADRES={aencoder:1,encodage:1,vider:1,entretien:1,miparcours:1,notetag:1,info:1,absence:1};
     const groupe=function(titre, liste, cl){
       if(!liste.length) return '';
-      const contenu='<div class="pgt'+(cl?' '+cl:'')+'">'+titre+'</div>'+liste.map(ligne).join('');
-      /* Le bloc des encodages est enveloppé d'un fond rouge — c'est celui qui doit
-         arrêter l'œil, pas se fondre dans la liste. */
-      return (cl==='encodage') ? '<div class="encgrp">'+contenu+'</div>' : contenu;
+      const contenu='<div class="pgt'+(cl?' '+cl:'')+'">'+titre+
+        (CADRES[cl]?'<i>'+liste.length+'</i>':'')+'</div>'+liste.map(ligne).join('');
+      return CADRES[cl] ? '<div class="pgbloc '+cl+'">'+contenu+'</div>' : contenu;
     };
     const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
     const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand).localeCompare(String(b.quand)); });
@@ -37000,19 +37056,44 @@ function rappelsHTML(enCarte){
     /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
        automatiques : une ligne pointée ne doit pas apparaître deux fois. */
     const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours && !r.info && !r.noteTag && !r.vider; }); };
+    /* ═══ LE TRI DU BAS, RANGÉ PAR PRIORITÉ (Mag, 10/09/2026) ═══
+       « Quand ça se répertorie en bas, fais un design qu'on arrive à distinguer le
+       tri, c'est très important. Dans un ordre de priorité. »
+
+       SON ORDRE, dicté ce jour-là :
+       ① ENCODER en tout premier — « et encoder en tout premier ».
+       ② DÉSENCODER, et « vider la chambre en face de désencodage ».
+       ③ ENTRETIEN à gauche, MI-PARCOURS à droite — « d'abord entretien à gauche ».
+       ④ NOTE, et « info en face de notes ».
+       ⑤ LES ABSENCES ferment la liste — c'est elle qui les a mises là le 24/08 :
+         « mets ça à la fin », un compteur qu'on lit, pas une urgence.
+
+       ⚠ « EN FACE DE » VEUT DIRE CÔTE À CÔTE, pas l'un sous l'autre : les deux
+       groupes d'une paire se lisent d'un seul regard. Un groupe dont le voisin est
+       vide reprend toute la largeur — une colonne seule à côté d'un trou se lit mal.
+       ⚠ LES QUATRE PREMIERS BLOCS SONT LES LIGNES QU'ELLE A MARQUÉES À LA MAIN. Ce
+       qui est au-dessus (retard, aujourd'hui, plus tard) reste rangé par le temps :
+       ce sont deux tris différents, et le trait de séparation le dit. */
+    const paire=function(a,b){
+      const g1=a?groupe(a[0],a[1],a[2]):'', g2=b?groupe(b[0],b[1],b[2]):'';
+      if(!g1 && !g2) return '';
+      if(!g1 || !g2) return '<div class="pgpaire seule">'+(g1||g2)+'</div>';
+      return '<div class="pgpaire">'+g1+g2+'</div>';
+    };
+    const marques = paire(['Encoder', aEncoder, 'aencoder'], null)
+      + paire(['Désencoder', encodages, 'encodage'], ['Chambres à vider', aVider, 'vider'])
+      + paire(['Entretiens', entretiens, 'entretien'], ['Mi-parcours', miparcours, 'miparcours'])
+      + paire(['Notes', notesT, 'notetag'], ['Infos', infos, 'info'])
+      + paire(['Les absences', absences, 'absence'], null);
+
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
       + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasMarque(aVenir))
       + groupe('Faits', pasMarque(faits))
-      + groupe('Les absences', absences, 'absence')
-      + groupe('À encoder', aEncoder, 'aencoder')
-      + groupe('Désencodages', encodages, 'encodage')
-      + groupe('Entretiens', entretiens)
-      + groupe('Mi-parcours', miparcours)
-      + groupe('Infos', infos)
-      + groupe('Notes', notesT)
-      + groupe('Chambres à vider', aVider);
+      /* Le trait ne se pose que s'il y a quelque chose à séparer. */
+      + (marques ? '<div class="pgsep"><span>Ce que tu as marqué</span></div>' : '')
+      + marques;
   }
   /* ⚠ L'ENCART « PARTIES EN PASSATION » EST RETIRÉ (Mag, 22/08/2026 : « il y a un
      doublon — je trouve que l'encart parti en passation, il est en trop »).
