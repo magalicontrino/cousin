@@ -28488,13 +28488,40 @@ function notEcrire(t, champ){
   if(!NOT_CIBLE && !NOT_LIBRE){ NOT_TXT=t; notBrouillon(); }
   return true;
 }
+/* ═══ RECOLLER SANS REDIRE (Mag, 10/09/2026, capture à l'appui) ═══
+   « oui je voudrais faire une note au sujet de monsieur qui est venu se plaindre »,
+   écrit vingt fois d'affilée sur son Samsung, chaque fois un peu plus long.
+
+   POURQUOI. Sur Android l'écoute se coupe à chaque respiration, et la phrase EN COURS
+   n'est pas perdue : elle revient au cycle suivant, DEPUIS SON DÉBUT, complétée de
+   quelques mots. Le casier par numéro ne pouvait rien contre ça — ce n'est pas le
+   même numéro qui revient, c'est le même TEXTE, rallongé. On collait donc bout à bout
+   tous les états successifs d'une seule phrase.
+
+   ⚠ REPRODUIT AVANT D'ÊTRE CORRIGÉ, avec cette séquence exacte : 101 caractères dictés
+   en donnaient 513 à l'écran. Le même essai après correction rend la phrase une fois.
+
+   COMMENT. On ne colle plus deux morceaux sans regarder : si le nouveau REPREND
+   l'ancien depuis le début, il le remplace ; s'il commence là où l'ancien finit, on
+   ne recopie pas le chevauchement.
+   ⚠ LE SEUIL DE DIX CARACTÈRES EST LÀ POUR LES VRAIES RÉPÉTITIONS : quelqu'un qui dit
+   « non, non » doit garder ses deux « non ». En dessous de dix, on ne présume rien. */
+function notColler(a,b){
+  a=(a||'').replace(/\s+/g,' ').trim(); b=(b||'').replace(/\s+/g,' ').trim();
+  if(!a) return b; if(!b) return a;
+  const A=a.toLowerCase(), B=b.toLowerCase();
+  if(B.length>=10 && B.indexOf(A)===0) return b;
+  const max=Math.min(A.length,B.length);
+  for(let n=max;n>=10;n--){ if(A.slice(-n)===B.slice(0,n)) return a+b.slice(n); }
+  return a+' '+b;
+}
 /* Le pot commun, plus les tiroirs du casier dans l'ordre, plus la phrase en train de
    se dire. C'est tout le texte de la dictée, recalculé du même résultat à chaque fois. */
 function notAssemble(enCours){
   let t=NOT_ACQUIS;
   Object.keys(NOT_CASIER).map(Number).sort(function(a,b){ return a-b; })
-    .forEach(function(i){ t+=' '+NOT_CASIER[i]; });
-  if(enCours) t+=' '+enCours;
+    .forEach(function(i){ t=notColler(t,NOT_CASIER[i]); });
+  if(enCours) t=notColler(t,enCours);
   return t.replace(/\s+/g,' ').trim();
 }
 /* ⚠ ON NE MANGE PAS LA PHRASE EN COURS. Le texte assemblé ne contient que le
