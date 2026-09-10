@@ -264,6 +264,30 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .notmic.ecoute .notpt .nd3{animation-delay:0.3s}
 .notmic .ic{width:16px;height:16px}
 .notmic .ic svg{width:16px;height:16px;display:block}
+/* ═══ LE MÊME BOUTON, EN PLUS PETIT (Mag, 10/09/2026) ═══
+   Dans la fenêtre Modifier et dans le champ d'ajout de Ma liste, il partage sa place
+   avec d'autres commandes : même dessin, même mot, deux tailles. */
+.notmic.petit{margin-top:0;padding:7px 12px;font-size:12px;border-radius:8px;gap:6px}
+.notmic.petit .ic,.notmic.petit .ic svg,.notmic.petit .pico{width:13px;height:13px}
+.notmic.petit .notpt{height:13px}
+.notmic.petit .notpt span{font-size:14px}
+/* La barre de la fenêtre : G et S à gauche, AUDIO poussé à droite. */
+#popBarre{display:none;align-items:center;gap:8px;margin:2px 0 8px}
+#popBarre .txbar{margin-bottom:0}
+#popBarre .notmic{margin-left:auto}
+/* ⚠ DANS LA FENÊTRE, G ET S SONT SUR DU CLAIR (10/09/2026). Leur habillage avait été
+   écrit pour la carte NOIRE de Ma liste : texte crème sur fond crème translucide.
+   Dans la fenêtre Modifier, fond clair, ils étaient donc invisibles depuis le 22/08 —
+   on les voyait au survol, jamais autrement. */
+#popBarre .txb{border-color:var(--trait);background:#fdfdfc;color:var(--noir)}
+/* La ligne de l'audio dans le champ d'ajout de Ma liste : le bouton seul, au-dessus
+   de la ligne des commandes (voir `rappelsHTML`). */
+.chadd-a{display:flex;margin:0}
+/* ⚠ SUR LA CARTE NOIRE DU CHAMP D'AJOUT, LE BOUTON NOIR DISPARAÎTRAIT. Il passe en
+   clair, comme les autres commandes de cette carte, et le point qui bat passe au noir
+   pour rester visible dessus. */
+.chadd.ecrire .notmic{background:#f2eee6;color:var(--noir);border-color:transparent}
+.chadd.ecrire .notmic .notpt span{color:var(--noir)}
 @keyframes notbat{0%,60%,100%{opacity:0.3}30%{opacity:1}}
 .notspin{display:inline-flex;align-items:center;gap:6px}
 .notspin .sp1{width:14px;height:14px;border-radius:50%;border:2px solid rgba(242,238,230,0.3);border-top-color:#f2eee6;animation:spinner 0.7s linear infinite;flex:none}
@@ -18681,6 +18705,10 @@ function vProfil(){
 let _popMulti=false;
 let _popQuandOui=null, _popQuandAutre=null, _popChamp=false, _popPlus=false, _popEtq=false, _popEtqSel={};
 function popFermer(){
+  /* ⚠ ON COUPE LE MICRO EN FERMANT (10/09/2026). La fenêtre VIDE ses cases en se
+     fermant : une dictée qui continuerait écrirait dans une case invisible, micro
+     allumé, sans que rien ne le dise. */
+  if(NOT_ECOUTE && NOT_LIBRE && NOT_LIBRE.indexOf('popChamp')===0) notCouper();
   document.getElementById('popBg').classList.remove('on');
   ['popChamp2','popChamp3','popChampM'].forEach(function(id){
     const e=document.getElementById(id); if(e){ e.style.display='none'; e.value=''; }
@@ -18709,18 +18737,31 @@ function popValider(){
   if(f) f(v, plus, etq);
 }
 function cousinPop(o){
+  /* Une dictée en cours dans la page (le champ d'ajout de Ma liste) s'arrête ici : la
+     fenêtre qui s'ouvre passe DEVANT sa case, et on ne dicte pas dans ce qu'on ne voit
+     plus. Ce qui était dit est déjà écrit — `notStop` pose la dernière phrase. */
+  if(NOT_ECOUTE) notStop();
   const bg=document.getElementById('popBg');
   document.getElementById('popTitre').textContent=o.titre||'';
   document.getElementById('popTexte').textContent=o.texte||'';
   _popMulti = !!o.multi;
   const c=document.getElementById(_popMulti?'popChampM':'popChamp');
   const autre=document.getElementById(_popMulti?'popChamp':'popChampM');
-  /* La barre G / S ne sert que dans le grand champ : sur une ligne unique (un jour, un
-     nom), il n'y a rien à mettre en gras. */
+  /* ═══ LA BARRE DE LA FENÊTRE : G / S, ET L'AUDIO (Mag, 10/09/2026) ═══
+     « Quand tu cliques pour modifier un message, je voudrais aussi qu'il y ait un
+     audio. » Le bouton AUDIO est là dès qu'il y a du texte à écrire — y compris sur une
+     fenêtre d'une seule ligne, où G et S ne servent à rien : on dicte un nom comme on
+     dicte une phrase. Pas sur un calendrier, où il n'y a rien à dire.
+     ⚠ `flex`, PAS `block` : c'est le style de la barre qui range G et S à gauche et
+     pousse AUDIO à droite. */
   const bar=document.getElementById('popBarre');
+  const popCase=_popMulti?'popChampM':'popChamp';
+  const popTexte=(typeof o.champ==='string') && !o.date;
   if(bar){
-    bar.style.display=_popMulti?'block':'none';
-    bar.innerHTML=_popMulti?passBarreHTML('popChampM'):'';
+    bar.style.display=popTexte?'flex':'none';
+    bar.innerHTML=popTexte
+      ? (_popMulti?passBarreHTML(popCase):'')+notBoutonHTML(popCase, true)
+      : '';
   }
   if(autre){ autre.style.display='none'; autre.value=''; }
   _popChamp = (typeof o.champ==='string');
@@ -28156,13 +28197,40 @@ function vDemander(){
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
 let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_AVANT='';
-/* ⚠ L'ÉCOUTE REVIENT SUR ORDINATEUR (Mag, 08/09/2026 : « fais-le »). Elle avait été
-   retirée au profit d'un bouton qui ne fait que poser le curseur dans la case. Mesuré
-   ce jour-là : sur ordinateur, AUCUN bouton d'une page web ne peut déclencher la
-   dictée du système — ni celle du Mac, ni celle du clavier. Le bouton ne menait donc
-   nulle part. Sur téléphone c'est l'inverse : le curseur ouvre le clavier, et le micro
-   est sur le clavier. D'où deux comportements pour un seul bouton. */
+/* ⚠ L'ÉCOUTE MARCHE MAINTENANT SUR TÉLÉPHONE AUSSI (Mag, 10/09/2026, sur son
+   Samsung : « il faut que je me mette au micro de mon téléphone, mais moi c'est mon
+   Samsung, je n'arrive pas »). Elle avait été coupée sur téléphone le 07/09 parce
+   qu'elle marchait une fois sur trois — et les deux vraies causes sont réparées
+   aujourd'hui : LE CASIER (la phrase écrite vingt fois) et LA DEMANDE D'AUTORISATION
+   (le bouton qui ne démarrait pas en silence). Le bouton écoute donc partout ; quand
+   le navigateur ne sait pas le faire, il ouvre le clavier comme avant.
+   HISTOIRE : sur ordinateur, AUCUN bouton d'une page web ne peut déclencher la dictée
+   du système — ni celle du Mac, ni celle du clavier. C'est pour ça que l'app écoute
+   elle-même plutôt que de renvoyer au micro du clavier. */
 let NOT_ECOUTE=false, NOT_REC=null, NOT_STOP=false;
+/* ═══ LE CASIER (Mag, 10/09/2026 : « si je disais marcher dans les bois, ça a marqué
+   marcher dans les bois genre vingt fois ») ═══
+   Le navigateur ne dit JAMAIS « voici le nouveau morceau ». Il renvoie la LISTE de ce
+   qu'il a entendu, la repasse plusieurs fois, et repromeut en « définitif » ce qu'il
+   avait déjà dit. Trois pièges, et le troisième est celui qui écrivait vingt fois :
+   ① coller chaque annonce au bout de la case → la même phrase dix fois ;
+   ② tout recalculer depuis un texte de départ figé → on perd les phrases des écoutes
+      précédentes, car l'écoute se coupe et se relance à chaque silence ;
+   ③ sur Android, la même phrase revient AVEC LE MÊME NUMÉRO d'ordre.
+   D'où le casier : un tiroir par numéro. Le même numéro qui revient ÉCRASE son tiroir
+   au lieu de s'ajouter — réécrire deux fois le même casier donne exactement le même
+   texte. À chaque relance, ce qui est acquis passe au pot commun (`NOT_ACQUIS`) et les
+   numéros repartent de zéro sans rien effacer. */
+let NOT_ACQUIS='', NOT_CASIER={}, NOT_SILENCES=0;
+/* ═══ OÙ VA LA DICTÉE : UNE TROISIÈME PORTE (Mag, 10/09/2026) ═══
+   « Mets l'audio dans la liste, et quand on clique pour modifier un message, qu'il y
+   ait aussi un audio. » `NOT_LIBRE` porte le nom de la case visée quand ce n'est ni la
+   page des notes ni la note d'une ligne — la fenêtre Modifier, le champ d'ajout de Ma
+   liste. Vide le reste du temps.
+   ⚠ L'ÉCOUTE EN COURS GARDE SA CASE SOUS LE BRAS (`cible`, dans `notParler`) : le
+   navigateur répond parfois 300 ms après l'arrêt, et une réponse tardive relue dans
+   une variable globale irait s'écrire dans la case SUIVANTE. */
+let NOT_LIBRE='';
 /* ═══ OÙ ON ÉCRIT (Mag, 07/09/2026 : « tu pourrais mettre le même système dans
    entretien ? ») ═══
    Le même micro et le même bouton Corriger servent à deux endroits : la page des
@@ -28172,7 +28240,7 @@ let NOT_ECOUTE=false, NOT_REC=null, NOT_STOP=false;
    on aurait corrigé le micro d'un côté et pas de l'autre, comme pour la fiche qui
    existait en deux dessins. */
 let NOT_CIBLE='';
-function notChamp(){ return NOT_CIBLE ? 'entTxt' : 'notTxt'; }
+function notChamp(){ return NOT_LIBRE || (NOT_CIBLE ? 'entTxt' : 'notTxt'); }
 /* ⚠ LA FENÊTRE SERT AUSSI AUX LIGNES DE MA LISTE PERSO (Mag, 08/09/2026 : « mets le
    principe de note pop-up sur la liste perso »). La cible est un identifiant : on
    regarde d'abord dans sa liste, puis dans les entretiens. Les deux ne se confondent
@@ -28191,21 +28259,55 @@ function notCibleObjet(){
   }catch(e){}
   return null;
 }
-function notLire(){ const c=document.getElementById(notChamp()); return c ? (c.value||'') : ''; }
-function notEcrire(t){
-  const c=document.getElementById(notChamp()); if(c) c.value=t;
-  if(!NOT_CIBLE){ NOT_TXT=t; notBrouillon(); }
+function notLire(champ){ const c=document.getElementById(champ||notChamp()); return c ? (c.value||'') : ''; }
+/* Rend FAUX quand la case n'existe plus — c'est le signal qu'il faut couper le micro. */
+function notEcrire(t, champ){
+  const id=champ||notChamp();
+  const c=document.getElementById(id);
+  if(!c) return false;
+  c.value=t;
+  /* ⚠ ON PRÉVIENT LA CASE QU'ELLE A CHANGÉ (10/09/2026). Le champ d'ajout de Ma liste
+     garde son brouillon dans son `oninput` et grandit à mesure : écrire dans `value`
+     sans le dire ne réveille rien, et la dictée disparaissait au prochain dessin de la
+     page. Les deux cases historiques n'en ont pas besoin — elles ont leur propre
+     brouillon, juste en dessous. */
+  if(id!=='notTxt' && id!=='entTxt'){
+    try{ c.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    if(c.tagName==='TEXTAREA' && typeof passGrandir==='function') passGrandir(c);
+  }
+  if(!NOT_CIBLE && !NOT_LIBRE){ NOT_TXT=t; notBrouillon(); }
+  return true;
+}
+/* Le pot commun, plus les tiroirs du casier dans l'ordre, plus la phrase en train de
+   se dire. C'est tout le texte de la dictée, recalculé du même résultat à chaque fois. */
+function notAssemble(enCours){
+  let t=NOT_ACQUIS;
+  Object.keys(NOT_CASIER).map(Number).sort(function(a,b){ return a-b; })
+    .forEach(function(i){ t+=' '+NOT_CASIER[i]; });
+  if(enCours) t+=' '+enCours;
+  return t.replace(/\s+/g,' ').trim();
+}
+/* ⚠ ON NE MANGE PAS LA PHRASE EN COURS. Le texte assemblé ne contient que le
+   DÉFINITIF ; la phrase en train de se dire est, elle, déjà à l'écran — et ce qu'on a
+   tapé au clavier pendant la dictée aussi. Si la case commence par l'assemblé et
+   continue, c'est cette suite-là : on la garde. Sans ça, appuyer sur STOP au milieu
+   d'une phrase l'effaçait. */
+function notTexteFinal(champ){
+  const a=notAssemble(''), v=notLire(champ);
+  return (v.indexOf(a)===0 && v.length>a.length) ? v : a;
 }
 /* iPhone et iPad : leur écoute se comporte autrement (voir `notParler`). */
 const NOT_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-/* ⚠ PAS DE BOUTON PARLER SUR TÉLÉPHONE (Mag, 07/09/2026 : « sur téléphone, je préfère
-   que tu retires le bouton »). L'écoute du navigateur y est trop capricieuse : elle
-   coupe au bout d'une phrase, redemande l'autorisation, et se fait bloquer quand
-   l'app est ouverte depuis le raccourci de l'écran d'accueil.
-   Un bouton qui marche une fois sur trois est pire que pas de bouton : on ne sait
-   jamais si c'est lui ou soi. Le micro du clavier, lui, marche partout — c'est le
-   geste qu'elle fait déjà pour dicter ses messages. */
+/* ⚠ HISTOIRE DU BOUTON SUR TÉLÉPHONE. Le 07/09/2026 il y avait été RETIRÉ (« sur
+   téléphone, je préfère que tu retires le bouton ») : l'écoute coupait au bout d'une
+   phrase et répétait ce qu'elle avait déjà écrit. Un bouton qui marche une fois sur
+   trois est pire que pas de bouton — on ne sait jamais si c'est lui ou soi.
+   Le 10/09/2026 il est REVENU, parce que le micro du clavier ne s'atteint pas sur son
+   Samsung, et parce que les deux causes sont réparées : le casier (la répétition) et
+   la demande d'autorisation (le démarrage muet).
+   `NOT_TEL_()` ne décide donc plus QUI écoute : il ne sert qu'à choisir les mots des
+   messages, et à ce que l'aperçu téléphone dise la vérité. */
 const NOT_TEL_APPAREIL=/Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
   || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches && window.innerWidth<1024);
 /* ⚠ L'APERÇU TÉLÉPHONE DOIT MONTRER CE QUE VOIT UN TÉLÉPHONE. Sans cette ligne,
@@ -28258,71 +28360,131 @@ function notLirePermission(){
     },function(){});
   }catch(e){}
 }
-function notParler(){
-  /* SUR TÉLÉPHONE : on pose le curseur, le clavier s'ouvre, son micro prend le
-     relais. C'est tout ce qu'un site peut faire là-bas, et c'est suffisant. */
-  if(NOT_TEL_()){
-    const c=document.getElementById(notChamp());
-    if(c) c.focus();
-    return;
+/* ═══ DEMANDER LE MICRO AVANT D'ÉCOUTER (Mag, 10/09/2026, sur son Samsung) ═══
+   « Le bouton ne marchait pas vraiment bien. »
+   Sur Android, `SpeechRecognition.start()` échoue EN SILENCE quand l'autorisation n'a
+   jamais été donnée : pas d'erreur lisible, juste rien qui s'écrit — exactement un
+   bouton mort, vu de la page. `getUserMedia`, lui, FAIT APPARAÎTRE la demande du
+   navigateur, y compris quand l'app est ouverte depuis le raccourci de l'écran
+   d'accueil. On la demande donc d'abord, et on relâche le micro tout de suite : on
+   veut l'autorisation, pas un enregistrement. */
+async function notAutorisation(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+    const flux=await navigator.mediaDevices.getUserMedia({audio:true});
+    try{ flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
+    NOT_PERM='granted';
+    return true;
+  }catch(e){
+    NOT_PERM='denied';
+    NOT_PANNE="Le micro n'est pas autorisé pour COUSIN. Touche le cadenas à gauche de l'adresse, puis « Autoriser ».";
+    return false;
   }
+}
+async function notParler(champ){
+  /* Un appui pendant qu'on écoute ARRÊTE, où qu'on appuie. Une seule dictée à la fois :
+     deux écoutes en parallèle écriraient chacune dans la case de l'autre. */
   if(NOT_ECOUTE){ notStop(); return; }
+  NOT_LIBRE=champ||'';
+  const cible=notChamp();
+  const c=document.getElementById(cible);
+  if(!c){ NOT_LIBRE=''; return; }
+  /* Le navigateur ne sait pas écouter (Firefox, la plupart des navigateurs de
+     téléphone hors Chrome) : on pose le curseur, le clavier s'ouvre, son micro prend
+     le relais. C'est tout ce qu'un site peut faire là, et ça marche partout. */
   const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!R){ NOT_PANNE="Ce navigateur ne sait pas écouter. Écris dans la case, puis Corriger."; notRedessine(); return; }
+  if(!R){
+    c.focus();
+    NOT_PANNE = NOT_TEL_()
+      ? "Ce navigateur n'écoute pas : utilise le micro de ton clavier, la case est prête."
+      : "Ce navigateur ne sait pas écouter. Écris dans la case, puis Corriger.";
+    notRedessine(); NOT_LIBRE=''; return;
+  }
+  const permis=await notAutorisation();
+  /* Pendant qu'on répondait à la question du navigateur, la fenêtre a pu se fermer. */
+  if(!permis || !document.getElementById(cible)){ notRedessine(); NOT_LIBRE=''; return; }
   try{
     NOT_REC=new R();
     NOT_REC.lang='fr-FR';
     NOT_REC.continuous=!NOT_IOS;
     NOT_REC.interimResults=true;
-    /* ⚠ ON RECALCULE, ON N'AJOUTE PAS. Le navigateur ne renvoie pas que le nouveau
-       morceau : il repasse régulièrement toute la dictée depuis le début et repromeut
-       en « définitif » ce qu'il avait déjà dit. En collant chaque annonce au bout, on
-       écrivait dix fois la même phrase (vu le 05/09/2026). */
-    const depart=notLire();
+    NOT_REC.maxAlternatives=1;
+    /* Le pot commun part de ce qui est DÉJÀ dans la case : on dicte à la suite de ce
+       qu'on avait écrit, on ne l'écrase pas. */
+    NOT_ACQUIS=notLire(cible); NOT_CASIER={}; NOT_SILENCES=0;
     NOT_REC.onresult=function(ev){
-      let tout='';
-      for(let i=0;i<ev.results.length;i++) tout+=ev.results[i][0].transcript+' ';
-      notEcrire((depart+' '+tout).replace(/\s+/g,' ').trim());
+      NOT_SILENCES=0;
+      let enCours='';
+      for(let i=0;i<ev.results.length;i++){
+        const r=ev.results[i], mot=(r[0]&&r[0].transcript)||'';
+        /* Définitif : dans son tiroir (le même numéro écrase le même tiroir).
+           En cours : jamais gardé, il changera au mot suivant. */
+        if(r.isFinal) NOT_CASIER[i]=mot; else enCours+=' '+mot;
+      }
+      /* La case a disparu — page changée, fenêtre fermée. On coupe le micro plutôt que
+         d'écrire dans le vide, micro allumé, sans que rien ne le dise. */
+      if(!notEcrire(notAssemble(enCours), cible)){ notCouper(); return; }
       notMajEcoute();
     };
     NOT_REC.onerror=function(ev){
-      NOT_ECOUTE=false;
       const q=(ev&&ev.error)||'';
-      NOT_PANNE = (q==='not-allowed'||q==='service-not-allowed')
-        ? "Le micro est refusé pour ce site. Clique sur le cadenas à gauche de l'adresse et remets-le sur « Autoriser »."
-        : (q==='no-speech') ? "Je n'ai rien entendu. Réappuie sur Parler."
+      /* ⚠ UN SILENCE N'EST PAS UNE PANNE (Mag, 10/09/2026 : « que l'audio fonctionne
+         bien, à un rythme normal »). Sur Android l'écoute se coupe à chaque
+         respiration avec « no-speech » : l'annoncer arrêtait la dictée au premier
+         blanc, et il fallait rappuyer entre deux phrases. On laisse la relance faire
+         son travail, et on ne s'arrête qu'après cinq silences d'affilée — de l'ordre
+         de quarante secondes sans un mot. */
+      if(q==='no-speech'){
+        NOT_SILENCES++;
+        if(NOT_SILENCES<5) return;
+        NOT_PANNE="L'écoute s'est arrêtée après un long silence. Ce que tu avais dit est gardé.";
+      }
+      /* « aborted » est notre propre coupure : elle a déjà été dite ailleurs. */
+      else if(q==='aborted') return;
+      else NOT_PANNE = (q==='not-allowed'||q==='service-not-allowed')
+        ? "Le micro est refusé pour ce site. Touche le cadenas à gauche de l'adresse et remets-le sur « Autoriser »."
         : (q==='audio-capture') ? "Aucun micro trouvé sur cet appareil."
         : (q==='network') ? "L'écoute a besoin du réseau, et il manque."
         : "L'écoute s'est arrêtée"+(q?' ('+q+')':'')+". Ce que tu avais dit est gardé.";
+      NOT_ECOUTE=false;
       notRedessine();
     };
     NOT_REC.onend=function(){
-      notEcrire(notLire());
+      /* ⚠ CE QUI EST ACQUIS PASSE AU POT COMMUN AVANT LA RELANCE. Sans ça, la nouvelle
+         écoute repart avec les numéros 0, 1, 2… et ses tiroirs écrasent les phrases
+         précédentes : on perdait le début, ou on le réécrivait. */
+      NOT_ACQUIS=notTexteFinal(cible); NOT_CASIER={};
+      const laCase=notEcrire(NOT_ACQUIS, cible);
       /* On relance tant qu'elle n'a pas dit d'arrêter : l'écoute se coupe toute seule
          après un silence, et sans ça il faudrait rappuyer à chaque phrase. */
-      if(NOT_ECOUTE && !NOT_STOP){
-        try{ setTimeout(function(){ try{ NOT_REC.start(); }catch(e){} },250); return; }catch(e){}
+      if(laCase && NOT_ECOUTE && !NOT_STOP){
+        setTimeout(function(){ try{ NOT_REC.start(); }catch(e){} },250);
+        return;
       }
-      NOT_ECOUTE=false; notRedessine();
+      /* ⚠ SEUL ENDROIT OÙ `NOT_LIBRE` SE VIDE quand tout va bien : `onend` arrive
+         toujours en dernier, après une éventuelle erreur. Le vider plus tôt enverrait
+         une réponse tardive dans la mauvaise case. */
+      NOT_ECOUTE=false; notRedessine(); NOT_LIBRE='';
     };
     NOT_STOP=false; NOT_REC.start();
     NOT_ECOUTE=true; NOT_PANNE=''; notRedessine();
   }catch(e){
     NOT_ECOUTE=false;
     NOT_PANNE="Le micro n'a pas démarré ("+((e&&e.message)||'?')+"). Écris dans la case, puis Corriger.";
-    notRedessine();
+    notRedessine(); NOT_LIBRE='';
   }
 }
 /* Pendant l'écoute, on ne redessine PAS la page : on met à jour le bouton, et rien
    d'autre. Réécrire #view en pleine dictée détruirait la case à chaque mot. */
 function notMajEcoute(){
-  const b=document.getElementById('notMicBtn');
+  /* Trois boutons possibles, un seul allumé : celui de la case où l'on dicte. */
+  const b=document.getElementById(NOT_LIBRE?('notMic_'+NOT_LIBRE):'notMicBtn');
   if(b){
-    b.className='notmic'+(NOT_ECOUTE?' ecoute':'');
+    b.className='notmic'+(NOT_LIBRE?' petit':'')+(NOT_ECOUTE?' ecoute':'');
     b.title=NOT_ECOUTE?'Appuie pour arrêter':'Dicter';
     b.innerHTML=notContenuBouton();
   }
-  if(NOT_CIBLE) entRafraichir();
+  if(!NOT_LIBRE && NOT_CIBLE) entRafraichir();
 }
 /* ⚠ LE BOUTON DIT « AUDIO » DES DEUX CÔTÉS (Mag, 08/09/2026). J'avais mis deux mots
    différents selon l'appareil, pour dire qui écoute — elle veut un seul nom, et elle a
@@ -28332,7 +28494,10 @@ function notMajEcoute(){
    bouton qui écoute n'a rien à raconter — le point rouge dit tout, et il le dit de
    loin. Le titre porte l'explication pour qui survole. */
 function notMotBouton(){ return 'AUDIO'; }
-function notContenuBouton(){
+/* `on` dit s'il faut dessiner l'état « en train d'écouter ». Sans lui, un bouton
+   dessiné pendant qu'une AUTRE case dicte affichait STOP alors qu'il ne fait rien. */
+function notContenuBouton(on){
+  const ecoute = (on===undefined) ? NOT_ECOUTE : !!on;
   /* ⚠ LES TROIS POINTS SONT DESSINÉS À LA MAIN, pas par le CSS : `.notpt` n'est qu'un
      conteneur, et un `<span class="notpt">` vide laissait le bouton COMPLÈTEMENT nu
      pendant l'écoute. Vu en relisant le style de l'autre session — le mien fabriquait
@@ -28340,17 +28505,40 @@ function notContenuBouton(){
   /* ⚠ « STOP » À CÔTÉ DES POINTS (Mag, 08/09/2026). J'avais laissé le bouton muet
      pendant l'écoute — les trois points disent qu'on enregistre, mais pas ce que le
      doigt va faire. Le mot dit l'action ; les points disent l'état. Les deux ensemble. */
-  return NOT_ECOUTE
+  return ecoute
     ? '<span class="notpt"><span class="nd1">●</span><span class="nd2">●</span>'+
       '<span class="nd3">●</span></span>STOP'
     : '<span class="ic">'+icon('play')+'</span>'+notMotBouton();
+}
+/* ═══ LE MÊME BOUTON, PARTOUT OÙ ON ÉCRIT (Mag, 10/09/2026) ═══
+   « Mets l'audio dans la liste, et quand on clique pour modifier un message, qu'il y
+   ait aussi un audio. » Le nom, le point qui bat, le STOP : les mêmes qu'à la page des
+   notes. C'est le même geste, il n'a pas deux dessins.
+   ⚠ `onmousedown` RETIENT LE CURSEUR DANS LA CASE : sans lui, appuyer sur le bouton
+   sort du champ — et sur téléphone, le clavier se referme. */
+function notBoutonHTML(champ, petit){
+  const on=(NOT_ECOUTE && NOT_LIBRE===champ);
+  return '<button type="button" id="notMic_'+champ+'" '+
+    'class="notmic'+(petit?' petit':'')+(on?' ecoute':'')+'" '+
+    'onmousedown="event.preventDefault()" onclick="notParler(\''+champ+'\')" '+
+    'title="'+(on?'Appuie pour arrêter':'Dicter')+'" '+
+    'aria-label="'+(on?'Arrêter l\'enregistrement':'Dicter')+'">'+
+    notContenuBouton(on)+'</button>';
 }
 function notStop(){
   NOT_STOP=true;
   try{ if(NOT_REC) NOT_REC.stop(); }catch(e){}
   NOT_ECOUTE=false;
-  notEcrire(notLire());
+  notEcrire(notTexteFinal());
   notRedessine();
+}
+/* Couper net, sans rien écrire : la case où l'on dictait n'existe plus (page changée,
+   fenêtre fermée). Un micro qui reste allumé sans que rien ne s'écrive, c'est la panne
+   muette par excellence — on ne la voit qu'à la pastille du navigateur. */
+function notCouper(){
+  NOT_STOP=true;
+  try{ if(NOT_REC){ if(NOT_REC.abort) NOT_REC.abort(); else NOT_REC.stop(); } }catch(e){}
+  NOT_ECOUTE=false; NOT_LIBRE=''; NOT_CASIER={}; NOT_ACQUIS='';
 }
 /* ⚠ CE QU'ON EST EN TRAIN D'ÉCRIRE SURVIT AU RECHARGEMENT (Mag, 05/09/2026 : « si je
    relance la page, le deuxième que je suis en train d'écrire, il part »).
@@ -28363,8 +28551,19 @@ function notBrouillon(){
 }
 function notSaisie(v){ NOT_TXT=v||''; notBrouillon(); }
 
-/* Redessiner : la page entière, ou seulement la fenêtre de l'entretien. */
-function notRedessine(){ if(NOT_CIBLE) entRafraichir(); else render(); }
+/* Redessiner : la page entière, la fenêtre de la note, ou seulement le bouton.
+   ⚠ QUAND ON DICTE DANS UNE CASE QUELCONQUE, ON NE REDESSINE QUE SON BOUTON. La
+   fenêtre Modifier vit PAR-DESSUS la page : un `render()` en pleine dictée réécrirait
+   ce qu'il y a derrière pour rien, et le message de panne n'aurait nulle part où
+   s'afficher — il passe donc par le bandeau du bas, qui se voit de partout. */
+function notRedessine(){
+  if(NOT_LIBRE){
+    notMajEcoute();
+    if(NOT_PANNE){ toast(NOT_PANNE); NOT_PANNE=''; }
+    return;
+  }
+  if(NOT_CIBLE) entRafraichir(); else render();
+}
 
 async function notOk(){
   if(NOT_ENCOURS) return;
@@ -28582,14 +28781,18 @@ function notesCorps(){
   h+='<textarea id="notTxt" class="notchamp" '+
       'placeholder="Ce que tu dis s\'écrit ici" '+
       'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
-  if(NOT_TEL_())
-    h+='<div class="notaide">Tu peux dicter ou écrire, et ensuite corriger avec Claude.</div>';
-  else if(!notMicroDispo())
-    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Écris dans la case, puis Corriger.</div>';
+  /* ⚠ L'ORDRE A CHANGÉ LE 10/09/2026, et c'est le point : le message du téléphone
+     passait AVANT tous les autres, donc sur son Samsung l'app ne disait jamais que le
+     micro était bloqué. On dit d'abord ce qui EMPÊCHE, ensuite le reste.
+     ⚠ Et la phrase « tu peux dicter ou écrire, et ensuite corriger avec Claude » est
+     partie avec : le bouton écoute maintenant sur téléphone aussi, et une phrase qui
+     décrit les boutons qu'on a sous les yeux n'apprend rien (sa règle du 08/09). */
+  if(!notMicroDispo())
+    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Dicte avec le micro de ton clavier, dans la case.</div>';
   else if(NOT_PERM==='denied')
-    h+='<div class="notaide"><b>Le micro est bloqué.</b> Clique sur le cadenas à gauche de l\'adresse et mets « Autoriser ».</div>';
+    h+='<div class="notaide"><b>Le micro est bloqué.</b> Touche le cadenas à gauche de l\'adresse et mets « Autoriser ».</div>';
   else if(NOT_PERM==='prompt')
-    h+='<div class="notaide">Autorise le micro.</div>';
+    h+='<div class="notaide">La première fois, ton navigateur demande le micro : réponds Autoriser.</div>';
   else if(NOT_IOS)
     h+='<div class="notaide">Si rien ne s\'écrit, le micro du clavier marche toujours.</div>';
   /* ⚠ « OK » NE DISAIT PAS CE QU'IL FAIT (Mag, 05/09/2026 : « j'aimerais que tu
@@ -34450,11 +34653,10 @@ function entRafraichir(){
   }
   const a=document.getElementById('entAide');
   if(a){
-    a.textContent = NOT_TEL_()
-      ? "Tu peux dicter ou écrire, et ensuite corriger avec Claude."
-      : !notMicroDispo()
-      ? "Ce navigateur ne sait pas écouter. Utilise le micro de ton clavier, dans la case."
-      : NOT_PERM==='denied' ? "Le micro est bloqué pour ce site. Clique sur le cadenas à gauche de l'adresse pour le remettre sur « Autoriser »."
+    /* Le même ordre que la page : ce qui empêche d'abord (voir `notesCorps`). */
+    a.textContent = !notMicroDispo()
+      ? "Ce navigateur ne sait pas écouter. Dicte avec le micro de ton clavier, dans la case."
+      : NOT_PERM==='denied' ? "Le micro est bloqué pour ce site. Touche le cadenas à gauche de l'adresse pour le remettre sur « Autoriser »."
       : NOT_PERM==='prompt' ? "La première fois, ton navigateur demande l'autorisation du micro : réponds Autoriser."
       : '';
     a.style.display=a.textContent?'':'none';
@@ -36234,6 +36436,14 @@ function rappelsHTML(enCarte){
        'autocomplete="off" '+
        'oninput="RAP_BROUILLON=this.value;passGrandir(this)" '+
        'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();rappelAjouter();}">'+esc(RAP_BROUILLON||'')+'</textarea>'+
+        /* ═══ L'AUDIO DANS MA LISTE (Mag, 10/09/2026 : « j'aimerais que tu mettes
+           l'audio dans la liste sur la page Notes et Liste ») ═══
+           Sur SA PROPRE LIGNE, au-dessus des commandes : à quatre boutons sur une ligne
+           de 375 px, « Passation » se coupait en deux mots. La ligne des commandes reste
+           donc exactement celle du 22/08 — N° ch., OK, Passation.
+           ⚠ C'est le même bouton qu'à l'onglet Notes, à un onglet de distance : même
+           mot, même point rouge, même STOP. */
+        '<div class="chadd-a">'+notBoutonHTML('rapTxt', true)+'</div>'+
         '<div class="chadd-b">'+
         '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
         'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(RAP_CH_BROUILLON||'')+'" '+
