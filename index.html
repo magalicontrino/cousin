@@ -4329,6 +4329,37 @@ body.pan-ouvert #view{animation:none;transform:none}
   font-family:ui-monospace,monospace;font-size:13px;font-weight:700;line-height:1;cursor:pointer}
 .txbar .txb u{text-decoration:underline}
 .chadd.ecrire .txbar .txb-h{color:rgba(242,238,230,.45)}
+/* ═══ LA LIGNE QUI PORTE G, S, COPIER, COLLER (Mag, 10/09/2026) ═══
+   ⚠ ELLE PASSE À LA LIGNE quand il n'y a plus la place : à 375 px, cinq commandes
+   dans une barre, ça sort de l'écran — c'est déjà arrivé avec les chips de filtre.
+   Mieux vaut deux rangées que des boutons qu'on ne voit pas. */
+.txligne{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.txligne .txbar{margin-bottom:0}
+/* ⚠ G ET S ÉTAIENT INVISIBLES DANS LA PASSATION — crème sur crème, exactement le
+   défaut corrigé le 10/09 dans la fenêtre Modifier, mais jamais ici. Leur habillage
+   est écrit pour la carte NOIRE de Ma liste. Vu à l'écran en posant COPIER et COLLER
+   juste à côté : deux boutons lisibles et deux fantômes sur la même ligne.
+   ⚠ La carte noire garde le sien : son sélecteur est plus fort, c'est voulu. */
+.txligne .txb{border-color:var(--trait);background:#fdfdfc;color:var(--noir)}
+/* ⚠ LES BOUTONS À MOT ONT UNE LARGEUR LIBRE, contrairement à G et S qui sont carrés
+   à 36 px. Le sélecteur est écrit DEUX FOIS, dont une avec `.txbar`, pour passer
+   devant la règle carrée quand ils se trouvent dedans.
+   ⚠ ET ILS PORTENT LEUR PROPRE HABILLAGE CLAIR : celui de G et S a été écrit pour la
+   carte NOIRE de Ma liste (texte crème sur crème translucide). Posé sur un fond clair,
+   il donne un bouton invisible — c'est ce qui était arrivé à G et S dans la fenêtre
+   Modifier, où ils sont restés fantômes du 22/08 au 10/09. */
+.txb.mot,.txbar .txb.mot{width:auto;height:32px;flex:none;padding:0 11px;
+  border:1px solid var(--trait);border-radius:6px;background:#fdfdfc;color:var(--noir);
+  font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.07em;
+  line-height:1;cursor:pointer}
+/* Sur la carte noire du champ d'ajout, ils reprennent l'habillage clair-sur-sombre. */
+.chadd.ecrire .txb.mot,.chadd.ecrire .txbar .txb.mot{border-color:rgba(242,238,230,.35);
+  background:rgba(242,238,230,.08);color:#f2eee6}
+.notcc{margin-bottom:8px}
+/* Dans le champ d'ajout de Ma liste, l'AUDIO reste poussé à droite de COPIER/COLLER. */
+.chadd-a{flex-wrap:wrap;gap:7px}
+.chadd-a .notmic{margin-left:auto}
+@media print{ .txligne,.notcc,.txb.mot{display:none!important} }
 /* ═══ LES CASES « ABSENCE » / « DÉSENCODAGE » SOUS LE CHAMP (Mag, 24/08/2026) ═══
    Une ligne de bouton, avec une vraie case à cocher et le mot écrit — pas un picto
    muet qu'on coche sans savoir. Cochee, elle passe en rouge (la couleur des encodés). */
@@ -18970,7 +19001,7 @@ function cousinPop(o){
   if(bar){
     bar.style.display=popTexte?'flex':'none';
     bar.innerHTML=popTexte
-      ? (_popMulti?passBarreHTML(popCase):'')+notBoutonHTML(popCase, true)
+      ? (_popMulti?passBarreHTML(popCase):'')+txCopierCollerHTML(popCase)+notBoutonHTML(popCase, true)
       : '';
   }
   if(autre){ autre.style.display='none'; autre.value=''; }
@@ -29015,6 +29046,13 @@ function notesCorps(){
        'title="'+(NOT_ECOUTE?'Appuie pour arrêter':'Dicter')+'" '+
        'aria-label="'+(NOT_ECOUTE?'Arrêter l\'enregistrement':'Dicter')+'">'+
        notContenuBouton()+'</button>';
+  /* ⚠ ICI, SEULEMENT « COLLER » : cette page a déjà son bouton Copier dans la rangée
+     du dessous. Deux boutons Copier à trente pixels l'un de l'autre feraient douter
+     lequel copie quoi. C'est le retour qui manquait — coller ce qu'on a pris ailleurs
+     (Mag, 10/09/2026 : « ou l'inverse »). */
+  h+='<div class="txligne notcc"><button type="button" class="txb mot" '+
+      'onmousedown="event.preventDefault()" onclick="txColler(\'notTxt\')" '+
+      'title="Coller ici">COLLER</button></div>';
   h+='<textarea id="notTxt" class="notchamp" '+
       'placeholder="Ce que tu dis s\'écrit ici" '+
       'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
@@ -36045,7 +36083,7 @@ function passFeuilleHTML(){
          et qui est difficile le matin.
          ⚠ IL GRANDIT TOUT SEUL en tapant (`passGrandir`) : une barre de défilement dans
          un champ de trois lignes cache ce qu'on vient d'écrire. */
-      passBarreHTML('passTxt')+
+      '<div class="txligne">'+passBarreHTML('passTxt')+txCopierCollerHTML('passTxt')+'</div>'+
       '<textarea id="passTxt" rows="3" placeholder="…" oninput="passGrandir(this)"></textarea>'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
          qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
@@ -36185,6 +36223,59 @@ function passBarreHTML(id){
     '<button type="button" class="txb u" onmousedown="event.preventDefault()" '+
       'onclick="passStyle(\''+id+'\',\'__\')" title="Souligné">S</button>'+
   '</div>';
+}
+/* ═══ COPIER ET COLLER, LÀ OÙ ON ÉCRIT (Mag, 10/09/2026) ═══
+   « Dans la liste quand je fais une note, ou dans les pop-up, il faut que je puisse
+   copier-coller — que je fasse une note et que je la colle là, ou l'inverse. »
+
+   Le presse-papier du téléphone existe déjà par l'appui long, mais dans une case de
+   trois lignes il faut viser, et le menu recouvre le texte. Deux boutons valent mieux
+   que ce jeu d'adresse.
+
+   ⚠ ILS PORTENT LEUR MOT. Une rangée de dessins muets, c'est ce qu'elle avait fait
+   retirer de la barre du haut en août.
+   ⚠ `onmousedown` RETIENT LE CURSEUR : sans lui, appuyer sur le bouton sort du champ,
+   la position du curseur est perdue — et le collage tomberait au début au lieu de
+   tomber là où on écrivait. Sur téléphone, le clavier se refermerait en plus. */
+function txCopierCollerHTML(id){
+  return '<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
+      'onclick="txCopier(\''+id+'\')" title="Copier tout le texte">COPIER</button>'+
+    '<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
+      'onclick="txColler(\''+id+'\')" title="Coller ici">COLLER</button>';
+}
+function txCopier(id){
+  const c=document.getElementById(id); if(!c) return;
+  const t=(c.value||'').trim();
+  if(!t){ toast('Rien à copier'); return; }
+  copyTxt(t,'Copié');
+}
+/* ⚠ LE PRESSE-PAPIER PEUT ÊTRE REFUSÉ, ET C'EST NORMAL : le navigateur demande son
+   autorisation, et certains la refusent sans rien dire. On ne laisse pas un bouton
+   muet — on dit quoi faire à la place (l'appui long, qui marche toujours). */
+async function txColler(id){
+  const c=document.getElementById(id); if(!c) return;
+  let t='';
+  try{ t=await navigator.clipboard.readText(); }
+  catch(e){
+    toast('Le téléphone n\'a pas donné le presse-papier — appuie longuement dans la case, puis « Coller ».');
+    try{ c.focus(); }catch(e2){}
+    return;
+  }
+  if(!t){ toast('Il n\'y a rien à coller'); return; }
+  /* On colle LÀ OÙ EST LE CURSEUR, pas au bout : elle écrit une note, place son
+     curseur au milieu, et colle. Sans position connue, on met à la fin. */
+  const v=c.value||'';
+  let d=c.selectionStart, f=c.selectionEnd;
+  if(typeof d!=='number' || typeof f!=='number'){ d=v.length; f=v.length; }
+  c.value=v.slice(0,d)+t+v.slice(f);
+  const pos=d+t.length;
+  try{ c.focus(); c.setSelectionRange(pos,pos); }catch(e3){}
+  /* ⚠ ÉCRIRE DANS `value` NE RÉVEILLE RIEN : le brouillon de la case s'enregistre
+     dans son `oninput`, et le champ qui grandit tout seul écoute le même événement.
+     Sans cette annonce, ce qu'on colle disparaît au prochain dessin de la page. */
+  try{ c.dispatchEvent(new Event('input',{bubbles:true})); }catch(e4){}
+  if(c.tagName==='TEXTAREA' && typeof passGrandir==='function') passGrandir(c);
+  toast('Collé');
 }
 /* Les champs du Premier accueil s'ouvrent à la hauteur de ce qu'ils contiennent
    DÈS L'ARRIVÉE : `scrollHeight` ne veut rien dire tant que l'élément n'est pas
@@ -36680,7 +36771,7 @@ function rappelsHTML(enCarte){
            donc exactement celle du 22/08 — N° ch., OK, Passation.
            ⚠ C'est le même bouton qu'à l'onglet Notes, à un onglet de distance : même
            mot, même point rouge, même STOP. */
-        '<div class="chadd-a">'+notBoutonHTML('rapTxt', true)+'</div>'+
+        '<div class="chadd-a">'+txCopierCollerHTML('rapTxt')+notBoutonHTML('rapTxt', true)+'</div>'+
         '<div class="chadd-b">'+
         '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
         'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(RAP_CH_BROUILLON||'')+'" '+
