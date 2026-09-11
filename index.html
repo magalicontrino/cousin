@@ -15477,7 +15477,7 @@ function imprimerMaListe(){
         ['désencoder', desencP,   'des'],
         ['absence',    absences,  'abs']
       ], 'encodage')
-    + bloc('Chambres à vider', viderP, 'vider', 'des')
+    + bloc('Chambres à vider', viderP, 'vider', 'vid')
     + blocFusion('Entretiens · Mi-parcours', [
         ['entretien',   entretP, 'par'],
         ['mi-parcours', miparcP, 'par']
@@ -15626,17 +15626,30 @@ function feuilleImprimer(o){
       'overflow-wrap:anywhere;word-break:break-word}'+
     '.com{display:block;font-size:12px;color:#6b6963;margin-top:3px;'+
       'font-family:ui-monospace,monospace;letter-spacing:.04em}'+
-    /* ⚠ LES SEULES COULEURS DE LA FEUILLE, et elles sont celles de l'app :
-       vert ce qui entre · rouge ce qui se perd · brun ce dont on parle · jaune la
-       réunion et les chambres · rose les réveils · turquoise les infos. */
+    /* ═══ LES SEPT COULEURS DE LA FEUILLE (Mag, 11/09/2026) ═══
+       « Mets toujours des couleurs un peu pop. Il ne faut jamais rentrer dans des
+       trucs juste rouge, bleu, vert, couleur primaire — ce n'est pas gai. »
+       Le ROUGE PRIMAIRE `#e63329` quitte donc le papier : ce qui se perd passe au
+       FUCHSIA, qui alerte autant et qui claque. Toutes sont dans sa palette du 12/08 —
+       aucune couleur inventée, c'est sa première règle.
+       · fuchsia `#e8308a` — ce qui se perd : désencoder, une absence, un retard ;
+       · rose     `#fd8fd0` — les réveils ;
+       · turquoise`#6fc7d9` — ce qu'il faut savoir (sa préférée) ;
+       · vert     `#6cb392` — ce qui entre : encoder ;
+       · jaune    `#f5c542` — à dire en réunion ;
+       · bleu clair `#a9c8e8` — ce dont on parle : entretien, mi-parcours, note. C'est
+         le « rare » de sa palette, et il ne sert qu'ici ;
+       · orange   `#f8763f` — UNE SEULE FOIS sur la feuille, pour la chambre à vider :
+         c'est la seule ligne qui bloque un lit. Son orange est un accent ponctuel, pas
+         une teinte de base — c'est exactement l'usage qu'elle autorise. */
     '.l.k-enc{border-left-color:#6cb392}'+
-    '.l.k-des{border-left-color:#e63329}'+
-    '.l.k-abs{border-left-color:#e63329}'+
-    '.l.k-par{border-left-color:#b28b7a}'+
+    '.l.k-des{border-left-color:#e8308a}'+
+    '.l.k-abs{border-left-color:#e8308a}'+
+    '.l.k-pre{border-left-color:#e8308a}'+
+    '.l.k-par{border-left-color:#a9c8e8}'+
     '.l.k-reu{border-left-color:#f5c542}'+
-    '.l.k-vid{border-left-color:#f5c542}'+
-    '.l.k-pre{border-left-color:#e63329}'+
-    '.l.k-rv{border-left-color:#f3c6da}'+
+    '.l.k-vid{border-left-color:#f8763f}'+
+    '.l.k-rv{border-left-color:#fd8fd0}'+
     '.l.k-inf{border-left-color:#6fc7d9}'+
     /* ═══ LE CROCHET DES RÉVEILS (Mag, 11/09/2026 : « pour les réveils, tu peux tout
        englober ») ═══
@@ -29432,45 +29445,41 @@ function notRevenirGardee(id){
    n'est pas du texte — sa règle), et le brouillon en cours dans la case (il n'est pas
    encore gardé, donc pas encore une note).
    ⚠ Gros caractères et marges dans @page : certains de l'équipe lisent mal. */
+/* ═══ LA FEUILLE DES NOTES — DESSIN F (Mag, 11/09/2026 : « ok F ») ═══
+   « Ils vont faire des notes, peut-être même pour eux-mêmes, et pouvoir les imprimer
+   aux passations. » Copier ne suffit pas : ce qui se transmet à l'équipe suivante,
+   c'est une feuille.
+   Elle partage maintenant `feuilleImprimer` avec les deux autres feuilles : un seul
+   papier, un seul style. Chaque note est une rangée à trait turquoise — la couleur
+   préférée de Mag, et ici la seule : une note n'a pas de sorte, donc pas de code
+   couleur à décoder.
+   ⚠ CE QUI NE PART PAS SUR LE PAPIER : l'alerte des chiffres et des côtés (elle n'est
+   pas du texte — sa règle du 07/09), et le brouillon en cours dans la case (il n'est
+   pas encore gardé, donc pas encore une note). */
 function imprimerNotes(){
   if(!NOTES.length){ toast('Aucune note gardée'); return; }
   const d=new Date();
   const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
              ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
   const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
-  const corps=NOTES.map(function(n){
-    return '<div class="n"><div class="h">'+esc(notHeure(n.q))+'</div>'+
-      '<div class="t">'+esc(n.t||'').replace(/\n/g,'<br>')+'</div></div>';
-  }).join('');
-  const w=window.open('','_blank');
-  if(!w){ toast("Le navigateur a bloqué la fenêtre d'impression"); return; }
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
-    '<title>Mes notes — '+esc(jour)+'</title><style>'+
-    'body{font-family:-apple-system,Segoe UI,sans-serif;background:#f0efed;margin:0;'+
-      'color:#1b1b1b;font-size:16px;line-height:1.5}'+
-    '.bar{position:sticky;top:0;background:#1b1b1b;color:#f0efed;padding:10px 14px;'+
-      'display:flex;gap:10px;align-items:center}'+
-    '.bar b{margin-right:auto}'+
-    '.bar button{font:inherit;padding:7px 14px;border-radius:7px;border:1px solid #f0efed;'+
-      'background:transparent;color:#f0efed;cursor:pointer}'+
-    '.bar button.ok{background:#f0efed;color:#1b1b1b;font-weight:600}'+
-    '.pg{max-width:190mm;margin:14px auto;background:#fff;padding:16mm 15mm}'+
-    'h1{font-size:26px;margin:0 0 3px}'+
-    '.sous{color:#555;margin:0 0 22px;font-size:15px}'+
-    '.n{border-top:1px solid #d6d4d0;padding:13px 0}'+
-    '.n:first-of-type{border-top:0}'+
-    '.h{font-size:13px;color:#555;margin-bottom:4px}'+
-    '.t{font-size:17px;line-height:1.55}'+
-    '@media print{.bar{display:none}body{background:#fff}'+
-      '.pg{max-width:100%;margin:0;padding:0}@page{margin:14mm 15mm}}'+
-    '</style></head><body>'+
-    '<div class="bar"><b>Mes notes — aperçu</b>'+
-      '<button onclick="window.close()">Fermer</button>'+
-      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
-    '<div class="pg"><h1>Mes notes</h1>'+
-      '<p class="sous">'+esc(jour)+(qui?' · '+esc(qui):'')+'</p>'+
-      corps+'</div></body></html>');
-  w.document.close();
+  /* ⚠ PAS DE CASE À COCHER ICI : une note se lit, elle ne se fait pas. Les cases sont
+     pour Ma liste et pour la passation. */
+  const corps='<section class="ch"><div class="st"><span>Ce que j’ai noté</span>'+
+      '<em>'+NOTES.length+'</em></div>'+
+    NOTES.map(function(n){
+      return '<div class="l k-inf" style="padding-left:16px">'+
+        '<span class="hh" style="font-size:14px;width:60px">'+esc(notHeure(n.q))+'</span>'+
+        '<span class="tx">'+esc(n.t||'').replace(/\n/g,'<br>')+'</span>'+
+      '</div>';
+    }).join('')+
+  '</section>';
+  feuilleImprimer({
+    onglet:'Mes notes — '+jour,
+    entete:'Mes notes — aperçu',
+    titre:'Mes notes',
+    sous:jour+(qui?' · '+qui:''),
+    corps:corps
+  });
 }
 function notToutEffacer(){
   const n=NOTES.length; if(!n) return;
@@ -36235,6 +36244,18 @@ function passUnique(liste){
     if(vues[k]) return false; vues[k]=1; return true;
   });
 }
+/* ═══ LA FEUILLE DE LA PASSATION — DESSIN F (Mag, 11/09/2026 : « ok F ») ═══
+   Elle partage maintenant `feuilleImprimer` avec la feuille de Ma liste : un seul
+   papier, un seul style, trois contenus. Avant, cette feuille avait sa PROPRE feuille
+   de style (un tableau à colonnes, une barre de couleur en première cellule, des
+   titres soulignés de noir) — et le jour où une règle de papier changeait, il fallait
+   la changer à deux endroits, ce qui n'arrivait jamais.
+   ⚠ CE QUI RESTE RETIRÉ (Mag, 22/08/2026), et ne revient pas :
+   · « ce qui s'est passé pendant la nuit » et ses cinq lignes vides — la feuille est
+     imprimée PAR l'équipe qui finit, POUR celle qui arrive ; celle qui la reçoit n'a
+     pas à raconter la nuit qu'elle n'a pas faite ;
+   · la ligne de pied « COUSIN · imprimé le… jamais de nom » — la règle est écrite sur
+     l'écran du Centre, là où on l'apprend. */
 function imprimerPassation(pour){
   const liste=passUnique(passToutes());
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
@@ -36243,153 +36264,57 @@ function imprimerPassation(pour){
   const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
   const qui=eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR);
 
-  /* ═══ MÊME FUSION QUE SUR ÉCRAN (Mag, 22/08/2026), voir `passationsHTML` : ce qui a
-     une heure — réveil, agent, à jeun — se lit dans UN SEUL programme, trié par heure,
-     au lieu de trois tableaux séparés qui obligeaient à recomposer sa matinée. Le
-     genre s'écrit en petit devant le texte : sur le papier, une couleur ne se voit pas
-     forcément (photocopie, imprimante noir et blanc), le mot, lui, se lit toujours. */
-  /* ⚠ LE PAPIER LIT LE MÊME PROGRAMME QUE L'ÉCRAN, y compris le dédoublement d'un
-     « à jeun » à minuit et au réveil : une feuille qui ne dirait pas la même chose que
-     l'app serait pire que pas de feuille du tout. */
-  const blocProgramme=function(){
-    const moments=passProgramme(liste);
-    if(!moments.length) return '';
-    const chambres=moments.some(function(m){ return passGenreDe(m.p.genre).chambre; });
-    return '<h2 class="rouge">Réveil</h2><table>'+
-      moments.map(function(m){
-        const p=m.p, g=passGenreDe(p.genre), fait=passFait(p);
-        /* ⚠ LA BARRE DE COULEUR DU GENRE, DEVANT LA LIGNE (Mag, 22/08/2026 : « fais un
-           truc un peu coloré, avec les lignes juste devant colorées »). C'est le même
-           repère que sur l'écran : on retrouve d'un coup d'œil ce qu'on a lu dans
-           l'app. */
-        return '<tr'+(fait?' class="fait"':'')+'>'+
-          '<td class="bar-g"><span style="background:'+g.c+'"></span></td>'+
-          '<td class="cc"><span class="bx"></span></td>'+
-          '<td class="h">'+esc(m.heure||'—')+'</td>'+
-          (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
-          '<td>'+passRiche(p.texte,true)+
-            /* ⚠ ENCADRÉE ET EN CAPITALES SUR LE PAPIER : la feuille est lue seule, dans
-               un couloir, à 5 h du matin, et souvent photocopiée en noir et blanc — une
-               couleur ne suffirait pas. */
-            (p.a_jeun?'<b class="pjeun">À JEUN</b>':'')+
-            (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
-            (p.jour&&p.jour!==agIso(new Date())?'<span class="com">pour le '+esc(rappelQuandFr(p.jour))+'</span>':'')+
-          '</td></tr>';
-      }).join('')+'</table>';
+  /* Une ligne : la case vide, l'heure alignée, le genre en petit, et le trait de
+     couleur à gauche. Le mot du genre reste écrit : sur une photocopie en noir et
+     blanc, la couleur peut disparaître — le mot, lui, se lit toujours. */
+  const ligneP=function(p){
+    const g=passGenreDe(p.genre), fait=passFait(p);
+    const bas=[];
+    if(g.chambre && p.chambre) bas.push('ch. '+p.chambre);
+    if(p.par) bas.push('par '+String(p.par).split(/\s+/)[0]);
+    if(p.jour && p.jour!==agIso(new Date())) bas.push('pour le '+rappelQuandFr(p.jour));
+    return '<div class="l'+(fait?' fait':'')+' '+(g.heure?'k-rv':'k-inf')+'">'+
+      '<span class="bx"></span>'+
+      (g.heure?'<span class="hh">'+esc(p.heure||'—')+'</span>':'')+
+      '<span class="tx">'+
+        (g.court?'<span class="quoi" style="display:inline;min-width:0;padding-right:7px">'+
+          esc(g.court)+'</span>':'')+
+        passRiche(p.texte,true)+
+        /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte, la
+           feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
+        (p.a_jeun?' <b>À JEUN</b>':'')+
+        /* ⚠ LE MESSAGE ENTIER SUR LE PAPIER, retours à la ligne compris (Mag, 22/08 :
+           « quand ça s'imprime, il faut qu'il y ait le message avec »). Le papier ne
+           se déplie pas : il n'y a rien à couper dessus. */
+        (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
+        (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
+      '</span></div>';
   };
-  const bloc=function(genres, titre, rouge){
-    const l=liste.filter(function(p){ return genres.indexOf(p.genre||'passation')>=0; });
-    if(!l.length) return '';
-    /* Colonnes FIXES pour toute la table : une chambre absente (un agent) laisse sa
-       case vide plutôt que de décaler les colonnes des lignes voisines. */
-    const chambres=l.some(function(p){ return passGenreDe(p.genre).chambre; });
-    return '<h2'+(rouge?' class="'+rouge+'"':'')+'>'+esc(titre)+'</h2><table>'+
-      l.map(function(p){
-        const g=passGenreDe(p.genre), fait=passFait(p);
-        return '<tr'+(fait?' class="fait"':'')+'>'+
-          '<td class="bar-g"><span style="background:'+g.c+'"></span></td>'+
-          '<td class="cc"><span class="bx"></span></td>'+
-          (g.heure?'<td class="h">'+esc(p.heure||'—')+'</td>':'')+
-          (chambres?'<td class="ch">'+(g.chambre?esc(p.chambre||'—'):'')+'</td>':'')+
-          '<td>'+
-            (g.heure?'<b class="pgenre">'+esc(g.court)+'</b> ':'')+
-            passRiche(p.texte,true)+
-            /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte,
-               la feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
-            (p.a_jeun?'<b class="pjeun">À JEUN</b>':'')+
-            /* ⚠ LE MESSAGE ENTIER SUR LE PAPIER, retours à la ligne compris (Mag,
-               22/08 : « quand ça s'imprime, il faut qu'il y ait le message avec »).
-               Le papier ne se déplie pas : il n'y a rien à couper dessus. */
-            (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
-            (p.jour&&p.jour!==agIso(new Date())?'<span class="com">pour le '+esc(rappelQuandFr(p.jour))+'</span>':'')+
-          '</td></tr>';
-      }).join('')+'</table>';
-  };
-  const corps=
-      blocProgramme()+
-      bloc(['passation'], 'Info', 'info') ||
-    '<p class="vide">Rien à passer pour cette équipe.</p>';
 
-  const w=window.open('','_blank');
-  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
-    '<title>Passation — '+esc(qui)+'</title><style>'+
-    /* ⚠⚠ SANS `print-color-adjust:exact`, LE NAVIGATEUR SUPPRIME TOUS LES FONDS ET
-       TOUTES LES COULEURS À L'IMPRESSION — c'est son réglage par défaut, pour économiser
-       l'encre. La feuille serait donc sortie en noir et blanc quoi qu'on écrive ici, et
-       c'est très exactement ce qu'elle voyait. */
-    '*{margin:0;padding:0;box-sizing:border-box;'+
-      '-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
-    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;'+
-      'background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
-    '.bar b{flex:1;font-size:14px}'+
-    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;'+
-      'font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
-    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
-    '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
-    '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
-    'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
-    '.sous{font-size:14px;color:#444;margin:4px 0 14px}'+
-    'h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;'+
-      'border-bottom:2px solid #1b1b1b;padding-bottom:4px;margin:20px 0 2px}'+
-    /* Le titre « Réveil » prend le rose des réveils, celui de l'écran — la feuille et
-       l'app doivent se reconnaître. */
-    'h2.rouge{color:#c0246e;border-color:#E8308A}'+
-    'h2.info{color:#4b7fb5;border-color:#a9c8e8}'+
-    'table{width:100%;border-collapse:collapse}'+
-    /* Gros caractères : on lit ça debout, dans un couloir, à 22 h. */
-    /* ⚠ MÊME RÈGLE SUR LE PAPIER : un mot trop long débordait de la feuille A4, et ce
-       qui déborde d'une feuille imprimée est purement et simplement perdu. */
-    'td{border-bottom:1px solid #ddd;padding:9px 5px;font-size:15px;line-height:1.35;'+
-      'vertical-align:top;overflow-wrap:anywhere;word-break:break-word}'+
-    'table{table-layout:fixed}'+
-    'tr{break-inside:avoid;page-break-inside:avoid}'+
-    'td.cc{width:11mm;padding-top:10px}'+
-    '.bx{display:block;width:6mm;height:6mm;border:1.6px solid #1b1b1b;border-radius:1px}'+
-    'td.h{width:20mm;font-weight:700;font-size:17px;white-space:nowrap}'+
-    'td.ch{width:22mm;font-weight:700;white-space:nowrap}'+
-    '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
-    /* L'à jeun sur le papier : encadré noir, il doit sauter aux yeux. */
-    /* ⚠ VERT CLAIR, PAS VERT PLEIN (Mag, 22/08/2026 : « à jeun, en vert — tu dois faire
-       un vert plus clair, parce qu'on ne voit pas bien écrit à jeun »). Le vert de
-       l'écran est fait pour du texte presque noir posé dessus ; à l'impression il
-       tirait vers le sombre et avalait les lettres. Fond très clair, encre vert foncé :
-       ça se lit à bout de bras, et ça reste lisible même photocopié. */
-    '.pjeun{display:inline-block;margin-left:8px;background:#d8efe1;color:#14543a;'+
-      'border:1px solid #6cb392;border-radius:3px;padding:1px 7px;font-size:11pt;letter-spacing:.06em}'+
-    /* La barre du genre, devant la ligne. */
-    'td.bar-g{width:5mm;padding:9px 0 9px 0}'+
-    'td.bar-g span{display:block;width:3mm;height:7mm;border-radius:1.5mm}'+
-    /* Le nom du genre, en petit, devant le texte — sur une table qui mélange plusieurs
-       genres, c'est lui qui les distingue quand la couleur ne s'imprime pas. */
-    '.pgenre{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#555;margin-right:4px}'+
-     'tr.fait td{color:#8b8984;text-decoration:line-through}'+
-     '.vide{padding:18px 0;font-size:15px;color:#555}'+
-     /* ⚠ LE FOND GRIS NE DOIT PAS S'IMPRIMER (Mag, 24/08/2026) : le body de l'aperçu
-        est #e8e7e4, et sur une page qui déborde le blanc du `.pg` ne couvre pas tout
-        le fond — le carré gris sortait sur le papier. On force le blanc. */
-     '@media print{.bar{display:none}body{background:#fff}'+
-       '.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
-    '</style></head><body>'+
-    '<div class="bar"><b>La passation — aperçu</b>'+
-      '<button onclick="window.close()">Fermer</button>'+
-      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
-    '<div class="pg">'+
-      '<h1>Passation</h1>'+
-      '<p class="sous">Pour <b>'+esc(qui)+'</b> · '+esc(jour)+'</p>'+
-      corps+
-      /* ⚠ DEUX BLOCS RETIRÉS (Mag, 22/08/2026).
-         · « CE QUI S'EST PASSÉ PENDANT LA NUIT » et ses cinq lignes vides : « ça n'a
-           aucun sens ». La feuille est imprimée PAR l'équipe qui finit, POUR celle qui
-           arrive — celle qui la reçoit n'a pas à raconter la nuit qu'elle n'a pas
-           faite. Le titre demandait le contraire de ce que la feuille fait.
-         · LA LIGNE DE PIED (« COUSIN · imprimé le … jamais de nom ») : « peux-tu
-           retirer cette phrase ». La règle du jamais-de-nom est écrite sur l'écran du
-           Centre, là où on l'apprend — la répéter en bas de chaque feuille, c'est la
-           rappeler à qui l'a déjà appliquée en écrivant. */
-    '</div></body></html>');
-  w.document.close();
+  /* ⚠ TOUT CE QUI A UNE HEURE SE LIT DANS UN SEUL PROGRAMME, TRIÉ PAR HEURE (Mag,
+     22/08/2026), et il est ENGLOBÉ DANS UN CROCHET (11/09/2026 : « pour les réveils,
+     tu peux tout englober ») : trois tableaux séparés obligeaient à recomposer sa
+     matinée, et un réveil noyé dans les infos se rate. */
+  const moments=passProgramme(liste);
+  const infos=liste.filter(function(p){ return (p.genre||'passation')==='passation'; });
+  let corps='';
+  if(moments.length)
+    corps+='<section class="ch"><div class="st"><span>Réveil</span>'+
+      '<em>'+moments.length+' · c’est la nuit qui coche</em></div>'+
+      '<div class="crochet">'+moments.map(function(m){ return ligneP(m.p); }).join('')+'</div>'+
+    '</section>';
+  if(infos.length)
+    corps+='<section class="ch"><div class="st"><span>Info</span>'+
+      '<em>'+infos.length+'</em></div>'+infos.map(ligneP).join('')+'</section>';
+  if(!corps) corps='<p class="vide">Rien à passer pour cette équipe.</p>';
+
+  feuilleImprimer({
+    onglet:'Passation — '+qui,
+    entete:'La passation — aperçu',
+    titre:'Passation',
+    sous:'Pour '+qui+' · '+jour,
+    corps:corps
+  });
 }
 
 /* ═══ LA PASSATION EST UNE CARTE À PART (Mag, 22/08/2026) ═══
