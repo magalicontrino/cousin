@@ -24122,8 +24122,25 @@ function vDomaine(key){
      une étiquette rare ferait s'évanouir le bouton qui vient de servir. */
   const compte={};
   parCommune.forEach(function(p){ (p.tags||[]).forEach(function(t){ compte[t]=(compte[t]||0)+1; }); });
+  /* ═══ DEUX ÉTIQUETTES DE PLUS QUI NE SONT PAS DES FILTRES (Mag, 11/09/2026) ═══
+     · « ÉVIDEMMENT QUE C'EST EN URGENCE, on est dans les centres d'urgence » : une
+       étiquette portée par TOUTES les fiches du tiroir ne trie rien — cliquer dessus
+       laisse exactement le même écran. C'est un bouton qui fait douter de tous les
+       autres.
+     · « TU METS DES PRIX, ça doit être dans les trucs gratuits normalement » : un
+       prix de journée n'est pas un critère de tri. On ne cherche pas « les maisons à
+       23,17 € », on regarde le prix de CELLE qu'on a trouvée.
+     ⚠ DANS LES DEUX CAS, L'INFORMATION RESTE SUR LA FICHE ET SUR LA CARTE : c'est le
+     BOUTON qui part, jamais le texte. Même règle que pour les étiquettes rares. */
   let alltags=[...new Set(parCommune.flatMap(p=>p.tags))]
-    .filter(function(t){ return compte[t]>1 || filt.tags.indexOf(t)>=0; });
+    .filter(function(t){
+      /* Celle qu'on vient de cocher ne disparaît jamais sous le doigt. */
+      if(filt.tags.indexOf(t)>=0) return true;
+      if(compte[t]<=1) return false;                    /* une seule fiche */
+      if(compte[t]===parCommune.length) return false;   /* toutes les fiches */
+      if(/€/.test(t)) return false;                     /* un prix */
+      return true;
+    });
   alltags.sort((a,b)=>{const ia=ordre.indexOf(a),ib=ordre.indexOf(b);return ((ia<0?99:ia)-(ib<0?99:ib))||a.localeCompare(b,'fr')});
   /* Si la sous-catégorie qu'on lisait n'existe plus dans ce qui reste — on vient de
      cliquer « Nos préférés » — on la relâche au lieu d'afficher une page vide. */
