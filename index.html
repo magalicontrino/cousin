@@ -14784,41 +14784,22 @@ function telHref(t){const m=/[+0-9][0-9 .\/-]{2,}/.exec(t||'');const n=m?m[0].re
    le titre et la date AVANT d'ouvrir la fenêtre d'impression, sinon la feuille sort
    anonyme. Marche aussi pour « enregistrer en PDF », c'est le même bouton. */
 /* ═══ L'ACCUEIL NE DÉFILE PLUS (Mag, 11/09/2026) ═══
-   « Sur la page d'accueil, j'ai tout enlevé pour qu'il n'y ait plus de scroll. Donc
-   j'aimerais que tu bloques tout ça. »
-   ⚠ ON NE BLOQUE QUE SI TOUT TIENT VRAIMENT À L'ÉCRAN, et c'est le point : un
-   `overflow:hidden` posé sans regarder rendrait INATTEIGNABLE une carte de plus sur un
-   téléphone plus petit que le sien — et personne ne saurait qu'elle existe. On mesure
-   donc après le dessin : ça tient, on bloque ; ça dépasse, on laisse défiler. Elle a
-   vidé la page pour que ça tienne, donc chez elle c'est bloqué.
-   ⚠ ON MESURE À LA FRAME SUIVANTE, blocage retiré : mesurer une page déjà bloquée
-   renvoie la hauteur de l'écran, donc « ça tient » toujours — et le blocage ne se
-   relâcherait jamais. */
+   « J'ai tout enlevé pour qu'il n'y ait plus de scroll, donc bloque tout ça », puis,
+   devant l'écran : « retire l'ascenseur, il n'y a pas besoin ».
+   ⚠ C'EST UN BLOCAGE SEC, SANS CONDITION — et c'est le deuxième essai. Le premier ne
+   bloquait QUE si tout tenait à l'écran (mesuré après les polices) : chez elle il
+   restait un ascenseur pour quelques pixels, donc la page défilait pour rien. Elle a
+   vidé cette page exprès pour qu'elle tienne : c'est elle qui décide ce qu'il y a
+   dessus, et il n'y a plus rien à atteindre en bas.
+   ⚠ CE QU'ON PERD, ET ELLE LE SAIT : le jour où une carte de plus apparaît sur
+   l'accueil, elle sera COUPÉE au lieu de faire défiler. Si ça arrive, ce n'est pas le
+   blocage qu'il faut retirer — c'est aux cartes de tenir dans l'écran.
+   ⚠ LES DEUX ÉLÉMENTS, racine ET body : sur iPhone c'est la racine qui défile. */
 function accueilFige(){
   const surAccueil = !!(current && current.view==='home');
-  const h=document.documentElement, b=document.body;
-  h.classList.remove('accueil-fige'); b.classList.remove('accueil-fige');
-  if(!surAccueil) return;
-  /* ⚠ UNE SEULE MESURE NE SUFFIT PAS, et c'est mesuré : à la frame suivante la page
-     fait encore 858 px, et 812 une fois posée. Les polices de l'app arrivent après le
-     premier dessin et changent toutes les hauteurs — même piège que la colonne du
-     Premier accueil en août. On mesure donc trois fois : tout de suite, un peu après,
-     et quand les polices sont prêtes. */
-  const mesurer=function(){
-    if(!(current && current.view==='home')) return;
-    h.classList.remove('accueil-fige'); b.classList.remove('accueil-fige');
-    /* 2 px de tolérance : les arrondis de sous-pixel suffisent à créer un faux
-       dépassement, et on ne débloquerait la page pour rien. */
-    const tient = h.scrollHeight <= window.innerHeight + 2;
-    h.classList.toggle('accueil-fige', tient);
-    b.classList.toggle('accueil-fige', tient);
-  };
-  requestAnimationFrame(mesurer);
-  setTimeout(mesurer, 260);
-  try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(mesurer); }catch(e){}
+  document.documentElement.classList.toggle('accueil-fige', surAccueil);
+  document.body.classList.toggle('accueil-fige', surAccueil);
 }
-/* Une carte qui arrive (la météo, une poubelle), un téléphone qu'on tourne : on remesure. */
-window.addEventListener('resize', function(){ accueilFige(); });
 function imprimer(){
   let t='COUSIN';
   try{
@@ -19338,8 +19319,19 @@ function cousinPop(o){
   const popTexte=(typeof o.champ==='string') && !o.date;
   if(bar){
     bar.style.display=popTexte?'flex':'none';
+    /* ⚠ PLUS DE G NI DE S DANS CETTE FENÊTRE (Mag, 11/09/2026 : « retire le gras et
+       souligner, de toute façon ça ne fonctionne pas — on ne s'en sert pas dans les
+       notes »). Elle a raison sur les deux points, et le premier est un vrai défaut :
+       les repères `**gras**` et `__souligné__` ne sont RENDUS que dans les rangées de
+       la passation et de Ma liste (`passRiche`). Une note gardée s'affiche en texte
+       brut : on y lisait donc les étoiles elles-mêmes.
+       ⚠ LE RENDU RESTE, LUI : les textes déjà écrits avec des repères continuent de
+       s'afficher en gras là où ils le faisaient. On retire le moyen d'en poser, pas la
+       lecture de ce qui existe.
+       ⚠ ET LA BARRE DU CHAMP DE PASSATION GARDE SES G/S : elle les y a demandés le
+       22/08, et là le rendu marche. Ne pas confondre les deux endroits. */
     bar.innerHTML=popTexte
-      ? (_popMulti?passBarreHTML(popCase):'')+txCopierCollerHTML(popCase)+notBoutonHTML(popCase, true)
+      ? txCopierCollerHTML(popCase)+notBoutonHTML(popCase, true)
       : '';
   }
   if(autre){ autre.style.display='none'; autre.value=''; }
