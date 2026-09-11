@@ -15378,24 +15378,30 @@ function imprimerMaListe(){
 
   /* `mot` : la mention posée devant la chambre et le jour, quand plusieurs sortes de
      lignes partagent un même bloc. `k` : la couleur du filet à gauche de la ligne. */
+  /* ⚠ DES RANGÉES, PLUS UN TABLEAU (11/09/2026) : une ligne doit avoir des coins
+     arrondis et un trait à gauche, et un `<tr>` ne sait pas s'arrondir. */
   const champ=function(r, mot, k){
     const ch=r.chambre?('ch. '+esc(r.chambre)):'';
     const quand=r.quand?esc(rappelQuandFr(r.quand)):'';
-    const bas=[mot?esc(mot):'',ch,quand].filter(Boolean).join(' · ');
-    return '<tr class="'+(rappelFait(r)?'fait ':'')+(k?'k-'+k:'')+'">'+
-      '<td class="cc"><span class="bx"></span></td>'+
-      '<td colspan="3">'+esc(r.texte||'')+
-        (bas?'<span class="com">'+bas+'</span>':'')+
-      '</td></tr>';
+    const bas=[ch,quand].filter(Boolean).join(' · ');
+    return '<div class="l'+(rappelFait(r)?' fait':'')+(k?' k-'+k:'')+'">'+
+      '<span class="bx"></span>'+
+      (mot?'<span class="quoi">'+esc(mot)+'</span>':'')+
+      '<span class="tx">'+esc(r.texte||'')+
+        (bas?'<span class="com">'+bas+'</span>':'')+'</span>'+
+    '</div>';
   };
   const bloc=function(titre, liste, cl, k){
     if(!liste.length) return '';
-    /* ⚠ SANS TITRE, PAS DE BANDEAU : le corps de la liste n'a plus d'étiquette
-       « Aujourd'hui » depuis le 11/09, à l'écran comme sur le papier.
+    /* ⚠ SANS TITRE, PAS DE CADRE NI DE BANDEAU : le corps de la liste n'a plus
+       d'étiquette « Aujourd'hui » depuis le 11/09, à l'écran comme sur le papier — les
+       lignes se posent alors nues sur la feuille.
        ⚠ `map` AVEC UNE FONCTION EXPLICITE : `map(champ)` passerait l'INDEX de la ligne
        comme deuxième argument — donc un « 0 », un « 1 » en guise de mention. */
-    return (titre?'<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2>':'')+
-      '<table>'+liste.map(function(r){ return champ(r, '', k); }).join('')+'</table>';
+    const lignes=liste.map(function(r){ return champ(r, '', k); }).join('');
+    if(!titre) return lignes;
+    return '<section class="ch"><div class="st"><span>'+titre+'</span>'+
+      '<em>'+liste.length+'</em></div>'+lignes+'</section>';
   };
   /* ═══ TROIS BLOCS FUSIONNÉS SUR LE PAPIER (Mag, 11/09/2026) ═══
      « Compacte un peu plus : entretiens et mi-parcours, ça peut être compacté ensemble ;
@@ -15406,10 +15412,12 @@ function imprimerMaListe(){
   const blocFusion=function(titre, parts, cl){
     const pleins=parts.filter(function(p){ return p[1] && p[1].length; });
     if(!pleins.length) return '';
-    return '<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2><table>'+
+    const n=pleins.reduce(function(t,p){ return t+p[1].length; },0);
+    return '<section class="ch"><div class="st"><span>'+titre+'</span>'+
+      '<em>'+n+'</em></div>'+
       pleins.map(function(p){
         return p[1].map(function(r){ return champ(r, p[0], p[2]); }).join('');
-      }).join('')+'</table>';
+      }).join('')+'</section>';
   };
   /* ═══ « UN PICTO PRINT POUR TOUT PRINTER » (Mag, 28/08/2026) ═══
      Le bouton s'appelait déjà « Imprimer toute la page » depuis le 22/08 — et il ne
@@ -15493,25 +15501,41 @@ function imprimerMaListe(){
       return !l.jour || String(l.jour)>=todayStr();
     });
     if(dujour.length){
-      const rang=function(l){ return (l.genre==='reveil'||l.genre==='ajeun')?0:1; };
-      const tri=dujour.slice().sort(function(a,b){
-        return (rang(a)-rang(b)) || String(a.heure||'~').localeCompare(String(b.heure||'~'));
-      });
-      corps+='<h2 class="passation">La passation — équipe de nuit</h2><table>'+
-        tri.map(function(l){
-          const g=(typeof passGenreDe==='function')?passGenreDe(l.genre):{court:'',c:'#999'};
-          const bas=[];
-          if(l.chambre) bas.push('ch. '+l.chambre);
-          if(l.a_jeun) bas.push('À JEUN');
-          if(l.par) bas.push('par '+String(l.par).split(/\s+/)[0]);
-          return '<tr>'+
-            '<td class="cc"><span class="bx"></span></td>'+
-            '<td class="hh">'+esc(l.heure||'')+'</td>'+
-            '<td colspan="2"><span class="pgen" style="background:'+(g.c||'#ddd')+'">'+
-              esc(g.court||'')+'</span> '+esc(l.texte||'')+
-              (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
-            '</td></tr>';
-        }).join('')+'</table>';
+      const estReveil=function(l){ return l.genre==='reveil'||l.genre==='ajeun'; };
+      const parHeure=function(a,b){
+        return String(a.heure||'~').localeCompare(String(b.heure||'~'));
+      };
+      const reveils=dujour.filter(estReveil).sort(parHeure);
+      const reste=dujour.filter(function(l){ return !estReveil(l); }).sort(parHeure);
+      /* Une ligne de passation : l'heure alignée, le genre en petit, et le trait de
+         couleur du genre à gauche — le même repère que dans l'app. */
+      const ligneP=function(l){
+        const g=(typeof passGenreDe==='function')?passGenreDe(l.genre):{court:''};
+        const bas=[];
+        if(l.chambre) bas.push('ch. '+l.chambre);
+        if(l.a_jeun) bas.push('À JEUN');
+        if(l.par) bas.push('par '+String(l.par).split(/\s+/)[0]);
+        return '<div class="l '+(estReveil(l)?'k-rv':'k-inf')+'">'+
+          '<span class="bx"></span>'+
+          (l.heure?'<span class="hh">'+esc(l.heure)+'</span>':'')+
+          '<span class="tx">'+
+            (g.court?'<span class="quoi" style="width:auto;padding:0 8px 0 0">'+esc(g.court)+'</span>':'')+
+            esc(l.texte||'')+
+            (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
+          '</span></div>';
+      };
+      /* ⚠ LES RÉVEILS SONT ENGLOBÉS DANS UN SEUL CROCHET (Mag, 11/09/2026 : « pour les
+         réveils, tu peux tout englober »). C'est le bloc qu'on doit voir avant de lire
+         un mot à 5 h du matin — et c'est celui qui reçoit la feuille qui coche.
+         ⚠ ILS RESTENT EN PREMIER ET PAR HEURE : la règle de l'écran depuis le 08/08.
+         Un réveil noyé dans les infos se rate. */
+      corps+='<section class="ch"><div class="st"><span>La passation — équipe de nuit</span>'+
+        '<em>'+dujour.length+'</em></div>'+
+        (reveils.length
+          ? '<div class="crochet">'+reveils.map(ligneP).join('')+'</div>'
+          : '')+
+        reste.map(ligneP).join('')+
+      '</section>';
     }
   }
 
@@ -15559,71 +15583,72 @@ function feuilleImprimer(o){
     '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
     '.pg{width:210mm;margin:26px auto 40px;padding:12mm 13mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
     '@media(max-width:230mm){ .pg{width:auto;max-width:100%;margin:12px;padding:8mm} }'+
-    'h1{font-size:24px;text-transform:uppercase;letter-spacing:-.01em}'+
-    '.sous{font-size:14px;color:#444;margin:4px 0 2px}'+
-    '.compte{font-size:12px;color:#666;margin-bottom:12px}'+
-    /* ⚠ « MÊME DES COULEURS UN PEU, PARCE QU'ON NE SAIT PAS COMMENT DIFFÉRENCIER »
-       (Mag, 03/09/2026). Chaque bloc porte sa couleur, la même qu'à l'écran : jaune
-       la réunion, rouge les absences et les désencodages, vert ce qu'il faut encoder,
-       rose la passation. La couleur est un FILET à gauche du titre, pas un aplat :
-       un fond plein sur une feuille qu'on photocopie devient une tache grise. */
-    /* ═══ « METS DES COULEURS COMME DANS L'APPLI, UN PEU PLUS JOVIAL » (Mag,
-       11/09/2026) ═══
-       La feuille était redevenue noire et blanche : la moitié des blocs n'avaient
-       aucune classe, donc aucune couleur. Chaque titre reprend LA TEINTE DE SON BLOC À
-       L'ÉCRAN — vert ce qui entre, rouge ce qui se perd, bleu clair ce dont on parle,
-       jaune la réunion, rose la passation.
-       ⚠ LA COULEUR EST UN FILET, JAMAIS UN APLAT : un fond plein photocopié devient
-       une tache grise, et on ne lit plus le titre dessus. */
-    'h2.aencoder{border-left:5px solid #2f8f68;padding-left:8px;color:#215c44}'+
-    'h2.encodage{border-left:5px solid #e63329;padding-left:8px;color:#a8241c}'+
-    'h2.vider{border-left:5px solid #e63329;padding-left:8px;color:#a8241c}'+
-    'h2.parle{border-left:5px solid #a9c8e8;padding-left:8px;color:#3e6ea0}'+
-    'h2.passation{border-left:5px solid #E8308A;padding-left:8px;color:#a8146a}'+
-    /* ⚠ ET LE FILET DE LA LIGNE dans un bloc fusionné : la mention dit le mot, la
-       couleur le dit de loin. Il est posé sur la CASE, pas sur le texte — il reste
-       ainsi au bord de la feuille, aligné sur les autres blocs. */
-    'tr.k-enc td.cc{border-left:4px solid #2f8f68}'+
-    'tr.k-des td.cc,tr.k-abs td.cc{border-left:4px solid #e63329}'+
-    'tr.k-par td.cc{border-left:4px solid #a9c8e8}'+
-    'tr.k-reu td.cc{border-left:4px solid #f5c542}'+
-    'tr.k-pre td.cc{border-left:4px solid #c41f1f}'+
-    'td.hh{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700;'+
-      'padding-right:8px;width:1%}'+
-    '.pgen{display:inline-block;border-radius:3px;padding:1px 6px;margin-right:6px;'+
-      'font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#1b1b1b}'+
-    'h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#1b1b1b;'+
-      'border-bottom:2px solid #1b1b1b;padding-bottom:4px;margin:20px 0 2px}'+
-    /* Le titre « Réveil » prend le rose des réveils, celui de l'écran — la feuille et
-       l'app doivent se reconnaître. */
-    'h2.rouge{color:#c0246e;border-color:#E8308A}'+
-    'h2.info{color:#4b7fb5;border-color:#a9c8e8}'+
-    /* Les trois parties de la carte, dans les mêmes teintes qu'à l'écran : la réunion
-       en jaune, les absences en bleu — la feuille doit se lire comme la page. */
-    'h2.reunion{color:#a97c05;border-color:#f5c542}'+
-    'h2.absence{color:#3e6ea0;border-color:#a9c8e8}'+
-    'h2.presse{color:#c41f1f;border-color:#e6a3a0}'+
-    'tr.fait td{color:#8b8984;text-decoration:line-through}'+
-    '.ry{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666;margin:10px 0 2px}'+
-    '.ry.rouge{color:#c41f1f}'+
-    'table{width:100%;border-collapse:collapse}'+
-    /* Gros caractères : la feuille se lit d'un coup d'œil, debout, dans un couloir. */
-    /* ⚠ MÊME RÈGLE SUR LE PAPIER : un mot trop long débordait de la feuille A4, et ce
-       qui déborde d'une feuille imprimée est purement et simplement perdu. */
-    'td{border-bottom:1px solid #ddd;padding:9px 5px;font-size:15px;line-height:1.35;'+
-      'vertical-align:top;overflow-wrap:anywhere;word-break:break-word}'+
-    'table{table-layout:fixed}'+
-    'tr{break-inside:avoid;page-break-inside:avoid}'+
+    /* ═══ LE DESSIN DE LA FEUILLE — « F », CHOISI SUR MAQUETTE (Mag, 11/09/2026) ═══
+       Elle a vu six propositions et tranché : « le cadre est super fin, vraiment pas
+       beaucoup d'encre, et la couleur est sur un petit décalage à gauche, comme une
+       petite ombre, mais juste à gauche » — c'est-à-dire le trait des rangées de
+       l'app. Ce qui est écarté avec ce choix, et ne doit pas revenir sur le papier :
+       les pastilles de couleur, les bandes pleines, les fonds pastel, les titres
+       soulignés d'un trait noir épais.
+       ⚠ DES BORDURES, PAS DES OMBRES : un `box-shadow` ne s'imprime pas de façon
+       fiable selon le navigateur. Le trait de gauche est une VRAIE bordure de 3 px sur
+       un coin arrondi — d'où ses bouts ronds, comme dans l'app.
+       ⚠ LA COULEUR NE VIT QUE LÀ. Sur toute la feuille, elle occupe moins d'un
+       centimètre carré : c'est ce qu'elle appelle « moins d'impression de couleur ». */
+    'h1{font-size:27px;letter-spacing:-.025em;font-weight:700}'+
+    '.sous{font-size:14px;color:#4a4844;margin:5px 0 2px}'+
+    '.compte{font-size:12px;color:#8b8880;margin-bottom:6px;font-family:ui-monospace,monospace;letter-spacing:.05em}'+
+    /* La section : un cadre en cheveu, jamais un trait noir. */
+    '.ch{border:1px solid #ebe7e0;border-radius:16px;padding:2px 14px 10px;margin-top:14px}'+
+    '.st{display:flex;align-items:baseline;justify-content:space-between;gap:10px;'+
+      'margin:13px 0 9px;font-family:ui-monospace,monospace;font-size:11px;'+
+      'letter-spacing:.18em;text-transform:uppercase;color:#1b1b1b}'+
+    '.st em{font-style:normal;font-size:10.5px;letter-spacing:.07em;color:#9b9890}'+
+    /* La ligne, et son trait de couleur à gauche. */
+    '.l{display:flex;align-items:flex-start;gap:11px;border-radius:9px;'+
+      'padding:10px 12px 10px 14px;margin-bottom:6px;border-left:3px solid #d8d4cd;'+
+      'break-inside:avoid;page-break-inside:avoid}'+
+    '.l:last-child{margin-bottom:2px}'+
     /* La case reste VIDE, une seule encre : on coche au stylo. */
-    'td.cc{width:11mm;padding-top:10px}'+
-    '.bx{display:block;width:6mm;height:6mm;border:1.6px solid #1b1b1b;border-radius:1px}'+
-    'td.h{width:20mm;font-weight:700;font-size:17px;white-space:nowrap}'+
-    'td.ch{width:22mm;font-weight:700;white-space:nowrap}'+
-    '.com{display:block;font-size:12.5px;color:#555;margin-top:2px}'+
-     'tr.presse td{background:#fdeeed}'+
-     '.vide{padding:18px 0;font-size:15px;color:#555}'+
-     /* ⚠ LE FOND GRIS NE DOIT PAS S'IMPRIMER (24/08/2026) : même réparation que la
-        feuille de passation — on force le blanc sur le papier. */
+    '.bx{display:block;width:6mm;height:6mm;border:1.6px solid #1b1b1b;border-radius:2px;flex:none;margin-top:1px}'+
+    '.hh{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;'+
+      'font-weight:700;font-size:16px;width:52px;flex:none}'+
+    /* ⚠ LA MENTION NE SE COUPE PAS EN DEUX : à largeur fixe, « MI-PARCOURS » passait
+       sur deux lignes. Elle prend la place qu'il lui faut, avec un plancher pour que
+       les mentions courtes restent alignées entre elles. */
+    '.quoi{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.1em;'+
+      'text-transform:uppercase;color:#6b6963;min-width:62px;flex:none;padding-top:4.5px;'+
+      'padding-right:6px;white-space:nowrap}'+
+    /* Gros caractères : la feuille se lit debout, dans un couloir, par quelqu'un qui
+       lit parfois mal. ⚠ Et un mot trop long se coupe au lieu de sortir de la page :
+       ce qui déborde d'une feuille imprimée est perdu. */
+    '.tx{flex:1;min-width:0;font-size:15.5px;line-height:1.35;'+
+      'overflow-wrap:anywhere;word-break:break-word}'+
+    '.com{display:block;font-size:12px;color:#6b6963;margin-top:3px;'+
+      'font-family:ui-monospace,monospace;letter-spacing:.04em}'+
+    /* ⚠ LES SEULES COULEURS DE LA FEUILLE, et elles sont celles de l'app :
+       vert ce qui entre · rouge ce qui se perd · brun ce dont on parle · jaune la
+       réunion et les chambres · rose les réveils · turquoise les infos. */
+    '.l.k-enc{border-left-color:#6cb392}'+
+    '.l.k-des{border-left-color:#e63329}'+
+    '.l.k-abs{border-left-color:#e63329}'+
+    '.l.k-par{border-left-color:#b28b7a}'+
+    '.l.k-reu{border-left-color:#f5c542}'+
+    '.l.k-vid{border-left-color:#f5c542}'+
+    '.l.k-pre{border-left-color:#e63329}'+
+    '.l.k-rv{border-left-color:#f3c6da}'+
+    '.l.k-inf{border-left-color:#6fc7d9}'+
+    /* ═══ LE CROCHET DES RÉVEILS (Mag, 11/09/2026 : « pour les réveils, tu peux tout
+       englober ») ═══
+       Un seul crochet noir autour du groupe entier, au lieu d'un trait par ligne : à
+       5 h du matin, c'est le bloc qu'on doit voir avant de lire un mot. C'est le même
+       objet que le crochet du jour dans l'agenda de l'app. */
+    '.crochet{border:3px solid #1b1b1b;border-right:0;border-radius:16px 0 0 16px;'+
+      'padding:4px 0 4px 13px;margin:2px 0 4px}'+
+    '.fait .tx{color:#8b8984;text-decoration:line-through}'+
+    '.vide{padding:16px 0;font-size:15px;color:#6b6963}'+
+    /* ⚠ LE FOND GRIS NE DOIT PAS S'IMPRIMER (24/08/2026) : on force le blanc sur le
+       papier, et les marges vivent dans @page. */
      '@media print{.bar{display:none}body{background:#fff}'+
        '.pg{width:100%;margin:0;padding:0;box-shadow:none}@page{margin:14mm 15mm}}'+
     '</style></head><body>'+
