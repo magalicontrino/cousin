@@ -12936,7 +12936,24 @@ const DOMAINES = [
      LIT, pas d'un numéro qui cherche une place. */
   {key:"urgenceheb",  label:"Un lit ce soir", short:"Un lit ce soir", ic:"bed",
     reseau:true, byCommune:true, src:["maisons","urgences"],
-    garde:function(p){ return !!p.urgence && ORIENTATION.indexOf(p.nom)<0; }},
+    /* ⚠ QUE DU GRATUIT ICI — voir GRATUIT_CE_SOIR. Ce qui est payant, ou dont on
+       ignore le prix, part dans « Maison d'accueil d'urgence » juste à côté. */
+    garde:function(p){ return !!p.urgence && ORIENTATION.indexOf(p.nom)<0
+      && GRATUIT_CE_SOIR.indexOf(p.nom)>=0; }},
+  /* ═══ L'AUTRE PORTE DU SOIR — celle qui demande une participation ═══
+     Ce sont de vraies maisons d'accueil d'urgence : elles ouvrent le soir même, mais
+     il y a un prix de journée. Le mot est celui du secteur (c'est ainsi que l'AMA
+     nomme Le 160 : « Maison d'accueil d'urgence L'Ilot - Le 160 »).
+     ⚠ LE PRIX EST UN PLAFOND, pas une somme à avoir en poche : la participation ne
+     peut dépasser 2/3 des revenus (arrêté COCOF du 25/10/2007). Sans revenus, on ne
+     paie pas ce montant — c'est écrit sur chaque fiche. Le bouton ne sert donc pas à
+     écarter ces adresses, il sert à ne pas les annoncer comme gratuites.
+     ⚠ Y TOMBE AUSSI CE DONT ON IGNORE LE PRIX (Ariane aujourd'hui) : tant qu'on n'a
+     pas la réponse, sa place est ici et non dans la liste du gratuit. */
+  {key:"urgencemaison", label:"Maison d'accueil d'urgence", short:"Maison d'accueil d'urgence",
+    ic:"home", reseau:true, byCommune:true, src:["maisons","urgences"],
+    garde:function(p){ return !!p.urgence && ORIENTATION.indexOf(p.nom)<0
+      && GRATUIT_CE_SOIR.indexOf(p.nom)<0; }},
   /* ⚠ DEUX PORTES, ELLE A TRANCHÉ (Mag, 11/09/2026 : « 2 portes »). Ce tiroir ne
      garde QUE les maisons d'accueil au sens strict : entretien préalable, prix de
      journée, séjour accompagné. En sortent ceux qui ouvrent le soir même (ils sont
@@ -13045,7 +13062,7 @@ const KD={demarches:'#b28b7a',medical:'#6cb392',social:'#f3c6da',accompagnement:
   /* L'urgence hébergement prend le ROUGE des Urgences, pas l'orange des maisons
      d'accueil : la couleur doit dire tout de suite laquelle des deux portes on
      ouvre, même sans lire le mot. */
-  maisons:'#f8763f',urgenceheb:'#e63329',lgbt:'#fd8fd0',addictions:'#f3c6da',urgences:'#e63329',
+  maisons:'#f8763f',urgenceheb:'#e63329',urgencemaison:'#f8763f',lgbt:'#fd8fd0',addictions:'#f3c6da',urgences:'#e63329',
   methodes:'#fd8fd0',formations:'#6cb392',mails:'#f5c542',centre:'#f8763f',volontariat:'#f5c542'};
 function dc(k){return KD[k]||'#f5c542'}
 /* Les 8 jeux ont été rapatriés de l'app d'avant, où la couleur d'un domaine s'appelait
@@ -13762,6 +13779,23 @@ const RETOUR_VOLONTAIRE=[
   "Fedasil",
   "Caritas International",
   "Centre Social Protestant"
+];
+/* ═══ CE QUI EST GRATUIT CE SOIR (Mag, 11/09/2026) ═══
+   Ses mots : « je veux que dans Dormir ce soir, il n'y ait que des choses gratuites.
+   S'il y a des maisons d'accueil d'urgence payantes, il faut mettre maison d'accueil
+   d'urgence — vous rajoutez un bouton dans la section Un toit. »
+   C'est la suite directe de sa question du soir : si on imprime la liste des lits
+   pour quelqu'un qu'on met dehors à 18 h, il ne doit pas y avoir une adresse où on
+   lui réclamera de l'argent qu'il n'a pas.
+   ⚠ CETTE LISTE S'ÉCRIT À LA MAIN, ET SEULEMENT QUAND LA SOURCE LE DIT. Ne jamais
+   y ajouter un nom parce qu'aucun prix n'est écrit : déduire la gratuité d'un
+   silence, c'est envoyer quelqu'un sans un euro devant une caisse. Une adresse dont
+   on ignore le prix va dans l'AUTRE bouton, pas ici.
+   ⚠ Un nom mal orthographié ne provoque aucune erreur : il fait juste basculer
+   l'adresse dans « Maison d'accueil d'urgence », en silence. Recopier exactement. */
+const GRATUIT_CE_SOIR=[
+  "Pierre d'Angle – asile de nuit",
+  "Samusocial – sans-abri"
 ];
 const ORIENTATION=[
   "Plateforme Informative de la Strada (PILS)",
@@ -21545,6 +21579,7 @@ const RESEAU_V2_CATEGORIES=[
   /* ⚠ « Hébergement d'urgence » et non « Dormir ce soir » (Mag, 18/08/2026) : c'est
      le nom du secteur, celui de l'arrêté, et celui qu'on dit au téléphone. */
   {title:'Un lit ce soir',domaines:['urgenceheb'],picto:'hebergement.svg',etiquettes:['NUIT','URGENCE']},
+  {title:'Maison d\'accueil d\'urgence',domaines:['urgencemaison'],picto:'accueil.svg',etiquettes:['NUIT','URGENCE']},
   {title:'Maisons d\'accueil',domaines:['maisons'],picto:'accueil.svg',etiquettes:['NUIT','SÉJOUR']},
   {title:'Logement',domaines:['logement'],picto:'logement.svg',etiquettes:['SÉJOUR']},
   {title:'Orientation',domaines:['orientation'],picto:'cible.svg',etiquettes:['ORIENTATION']},
@@ -21645,12 +21680,32 @@ RESEAU_V2_CATEGORIES.push(
   {cle:'eau', title:'Les fontaines', ic:'fontaine',  lien:'#/eau',    etiquettes:['JOUR']},
   {cle:'wc',  title:'Les toilettes', ic:'toilettes', lien:'#/eau/wc', etiquettes:['JOUR']}
 );
+/* ⚠⚠ TROIS CARTES NE S'AFFICHAIENT NULLE PART, ET C'ÉTAIT EN LIGNE (trouvé le
+   11/09/2026). La liste comptait 30 cartes, la dernière famille s'arrêtait à la 27e :
+   « Activités & culture », « Collectifs » et « Annuaires, guides » — 14 fiches —
+   n'étaient dessinées par aucune section. Et le filet « Le reste » ne pouvait pas les
+   rattraper : il les comptait comme rangées puisqu'elles ONT une carte. Une carte qui
+   ne se dessine jamais. Même famille que la panne des 136 fiches du 18/08.
+   Au passage, « Planning familial » et « Urgences » s'affichaient sous « Des droits »
+   alors qu'elles sont écrites dans « Des soins ».
+   ⚠ CES RANGS DOIVENT ÊTRE REFAITS À CHAQUE CARTE AJOUTÉE AU MILIEU DE LA LISTE. Le
+   contrôle juste en dessous compte les cartes et crie si le total ne tombe pas juste. */
 const RESEAU_V2_SECTIONS=[
-  {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:4},
-  {name:'Au quotidien', couleur:'#f5c542', start:4,  end:8, plus:['eau','wc']},
-  {name:'Des soins',    couleur:'#6cb392', start:8,  end:14},
-  {name:'Des droits',   couleur:'#f3c6da', start:14, end:27}
+  {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:5},
+  {name:'Au quotidien', couleur:'#f5c542', start:5,  end:9, plus:['eau','wc']},
+  {name:'Des soins',    couleur:'#6cb392', start:9,  end:17},
+  {name:'Des droits',   couleur:'#f3c6da', start:17, end:31}
 ];
+/* ⚠ LE CONTRÔLE QUI MANQUAIT : si une carte est ajoutée sans refaire les rangs, elle
+   disparaît de la page sans un message. Ici, elle crie dans la console. */
+(function(){
+  const dansUneFamille=RESEAU_V2_SECTIONS.reduce(function(n,s){ return n+(s.end-s.start); },0);
+  const rattachees=RESEAU_V2_SECTIONS.reduce(function(n,s){ return n+((s.plus||[]).length); },0);
+  const total=RESEAU_V2_CATEGORIES.length;
+  if(dansUneFamille+rattachees!==total)
+    console.error('RÉSEAU — '+(total-dansUneFamille-rattachees)+' carte(s) ne sont dans aucune famille : '+
+      'refaire les start/end de RESEAU_V2_SECTIONS ('+total+' cartes en tout).');
+})();
 const RESEAU_V2_ETIQUETTES={
   'NUIT':{bg:'#1b1b1b',text:'#fdfdfc'},
   'JOUR':{bg:'#c9940c',text:'#1b1b1b'},
@@ -25587,6 +25642,7 @@ const MAILS_PAR_DOMAINE={
   social:['Réquisitoire','Relance','Adresse de référence','RIS'],
   servsoc:['Réquisitoire','Relance','Adresse de référence','RIS'],
   maisons:["Maison d'accueil"], urgenceheb:["Maison d'accueil"],
+  urgencemaison:["Maison d'accueil"],
   orientation:["Maison d'accueil"], logement:["Maison d'accueil"],
   medical:['Rendez-vous','Rapport médical'], mmed:['Rendez-vous'],
   sevrer:['Accompagnement'], addictions:['Accompagnement'], consommer:['Accompagnement'],
