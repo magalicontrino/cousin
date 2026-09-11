@@ -12785,7 +12785,15 @@ const DOMAINES = [
    src:["journee","social","addictions"],
    garde:function(p){ return PASSER_LA_JOURNEE.indexOf(p.nom)>=0; }},
   {key:"cpas",        label:"CPAS", byCommune:true,                short:"CPAS",      ic:"musee",     reseau:true,
-   src:"social", garde:function(p){ return estCpas(p); }},
+   /* ⚠ `estCpas` ne reconnaît que les noms qui COMMENCENT par « CPAS » : les trames
+      générales (adresse de référence, RIS) n'y entraient pas et tombaient dans « Le
+      reste ». Elles sont nommées à la main. */
+   src:"social", garde:function(p){ return estCpas(p) || CPAS_REGLES.indexOf(p.nom)>=0; }},
+  /* ═══ LA MUTUELLE (Mag, 11/09/2026) ═══
+     La CAAMI et le repère « laquelle choisir » vivaient dans « Un service social », où
+     personne ne va les chercher. C'est une affaire de droits, et ça se dit en un mot. */
+  {key:"mutuelle",    label:"La mutuelle", byCommune:true,          short:"La mutuelle", ic:"user", reseau:true,
+   src:"social", garde:function(p){ return MUTUELLE.indexOf(p.nom)>=0; }},
   {key:"mmed",        label:"Maisons médicales", byCommune:true,   short:"Maisons médicales", ic:"medical", reseau:true,
    src:"medical", garde:function(p){ return estMaisonMedicale(p); }},
   /* Médical et Social ne montrent plus ce qui est parti dans les deux tiroirs
@@ -12873,7 +12881,13 @@ const DOMAINES = [
    src:"social", garde:function(p){ return REPERES.indexOf(p.nom)>=0; }},
   {key:"accompagnement",label:"Accompagnement",    short:"Accompagnement", ic:"accomp", reseau:true, byCommune:true},
   /* ═══ VOLONTARIAT (ajouté le 29/08/2026) ═══ */
-  {key:"volontariat", label:"Volontariat — s'engager", byCommune:true, short:"Volontariat", ic:"hands", reseau:true},
+  /* ⚠ LE NOM EST CELUI QUE L'APP EMPLOIE DÉJÀ dans le Centre (« Bénévolat et don ») :
+     un même endroit ne porte pas deux noms selon la page par laquelle on arrive.
+     Il gagne les trois adresses où l'on DONNE un objet ou de l'argent — elles étaient
+     rangées sous « Un service social », ce qu'elles ne sont pas. */
+  {key:"volontariat", label:"Bénévolat et don", byCommune:true, short:"Bénévolat et don",
+   ic:"hands", reseau:true, src:["volontariat","social"],
+   garde:function(p){ return p.domaine==="volontariat" || DONNER.indexOf(p.nom)>=0; }},
   /* « Jeunesse » et non « Enfants » : c'est le mot du secteur, et il couvre aussi les
      ados et les jeunes adultes, que « enfants » laissait dehors (Mag, 07/08/2026). */
   {key:"educatif",    label:"Jeunesse & familles", byCommune:true, short:"Jeunesse",  ic:"educatif", reseau:true},
@@ -13816,6 +13830,37 @@ const RETOUR_VOLONTAIRE=[
 const GRATUIT_CE_SOIR=[
   "Pierre d'Angle – asile de nuit",
   "Samusocial – sans-abri"
+];
+/* ═══ « UN SERVICE SOCIAL » NE CONTENAIT PAS DE SERVICE SOCIAL (Mag, 11/09/2026,
+   capture de la carte à l'appui : « ça, ça devrait être dans des droits ») ═══
+   Mesuré avant de la déplacer : cette carte ouvrait 11 fiches, et les DEUX seuls vrais
+   services sociaux — les CASG et SASB-Siréas — étaient déjà dans la carte « Un service
+   social » des Droits. Les 9 autres n'étaient des services sociaux d'aucune façon :
+   des mutuelles, des trames de CPAS, trois adresses où l'on DONNE, et les fontaines.
+   Déplacer la carte aurait posé deux cartes du même nom côte à côte, dont une pleine
+   d'Oxfam et de la Ressourcerie.
+   ⚠ ON NE DÉPLACE DONC PAS LA CARTE, ON LA VIDE. Chaque fiche part là où elle est
+   vraiment cherchée, et « Le reste » se referme tout seul.
+   ⚠ AUCUNE FICHE NE CHANGE DE DOMAINE : ces listes sont des VUES. Le sid vaut
+   « seed-<domaine>-<nom> » — déplacer une fiche pour de bon casserait les favoris,
+   les liens partagés et les avis du wiki. */
+const MUTUELLE=[
+  "CAAMI – la mutuelle publique, gratuite à l'inscription",
+  "Les mutuelles — laquelle choisir"
+];
+/* Les trames générales des CPAS : elles ne commencent pas par « CPAS » et tombaient
+   donc à côté du tiroir qui les attendait. */
+const CPAS_REGLES=[
+  "Adresse de référence — Tous CPAS — la règle",
+  "Adresse de référence — Changer de centre ne change pas forcément de CPAS",
+  "RIS (revenu d'intégration) — Tous CPAS — trame générale"
+];
+/* Donner un objet ou de l'argent, c'est le même geste que donner du temps : ces trois
+   rejoignent le bénévolat. */
+const DONNER=[
+  "Oxfam – Magasins du monde",
+  "La Ressourcerie bruxelloise",
+  "Donner en ligne – plateformes"
 ];
 const ORIENTATION=[
   "Plateforme Informative de la Strada (PILS)",
@@ -21666,6 +21711,7 @@ const RESEAU_V2_CATEGORIES=[
      lequel ouvrir.
      Ils entrent dans la MÊME tuile — 25 fiches, une seule porte. */
   {title:'Un service social',domaines:['servsoc'],etiquettes:['ORIENTATION']},
+  {title:'La mutuelle',domaines:['mutuelle'],etiquettes:['ORIENTATION']},
   {title:'Papiers, séjour',domaines:['etrangers'],picto:'cle.svg',etiquettes:['ORIENTATION']},
   /* Juste après les papiers : c'est la même conversation, un cran plus loin. */
   {title:'Retour volontaire',domaines:['retour'],picto:'etrangers.svg',etiquettes:['ORIENTATION']},
@@ -21685,6 +21731,7 @@ const RESEAU_V2_CATEGORIES=[
        Elles vivaient au bas de la page, sous une étiquette qui disait « on n'a pas
        su où les mettre ». */
   {title:'Collectifs',domaines:['agir'],etiquettes:['JOUR']},
+  {title:'Bénévolat et don',domaines:['volontariat'],etiquettes:['JOUR']},
   {title:'Annuaires, guides',domaines:['reperes'],etiquettes:['ORIENTATION']}
 ];
 /* ═══ BOIRE ET ALLER AUX TOILETTES PASSENT DANS LE RÉSEAU (Mag, 26/08/2026 :
@@ -21697,7 +21744,11 @@ const RESEAU_V2_CATEGORIES=[
    décalé les quatre familles d'un cran, en silence. `plus:` les rattache par nom,
    donc l'ordre des autres ne bouge jamais. */
 RESEAU_V2_CATEGORIES.push(
-  {cle:'eau', title:'Les fontaines', ic:'fontaine',  lien:'#/eau',    etiquettes:['JOUR']},
+  /* ⚠ `couvre` dit au filet « cette fiche est déjà montrée ici ». La fiche « Fontaines »
+     n'a pas de tiroir — elle fait doublon avec cette page, qui liste les 218 points
+     relevés sur les données de la Ville. Sans cette ligne, elle ressortirait seule dans
+     « Le reste », sous le nom d'un tiroir qui n'existe pas. */
+  {cle:'eau', title:'Les fontaines', ic:'fontaine',  lien:'#/eau',    etiquettes:['JOUR'], couvre:['Fontaines']},
   {cle:'wc',  title:'Les toilettes', ic:'toilettes', lien:'#/eau/wc', etiquettes:['JOUR']}
 );
 /* ⚠⚠ TROIS CARTES NE S'AFFICHAIENT NULLE PART, ET C'ÉTAIT EN LIGNE (trouvé le
@@ -21714,7 +21765,7 @@ const RESEAU_V2_SECTIONS=[
   {name:'Un toit',      couleur:'#6fc7d9', start:0,  end:5},
   {name:'Au quotidien', couleur:'#f5c542', start:5,  end:9, plus:['eau','wc']},
   {name:'Des soins',    couleur:'#6cb392', start:9,  end:17},
-  {name:'Des droits',   couleur:'#f3c6da', start:17, end:31}
+  {name:'Des droits',   couleur:'#f3c6da', start:17, end:33}
 ];
 /* ⚠ LE CONTRÔLE QUI MANQUAIT : si une carte est ajoutée sans refaire les rangs, elle
    disparaît de la page sans un message. Ici, elle crie dans la console. */
@@ -21843,6 +21894,11 @@ function vReseauV2(){
      ouvrent une page, pas un tiroir du catalogue. Sans cette garde, le filet a
      attrapé toute la page du Réseau — vu et corrigé le jour même. */
   RESEAU_V2_CATEGORIES.forEach(function(c){
+    /* Une carte peut aussi déclarer des fiches qu'elle montre sans passer par un
+       tiroir (voir `couvre` sur la page des fontaines). */
+    (c.couvre||[]).forEach(function(nom){
+      DATA.filter(function(p){ return p.nom===nom; }).forEach(function(p){ vues[p.sid]=1; });
+    });
     const k=c.domaines&&c.domaines[0];
     if(!k) return;
     fichesDe(k).forEach(function(p){ vues[p.sid]=1; });
@@ -23994,6 +24050,30 @@ const QUESTIONS_OUVERTES=[
      pas déjà ailleurs sous un autre nom : deux doublons trouvés le même jour. */
   /* ═══ POSÉE LE 11/09/2026, en répondant à Mag : « si j'imprime la liste des lits
      pour ce soir, ce sera tout gratuit ou il y aura des trucs payants ? » ═══ */
+  /* ═══ QUATRE QUESTIONS DE PRIX ET D'HORAIRES, POSÉES LE 11/09/2026 ═══
+     Elles viennent toutes de la même soirée : « si j'imprime la liste des lits pour ce
+     soir, ce sera tout gratuit ou il y aura des trucs payants ? ». Chaque fois que la
+     réponse manquait, elle est venue ici au lieu d'être devinée. */
+  {k:'georges-motte-prix',
+   q:'Quel est le prix de journée aujourd’hui — 22,50 € ou 24,95 € par adulte ? Et la participation reste-t-elle bien plafonnée aux 2/3 des revenus ?',
+   lieu:'Foyer Georges Motte (Armée du Salut)', tel:'02 217 61 36',
+   pourquoi:'Deux sources sérieuses se contredisent : la brochure « 15 maisons d’accueil » de l’AMA dit « maximum 22,50 € », et Bruss’help comme le site de l’Armée du Salut donnaient 24,95 € le 05/09/2026. Le montant est indexé chaque année, donc l’une des deux est simplement plus vieille — mais on ne sait pas laquelle. ⚠ Ça ne change PAS ce qu’on fait : dans les deux cas c’est un plafond, et quelqu’un sans revenus ne paie pas. C’est le chiffre écrit sur la feuille qu’on imprime qui doit être juste.',
+   pose:'11/09/2026'},
+  {k:'le-clos-prix',
+   q:'L’accueil de jour est-il gratuit ? Et quels sont les vrais jours et heures d’ouverture ?',
+   lieu:'Le Clos — centre de jour de L’Ilot', tel:'02 537 33 33',
+   pourquoi:'Deux trous sur la même fiche, qui vient d’entrer au catalogue. Le prix : la page d’ilot.be ne dit rien, et on n’écrit pas « gratuit » sur un silence. Les horaires : ilot.be annonce lundi à vendredi 8 h 30 → 17 h (mardi jusqu’à 13 h 30), fermé le week-end, tandis que d’autres annuaires annoncent l’inverse — fermé le lundi, ouvert le samedi et le dimanche. Envoyer quelqu’un un jour de fermeture, c’est une marche pour rien.',
+   pose:'11/09/2026'},
+  {k:'hub-horaires',
+   q:'À quelle heure faut-il arriver pour avoir un ticket, et quels jours ? (et y a-t-il un numéro où l’on peut appeler pour un usager ?)',
+   lieu:'Hub humanitaire — avenue du Port 100 (Croix-Rouge, Médecins du Monde, MSF, Plateforme citoyenne, SOS Jeunes)', tel:'',
+   pourquoi:'C’est la porte principale pour une personne en migration, et elle vient d’entrer au catalogue. Mais les sources ne disent pas la même chose : Bruss’help annonce 9 h 30 → 17 h 30 sauf le mercredi, Born in Brussels 13 h → 17 h avec les tickets dès 11 h. Et les places sont comptées par jour et par service (30 consultations médicales, 15 conseils juridiques, 200 vestiaires) : c’est l’heure d’arrivée qui décide, pas l’heure de fermeture. ⚠ Le Hub ne publie aucun numéro — il faut passer par une des cinq associations, ou se déplacer.',
+   pose:'11/09/2026'},
+  {k:'belrefugees-participation',
+   q:'Une participation financière est-elle demandée pour l’hébergement (Sister’s House, Amran, hébergement d’urgence hommes) ?',
+   lieu:'BelRefugees — Plateforme citoyenne, inscription au Hub humanitaire', tel:'',
+   pourquoi:'Leur site décrit les places mais ne parle jamais d’argent. Comme pour Ariane, on ne déduit pas la gratuité d’un silence. La question se pose au guichet d’inscription du Hub, le matin entre 9 h 30 et 10 h 30. ⚠ Les adresses des lieux, elles, sont confidentielles et le resteront : ne pas les demander, elles protègent les personnes qui y dorment.',
+   pose:'11/09/2026'},
   {k:'ariane-prix',
    q:'L’hébergement est-il gratuit ? (et s’il y a une participation, combien, et pour qui ?)',
    lieu:'Centre d’accueil d’urgence Ariane', tel:'02 346 66 60',
