@@ -15285,9 +15285,7 @@ function rappelsCopierTout(){
   const qui=(typeof nomAffiche==='function'?nomAffiche():'')||'';
   const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
   const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand||'').localeCompare(String(b.quand||'')); });
-  const marquee=function(r){ return r.reunion||r.absence||r.desencodage||r.encoder||
-    r.entretien||r.miparcours||r.info||r.noteTag; };
-  const pasMarque=function(l){ return l.filter(function(r){ return !marquee(r); }); };
+  const pasMarque=rappelsPasMarques;
   const par=function(k){ return MESRAPPELS.filter(function(r){ return r[k]; }); };
   /* Une ligne : le texte, puis ce qui l'accompagne entre parenthèses. */
   const ligne=function(r){
@@ -15315,6 +15313,24 @@ function rappelsCopierTout(){
   t+=bloc('Plus tard',         pasMarque(aVenir));
   t+=bloc('Faites',            pasMarque(MESRAPPELS.filter(rappelFait)));
   copyTxt(t.trim(),'Liste copiée ✓');
+}
+/* ═══ ⚠ UNE SEULE DÉFINITION DE « LIGNE MARQUÉE », POUR TOUTE L'APP (11/09/2026) ═══
+   Une ligne que l'on a marquée à la main vit dans SON bloc : elle ne doit pas
+   réapparaître dans le corps de la liste. La règle était écrite depuis le 08/09 — mais
+   elle existait en TROIS COPIES, et les trois ne disaient pas la même chose : l'écran
+   connaissait les neuf marques, le texte copié huit (`vider` manquait), et la FEUILLE
+   IMPRIMÉE deux. Sur le papier, toute la liste sortait donc une seconde fois sous
+   « Aujourd'hui ».
+   ⭐ UNE CASE AJOUTÉE DANS MA LISTE S'AJOUTE ICI, ET SEULEMENT ICI. Les trois sorties
+   (écran, copie, feuille) suivent d'elles-mêmes. C'est la leçon du 05/09 : une règle
+   appliquée à un seul chemin n'est pas une règle. */
+const RAP_MARQUES=['reunion','absence','desencodage','encoder','entretien',
+                   'miparcours','info','noteTag','vider'];
+function rappelMarque(r){
+  return !!r && RAP_MARQUES.some(function(k){ return r[k]; });
+}
+function rappelsPasMarques(l){
+  return (l||[]).filter(function(r){ return !rappelMarque(r); });
 }
 /* ═══ QUATRE BOUTONS, QUATRE SENS (Mag, 11/09/2026) ═══
    Ses mots : « je ne comprends pas bien le bouton print, il faudrait qu'il y en ait un
@@ -15354,21 +15370,46 @@ function imprimerMaListe(){
   const aVenir=parJour(1).slice().sort(function(a,b){ return String(a.quand||'').localeCompare(String(b.quand||'')); });
   const reunions=MESRAPPELS.filter(function(r){ return r.reunion; });
   const absences=MESRAPPELS.filter(function(r){ return r.absence; });
-  const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence; }); };
+  /* ⚠⚠ C'ÉTAIT LE DÉFAUT DE LA FEUILLE (Mag, 11/09/2026 : « tu as remis toute la
+     liste sous aujourd'hui, je ne vois pas l'intérêt »). Cette copie-ci ne connaissait
+     que DEUX marques sur neuf : les sept autres lignes s'imprimaient une fois dans leur
+     bloc, et une seconde fois dans le corps de la liste. Voir `rappelsPasMarques`. */
+  const pasMarque=rappelsPasMarques;
 
-  const champ=function(r){
+  /* `mot` : la mention posée devant la chambre et le jour, quand plusieurs sortes de
+     lignes partagent un même bloc. `k` : la couleur du filet à gauche de la ligne. */
+  const champ=function(r, mot, k){
     const ch=r.chambre?('ch. '+esc(r.chambre)):'';
     const quand=r.quand?esc(rappelQuandFr(r.quand)):'';
-    const bas=[ch,quand].filter(Boolean).join(' · ');
-    return '<tr'+(rappelFait(r)?' class="fait"':'')+'>'+
+    const bas=[mot?esc(mot):'',ch,quand].filter(Boolean).join(' · ');
+    return '<tr class="'+(rappelFait(r)?'fait ':'')+(k?'k-'+k:'')+'">'+
       '<td class="cc"><span class="bx"></span></td>'+
       '<td colspan="3">'+esc(r.texte||'')+
         (bas?'<span class="com">'+bas+'</span>':'')+
       '</td></tr>';
   };
-  const bloc=function(titre, liste, cl){
+  const bloc=function(titre, liste, cl, k){
     if(!liste.length) return '';
-    return '<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2><table>'+liste.map(champ).join('')+'</table>';
+    /* ⚠ SANS TITRE, PAS DE BANDEAU : le corps de la liste n'a plus d'étiquette
+       « Aujourd'hui » depuis le 11/09, à l'écran comme sur le papier.
+       ⚠ `map` AVEC UNE FONCTION EXPLICITE : `map(champ)` passerait l'INDEX de la ligne
+       comme deuxième argument — donc un « 0 », un « 1 » en guise de mention. */
+    return (titre?'<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2>':'')+
+      '<table>'+liste.map(function(r){ return champ(r, '', k); }).join('')+'</table>';
+  };
+  /* ═══ TROIS BLOCS FUSIONNÉS SUR LE PAPIER (Mag, 11/09/2026) ═══
+     « Compacte un peu plus : entretiens et mi-parcours, ça peut être compacté ensemble ;
+     info et notes ensemble ; et encoder, désencoder, absence ensemble aussi. »
+     Un seul titre au lieu de deux ou trois — trois à cinq lignes de papier gagnées, et
+     rien de perdu : chaque ligne garde SA MENTION devant sa chambre et SON FILET DE
+     COULEUR à gauche. Le mot dit quoi ; la couleur le dit de loin. */
+  const blocFusion=function(titre, parts, cl){
+    const pleins=parts.filter(function(p){ return p[1] && p[1].length; });
+    if(!pleins.length) return '';
+    return '<h2'+(cl?' class="'+cl+'"':'')+'>'+titre+'</h2><table>'+
+      pleins.map(function(p){
+        return p[1].map(function(r){ return champ(r, p[0], p[2]); }).join('');
+      }).join('')+'</table>';
   };
   /* ═══ « UN PICTO PRINT POUR TOUT PRINTER » (Mag, 28/08/2026) ═══
      Le bouton s'appelait déjà « Imprimer toute la page » depuis le 22/08 — et il ne
@@ -15419,17 +15460,26 @@ function imprimerMaListe(){
   const infoP   =MESRAPPELS.filter(function(r){ return r.info; });
   const noteP   =MESRAPPELS.filter(function(r){ return r.noteTag; });
   const viderP  =MESRAPPELS.filter(function(r){ return r.vider; });
-  corps+= bloc('À dire en réunion', reunions, 'reunion')
-    + bloc('Les absences', absences, 'absence')
-    + bloc('À encoder', aEncoderP, 'aencoder')
-    + bloc('Désencoder', desencP, 'encodage')
-    + bloc('Entretiens', entretP)
-    + bloc('Mi-parcours', miparcP)
-    + bloc('Infos', infoP)
-    + bloc('Notes', noteP)
-    + bloc('Chambres à vider', viderP)
-    + bloc('En retard', pasMarque(parJour(-1)), 'presse')
-    + bloc('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
+  /* ⚠ L'ORDRE DE PRIORITÉ DU 10/09 EST TENU, il est seulement REGROUPÉ : la réunion,
+     puis ce qui s'encode et ce qui manque, puis les chambres, puis ce dont on parle,
+     puis le temps (en retard · le jour · plus tard · faits). */
+  corps+= bloc('À dire en réunion', reunions, 'reunion', 'reu')
+    + blocFusion('À encoder · Désencoder · Absences', [
+        ['à encoder',  aEncoderP, 'enc'],
+        ['désencoder', desencP,   'des'],
+        ['absence',    absences,  'abs']
+      ], 'encodage')
+    + bloc('Chambres à vider', viderP, 'vider', 'des')
+    + blocFusion('Entretiens · Mi-parcours', [
+        ['entretien',   entretP, 'par'],
+        ['mi-parcours', miparcP, 'par']
+      ], 'parle')
+    + blocFusion('Notes · Infos', [
+        ['note', noteP, 'par'],
+        ['info', infoP, 'par']
+      ], 'parle')
+    + bloc('En retard', pasMarque(parJour(-1)), 'presse', 'pre')
+    + bloc('', pasMarque(parJour(0).concat(parJour(null))))
     + bloc('Plus tard', pasMarque(aVenir))
     + bloc('Faits', pasMarque(MESRAPPELS.filter(rappelFait)));
 
@@ -15517,9 +15567,27 @@ function feuilleImprimer(o){
        la réunion, rouge les absences et les désencodages, vert ce qu'il faut encoder,
        rose la passation. La couleur est un FILET à gauche du titre, pas un aplat :
        un fond plein sur une feuille qu'on photocopie devient une tache grise. */
+    /* ═══ « METS DES COULEURS COMME DANS L'APPLI, UN PEU PLUS JOVIAL » (Mag,
+       11/09/2026) ═══
+       La feuille était redevenue noire et blanche : la moitié des blocs n'avaient
+       aucune classe, donc aucune couleur. Chaque titre reprend LA TEINTE DE SON BLOC À
+       L'ÉCRAN — vert ce qui entre, rouge ce qui se perd, bleu clair ce dont on parle,
+       jaune la réunion, rose la passation.
+       ⚠ LA COULEUR EST UN FILET, JAMAIS UN APLAT : un fond plein photocopié devient
+       une tache grise, et on ne lit plus le titre dessus. */
     'h2.aencoder{border-left:5px solid #2f8f68;padding-left:8px;color:#215c44}'+
     'h2.encodage{border-left:5px solid #e63329;padding-left:8px;color:#a8241c}'+
+    'h2.vider{border-left:5px solid #e63329;padding-left:8px;color:#a8241c}'+
+    'h2.parle{border-left:5px solid #a9c8e8;padding-left:8px;color:#3e6ea0}'+
     'h2.passation{border-left:5px solid #E8308A;padding-left:8px;color:#a8146a}'+
+    /* ⚠ ET LE FILET DE LA LIGNE dans un bloc fusionné : la mention dit le mot, la
+       couleur le dit de loin. Il est posé sur la CASE, pas sur le texte — il reste
+       ainsi au bord de la feuille, aligné sur les autres blocs. */
+    'tr.k-enc td.cc{border-left:4px solid #2f8f68}'+
+    'tr.k-des td.cc,tr.k-abs td.cc{border-left:4px solid #e63329}'+
+    'tr.k-par td.cc{border-left:4px solid #a9c8e8}'+
+    'tr.k-reu td.cc{border-left:4px solid #f5c542}'+
+    'tr.k-pre td.cc{border-left:4px solid #c41f1f}'+
     'td.hh{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700;'+
       'padding-right:8px;width:1%}'+
     '.pgen{display:inline-block;border-radius:3px;padding:1px 6px;margin-right:6px;'+
@@ -37355,7 +37423,7 @@ function rappelsHTML(enCarte){
     const aVider=MESRAPPELS.filter(function(r){ return r.vider; });
     /* Les groupes marqués à la main (réunion, absence, désencodage) sortent des blocs
        automatiques : une ligne pointée ne doit pas apparaître deux fois. */
-    const pasMarque=function(l){ return l.filter(function(r){ return !r.reunion && !r.absence && !r.desencodage && !r.encoder && !r.entretien && !r.miparcours && !r.info && !r.noteTag && !r.vider; }); };
+    const pasMarque=rappelsPasMarques;
     /* ═══ LE TRI DU BAS, RANGÉ PAR PRIORITÉ (Mag, 10/09/2026) ═══
        « Quand ça se répertorie en bas, fais un design qu'on arrive à distinguer le
        tri, c'est très important. Dans un ordre de priorité. »
