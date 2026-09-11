@@ -12711,8 +12711,14 @@ const DOMAINES = [
      celui qu'on dit au téléphone et celui qui est écrit sur les portes.
      ⚠ LA CLÉ `journee` NE BOUGE PAS : les fiches y sont rattachées, les favoris et les
      liens partagés la portent. Seul le libellé change. */
-  {key:"journee",     label:"Centre de jour", byCommune:true,   short:"Centre de jour", ic:"clock", reseau:true,
-   src:["social","addictions"],
+  /* ⚠ « ACCUEIL DE JOUR » ET NON « CENTRE DE JOUR » (11/09/2026). « Centre de jour »
+     est le mot des soins — centre de jour addictions, hôpital de jour — et c'est
+     justement la confusion qu'elle vient de relever. « Accueil de jour » est le mot des
+     lieux où l'on entre sans dossier.
+     ⚠ `journee` DANS `src` : sans lui, la fiche de Circé (seule de ce domaine) ne
+     pouvait pas apparaître dans son propre tiroir. */
+  {key:"journee",     label:"Accueil de jour", byCommune:true,   short:"Accueil de jour", ic:"clock", reseau:true,
+   src:["journee","social","addictions"],
    garde:function(p){ return PASSER_LA_JOURNEE.indexOf(p.nom)>=0; }},
   {key:"cpas",        label:"CPAS", byCommune:true,                short:"CPAS",      ic:"musee",     reseau:true,
    src:"social", garde:function(p){ return estCpas(p); }},
@@ -12828,7 +12834,12 @@ const DOMAINES = [
      un logement à soi, ce sont des clés qu'on reçoit. Trois tuiles parlaient de
      toit avec deux dessins ; elles en ont maintenant trois : un LIT pour ce soir,
      une MAISON pour un séjour, une CLÉ pour chez soi. (13/08/2026) */
-  {key:"logement",    label:"Logement", byCommune:true,            short:"Logement",  ic:"cle",      reseau:true},
+  /* ⚠ CE TIROIR EST DEVENU UNE VUE (11/09/2026) : il garde ses propres fiches ET
+     accueille les quatre qui quittent les maisons d'accueil, sans qu'aucune ne change
+     de domaine ni de sid. Voir `LOGEMENT_VUE`. */
+  {key:"logement",    label:"Logement", byCommune:true,            short:"Logement",  ic:"cle",      reseau:true,
+    src:["logement","maisons"],
+    garde:function(p){ return p.domaine==='logement' || LOGEMENT_VUE.indexOf(p.nom)>=0; }},
   /* ⚠ « Planning familial » EN ENTIER SUR LA TUILE (Mag, 13/08/2026). Le raccourci
      « Planning » ne veut rien dire tout seul : c'est un mot de calendrier avant
      d'être un mot de santé. On lit le nom du service, pas son abréviation. */
@@ -12872,9 +12883,15 @@ const DOMAINES = [
   {key:"urgenceheb",  label:"Dormir ce soir", short:"Dormir ce soir", ic:"bed",
     reseau:true, byCommune:true, src:["maisons","urgences"],
     garde:function(p){ return !!p.urgence && ORIENTATION.indexOf(p.nom)<0; }},
+  /* ⚠ DEUX PORTES, ELLE A TRANCHÉ (Mag, 11/09/2026 : « 2 portes »). Ce tiroir ne
+     garde QUE les maisons d'accueil au sens strict : entretien préalable, prix de
+     journée, séjour accompagné. En sortent ceux qui ouvrent le soir même (ils sont
+     dans « Dormir ce soir »), les numéros qui cherchent une place (tiroir Orientation)
+     et les quatre fiches de logement (voir `LOGEMENT_VUE`). */
   {key:"maisons",     label:"Maisons d'accueil", short:"Maisons d'accueil", ic:"home",
     reseau:true, byCommune:true,
-    garde:function(p){ return !p.urgence && ORIENTATION.indexOf(p.nom)<0; }},
+    garde:function(p){ return !p.urgence && ORIENTATION.indexOf(p.nom)<0
+      && LOGEMENT_VUE.indexOf(p.nom)<0; }},
   /* ═══ RETOUR VOLONTAIRE (Mag, 05/09/2026) ═══
      « Tu rajoutes les retours volontaires parce que c'est très important. Des gens
      qui veulent retourner de manière volontaire, on peut s'adresser à Fedasil mais
@@ -13566,17 +13583,29 @@ function estMaisonMedicale(p){
    mange ET on y passe la journée. Ce n'est pas un doublon, c'est la vérité du lieu
    — et quelqu'un qui cherche où se poser jusqu'au soir ne cherche pas dans
    « Manger ». Même raisonnement que Transit, qui est dans deux tiroirs d'urgence. */
+/* ═══ OÙ PASSER LA JOURNÉE — REVU LE 11/09/2026 ═══
+   Ses mots, et ils disent à qui ça sert : « je veux des accueils de jour parce qu'il y
+   a des gens, la journée, qui s'ennuient. J'aimerais leur dire qu'ils peuvent aller
+   faire des choses là-bas : il y a des activités, ils peuvent manger, ça change un peu
+   du centre. » Donc ce tiroir s'adresse à quelqu'un qui a sa journée devant lui — pas
+   à un dossier de soins.
+   ⚠ LES QUATRE CENTRES DE JOUR DE SOINS EN SONT SORTIS : Centre L'Orée, Enaden, Wops
+   de jour et l'hôpital de jour le Quotidien. On y entre par une admission, pour un
+   traitement d'addiction ou de santé mentale — les proposer à quelqu'un qui s'ennuie
+   serait une orientation fausse. Ils restent dans Addictions et Santé mentale, où on
+   les cherche pour ce qu'ils sont.
+   ⚠ LES DEUX SERVICES DE REPAS EN SONT SORTIS AUSSI : Poverello et Restojet servent un
+   repas, ils n'offrent pas un endroit où passer l'après-midi. Ils sont dans « Manger ».
+   ⚠ CIRCÉ MANQUAIT, et c'était un vrai trou : c'est le seul centre de jour pour femmes
+   de Bruxelles, sa fiche est dans le domaine `journee`… que ce tiroir ne lisait même
+   pas (`src` n'avait que social et addictions). La première adresse pour une femme qui
+   s'ennuie était invisible dans le tiroir fait pour ça. */
 const PASSER_LA_JOURNEE=[
-  "DoucheFLUX",
-  "Poverello — repas chauds, Bruxelles centre",
-  "Chez Nous / Bij Ons — accueil de jour",
-  "Restojet — Montfort Center, repas de midi",
+  "Circé de L'Ilot — centre de jour pour femmes",
   "HOBO — centre de jour",
+  "Chez Nous / Bij Ons — accueil de jour",
   "La Fontaine — accueil de jour (Ordre de Malte)",
-  "Centre L'Orée",
-  "Centre de jour Enaden",
-  "Wops de jour",
-  "Hôpital de jour le Quotidien (Fond'Roy)"
+  "DoucheFLUX"
 ];
 
 /* ═══ « MANGER, SE LAVER » SE COUPE EN DEUX (Mag, 15/08/2026) ═══
@@ -13679,6 +13708,28 @@ const ORIENTATION=[
   "Bruss'help – orientation hébergement",
   "CAW Huis Brussel — la porte d'entrée néerlandophone",
   "CAW Archipel"
+];
+/* ═══ CE QUI N'EST PAS UNE MAISON D'ACCUEIL (Mag, 11/09/2026) ═══
+   « J'ai l'impression que tu confonds les hébergements d'urgence, les maisons, les
+   centres de nuit, les centres de jour, les hôtels de nuit pas chers, les abris…
+   je veux que tu revoies tout de A à Z et on ne peut pas se tromper. »
+   Elle a raison : l'audit a trouvé, dans le tiroir des maisons d'accueil, QUATRE
+   fiches où l'on n'est pas hébergé collectivement — deux logements adaptés (avec
+   inscription PHARE ou candidature IHP), le transit du CPAS, et un accompagnement à
+   domicile. On y HABITE, ou on y est suivi chez soi : ce n'est pas une place pour ce
+   soir, ni même pour le mois prochain sans dossier.
+   ⚠ ON NE CHANGE PAS LEUR `domaine`, ET C'EST CAPITAL : le sid vaut
+   « seed-<domaine>-<nom> », donc déplacer une fiche casse son adresse, ses favoris et
+   ses avis — en silence. C'est une VUE, comme le retour volontaire : elles quittent le
+   tiroir des maisons et apparaissent dans Logement, sans bouger d'un pixel en base.
+   ⏸ SACADO est le cas le moins net : c'est un accompagnement à domicile, donc pour
+   quelqu'un qui a déjà un toit. Logement est le tiroir le moins faux — à lui
+   reconfirmer. */
+const LOGEMENT_VUE=[
+  "Foyer Aurore – logement collectif adapté (ANAÏS)",
+  "Messidor & Carrefour — habitations protégées (IHP)",
+  "CPAS — logement de transit / Housing First",
+  "SACADO — accompagnement à domicile (L'Ilot)"
 ];
 
 /* ⚠ « FAIRE SES DÉMARCHES » ATTIRAIT ENCORE N'IMPORTE QUOI (Mag, 13/08/2026 :
@@ -21442,7 +21493,7 @@ const RESEAU_V2_CATEGORIES=[
      Ils ont maintenant leur carte, dans la section qui parle de la journée. */
   {title:'Manger',domaines:['manger'],etiquettes:['JOUR']},
   {title:'Se laver, se vêtir',domaines:['laver'],etiquettes:['JOUR']},
-  {title:'Centre de jour',domaines:['journee'],etiquettes:['JOUR']},
+  {title:'Accueil de jour',domaines:['journee'],etiquettes:['JOUR']},
   {title:'Maraude',domaines:['vavers'],etiquettes:['JOUR']},
   /* ── Des soins ── */
   {title:'Se soigner',domaines:['medical'],picto:'medical.svg',etiquettes:['JOUR']},
