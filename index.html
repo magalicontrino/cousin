@@ -103,6 +103,10 @@ body{font-family:'Eastman',-apple-system,'Segoe UI',sans-serif;background:var(--
   font-size:16px;line-height:1.45;padding-bottom:var(--tab-h);
   padding-top:calc(68px + env(safe-area-inset-top))}
 body.no-tabs{padding-bottom:0}
+/* ⚠ LES DEUX, ET PAS SEULEMENT `body` : sur iPhone, c'est l'élément racine qui défile,
+   et un `overflow:hidden` sur le seul body n'y change rien. Posé par `accueilFige`,
+   qui vérifie d'abord que tout tient. */
+html.accueil-fige,body.accueil-fige{overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:inherit;text-decoration:none}
 
@@ -4504,9 +4508,14 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* ═══ LES DEUX BOUTONS AU-DESSUS DE LA CHECK-LIST (Mag, 11/09/2026) ═══
    Côte à côte quand la place le permet, l'un sous l'autre sur un téléphone — jamais un
    mot coupé, jamais rien qui sorte de l'écran. */
-.mlrep{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 9px;max-width:620px}
+/* ⚠ DE L'AIR SOUS LA PASSATION (Mag, 11/09/2026 : « ça manque beaucoup d'espace en
+   dessous de passation, aère tout ça », capture à l'appui). Les deux boutons étaient
+   collés au bas de la carte, et la check-list collée à eux : trois choses différentes
+   sans respiration entre elles. */
+.mlrep{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 18px;max-width:620px}
 .mlrep .mlb{flex:1 1 200px;justify-content:center;white-space:normal;text-align:center;
-  padding:7px 11px;line-height:1.35}
+  min-height:42px;padding:10px 13px;line-height:1.35}
+.mlrep .mlsel select{min-height:42px}
 .mlrep .mlsel{flex:1 1 200px}
 .mlrep .mlsel select{width:100%;max-width:none}
 .mlb{display:inline-flex;align-items:center;gap:7px;min-height:34px;
@@ -14017,14 +14026,19 @@ function vChambres(){
     /* ⚠ LE PRÉNOM EST REVENU (Mag, 08/08/2026 : « les prénoms on peut mettre »). En
        raccourcissant ce texte une heure plus tôt, j'avais laissé « des initiales »
        tout court — plus sévère que sa règle. Raccourcir ne doit pas durcir. */
-    /* ⚠ LA RÈGLE RESTE, L'EXPLICATION PART (Mag, 21/08/2026). « C'est pour savoir quel
-       lit débarrasser quand la chambre est à deux » justifiait la règle à des gens qui
-       l'appliquent déjà. La règle, elle, ne bouge pas : c'est une donnée de personne. */
-    '<div class="chrgpd"><span class="ic">'+icon('cle')+'</span><span><b>Initiales, ou prénom et première lettre du nom. Jamais le nom de famille.</b></span></div>'+
+    /* ⚠ LE BANDEAU DE LA RÈGLE EST PARTI D'ICI (Mag, 11/09/2026 : « retire ça »,
+       capture à l'appui). Il expliquait comment écrire un nom AU-DESSUS DE LA LISTE —
+       donc à quelqu'un qui vient LIRE, pas écrire. Sa règle des phrases explicatives.
+       ⚠ LA RÈGLE ELLE-MÊME NE BOUGE PAS, et elle reste écrite LÀ OÙ L'ON ÉCRIT : dans
+       le bandeau du formulaire (« trois bacs par chambre… initiales ou prénom, jamais
+       le nom de famille ») et sur la feuille imprimée. Vérifié avant de retirer. */
     liste+
     (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
     (!CHAMBRES.length?(chambresLoaded
-      ?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b><p>Ajoute un numéro quand une personne part.</p></div>'
+      /* ⚠ « Ajoute un numéro quand une personne part » est parti avec (Mag, 11/09/2026 :
+         « et ça »). Le vide se dit, il ne s'explique pas — le formulaire est juste en
+         dessous, avec sa case « N° ch. ». */
+      ?'<div class="empty"><span class="ic">'+icon('building')+'</span><b>Aucune chambre en cours.</b></div>'
       :'<div class="empty"><b>Chargement…</b></div>'):'');
   h+=wikiBloc('chambres');
   return h;
@@ -14769,6 +14783,42 @@ function telHref(t){const m=/[+0-9][0-9 .\/-]{2,}/.exec(t||'');const n=m?m[0].re
    window.print() avec une feuille propre : voir le bloc @media print. On renseigne
    le titre et la date AVANT d'ouvrir la fenêtre d'impression, sinon la feuille sort
    anonyme. Marche aussi pour « enregistrer en PDF », c'est le même bouton. */
+/* ═══ L'ACCUEIL NE DÉFILE PLUS (Mag, 11/09/2026) ═══
+   « Sur la page d'accueil, j'ai tout enlevé pour qu'il n'y ait plus de scroll. Donc
+   j'aimerais que tu bloques tout ça. »
+   ⚠ ON NE BLOQUE QUE SI TOUT TIENT VRAIMENT À L'ÉCRAN, et c'est le point : un
+   `overflow:hidden` posé sans regarder rendrait INATTEIGNABLE une carte de plus sur un
+   téléphone plus petit que le sien — et personne ne saurait qu'elle existe. On mesure
+   donc après le dessin : ça tient, on bloque ; ça dépasse, on laisse défiler. Elle a
+   vidé la page pour que ça tienne, donc chez elle c'est bloqué.
+   ⚠ ON MESURE À LA FRAME SUIVANTE, blocage retiré : mesurer une page déjà bloquée
+   renvoie la hauteur de l'écran, donc « ça tient » toujours — et le blocage ne se
+   relâcherait jamais. */
+function accueilFige(){
+  const surAccueil = !!(current && current.view==='home');
+  const h=document.documentElement, b=document.body;
+  h.classList.remove('accueil-fige'); b.classList.remove('accueil-fige');
+  if(!surAccueil) return;
+  /* ⚠ UNE SEULE MESURE NE SUFFIT PAS, et c'est mesuré : à la frame suivante la page
+     fait encore 858 px, et 812 une fois posée. Les polices de l'app arrivent après le
+     premier dessin et changent toutes les hauteurs — même piège que la colonne du
+     Premier accueil en août. On mesure donc trois fois : tout de suite, un peu après,
+     et quand les polices sont prêtes. */
+  const mesurer=function(){
+    if(!(current && current.view==='home')) return;
+    h.classList.remove('accueil-fige'); b.classList.remove('accueil-fige');
+    /* 2 px de tolérance : les arrondis de sous-pixel suffisent à créer un faux
+       dépassement, et on ne débloquerait la page pour rien. */
+    const tient = h.scrollHeight <= window.innerHeight + 2;
+    h.classList.toggle('accueil-fige', tient);
+    b.classList.toggle('accueil-fige', tient);
+  };
+  requestAnimationFrame(mesurer);
+  setTimeout(mesurer, 260);
+  try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(mesurer); }catch(e){}
+}
+/* Une carte qui arrive (la météo, une poubelle), un téléphone qu'on tourne : on remesure. */
+window.addEventListener('resize', function(){ accueilFige(); });
 function imprimer(){
   let t='COUSIN';
   try{
@@ -16631,6 +16681,7 @@ function renderInterne(){
   /* Voir `body.at-accueilp #view` : sur cette page, la marge basse de #view empêche
      la colonne de droite de rester collée jusqu'au bout. */
   document.body.classList.toggle('at-accueilp',current.view==='accueilpersonne');
+  accueilFige();
   /* Voir `body.pan-ouvert #view` : un panneau de fiche ou d'activité est en
      `position:fixed` DANS #view — tant qu'il est ouvert, la page ne s'anime pas. */
   /* ⚠ `try` VOULU : `FICHE_PAN` et `ACT_PAN` sont déclarés en `let` bien plus bas
@@ -17550,10 +17601,14 @@ function vHome(){
       /* Le bac de Mag garde son recyclage : il se creuse à la couleur du rond noir. */
       const dedans = poub ? pictoPoubelle(b[3],'#1b1b1b',30)
                           : '<span class="ic" style="color:'+b[3]+'">'+icon(b[0])+'</span>';
-      /* LE TITRE PORTE LE QUAND. « Poubelles ce soir » se lit d'un coup ; « Poubelles »
-         oblige à descendre d'une ligne pour savoir si c'est ce soir ou lundi — et
-         c'est exactement l'effort qu'on essaie de supprimer. */
-      const titre = (poub && col) ? b[1]+' '+col.court : b[1];
+      /* ⚠ LE TITRE NE REDIT PLUS LE JOUR (Mag, 11/09/2026 : « quand c'est marqué
+         poubelle vendredi matin, c'est déjà marqué vendredi matin en dessous, donc tu
+         peux juste marquer poubelle »). Le sous-titre porte « noir · vendredi matin » :
+         le jour était écrit deux fois à trois millimètres d'écart.
+         ⚠ CE QUI ÉTAIT ÉCRIT ICI AVANT, et qui ne vaut plus : « le titre porte le
+         quand, sinon il faut descendre d'une ligne ». Il n'y a pas à descendre : les
+         deux lignes se lisent d'un seul regard, c'est la même carte. */
+      const titre = b[1];
       /* Dessous : ce qu'il faut sortir, et l'heure du passage (la seconde moitié de
          `col.quand`, « passage vendredi matin »). Pour les autres, le sous-titre de
          la boule ne bouge pas. */
@@ -37271,8 +37326,14 @@ function rappelsHTML(enCarte){
     const CADRES={aencoder:1,encodage:1,vider:1,entretien:1,miparcours:1,notetag:1,info:1,absence:1};
     const groupe=function(titre, liste, cl){
       if(!liste.length) return '';
-      const contenu='<div class="pgt'+(cl?' '+cl:'')+'">'+titre+
-        (CADRES[cl]?'<i>'+liste.length+'</i>':'')+'</div>'+liste.map(ligne).join('');
+      /* ⚠ SANS TITRE, PAS DE BANDEAU (Mag, 11/09/2026 : « dans la liste, retire ça » —
+         l'étiquette AUJOURD'HUI au-dessus des lignes du jour). Un `.pgt` vide aurait
+         gardé sa marge et son filet : on n'aurait retiré que le mot, pas la ligne. */
+      const tete = titre
+        ? '<div class="pgt'+(cl?' '+cl:'')+'">'+titre+
+          (CADRES[cl]?'<i>'+liste.length+'</i>':'')+'</div>'
+        : '';
+      const contenu=tete+liste.map(ligne).join('');
       return CADRES[cl] ? '<div class="pgbloc '+cl+'">'+contenu+'</div>' : contenu;
     };
     const parJour=function(v){ return MESRAPPELS.filter(function(r){ return !rappelFait(r) && rappelDu(r)===v; }); };
@@ -37340,7 +37401,10 @@ function rappelsHTML(enCarte){
 
     h+= groupe('À dire en réunion', reunion, 'reunion')
       + groupe('En retard', pasMarque(parJour(-1)))
-      + groupe('Aujourd’hui', pasMarque(parJour(0).concat(parJour(null))))
+      /* ⚠ PLUS D'ÉTIQUETTE « AUJOURD'HUI » (Mag, 11/09/2026). Les lignes du jour sont
+         le corps de la liste : ce qui a besoin d'un titre, c'est ce qui S'EN ÉCARTE —
+         en retard, plus tard, fait. Nommer le cas normal ne le distingue de rien. */
+      + groupe('', pasMarque(parJour(0).concat(parJour(null))))
       + groupe('Plus tard', pasMarque(aVenir))
       + groupe('Faits', pasMarque(faits))
       /* Le trait ne se pose que s'il y a quelque chose à séparer. */
