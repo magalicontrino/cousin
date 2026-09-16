@@ -7184,6 +7184,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
       <button class="dembtn clair pic" onclick="notCollerIci()" title="Coller" aria-label="Coller dans la case"><span class="ic" data-ic="collerleger"></span></button>
       <button class="dembtn clair pic" onclick="notEffacer()" title="Effacer" aria-label="Effacer"><span class="ic" data-ic="trash"></span></button>
       <button class="dembtn clair pic" id="entBtnR" style="display:none" onclick="notRevenir()" title="Revenir" aria-label="Revenir"><span class="ic" data-ic="undo"></span></button>
+      <button class="dembtn clair pic" id="entBtnA" style="display:none" onclick="notRetablir()" title="Rétablir" aria-label="Rétablir"><span class="ic" data-ic="redo"></span></button>
       <button class="dembtn clair" onclick="entFermer()">Fermer</button>
     </div>
   </div>
@@ -7493,6 +7494,8 @@ const ICONS = {
      Ici la pointe part vers la gauche et le trait s'enroule vers la droite : c'est
      le dessin que tout le monde connaît pour annuler ce qu'on vient de faire. */
   undo:     '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h9.5a5.5 5.5 0 0 1 0 11H8"/><path d="M8 4.5L3.4 9 8 13.5"/></g>',
+  /* La flèche de « Revenir », retournée : les deux gestes se lisent comme une paire. */
+  redo:     '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9h-9.5a5.5 5.5 0 0 0 0 11H16"/><path d="M16 4.5L20.6 9 16 13.5"/></g>',
   star:     '<path d="M12 2.4l3 6.1 6.7.9-4.9 4.7 1.2 6.7-6-3.3-6 3.3 1.2-6.7L2.3 9.4l6.7-.9z"/>',
   rainbow:  '<g fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M2.6 20a9.4 9.4 0 0 1 18.8 0" stroke="#e5372f"/><path d="M4.1 20a7.9 7.9 0 0 1 15.8 0" stroke="#f5871f"/><path d="M5.6 20a6.4 6.4 0 0 1 12.8 0" stroke="#f3c53f"/><path d="M7.1 20a4.9 4.9 0 0 1 9.8 0" stroke="#2fae5f"/><path d="M8.6 20a3.4 3.4 0 0 1 6.8 0" stroke="#2f6fd0"/><path d="M10.1 20a1.9 1.9 0 0 1 3.8 0" stroke="#8b4bd6"/></g>',
   croix:    '<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>',
@@ -29359,6 +29362,18 @@ function vDemander(){
    Monsieur X » se dit à l'oral à l'équipe ; le champ le rappelle en gris. */
 
 let NOT_TXT='', NOT_ENCOURS=false, NOT_PANNE='', NOT_AVANT='';
+/* ═══ « RÉTABLIR » (Mag, 16/09/2026 : « il y a un bouton pour revenir en arrière,
+   mais j'aimerais qu'on puisse revenir en avant aussi, au cas où on a fait une
+   mauvaise manip ») ═══
+   `NOT_APRES` garde le texte que « Revenir » vient d'enlever. Un pas en arrière, un pas
+   en avant — comme `NOT_AVANT`, un seul niveau : la case n'est pas un traitement de
+   texte, et une pile de dix versions ne se relirait pas.
+   ⚠ TOUT NOUVEAU GESTE (Corriger, Effacer) VIDE `NOT_APRES` : on ne rétablit pas un
+   texte qui n'est plus la suite de ce qu'on a sous les yeux.
+   ⚠ `null` VEUT DIRE « RIEN À RÉTABLIR », et la chaîne vide est une vraie version :
+   après Effacer puis Revenir, ce qu'on rétablit, c'est justement la case vide. Avec ''
+   comme signal, « Rétablir » disparaissait dans ce cas-là (vu en le testant). */
+let NOT_APRES=null;
 /* ⚠ L'ÉCOUTE MARCHE MAINTENANT SUR TÉLÉPHONE AUSSI (Mag, 10/09/2026, sur son
    Samsung : « il faut que je me mette au micro de mon téléphone, mais moi c'est mon
    Samsung, je n'arrive pas »). Elle avait été coupée sur téléphone le 07/09 parce
@@ -29754,34 +29769,42 @@ function notRedessine(){
   if(NOT_CIBLE) entRafraichir(); else render();
 }
 
+/* ═══ LA DEMANDE DE CORRECTION, EN UN SEUL ENDROIT (16/09/2026) ═══
+   Elle sert la page des notes, la fenêtre d'un entretien ET Ma liste perso (« ici il
+   manque le bouton corriger »). Une seule mécanique : si la consigne ou l'adresse du
+   serveur change, les trois suivent — sinon l'une finit par corriger autrement.
+   Rend {texte} ou {panne}. ⚠ Jamais d'exception : la panne est un message à dire. */
+async function notDemanderCorrection(t){
+  try{
+    const ses=await sb.auth.getSession();
+    const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
+    if(!jeton) return {panne:"Ta connexion s'est perdue. Ta note n'a pas bougé."};
+    const r=await fetch(SB_URL+'/functions/v1/bulle',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+jeton,'apikey':SB_KEY},
+      body:JSON.stringify({mode:'note', question:t})
+    });
+    const d=await r.json().catch(function(){ return {}; });
+    /* ⚠ « Pas de réponse » n'est jamais « non » : on dit ce qui s'est passé, et on
+       redit que le texte est intact — c'est la première inquiétude. */
+    if(!r.ok) return {panne:(d.erreur||'La correction n\'est pas arrivée.')+" Ta note n'a pas bougé."};
+    return d.texte ? {texte:d.texte} : {panne:"La correction est revenue vide. Ta note n'a pas bougé."};
+  }catch(e){
+    return {panne:"Les propositions ne sont pas arrivées. Ta note n'a pas bougé."};
+  }
+}
 async function notOk(){
   if(NOT_ENCOURS) return;
   const t=notLire().trim();
   if(!t){ NOT_PANNE="Parle d'abord, ou écris quelque chose."; notRedessine(); return; }
   NOT_ENCOURS=true; NOT_PANNE=''; NOT_ALERTE=''; notRedessine();
-  try{
-    const ses=await sb.auth.getSession();
-    const jeton=ses && ses.data && ses.data.session && ses.data.session.access_token;
-    if(!jeton){ NOT_PANNE="Ta connexion s'est perdue. Ta note n'a pas bougé."; }
-    else{
-      const r=await fetch(SB_URL+'/functions/v1/bulle',{
-        method:'POST',
-        headers:{'content-type':'application/json','authorization':'Bearer '+jeton,'apikey':SB_KEY},
-        body:JSON.stringify({mode:'note', question:t})
-      });
-      const d=await r.json().catch(function(){ return {}; });
-      /* ⚠ « Pas de réponse » n'est jamais « non » : on dit ce qui s'est passé, et on
-         redit que le texte est intact — c'est la première inquiétude. */
-      if(!r.ok) NOT_PANNE=(d.erreur||'La correction n\'est pas arrivée.')+" Ta note n'a pas bougé.";
-      else if(d.texte){
-        /* ⚠ UNE SEULE VERSION, ET ELLE REMPLACE LE TEXTE (Mag, 05/09/2026 : « je
-           préfère celle du milieu. Tu peux garder qu'une proposition et on change à
-           la main »). On garde l'avant : « Revenir » le remet. */
-        NOT_AVANT=t; notEcrire(d.texte); notVerifier(t, d.texte);
-      }
-    }
-  }catch(e){
-    NOT_PANNE="Les propositions ne sont pas arrivées. Ta note n'a pas bougé.";
+  const rep=await notDemanderCorrection(t);
+  if(rep.panne) NOT_PANNE=rep.panne;
+  else{
+    /* ⚠ UNE SEULE VERSION, ET ELLE REMPLACE LE TEXTE (Mag, 05/09/2026 : « je
+       préfère celle du milieu. Tu peux garder qu'une proposition et on change à
+       la main »). On garde l'avant : « Revenir » le remet. */
+    NOT_AVANT=t; NOT_APRES=null; notEcrire(rep.texte); notVerifier(t, rep.texte);
   }
   NOT_ENCOURS=false; notRedessine();
 }
@@ -29822,11 +29845,17 @@ function notVerifier(avant, apres){
 function notEffacer(){
   const t=notLire();
   if(!t){ return; }
-  NOT_AVANT=t; notEcrire(''); notRedessine();
+  NOT_AVANT=t; NOT_APRES=null; notEcrire(''); notRedessine();
 }
 function notRevenir(){
   if(!NOT_AVANT) return;
-  notEcrire(NOT_AVANT); NOT_AVANT=''; notRedessine();
+  NOT_APRES=notLire(); notEcrire(NOT_AVANT); NOT_AVANT=''; notRedessine();
+}
+/* Le pas en avant : remet ce que « Revenir » avait enlevé, et rend « Revenir » à
+   nouveau possible — on peut donc aller et venir entre les deux versions. */
+function notRetablir(){
+  if(NOT_APRES===null) return;
+  NOT_AVANT=notLire(); notEcrire(NOT_APRES); NOT_APRES=null; notRedessine();
 }
 function notCopier(txt){ copyTxt(txt||notLire(),'Copié ✓'); }
 /* ⚠ COLLER EST DANS LA RANGÉE, PAS AU-DESSUS (Mag, 11/09/2026 : « à côté de Corriger
@@ -29850,7 +29879,7 @@ function notGarder(){
   if(!t) return;
   NOTES.unshift({id:'n'+Date.now(), t:t.slice(0,6000), q:new Date().toISOString()});
   notesSauver();
-  NOT_TXT=''; NOT_AVANT=''; notBrouillon();
+  NOT_TXT=''; NOT_AVANT=''; NOT_APRES=null; notBrouillon();
   render(); toast('Gardée ✓');
 }
 /* ═══ CORRIGER UNE NOTE DÉJÀ GARDÉE (Mag, 05/09/2026) ═══
@@ -30033,6 +30062,8 @@ h+='<div class="notb">'+
          'aria-label="Effacer">'+icon('trash')+'</button>'+
        (NOT_AVANT?'<button class="dembtn clair pic" onclick="notRevenir()" title="Revenir" '+
          'aria-label="Revenir">'+icon('undo')+'</button>':'')+
+       (NOT_APRES!==null?'<button class="dembtn clair pic" onclick="notRetablir()" title="Rétablir" '+
+         'aria-label="Rétablir">'+icon('redo')+'</button>':'')+
      '</div>';
   if(NOT_ALERTE) h+='<div class="notalerte">'+esc(NOT_ALERTE)+'</div>';
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
@@ -35834,7 +35865,7 @@ function entOuvrir(id){
   NOT_CIBLE=id;
   const cible=notCibleObjet();
   if(!cible){ NOT_CIBLE=''; return; }
-  NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
+  NOT_AVANT=''; NOT_APRES=null; NOT_PANNE=''; NOT_ALERTE='';
   const t=document.getElementById('entTitre'); if(t) t.textContent=cible.titre||'La note';
   const c=document.getElementById('entTxt'); if(c) c.value=cible.o.note||'';
   if(!NOT_PERM) notLirePermission();
@@ -35876,6 +35907,8 @@ function entRafraichir(){
   if(b){ b.disabled=!!NOT_ENCOURS; b.textContent=NOT_ENCOURS?'…':'Corriger'; }
   const rv=document.getElementById('entBtnR');
   if(rv) rv.style.display=NOT_AVANT?'':'none';
+  const ra=document.getElementById('entBtnA');
+  if(ra) ra.style.display=(NOT_APRES!==null)?'':'none';
 }
 function entFermer(){
   /* ⚠ ON GARDE EN FERMANT. Fermer une fenêtre ne doit jamais effacer ce qu'on vient
@@ -35883,7 +35916,7 @@ function entFermer(){
   if(NOT_ECOUTE) notStop();
   notGarder();
   const bg=document.getElementById('entBg'); if(bg) bg.classList.remove('on');
-  NOT_CIBLE=''; NOT_AVANT=''; NOT_PANNE=''; NOT_ALERTE='';
+  NOT_CIBLE=''; NOT_AVANT=''; NOT_APRES=null; NOT_PANNE=''; NOT_ALERTE='';
 }
 function avoirRetirer(id){
   const r=AVOIR.find(function(x){ return x.id===id; }); if(!r) return;
@@ -37612,6 +37645,57 @@ function rappelsEffacer(){
    ⚠ « RETIRER » N'EST PLUS SUR LA RANGÉE : il est dans la feuille du crayon, avec le
    texte et le numéro de chambre. Même règle que la passation — un seul endroit pour
    corriger, y compris pour faire disparaître. */
+/* ═══ CORRIGER UNE CASE QUELCONQUE (16/09/2026) ═══
+   La page des notes a son état (`NOT_AVANT`, `NOT_APRES`) ; une case de Ma liste a le
+   sien, rangé par identifiant de case : corriger ici ne doit pas faire apparaître un
+   « Revenir » sur la page des notes, ni l'inverse. */
+let CH_HIST={}, CH_ENCOURS='';
+/* ⚠ PAS `notEcrire` ICI. Quand aucune dictée n'est en cours, `notEcrire` recopie aussi
+   le texte dans le BROUILLON DE LA PAGE DES NOTES (`NOT_TXT`) : corriger une ligne de Ma
+   liste aurait écrasé, en silence, la note qu'on avait commencée ailleurs. On écrit donc
+   dans la case, on la prévient (son `oninput` garde son propre brouillon), c'est tout. */
+function champEcrire(id, t){
+  const c=document.getElementById(id); if(!c) return false;
+  c.value=t;
+  try{ c.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+  if(c.tagName==='TEXTAREA' && typeof passGrandir==='function') passGrandir(c);
+  return true;
+}
+async function champCorriger(id){
+  if(CH_ENCOURS) return;
+  const c=document.getElementById(id); if(!c) return;
+  /* On arrête d'écouter avant : sinon la dictée continuerait d'écrire PAR-DESSUS la
+     version corrigée. */
+  if(typeof NOT_ECOUTE!=='undefined' && NOT_ECOUTE && NOT_LIBRE===id && typeof notStop==='function') notStop();
+  const t=(c.value||'').trim();
+  if(!t){ toast("Parle d'abord, ou écris quelque chose."); return; }
+  CH_ENCOURS=id; render();
+  const rep=await notDemanderCorrection(t);
+  CH_ENCOURS='';
+  if(rep.panne){ render(); toast(rep.panne); return; }
+  /* Le garde-fou des chiffres et des côtés, le même que sur la page des notes : il
+     écrit dans NOT_ALERTE, on le recopie ici puis on rend NOT_ALERTE tel qu'il était. */
+  const garde=NOT_ALERTE; notVerifier(t, rep.texte); const alerte=NOT_ALERTE; NOT_ALERTE=garde;
+  CH_HIST[id]={avant:t, apres:'', alerte:alerte};
+  champEcrire(id, rep.texte);
+  render();
+}
+function champRevenir(id){
+  const h=CH_HIST[id]; const c=document.getElementById(id);
+  if(!h||!h.avant||!c) return;
+  const maintenant=c.value||'';
+  champEcrire(id, h.avant);
+  CH_HIST[id]={avant:'', apres:maintenant, alerte:''};
+  render();
+}
+function champRetablir(id){
+  const h=CH_HIST[id]; const c=document.getElementById(id);
+  if(!h||!h.apres||!c) return;
+  const maintenant=c.value||'';
+  champEcrire(id, h.apres);
+  CH_HIST[id]={avant:maintenant, apres:'', alerte:''};
+  render();
+}
 function rappelsHTML(enCarte){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
   let h='';
@@ -37655,7 +37739,23 @@ function rappelsHTML(enCarte){
            donc exactement celle du 22/08 — N° ch., OK, Passation.
            ⚠ C'est le même bouton qu'à l'onglet Notes, à un onglet de distance : même
            mot, même point rouge, même STOP. */
-        '<div class="chadd-a">'+txCopierCollerHTML('rapTxt')+notBoutonHTML('rapTxt', true)+'</div>'+
+        /* ═══ « CORRIGER » DANS MA LISTE (Mag, 16/09/2026 : « ici il manque le bouton
+           corriger ») ═══
+           On dicte ici autant que sur la page des notes — et une dictée brute
+           (« oui alors je suis parti à 7h du matin… ») se relit mal dans une liste ou une
+           passation. C'est la MÊME correction (`notDemanderCorrection`), avec le même
+           garde-fou des chiffres et des côtés, et « Revenir » / « Rétablir » juste à côté :
+           une correction qui remplace un texte doit toujours pouvoir se défaire. */
+        '<div class="chadd-a">'+txCopierCollerHTML('rapTxt')+
+          '<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
+            'onclick="champCorriger(\'rapTxt\')"'+(CH_ENCOURS==='rapTxt'?' disabled':'')+'>'+
+            (CH_ENCOURS==='rapTxt'?'…':'Corriger')+'</button>'+
+          ((CH_HIST.rapTxt||{}).avant?'<button type="button" class="txb pic" onclick="champRevenir(\'rapTxt\')" '+
+            'title="Revenir" aria-label="Revenir">'+icon('undo')+'</button>':'')+
+          ((CH_HIST.rapTxt||{}).apres?'<button type="button" class="txb pic" onclick="champRetablir(\'rapTxt\')" '+
+            'title="Rétablir" aria-label="Rétablir">'+icon('redo')+'</button>':'')+
+          notBoutonHTML('rapTxt', true)+'</div>'+
+        ((CH_HIST.rapTxt||{}).alerte?'<div class="notalerte">'+esc(CH_HIST.rapTxt.alerte)+'</div>':'')+
         '<div class="chadd-b">'+
         '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
         'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(RAP_CH_BROUILLON||'')+'" '+
