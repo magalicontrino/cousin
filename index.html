@@ -193,6 +193,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
      cacher les lignes de l'écran qui disaient déjà la même chose. Chaque feuille
      portait donc le téléphone DEUX fois et l'horaire DEUX fois — dont une coupée.
      Le bloc `.pr-fiche` dit tout, en entier : les lignes courtes de l'écran se taisent. */
+  .pr-filtre{ display:block !important; font-size:11pt; font-weight:600; color:#000;
+    border:1.5px solid #000; border-radius:4px; padding:6px 10px; margin:0 0 14px }
   .frow2.c3 .ouc.pr-cache,
   .frow2.c3 .fr2h,
   .frow2.c3 .fr2c{ display:none !important }
@@ -216,6 +218,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .imprligne{display:flex;justify-content:flex-end;margin:14px 0 2px;max-width:620px}
 /* Le bloc adresse / téléphone / horaires / conditions n'existe QUE sur le papier. */
 .pr-fiche{display:none}
+/* La ligne « liste filtrée » aussi : à l'écran, les boutons allumés le disent déjà. */
+.pr-filtre{display:none}
 /* ═══ LE MAIL POSÉ SUR LA FICHE (03/09/2026) ═══
    Le texte entier est là, lisible : on relit avant d'envoyer, on ne copie pas à
    l'aveugle. Le bouton de copie prend l'objet ET le corps d'un coup — c'est ce
@@ -24632,7 +24636,27 @@ function vDomaine(key){
         ? NOTES.length+' note'+(NOTES.length>1?'s':'')+' gardée'+(NOTES.length>1?'s':'')
         : '')
     : (items.length+(grpHtml?'+':''))+' fiche'+(items.length>1?'s':'');
-  return heroBandeau(d.label, sousTitre, dc(key), d.ic)+
+  /* ═══ UNE FEUILLE FILTRÉE LE DIT (Mag, 16/09/2026) ═══
+     Sa feuille « Maison d'accueil d'urgence » sortait avec 2 fiches alors que le tiroir
+     en compte 4 : un filtre était actif à l'écran. Depuis le 16/09 les boutons de
+     filtre ne s'impriment plus (« les résultats sans la recherche ») — donc plus RIEN
+     sur le papier ne disait que la liste était partielle. Quelqu'un qui reçoit cette
+     feuille croit tenir toutes les adresses ; il lui en manque la moitié, dont les deux
+     seules qui prennent les femmes.
+     ⚠ UNE LIGNE, SUR LE PAPIER SEULEMENT (`.pr-filtre`, caché à l'écran : là, les
+     boutons allumés le disent déjà). Elle nomme les filtres et le total du tiroir. */
+  const prFiltre=(function(){
+    if(key==='notes') return '';
+    const f=[].concat(
+      filt.famille&&filt.famille!=='Toutes'?[filt.famille]:[],
+      filt.avis==='reco'?['Conseillée par l’équipe']:filt.avis==='deco'?['L’équipe déconseille']:[],
+      filt.tags||[], filt.communes||[]);
+    if(!f.length) return '';
+    const tout=fichesDe(key).filter(function(p){ return !d.isDem||!demChoisie()||p.demarche===filt.dem; }).length;
+    return '<div class="pr-filtre">Liste filtrée — '+esc(f.join(' · '))+
+      '. Le tiroir entier compte '+tout+' fiche'+(tout>1?'s':'')+'.</div>';
+  })();
+  return heroBandeau(d.label, sousTitre, dc(key), d.ic)+prFiltre+
     (key==='notes'?notesCorps():'')+
     /* ⚠ UN TIROIR VIDE NE MONTRE PAS SES OUTILS (06/09/2026). Depuis que les canevas
        sont partis, la page des notes n'a plus une seule fiche : la rangée de tri et le
