@@ -15298,7 +15298,12 @@ function imprimer(){
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups pour COUSIN'); return; }
   w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
-    '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+    /* ═══ LA MÊME FEUILLE, D'UN TÉLÉPHONE OU D'UN ORDINATEUR (Mag, 16/09/2026) ═══
+       « On n'imprimera jamais d'un téléphone. Même quand c'est sur téléphone que tu
+       veux imprimer, imprime du même format que sur un ordinateur. »
+       La fenêtre fait donc 900 px de large partout : le téléphone dézoome au lieu de
+       tasser la page A4 à la largeur de son écran. */
+    '<meta name="viewport" content="width=900">'+
     '<title>'+esc(t)+' — COUSIN</title><style>'+styles+'</style>'+
     /* Dans l'aperçu, ce que l'impression cache est caché À L'ÉCRAN aussi : sinon on
        regarderait une page qui ne ressemble pas à la feuille qui sortira. */
@@ -15324,6 +15329,24 @@ function imprimer(){
         'padding-bottom:8px;margin-bottom:16px}'+
       '.pt-h b{font-size:19px;font-weight:700;text-transform:uppercase}'+
       '.pt-h span{margin-left:auto;font-family:ui-monospace,monospace;font-size:10px;color:#444}'+
+      /* Quand la page recopiée porte déjà son grand titre (la maison, « 1 fiche »),
+         l'en-tête ne garde que la date : deux fois le titre, c'est une ligne pour rien. */
+      '.pt-h.pt-seuldate{border-bottom:0;padding-bottom:0;margin-bottom:10px}'+
+      /* ⚠ LE TITRE D'UN TÉLÉPHONE ÉTAIT UN BANDEAU NOIR PLEIN (Mag, 16/09/2026 : « ça va
+         faire beaucoup d'encre »). À l'écran, un écran tactile reçoit le bandeau noir, un
+         ordinateur le titre sur un filet — c'est `@media (hover:hover)`, et une feuille
+         n'a pas de souris. On pose donc ici, sans condition, le dessin de l'ordinateur. */
+      '.fw .hero{position:static!important;background:transparent!important;color:#1b1b1b!important;'+
+        'margin:0 0 26px!important;padding:0 0 18px!important;border-bottom:1.5px solid #1b1b1b;align-items:flex-end}'+
+      '.fw .hero h1{color:#1b1b1b!important}'+
+      '.fw .hero .hsur{font-size:10px;letter-spacing:.24em;filter:saturate(.85) brightness(.68)}'+
+      '.fw .hero .hpic{width:52px;height:52px}'+
+      '.fw .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-content:start;padding-top:12px}'+
+      /* « Tu mets la recherche avec, ça n'a aucun sens » : le « Où ? », les filtres et
+         les boutons « Conseillé par l'équipe » servent à CHERCHER. Sur la feuille, les
+         résultats seulement. Les pastilles DANS les cartes restent : elles disent qui
+         est accepté. */
+      '.fw .chips,.fw .favrow,.fw .imprligne{display:none!important}'+
       '.pf-n{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;'+
         'color:#555;margin-bottom:12px}'+
       /* LISIBLE POUR QUELQU'UN QUI VOIT MAL (Mag, 08/08/2026 : « parfois il y a des
@@ -15465,7 +15488,9 @@ function imprimer(){
        trop grand pour du papier. Les fiches, elles, gardent leurs gros caractères :
        c'est une feuille qu'on donne à quelqu'un qui voit parfois mal. */
     '<div class="fw'+((!corps && (current&&(current.view==='liste'||current.view==='chambres')))?' serre':'')+'">'+
-      '<div class="pt-h"><b>'+esc(t)+'</b><span>'+esc(dateTxt)+'</span></div>'+
+      ((!corps && src.querySelector('.hero') && !(current&&(current.view==='liste'||current.view==='chambres')))
+        ? '<div class="pt-h pt-seuldate"><span>'+esc(dateTxt)+'</span></div>'
+        : '<div class="pt-h"><b>'+esc(t)+'</b><span>'+esc(dateTxt)+'</span></div>')+
       (corps||src.innerHTML)+'</div>'+
     /* ⚠ LES NOMS DE LA CARTE SE PLACENT DANS LA FENÊTRE D'IMPRESSION, PAS ICI.
        Ils sont posés en mesurant les vraies boîtes (voir `qPlacerNoms`) — et la
