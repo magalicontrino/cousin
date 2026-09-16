@@ -187,6 +187,15 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   .frow2.c3 .nomh b{ font-size:14pt }
   .frow2.c3 .qui{ font-size:11pt }
   .frow2.c3 .ouc{ font-size:9pt }
+  /* ═══ UNE SEULE FOIS CHAQUE CHOSE SUR LE PAPIER (Mag, 16/09/2026) ═══
+     « Pourquoi il y a une telle différence entre le visuel et l'impression ? »
+     Parce que le 02/09 on a AJOUTÉ le bloc Où / Téléphone / Quand pour le papier, sans
+     cacher les lignes de l'écran qui disaient déjà la même chose. Chaque feuille
+     portait donc le téléphone DEUX fois et l'horaire DEUX fois — dont une coupée.
+     Le bloc `.pr-fiche` dit tout, en entier : les lignes courtes de l'écran se taisent. */
+  .frow2.c3 .ouc.pr-cache,
+  .frow2.c3 .fr2h,
+  .frow2.c3 .fr2c{ display:none !important }
   /* Une case à cocher imprimée est une case VIDE : c'est au stylo qu'on la remplit. */
   .tache .box,.pf-box,.ch-box{ border:1.5px solid #000 !important; background:none !important; border-radius:2px !important }
   .tache .box svg,.tache .box .pico,.pf-box svg,.pf-box .pico{ display:none !important }
@@ -22428,7 +22437,21 @@ function fcard(p){
   const cond=(p.conditions||'').trim();
   const det=[
     cond?'<span class="fr2c">'+esc(cond.length>90?cond.slice(0,88)+'…':cond)+'</span>':'',
-    (!cond&&p.horaires)?'<span class="fr2h">'+esc((p.horaires||'').split('\n')[0].slice(0,70))+'</span>':''
+    /* ═══ L'HORAIRE NE SE COUPE PLUS AU MILIEU (Mag, 16/09/2026, capture à l'appui) ═══
+       Il était tranché au 70e signe, sans points de suspension : « URGENCE à partir de
+       17 » — l'heure perdait son « h » et la suite disparaissait sans le dire. Un
+       horaire amputé en silence se lit comme un horaire complet.
+       ⚠ ON COUPE AU DERNIER « · » QUI TIENT, et on le signale par « … ». Un horaire
+       est une suite de morceaux séparés par des points : en perdre un entier se voit,
+       en perdre la moitié trompe. Pour Georges Motte, « URGENCE à partir de 17 h »
+       tombe de cette ligne — mais c'est déjà une pastille de la carte.
+       Sans « · » avant la limite, on coupe au dernier espace. */
+    (!cond&&p.horaires)?'<span class="fr2h">'+esc((function(){
+      const h=(p.horaires||'').split('\n')[0].trim();
+      if(h.length<=70) return h;
+      const bout=h.slice(0,70), k=bout.lastIndexOf(' · ');
+      return (k>20? bout.slice(0,k) : bout.replace(/\s+\S*$/,'')).replace(/[\s·,;:→]+$/,'')+' …';
+    })())+'</span>':''
   ].filter(Boolean).join('');
   /* ═══ LA CARTE, PISTE C (Mag, 20/08/2026 : « c'est pas aéré, pas très agréable à
      lire » → cinq écrans posés sur un canvas → « C ») ═══
@@ -22489,7 +22512,12 @@ function fcard(p){
         const ou=(p.commune&&p.commune!=='Régional / Toutes communes')?esc(p.commune):'';
         const tl=(p.tel||'').trim();
         if(!ou && !tl) return '';
-        return '<span class="ouc">'+ou+
+        /* ⚠ SUR LE PAPIER, CETTE LIGNE DOUBLAIT LE BLOC `.pr-fiche` (16/09/2026) : le
+           téléphone y était écrit deux fois. On la cache à l'impression — MAIS
+           seulement si le bloc dit aussi OÙ : sans adresse, la commune n'est écrite
+           qu'ici, et la cacher l'effacerait de la feuille. */
+        const doublon=(!!(p.adr||'').trim() || !ou);
+        return '<span class="ouc'+(doublon?' pr-cache':'')+'">'+ou+
           (ou&&tl?'<i class="ousep">\u00b7</i>':'')+
           (tl?'<b class="outel">'+esc(tl)+'</b>':'')+'</span>';
       })()+
