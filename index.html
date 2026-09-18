@@ -37742,9 +37742,11 @@ function entrantJours(e){
   const a=new Date(String(e.arrive_le)+'T12:00:00'), n=new Date();
   return Math.max(0, Math.round((n-a)/864e5));
 }
-/* Pas encore vu d'abord, le plus ancien en tête ; puis ceux qui attendent leur
-   mi-parcours ; ceux qui ont tout, en dernier. */
-function entrantRang(e){ return !entretienFait(e,'acc') ? 0 : (!entretienFait(e,'mi') ? 1 : 2); }
+/* Pas encore vu d'abord, le plus ancien en tête ; ceux qui ont été vus, en dernier.
+   ⚠ DEUX ÉTATS, PLUS TROIS (Mag, 18/09/2026 : « retire le mi-parcours de la nouvelle
+   structure »). Il y avait un rang intermédiaire — arrivée faite, mi-parcours en
+   attente — qui n'a plus d'objet. */
+function entrantRang(e){ return entretienFait(e,'acc') ? 1 : 0; }
 function entrantsTries(){
   return ENTRANTS.slice().sort(function(a,b){
     return (entrantRang(a)-entrantRang(b)) || String(a.arrive_le).localeCompare(String(b.arrive_le));
@@ -37775,7 +37777,7 @@ function entrantCocher(id, k){
        Elle ne s'ouvre qu'au moment où la DEUXIÈME case se coche — pas à chaque case,
        et pas en décochant. C'est l'instant où l'on sait que la personne a été vue. */
     if(on && !etaitFait && entretienFait(e, ph)){
-      cousinPop({titre: ph==='acc' ? 'Entretien d’arrivée : c’est fait' : 'Mi-parcours : c’est fait',
+      cousinPop({titre:'Entretien d’arrivée : c’est fait',
         texte: e.nom+' a été vu·e par le social et par le médical.',
         ok:'OK', seul:true, quandOui:function(){}});
     }
@@ -37820,7 +37822,7 @@ function entretiensEnTexte(){
   L.push('Une personne est vue quand le social ET le médical ont coché.');
   L.push('');
   /* Le détail d'une case : cochée par qui, ou le tiret de ce qui reste à faire. */
-  const cs=function(e,k,lib){ return lib+' '+(e[k+'_le'] ? '✓ '+(e[k+'_par']||'') : '—'); };
+  const cs=function(e,k,lib){ return (lib?lib+' ':'')+(e[k+'_le'] ? '✓ '+(e[k+'_par']||'') : '—'); };
   const bloc=function(titre, gens){
     if(!gens.length) return;
     L.push(titre.toUpperCase());
@@ -37828,14 +37830,12 @@ function entretiensEnTexte(){
       const j=entrantJours(e);
       L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+
              '  —  '+(j===0?'arrivé·e aujourd’hui':'arrivé·e il y a '+j+' jour'+(j>1?'s':'')));
-      L.push('     arrivée : '+cs(e,'acc_social','social')+'  ·  '+cs(e,'acc_medical','médical'));
-      L.push('     mi-parcours : '+cs(e,'mi_social','social')+'  ·  '+cs(e,'mi_medical','médical'));
+      L.push('     social : '+cs(e,'acc_social','')+'  ·  médical : '+cs(e,'acc_medical',''));
       L.push('');
     });
   };
-  bloc('À voir — entretien d’arrivée', liste.filter(function(e){ return entrantRang(e)===0; }));
-  bloc('Arrivée faite — reste le mi-parcours', liste.filter(function(e){ return entrantRang(e)===1; }));
-  bloc('Tout est fait', liste.filter(function(e){ return entrantRang(e)===2; }));
+  bloc('À voir', liste.filter(function(e){ return entrantRang(e)===0; }));
+  bloc('Vus', liste.filter(function(e){ return entrantRang(e)===1; }));
   if(!liste.length){ L.push('Aucun nom dans la liste pour l’instant.'); L.push(''); }
   L.push('—');
   L.push('Envoyé depuis COUSIN par '+(nomAffiche()||'l’équipe')+'.');
@@ -37874,7 +37874,7 @@ function entretiensCorps(){
       (le&&par?'<i>'+esc(par)+'</i>':'')+'</button>';
   };
   const ligne=function(e){
-    const j=entrantJours(e), accOk=entretienFait(e,'acc'), miOk=entretienFait(e,'mi');
+    const j=entrantJours(e), accOk=entretienFait(e,'acc');
     return '<div class="entl'+(accOk?' vu':'')+'">'+
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
         (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
@@ -37883,11 +37883,13 @@ function entretiensCorps(){
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
         (peutRetirerEntrant()?'<button class="ib sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
       '</div>'+
+      /* ⚠ DEUX CASES, PLUS QUATRE (Mag, 18/09/2026 : « retire le mi-parcours de la
+         nouvelle structure »). La rangée portait Arrivée (social, médical) PUIS
+         Mi-parcours (social, médical) : six éléments qui repassaient à la ligne sur un
+         téléphone. Il ne reste que l'entretien d'arrivée. */
       '<div class="entl-c">'+
-        '<span class="entph'+(accOk?' fait':'')+'">Arrivée'+(accOk?' ✓':'')+'</span>'+
+        '<span class="entph'+(accOk?' fait':'')+'">Vu par'+(accOk?' ✓':'')+'</span>'+
         caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
-        '<span class="entph'+(miOk?' fait':'')+'">Mi-parcours'+(miOk?' ✓':'')+'</span>'+
-        caseH(e,'mi_social','Social')+caseH(e,'mi_medical','Médical')+
       '</div></div>';
   };
   return '<div class="ml3"><div class="ml3-c">'+
