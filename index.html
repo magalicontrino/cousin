@@ -13374,6 +13374,14 @@ function filtrerPublicTout(){ filt.tags=[]; filt.pgenre=null; render(); }
 /* Les deux rangées sont indépendantes depuis le 19/08/2026 : le « Tout » des
    sous-catégories ne doit plus éteindre « Femmes uniquement », qui vit au-dessus. */
 function filtrerTagsTout(){ filt.tags=[]; render(); }
+/* Retire TOUS les filtres du tiroir d'un coup — le geste de sortie quand plus rien ne
+   correspond. La démarche choisie (`filt.dem`) n'est pas un filtre : elle reste. */
+function filtresEffacer(){
+  filt.tags=[]; filt.communes=[]; filt.avis=null;
+  if(filt.famille) filt.famille='Toutes';
+  render();
+  try{ if(typeof ouRemplir==='function') ouRemplir(); }catch(e){}
+}
 /* ═══ LES COMMUNES : LE TIROIR QUI SE DÉPLIE (dessin ② de Mag, 19/08/2026) ═══
    « À Bruxelles, on ne regarde pas la commune en premier. » Elle prenait pourtant
    quatre lignes tout en haut, avant les adresses, et n'acceptait qu'un seul choix.
@@ -24740,7 +24748,15 @@ function vDomaine(key){
        est. Sur un téléphone, on lit les deux comme un seul jeu de boutons, et le
        filtre qu'on cherche est celui qu'on ne voit pas. Pour changer de domaine, on
        revient au Réseau — c'est un geste, et il est clair. */
-    (items.length?chips:'')+
+    /* ⚠ LES FILTRES RESTENT LÀ QUAND ILS NE DONNENT PLUS RIEN (Mag, 18/09/2026, capture
+       à l'appui : « il y a une erreur » — « Apprendre le français », 0 fiche, « Rien avec
+       ces filtres », et AUCUN bouton). La rangée ne s'affichait que s'il restait des
+       fiches : dès que deux étiquettes cochées ensemble ne se croisaient plus
+       (« Alphabétisation » + « Primo-arrivants »), la liste ET les boutons pour la
+       rouvrir disparaissaient d'un coup. On était enfermé dehors.
+       Elle se cache maintenant seulement quand le TIROIR est vide — c'est ce que voulait
+       la règle du 06/09 (la page des notes), pas une liste vidée par un filtre. */
+    ((items.length||fichesDe(key).length)?chips:'')+
     /* ⚠ AUCUNE PHRASE ICI, ET C'EST UNE RÈGLE QUE J'AI DÉJÀ ENFREINTE (Mag, 04/09) :
        « en règle générale, arrête d'être moraliste et de faire des phrases comme ça
        tout seul. C'est du pragmatisme : des phrases, pas des trucs explicatifs. »
@@ -24768,7 +24784,10 @@ function vDomaine(key){
          quelqu'un qui vient d'écrire sa note qu'il a mal cherché. */
       (items.length||grpHtml?listeDuTiroir(d,items,key)+grpHtml:
       (key==='notes'?'':
-      '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b><p>Essaie d\'élargir la sélection.</p></div>'))+
+      /* Un bouton plutôt qu'une phrase : « Essaie d'élargir la sélection » disait quoi
+         faire sans donner le moyen de le faire. */
+      '<div class="empty"><span class="ic">'+icon('compass')+'</span><b>Rien avec ces filtres</b>'+
+        '<p><button class="dembtn clair" onclick="filtresEffacer()">Tout afficher</button></p></div>'))+
       '</div>'+(d.isDem?'</div>':''))+
     fichePanHTML();
 }
