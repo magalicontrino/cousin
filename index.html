@@ -4893,6 +4893,33 @@ body.pan-ouvert #view{animation:none;transform:none}
    Un cran plus épais que les autres cadres : c'est le seul bloc en TÊTE de liste, et le
    seul qu'on relit juste avant d'entrer en réunion. */
 .pcarte .pgbloc.reunion{border:2px solid #f5c542;background:#fdf6e3;margin-bottom:10px}
+/* ═══ LES ENTRANTS (18/09/2026) — même carte que les trois autres (.pcarte) ═══
+   Les rangées sont séparées par un filet, jamais encadrées une à une (règle du 22/08).
+   Le jaune est celui des entretiens sur la feuille imprimée (11/09) : le trait à
+   gauche dit « pas encore vu », et il s'éteint quand l'arrivée est faite. */
+.entcarte .entadd{display:flex;gap:7px;margin:10px 0 6px}
+.entcarte .entadd input{flex:1;min-width:0;border:1.5px solid var(--trait);border-radius:9px;
+  padding:10px 12px;font:inherit;font-size:15px;background:#fdfdfc}
+.entcarte .entadd .entadd-ch{flex:0 0 84px}
+.entl{padding:11px 0 11px 11px;border-bottom:1px solid var(--ligne);box-shadow:inset 3px 0 0 #f5c542}
+.entl:last-child{border-bottom:0}
+.entl.vu{box-shadow:none}
+.entl-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.entl-h b{font-size:16px}
+.entl-h .entch,.entl-h .entj{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:#73716b}
+.entl-c{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px}
+.entph{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#73716b;margin-left:4px}
+.entph:first-child{margin-left:0}
+.entph.fait{color:#1b1b1b;font-weight:700}
+.entc{display:inline-flex;align-items:center;gap:7px;border:1.25px solid var(--trait);border-radius:20px;
+  padding:6px 12px 6px 7px;background:#fdfdfc;font:inherit;font-size:13.5px;cursor:pointer;color:var(--noir)}
+.entc .entb{width:18px;height:18px;border:1.5px solid #9b9892;border-radius:5px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.entc.on{border-color:#1b1b1b}
+.entc.on .entb{background:#1b1b1b;border-color:#1b1b1b;color:#fdfdfc}
+.entc i{font-style:normal;font-size:11.5px;color:#73716b}
 .pcarte .pgbloc.reunion .pgt{color:#a97c05;font-size:12px}
 .pcarte .pgbloc.absence .pgt{color:var(--rouge)}
 /* ⚠ À L'IMPRESSION, LES DEUX COLONNES REDEVIENNENT UNE SEULE. Sur papier on lit de
@@ -19126,6 +19153,12 @@ function listeCorps(){
 
   if(!listesLoaded) return '<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
 
+  /* ═══ LES ENTRANTS, EN TÊTE (Mag, 18/09/2026) ═══
+     Posés AVANT les trois chemins de cette fonction (avec ou sans check-list) : une
+     carte rangée dans un seul d'entre eux n'existerait que pour une partie de l'équipe
+     — c'est le piège déjà payé deux fois ici (la garde PFO, « Les gens à voir »). */
+  h+=carteEntrants();
+
   /* ═══ LA GARDE PFO (Mag, 13/08/2026) ═══
      Elle ne se règle plus dans l'Admin : on la prend le matin, on la rend le soir.
      ⚠ IL EST TOUT EN HAUT, ET IL DOIT Y RESTER. Il était d'abord placé plus bas,
@@ -19857,6 +19890,11 @@ function cousinPop(o){
     }
   }
   const ok=document.getElementById('popOk');
+  /* ⚠ `seul` : une fenêtre qui ANNONCE (« c'est bon, la personne a été vue ») n'a rien
+     à annuler. Sans ce réglage, elle offrait « Annuler » à côté de « OK ». Il se remet
+     à chaque ouverture : la fenêtre suivante retrouve ses deux boutons. */
+  const ann=document.querySelector('#popBg .popbas .ann:not(.autre)');
+  if(ann) ann.style.display=o.seul?'none':'';
   /* ═══ LES CASES ABSENCE / DÉSENCODAGE DE LA FENÊTRE (Mag, 24/08/2026) ═══
      Pour une note de Ma liste perso, on peut poser ou retirer ces marques sans recréer
      la ligne — surtout POUR LES RETIRER (une note sortie des absences). `o.etq` est la
@@ -37618,6 +37656,143 @@ function resteRappels(){
    tâches que tu te fais toi-même. » « Rappels » était un mot d'agenda posé sur
    autre chose. Le code garde `MESRAPPELS` (la donnée n'a pas bougé) ; seul ce
    qui s'affiche est réécrit. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES ENTRANTS (Mag, 18/09/2026)
+   « Souvent on a des entrants. À chaque entrant on doit absolument faire un
+   entretien, mais on ne sait jamais qui, quoi et quand. » Puis : « tous peuvent
+   rajouter des noms, seulement les PFO et coordinateurs retirer ; les médicaux
+   doivent cocher et les sociaux aussi ; une fois que les deux sont cochés, c'est que
+   la personne a été vue. Pareil pour les mi-parcours. »
+
+   UNE LISTE COMMUNE (table `entrants`, voir sql/entrants.sql) : c'est ce qui manquait.
+   Chaque case garde QUAND et PAR QUI elle a été cochée — c'est la réponse à « qui ».
+
+   ⚠ LE GROUPE D EST REFUSÉ PAR LA BASE, PAS PAR CET ÉCRAN. Le masquage de l'écran ne
+   marche qu'en aperçu (constat du 07/09) ; pour des noms d'hébergés, c'est la base qui
+   ne donne rien. `voitEntrants` ne sert qu'à ne pas dessiner une carte vide.
+   ⚠ NI DATE DE NAISSANCE, NI SITUATION : un nom, une chambre, une date d'arrivée. Le
+   dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
+   ═══════════════════════════════════════════════════════════════════════════ */
+let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
+let ENT_BR_NOM='', ENT_BR_CH='';
+function monGroupe(){
+  if(typeof APERCU_GRP!=='undefined' && APERCU_GRP) return APERCU_GRP;
+  if(PROFILE && PROFILE.admin) return 'A';
+  return grpDuMetier((PROFILE && PROFILE.equipe)||'');
+}
+function voitEntrants(){ return !!sb && monGroupe()!=='D'; }
+/* L'écran ne montre « Retirer » qu'à ceux qui le peuvent ; la base, elle, le refuse à
+   tous les autres — même si le bouton apparaissait par erreur. */
+function peutRetirerEntrant(){
+  return !!(PROFILE && (PROFILE.admin || PROFILE.pfo || /^(coordi|admin)/i.test(PROFILE.equipe||'')));
+}
+async function loadEntrants(){
+  if(ENTRANTS_ENCOURS || !voitEntrants()) return;
+  ENTRANTS_ENCOURS=true;
+  try{
+    const r=await sb.from('entrants').select('*').order('arrive_le',{ascending:true});
+    /* ⚠ « La base n'a pas répondu » n'est jamais « aucun entrant » : une liste vide
+       affichée par erreur ferait croire que personne n'attend. */
+    if(r.error){ ENTRANTS_PANNE="La liste des entrants n'a pas répondu."; }
+    else{ ENTRANTS=r.data||[]; ENTRANTS_PANNE=''; }
+  }catch(e){ ENTRANTS_PANNE="La liste des entrants n'a pas répondu."; }
+  ENTRANTS_LU=Date.now(); ENTRANTS_ENCOURS=false;
+  render();
+}
+function entretienFait(e, ph){ return !!(e[ph+'_social_le'] && e[ph+'_medical_le']); }
+function entrantJours(e){
+  const a=new Date(String(e.arrive_le)+'T12:00:00'), n=new Date();
+  return Math.max(0, Math.round((n-a)/864e5));
+}
+function entrantAjouter(){
+  const n=(ENT_BR_NOM||'').trim(), c=(ENT_BR_CH||'').trim();
+  if(!n){ toast('Écris d’abord le nom.'); return; }
+  sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null,
+      ajoute_par:(nomAffiche()||'')}).select()
+    .then(function(r){
+      if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
+      ENTRANTS.push(r.data[0]); ENT_BR_NOM=''; ENT_BR_CH=''; render();
+    });
+}
+function entrantCocher(id, k){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const ph=k.split('_')[0], on=!e[k+'_le'], etaitFait=entretienFait(e, ph);
+  const avant={}; avant[k+'_le']=e[k+'_le']; avant[k+'_par']=e[k+'_par'];
+  const maj={}; maj[k+'_le']=on?new Date().toISOString():null; maj[k+'_par']=on?(nomAffiche()||''):null;
+  Object.assign(e, maj); render();
+  sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      Object.assign(e, avant); render();
+      toast("Pas enregistré — la base n'a pas répondu. Recoche."); return;
+    }
+    /* ═══ LA FENÊTRE « C'EST BON » (sa demande) ═══
+       Elle ne s'ouvre qu'au moment où la DEUXIÈME case se coche — pas à chaque case,
+       et pas en décochant. C'est l'instant où l'on sait que la personne a été vue. */
+    if(on && !etaitFait && entretienFait(e, ph)){
+      cousinPop({titre: ph==='acc' ? 'Entretien d’arrivée : c’est fait' : 'Mi-parcours : c’est fait',
+        texte: e.nom+' a été vu·e par le social et par le médical.',
+        ok:'OK', seul:true, quandOui:function(){}});
+    }
+  });
+}
+function entrantRetirer(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinConfirme('Retirer '+e.nom+' ?', 'La ligne disparaît pour toute l’équipe.', function(){
+    sb.from('entrants').delete().eq('id',id).select().then(function(r){
+      if(r.error || !r.data || !r.data.length){ toast('Pas retiré — seuls les PFO et la coordination peuvent retirer.'); return; }
+      ENTRANTS=ENTRANTS.filter(function(x){ return x.id!==id; }); render();
+    });
+  }, {ok:'Retirer', danger:true});
+}
+function carteEntrants(){
+  if(!voitEntrants()) return '';
+  /* On relit la liste en ouvrant la page, au plus une fois par minute : ce qu'un
+     collègue a coché à l'étage doit apparaître ici sans qu'on cherche à rafraîchir. */
+  if(!ENTRANTS_ENCOURS && Date.now()-ENTRANTS_LU>60000) setTimeout(loadEntrants, 0);
+  const aVoir=ENTRANTS.filter(function(e){ return !entretienFait(e,'acc'); });
+  /* Ceux qu'on n'a pas encore vus d'abord, le plus ancien en tête ; puis ceux qui
+     attendent leur mi-parcours ; ceux qui ont tout, en dernier. */
+  const rang=function(e){ return !entretienFait(e,'acc') ? 0 : (!entretienFait(e,'mi') ? 1 : 2); };
+  const liste=ENTRANTS.slice().sort(function(a,b){
+    return (rang(a)-rang(b)) || String(a.arrive_le).localeCompare(String(b.arrive_le));
+  });
+  const caseH=function(e,k,lib){
+    const le=e[k+'_le'], par=e[k+'_par'];
+    return '<button class="entc'+(le?' on':'')+'" onclick="entrantCocher('+e.id+',\''+k+'\')">'+
+      '<span class="entb">'+(le?'✓':'')+'</span>'+lib+
+      (le&&par?'<i>'+esc(par)+'</i>':'')+'</button>';
+  };
+  const ligne=function(e){
+    const j=entrantJours(e), accOk=entretienFait(e,'acc'), miOk=entretienFait(e,'mi');
+    return '<div class="entl'+(accOk?' vu':'')+'">'+
+      '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
+        (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
+        '<span class="entj">'+(j===0?'arrivé·e aujourd’hui':'J+'+j)+'</span>'+
+        '<span style="flex:1"></span>'+
+        '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
+        (peutRetirerEntrant()?'<button class="ib sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
+      '</div>'+
+      '<div class="entl-c">'+
+        '<span class="entph'+(accOk?' fait':'')+'">Arrivée'+(accOk?' ✓':'')+'</span>'+
+        caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
+        '<span class="entph'+(miOk?' fait':'')+'">Mi-parcours'+(miOk?' ✓':'')+'</span>'+
+        caseH(e,'mi_social','Social')+caseH(e,'mi_medical','Médical')+
+      '</div></div>';
+  };
+  return '<div class="ml3"><div class="ml3-c"><div class="pcarte entcarte">'+
+    '<div class="ptitre"><b>Les entrants</b><span>'+
+      (aVoir.length ? aVoir.length+' à voir' : (ENTRANTS.length?'tous vus':'personne'))+'</span></div>'+
+    '<div class="entadd">'+
+      '<input id="entNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ENT_BR_NOM)+'" '+
+        'oninput="ENT_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
+      '<input id="entCh" class="entadd-ch" type="text" placeholder="N° ch." inputmode="numeric" autocomplete="off" maxlength="12" value="'+esc(ENT_BR_CH)+'" '+
+        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');ENT_BR_CH=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
+      '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
+    '</div>'+
+    (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
+    liste.map(ligne).join('')+
+  '</div></div></div>';
+}
 function carteMaListe(){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
   /* ⚠ PAS UN MOT D'EXPLICATION ICI (Mag, 13/08/2026 : « retire tout blabla », « il
