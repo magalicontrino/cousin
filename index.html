@@ -4835,6 +4835,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
 .entmit{cursor:pointer;line-height:1.4;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
   background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
+.entmit.off{background:none;border:1px dashed #cfccc6;color:#b3b0aa}
 /* Un mi-parcours à voir : le trait de la ligne passe au turquoise, comme sur la feuille. */
 .entl.mi{box-shadow:inset 3px 0 0 #6fc7d9}
 .entl{padding:11px 0 11px 11px;border-bottom:1px solid var(--ligne);box-shadow:inset 3px 0 0 #f5c542}
@@ -37656,12 +37657,13 @@ function entrantPrendre(id){
     }
   });
 }
-function entrantMiRetirer(id){
-  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e || !e.mi_parcours) return;
-  e.mi_parcours=false; render();
-  sb.from('entrants').update({mi_parcours:false}).eq('id',id).select().then(function(r){
+function entrantMiBasculer(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const avant=!!e.mi_parcours;
+  e.mi_parcours=!avant; render();
+  sb.from('entrants').update({mi_parcours:!avant}).eq('id',id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
-      e.mi_parcours=true; render();
+      e.mi_parcours=avant; render();
       toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
     }
   });
@@ -37768,7 +37770,11 @@ function entretiensCorps(){
         (e.langue?'<span class="entch">'+esc(e.langue)+'</span>':'')+
         /* L'étiquette se décoche d'un clic (Mag, 19/09/2026 : « on doit pouvoir décocher
            Mi-parcours juste si on clique sur le petit bouton »). */
-        (e.mi_parcours?'<button type="button" class="entmit" onclick="entrantMiRetirer('+e.id+')" title="Retirer mi-parcours" aria-label="Retirer mi-parcours">Mi-parcours</button>':'')+
+        /* ⚠ ÉTEINTE, ELLE RESTE LÀ, TRÈS DISCRÈTE (Mag, 19/09/2026 : « si je veux remettre
+           mi-parcours, laisse ce petit bouton à recliquer ») : pointillés gris, un clic la
+           rallume. */
+        '<button type="button" class="entmit'+(e.mi_parcours?'':' off')+'" onclick="entrantMiBasculer('+e.id+')" '+
+          'aria-pressed="'+(e.mi_parcours?'true':'false')+'" title="'+(e.mi_parcours?'Retirer':'Mettre')+' mi-parcours">Mi-parcours</button>'+
         '<span class="entj">'+entrantAjout(e)+'</span>'+
         '<span style="flex:1"></span>'+
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
