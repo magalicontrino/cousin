@@ -340,6 +340,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   font-family:inherit;font-size:13.5px;font-weight:600;color:var(--enc2);transition:all .12s}
 .mlong-btn .ic{width:18px;height:18px}
 .mlong-btn.on{background:var(--noir);color:#f2eee6;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+/* La fenêtre « Partager » des entretiens : le lien lisible, puis trois gestes. */
+.entpart b{display:block;font-size:17px;margin-bottom:10px}
+.entpart-l{font-family:ui-monospace,monospace;font-size:12px;background:#fdfdfc;border:1px solid var(--trait);
+  border-radius:8px;padding:9px 10px;word-break:break-all;user-select:all;color:#1b1b1b}
+.entpart-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.entpart-b .dembtn{display:inline-flex;align-items:center;gap:7px}
+.entpart-b .dembtn svg{width:16px;height:16px}
 /* L'onglet Entretiens quand quelqu'un attend : le rose de l'app, pâle fermé, fuchsia
    ouvert (Mag, 19/09/2026). */
 .mlong-btn.rose{background:#fbd3e6;color:#1b1b1b}
@@ -4795,6 +4802,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entcarte .entadd input{flex:1;min-width:0;border:1.5px solid var(--trait);border-radius:9px;
   padding:10px 12px;font:inherit;font-size:15px;background:#fdfdfc}
 .entcarte .entadd .entadd-ch{flex:0 0 84px}
+.entcarte .entadd .entadd-lg{flex:0 0 120px}
+.entcarte .entadd{flex-wrap:wrap}
+.entcarte .entadd .entmi{flex:none}
+/* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
+.entmit{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  border:1.25px solid #1b1b1b;border-radius:4px;padding:1px 6px;color:#1b1b1b}
 .entl{padding:11px 0 11px 11px;border-bottom:1px solid var(--ligne);box-shadow:inset 3px 0 0 #f5c542}
 .entl:last-child{border-bottom:0}
 .entl.vu{box-shadow:none}
@@ -15239,7 +15252,7 @@ function imprimer(){
       const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Date d’ajout</th>'+
             '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>';
       const rangee=function(e, colDate){
-        return '<tr><td '+td+'><b>'+esc(e.nom)+'</b></td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
+        return '<tr><td '+td+'><b>'+esc(e.nom)+'</b>'+(e.mi_parcours?' <span style="font-family:ui-monospace,monospace;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;border:1px solid #000;border-radius:3px;padding:1px 4px">mi-parcours</span>':'')+(e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+'</td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
           '<td '+td+'>'+colDate(e)+'</td>'+
           '<td '+td+'>'+c(e,'acc_social')+'</td><td '+td+'>'+c(e,'acc_medical')+'</td><td '+td+'>'+c(e,'roi')+'</td></tr>';
       };
@@ -37454,7 +37467,7 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
-let ENT_BR_NOM='', ENT_BR_CH='';
+let ENT_BR_NOM='', ENT_BR_CH='', ENT_BR_LG='', ENT_BR_MI=false;
 /* Le nombre de personnes qui attendent leur entretien, pour colorer l'onglet — compté
    SANS les noms (voir vListe). */
 let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
@@ -37525,11 +37538,17 @@ function entrantsTries(){
 function entrantAjouter(){
   const n=(ENT_BR_NOM||'').trim(), c=(ENT_BR_CH||'').trim();
   if(!n){ toast('Écris d’abord le nom.'); return; }
-  sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null,
+  /* La langue (Mag, 19/09/2026 : « on doit pouvoir aussi rajouter la langue ») : elle
+     décide qui fait l'entretien, et s'il faut un interprète. */
+  const lg=(ENT_BR_LG||'').trim();
+  /* « Un bouton à appuyer si c'est un entretien mi-parcours » (Mag, 19/09/2026) : la
+     ligne est alors un entretien de MI-PARCOURS ; sans lui, un entretien d'arrivée. */
+  sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null, langue:lg.slice(0,40)||null,
+      mi_parcours:!!ENT_BR_MI,
       ajoute_par:(nomAffiche()||'')}).select()
     .then(function(r){
       if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
-      ENTRANTS.push(r.data[0]); ENT_BR_NOM=''; ENT_BR_CH=''; render();
+      ENTRANTS.push(r.data[0]); ENT_BR_NOM=''; ENT_BR_CH=''; ENT_BR_LG=''; ENT_BR_MI=false; render();
     });
 }
 function entrantCocher(id, k){
@@ -37623,14 +37642,14 @@ function entretiensEnTexte(){
   L.push(aVoir.length ? 'À VOIR · '+aVoir.length : 'Personne n’attend son entretien.');
   aVoir.forEach(function(e){
     const j=entrantJours(e);
-    L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  '+entrantAjout(e));
+    L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  '+entrantAjout(e));
     L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
   });
   if(vus.length){
     L.push('');
     L.push('DÉJÀ VUS · '+vus.length);
     vus.forEach(function(e){
-      L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  vu le '+le([e.acc_social_le,e.acc_medical_le].filter(Boolean).sort().pop()));
+      L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  vu le '+le([e.acc_social_le,e.acc_medical_le].filter(Boolean).sort().pop()));
       L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
     });
   }
@@ -37641,7 +37660,7 @@ function envoyerEntretiensParMail(){
   /* L'objet : « Passation entretiens — 19 septembre » (Mag, 19/09/2026). Toujours
      sans nom : il s'affiche sur l'écran verrouillé des téléphones. */
   const objet='Passation entretiens — '+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'});
-  const lien='mailto:?subject='+encodeURIComponent(objet)+'&body='+encodeURIComponent(entretiensEnTexte());
+  const lien='mailto:?subject='+encodeURIComponent(objet)+'&body='+encodeURIComponent(entretiensEnTexte()+'\n\n'+COUSIN_URL+'/#/liste/entretiens');
   /* Certaines boîtes coupent les très longs mailto : on prévient au lieu d'envoyer un
      texte tronqué, qui ferait manquer les dernières lignes — or c'est justement l'ordre
      de la liste qui met les plus urgents en premier et les autres à la fin. */
@@ -37674,6 +37693,8 @@ function entretiensCorps(){
     return '<div class="entl'+(accOk?' vu':'')+'">'+
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
         (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
+        (e.langue?'<span class="entch">'+esc(e.langue)+'</span>':'')+
+        (e.mi_parcours?'<span class="entmit">Mi-parcours</span>':'')+
         '<span class="entj">'+entrantAjout(e)+'</span>'+
         '<span style="flex:1"></span>'+
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
@@ -37703,19 +37724,12 @@ function entretiensCorps(){
     '<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
-      '<button class="imprbtn nu" onclick="envoyerEntretiensParMail()" title="Envoyer par mail" aria-label="Envoyer par mail">'+icon('enveloppe')+'</button>'+
-      /* ═══ WHATSAPP, DIRECTEMENT (Mag, 19/09/2026, capture du menu de partage du Mac à
-         l'appui : « plutôt WhatsApp, ou alors au moins copier l'URL ») ═══
-         Le partage du système ne proposait ni WhatsApp ni le lien : Mail, Messages,
-         Notes… Le bouton ouvre donc WhatsApp avec le texte de la passation ET le lien
-         vers cet onglet — la personne qui reçoit peut ouvrir COUSIN au bon endroit.
-         Le dessin est celui de WhatsApp (picto/whatsapp.svg, déjà dans l'app). */
-      '<button class="imprbtn nu" onclick="partagerEntretiens()" title="Envoyer sur WhatsApp" aria-label="Envoyer sur WhatsApp">'+
-        '<img src="picto/whatsapp.svg" alt="" style="width:15px;height:15px"></button>'+
-      /* Partager (Mag, 19/09/2026 : « mets aussi un picto pour partager, et quand tu
-         ouvres, ça marque comme une petite URL ») : une fenêtre qui montre LE LIEN de
-         cet onglet, et le copie. Pour le coller où l'on veut — Signal, un SMS, Teams. */
-      '<button class="imprbtn nu" onclick="lienEntretiens()" title="Le lien" aria-label="Le lien">'+icon('partage')+'</button>'+
+      /* ═══ UN SEUL PICTO PARTAGER (Mag, 19/09/2026 : « retire le picto mail. Garde un
+         picto partager, et quand tu ouvres, tu peux partager via WhatsApp, via mail, ou
+         copier le lien ») ═══
+         Mail et WhatsApp avaient chacun leur bouton : ils rentrent dans la fenêtre du
+         partage, avec le lien affiché et un bouton pour le copier. */
+      '<button class="imprbtn nu" onclick="entretiensPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
     '</div>'+
     '<div class="pcarte entcarte">'+
     '<div class="ptitre"><b>Les entretiens</b><span>'+
@@ -37725,6 +37739,10 @@ function entretiensCorps(){
         'oninput="ENT_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
       '<input id="entCh" class="entadd-ch" type="text" placeholder="N° ch." inputmode="numeric" autocomplete="off" maxlength="12" value="'+esc(ENT_BR_CH)+'" '+
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');ENT_BR_CH=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
+      '<input id="entLg" class="entadd-lg" type="text" placeholder="Langue" autocomplete="off" maxlength="40" value="'+esc(ENT_BR_LG)+'" '+
+        'oninput="ENT_BR_LG=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
+      '<button type="button" class="entc entmi'+(ENT_BR_MI?' on':'')+'" onclick="ENT_BR_MI=!ENT_BR_MI;render()" '+
+        'aria-pressed="'+(ENT_BR_MI?'true':'false')+'"><span class="entb">'+(ENT_BR_MI?'✓':'')+'</span>Mi-parcours</button>'+
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
     '</div>'+
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
@@ -37760,6 +37778,27 @@ function entretiensCorps(){
 /* Le même texte que le mail et le copier, envoyé sur WhatsApp avec le lien vers cet
    onglet. (Le partage du système a été essayé et écarté le 19/09/2026 : sur son Mac il
    ne proposait pas WhatsApp.) */
+function entretiensPartager(){
+  if(!ENTRANTS.length){ toast('La liste est vide — rien à partager.'); return; }
+  const lien=COUSIN_URL+'/#/liste/entretiens';
+  let bg=document.getElementById('entPartBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='entPartBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML='<div class="popcard entpart" role="dialog" aria-modal="true">'+
+    '<b>Partager</b>'+
+    '<div class="entpart-l">'+esc(lien)+'</div>'+
+    '<div class="entpart-b">'+
+      '<button class="dembtn clair" onclick="partagerEntretiens();document.getElementById(\'entPartBg\').classList.remove(\'on\')">'+
+        '<img src="picto/whatsapp.svg" alt="" style="width:16px;height:16px">WhatsApp</button>'+
+      '<button class="dembtn clair" onclick="envoyerEntretiensParMail();document.getElementById(\'entPartBg\').classList.remove(\'on\')">'+
+        icon('enveloppe')+'Mail</button>'+
+      '<button class="dembtn" onclick="copyTxt(\''+lien+'\',\'Lien copié\');document.getElementById(\'entPartBg\').classList.remove(\'on\')">Copier le lien</button>'+
+    '</div></div>';
+  bg.classList.add('on');
+}
 function lienEntretiens(){
   const lien=COUSIN_URL+'/#/liste/entretiens';
   cousinPop({titre:'Le lien', texte:'', champ:lien, ok:'Copier',
