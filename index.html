@@ -37554,6 +37554,32 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
+/* ═══ LA LISTE SE MET À JOUR TOUTE SEULE (Mag, 19/09/2026 : « si ma collègue met un
+   nouvel entrant, moi je dois rafraîchir ma page, mais je veux que ce soit
+   automatique ») ═══
+   Toutes les 15 secondes, tant que l'onglet Entretiens est ouvert et l'écran allumé, on
+   relit la table — et aussitôt quand on revient sur l'app. Trois garde-fous :
+   · on ne redessine QUE si quelque chose a changé (sinon la page tremble, voir le
+     14/08) ;
+   · on ne redessine PAS pendant qu'on écrit dans une case : ça ferait perdre le
+     curseur ; ça attend qu'on en sorte ;
+   · une lecture partie AVANT un clic à soi est jetée : elle ramènerait l'état d'avant
+     et décocherait ce qu'on vient de cocher. */
+let ENT_ECRIT=0, ENT_A_REDESSINER=false;
+function entEcrit(){ ENT_ECRIT=Date.now(); }
+function entOnglet(){ return typeof current!=='undefined' && current && current.view==='liste' && current.onglet==='entretiens'; }
+function entSaisieEnCours(){
+  const a=document.activeElement;
+  return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'));
+}
+setInterval(function(){
+  if(document.hidden || !entOnglet()) return;
+  if(ENT_A_REDESSINER && !entSaisieEnCours()){ ENT_A_REDESSINER=false; render(); }
+  loadEntrants();
+}, 15000);
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && entOnglet()) loadEntrants();
+});
 let ENT_BR_NOM='', ENT_BR_CH='', ENT_BR_LG='', ENT_BR_MI=false;
 /* Le nombre de personnes qui attendent leur entretien, pour colorer l'onglet — compté
    SANS les noms (voir vListe). */
@@ -37586,11 +37612,18 @@ async function loadEntrants(){
   if(ENTRANTS_ENCOURS || !voitEntrants()) return;
   ENTRANTS_ENCOURS=true;
   try{
+    const t0=Date.now(), avant=JSON.stringify(ENTRANTS)+ENTRANTS_PANNE;
     const r=await sb.from('entrants').select('*').order('arrive_le',{ascending:true});
+    /* Un clic à soi est arrivé pendant la lecture : elle est déjà périmée. */
+    if(ENT_ECRIT>=t0-5000){ ENTRANTS_ENCOURS=false; return; }
     /* ⚠ « La base n'a pas répondu » n'est jamais « aucun entrant » : une liste vide
        affichée par erreur ferait croire que personne n'attend. */
     if(r.error){ ENTRANTS_PANNE="La liste des entrants n'a pas répondu."; }
     else{ ENTRANTS=r.data||[]; ENTRANTS_PANNE=''; }
+    ENTRANTS_LU=Date.now(); ENTRANTS_ENCOURS=false;
+    if(JSON.stringify(ENTRANTS)+ENTRANTS_PANNE===avant) return;
+    if(entSaisieEnCours()){ ENT_A_REDESSINER=true; return; }
+    render(); return;
   }catch(e){ ENTRANTS_PANNE="La liste des entrants n'a pas répondu."; }
   ENTRANTS_LU=Date.now(); ENTRANTS_ENCOURS=false;
   render();
@@ -37634,7 +37667,7 @@ function entrantAjouter(){
   const lg=(ENT_BR_LG||'').trim();
   /* « Un bouton à appuyer si c'est un entretien mi-parcours » (Mag, 19/09/2026) : la
      ligne est alors un entretien de MI-PARCOURS ; sans lui, un entretien d'arrivée. */
-  sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null, langue:lg.slice(0,40)||null,
+  entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null, langue:lg.slice(0,40)||null,
       mi_parcours:!!ENT_BR_MI,
       ajoute_par:(nomAffiche()||'')}).select()
     .then(function(r){
@@ -37648,7 +37681,7 @@ function entrantCocher(id, k){
   const avant={}; avant[k+'_le']=e[k+'_le']; avant[k+'_par']=e[k+'_par'];
   const maj={}; maj[k+'_le']=on?new Date().toISOString():null; maj[k+'_par']=on?(nomAffiche()||''):null;
   Object.assign(e, maj); render();
-  sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+  entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
       Object.assign(e, avant); render();
       toast("Pas enregistré — la base n'a pas répondu. Recoche."); return;
@@ -37677,7 +37710,7 @@ function entrantPrendre(id){
   const maj = e.charge_par ? {charge_par:null, charge_le:null}
                            : {charge_par:(nomAffiche()||''), charge_le:new Date().toISOString()};
   Object.assign(e, maj); render();
-  sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+  entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
       Object.assign(e, avant); render();
       toast("Pas enregistré — la base n'a pas répondu. Recoche.");
@@ -37688,7 +37721,7 @@ function entrantMiBasculer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   const avant=!!e.mi_parcours;
   e.mi_parcours=!avant; render();
-  sb.from('entrants').update({mi_parcours:!avant}).eq('id',id).select().then(function(r){
+  entEcrit(); sb.from('entrants').update({mi_parcours:!avant}).eq('id',id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
       e.mi_parcours=avant; render();
       toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
@@ -37698,7 +37731,7 @@ function entrantMiBasculer(id){
 function entrantRetirer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinConfirme('Retirer '+e.nom+' ?', 'La ligne disparaît pour toute l’équipe.', function(){
-    sb.from('entrants').delete().eq('id',id).select().then(function(r){
+    entEcrit(); sb.from('entrants').delete().eq('id',id).select().then(function(r){
       if(r.error || !r.data || !r.data.length){ toast('Pas retiré — seuls les PFO et la coordination peuvent retirer.'); return; }
       ENTRANTS=ENTRANTS.filter(function(x){ return x.id!==id; }); render();
     });
@@ -37862,10 +37895,12 @@ function entretiensCorps(){
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
     '</div></div>'+
     '<div class="entavoir"><b>À voir</b><span>'+
-      (aVoir.length ? aVoir.length : (liste.length?'tous vus':'personne'))+'</span></div>'+
+      (aVoir.length ? aVoir.length : (liste.length?'tous vus':'pas d’entretien'))+'</span></div>'+
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
-    (!liste.length ? '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>'
-      : aVoir.map(ligne).join(''))+
+    /* ⚠ PAS DE GRAND ENCART QUAND C'EST VIDE (Mag, 19/09/2026 : « c'est beaucoup trop
+       grand, t'es pas obligé d'expliquer, tu marques juste pas d'entretien ») : le
+       sous-titre « À voir · pas d'entretien » le dit déjà. */
+    aVoir.map(ligne).join('')+
   '</div>'+
   /* ═══ LES VUS, DANS UNE CARTE À PART (Mag, 19/09/2026 — trois dessins proposés, elle
      a choisi le A) ═══
