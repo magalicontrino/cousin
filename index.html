@@ -4807,6 +4807,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entc.on{border-color:#1b1b1b}
 .entc.on .entb{background:#1b1b1b;border-color:#1b1b1b;color:#fdfdfc}
 .entc i{font-style:normal;font-size:11.5px;color:#73716b}
+/* « Je m'en occupe » que personne n'a pris : cerclé de jaune, en gras. */
+.entc.prise.libre{border:2px solid #f5c542;background:#fdf6e3;font-weight:700}
+.entc.prise{margin-right:6px}
 /* ⚠ LES PETITS BOUTONS DE LA LIGNE (18/09/2026) : `.ib` n'a de taille que DANS les
    rangées de Ma liste (`.pl2`). Posé ici sans cette règle, « Retirer » faisait
    0 pixel de large — présent dans la page, invisible à l'œil. Vu en le testant. */
@@ -37412,7 +37415,11 @@ function entrantJours(e){
 function entrantRang(e){ return entretienFait(e,'acc') ? 1 : 0; }
 function entrantsTries(){
   return ENTRANTS.slice().sort(function(a,b){
-    return (entrantRang(a)-entrantRang(b)) || String(a.arrive_le).localeCompare(String(b.arrive_le));
+    /* Parmi ceux qui restent à voir, ceux que PERSONNE n'a pris d'abord (19/09/2026) :
+       c'est le trou qu'on cherche des yeux. */
+    const libre=function(e){ return (entrantRang(e)===0 && !e.charge_par) ? 0 : 1; };
+    return (entrantRang(a)-entrantRang(b)) || (libre(a)-libre(b))
+        || String(a.arrive_le).localeCompare(String(b.arrive_le));
   });
 }
 function entrantAjouter(){
@@ -37443,6 +37450,25 @@ function entrantCocher(id, k){
       cousinPop({titre:'Entretien d’arrivée : c’est fait',
         texte: e.nom+' a été vu·e par le social et par le médical.',
         ok:'OK', seul:true, quandOui:function(){}});
+    }
+  });
+}
+/* ═══ « JE M'EN OCCUPE » (Mag, 19/09/2026 : « une case à cocher par la personne qui
+   veut prendre ça en charge ») ═══
+   Les cases Social / Médical disent qui A FAIT l'entretien — après coup. Celle-ci dit
+   qui VA le faire, dès l'arrivée : c'est exactement son « on ne sait jamais qui ».
+   Une seule personne à la fois, son prénom affiché ; décocher libère l'entrant pour un
+   autre. Colonnes `charge_par` / `charge_le` (sql/entrants-charge.sql). */
+function entrantPrendre(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const avant={charge_par:e.charge_par, charge_le:e.charge_le};
+  const maj = e.charge_par ? {charge_par:null, charge_le:null}
+                           : {charge_par:(nomAffiche()||''), charge_le:new Date().toISOString()};
+  Object.assign(e, maj); render();
+  sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      Object.assign(e, avant); render();
+      toast("Pas enregistré — la base n'a pas répondu. Recoche.");
     }
   });
 }
@@ -37497,6 +37523,9 @@ function entretiensEnTexte(){
       const j=entrantJours(e);
       L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+
              '  —  '+(j===0?'arrivé·e aujourd’hui':'arrivé·e il y a '+j+' jour'+(j>1?'s':'')));
+      /* Qui s'en occupe, en premier : c'est ce que l'équipe qui arrive doit savoir
+         (19/09/2026). « personne » se lit comme ce que c'est — une place à prendre. */
+      L.push('     pris en charge : '+(e.charge_par||'personne'));
       L.push('     social : '+cs(e,'acc_social','')+'  ·  médical : '+cs(e,'acc_medical',''));
       L.push('');
     });
@@ -37553,6 +37582,13 @@ function entretiensCorps(){
          Mi-parcours (social, médical) : six éléments qui repassaient à la ligne sur un
          téléphone. Il ne reste que l'entretien d'arrivée. */
       '<div class="entl-c">'+
+        /* La prise en charge vient AVANT « Vu par » : c'est l'ordre des choses — on
+           dit qu'on s'en occupe, puis on coche ce qu'on a fait. Tant que personne ne l'a
+           prise et que l'entretien n'est pas fait, elle est cerclée de jaune (la couleur
+           des entretiens) : c'est le trou qu'elle veut voir. */
+        '<button class="entc prise'+(e.charge_par?' on':(accOk?'':' libre'))+'" onclick="entrantPrendre('+e.id+')">'+
+          '<span class="entb">'+(e.charge_par?'✓':'')+'</span>'+
+          (e.charge_par?'Pris en charge<i>'+esc(e.charge_par)+'</i>':'Je m’en occupe')+'</button>'+
         '<span class="entph'+(accOk?' fait':'')+'">Vu par'+(accOk?' ✓':'')+'</span>'+
         caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
       '</div></div>';
