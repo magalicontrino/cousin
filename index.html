@@ -15328,7 +15328,7 @@ function imprimer(){
         (vus.length
           ? bande('Déjà vus · '+vus.length,'#eceae6','#b9b6b0')+
             table.replace('>Ajouté<','>Vu le<')+
-            vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }, true); }).join('')+'</table>'
+            vus.map(function(e){ return rangee(e, function(x){ return le(entretienFaitLe(x)); }, true); }).join('')+'</table>'
           : '')+
         (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
@@ -37594,8 +37594,8 @@ async function loadEntrantsCompte(){
   ENT_N_ENCOURS=true;
   const avant=ENT_N_AVOIR;
   try{
-    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le');
-    if(!r.error) ENT_N_AVOIR=(r.data||[]).filter(function(e){ return !(e.acc_social_le && e.acc_medical_le); }).length;
+    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,mi_parcours');
+    if(!r.error) ENT_N_AVOIR=(r.data||[]).filter(function(e){ return !entretienFait(e,'acc'); }).length;
   }catch(e){}
   ENT_N_LU=Date.now(); ENT_N_ENCOURS=false;
   /* On ne redessine que si le nombre a changé : sinon on réécrirait la page pendant
@@ -37645,7 +37645,19 @@ function entrantAjout(e){
   const d=new Date(String(e.arrive_le)+'T12:00:00').toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'});
   return 'ajouté·e le '+d+' · J+'+j;
 }
-function entretienFait(e, ph){ return !!(e[ph+'_social_le'] && e[ph+'_medical_le']); }
+/* ⚠ À L'ARRIVÉE, IL FAUT LES TROIS CASES (Mag, 19/09/2026 : « tant que nous ne cochons
+   pas les 3, ce n'est pas ok ») : Social + Médical + ROI signé. Un mi-parcours n'a pas
+   de ROI (« il ne doit pas être signé ») : deux cases suffisent. Cette fonction décide
+   pour tout — le tri, « À voir », « Déjà vus », la feuille, le mail, la fenêtre. */
+function entretienFait(e, ph){
+  const ok=!!(e[ph+'_social_le'] && e[ph+'_medical_le']);
+  if(ph==='acc' && !e.mi_parcours) return ok && !!e.roi_le;
+  return ok;
+}
+/* Le jour où c'est devenu « fait » : la dernière des cases qui comptent. */
+function entretienFaitLe(e){
+  return [e.acc_social_le, e.acc_medical_le, e.mi_parcours?null:e.roi_le].filter(Boolean).sort().pop();
+}
 function entrantJours(e){
   const a=new Date(String(e.arrive_le)+'T12:00:00'), n=new Date();
   return Math.max(0, Math.round((n-a)/864e5));
@@ -37682,7 +37694,8 @@ function entrantAjouter(){
 }
 function entrantCocher(id, k){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
-  const ph=k.split('_')[0], on=!e[k+'_le'], etaitFait=entretienFait(e, ph);
+  /* Le ROI compte dans l'entretien d'arrivée : sa case se juge avec « acc ». */
+  const ph=(k==='roi')?'acc':k.split('_')[0], on=!e[k+'_le'], etaitFait=entretienFait(e, ph);
   const avant={}; avant[k+'_le']=e[k+'_le']; avant[k+'_par']=e[k+'_par'];
   const maj={}; maj[k+'_le']=on?new Date().toISOString():null; maj[k+'_par']=on?(nomAffiche()||''):null;
   Object.assign(e, maj); render();
@@ -37695,8 +37708,8 @@ function entrantCocher(id, k){
        Elle ne s'ouvre qu'au moment où la DEUXIÈME case se coche — pas à chaque case,
        et pas en décochant. C'est l'instant où l'on sait que la personne a été vue. */
     if(on && !etaitFait && entretienFait(e, ph)){
-      cousinPop({titre:'Entretien d’arrivée : c’est fait',
-        texte: e.nom+' a été vu·e par le social et par le médical.',
+      cousinPop({titre:(e.mi_parcours?'Mi-parcours':'Entretien d’arrivée')+' : c’est fait',
+        texte: e.nom+' a été vu·e par le social et par le médical'+(e.mi_parcours?'.':', et le ROI est signé.'),
         ok:'OK', seul:true, quandOui:function(){}});
     }
   });
@@ -37789,7 +37802,7 @@ function entretiensEnTexte(){
     L.push('');
     L.push('DÉJÀ VUS · '+vus.length);
     vus.forEach(function(e){
-      L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  vu le '+le([e.acc_social_le,e.acc_medical_le].filter(Boolean).sort().pop()));
+      L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  vu le '+le(entretienFaitLe(e)));
       L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
     });
   }
@@ -37853,8 +37866,8 @@ function entretiensCorps(){
          contre ajoute une case ROI signé »). Ses colonnes restent dans la base, rien n'est
          effacé ; c'est l'écran qui ne la montre plus. Ne pas la remettre sans elle.
          ⚠ « ROI SIGNÉ » passe par `entrantCocher`, comme Social et Médical : il garde
-         QUI et QUAND. Il ne compte PAS dans « vu » — la fenêtre « c'est fait » ne
-         s'ouvre qu'avec Social + Médical (`entretienFait(e,'roi')` est toujours faux). */
+         QUI et QUAND. ⚠ DEPUIS LE 19/09 IL COMPTE : à l'arrivée, « vu » = Social + Médical +
+         ROI (voir `entretienFait`). */
       '<div class="entl-c">'+
         '<span class="entph'+(accOk?' fait':'')+'">Vu par'+(accOk?' ✓':'')+'</span>'+
         caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
@@ -37919,7 +37932,7 @@ function entretiensCorps(){
     const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
     if(!vus.length) return '';
     const vuLe=function(e){
-      const d=[e.acc_social_le, e.acc_medical_le].filter(Boolean).sort().pop();
+      const d=entretienFaitLe(e);
       return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : '';
     };
     return '<div class="entvus"><div class="entvus-t">Déjà vus · '+vus.length+'</div>'+
