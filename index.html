@@ -37656,9 +37656,14 @@ function entretiensCorps(){
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
       '<button class="imprbtn nu" onclick="envoyerEntretiensParMail()" title="Envoyer par mail" aria-label="Envoyer par mail">'+icon('enveloppe')+'</button>'+
-      /* Partager (Mag, 19/09/2026 : « ajoute aussi un picto partager ») : sur un
-         téléphone, la feuille de partage du système — WhatsApp, Signal, SMS… */
-      '<button class="imprbtn nu" onclick="partagerEntretiens()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
+      /* ═══ WHATSAPP, DIRECTEMENT (Mag, 19/09/2026, capture du menu de partage du Mac à
+         l'appui : « plutôt WhatsApp, ou alors au moins copier l'URL ») ═══
+         Le partage du système ne proposait ni WhatsApp ni le lien : Mail, Messages,
+         Notes… Le bouton ouvre donc WhatsApp avec le texte de la passation ET le lien
+         vers cet onglet — la personne qui reçoit peut ouvrir COUSIN au bon endroit.
+         Le dessin est celui de WhatsApp (picto/whatsapp.svg, déjà dans l'app). */
+      '<button class="imprbtn nu" onclick="partagerEntretiens()" title="Envoyer sur WhatsApp" aria-label="Envoyer sur WhatsApp">'+
+        '<img src="picto/whatsapp.svg" alt="" style="width:15px;height:15px"></button>'+
     '</div>'+
     '<div class="pcarte entcarte">'+
     '<div class="ptitre"><b>Les entretiens</b><span>'+
@@ -37700,21 +37705,20 @@ function entretiensCorps(){
   })()+
   '</div></div>';
 }
+/* Le même texte que le mail et le copier, envoyé sur WhatsApp avec le lien vers cet
+   onglet. (Le partage du système a été essayé et écarté le 19/09/2026 : sur son Mac il
+   ne proposait pas WhatsApp.) */
+function partagerEntretiens(){
+  if(!ENTRANTS.length){ toast('La liste est vide — rien à envoyer.'); return; }
+  const lien=COUSIN_URL+'/#/liste/entretiens';
+  const texte=entretiensEnTexte()+'\n\n'+lien;
+  /* wa.me ouvre WhatsApp — l'application sur un téléphone, WhatsApp Web ou l'appli
+     de bureau sur un ordinateur — avec le message déjà écrit. C'est elle qui choisit
+     à qui, et qui appuie sur envoyer : COUSIN n'envoie rien lui-même. */
+  window.open('https://wa.me/?text='+encodeURIComponent(texte),'_blank','noopener');
+}
 /* Copier le texte de la passation (le même que le mail) — pour le coller dans un
    message, KAIROS ou une note (Mag, 19/09/2026 : « et ajoute un copier »). */
-/* Le même texte que le mail et le copier, par la feuille de partage du téléphone.
-   ⚠ Là où le navigateur ne sait pas partager (la plupart des ordinateurs), on COPIE et
-   on le dit — un bouton qui ne fait rien serait pire. Annuler le partage ne dit rien. */
-async function partagerEntretiens(){
-  if(!ENTRANTS.length){ toast('La liste est vide — rien à partager.'); return; }
-  const titre='Passation entretiens — '+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'});
-  const texte=entretiensEnTexte();
-  if(navigator.share){
-    try{ await navigator.share({title:titre, text:texte}); }catch(e){}
-    return;
-  }
-  copyTxt(texte,'Ce navigateur ne sait pas partager — copié à la place');
-}
 function copierEntretiens(){
   if(!ENTRANTS.length){ toast('La liste est vide — rien à copier.'); return; }
   copyTxt(entretiensEnTexte(),'Copié');
