@@ -4813,7 +4813,9 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entcarte .entadd .chaddbtn{flex:none}
 /* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
 .entmit{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-  border:1.25px solid #1b1b1b;border-radius:4px;padding:1px 6px;color:#1b1b1b}
+  background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
+/* Un mi-parcours à voir : le trait de la ligne passe au turquoise, comme sur la feuille. */
+.entl.mi{box-shadow:inset 3px 0 0 #6fc7d9}
 .entl{padding:11px 0 11px 11px;border-bottom:1px solid var(--ligne);box-shadow:inset 3px 0 0 #f5c542}
 .entl:last-child{border-bottom:0}
 .entl.vu{box-shadow:none}
@@ -15255,21 +15257,46 @@ function imprimer(){
          le jour, qui a fait le social, qui a fait le médical, et le ROI. */
       const vus=entrantsTries().filter(function(e){ return entretienFait(e,'acc'); });
       const le=function(d){ return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : ''; };
+      /* ═══ UN PEU DE COULEUR POUR SÉPARER LES TROIS CAS (Mag, 19/09/2026 : « mets un
+         tout petit peu de couleur, c'est pas très chouette à lire ; on voit pas la
+         séparation de ceux qui sont vus, de ceux qui ne sont pas vus, du mi-parcours ») ═══
+         Sa palette, rien d'inventé : JAUNE pour ce qui reste à voir (la couleur des
+         entretiens sur sa feuille du 11/09), TURQUOISE pour un mi-parcours, GRIS calme
+         pour les déjà vus. Un bandeau de couleur au-dessus de chaque groupe, un trait de
+         couleur devant chaque ligne.
+         ⚠ PAS DE ROI POUR UN MI-PARCOURS (« il ne doit pas être signé ») : la case est vide.
+         ⚠ `table-layout:fixed` + coupure des mots : un nom très long passe à la ligne au
+         lieu de pousser le tableau hors de la feuille (vu dans l'aperçu). */
+      const bande=function(txt,fond,trait){
+        return '<div style="margin-top:18px;padding:7px 10px;background:'+fond+';border-left:6px solid '+trait+
+          ';font-family:ui-monospace,monospace;font-size:10pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b1b1b">'+txt+'</div>';
+      };
+      const col='<colgroup><col style="width:38%"><col style="width:9%"><col style="width:15%"><col style="width:13%"><col style="width:13%"><col style="width:12%"></colgroup>';
       const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Date d’ajout</th>'+
             '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>';
-      const rangee=function(e, colDate){
-        return '<tr><td '+td+'><b>'+esc(e.nom)+'</b>'+(e.mi_parcours?' <span style="font-family:ui-monospace,monospace;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;border:1px solid #000;border-radius:3px;padding:1px 4px">mi-parcours</span>':'')+(e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+'</td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
-          '<td '+td+'>'+colDate(e)+'</td>'+
-          '<td '+td+'>'+c(e,'acc_social')+'</td><td '+td+'>'+c(e,'acc_medical')+'</td><td '+td+'>'+c(e,'roi')+'</td></tr>';
+      const rangee=function(e, colDate, vu){
+        const trait = vu ? '#c9c6c0' : (e.mi_parcours ? '#6fc7d9' : '#f5c542');
+        const tdn='style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;'+
+          'border-left:4px solid '+trait+';overflow-wrap:anywhere;word-break:break-word'+(vu?';color:#555':'')+'"';
+        const tdv=vu ? td.replace('vertical-align:top','vertical-align:top;color:#555') : td;
+        return '<tr><td '+tdn+'><b>'+esc(e.nom)+'</b>'+
+          (e.mi_parcours?' <span style="font-family:ui-monospace,monospace;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;background:#d9f1f7;border:1px solid #6fc7d9;border-radius:3px;padding:1px 5px">mi-parcours</span>':'')+
+          (e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+'</td>'+
+          '<td '+tdv+'>'+esc(e.chambre||'')+'</td><td '+tdv+'>'+colDate(e)+'</td>'+
+          '<td '+tdv+'>'+c(e,'acc_social')+'</td><td '+tdv+'>'+c(e,'acc_medical')+'</td>'+
+          '<td '+tdv+'>'+(e.mi_parcours?'':c(e,'roi'))+'</td></tr>';
       };
+      const table='<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px">'+col+tete;
       corps =
-        '<div class="pf-n">'+(lst.length ? lst.length+' personne'+(lst.length>1?'s':'')+' à voir' : 'Personne n’attend son entretien')+'</div>'+
-        (lst.length ? '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+tete+
-          lst.map(function(e){ return rangee(e, function(x){ return entrantAjout(x).replace('ajouté·e ',''); }); }).join('')+'</table>' : '')+
-        (vus.length ? '<div class="pf-n" style="margin-top:22px">Déjà vus · '+vus.length+'</div>'+
-          '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+
-            tete.replace('>Date d’ajout<','>Vu le<')+
-          vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }); }).join('')+'</table>' : '')+
+        (lst.length
+          ? bande('À voir · '+lst.length,'#fdf6e3','#f5c542')+table+
+            lst.map(function(e){ return rangee(e, function(x){ return entrantAjout(x).replace('ajouté·e ',''); }, false); }).join('')+'</table>'
+          : bande('Personne n’attend son entretien','#fdf6e3','#f5c542'))+
+        (vus.length
+          ? bande('Déjà vus · '+vus.length,'#eceae6','#b9b6b0')+
+            table.replace('>Date d’ajout<','>Vu le<')+
+            vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }, true); }).join('')+'</table>'
+          : '')+
         (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
     }
@@ -37649,14 +37676,14 @@ function entretiensEnTexte(){
   aVoir.forEach(function(e){
     const j=entrantJours(e);
     L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  '+entrantAjout(e));
-    L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
+    L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
   });
   if(vus.length){
     L.push('');
     L.push('DÉJÀ VUS · '+vus.length);
     vus.forEach(function(e){
       L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  vu le '+le([e.acc_social_le,e.acc_medical_le].filter(Boolean).sort().pop()));
-      L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
+      L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
     });
   }
   return L.join('\n');
@@ -37696,7 +37723,7 @@ function entretiensCorps(){
   };
   const ligne=function(e){
     const j=entrantJours(e), accOk=entretienFait(e,'acc');
-    return '<div class="entl'+(accOk?' vu':'')+'">'+
+    return '<div class="entl'+(accOk?' vu':'')+(e.mi_parcours?' mi':'')+'">'+
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
         (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
         (e.langue?'<span class="entch">'+esc(e.langue)+'</span>':'')+
@@ -37719,7 +37746,9 @@ function entretiensCorps(){
       '<div class="entl-c">'+
         '<span class="entph'+(accOk?' fait':'')+'">Vu par'+(accOk?' ✓':'')+'</span>'+
         caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
-        '<span class="entsep"></span>'+caseH(e,'roi','ROI signé')+
+        /* ⚠ PAS DE ROI POUR UN MI-PARCOURS (Mag, 19/09/2026 : « pour les entretiens
+           mi-parcours, le ROI, il ne doit pas être signé ») : il se signe à l'arrivée. */
+        (e.mi_parcours?'':'<span class="entsep"></span>'+caseH(e,'roi','ROI signé'))+
       '</div></div>';
   };
   return '<div class="ml3"><div class="ml3-c">'+
