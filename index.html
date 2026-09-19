@@ -37744,8 +37744,14 @@ function entrantPrendre(id){
 }
 function entrantMiBasculer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
-  const avant=!!e.mi_parcours;
+  const avant=!!e.mi_parcours, faitAvant=entretienFait(e,'acc');
   e.mi_parcours=!avant; render();
+  /* ⚠ ELLE N'A PAS DISPARU, ELLE A DÉMÉNAGÉ (Mag, 19/09/2026 : « j'ai changé un
+     entretien en mi-parcours et il a disparu »). Social + Médical cochés sans ROI : en
+     mi-parcours, deux cases suffisent — la ligne file dans « Déjà vus », plus bas. On
+     le dit, sinon on la croit perdue. */
+  const faitApres=entretienFait(e,'acc');
+  if(faitApres!==faitAvant) toast(faitApres ? e.nom+' passe dans « Déjà vus », plus bas.' : e.nom+' revient dans « À voir ».');
   entEcrit(); sb.from('entrants').update({mi_parcours:!avant}).eq('id',id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
       e.mi_parcours=avant; render();
