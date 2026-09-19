@@ -37554,37 +37554,39 @@ function entrantRetirer(id){
    ⚠ L'OBJET DU MAIL, LUI, NE PORTE AUCUN NOM : il s'affiche sur l'écran verrouillé des
    téléphones, où le mail n'est pas encore ouvert. */
 function entretiensEnTexte(){
+  /* ═══ LE MÊME CONTENU QUE LA FEUILLE IMPRIMÉE (Mag, 19/09/2026 : « OK, mais fais
+     pareil pour les autres : copier, pour le mail, pour tout ») ═══
+     Copier, le mail et partager disent maintenant exactement ce que dit la feuille :
+     ceux qui restent à voir, PUIS les déjà vus — nom, chambre, qui a fait le social,
+     qui a fait le médical, le ROI.
+     ⚠ ÇA REVIENT SUR SA DEMANDE DU MATIN (« retire ça du mail », dont la section
+     « Vus ») : elle a vu la feuille avec les noms et veut la même partout. La phrase qui
+     expliquait la règle et le pied du mail, eux, restent retirés.
+     Une seule fonction pour les trois gestes : ils ne peuvent pas diverger. */
   const liste=entrantsTries();
   const aVoir=liste.filter(function(e){ return !entretienFait(e,'acc'); });
+  const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
+  const le=function(d){ return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : ''; };
+  const cs=function(e,k){ return e[k+'_le'] ? '✓ '+(e[k+'_par']||'') : '—'; };
   const L=[];
-  L.push('LES ENTRETIENS — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}));
-  L.push(!liste.length ? 'Personne dans la liste.'
-        : (aVoir.length ? aVoir.length+' personne'+(aVoir.length>1?'s attendent':' attend')+' son entretien d’arrivée.'
-                        : 'Tout le monde a été vu.'));
+  L.push('PASSATION ENTRETIENS — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}));
+  if(!liste.length){ L.push(''); L.push('Personne dans la liste.'); return L.join('\n'); }
   L.push('');
-  /* ⚠ RETIRÉS DU MAIL (Mag, 19/09/2026, les lignes collées à l'appui : « retire ça du
-     mail ») : la phrase qui expliquait la règle (« une personne est vue quand le social
-     ET le médical ont coché »), la section « Vus », et le pied (« Envoyé depuis
-     COUSIN… », « ce mail porte des noms… »). Le mail ne dit plus que qui reste à voir.
-     Ne pas les remettre : l'équipe connaît la règle, et un pied de mail que personne ne
-     lit n'a jamais protégé un nom. */
-  /* Le détail d'une case : cochée par qui, ou le tiret de ce qui reste à faire. */
-  const cs=function(e,k,lib){ return (lib?lib+' ':'')+(e[k+'_le'] ? '✓ '+(e[k+'_par']||'') : '—'); };
-  const bloc=function(titre, gens){
-    if(!gens.length) return;
-    L.push(titre.toUpperCase());
-    gens.forEach(function(e){
-      const j=entrantJours(e);
-      L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+
-             '  —  '+(j===0?'arrivé·e aujourd’hui':'arrivé·e il y a '+j+' jour'+(j>1?'s':'')));
-      L.push('     social : '+cs(e,'acc_social','')+'  ·  médical : '+cs(e,'acc_medical','')+
-             '  ·  ROI : '+(e.roi_le ? 'signé' : 'pas signé'));
-      L.push('');
+  L.push(aVoir.length ? 'À VOIR · '+aVoir.length : 'Personne n’attend son entretien.');
+  aVoir.forEach(function(e){
+    const j=entrantJours(e);
+    L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  '+(j===0?'arrivé·e aujourd’hui':'J+'+j));
+    L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
+  });
+  if(vus.length){
+    L.push('');
+    L.push('DÉJÀ VUS · '+vus.length);
+    vus.forEach(function(e){
+      L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  vu le '+le([e.acc_social_le,e.acc_medical_le].filter(Boolean).sort().pop()));
+      L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
     });
-  };
-  bloc('À voir', liste.filter(function(e){ return entrantRang(e)===0; }));
-  if(!liste.length){ L.push('Aucun nom dans la liste pour l’instant.'); L.push(''); }
-  return L.join('\n').replace(/\n+$/,'');
+  }
+  return L.join('\n');
 }
 function envoyerEntretiensParMail(){
   if(!ENTRANTS.length){ toast('La liste est vide — rien à envoyer.'); return; }
