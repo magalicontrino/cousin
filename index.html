@@ -4798,6 +4798,15 @@ body.pan-ouvert #view{animation:none;transform:none}
    Les rangées sont séparées par un filet, jamais encadrées une à une (règle du 22/08).
    Le jaune est celui des entretiens sur la feuille imprimée (11/09) : le trait à
    gauche dit « pas encore vu », et il s'éteint quand l'arrivée est faite. */
+/* Les deux étages (choix B du 19/09) : le cadre où l'on écrit, le titre où l'on coche. */
+.entnouv{background:#e3f3f5;border-radius:12px;padding:10px 12px 12px;margin-top:10px}
+.entnouv-t{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--turq-fonce)}
+.entcarte .entnouv .entadd{margin:8px 0 0}
+.entcarte .entnouv .entmi{background:#fdfdfc}
+.entavoir{display:flex;align-items:baseline;gap:9px;margin-top:18px;padding-bottom:6px;border-bottom:1.5px solid #1b1b1b}
+.entavoir b{font-size:16px}
+.entavoir span{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b6963}
 .entcarte .entadd{display:flex;gap:7px;margin:10px 0 6px}
 .entcarte .entadd input{flex:1;min-width:0;border:1.5px solid var(--trait);border-radius:9px;
   padding:10px 12px;font:inherit;font-size:15px;background:#fdfdfc}
@@ -15248,7 +15257,7 @@ function imprimer(){
     if(current && current.view==='liste' && current.onglet==='entretiens'){
       const lst=entrantsTries().filter(function(e){ return !entretienFait(e,'acc'); });
       const c=function(e,k){ return e[k+'_le'] ? '✓ '+esc(e[k+'_par']||'') : '<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px"></span>'; };
-      const th='style="text-align:left;font-family:ui-monospace,monospace;font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:2px solid #000"';
+      const th='style="text-align:left;font-family:ui-monospace,monospace;font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:2px solid #000;white-space:nowrap"';
       const td='style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top"';
       /* ⚠ LA FEUILLE PORTE TOUJOURS DES NOMS (Mag, 19/09/2026, capture de la feuille
          « Tout le monde a été vu » à l'appui : « ici reporte le nom etc… une vraie
@@ -15272,7 +15281,10 @@ function imprimer(){
           ';font-family:ui-monospace,monospace;font-size:10pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b1b1b">'+txt+'</div>';
       };
       const col='<colgroup><col style="width:38%"><col style="width:9%"><col style="width:15%"><col style="width:13%"><col style="width:13%"><col style="width:12%"></colgroup>';
-      const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Date d’ajout</th>'+
+      /* ⚠ SUR LE PAPIER, UNE DATE, JAMAIS « AUJOURD'HUI » (Mag, 19/09/2026 : « ça n'a
+         aucun sens puisqu'on va l'imprimer ») : la feuille se lit le lendemain. Titre de
+         colonne court (« Ajouté ») et sans retour à la ligne. */
+      const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Ajouté</th>'+
             '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>';
       const rangee=function(e, colDate, vu){
         const trait = vu ? '#c9c6c0' : (e.mi_parcours ? '#6fc7d9' : '#f5c542');
@@ -15290,11 +15302,11 @@ function imprimer(){
       corps =
         (lst.length
           ? bande('À voir · '+lst.length,'#fdf6e3','#f5c542')+table+
-            lst.map(function(e){ return rangee(e, function(x){ return entrantAjout(x).replace('ajouté·e ',''); }, false); }).join('')+'</table>'
+            lst.map(function(e){ return rangee(e, function(x){ return le(x.arrive_le); }, false); }).join('')+'</table>'
           : bande('Personne n’attend son entretien','#fdf6e3','#f5c542'))+
         (vus.length
           ? bande('Déjà vus · '+vus.length,'#eceae6','#b9b6b0')+
-            table.replace('>Date d’ajout<','>Vu le<')+
+            table.replace('>Ajouté<','>Vu le<')+
             vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }, true); }).join('')+'</table>'
           : '')+
         (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
@@ -37767,8 +37779,14 @@ function entretiensCorps(){
       '<button class="imprbtn nu" onclick="entretiensPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
     '</div>'+
     '<div class="pcarte entcarte">'+
-    '<div class="ptitre"><b>Les entretiens</b><span>'+
-      (aVoir.length ? aVoir.length+' à voir' : (liste.length?'tous vus':'personne'))+'</span></div>'+
+    /* ═══ DEUX ÉTAGES (Mag, 19/09/2026 — trois dessins proposés, elle a choisi le B :
+       « l'encart où on enregistre les nouveaux n'est pas assez distingué de ceux qui
+       doivent être mis en entretien ») ═══
+       En haut, un cadre de couleur « Nouvel entrant » : on y ÉCRIT. En dessous, un
+       titre « À voir » souligné : on y COCHE. Le compte quitte le titre de la carte
+       pour ce sous-titre, là où sont les noms. */
+    '<div class="ptitre"><b>Les entretiens</b></div>'+
+    '<div class="entnouv"><div class="entnouv-t">Nouvel entrant</div>'+
     '<div class="entadd">'+
       '<input id="entNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ENT_BR_NOM)+'" '+
         'oninput="ENT_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
@@ -37779,7 +37797,9 @@ function entretiensCorps(){
       '<button type="button" class="entc entmi'+(ENT_BR_MI?' on':'')+'" onclick="ENT_BR_MI=!ENT_BR_MI;render()" '+
         'aria-pressed="'+(ENT_BR_MI?'true':'false')+'"><span class="entb">'+(ENT_BR_MI?'✓':'')+'</span>Mi-parcours</button>'+
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
-    '</div>'+
+    '</div></div>'+
+    '<div class="entavoir"><b>À voir</b><span>'+
+      (aVoir.length ? aVoir.length : (liste.length?'tous vus':'personne'))+'</span></div>'+
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
     (!liste.length ? '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>'
       : aVoir.map(ligne).join(''))+
