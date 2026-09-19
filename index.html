@@ -4846,19 +4846,22 @@ body.pan-ouvert #view{animation:none;transform:none}
   background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
 /* Le grand bouton « Liste et Notes » de l'accueil (19/09/2026) : le dessin des
    grandes cartes, en noir parce que c'est la porte qu'on pousse en arrivant. */
-.ctacarte{background:#fdfdfc;border:1.5px solid var(--noir);border-radius:14px;padding:14px 16px;margin:14px 0 4px}
+.ctacarte{background:#fdfdfc;border:1.5px solid var(--noir);border-radius:14px;padding:11px 14px;margin:12px 0 4px}
 .ctatete{display:flex;align-items:center;gap:10px;width:100%;padding:0;border:0;background:none;
   font-family:inherit;text-align:left;cursor:pointer;color:var(--noir)}
-.ctatete b{font-size:17px}
+.ctatete b{font-size:16px}
 .ctatete .rd{width:34px;height:34px;flex:none;border-radius:50%;background:#f6e7a8;
   display:inline-flex;align-items:center;justify-content:center}
 .ctatete .rd svg{width:18px;height:18px}
 .ctatete .chv{margin-left:auto;font-size:20px;color:#8b8984}
-.ctapaves{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-.ctap{flex:1 1 100px;min-width:0;border:0;border-radius:10px;padding:9px 12px;font-family:inherit;
+/* ⚠ LES PAVÉS NE S'ÉTIRENT PAS (19/09/2026) : en `flex:1` ils prenaient toute la
+   largeur d'un grand écran pour un chiffre — une carte haute comme trois lignes pour
+   dire « 15 ». Ils gardent leur taille, collés à gauche. */
+.ctapaves{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.ctap{flex:0 1 auto;min-width:104px;border:0;border-radius:10px;padding:7px 11px;font-family:inherit;
   text-align:left;cursor:pointer}
-.ctap b{display:block;font-size:24px;line-height:1}
-.ctap em{font-style:normal;font-size:12px;display:block;margin-top:3px}
+.ctap b{display:block;font-size:20px;line-height:1.05}
+.ctap em{font-style:normal;font-size:11.5px;display:block;margin-top:2px}
 .entbtns{display:inline-flex;gap:8px;margin-left:auto;flex:none}
 .entcom{display:block;margin:6px 0 0;padding:0;border:0;background:none;text-align:left;cursor:pointer;
   font:inherit;font-size:14px;line-height:1.4;color:#1b1b1b}
@@ -15143,9 +15146,26 @@ function telHref(t){const m=/[+0-9][0-9 .\/-]{2,}/.exec(t||'');const n=m?m[0].re
    blocage qu'il faut retirer — c'est aux cartes de tenir dans l'écran.
    ⚠ LES DEUX ÉLÉMENTS, racine ET body : sur iPhone c'est la racine qui défile. */
 function accueilFige(){
+  /* ⚠ ON NE FIGE QUE SI TOUT TIENT (réparé le 19/09/2026). Le blocage était SEC : le
+     jour où une carte de plus est arrivée sur l'accueil (« Liste et Notes »), le bas
+     de la page est devenu inatteignable — plus de défilement, et les boutons du bas
+     hors d'écran. Mag : « le scroll ne fonctionne pas non plus ». Un écran qui coupe
+     son contenu sans laisser défiler est une panne, pas une mise en page. */
   const surAccueil = !!(current && current.view==='home');
-  document.documentElement.classList.toggle('accueil-fige', surAccueil);
-  document.body.classList.toggle('accueil-fige', surAccueil);
+  document.documentElement.classList.remove('accueil-fige');
+  document.body.classList.remove('accueil-fige');
+  if(!surAccueil) return;
+  const tient = document.documentElement.scrollHeight <= window.innerHeight + 4;
+  document.documentElement.classList.toggle('accueil-fige', tient);
+  document.body.classList.toggle('accueil-fige', tient);
+}
+/* La mesure se refait quand la fenêtre change de taille, et une fois après le dessin :
+   les polices arrivent après, et une ligne de plus peut faire dépasser la page. */
+window.addEventListener('resize', function(){ try{ accueilFige(); }catch(e){} });
+let _figeMinuteur=0;
+function accueilFigePlusTard(){
+  clearTimeout(_figeMinuteur);
+  _figeMinuteur=setTimeout(function(){ try{ accueilFige(); }catch(e){} }, 400);
 }
 function imprimer(){
   let t='COUSIN';
@@ -17229,7 +17249,7 @@ function renderInterne(){
   /* Voir `body.at-accueilp #view` : sur cette page, la marge basse de #view empêche
      la colonne de droite de rester collée jusqu'au bout. */
   document.body.classList.toggle('at-accueilp',current.view==='accueilpersonne');
-  accueilFige();
+  accueilFige(); accueilFigePlusTard();
   /* Voir `body.pan-ouvert #view` : un panneau de fiche ou d'activité est en
      `position:fixed` DANS #view — tant qu'il est ouvert, la page ne s'anime pas. */
   /* ⚠ `try` VOULU : `FICHE_PAN` et `ACT_PAN` sont déclarés en `let` bien plus bas
