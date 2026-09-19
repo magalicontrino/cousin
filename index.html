@@ -4833,7 +4833,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entcarte .entadd .entadd-lg{flex:1 1 120px}
 .entcarte .entadd .chaddbtn{flex:none}
 /* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
-.entmit{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+.entmit{cursor:pointer;line-height:1.4;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
   background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
 /* Un mi-parcours à voir : le trait de la ligne passe au turquoise, comme sur la feuille. */
 .entl.mi{box-shadow:inset 3px 0 0 #6fc7d9}
@@ -37656,6 +37656,16 @@ function entrantPrendre(id){
     }
   });
 }
+function entrantMiRetirer(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e || !e.mi_parcours) return;
+  e.mi_parcours=false; render();
+  sb.from('entrants').update({mi_parcours:false}).eq('id',id).select().then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      e.mi_parcours=true; render();
+      toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+    }
+  });
+}
 function entrantRetirer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinConfirme('Retirer '+e.nom+' ?', 'La ligne disparaît pour toute l’équipe.', function(){
@@ -37756,7 +37766,9 @@ function entretiensCorps(){
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
         (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
         (e.langue?'<span class="entch">'+esc(e.langue)+'</span>':'')+
-        (e.mi_parcours?'<span class="entmit">Mi-parcours</span>':'')+
+        /* L'étiquette se décoche d'un clic (Mag, 19/09/2026 : « on doit pouvoir décocher
+           Mi-parcours juste si on clique sur le petit bouton »). */
+        (e.mi_parcours?'<button type="button" class="entmit" onclick="entrantMiRetirer('+e.id+')" title="Retirer mi-parcours" aria-label="Retirer mi-parcours">Mi-parcours</button>':'')+
         '<span class="entj">'+entrantAjout(e)+'</span>'+
         '<span style="flex:1"></span>'+
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
