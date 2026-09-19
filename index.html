@@ -320,6 +320,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   resize:vertical;line-height:1.5;min-height:50vh;max-height:80vh}
 @media (max-width:500px){.notchamp{padding:10px 11px;min-height:45vh}}
 .notchamp:focus{outline:0;border-color:var(--trait-fort)}
+.notbarre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.notbarre .notmic{margin-top:0}
+.notb .notpale{opacity:.35}
+.notbarre .notb{margin:0;flex-wrap:wrap}
+.notbarre ~ .notchamp{margin-top:12px}
 .notwrap{position:relative}
 /* ⚠ Dans la fenêtre d'un entretien, la case ne peut pas prendre la moitié de l'écran :
    la fenêtre a ses propres bords, et les boutons doivent rester visibles dessous. */
@@ -30181,7 +30186,7 @@ function notesCorps(){
      `position:absolute` dans la case, il en barrait les 72 px du bas sur toute la
      largeur — cliquer en bas du texte touchait le bouton, et les dernières lignes
      d'une note longue passaient dessous. */
-  h+='<button id="notMicBtn" class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()" '+
+  const mic='<button id="notMicBtn" class="notmic'+(NOT_ECOUTE?' ecoute':'')+'" onclick="notParler()" '+
        'title="'+(NOT_ECOUTE?'Appuie pour arrêter':'Dicter')+'" '+
        'aria-label="'+(NOT_ECOUTE?'Arrêter l\'enregistrement':'Dicter')+'">'+
        notContenuBouton()+'</button>';
@@ -30191,7 +30196,7 @@ function notesCorps(){
      la rangée du dessous. Deux gestes qui vont ensemble à deux étages différents : on
      cherchait Coller là où était Copier. Les deux sont maintenant côte à côte dans la
      rangée — voir `notCollerIci`. */
-  h+='<textarea id="notTxt" class="notchamp" '+
+  const champ='<textarea id="notTxt" class="notchamp" '+
       'placeholder="Ce que tu dis s\'écrit ici" '+
       'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
   /* ⚠ L'ORDRE A CHANGÉ LE 10/09/2026, et c'est le point : le message du téléphone
@@ -30200,14 +30205,15 @@ function notesCorps(){
      ⚠ Et la phrase « tu peux dicter ou écrire, et ensuite corriger avec Claude » est
      partie avec : le bouton écoute maintenant sur téléphone aussi, et une phrase qui
      décrit les boutons qu'on a sous les yeux n'apprend rien (sa règle du 08/09). */
+  let aide='';
   if(!notMicroDispo())
-    h+='<div class="notaide">Ce navigateur ne sait pas écouter. Dicte avec le micro de ton clavier, dans la case.</div>';
+    aide+='<div class="notaide">Ce navigateur ne sait pas écouter. Dicte avec le micro de ton clavier, dans la case.</div>';
   else if(NOT_PERM==='denied')
-    h+='<div class="notaide"><b>Le micro est bloqué.</b> Touche le cadenas à gauche de l\'adresse et mets « Autoriser ».</div>';
+    aide+='<div class="notaide"><b>Le micro est bloqué.</b> Touche le cadenas à gauche de l\'adresse et mets « Autoriser ».</div>';
   else if(NOT_PERM==='prompt')
-    h+='<div class="notaide">La première fois, ton navigateur demande le micro : réponds Autoriser.</div>';
+    aide+='<div class="notaide">La première fois, ton navigateur demande le micro : réponds Autoriser.</div>';
   else if(NOT_IOS)
-    h+='<div class="notaide">Si rien ne s\'écrit, le micro du clavier marche toujours.</div>';
+    aide+='<div class="notaide">Si rien ne s\'écrit, le micro du clavier marche toujours.</div>';
   /* ⚠ « OK » NE DISAIT PAS CE QU'IL FAIT (Mag, 05/09/2026 : « j'aimerais que tu
      corriges, ou proposer, je ne sais pas… un bouton où tu agis aussi toi en tant
      que IA »). Le bouton s'appelle donc CORRIGER : c'est la chose qu'il fait, pas
@@ -30222,7 +30228,14 @@ function notesCorps(){
      ⚠ CHAQUE PICTO GARDE SON `title` ET SON `aria-label` : au survol et pour qui lit
      l'écran à voix haute, le mot revient. Une rangée de dessins muets, c'est
      exactement ce qu'elle avait fait retirer de la barre du haut en août. */
-h+='<div class="notb">'+
+/* ═══ TOUS LES BOUTONS AU-DESSUS DE LA CASE (Mag, 19/09/2026 : « si sur l'écran on
+     ne voit pas les boutons en bas, j'aime pas — trouver une solution pour qu'on ait une
+     vue d'ensemble sur tout ce qu'on peut faire sur cette page ») ═══
+     La case fait la moitié de l'écran : la rangée posée DESSOUS tombait hors de vue.
+     Micro, Corriger, Garder, Copier, Coller, Effacer, Revenir tiennent maintenant sur
+     une seule barre en haut, puis l'alerte rouge, puis la case. Sur téléphone la barre
+     passe à la ligne au lieu de sortir de l'écran. */
+h+='<div class="notbarre">'+mic+'<div class="notb">'+
         '<button class="dembtn" onclick="notOk()"'+(NOT_ENCOURS?' disabled':'')+'>'+
           (NOT_ENCOURS
             ?'<span class="notspin"><span class="sp1"></span></span>'
@@ -30244,12 +30257,17 @@ h+='<div class="notb">'+
           réversible n'a pas besoin qu'on le confirme. */
        '<button class="dembtn clair pic" onclick="notEffacer()" title="Effacer" '+
          'aria-label="Effacer">'+icon('trash')+'</button>'+
-       (NOT_AVANT?'<button class="dembtn clair pic" onclick="notRevenir()" title="Revenir" '+
-         'aria-label="Revenir">'+icon('undo')+'</button>':'')+
-       (NOT_APRES!==null?'<button class="dembtn clair pic" onclick="notRetablir()" title="Rétablir" '+
-         'aria-label="Rétablir">'+icon('redo')+'</button>':'')+
-     '</div>';
+       /* ⚠ REVENIR ET RÉTABLIR SONT TOUJOURS LÀ, CÔTE À CÔTE (Mag, 19/09/2026 : « tu as
+          mis un bouton undo, je voudrais un bouton redo »). Rétablir n'apparaissait
+          qu'après un Revenir : on ne savait pas qu'il existait. Quand il n'y a rien à
+          défaire ou à refaire, le bouton reste à sa place, pâli. */
+       '<button class="dembtn clair pic'+(NOT_AVANT?'':' notpale')+'" onclick="notRevenir()" title="Revenir" '+
+         'aria-label="Revenir">'+icon('undo')+'</button>'+
+       '<button class="dembtn clair pic'+(NOT_APRES!==null?'':' notpale')+'" onclick="notRetablir()" title="Rétablir" '+
+         'aria-label="Rétablir">'+icon('redo')+'</button>'+
+     '</div></div>'+aide;
   if(NOT_ALERTE) h+='<div class="notalerte">'+esc(NOT_ALERTE)+'</div>';
+  h+=champ;
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
   if(NOT_ENCOURS) h+='<div class="demvide">Je corrige…</div>';
   if(NOTES.length){
