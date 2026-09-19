@@ -4807,9 +4807,22 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entc.on{border-color:#1b1b1b}
 .entc.on .entb{background:#1b1b1b;border-color:#1b1b1b;color:#fdfdfc}
 .entc i{font-style:normal;font-size:11.5px;color:#73716b}
-/* « Je m'en occupe » que personne n'a pris : cerclé de jaune, en gras. */
-.entc.prise.libre{border:2px solid #f5c542;background:#fdf6e3;font-weight:700}
-.entc.prise{margin-right:6px}
+/* Un petit écart avant « ROI signé » : ce n'est pas un morceau de l'entretien. */
+.entsep{width:6px}
+/* ═══ CEUX QUI SONT VUS, BIEN À L'ÉCART (Mag, 19/09/2026 : « quand c'est fait, ça doit
+   être beaucoup plus à l'écart ») ═══
+   Ils ne se mélangent plus à la liste : ils descendent dans un volet FERMÉ, sous un
+   filet, en gris. On l'ouvre quand on en a besoin ; le reste du temps, la carte ne
+   montre que ce qui attend. */
+.entvus{margin-top:14px;border-top:1.5px solid var(--ligne);padding-top:4px}
+.entvus>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 0;
+  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#9b9892}
+.entvus>summary::-webkit-details-marker{display:none}
+.entvus>summary .chv{margin-left:auto;transition:transform .15s}
+.entvus[open]>summary .chv{transform:rotate(90deg)}
+.entvus .entl{opacity:.55}
+.entvus .entl .entl-h b{font-size:14px}
+@media print{ .entvus{display:none!important} .entadd{display:none!important} }
 /* ⚠ LES PETITS BOUTONS DE LA LIGNE (18/09/2026) : `.ib` n'a de taille que DANS les
    rangées de Ma liste (`.pl2`). Posé ici sans cette règle, « Retirer » faisait
    0 pixel de large — présent dans la page, invisible à l'œil. Vu en le testant. */
@@ -15191,6 +15204,30 @@ function imprimer(){
      Ce qui presse d'abord, le reste ensuite : on ne trie pas par numéro de chambre,
      on trie par ce qu'il faut trancher aujourd'hui. */
   try{
+    /* ═══ LA FEUILLE DE PASSATION DES ENTRETIENS (Mag, 19/09/2026) ═══
+       « Rajoute un print en haut pour la passation. » La feuille ne porte que ceux qui
+       RESTENT À VOIR — comme le mail : c'est ce que l'équipe qui arrive doit prendre.
+       Une ligne par personne ; une case vide se remplit au stylo. Les noms sortent en
+       entier : c'est sa décision pour cet onglet (18/09), et la feuille reste au centre. */
+    if(current && current.view==='liste' && current.onglet==='entretiens'){
+      const lst=entrantsTries().filter(function(e){ return !entretienFait(e,'acc'); });
+      const c=function(e,k){ return e[k+'_le'] ? '✓ '+esc(e[k+'_par']||'') : '<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px"></span>'; };
+      const th='style="text-align:left;font-family:ui-monospace,monospace;font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:2px solid #000"';
+      const td='style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top"';
+      corps = lst.length
+        ? '<div class="pf-n">'+lst.length+' personne'+(lst.length>1?'s':'')+' à voir</div>'+
+          '<table style="width:100%;border-collapse:collapse;margin-top:8px"><tr>'+
+            '<th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Arrivé·e</th>'+
+            '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>'+
+          lst.map(function(e){
+            const j=entrantJours(e);
+            return '<tr><td '+td+'><b>'+esc(e.nom)+'</b></td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
+              '<td '+td+'>'+(j===0?'aujourd’hui':'J+'+j)+'</td>'+
+              '<td '+td+'>'+c(e,'acc_social')+'</td><td '+td+'>'+c(e,'acc_medical')+'</td><td '+td+'>'+c(e,'roi')+'</td></tr>';
+          }).join('')+'</table>'
+        : '<p class="vide">Tout le monde a été vu.</p>';
+      t='Passation entretiens';
+    }
     if(current && current.view==='tourbacs'){
       const ouv=TOURBACS.filter(tbOuverte).sort(function(a,b){
         const ra=tbEtat(a).rang, rb=tbEtat(b).rang;
@@ -37415,11 +37452,7 @@ function entrantJours(e){
 function entrantRang(e){ return entretienFait(e,'acc') ? 1 : 0; }
 function entrantsTries(){
   return ENTRANTS.slice().sort(function(a,b){
-    /* Parmi ceux qui restent à voir, ceux que PERSONNE n'a pris d'abord (19/09/2026) :
-       c'est le trou qu'on cherche des yeux. */
-    const libre=function(e){ return (entrantRang(e)===0 && !e.charge_par) ? 0 : 1; };
-    return (entrantRang(a)-entrantRang(b)) || (libre(a)-libre(b))
-        || String(a.arrive_le).localeCompare(String(b.arrive_le));
+    return (entrantRang(a)-entrantRang(b)) || String(a.arrive_le).localeCompare(String(b.arrive_le));
   });
 }
 function entrantAjouter(){
@@ -37453,7 +37486,9 @@ function entrantCocher(id, k){
     }
   });
 }
-/* ═══ « JE M'EN OCCUPE » (Mag, 19/09/2026 : « une case à cocher par la personne qui
+/* ⚠ RETIRÉ DE L'ÉCRAN LE 19/09/2026 (« retire ») — gardé ici, sans bouton qui
+   l'appelle : les colonnes existent, et si elle le redemande, le geste est prêt.
+   ═══ « JE M'EN OCCUPE » (Mag, 19/09/2026 : « une case à cocher par la personne qui
    veut prendre ça en charge ») ═══
    Les cases Social / Médical disent qui A FAIT l'entretien — après coup. Celle-ci dit
    qui VA le faire, dès l'arrivée : c'est exactement son « on ne sait jamais qui ».
@@ -37523,10 +37558,8 @@ function entretiensEnTexte(){
       const j=entrantJours(e);
       L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+
              '  —  '+(j===0?'arrivé·e aujourd’hui':'arrivé·e il y a '+j+' jour'+(j>1?'s':'')));
-      /* Qui s'en occupe, en premier : c'est ce que l'équipe qui arrive doit savoir
-         (19/09/2026). « personne » se lit comme ce que c'est — une place à prendre. */
-      L.push('     pris en charge : '+(e.charge_par||'personne'));
-      L.push('     social : '+cs(e,'acc_social','')+'  ·  médical : '+cs(e,'acc_medical',''));
+      L.push('     social : '+cs(e,'acc_social','')+'  ·  médical : '+cs(e,'acc_medical','')+
+             '  ·  ROI : '+(e.roi_le ? 'signé' : 'pas signé'));
       L.push('');
     });
   };
@@ -37581,22 +37614,28 @@ function entretiensCorps(){
          nouvelle structure »). La rangée portait Arrivée (social, médical) PUIS
          Mi-parcours (social, médical) : six éléments qui repassaient à la ligne sur un
          téléphone. Il ne reste que l'entretien d'arrivée. */
+      /* ⚠ « JE M'EN OCCUPE » RETIRÉ (Mag, 19/09/2026 : « retire », puis « mais par
+         contre ajoute une case ROI signé »). Ses colonnes restent dans la base, rien n'est
+         effacé ; c'est l'écran qui ne la montre plus. Ne pas la remettre sans elle.
+         ⚠ « ROI SIGNÉ » passe par `entrantCocher`, comme Social et Médical : il garde
+         QUI et QUAND. Il ne compte PAS dans « vu » — la fenêtre « c'est fait » ne
+         s'ouvre qu'avec Social + Médical (`entretienFait(e,'roi')` est toujours faux). */
       '<div class="entl-c">'+
-        /* La prise en charge vient AVANT « Vu par » : c'est l'ordre des choses — on
-           dit qu'on s'en occupe, puis on coche ce qu'on a fait. Tant que personne ne l'a
-           prise et que l'entretien n'est pas fait, elle est cerclée de jaune (la couleur
-           des entretiens) : c'est le trou qu'elle veut voir. */
-        '<button class="entc prise'+(e.charge_par?' on':(accOk?'':' libre'))+'" onclick="entrantPrendre('+e.id+')">'+
-          '<span class="entb">'+(e.charge_par?'✓':'')+'</span>'+
-          (e.charge_par?'Pris en charge<i>'+esc(e.charge_par)+'</i>':'Je m’en occupe')+'</button>'+
         '<span class="entph'+(accOk?' fait':'')+'">Vu par'+(accOk?' ✓':'')+'</span>'+
         caseH(e,'acc_social','Social')+caseH(e,'acc_medical','Médical')+
+        '<span class="entsep"></span>'+caseH(e,'roi','ROI signé')+
       '</div></div>';
   };
   return '<div class="ml3"><div class="ml3-c">'+
+    /* ═══ TROIS PICTOS, PAS DE MOTS (Mag, 19/09/2026 : « rajoute un print en haut pour
+       la passation », « un picto mail suffit. Et ajoute un copier ») ═══
+       Imprimer sort la feuille de PASSATION (ceux qui restent à voir, voir `imprimer`),
+       copier prend le même texte que le mail, et le mail l'ouvre pré-rempli. */
     '<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
-      '<button class="fbtn" onclick="envoyerEntretiensParMail()">'+
-        '<span class="ic">'+icon('mail')+'</span>L’envoyer à l’équipe</button></div>'+
+      boutonImprimer('', true)+
+      '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
+      '<button class="imprbtn nu" onclick="envoyerEntretiensParMail()" title="Envoyer par mail" aria-label="Envoyer par mail">'+icon('mail')+'</button>'+
+    '</div>'+
     '<div class="pcarte entcarte">'+
     '<div class="ptitre"><b>Les entretiens</b><span>'+
       (aVoir.length ? aVoir.length+' à voir' : (liste.length?'tous vus':'personne'))+'</span></div>'+
@@ -37608,9 +37647,20 @@ function entretiensCorps(){
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
     '</div>'+
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
-    (liste.length ? liste.map(ligne).join('')
-      : '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>')+
+    (function(){
+      if(!liste.length) return '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>';
+      const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
+      return aVoir.map(ligne).join('')+
+        (vus.length ? '<details class="entvus"><summary>Vus · '+vus.length+'<span class="chv">›</span></summary>'+
+          vus.map(ligne).join('')+'</details>' : '');
+    })()+
   '</div></div></div>';
+}
+/* Copier le texte de la passation (le même que le mail) — pour le coller dans un
+   message, KAIROS ou une note (Mag, 19/09/2026 : « et ajoute un copier »). */
+function copierEntretiens(){
+  if(!ENTRANTS.length){ toast('La liste est vide — rien à copier.'); return; }
+  copyTxt(entretiensEnTexte(),'Copié');
 }
 function carteMaListe(){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
