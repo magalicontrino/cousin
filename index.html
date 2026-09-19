@@ -4814,14 +4814,16 @@ body.pan-ouvert #view{animation:none;transform:none}
    Ils ne se mélangent plus à la liste : ils descendent dans un volet FERMÉ, sous un
    filet, en gris. On l'ouvre quand on en a besoin ; le reste du temps, la carte ne
    montre que ce qui attend. */
-.entvus{margin-top:14px;border-top:1.5px solid var(--ligne);padding-top:4px}
-.entvus>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 0;
-  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#9b9892}
-.entvus>summary::-webkit-details-marker{display:none}
-.entvus>summary .chv{margin-left:auto;transition:transform .15s}
-.entvus[open]>summary .chv{transform:rotate(90deg)}
-.entvus .entl{opacity:.55}
-.entvus .entl .entl-h b{font-size:14px}
+.entvus{margin-top:12px;border:1px dashed #c9c6c0;border-radius:12px;background:#eceae6;padding:10px 14px}
+.entvus-t{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:#8b8984;margin-bottom:4px}
+.entvus-l{display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid #dcd9d3;font-size:13.5px;color:#555}
+.entvus-ok{color:#6cb392;font-weight:800}
+.entvus-m{font-family:ui-monospace,monospace;font-size:11px;color:#8b8984}
+.entvus-d{margin-left:auto}
+.entvus-x{width:26px;height:26px;flex:none;border:0;background:none;color:#a9a6a0;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;padding:0}
+.entvus-x svg{width:13px;height:13px}
 @media print{ .entvus{display:none!important} .entadd{display:none!important} }
 /* ⚠ LES PETITS BOUTONS DE LA LIGNE (18/09/2026) : `.ib` n'a de taille que DANS les
    rangées de Ma liste (`.pl2`). Posé ici sans cette règle, « Retirer » faisait
@@ -7452,6 +7454,12 @@ const ICONS = {
      Ici la pointe part vers la gauche et le trait s'enroule vers la droite : c'est
      le dessin que tout le monde connaît pour annuler ce qu'on vient de faire. */
   undo:     '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h9.5a5.5 5.5 0 0 1 0 11H8"/><path d="M8 4.5L3.4 9 8 13.5"/></g>',
+  /* ⚠ UNE ENVELOPPE, DESSINÉE PAR CLAUDE, PROVISOIRE (19/09/2026 : « mets une enveloppe
+     ici, ou un picto mail »). Le picto `mail` de l'app, ce sont ses GUILLEMETS
+     (ico-guillemets.svg) — ils disent « un mail type », pas « envoyer ». Aucune
+     enveloppe n'existait dans picto/. À mettre sur la planche des pictos, « à
+     redessiner » par elle, comme picto/homme.svg. */
+  enveloppe:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.8 7l8.2 6.2L20.2 7"/></g>',
   /* La flèche de « Revenir », retournée : les deux gestes se lisent comme une paire. */
   redo:     '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9h-9.5a5.5 5.5 0 0 0 0 11H16"/><path d="M16 4.5L20.6 9 16 13.5"/></g>',
   star:     '<path d="M12 2.4l3 6.1 6.7.9-4.9 4.7 1.2 6.7-6-3.3-6 3.3 1.2-6.7L2.3 9.4l6.7-.9z"/>',
@@ -15214,18 +15222,29 @@ function imprimer(){
       const c=function(e,k){ return e[k+'_le'] ? '✓ '+esc(e[k+'_par']||'') : '<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px"></span>'; };
       const th='style="text-align:left;font-family:ui-monospace,monospace;font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:2px solid #000"';
       const td='style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top"';
-      corps = lst.length
-        ? '<div class="pf-n">'+lst.length+' personne'+(lst.length>1?'s':'')+' à voir</div>'+
-          '<table style="width:100%;border-collapse:collapse;margin-top:8px"><tr>'+
-            '<th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Arrivé·e</th>'+
-            '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>'+
-          lst.map(function(e){
-            const j=entrantJours(e);
-            return '<tr><td '+td+'><b>'+esc(e.nom)+'</b></td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
-              '<td '+td+'>'+(j===0?'aujourd’hui':'J+'+j)+'</td>'+
-              '<td '+td+'>'+c(e,'acc_social')+'</td><td '+td+'>'+c(e,'acc_medical')+'</td><td '+td+'>'+c(e,'roi')+'</td></tr>';
-          }).join('')+'</table>'
-        : '<p class="vide">Tout le monde a été vu.</p>';
+      /* ⚠ LA FEUILLE PORTE TOUJOURS DES NOMS (Mag, 19/09/2026, capture de la feuille
+         « Tout le monde a été vu » à l'appui : « ici reporte le nom etc… une vraie
+         info, quoi »). Une feuille de passation qui ne dit qu'une phrase ne transmet
+         rien. Elle porte donc ceux qui restent à voir, PUIS ceux qui ont été vus — avec
+         le jour, qui a fait le social, qui a fait le médical, et le ROI. */
+      const vus=entrantsTries().filter(function(e){ return entretienFait(e,'acc'); });
+      const le=function(d){ return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : ''; };
+      const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Arrivé·e</th>'+
+            '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>';
+      const rangee=function(e, colDate){
+        return '<tr><td '+td+'><b>'+esc(e.nom)+'</b></td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
+          '<td '+td+'>'+colDate(e)+'</td>'+
+          '<td '+td+'>'+c(e,'acc_social')+'</td><td '+td+'>'+c(e,'acc_medical')+'</td><td '+td+'>'+c(e,'roi')+'</td></tr>';
+      };
+      corps =
+        '<div class="pf-n">'+(lst.length ? lst.length+' personne'+(lst.length>1?'s':'')+' à voir' : 'Personne n’attend son entretien')+'</div>'+
+        (lst.length ? '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+tete+
+          lst.map(function(e){ return rangee(e, function(x){ const j=entrantJours(x); return j===0?'aujourd’hui':'J+'+j; }); }).join('')+'</table>' : '')+
+        (vus.length ? '<div class="pf-n" style="margin-top:22px">Déjà vus · '+vus.length+'</div>'+
+          '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+
+            tete.replace('>Arrivé·e<','>Vu le<')+
+          vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }); }).join('')+'</table>' : '')+
+        (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
     }
     if(current && current.view==='tourbacs'){
@@ -37634,7 +37653,7 @@ function entretiensCorps(){
     '<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
-      '<button class="imprbtn nu" onclick="envoyerEntretiensParMail()" title="Envoyer par mail" aria-label="Envoyer par mail">'+icon('mail')+'</button>'+
+      '<button class="imprbtn nu" onclick="envoyerEntretiensParMail()" title="Envoyer par mail" aria-label="Envoyer par mail">'+icon('enveloppe')+'</button>'+
       /* Partager (Mag, 19/09/2026 : « ajoute aussi un picto partager ») : sur un
          téléphone, la feuille de partage du système — WhatsApp, Signal, SMS… */
       '<button class="imprbtn nu" onclick="partagerEntretiens()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
@@ -37650,14 +37669,34 @@ function entretiensCorps(){
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
     '</div>'+
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
-    (function(){
-      if(!liste.length) return '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>';
-      const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
-      return aVoir.map(ligne).join('')+
-        (vus.length ? '<details class="entvus"><summary>Vus · '+vus.length+'<span class="chv">›</span></summary>'+
-          vus.map(ligne).join('')+'</details>' : '');
-    })()+
-  '</div></div></div>';
+    (!liste.length ? '<div class="empty" style="margin-top:6px"><b>Personne dans la liste.</b><em>Ajoute un nom ci-dessus.</em></div>'
+      : aVoir.map(ligne).join(''))+
+  '</div>'+
+  /* ═══ LES VUS, DANS UNE CARTE À PART (Mag, 19/09/2026 — trois dessins proposés, elle
+     a choisi le A) ═══
+     Ils quittent la carte : une zone grise en dessous, une ligne chacun — le nom, la
+     chambre, le jour où la DEUXIÈME case a été cochée. Pas de case à cocher : ce qui est
+     fait ne se refait pas. Seuls ceux qui ont le droit de retirer (PFO, coordination,
+     administration) voient une petite corbeille — sans elle, les vus s'accumuleraient
+     pour toujours. ⚠ Le volet repliable qui précédait (« Vus · n ») est écarté : elle
+     ne l'aimait pas. Ne pas le remettre. */
+  (function(){
+    const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
+    if(!vus.length) return '';
+    const vuLe=function(e){
+      const d=[e.acc_social_le, e.acc_medical_le].filter(Boolean).sort().pop();
+      return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : '';
+    };
+    return '<div class="entvus"><div class="entvus-t">Déjà vus · '+vus.length+'</div>'+
+      vus.map(function(e){
+        return '<div class="entvus-l"><span class="entvus-ok">✓</span><span class="entvus-n">'+esc(e.nom)+'</span>'+
+          (e.chambre?'<span class="entvus-m">ch. '+esc(e.chambre)+'</span>':'')+
+          '<span class="entvus-m entvus-d">vu le '+vuLe(e)+'</span>'+
+          (peutRetirerEntrant()?'<button class="entvus-x" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
+        '</div>';
+      }).join('')+'</div>';
+  })()+
+  '</div></div>';
 }
 /* Copier le texte de la passation (le même que le mail) — pour le coller dans un
    message, KAIROS ou une note (Mag, 19/09/2026 : « et ajoute un copier »). */
