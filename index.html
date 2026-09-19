@@ -340,6 +340,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   font-family:inherit;font-size:13.5px;font-weight:600;color:var(--enc2);transition:all .12s}
 .mlong-btn .ic{width:18px;height:18px}
 .mlong-btn.on{background:var(--noir);color:#f2eee6;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+/* L'onglet Entretiens quand quelqu'un attend : le rose de l'app, pâle fermé, fuchsia
+   ouvert (Mag, 19/09/2026). */
+.mlong-btn.rose{background:#fbd3e6;color:#1b1b1b}
+.mlong-btn.rose.on{background:#e8308a;color:#fdfdfc;box-shadow:0 2px 8px rgba(232,48,138,.35)}
+.mlong-n{font-style:normal;font-size:11px;font-weight:800;min-width:20px;height:20px;padding:0 6px;
+  border-radius:10px;background:#e8308a;color:#fdfdfc;display:inline-flex;align-items:center;justify-content:center}
+.mlong-btn.rose.on .mlong-n{background:#fdfdfc;color:#e8308a}
 .notgard-h{display:flex;align-items:center;gap:7px;margin-bottom:12px}
 .notgard-h span{font-size:12px;color:var(--enc2);margin-right:auto}
 .notgb{background:#fdfdfc;border:1px solid var(--trait);border-radius:7px;padding:4px 10px;
@@ -15229,7 +15236,7 @@ function imprimer(){
          le jour, qui a fait le social, qui a fait le médical, et le ROI. */
       const vus=entrantsTries().filter(function(e){ return entretienFait(e,'acc'); });
       const le=function(d){ return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : ''; };
-      const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Arrivé·e</th>'+
+      const tete='<tr><th '+th+'>Nom</th><th '+th+'>Ch.</th><th '+th+'>Date d’ajout</th>'+
             '<th '+th+'>Social</th><th '+th+'>Médical</th><th '+th+'>ROI</th></tr>';
       const rangee=function(e, colDate){
         return '<tr><td '+td+'><b>'+esc(e.nom)+'</b></td><td '+td+'>'+esc(e.chambre||'')+'</td>'+
@@ -15239,10 +15246,10 @@ function imprimer(){
       corps =
         '<div class="pf-n">'+(lst.length ? lst.length+' personne'+(lst.length>1?'s':'')+' à voir' : 'Personne n’attend son entretien')+'</div>'+
         (lst.length ? '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+tete+
-          lst.map(function(e){ return rangee(e, function(x){ const j=entrantJours(x); return j===0?'aujourd’hui':'J+'+j; }); }).join('')+'</table>' : '')+
+          lst.map(function(e){ return rangee(e, function(x){ return entrantAjout(x).replace('ajouté·e ',''); }); }).join('')+'</table>' : '')+
         (vus.length ? '<div class="pf-n" style="margin-top:22px">Déjà vus · '+vus.length+'</div>'+
           '<table style="width:100%;border-collapse:collapse;margin-top:8px">'+
-            tete.replace('>Arrivé·e<','>Vu le<')+
+            tete.replace('>Date d’ajout<','>Vu le<')+
           vus.map(function(e){ return rangee(e, function(x){ return le([x.acc_social_le,x.acc_medical_le].filter(Boolean).sort().pop()); }); }).join('')+'</table>' : '')+
         (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
@@ -19029,13 +19036,26 @@ function vListe(){
      posées toutes les deux et l'une est cachée — c'est ainsi depuis le début. Pas les
      entretiens : les dessiner, c'est aller CHERCHER DES NOMS D'HÉBERGÉS dans la base.
      On ne va pas les chercher pour les cacher aussitôt derrière un `display:none`. */
+  /* ═══ ENTRETIENS · LISTE · NOTES (Mag, 19/09/2026 : « inverse entretien et note. Les
+     entretiens, c'est le plus important. Après, il y a les listes. ») ═══
+     Et « quand il y a des entretiens, le bouton doit être un peu en fuchsia, en rose,
+     qu'on a dans l'app » : dès qu'une personne attend son entretien, l'onglet passe au
+     rose (pâle s'il n'est pas ouvert, fuchsia s'il l'est) avec le nombre.
+     ⚠ LE NOMBRE SE COMPTE SANS LIRE LES NOMS : `loadEntrantsCompte` ne demande à la base
+     que les cases cochées, pas qui. Règle posée plus bas : on ne va pas chercher des noms
+     d'hébergés pour un onglet qu'on ne regarde pas. */
+  if(voitEntrants() && !ENT_N_ENCOURS && Date.now()-ENT_N_LU>60000) setTimeout(loadEntrantsCompte,0);
+  const nAttente=(onglet==='entretiens')
+    ? ENTRANTS.filter(function(e){ return !entretienFait(e,'acc'); }).length : ENT_N_AVOIR;
   return heroBandeau('Liste et Notes', dateTxt, '#A9C8E8','folder', true)+
-    '<div class="mlong"><button class="mlong-btn'+(onglet==='notes'?' on':'')+'" '+
-      'onclick="mlVue(\'notes\')"><span class="ic">'+icon('note')+'</span>Notes</button>'+
+    '<div class="mlong">'+
+    '<button class="mlong-btn'+(onglet==='entretiens'?' on':'')+(nAttente?' rose':'')+'" '+
+      'onclick="mlVue(\'entretiens\')"><span class="ic">'+icon('accomp')+'</span>Entretiens'+
+      (nAttente?'<i class="mlong-n">'+nAttente+'</i>':'')+'</button>'+
     '<button class="mlong-btn'+(onglet==='liste'?' on':'')+'" '+
       'onclick="mlVue(\'liste\')"><span class="ic">'+icon('list')+'</span>Liste</button>'+
-    '<button class="mlong-btn'+(onglet==='entretiens'?' on':'')+'" '+
-      'onclick="mlVue(\'entretiens\')"><span class="ic">'+icon('accomp')+'</span>Entretiens</button></div>'+
+    '<button class="mlong-btn'+(onglet==='notes'?' on':'')+'" '+
+      'onclick="mlVue(\'notes\')"><span class="ic">'+icon('note')+'</span>Notes</button></div>'+
     (onglet==='entretiens' ? entretiensCorps() :
       '<div id="ml-liste"'+(onglet!=='liste'?' style="display:none"':'')+'>'+listeCorps()+'</div>'+
       '<div id="ml-notes"'+(onglet!=='notes'?' style="display:none"':'')+'>'+notesCorps()+'</div>');
@@ -37435,6 +37455,22 @@ function resteRappels(){
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
 let ENT_BR_NOM='', ENT_BR_CH='';
+/* Le nombre de personnes qui attendent leur entretien, pour colorer l'onglet — compté
+   SANS les noms (voir vListe). */
+let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
+async function loadEntrantsCompte(){
+  if(ENT_N_ENCOURS || !voitEntrants()) return;
+  ENT_N_ENCOURS=true;
+  const avant=ENT_N_AVOIR;
+  try{
+    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le');
+    if(!r.error) ENT_N_AVOIR=(r.data||[]).filter(function(e){ return !(e.acc_social_le && e.acc_medical_le); }).length;
+  }catch(e){}
+  ENT_N_LU=Date.now(); ENT_N_ENCOURS=false;
+  /* On ne redessine que si le nombre a changé : sinon on réécrirait la page pendant
+     qu'elle tape (le piège du 20/08, « ça tremble »). */
+  if(ENT_N_AVOIR!==avant && typeof render==='function') render();
+}
 function monGroupe(){
   if(typeof APERCU_GRP!=='undefined' && APERCU_GRP) return APERCU_GRP;
   if(PROFILE && PROFILE.admin) return 'A';
@@ -37458,6 +37494,18 @@ async function loadEntrants(){
   }catch(e){ ENTRANTS_PANNE="La liste des entrants n'a pas répondu."; }
   ENTRANTS_LU=Date.now(); ENTRANTS_ENCOURS=false;
   render();
+}
+/* ═══ « DATE D'AJOUT », PAS « ARRIVÉ·E » (Mag, 19/09/2026 : « pour la date d'arrivée,
+   marque alors date d'ajout ») ═══
+   `arrive_le` est le jour où le nom a été AJOUTÉ dans COUSIN — personne ne saisit la
+   vraie arrivée (elle a refusé le champ). L'écran, la feuille et le texte disent donc
+   ce que c'est. Une seule fonction pour les trois : « ajouté·e aujourd'hui » ou
+   « ajouté·e le 18/09 · J+1 ». */
+function entrantAjout(e){
+  const j=entrantJours(e);
+  if(j===0) return 'ajouté·e aujourd’hui';
+  const d=new Date(String(e.arrive_le)+'T12:00:00').toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'});
+  return 'ajouté·e le '+d+' · J+'+j;
 }
 function entretienFait(e, ph){ return !!(e[ph+'_social_le'] && e[ph+'_medical_le']); }
 function entrantJours(e){
@@ -37575,7 +37623,7 @@ function entretiensEnTexte(){
   L.push(aVoir.length ? 'À VOIR · '+aVoir.length : 'Personne n’attend son entretien.');
   aVoir.forEach(function(e){
     const j=entrantJours(e);
-    L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  '+(j===0?'arrivé·e aujourd’hui':'J+'+j));
+    L.push('  '+e.nom+(e.chambre?'  —  ch. '+e.chambre:'')+'  —  '+entrantAjout(e));
     L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+'  ·  ROI : '+cs(e,'roi'));
   });
   if(vus.length){
@@ -37626,7 +37674,7 @@ function entretiensCorps(){
     return '<div class="entl'+(accOk?' vu':'')+'">'+
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
         (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
-        '<span class="entj">'+(j===0?'arrivé·e aujourd’hui':'J+'+j)+'</span>'+
+        '<span class="entj">'+entrantAjout(e)+'</span>'+
         '<span style="flex:1"></span>'+
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
         (peutRetirerEntrant()?'<button class="ib sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
@@ -37664,6 +37712,10 @@ function entretiensCorps(){
          Le dessin est celui de WhatsApp (picto/whatsapp.svg, déjà dans l'app). */
       '<button class="imprbtn nu" onclick="partagerEntretiens()" title="Envoyer sur WhatsApp" aria-label="Envoyer sur WhatsApp">'+
         '<img src="picto/whatsapp.svg" alt="" style="width:15px;height:15px"></button>'+
+      /* Partager (Mag, 19/09/2026 : « mets aussi un picto pour partager, et quand tu
+         ouvres, ça marque comme une petite URL ») : une fenêtre qui montre LE LIEN de
+         cet onglet, et le copie. Pour le coller où l'on veut — Signal, un SMS, Teams. */
+      '<button class="imprbtn nu" onclick="lienEntretiens()" title="Le lien" aria-label="Le lien">'+icon('partage')+'</button>'+
     '</div>'+
     '<div class="pcarte entcarte">'+
     '<div class="ptitre"><b>Les entretiens</b><span>'+
@@ -37708,6 +37760,11 @@ function entretiensCorps(){
 /* Le même texte que le mail et le copier, envoyé sur WhatsApp avec le lien vers cet
    onglet. (Le partage du système a été essayé et écarté le 19/09/2026 : sur son Mac il
    ne proposait pas WhatsApp.) */
+function lienEntretiens(){
+  const lien=COUSIN_URL+'/#/liste/entretiens';
+  cousinPop({titre:'Le lien', texte:'', champ:lien, ok:'Copier',
+    quandOui:function(){ copyTxt(lien,'Lien copié'); }});
+}
 function partagerEntretiens(){
   if(!ENTRANTS.length){ toast('La liste est vide — rien à envoyer.'); return; }
   const lien=COUSIN_URL+'/#/liste/entretiens';
