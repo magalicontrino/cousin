@@ -4840,6 +4840,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
 .entmit{cursor:pointer;line-height:1.4;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
   background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
+.entbtns{display:inline-flex;gap:8px;margin-left:auto;flex:none}
+.entcom{display:block;margin:6px 0 0;padding:0;border:0;background:none;text-align:left;cursor:pointer;
+  font:inherit;font-size:14px;line-height:1.4;color:#1b1b1b}
+.entcom i{font-style:normal;font-size:12px;color:#8b8984}
+.entcom.vide{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.06em;color:#b3b0aa}
 .entmit.off{background:none;border:1px dashed #cfccc6;color:#b3b0aa}
 /* Un mi-parcours à voir : le trait de la ligne passe au turquoise, comme sur la feuille. */
 .entl.mi{box-shadow:inset 3px 0 0 #6fc7d9}
@@ -15314,7 +15319,9 @@ function imprimer(){
         const tdv=vu ? td.replace('vertical-align:top','vertical-align:top;color:#555') : td;
         return '<tr><td '+tdn+'><b>'+esc(e.nom)+'</b>'+
           (e.mi_parcours?' <span style="font-family:ui-monospace,monospace;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;background:#d9f1f7;border:1px solid #6fc7d9;border-radius:3px;padding:1px 5px">mi-parcours</span>':'')+
-          (e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+'</td>'+
+          (e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+
+          (e.commentaire?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(e.commentaire)+
+            (e.commentaire_par?' — '+esc(e.commentaire_par):'')+'</span>':'')+'</td>'+
           '<td '+tdv+'>'+esc(e.chambre||'')+'</td><td '+tdv+'>'+colDate(e)+'</td>'+
           '<td '+tdv+'>'+c(e,'acc_social')+'</td><td '+tdv+'>'+c(e,'acc_medical')+'</td>'+
           '<td '+tdv+'>'+(e.mi_parcours?'':c(e,'roi'))+'</td></tr>';
@@ -37746,6 +37753,26 @@ function entrantMiBasculer(id){
     }
   });
 }
+function entrantCommenter(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const ecrire=function(txt){
+    txt=(txt||'').trim().slice(0,300);
+    const avant={commentaire:e.commentaire, commentaire_par:e.commentaire_par, commentaire_le:e.commentaire_le};
+    const maj = txt ? {commentaire:txt, commentaire_par:(nomAffiche()||''), commentaire_le:new Date().toISOString()}
+                    : {commentaire:null, commentaire_par:null, commentaire_le:null};
+    Object.assign(e, maj); render();
+    entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+      if(r.error || !r.data || !r.data.length){
+        Object.assign(e, avant); render();
+        toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+      }
+    });
+  };
+  const o={titre:'Commentaire', texte:e.nom, champ:e.commentaire||'', max:300, multi:true, ok:'Enregistrer',
+    quandOui:function(v){ ecrire(v); }};
+  if(e.commentaire){ o.autre='Retirer'; o.quandAutre=function(){ ecrire(''); }; }
+  cousinPop(o);
+}
 function entrantRetirer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinConfirme('Retirer '+e.nom+' ?', 'La ligne disparaît pour toute l’équipe.', function(){
@@ -37797,6 +37824,7 @@ function entretiensEnTexte(){
     const j=entrantJours(e);
     L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  '+entrantAjout(e));
     L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
+    if(e.commentaire) L.push('     commentaire : '+e.commentaire+(e.commentaire_par?' ('+e.commentaire_par+')':''));
   });
   if(vus.length){
     L.push('');
@@ -37804,6 +37832,7 @@ function entretiensEnTexte(){
     vus.forEach(function(e){
       L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  vu le '+le(entretienFaitLe(e)));
       L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
+      if(e.commentaire) L.push('     commentaire : '+e.commentaire+(e.commentaire_par?' ('+e.commentaire_par+')':''));
     });
   }
   return L.join('\n');
@@ -37854,10 +37883,20 @@ function entretiensCorps(){
         '<button type="button" class="entmit'+(e.mi_parcours?'':' off')+'" onclick="entrantMiBasculer('+e.id+')" '+
           'aria-pressed="'+(e.mi_parcours?'true':'false')+'" title="'+(e.mi_parcours?'Retirer':'Mettre')+' mi-parcours">Mi-parcours</button>'+
         '<span class="entj">'+entrantAjout(e)+'</span>'+
-        '<span style="flex:1"></span>'+
+        /* Les deux boutons restent ENSEMBLE, à droite : sur téléphone ils passaient à la
+           ligne un par un, la corbeille seule sous le premier. */
+        '<span class="entbtns">'+
         '<button class="ib" onclick="go(\'#/accueil-personne\')" title="Premier accueil" aria-label="Premier accueil">'+icon('accomp')+'</button>'+
         (peutRetirerEntrant()?'<button class="ib sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
+        '</span>'+
       '</div>'+
+      /* ═══ LE COMMENTAIRE (Mag, 19/09/2026 : « peut-être pouvoir mettre un
+         commentaire », puis « ok ») ═══ Une ligne sous le nom, écrite et lue par tous,
+         signée. Vide, il ne reste qu'un petit « + commentaire » discret. */
+      (e.commentaire
+        ? '<button type="button" class="entcom" onclick="entrantCommenter('+e.id+')" title="Modifier le commentaire">'+
+            esc(e.commentaire)+(e.commentaire_par?'<i> — '+esc(e.commentaire_par)+'</i>':'')+'</button>'
+        : '<button type="button" class="entcom vide" onclick="entrantCommenter('+e.id+')">+ commentaire</button>')+
       /* ⚠ DEUX CASES, PLUS QUATRE (Mag, 18/09/2026 : « retire le mi-parcours de la
          nouvelle structure »). La rangée portait Arrivée (social, médical) PUIS
          Mi-parcours (social, médical) : six éléments qui repassaient à la ligne sur un
