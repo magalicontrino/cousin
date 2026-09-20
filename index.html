@@ -26235,7 +26235,18 @@ function mailsPourFiche(p){
        ressemble » mais « quel mail va avec CELLE-CI ». On garde le seul point ① .
        ⚠ La relance ne s'affiche donc plus ici : elle reste sur les fiches CPAS et
        services sociaux, et sous chaque modèle de mail (« Pas de réponse ? »). */
-    if(!exact.length && kw.length && parSujet.indexOf(kw[0])>=0) score+=2;
+    /* ═══ ⚠ UN MAIL DE CPAS NE VA QUE SUR UNE FICHE DE CPAS (Mag, 20/09/2026) ═══
+       « Quand tu cliques sur une mutuelle, tu as des mails qui n'ont aucun rapport.
+       Pourquoi on parle de demande d'adresse de référence dans les mutuelles ? »
+       Le tiroir `social` mélange 52 fiches : les 22 CPAS, mais aussi les mutuelles, les
+       fontaines, les douches, les repas, Les Petits Riens. Le sujet du TIROIR les
+       arrosait toutes avec le réquisitoire, le RIS et l'adresse de référence — trois
+       démarches qui ne se demandent qu'à un CPAS.
+       ⚠ On ne devine rien : ces trois-là ne sortent que si la fiche EST un CPAS. */
+    const CPAS_SEUL=['Réquisitoire','Adresse de référence','RIS'];
+    const estCPAS = p.domaine==='cpas' || /CPAS/i.test(String(p.nom||''));
+    const bloque = kw.length && CPAS_SEUL.indexOf(kw[0])>=0 && !estCPAS;
+    if(!exact.length && !bloque && kw.length && parSujet.indexOf(kw[0])>=0) score+=2;
     /* ⚠ SAUF LA RELANCE, QUI RESTE PARTOUT (Mag, 05/09/2026 : « je ne comprends pas
        bien, les relances elles pouvaient rester »). Elle a raison et c'est moi qui
        avais coupé trop large : la relance n'est pas « un autre mail qui ressemble »,
@@ -26246,6 +26257,10 @@ function mailsPourFiche(p){
     if(score) out.push({m:m, s:score});
   }
   out.sort(function(a,b){ return (b.s-a.s) || String(a.m.nom).localeCompare(String(b.m.nom),'fr'); });
+  /* ⚠ UNE RELANCE TOUTE SEULE N'A AUCUN SENS (même jour) : on relance un mail qu'on a
+     écrit. Si la fiche n'a rien d'autre à proposer, elle n'a pas de mail du tout. */
+  const utiles=out.filter(function(x){ return (x.m.keywords||[])[0]!=='Relance'; });
+  if(!utiles.length) return [];
   return out.slice(0,3).map(function(x){ return x.m; });
 }
 /* Copier l'objet ET le corps d'un coup : c'est ce qu'on colle dans un mail. */
