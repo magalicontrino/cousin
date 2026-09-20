@@ -4847,7 +4847,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:5px 11px;cursor:pointer}
 .entseg button.on{background:#e8308a;color:#fdfdfc;font-weight:700}
 .entarr-l{padding:8px 0;border-top:1px solid #e6e4df}
-.entarr-n{font-size:14.5px;font-weight:600;line-height:1.3}
+.entarr-n{display:block;width:100%;text-align:left;border:0;background:none;padding:0;cursor:pointer;
+  font-family:inherit;font-size:14.5px;font-weight:600;line-height:1.3;color:var(--noir)}
+.entnom{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:16px;
+  font-weight:700;color:var(--noir);text-align:left}
 .entarr-d{display:flex;align-items:center;gap:8px;margin-top:5px}
 /* ⚠ EN FUCHSIA (Mag, 20/09/2026 : « le bouton LAM / MÉDICAL doit être un peu plus
    coloré, comme du fuchsia ») : le rose pâle pour le médical, le fuchsia plein pour le
@@ -38222,7 +38225,9 @@ function arriveesHTML(){
        place que le nom. On voit ce qui EST, on clique pour changer. */
     L.map(function(e){
       return '<div class="entarr-l">'+
-        '<div class="entarr-n">'+esc(e.nom)+'</div>'+
+        /* Le nom se corrige : on le tape vite, à l'oreille (Mag, 20/09/2026 : « on doit
+           aussi pouvoir modifier les noms qu'on a écrits »). */
+        '<button type="button" class="entarr-n" onclick="entrantNom('+e.id+')" title="Corriger le nom">'+esc(e.nom)+'</button>'+
         '<div class="entarr-d">'+
           '<button class="entarr-t'+(e.lam?' lam':'')+'" onclick="arriveeLam('+e.id+','+(e.lam?'false':'true')+')" '+
             'title="'+(e.lam?'Passer en Médical':'Passer en LAM')+'">'+(e.lam?'LAM':'MÉD')+'</button>'+
@@ -38339,6 +38344,22 @@ function roiOuvrir(){
     '<div class="entpart-b"><button class="dembtn" onclick="document.getElementById(\'roiBg\').classList.remove(\'on\')">Fermer</button></div>'+
   '</div>';
   bg.classList.add('on');
+}
+/* Corriger un nom, dans les arrivées comme dans les entretiens. */
+function entrantNom(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinPop({titre:'Le nom', texte:'', champ:e.nom||'', max:80, ok:'Enregistrer',
+    quandOui:function(v){
+      const n=String(v||'').trim().slice(0,80); if(!n) return;
+      const avant=e.nom;
+      e.nom=n; render();
+      entEcrit(); sb.from('entrants').update({nom:n}).eq('id',id).select().then(function(r){
+        if(r.error || !r.data || !r.data.length){
+          e.nom=avant; render();
+          toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+        }
+      });
+    }});
 }
 function entrantChambre(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
@@ -38510,7 +38531,7 @@ function entretiensCorps(){
   const ligne=function(e){
     const j=entrantJours(e), accOk=entretienFait(e,'acc');
     return '<div class="entl'+(accOk?' vu':'')+(e.mi_parcours?' mi':'')+'">'+
-      '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
+      '<div class="entl-h"><button type="button" class="entnom" onclick="entrantNom('+e.id+')" title="Corriger le nom">'+esc(e.nom)+'</button>'+
         /* ⚠ LA CHAMBRE SE CHANGE (Mag, 20/09/2026 : « ici on ne peut plus changer le
            numéro de chambre ») : on ajoute un nom vite, la chambre arrive après, et les
            gens changent d'étage. Un clic dessus l'ouvre ; vide, elle se propose. */
