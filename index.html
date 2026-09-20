@@ -4847,6 +4847,7 @@ body.pan-ouvert #view{animation:none;transform:none}
    Ligne 1 : le nom, seul. Ligne 2 : chambre, langue, mi-parcours, Ajouter. */
 .entcarte .entadd #entNom{flex:1 1 100%}
 .entcarte .entadd .entadd-lg{flex:1 1 120px}
+.entcarte .entadd .entadd-com{flex:1 1 100%}
 .entcarte .entadd .chaddbtn{flex:none}
 /* L'étiquette d'un entretien de mi-parcours, sur la ligne. */
 .entmit{cursor:pointer;line-height:1.4;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
@@ -37831,7 +37832,7 @@ setInterval(function(){
 document.addEventListener('visibilitychange', function(){
   if(!document.hidden && entOnglet()) loadEntrants();
 });
-let ENT_BR_NOM='', ENT_BR_CH='', ENT_BR_LG='', ENT_BR_MI=false;
+let ENT_BR_NOM='', ENT_BR_CH='', ENT_BR_LG='', ENT_BR_MI=false, ENT_BR_COM='';
 /* Le nombre de personnes qui attendent leur entretien, pour colorer l'onglet — compté
    SANS les noms (voir vListe). */
 let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
@@ -37932,10 +37933,13 @@ function entrantAjouter(){
      ligne est alors un entretien de MI-PARCOURS ; sans lui, un entretien d'arrivée. */
   entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,12)||null, langue:lg.slice(0,40)||null,
       mi_parcours:!!ENT_BR_MI,
+      commentaire:((ENT_BR_COM||'').trim().slice(0,300))||null,
+      commentaire_par:((ENT_BR_COM||'').trim()?(nomAffiche()||''):null),
+      commentaire_le:((ENT_BR_COM||'').trim()?new Date().toISOString():null),
       ajoute_par:(nomAffiche()||'')}).select()
     .then(function(r){
       if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
-      ENTRANTS.push(r.data[0]); ENT_BR_NOM=''; ENT_BR_CH=''; ENT_BR_LG=''; ENT_BR_MI=false; render();
+      ENTRANTS.push(r.data[0]); ENT_BR_NOM=''; ENT_BR_CH=''; ENT_BR_LG=''; ENT_BR_MI=false; ENT_BR_COM=''; render();
     });
 }
 function entrantCocher(id, k){
@@ -38252,6 +38256,10 @@ function entretiensCorps(){
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,3);ENT_BR_CH=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
       '<input id="entLg" class="entadd-lg" type="text" placeholder="Langue" autocomplete="off" maxlength="40" value="'+esc(ENT_BR_LG)+'" '+
         'oninput="ENT_BR_LG=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
+      /* ⚠ LE COMMENTAIRE S'ÉCRIT DÈS L'AJOUT (Mag, 20/09/2026 : « ça évite de le
+         réécrire en bas »). Il se change ensuite sur la ligne, comme avant. */
+      '<input id="entCom" class="entadd-com" type="text" placeholder="Commentaire" autocomplete="off" maxlength="300" value="'+esc(ENT_BR_COM)+'" '+
+        'oninput="ENT_BR_COM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();entrantAjouter();}">'+
       '<button type="button" class="entc entmi'+(ENT_BR_MI?' on':'')+'" onclick="ENT_BR_MI=!ENT_BR_MI;render()" '+
         'aria-pressed="'+(ENT_BR_MI?'true':'false')+'"><span class="entb">'+(ENT_BR_MI?'✓':'')+'</span>Mi-parcours</button>'+
       '<button class="chaddbtn" onclick="entrantAjouter()">Ajouter</button>'+
