@@ -38029,26 +38029,41 @@ function entrantCommenter(id){
   if(e.commentaire){ o.autre='Retirer'; o.quandAutre=function(){ ecrire(''); }; }
   cousinPop(o);
 }
-/* ⚠ REMONTER EFFACE LES COCHES, ET ON LE DIT (Mag, 20/09/2026) : c'est le geste de
-   l'erreur — « ce n'est pas lui qui a été vu ». Les trois cases repartent à zéro, avec
-   les noms de qui avait coché : sinon la ligne redescendrait aussitôt. */
+/* ═══ REMONTER, C'EST DÉCOCHER (Mag, 20/09/2026) ═══
+   « Ce qui serait plus malin, c'est que dans la pop-up on revoie les cases à cocher et
+   qu'on puisse en décocher une. » La première version effaçait les trois d'un coup —
+   or l'erreur est presque toujours sur UNE case (« ce n'est pas le médical qui l'a
+   vu »). La fenêtre montre donc les cases telles qu'elles sont, avec qui a coché ;
+   on décoche celle qui est fausse, et la ligne remonte d'elle-même dans « À voir ».
+   ⚠ Recocher ici met SON nom et l'heure, comme sur la ligne. */
 function entrantRemonter(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
-  cousinConfirme('Remonter '+e.nom+' dans « À voir » ?',
-    'Les cases Social, Médical et ROI seront décochées.', function(){
-    const avant={acc_social_le:e.acc_social_le, acc_social_par:e.acc_social_par,
-      acc_medical_le:e.acc_medical_le, acc_medical_par:e.acc_medical_par,
-      roi_le:e.roi_le, roi_par:e.roi_par};
-    const maj={acc_social_le:null, acc_social_par:null, acc_medical_le:null,
-      acc_medical_par:null, roi_le:null, roi_par:null};
-    Object.assign(e, maj); render();
-    entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
-      if(r.error || !r.data || !r.data.length){
-        Object.assign(e, avant); render();
-        toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
-      }
-    });
-  }, {ok:'Remonter'});
+  const cases=[{k:'acc_social', l:'Social'},{k:'acc_medical', l:'Médical'}]
+    .concat(e.mi_parcours?[]:[{k:'roi', l:'ROI signé'}]);
+  const etq=cases.map(function(c){
+    return {k:c.k, l:c.l+(e[c.k+'_par']?' — '+e[c.k+'_par']:'')};
+  });
+  const sel=cases.filter(function(c){ return !!e[c.k+'_le']; }).map(function(c){ return c.k; });
+  cousinPop({titre:'Les cases de '+e.nom, texte:'Décoche celle qui est fausse.',
+    etq:etq, etqSel:sel, ok:'Enregistrer',
+    quandOui:function(v, plus, coche){
+      const avant={}, maj={};
+      cases.forEach(function(c){
+        const etait=!!e[c.k+'_le'], veut=!!(coche && coche[c.k]);
+        avant[c.k+'_le']=e[c.k+'_le']; avant[c.k+'_par']=e[c.k+'_par'];
+        if(etait===veut) return;
+        maj[c.k+'_le']=veut?new Date().toISOString():null;
+        maj[c.k+'_par']=veut?(nomAffiche()||''):null;
+      });
+      if(!Object.keys(maj).length) return;
+      Object.assign(e, maj); render();
+      entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+        if(r.error || !r.data || !r.data.length){
+          Object.assign(e, avant); render();
+          toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+        }
+      });
+    }});
 }
 function entrantRetirer(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
@@ -38270,7 +38285,7 @@ function entretiensCorps(){
              Le crayon change le commentaire · la flèche la remonte dans « À voir » ·
              la corbeille la retire, et elle est rouge comme celle du haut. */
           '<button class="entvus-b" onclick="entrantCommenter('+e.id+')" title="Commentaire" aria-label="Commentaire">'+icon('crayon')+'</button>'+
-          '<button class="entvus-b" onclick="entrantRemonter('+e.id+')" title="Remonter dans À voir" aria-label="Remonter dans À voir">'+icon('undo')+'</button>'+
+          '<button class="entvus-b" onclick="entrantRemonter('+e.id+')" title="Corriger les cases" aria-label="Corriger les cases">'+icon('undo')+'</button>'+
           (peutRetirerEntrant()?'<button class="entvus-b sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
         '</div>'+
         (e.commentaire?'<div class="entvus-c">'+esc(e.commentaire)+(e.commentaire_par?' <i>— '+esc(e.commentaire_par)+'</i>':'')+'</div>':'');
