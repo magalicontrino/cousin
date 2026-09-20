@@ -4869,6 +4869,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .ctap b{display:block;font-size:20px;line-height:1.05}
 .ctap em{font-style:normal;font-size:11.5px;display:block;margin-top:2px}
 .entbtns{display:inline-flex;gap:8px;margin-left:auto;flex:none}
+/* La réserve de secours : le bandeau de reprise et le petit mot « enregistré ». */
+.notsec{border:1px dashed #c9c6c0;border-radius:10px;background:#f7f6f3;padding:9px 12px;margin-top:8px}
+.notsec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.notsec-h b{font-size:14px}
+.notsec-h span{font-family:ui-monospace,monospace;font-size:11px;color:#8b8984;margin-right:auto}
+.notsec-t{font-size:13px;color:#55534f;margin-top:5px;white-space:pre-wrap}
+.entsec{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 0;padding:9px 11px;
+  background:#fdf6e3;border:1.25px solid #f5c542;border-radius:10px;font-size:13.5px}
+.entsec b{font-size:13.5px}
+.entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#6cb392;min-height:14px;margin-top:4px}
 .entcom{display:block;margin:6px 0 0;padding:0;border:0;background:none;text-align:left;cursor:pointer;
   font:inherit;font-size:14px;line-height:1.4;color:#1b1b1b}
 .entcom i{font-style:normal;font-size:12px;color:#8b8984}
@@ -7223,8 +7234,14 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <button id="entMic" class="notmic" onclick="notParler()"><span class="notpt"></span>Parler</button>
 
     <div id="entAide" class="notaide"></div>
-    <textarea id="entTxt" class="notchamp" rows="12"
+    <div id="entSecours" class="entsec" style="display:none">
+      <b>Un texte plus récent a été retrouvé.</b>
+      <span><button class="dembtn clair" onclick="entReprendre()">Reprendre</button>
+      <button class="dembtn clair" onclick="entJeter()">Jeter</button></span>
+    </div>
+    <textarea id="entTxt" class="notchamp" rows="12" oninput="entSaisie(this.value)"
       placeholder="..."></textarea>
+    <div id="entEtat" class="entetat"></div>
     <div id="entAlerte" class="notalerte" style="display:none"></div>
     <div id="entPanne" class="dempanne" style="display:none"></div>
     <div class="notb">
@@ -30066,7 +30083,82 @@ function notCouper(){
 function notBrouillon(){
   try{ localStorage.setItem('lux_note_brouillon', NOT_TXT||''); }catch(e){}
 }
-function notSaisie(v){ NOT_TXT=v||''; notBrouillon(); }
+function notSaisie(v){ NOT_TXT=v||''; notBrouillon(); notSecours('libre','Note libre', v); }
+
+/* ═══ LA RÉSERVE DE SECOURS (Mag, 20/09/2026) ═══
+   « Si la page saute, je perds tout l'entretien. Il faudrait des enregistrements à
+   intervalles de secondes, et qu'on puisse garder jusqu'à 10 entretiens en réserve. »
+   Trois filets, du plus rapide au plus sûr :
+   ① À CHAQUE FRAPPE, le texte part dans la réserve de l'appareil (`lux_notes_secours`),
+      dix entretiens au plus, le plus ancien sort. Ça survit à une page qui saute, à un
+      téléphone éteint, à un onglet fermé.
+   ② TOUTES LES 4 SECONDES d'arrêt de frappe, la note est rangée pour de bon sur la
+      personne (le même geste que « Garder »), donc dans la base.
+   ③ EN ROUVRANT, si la réserve contient plus récent que ce qui est rangé, la fenêtre
+      propose « Reprendre » ou « Jeter » — on n'écrase jamais sans le dire.
+   ⚠ La réserve ne remplace pas « Garder » : c'est une corde de rappel, pas le tiroir. */
+const NOT_SEC_MAX=10;
+function notSecoursLire(){
+  try{ return JSON.parse(localStorage.getItem('lux_notes_secours')||'[]'); }catch(e){ return []; }
+}
+function notSecoursEcrire(L){
+  try{ localStorage.setItem('lux_notes_secours', JSON.stringify(L.slice(0,NOT_SEC_MAX))); }catch(e){}
+}
+function notSecours(cle, titre, texte){
+  const t=(texte||'').trim();
+  let L=notSecoursLire().filter(function(x){ return x.cle!==cle; });
+  if(t) L.unshift({cle:cle, titre:titre||'La note', t:t.slice(0,6000), q:new Date().toISOString()});
+  notSecoursEcrire(L);
+}
+/* Reprendre un texte de la réserve DANS LA PAGE Notes : il revient dans la case, et
+   rien n'est perdu — la réserve le garde jusqu'à ce qu'elle déborde. */
+function notSecoursReprendre(i){
+  const L=notSecoursLire(); const x=L[i]; if(!x) return;
+  const actuel=(NOT_TXT||'').trim();
+  const poser=function(){ NOT_TXT=x.t; notBrouillon(); render(); toast('Repris'); };
+  if(actuel && actuel!==x.t){
+    cousinConfirme('Remplacer ce qui est écrit ?', 'Ton texte en cours part dans la réserve.', function(){
+      notSecours('libre','Note libre', actuel); poser();
+    }, {ok:'Remplacer'});
+    return;
+  }
+  poser();
+}
+function notSecoursVider(){
+  cousinConfirme('Vider la réserve ?', 'Les dix textes de secours seront effacés de cet appareil.', function(){
+    notSecoursEcrire([]); render();
+  }, {ok:'Vider', danger:true});
+}
+function notSecoursPour(cle){
+  return notSecoursLire().find(function(x){ return x.cle===cle; })||null;
+}
+/* La frappe dans la note d'un entretien : réserve tout de suite, rangement 4 s après. */
+let _entMinuteur=0;
+function entSaisie(v){
+  const c=notCibleObjet();
+  notSecours(NOT_CIBLE||'libre', (c&&c.titre)||'La note', v);
+  const b=document.getElementById('entSecours'); if(b) b.style.display='none';
+  clearTimeout(_entMinuteur);
+  _entMinuteur=setTimeout(function(){
+    try{
+      const cc=notCibleObjet(); if(!cc) return;
+      cc.o.note=(notLire('entTxt')||'').slice(0,6000); cc.sauver();
+      const e=document.getElementById('entEtat');
+      if(e){ e.textContent='enregistré'; setTimeout(function(){ if(e) e.textContent=''; }, 2500); }
+    }catch(e){}
+  }, 4000);
+}
+/* Reprendre le texte de la réserve dans la fenêtre ouverte. */
+function entReprendre(){
+  const s=notSecoursPour(NOT_CIBLE||'libre'); if(!s) return;
+  notEcrire(s.t,'entTxt');
+  const b=document.getElementById('entSecours'); if(b) b.style.display='none';
+  entSaisie(s.t);
+}
+function entJeter(){
+  notSecours(NOT_CIBLE||'libre','', '');
+  const b=document.getElementById('entSecours'); if(b) b.style.display='none';
+}
 
 /* Redessiner : la page entière, la fenêtre de la note, ou seulement le bouton.
    ⚠ QUAND ON DICTE DANS UNE CASE QUELCONQUE, ON NE REDESSINE QUE SON BOUTON. La
@@ -30394,6 +30486,24 @@ h+='<div class="notbarre">'+mic+'<div class="notb">'+
   h+=champ;
   if(NOT_PANNE) h+='<div class="dempanne">'+esc(NOT_PANNE)+'</div>';
   if(NOT_ENCOURS) h+='<div class="demvide">Je corrige…</div>';
+  /* ═══ LA RÉSERVE DE SECOURS, VISIBLE (Mag, 20/09/2026) ═══
+     Les dix derniers textes écrits, sur cet appareil, même ceux qu'on n'a jamais gardés.
+     C'est là qu'on retrouve l'entretien d'une page qui a sauté. */
+  (function(){
+    const L=(typeof notSecoursLire==='function')?notSecoursLire():[];
+    if(!L.length) return;
+    h+='<div class="demlbl" style="display:flex;align-items:center;gap:10px;margin-top:22px">'+
+         '<span style="margin-right:auto">Réserve de secours · '+L.length+'</span>'+
+         '<button class="notgb" onclick="notSecoursVider()">Vider</button></div>';
+    L.forEach(function(x,i){
+      h+='<div class="notsec">'+
+           '<div class="notsec-h"><b>'+esc(x.titre||'La note')+'</b>'+
+             '<span>'+esc(notHeure(x.q))+'</span>'+
+             '<button class="notgb" onclick="notSecoursReprendre('+i+')">Reprendre</button></div>'+
+           '<div class="notsec-t">'+esc((x.t||'').slice(0,240))+((x.t||'').length>240?'…':'')+'</div>'+
+         '</div>';
+    });
+  })();
   if(NOTES.length){
     /* ⚠ « SI ON NE PEUT PAS EFFACER LES NOTES, ON VA EN AVOIR TROP AU BOUT D'UN
        MOMENT » (Mag, 07/09/2026). Le bouton est à côté du titre, pas perdu en bas de
@@ -35972,6 +36082,10 @@ function entOuvrir(id){
   NOT_AVANT=''; NOT_APRES=null; NOT_PANNE=''; NOT_ALERTE='';
   const t=document.getElementById('entTitre'); if(t) t.textContent=cible.titre||'La note';
   const c=document.getElementById('entTxt'); if(c) c.value=cible.o.note||'';
+  /* La réserve contient-elle mieux que ce qui est rangé ? (page qui a sauté) */
+  const sec=notSecoursPour(id), bs=document.getElementById('entSecours');
+  if(bs) bs.style.display=(sec && sec.t && sec.t!==(cible.o.note||'')) ? '' : 'none';
+  const et=document.getElementById('entEtat'); if(et) et.textContent='';
   if(!NOT_PERM) notLirePermission();
   /* Les pictos de cette fenêtre sont posés une fois, à la première ouverture. */
   document.querySelectorAll('#entBg .ic[data-ic]').forEach(function(e){
