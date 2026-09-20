@@ -9,3 +9,9 @@
 -- ===========================================================================
 alter table public.entrants add column if not exists pour_entretien boolean not null default true;
 -- -- PASSE DANS SUPABASE LE 20/09/2026 par Claude (pont Chrome) : 4 entretiens, 0 arrivees.
+
+-- 20/09/2026, meme jour : "il faut mettre que des noms et LAM au medical", et surtout
+-- "le jour et la date, c'est tres important qu'on sache quand elle arrive".
+-- Le jour d'arrivee se range dans arrive_le (la colonne existe deja) ; LAM est neuf.
+alter table public.entrants add column if not exists lam boolean not null default false;
+-- -- PASSE DANS SUPABASE LE 20/09/2026 par Claude (pont Chrome) : colonne presente.

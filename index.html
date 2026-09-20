@@ -4836,7 +4836,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entarr-add{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 2px}
 .entarr-add input{flex:1 1 130px;min-width:0;border:1.25px solid var(--trait);border-radius:9px;
   padding:8px 11px;font:inherit;font-size:14px;background:#fdfdfc}
-.entarr-add input#arrCh{flex:0 0 84px}
+.entarr-add input#arrJour{flex:0 0 150px;font-family:ui-monospace,monospace;font-size:13px}
+.entarr-add .entc{flex:none}
+.entlam{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  background:#d9f1f7;border:1.25px solid #6fc7d9;border-radius:4px;padding:1px 6px;color:#1b1b1b}
 .entarr-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid #e6e4df}
 .entarr-l b{font-size:14.5px}
 .entarr-m{font-family:ui-monospace,monospace;font-size:11px;color:#8b8984}
@@ -4910,14 +4913,17 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entsec b{font-size:13.5px}
 .entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#6cb392;min-height:14px;margin-top:4px}
-.popcard.roidoc{max-width:440px}
-.roigr{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:#6b6963;margin:16px 0 8px}
-.roiL{display:flex;gap:7px;flex-wrap:wrap}
-.roibtn{display:inline-flex;align-items:center;gap:7px;border:1.25px solid var(--trait);border-radius:9px;
-  padding:8px 12px;background:#fdfdfc;font-size:13.5px;color:var(--noir);cursor:pointer}
-.roibtn i{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.08em;
-  color:#8b8984;border:1px solid var(--ligne);border-radius:4px;padding:1px 4px}
+.popcard.roidoc{max-width:460px}
+.roigr{display:flex;align-items:center;gap:8px;border-radius:9px;padding:6px 11px;margin:16px 0 9px;
+  font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.roigr i{font-style:normal;margin-left:auto;font-size:11px}
+.roiL{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.roibtn{display:flex;align-items:center;gap:9px;border:1.5px solid var(--ligne);border-radius:11px;
+  padding:8px 10px;background:#fdfdfc;color:var(--noir);cursor:pointer}
+.roibtn b{font-family:ui-monospace,monospace;font-size:12px;font-weight:700;border-radius:7px;
+  padding:5px 7px;flex:none}
+.roibtn span{display:flex;flex-direction:column;min-width:0;font-size:13.5px;line-height:1.2}
+.roibtn em{font-style:normal;font-size:10.5px;color:#8b8984;margin-top:2px}
 .entacc{display:inline-flex;align-items:center;gap:8px;border:1.25px solid var(--trait);border-radius:20px;
   padding:8px 14px;background:#fdfdfc;font-family:inherit;font-size:13.5px;color:var(--noir);cursor:pointer}
 .entacc svg,.entacc .pico{width:17px;height:17px}
@@ -38027,8 +38033,9 @@ function entrantRang(e){ return entretienFait(e,'acc') ? 1 : 0; }
    l'une à l'autre, c'est un seul clic, et rien n'est retapé. */
 function estArrivee(e){ return e && e.pour_entretien===false; }
 function arriveesTriees(){
+  /* La plus proche en premier : c'est celle qu'on va voir arriver. */
   return ENTRANTS.filter(estArrivee).slice().sort(function(a,b){
-    return String(b.arrive_le||'').localeCompare(String(a.arrive_le||'')) || (b.id-a.id);
+    return String(a.arrive_le||'').localeCompare(String(b.arrive_le||'')) || (a.id-b.id);
   });
 }
 function entrantsTries(){
@@ -38125,7 +38132,21 @@ function entrantMiBasculer(id){
    porte deux gestes — « → entretien » (elle descend dans la liste du dessous, déjà
    remplie) et « copier » (le nom seul, pour le recoller ailleurs).
    ⚠ Tout le monde n'a pas d'entretien : cette liste sert d'abord à SAVOIR QUI EST LÀ. */
-let ARR_BR_NOM='', ARR_BR_CH='';
+/* ⚠ PAS DE CHAMBRE À L'ARRIVÉE (Mag, 20/09/2026 : « pour les arrivées, il n'y a pas
+   encore de chambre ; il faut mettre que des noms et LAM au médical »). Ce qui compte
+   ici, c'est le NOM, le JOUR où la personne arrive, et si c'est un LAM. La chambre se
+   met plus tard, sur la ligne de l'entretien. */
+let ARR_BR_NOM='', ARR_BR_JOUR='', ARR_BR_LAM=false;
+function arrJourDefaut(){
+  if(ARR_BR_JOUR) return ARR_BR_JOUR;
+  const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* « jeudi 24/09 » — le jour compte autant que la date : on s'organise par jour. */
+function arrJourTxt(iso){
+  if(!iso) return '';
+  const d=new Date(String(iso)+'T12:00:00');
+  return d.toLocaleDateString('fr-BE',{weekday:'long',day:'2-digit',month:'2-digit'});
+}
 function arriveesHTML(){
   const L=arriveesTriees();
   return '<div class="entarr">'+
@@ -38133,15 +38154,19 @@ function arriveesHTML(){
     '<div class="entarr-add">'+
       '<input id="arrNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ARR_BR_NOM)+'" '+
         'oninput="ARR_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();arriveeAjouter();}">'+
-      '<input id="arrCh" type="text" placeholder="N° ch." inputmode="numeric" autocomplete="off" maxlength="3" value="'+esc(ARR_BR_CH)+'" '+
-        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,3);ARR_BR_CH=this.value" '+
-        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();arriveeAjouter();}">'+
+      '<input id="arrJour" type="date" value="'+esc(arrJourDefaut())+'" '+
+        'title="Jour d’arrivée" oninput="ARR_BR_JOUR=this.value">'+
+      '<button type="button" class="entc entmi'+(ARR_BR_LAM?' on':'')+'" onclick="ARR_BR_LAM=!ARR_BR_LAM;render()" '+
+        'aria-pressed="'+(ARR_BR_LAM?'true':'false')+'"><span class="entb">'+(ARR_BR_LAM?'✓':'')+'</span>LAM</button>'+
       '<button class="chaddbtn" onclick="arriveeAjouter()">Ajouter</button>'+
     '</div>'+
     L.map(function(e){
       return '<div class="entarr-l"><b>'+esc(e.nom)+'</b>'+
-        (e.chambre?'<span class="entarr-m">ch. '+esc(e.chambre)+'</span>':'')+
+        (e.lam?'<span class="entlam">LAM</span>':'')+
+        '<span class="entarr-m">'+esc(arrJourTxt(e.arrive_le))+'</span>'+
         '<span class="entarr-g">'+
+        /* ⚠ ON NE PASSE EN ENTRETIEN QUE SI LA PERSONNE EST BIEN ARRIVÉE et qu'il faut un
+           entretien d'entrée (Mag, 20/09/2026) : d'où la question avant. */
         '<button class="entarr-b" onclick="arriveeVersEntretien('+e.id+')">→ entretien</button>'+
         '<button class="entarr-b" onclick="copyTxt('+JSON.stringify(e.nom).replace(/"/g,'&quot;')+',\'Nom copié\')">copier</button>'+
         (peutRetirerEntrant()?'<button class="entvus-b sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
@@ -38152,15 +38177,20 @@ function arriveesHTML(){
 }
 function arriveeAjouter(){
   const n=(ARR_BR_NOM||'').trim(); if(!n){ toast('Écris un nom.'); return; }
-  const c=(ARR_BR_CH||'').trim();
-  entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), chambre:c.slice(0,3)||null,
-    pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select().then(function(r){
+  entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), arrive_le:arrJourDefaut(),
+    lam:!!ARR_BR_LAM, pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select().then(function(r){
     if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
-    ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_CH=''; render();
+    ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_LAM=false; render();
   });
 }
 /* La ligne descend dans les entretiens : le nom et la chambre sont déjà là. */
 function arriveeVersEntretien(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinConfirme(e.nom+' est bien arrivé·e ?', 'La ligne passe dans les entretiens à faire.', function(){
+    arriveeVersEntretienFaire(id);
+  }, {ok:'Oui, en entretien'});
+}
+function arriveeVersEntretienFaire(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   e.pour_entretien=true; render();
   entEcrit(); sb.from('entrants').update({pour_entretien:true}).eq('id',id).select().then(function(r){
@@ -38179,19 +38209,22 @@ function arriveeVersEntretien(id){
    se téléchargent — un navigateur ne sait pas les afficher.
    ⚠ Ces fichiers sont dans `documents/`, qui est PUBLIC. Ce sont des documents remis aux
    personnes accueillies ; si l'un d'eux ne doit pas l'être, il sort d'ici. */
+/* ⚠ ON DIT « ROI », PAS « RÈGLEMENT » (Mag, 20/09/2026) : c'est le mot de l'équipe.
+   Et le dessin est en couleurs, une par groupe, avec le code de la langue en gros —
+   on cherche une LANGUE dans cette fenêtre, pas un titre. */
 const ROI_DOCS=[
-  {t:'À faire signer — la charte d’engagement', l:[
-    {f:'charte-fr.pdf', n:'Français'}, {f:'charte-nl.pdf', n:'Néerlandais'},
-    {f:'charte-en.pdf', n:'Anglais'},  {f:'charte-ar.pdf', n:'Arabe'},
-    {f:'charte-ru.pdf', n:'Russe'}
+  {t:'La charte à faire signer', c:'#fbd3e6', e:'#993556', l:[
+    {f:'charte-fr.pdf', n:'Français', k:'FR'}, {f:'charte-nl.pdf', n:'Néerlandais', k:'NL'},
+    {f:'charte-en.pdf', n:'Anglais', k:'EN'},  {f:'charte-ar.pdf', n:'Arabe', k:'AR'},
+    {f:'charte-ru.pdf', n:'Russe', k:'RU'}
   ]},
-  {t:'Le règlement en entier', l:[
-    {f:'roi-complet-fr.pdf', n:'Français'}
+  {t:'Le ROI en entier', c:'#d9f1f7', e:'#1e6472', l:[
+    {f:'roi-complet-fr.pdf', n:'Français', k:'FR'}
   ]},
-  {t:'Le résumé du règlement', l:[
-    {f:'resume-fr.pdf', n:'Français'},   {f:'resume-en.docx', n:'Anglais'},
-    {f:'resume-de.docx', n:'Allemand'},  {f:'resume-es.docx', n:'Espagnol'},
-    {f:'resume-pl.docx', n:'Polonais'},  {f:'resume-pa.docx', n:'Pendjabi'}
+  {t:'Le résumé du ROI', c:'#fdf1c9', e:'#7a5c0a', l:[
+    {f:'resume-fr.pdf', n:'Français', k:'FR'},   {f:'resume-en.docx', n:'Anglais', k:'EN'},
+    {f:'resume-de.docx', n:'Allemand', k:'DE'},  {f:'resume-es.docx', n:'Espagnol', k:'ES'},
+    {f:'resume-pl.docx', n:'Polonais', k:'PL'},  {f:'resume-pa.docx', n:'Pendjabi', k:'PA'}
   ]}
 ];
 function roiOuvrir(){
@@ -38202,14 +38235,16 @@ function roiOuvrir(){
     document.body.appendChild(bg);
   }
   bg.innerHTML='<div class="popcard roidoc" role="dialog" aria-modal="true">'+
-    '<b>Charte &amp; règlement</b>'+
+    '<b>Charte &amp; ROI</b>'+
     ROI_DOCS.map(function(g){
-      return '<div class="roigr">'+esc(g.t)+'</div>'+
+      return '<div class="roigr" style="background:'+g.c+';color:'+g.e+'">'+esc(g.t)+
+          '<i>'+g.l.length+'</i></div>'+
         '<div class="roiL">'+g.l.map(function(d){
           const pdf=/\.pdf$/i.test(d.f);
-          return '<a class="roibtn" href="documents/roi/'+d.f+'" '+
+          return '<a class="roibtn" style="border-color:'+g.c+'" href="documents/roi/'+d.f+'" '+
             (pdf?'target="_blank" rel="noopener"':'download')+'>'+
-            esc(d.n)+'<i>'+(pdf?'PDF':'WORD')+'</i></a>';
+            '<b style="background:'+g.c+';color:'+g.e+'">'+d.k+'</b>'+
+            '<span>'+esc(d.n)+'<em>'+(pdf?'ouvrir · imprimer':'télécharger')+'</em></span></a>';
         }).join('')+'</div>';
     }).join('')+
     '<div class="entpart-b"><button class="dembtn" onclick="document.getElementById(\'roiBg\').classList.remove(\'on\')">Fermer</button></div>'+
