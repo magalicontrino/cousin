@@ -16230,6 +16230,10 @@ function feuilleImprimer(o){
        ce qui déborde d'une feuille imprimée est perdu. */
     '.tx{flex:1;min-width:0;font-size:15.5px;line-height:1.35;'+
       'overflow-wrap:anywhere;word-break:break-word}'+
+    '.chp{display:flex;align-items:baseline;gap:4px;font-family:ui-monospace,monospace;'+
+      'font-variant-numeric:tabular-nums;font-weight:700;font-size:19px;flex:none;'+
+      'min-width:74px;letter-spacing:.02em}'+
+    '.chp i{font-style:normal;font-size:9px;letter-spacing:.1em;color:#6b6963}'+
     '.com{display:block;font-size:12px;color:#6b6963;margin-top:3px;'+
       'font-family:ui-monospace,monospace;letter-spacing:.04em}'+
     /* ═══ LES SEPT COULEURS DE LA FEUILLE (Mag, 11/09/2026) ═══
@@ -18241,7 +18245,11 @@ function vHome(){
      ⚠ La pastille de l'onglet Entretiens et ce compte lisent la même chose. */
   if(!estGroupeD()){
     const nEnt=(typeof voitEntrants==='function' && voitEntrants() && typeof ENT_N_AVOIR==='number') ? ENT_N_AVOIR : 0;
-    const nMoi=(typeof resteAListe==='function'?resteAListe():0)+(typeof resteRappels==='function'?resteRappels():0);
+    /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
+       14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
+       additionnait les tâches de la check-list de son métier ET ses rappels : un chiffre
+       qui ne correspondait à rien de ce qu'elle voit. Il ne compte plus que Ma liste. */
+    const nMoi=(typeof resteRappels==='function'?resteRappels():0);
     /* Les passations qui me sont adressées et que je n'ai pas encore cochées (Mag,
        19/09/2026 : « tu pourrais rajouter aussi le nombre de passations ? »). */
     const nPass=(typeof passPourMoi==='function' && typeof passFait==='function')
@@ -18271,10 +18279,13 @@ function vHome(){
        'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();go(\'#/liste\');}">'+
        '<span class="ctatete"><span class="rd">'+icon('folder')+'</span>'+
          '<b>Liste et Notes</b><span class="chv">›</span></span>'+
-       (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s arrivés':' arrivé'),'#/liste/entretiens'):'')+
-       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social')+' à faire','#/liste/entretiens'):'')+
-       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical')+' à faire','#/liste/entretiens'):'')+
-       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':'')+' pour toi','#/liste'):'')+
+       /* ⚠ DES TITRES COURTS (Mag, 20/09/2026 : « je n'aime pas trop les titres, marque
+          juste… ») : « à faire », « arrivés » et « pour toi » sont partis — la carte dit
+          déjà que c'est ce qui attend. */
+       (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s':''),'#/liste/entretiens'):'')+
+       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens'):'')+
+       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens'):'')+
+       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste'):'')+
        '</div>';
   }
@@ -37133,12 +37144,16 @@ function imprimerPassation(pour){
   const ligneP=function(p){
     const g=passGenreDe(p.genre), fait=passFait(p);
     const bas=[];
-    if(g.chambre && p.chambre) bas.push('ch. '+p.chambre);
     if(p.par) bas.push('par '+String(p.par).split(/\s+/)[0]);
     if(p.jour && p.jour!==agIso(new Date())) bas.push('pour le '+rappelQuandFr(p.jour));
     return '<div class="l'+(fait?' fait':'')+' '+(g.heure?'k-rv':'k-inf')+'">'+
       '<span class="bx"></span>'+
       (g.heure?'<span class="hh">'+esc(p.heure||'—')+'</span>':'')+
+      /* ⚠ LA CHAMBRE SORT DE LA PETITE LIGNE GRISE (Mag, 20/09/2026 : « quand j'imprime,
+         la chambre n'est pas assez apparente ») : c'est le numéro qu'on cherche des yeux
+         devant une porte, comme sur la feuille du tour des chambres. Il passe en gros, à
+         côté de l'heure. */
+      (g.chambre && p.chambre ? '<span class="chp"><i>CH.</i>'+esc(p.chambre)+'</span>' : '')+
       '<span class="tx">'+
         (g.court?'<span class="quoi" style="display:inline;min-width:0;padding-right:7px">'+
           esc(g.court)+'</span>':'')+
