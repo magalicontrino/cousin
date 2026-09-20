@@ -4843,6 +4843,8 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entarr-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid #e6e4df}
 .entarr-l b{font-size:14.5px}
 .entarr-m{font-family:ui-monospace,monospace;font-size:11px;color:#8b8984}
+.entarr-j{font-family:ui-monospace,monospace;font-size:11px;color:#55534f;background:#fdfdfc;
+  border:1.25px dashed #cfccc6;border-radius:7px;padding:2px 8px;cursor:pointer}
 .entarr-g{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
 .entarr-b{border:1.25px solid var(--trait);border-radius:7px;background:#fdfdfc;padding:4px 9px;
   font-family:inherit;font-size:12.5px;color:#1b1b1b;cursor:pointer}
@@ -38163,7 +38165,11 @@ function arriveesHTML(){
     L.map(function(e){
       return '<div class="entarr-l"><b>'+esc(e.nom)+'</b>'+
         (e.lam?'<span class="entlam">LAM</span>':'')+
-        '<span class="entarr-m">'+esc(arrJourTxt(e.arrive_le))+'</span>'+
+        /* ⚠ LE JOUR SE CHANGE (Mag, 20/09/2026 : « si on doit arriver le mardi et que
+           finalement c'est venu le vendredi, on doit pouvoir changer ») : un clic dessus
+           ouvre le calendrier. C'est la date qui suit la personne jusqu'à l'entretien. */
+        '<button type="button" class="entarr-j" onclick="arriveeJour('+e.id+')" '+
+          'title="Changer le jour d’arrivée">'+esc(arrJourTxt(e.arrive_le)||'sans date')+'</button>'+
         '<span class="entarr-g">'+
         /* ⚠ ON NE PASSE EN ENTRETIEN QUE SI LA PERSONNE EST BIEN ARRIVÉE et qu'il faut un
            entretien d'entrée (Mag, 20/09/2026) : d'où la question avant. */
@@ -38184,6 +38190,22 @@ function arriveeAjouter(){
   });
 }
 /* La ligne descend dans les entretiens : le nom et la chambre sont déjà là. */
+/* Le calendrier de la fenêtre (`date:1`) rend une date au format AAAA-MM-JJ. */
+function arriveeJour(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinPop({titre:'Jour d’arrivée', texte:e.nom, champ:e.arrive_le||'', date:1, ok:'Enregistrer',
+    quandOui:function(v){
+      const j=String(v||'').slice(0,10); if(!j) return;
+      const avant=e.arrive_le;
+      e.arrive_le=j; render();
+      entEcrit(); sb.from('entrants').update({arrive_le:j}).eq('id',id).select().then(function(r){
+        if(r.error || !r.data || !r.data.length){
+          e.arrive_le=avant; render();
+          toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+        }
+      });
+    }});
+}
 function arriveeVersEntretien(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinConfirme(e.nom+' est bien arrivé·e ?', 'La ligne passe dans les entretiens à faire.', function(){
