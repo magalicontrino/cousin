@@ -4862,6 +4862,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .ctacarte{display:block;width:100%;margin:12px 0 4px;padding:11px 14px;
   border:1.5px solid var(--noir);border-radius:14px;background:var(--noir);color:#f2eee6;
   font-family:inherit;text-align:left;cursor:pointer}
+.paieL{display:flex;align-items:baseline;gap:9px;margin:12px 0 0;padding:7px 12px;
+  border:1.25px dashed #cfccc6;border-radius:10px;background:#fdfdfc;font-size:13.5px}
+.paieL b{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6b6963}
+.paieL.bientot{border-style:solid;border-color:#6cb392;background:#eef7f2}
+.paieL.bientot b{color:#2f6b52}
 .ctain{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
 .ctacarte b{font-size:16px}
 .ctacarte .rd{width:34px;height:34px;flex:none;border-radius:50%;background:#A9C8E8;color:#1b1b1b;
@@ -15203,6 +15208,30 @@ function filetAntiVoile(){
     document.body.classList.remove('accueil-fige');
   }catch(e){}
 }
+/* Les paiements de salaire 2026 (calendrier Samusocial). Rouge = salaire,
+   vert = pécule de vacances et prime de fin d'année. */
+const PAIE_2026=['2026-01-29','2026-02-25','2026-03-27','2026-04-28','2026-05-26','2026-06-26',
+  '2026-07-29','2026-08-27','2026-09-28','2026-10-28','2026-11-26','2026-12-29'];
+const PAIE_EXTRA={'2026-05-29':'Pécule de vacances','2026-12-14':'Prime de fin d’année'};
+function paieProchaine(){
+  const auj=new Date(); auj.setHours(0,0,0,0);
+  const tout=PAIE_2026.map(function(d){ return {d:d, quoi:'Salaire'}; })
+    .concat(Object.keys(PAIE_EXTRA).map(function(d){ return {d:d, quoi:PAIE_EXTRA[d]}; }))
+    .sort(function(a,b){ return a.d.localeCompare(b.d); });
+  for(let i=0;i<tout.length;i++){
+    const j=new Date(tout[i].d+'T12:00:00');
+    const jours=Math.round((j-auj)/864e5);
+    if(jours>=0) return {quoi:tout[i].quoi, date:j, jours:jours};
+  }
+  return null;
+}
+function paieLigne(){
+  const p=paieProchaine(); if(!p) return '';
+  const quand = p.jours===0 ? 'aujourd’hui' : p.jours===1 ? 'demain'
+    : p.date.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
+  return '<div class="paieL'+(p.jours<=3?' bientot':'')+'">'+
+    '<b>'+esc(p.quoi)+'</b><span>'+esc(quand)+'</span></div>';
+}
 function accueilFige(){
   /* ═══ LE BLOCAGE EST RETIRÉ (20/09/2026) ═══
      L'accueil ne défilait pas, par choix du 20/08 (« retire l'ascenseur, il n'y a pas
@@ -18179,6 +18208,14 @@ function vHome(){
     /* ⚠ ET CE N'EST PLUS UN <button> : Chrome ne fait PAS grandir un bouton quand ses
        enfants passent à la ligne — mesuré, les pastilles sortaient de la carte noire.
        Un div qui porte `role="button"` et le clavier fait le même travail. */
+    /* ═══ LE JOUR DE PAIE, SUR L'ACCUEIL (Mag, 20/09/2026 : « rajoute les jours de paie
+       quelque part… alors tu mets une annonce sur la page d'accueil ») ═══
+       Les dates viennent du calendrier 2026 du Samusocial qu'elle m'a déposé
+       (`documents/salaire.pdf`, cases rouges = paiement, vertes = pécule et prime).
+       ⚠ RELUES À L'ÉCRAN, UNE PAR UNE — mais c'est un scan : à vérifier avec elle.
+       ⚠ LE PDF N'EST PAS MIS EN LIGNE : il porte deux signatures manuscrites, et le
+       dossier `documents/` est public. Seules les dates entrent dans l'app. */
+    h+=paieLigne();
     h+='<div class="ctacarte" role="button" tabindex="0" onclick="go(\'#/liste\')" '+
        'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();go(\'#/liste\');}"><span class="ctain">'+
        '<span class="rd">'+icon('folder')+'</span><b>Liste et Notes</b>'+
