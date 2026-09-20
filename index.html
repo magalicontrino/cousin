@@ -4846,8 +4846,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entseg button{border:0;background:#fdfdfc;color:#8b8984;font-family:inherit;font-size:12px;
   padding:5px 11px;cursor:pointer}
 .entseg button.on{background:#1b1b1b;color:#fdfdfc;font-weight:600}
-.entarr-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid #e6e4df}
-.entarr-l b{font-size:14.5px}
+.entarr-l{padding:8px 0;border-top:1px solid #e6e4df}
+.entarr-n{font-size:14.5px;font-weight:600;line-height:1.3}
+.entarr-d{display:flex;align-items:center;gap:8px;margin-top:5px}
+.entarr-t{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.06em;border-radius:5px;
+  padding:3px 7px;background:#f1f0ec;color:#6b6963;border:1px solid var(--ligne);cursor:pointer}
+.entarr-t.lam{background:#d9f1f7;color:#1e6472;border-color:#6fc7d9;font-weight:700}
 .entarr-m{font-family:ui-monospace,monospace;font-size:11px;color:#8b8984}
 .entarr-j{font-family:ui-monospace,monospace;font-size:11px;color:#55534f;background:#fdfdfc;
   border:1.25px dashed #cfccc6;border-radius:7px;padding:2px 8px;cursor:pointer}
@@ -18249,7 +18253,10 @@ function vHome(){
        CHOSE, l'une sous l'autre, chacune une porte. Ne remettre ni les pastilles, ni
        les pavés.
        ⚠ LES ENTRANTS ARRIVÉS ENTRENT ICI AUSSI : c'est la première chose de la journée. */
-    const nArr=(typeof arriveesTriees==='function')?arriveesTriees().length:0;
+    /* L'accueil lit les deux compteurs de la base (voir `loadEntrantsCompte`), pas la
+       liste — elle n'est chargée que dans l'onglet. */
+    if(voitEntrants() && !ENT_N_ENCOURS && Date.now()-ENT_N_LU>60000) setTimeout(loadEntrantsCompte,0);
+    const nArr=(typeof ENT_N_ARR==='number')?ENT_N_ARR:0;
     const ligneCta=function(n, mot, ou){
       return '<button class="ctal" onclick="event.stopPropagation();go(\''+ou+'\')">'+
         '<b>'+n+'</b><span>'+mot+'</span><i>›</i></button>';
@@ -37930,6 +37937,7 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
+let ENT_N_ARR=0;
 /* ═══ LA LISTE SE MET À JOUR TOUTE SEULE (Mag, 19/09/2026 : « si ma collègue met un
    nouvel entrant, moi je dois rafraîchir ma page, mais je veux que ce soit
    automatique ») ═══
@@ -37963,15 +37971,23 @@ let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
 async function loadEntrantsCompte(){
   if(ENT_N_ENCOURS || !voitEntrants()) return;
   ENT_N_ENCOURS=true;
-  const avant=ENT_N_AVOIR;
+  const avant=ENT_N_AVOIR+'/'+ENT_N_ARR;
   try{
-    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,mi_parcours');
-    if(!r.error) ENT_N_AVOIR=(r.data||[]).filter(function(e){ return !entretienFait(e,'acc'); }).length;
+    /* ⚠ DEUX COMPTES, PAS UN (Mag, 20/09/2026 : « sur l'accueil, tu oublies les entrants
+       et les entretiens à faire ») : l'accueil ne charge pas la liste entière, il ne
+       connaissait donc que zéro. On compte ici les DEUX — les arrivées annoncées et les
+       entretiens qui restent à faire. */
+    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,mi_parcours,pour_entretien');
+    if(!r.error){
+      const d=r.data||[];
+      ENT_N_AVOIR=d.filter(function(e){ return e.pour_entretien!==false && !entretienFait(e,'acc'); }).length;
+      ENT_N_ARR=d.filter(function(e){ return e.pour_entretien===false; }).length;
+    }
   }catch(e){}
   ENT_N_LU=Date.now(); ENT_N_ENCOURS=false;
   /* On ne redessine que si le nombre a changé : sinon on réécrirait la page pendant
      qu'elle tape (le piège du 20/08, « ça tremble »). */
-  if(ENT_N_AVOIR!==avant && typeof render==='function') render();
+  if((ENT_N_AVOIR+'/'+ENT_N_ARR)!==avant && typeof render==='function') render();
 }
 function monGroupe(){
   if(typeof APERCU_GRP!=='undefined' && APERCU_GRP) return APERCU_GRP;
@@ -38172,29 +38188,23 @@ function arriveesHTML(){
       '</span>'+
       '<button class="chaddbtn" onclick="arriveeAjouter()">Ajouter</button>'+
     '</div>'+
+    /* ═══ DEUX ÉTAGES (Mag, 20/09/2026, dessin B sur trois : « c'est brouillon,
+       simplifie ») ═══ Le nom seul sur sa ligne — ils font une ligne entière à eux
+       seuls — puis, en petit dessous : LAM ou Médical, le jour, et les deux gestes.
+       ⚠ UNE SEULE PASTILLE QUI BASCULE, plus deux moitiés : le choix prenait autant de
+       place que le nom. On voit ce qui EST, on clique pour changer. */
     L.map(function(e){
-      return '<div class="entarr-l"><b>'+esc(e.nom)+'</b>'+
-        /* ═══ LAM OU MÉDICAL : UN CHOIX ENTRE DEUX (Mag, 20/09/2026) ═══
-           Deux moitiés d'un même bouton, celle qui est vraie est noire. On change d'avis
-           d'un doigt, et il n'y a jamais les deux ni aucun. */
-        '<span class="entseg">'+
-          '<button class="'+(e.lam?'on':'')+'" onclick="arriveeLam('+e.id+',true)">LAM</button>'+
-          '<button class="'+(e.lam?'':'on')+'" onclick="arriveeLam('+e.id+',false)">Médical</button>'+
-        '</span>'+
-        /* ⚠ LE JOUR SE CHANGE (Mag, 20/09/2026 : « si on doit arriver le mardi et que
-           finalement c'est venu le vendredi, on doit pouvoir changer ») : un clic dessus
-           ouvre le calendrier. C'est la date qui suit la personne jusqu'à l'entretien. */
-        '<button type="button" class="entarr-j" onclick="arriveeJour('+e.id+')" '+
-          'title="Changer le jour d’arrivée">'+esc(arrJourTxt(e.arrive_le)||'sans date')+'</button>'+
-        '<span class="entarr-g">'+
-        /* ⚠ ON NE PASSE EN ENTRETIEN QUE SI LA PERSONNE EST BIEN ARRIVÉE et qu'il faut un
-           entretien d'entrée (Mag, 20/09/2026) : d'où la question avant.
-           ⚠ « COPIER » EST RETIRÉ et le bouton devient une FLÈCHE VERS LE BAS (même jour :
-           « retire copier, et mets une flèche vers le bas juste pour entretien, pour les
-           descendre en entretien ») : la liste des entretiens est juste en dessous. */
-        '<button class="entvus-b" onclick="arriveeVersEntretien('+e.id+')" title="Descendre en entretien" aria-label="Descendre en entretien">'+icon('flechebas')+'</button>'+
-        (peutRetirerEntrant()?'<button class="entvus-b sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
-        '</span>'+
+      return '<div class="entarr-l">'+
+        '<div class="entarr-n">'+esc(e.nom)+'</div>'+
+        '<div class="entarr-d">'+
+          '<button class="entarr-t'+(e.lam?' lam':'')+'" onclick="arriveeLam('+e.id+','+(e.lam?'false':'true')+')" '+
+            'title="'+(e.lam?'Passer en Médical':'Passer en LAM')+'">'+(e.lam?'LAM':'MÉD')+'</button>'+
+          '<button type="button" class="entarr-j" onclick="arriveeJour('+e.id+')" '+
+            'title="Changer le jour d’arrivée">'+esc(arrJourTxt(e.arrive_le)||'sans date')+'</button>'+
+          '<span style="flex:1"></span>'+
+          '<button class="entvus-b" onclick="arriveeVersEntretien('+e.id+')" title="Descendre en entretien" aria-label="Descendre en entretien">'+icon('flechebas')+'</button>'+
+          (peutRetirerEntrant()?'<button class="entvus-b sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
+        '</div>'+
       '</div>';
     }).join('')+
   '</div>';
