@@ -1,0 +1,11 @@
+-- ===========================================================================
+-- LA LISTE DES ARRIVEES -- demande de Mag, 20/09/2026
+--   "La liste, on la trouve dans KAIROS, mais tu n'y as pas acces. Je veux qu'on tape
+--    une liste, et si ca doit partir en entretien, on le fait passer en dessous et ca
+--    prerempli deja les entretiens. Qu'on puisse au moins juste copier le nom."
+-- Une seule table : une ligne d'arrivee EST une ligne d'entrant, avec pour_entretien
+-- a faux. Passer en entretien = mettre a vrai. Rien a recopier, rien a perdre.
+-- Pas de nouvelle regle d'acces : les policies de la table couvrent la colonne.
+-- ===========================================================================
+alter table public.entrants add column if not exists pour_entretien boolean not null default true;
+-- -- PASSE DANS SUPABASE LE 20/09/2026 par Claude (pont Chrome) : 4 entretiens, 0 arrivees.
