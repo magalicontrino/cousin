@@ -18257,6 +18257,8 @@ function vHome(){
        liste — elle n'est chargée que dans l'onglet. */
     if(voitEntrants() && !ENT_N_ENCOURS && Date.now()-ENT_N_LU>60000) setTimeout(loadEntrantsCompte,0);
     const nArr=(typeof ENT_N_ARR==='number')?ENT_N_ARR:0;
+    const nSoc=(typeof ENT_N_SOC==='number')?ENT_N_SOC:0;
+    const nMed=(typeof ENT_N_MED==='number')?ENT_N_MED:0;
     const ligneCta=function(n, mot, ou){
       return '<button class="ctal" onclick="event.stopPropagation();go(\''+ou+'\')">'+
         '<b>'+n+'</b><span>'+mot+'</span><i>›</i></button>';
@@ -18270,7 +18272,8 @@ function vHome(){
        '<span class="ctatete"><span class="rd">'+icon('folder')+'</span>'+
          '<b>Liste et Notes</b><span class="chv">›</span></span>'+
        (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s arrivés':' arrivé'),'#/liste/entretiens'):'')+
-       (nEnt?ligneCta(nEnt,'entretien'+(nEnt>1?'s':'')+' à faire','#/liste/entretiens'):'')+
+       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social')+' à faire','#/liste/entretiens'):'')+
+       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical')+' à faire','#/liste/entretiens'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':'')+' pour toi','#/liste'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste'):'')+
        '</div>';
@@ -37937,7 +37940,7 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
-let ENT_N_ARR=0;
+let ENT_N_ARR=0, ENT_N_SOC=0, ENT_N_MED=0;
 /* ═══ LA LISTE SE MET À JOUR TOUTE SEULE (Mag, 19/09/2026 : « si ma collègue met un
    nouvel entrant, moi je dois rafraîchir ma page, mais je veux que ce soit
    automatique ») ═══
@@ -37971,7 +37974,7 @@ let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
 async function loadEntrantsCompte(){
   if(ENT_N_ENCOURS || !voitEntrants()) return;
   ENT_N_ENCOURS=true;
-  const avant=ENT_N_AVOIR+'/'+ENT_N_ARR;
+  const avant=[ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED].join('/');
   try{
     /* ⚠ DEUX COMPTES, PAS UN (Mag, 20/09/2026 : « sur l'accueil, tu oublies les entrants
        et les entretiens à faire ») : l'accueil ne charge pas la liste entière, il ne
@@ -37982,12 +37985,18 @@ async function loadEntrantsCompte(){
       const d=r.data||[];
       ENT_N_AVOIR=d.filter(function(e){ return e.pour_entretien!==false && !entretienFait(e,'acc'); }).length;
       ENT_N_ARR=d.filter(function(e){ return e.pour_entretien===false; }).length;
+      /* ⚠ LE SOCIAL ET LE MÉDICAL SE COMPTENT À PART (Mag, 20/09/2026 : « parfois il y a
+         des socios qui sont faits et pas encore des médicaux, ou l'inverse ») : un seul
+         chiffre cachait le travail qui reste à l'un des deux. */
+      const att=d.filter(function(e){ return e.pour_entretien!==false; });
+      ENT_N_SOC=att.filter(function(e){ return !e.acc_social_le; }).length;
+      ENT_N_MED=att.filter(function(e){ return !e.acc_medical_le; }).length;
     }
   }catch(e){}
   ENT_N_LU=Date.now(); ENT_N_ENCOURS=false;
   /* On ne redessine que si le nombre a changé : sinon on réécrirait la page pendant
      qu'elle tape (le piège du 20/08, « ça tremble »). */
-  if((ENT_N_AVOIR+'/'+ENT_N_ARR)!==avant && typeof render==='function') render();
+  if([ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED].join('/')!==avant && typeof render==='function') render();
 }
 function monGroupe(){
   if(typeof APERCU_GRP!=='undefined' && APERCU_GRP) return APERCU_GRP;
