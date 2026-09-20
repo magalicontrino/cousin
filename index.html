@@ -4910,6 +4910,14 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entsec b{font-size:13.5px}
 .entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#6cb392;min-height:14px;margin-top:4px}
+.popcard.roidoc{max-width:440px}
+.roigr{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:#6b6963;margin:16px 0 8px}
+.roiL{display:flex;gap:7px;flex-wrap:wrap}
+.roibtn{display:inline-flex;align-items:center;gap:7px;border:1.25px solid var(--trait);border-radius:9px;
+  padding:8px 12px;background:#fdfdfc;font-size:13.5px;color:var(--noir);cursor:pointer}
+.roibtn i{font-style:normal;font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.08em;
+  color:#8b8984;border:1px solid var(--ligne);border-radius:4px;padding:1px 4px}
 .entacc{display:inline-flex;align-items:center;gap:8px;border:1.25px solid var(--trait);border-radius:20px;
   padding:8px 14px;background:#fdfdfc;font-family:inherit;font-size:13.5px;color:var(--noir);cursor:pointer}
 .entacc svg,.entacc .pico{width:17px;height:17px}
@@ -38163,6 +38171,51 @@ function arriveeVersEntretien(id){
     toast(e.nom+' passe dans les entretiens.');
   });
 }
+/* ═══ LA CHARTE ET LE RÈGLEMENT (Mag, 20/09/2026) ═══
+   « Dans le dossier entrant et ROI Charte, j'ai mis tous les dossiers ; il y a plusieurs
+   langues, le résumé et le ROI en entier. Je veux qu'il y ait tout. Quand tu cliques,
+   une pop-up avec tous les fichiers, à télécharger, choisir ou imprimer directement. »
+   Les PDF s'ouvrent dans un onglet : on lit, on imprime, on enregistre de là. Les .docx
+   se téléchargent — un navigateur ne sait pas les afficher.
+   ⚠ Ces fichiers sont dans `documents/`, qui est PUBLIC. Ce sont des documents remis aux
+   personnes accueillies ; si l'un d'eux ne doit pas l'être, il sort d'ici. */
+const ROI_DOCS=[
+  {t:'À faire signer — la charte d’engagement', l:[
+    {f:'charte-fr.pdf', n:'Français'}, {f:'charte-nl.pdf', n:'Néerlandais'},
+    {f:'charte-en.pdf', n:'Anglais'},  {f:'charte-ar.pdf', n:'Arabe'},
+    {f:'charte-ru.pdf', n:'Russe'}
+  ]},
+  {t:'Le règlement en entier', l:[
+    {f:'roi-complet-fr.pdf', n:'Français'}
+  ]},
+  {t:'Le résumé du règlement', l:[
+    {f:'resume-fr.pdf', n:'Français'},   {f:'resume-en.docx', n:'Anglais'},
+    {f:'resume-de.docx', n:'Allemand'},  {f:'resume-es.docx', n:'Espagnol'},
+    {f:'resume-pl.docx', n:'Polonais'},  {f:'resume-pa.docx', n:'Pendjabi'}
+  ]}
+];
+function roiOuvrir(){
+  let bg=document.getElementById('roiBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='roiBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML='<div class="popcard roidoc" role="dialog" aria-modal="true">'+
+    '<b>Charte &amp; règlement</b>'+
+    ROI_DOCS.map(function(g){
+      return '<div class="roigr">'+esc(g.t)+'</div>'+
+        '<div class="roiL">'+g.l.map(function(d){
+          const pdf=/\.pdf$/i.test(d.f);
+          return '<a class="roibtn" href="documents/roi/'+d.f+'" '+
+            (pdf?'target="_blank" rel="noopener"':'download')+'>'+
+            esc(d.n)+'<i>'+(pdf?'PDF':'WORD')+'</i></a>';
+        }).join('')+'</div>';
+    }).join('')+
+    '<div class="entpart-b"><button class="dembtn" onclick="document.getElementById(\'roiBg\').classList.remove(\'on\')">Fermer</button></div>'+
+  '</div>';
+  bg.classList.add('on');
+}
 function entrantChambre(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinPop({titre:'Numéro de chambre', texte:e.nom, champ:e.chambre||'', max:3,
@@ -38398,6 +38451,7 @@ function entretiensCorps(){
     '<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
       '<button class="entacc" onclick="go(\'#/accueil-personne\')">'+icon('accomp')+'Accueil social</button>'+
       '<button class="entacc" onclick="go(\'#/accueil-personne/med\')">'+icon('medical')+'Accueil médical</button>'+
+      '<button class="entacc" onclick="roiOuvrir()">'+icon('imprimer')+'Charte &amp; ROI</button>'+
       '<span style="flex:1"></span>'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
