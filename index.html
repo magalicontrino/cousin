@@ -38358,6 +38358,41 @@ function entrantLangue(id){
       });
     }});
 }
+/* Elle repart dans les arrivées : ce n'était pas (encore) un entretien à faire. */
+function entrantVersArrivee(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinConfirme('Remonter '+e.nom+' dans les arrivées ?', 'Les cases déjà cochées sont gardées.', function(){
+    e.pour_entretien=false; render();
+    entEcrit(); sb.from('entrants').update({pour_entretien:false}).eq('id',id).select().then(function(r){
+      if(r.error || !r.data || !r.data.length){
+        e.pour_entretien=true; render();
+        toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+      }
+    });
+  }, {ok:'Remonter'});
+}
+/* Elle descend dans « Déjà vus » : on coche ce qui manque, à son nom. */
+function entrantVersVus(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const cases=['acc_social','acc_medical'].concat(e.mi_parcours?[]:['roi']);
+  const manque=cases.filter(function(k){ return !e[k+'_le']; });
+  if(!manque.length){ toast('Déjà complet.'); return; }
+  cousinConfirme(e.nom+' : c’est fait ?',
+    'Les cases qui manquent ('+manque.length+') seront cochées à ton nom.', function(){
+    const avant={}, maj={};
+    manque.forEach(function(k){
+      avant[k+'_le']=e[k+'_le']; avant[k+'_par']=e[k+'_par'];
+      maj[k+'_le']=new Date().toISOString(); maj[k+'_par']=(nomAffiche()||'');
+    });
+    Object.assign(e, maj); render();
+    entEcrit(); sb.from('entrants').update(maj).eq('id',id).select().then(function(r){
+      if(r.error || !r.data || !r.data.length){
+        Object.assign(e, avant); render();
+        toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+      }
+    });
+  }, {ok:'Oui, c’est fait'});
+}
 function entrantNom(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   cousinPop({titre:'Le nom', texte:'', champ:e.nom||'', max:80, ok:'Enregistrer',
@@ -38562,7 +38597,14 @@ function entretiensCorps(){
         '<span class="entj">'+entrantAjout(e)+'</span>'+
         /* Les deux boutons restent ENSEMBLE, à droite : sur téléphone ils passaient à la
            ligne un par un, la corbeille seule sous le premier. */
+        /* ⚠ DEUX FLÈCHES SUR UNE LIGNE À VOIR (Mag, 20/09/2026 : « ici une flèche qui
+           remonte et aussi une qui redescend ») : elle remonte dans les arrivées (ce
+           n'était pas encore un entretien), ou elle descend dans « Déjà vus » (c'est
+           fait). Descendre coche les cases qui manquent, au nom de qui appuie — l'app
+           le dit avant. */
         '<span class="entbtns">'+
+        '<button class="entvus-b" onclick="entrantVersArrivee('+e.id+')" title="Remonter dans les arrivées" aria-label="Remonter dans les arrivées">'+icon('flechehaut')+'</button>'+
+        '<button class="entvus-b" onclick="entrantVersVus('+e.id+')" title="Descendre dans Déjà vus" aria-label="Descendre dans Déjà vus">'+icon('flechebas')+'</button>'+
         (peutRetirerEntrant()?'<button class="ib sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
         '</span>'+
       '</div>'+
