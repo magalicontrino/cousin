@@ -4880,6 +4880,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entsec b{font-size:13.5px}
 .entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#6cb392;min-height:14px;margin-top:4px}
+.entch-b{border:1.25px dashed #cfccc6;border-radius:7px;padding:2px 7px;background:none;cursor:pointer;color:#6b6963}
 .entcom{display:flex;align-items:flex-start;gap:8px;margin:8px 0 0;max-width:520px;
   padding:8px 11px;border:1.25px solid var(--trait);border-radius:9px;background:#fdfdfc;
   text-align:left;cursor:pointer;font:inherit;font-size:14px;line-height:1.4;color:#1b1b1b}
@@ -37992,6 +37993,22 @@ function entrantMiBasculer(id){
     }
   });
 }
+/* Le numéro de chambre d'une ligne déjà posée : trois chiffres, comme à l'ajout. */
+function entrantChambre(id){
+  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  cousinPop({titre:'Numéro de chambre', texte:e.nom, champ:e.chambre||'', max:3,
+    ok:'Enregistrer', quandOui:function(v){
+      const ch=String(v||'').replace(/[^0-9]/g,'').slice(0,3);
+      const avant=e.chambre;
+      e.chambre=ch||null; render();
+      entEcrit(); sb.from('entrants').update({chambre:ch||null}).eq('id',id).select().then(function(r){
+        if(r.error || !r.data || !r.data.length){
+          e.chambre=avant; render();
+          toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+        }
+      });
+    }});
+}
 function entrantCommenter(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
   const ecrire=function(txt){
@@ -38133,7 +38150,11 @@ function entretiensCorps(){
     const j=entrantJours(e), accOk=entretienFait(e,'acc');
     return '<div class="entl'+(accOk?' vu':'')+(e.mi_parcours?' mi':'')+'">'+
       '<div class="entl-h"><b>'+esc(e.nom)+'</b>'+
-        (e.chambre?'<span class="entch">ch. '+esc(e.chambre)+'</span>':'')+
+        /* ⚠ LA CHAMBRE SE CHANGE (Mag, 20/09/2026 : « ici on ne peut plus changer le
+           numéro de chambre ») : on ajoute un nom vite, la chambre arrive après, et les
+           gens changent d'étage. Un clic dessus l'ouvre ; vide, elle se propose. */
+        '<button type="button" class="entch entch-b" onclick="entrantChambre('+e.id+')" '+
+          'title="Changer le numéro de chambre">'+(e.chambre?'ch. '+esc(e.chambre):'+ n° ch.')+'</button>'+
         (e.langue?'<span class="entch">'+esc(e.langue)+'</span>':'')+
         /* L'étiquette se décoche d'un clic (Mag, 19/09/2026 : « on doit pouvoir décocher
            Mi-parcours juste si on clique sur le petit bouton »). */
