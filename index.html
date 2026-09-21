@@ -4953,22 +4953,27 @@ body.pan-ouvert #view{animation:none;transform:none}
 .entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#6cb392;min-height:14px;margin-top:4px}
 .popcard.roidoc{max-width:460px}
-/* Les permanences : une rangée par service, un trait de couleur à gauche — le même
-   dessin que la passation, celui qu'elle a choisi le 22/08 (« rangées à trait de
-   couleur »). Chaque service garde la couleur qu'il a sur la feuille du Résumé ROI. */
-/* Le filet qui met les permanences à part du travail du jour. Rien d'écrit au-dessus :
-   un trait suffit à dire « ce n'est plus la même chose » (pas de phrase d'explication,
-   sa règle du 22/08). */
-.permbas{margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--ligne)}
+/* Le filet qui met les permanences et le ROI à part du travail du jour. Rien d'écrit
+   au-dessus : un trait suffit à dire « ce n'est plus la même chose » (pas de phrase
+   d'explication, sa règle du 22/08). */
+.permbas{margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--ligne);
+  display:flex;flex-direction:column;gap:10px}
 .popcard.permdoc{max-width:460px}
-.permg{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--ligne)}
-.permg:last-of-type{border-bottom:0}
-.permg>i{width:4px;align-self:stretch;border-radius:2px;flex:none;min-height:34px}
-.permg>div{flex:1;min-width:0}
-.permg b{display:block;font-size:14.5px;font-weight:700;line-height:1.3}
-.permg b em{font-style:normal;font-weight:500;color:var(--enc2);font-size:12.5px}
-.permg span{display:block;font-size:13.5px;line-height:1.45;margin-top:2px}
-.permsrc{font-size:11.5px;color:var(--enc2);line-height:1.45;margin:12px 0 0;
+/* Les permanences, en tableau. Un bandeau titre à la couleur du service, puis deux
+   colonnes : l'étiquette à gauche, les heures en pastilles à droite. Les pastilles
+   vont à la ligne toutes seules quand il y en a quatre. */
+.permg{margin:0 0 14px;border-left:4px solid var(--pc);padding-left:12px}
+.permg:last-of-type{margin-bottom:0}
+.permt{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin:0 0 7px}
+.permt b{font-size:14.5px;font-weight:700;line-height:1.25}
+.permt em{font-style:normal;font-size:12px;color:var(--enc2)}
+.permg dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:0;align-items:baseline}
+.permg dt{font-size:12.5px;color:var(--enc2);font-weight:600;white-space:nowrap}
+.permg dd{margin:0;display:flex;flex-wrap:wrap;gap:5px}
+.permg dd i{font-style:normal;font-size:12.5px;font-weight:700;white-space:nowrap;
+  background:var(--barre);border:1px solid var(--trait);border-radius:7px;padding:2px 7px}
+.permn{font-size:12px;line-height:1.4;color:var(--enc2);margin:7px 0 0}
+.permsrc{font-size:11.5px;color:var(--enc2);line-height:1.45;margin:14px 0 0;
   border-top:1px solid var(--ligne);padding-top:10px}
 .roigr{display:flex;align-items:center;gap:8px;border-radius:9px;padding:6px 11px;margin:16px 0 9px;
   font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
@@ -18486,10 +18491,23 @@ function vHome(){
      séparée par un filet.
      ⚠ ET ELLE RESTE UNE LIGNE, PAS UN BLOC : l'accueil tient en un écran, et c'est
      en ajoutant un bloc que je l'avais cassé le 20/09 ([[cousin-accueil-fige]]). */
+  /* ⚠ LE ROI EST À CÔTÉ, PAS DEDANS (Mag, 21/09/2026 : « mettre le ROI en ligne et à
+     imprimer »). Il ouvre la fenêtre « Charte & ROI » qui existe depuis le 20/09 : le
+     règlement entier, son résumé et la charte à signer, en huit langues — chacun
+     s'ouvre dans un onglet où l'on peut lire, imprimer ou enregistrer.
+     Elle n'était atteignable que depuis l'onglet des entretiens, donc réservée à ceux
+     qui le voient. Le règlement du centre, tout le monde en a besoin.
+     ⚠ NE PAS LA FONDRE DANS « PERMANENCES » : les heures et le règlement sont deux
+     choses. Deux lignes, deux portes. */
   h+='<div class="permbas">'+
        '<button class="grosse" onclick="permanencesOuvrir()">'+
          '<span class="rd"><span class="ic" style="color:#6FC7D9">'+icon('medical')+'</span></span>'+
          '<span class="tx"><b>Permanences</b><em>Médical · social · psy</em></span>'+
+         '<span class="chv">›</span>'+
+       '</button>'+
+       '<button class="grosse" onclick="roiOuvrir()">'+
+         '<span class="rd"><span class="ic" style="color:#8a7fa8">'+icon('book')+'</span></span>'+
+         '<span class="tx"><b>Le ROI</b><em>Règlement, résumé et charte · à lire et à imprimer</em></span>'+
          '<span class="chv">›</span>'+
        '</button>'+
      '</div>';
@@ -38449,16 +38467,28 @@ const ROI_DOCS=[
    ⚠ LES HEURES SONT RECOPIÉES DU RÉSUMÉ ROI DU CENTRE (MAJ 24-02-25), mot pour mot.
    On ne les invente pas et on ne les arrondit pas : ce sont les panneaux du couloir
    qui font foi, et c'est écrit au bas de la fenêtre. */
+/* ⚠ SCHÉMATISÉ, PAS ÉCRIT AU KILOMÈTRE (Mag, 21/09/2026 : « ces brouillons, faut que
+   ce soit encore mieux fait, schématisé avec des listes »). La première version était
+   des phrases les unes sous les autres : les quatre horaires de médicaments partaient
+   à la ligne n'importe où et on ne lisait plus rien. Maintenant chaque service est un
+   TABLEAU — à gauche ce que c'est, à droite l'heure, et les heures sont des pastilles.
+   ⚠ Les mots restent ceux du Résumé ROI ; seules les étiquettes de gauche sont à moi
+   (« Ouvert », « Médicaments », « Matinée ») — c'est de la mise en page d'un écran de
+   l'app, pas une réécriture du document du Centre. */
 const PERMANENCES=[
-  {t:'Service social', c:'#6FC7D9', l:['Permanence 24 h/24, hors réunions']},
-  {t:'Service éducatif', c:'#4fa06f', l:['7 j/7 de 7 h 00 à 18 h 00','(hors réunions en après-midi)']},
-  {t:'Pôle médicalisé', s:'infirmerie du 2ᵉ étage', c:'#e63329', l:[
-     '24 h/24 et 7 j/7',
-     'Médicaments : 07h30-09h30 · 11h30-12h30 · 17h30-19h30 · 21h30-22h30',
-     'Soins de plaies : 10h00-12h30',
-     'En dehors de ces heures, l’infirmerie reste disponible pour toute autre demande']},
-  {t:'Pôle fragile', s:'infirmerie du rez-de-chaussée', c:'#f8763f', l:['9 h 00 à 20 h 00, 7 j/7']},
-  {t:'Service psychologique', c:'#8a7fa8', l:['En matinée : 9 h - 13 h','En journée et soirée : 14 h 30 - 17 h']}
+  {t:'Service social', c:'#6FC7D9',
+   r:[['Permanence',['24 h/24']]], n:'Hors réunions'},
+  {t:'Service éducatif', c:'#4fa06f',
+   r:[['Tous les jours',['7 h → 18 h']]], n:'Hors réunions en après-midi'},
+  {t:'Pôle médicalisé', s:'infirmerie du 2ᵉ étage', c:'#e63329',
+   r:[['Ouvert',['24 h/24','7 j/7']],
+      ['Médicaments',['07h30 → 09h30','11h30 → 12h30','17h30 → 19h30','21h30 → 22h30']],
+      ['Soins de plaies',['10h00 → 12h30']]],
+   n:'En dehors de ces heures, l’infirmerie reste disponible pour toute autre demande'},
+  {t:'Pôle fragile', s:'infirmerie du rez-de-chaussée', c:'#f8763f',
+   r:[['Ouvert',['9 h → 20 h','7 j/7']]]},
+  {t:'Service psychologique', c:'#8a7fa8',
+   r:[['Matinée',['9 h → 13 h']],['Journée et soirée',['14 h 30 → 17 h']]]}
 ];
 function permanencesOuvrir(){
   let bg=document.getElementById('permBg');
@@ -38470,10 +38500,14 @@ function permanencesOuvrir(){
   bg.innerHTML='<div class="popcard permdoc" role="dialog" aria-modal="true">'+
     '<b>Les permanences</b>'+
     PERMANENCES.map(function(g){
-      return '<div class="permg" style="border-color:'+g.c+'">'+
-        '<i style="background:'+g.c+'"></i>'+
-        '<div><b>'+esc(g.t)+(g.s?' <em>'+esc(g.s)+'</em>':'')+'</b>'+
-        g.l.map(function(x){ return '<span>'+esc(x)+'</span>'; }).join('')+'</div></div>';
+      return '<div class="permg" style="--pc:'+g.c+'">'+
+        '<div class="permt"><b>'+esc(g.t)+'</b>'+(g.s?'<em>'+esc(g.s)+'</em>':'')+'</div>'+
+        '<dl>'+g.r.map(function(x){
+          return '<dt>'+esc(x[0])+'</dt><dd>'+
+            x[1].map(function(h){ return '<i>'+esc(h)+'</i>'; }).join('')+'</dd>';
+        }).join('')+'</dl>'+
+        (g.n?'<p class="permn">'+esc(g.n)+'</p>':'')+
+      '</div>';
     }).join('')+
     '<p class="permsrc">Recopié du Résumé ROI du centre, mise à jour du 24-02-25. '+
     'Les panneaux d’affichage du couloir font foi.</p>'+
