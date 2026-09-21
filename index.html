@@ -381,7 +381,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .mlong-n{position:absolute;top:-6px;right:-5px;font-style:normal;font-size:11px;font-weight:800;
   min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#e8308a;color:#fdfdfc;
   display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #e6e4df}
-.mlong-btn.rose.on .mlong-n{background:#fdfdfc;color:#e8308a}
+/* ⚠ LA PASTILLE AUSSI EST LA MÊME, OUVERT OU FERMÉ (21/09/2026). Elle était rose sur
+   fond rose dès que l'onglet n'était pas ouvert : le chiffre disparaissait dans le
+   bouton. Blanche sur rose dans les deux cas — c'est le chiffre qu'on vient lire. */
+.mlong-btn.rose .mlong-n{background:#fdfdfc;color:#e8308a}
 .notgard-h{display:flex;align-items:center;gap:7px;margin-bottom:12px}
 .notgard-h span{font-size:12px;color:var(--enc2);margin-right:auto}
 .notgb{background:#fdfdfc;border:1px solid var(--trait);border-radius:7px;padding:4px 10px;
@@ -19455,8 +19458,17 @@ function vListe(){
      que les cases cochées, pas qui. Règle posée plus bas : on ne va pas chercher des noms
      d'hébergés pour un onglet qu'on ne regarde pas. */
   if(voitEntrants() && !ENT_N_ENCOURS && Date.now()-ENT_N_LU>60000) setTimeout(loadEntrantsCompte,0);
-  const nAttente=(onglet==='entretiens')
-    ? ENTRANTS.filter(function(e){ return !entretienFait(e,'acc'); }).length : ENT_N_AVOIR;
+  /* ⚠ LE MÊME NOMBRE DANS LES TROIS ONGLETS (Mag, 21/09/2026 : « le bouton Entretiens
+     est blanc alors qu'il devrait être rose, vu qu'il y a trois entretiens en cours »).
+     Le compte venait de DEUX sources qui ne filtrent pas pareil : la liste chargée quand
+     on est DANS l'onglet (`ENTRANTS`, qui compte tout ce qui reste à faire), et un compte
+     séparé quand on est ailleurs (`ENT_N_AVOIR`, qui écarte les arrivées non destinées à
+     un entretien). Résultat : trois personnes attendaient, l'onglet était rose depuis
+     Entretiens et redevenait BLANC depuis Liste. On lit maintenant la liste dès qu'on
+     l'a — d'où qu'on regarde — et le compte séparé seulement en secours. */
+  const nAttente=(typeof ENTRANTS!=='undefined' && ENTRANTS && ENTRANTS.length)
+    ? ENTRANTS.filter(function(e){ return !entretienFait(e,'acc'); }).length
+    : ENT_N_AVOIR;
   return heroBandeau('Liste et Notes', dateTxt, '#A9C8E8','folder', true)+
     '<div class="mlong">'+
     '<button class="mlong-btn'+(onglet==='entretiens'?' on':'')+(nAttente?' rose':'')+'" '+
