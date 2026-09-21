@@ -370,7 +370,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .entpart .entpart-b .dembtn img{width:20px!important;height:20px!important}
 /* L'onglet Entretiens quand quelqu'un attend : le rose de l'app, pâle fermé, fuchsia
    ouvert (Mag, 19/09/2026). */
-.mlong-btn.rose{background:#fbd3e6;color:#1b1b1b}
+/* ⚠ MÊME FUCHSIA, OUVERT OU FERMÉ (Mag, 21/09/2026 : « le bouton entretien doit être de
+   la même couleur que quand on est dans l'onglet entretien, avec le nombre d'entretiens
+   à faire ») : tant qu'il reste un entretien, l'onglet est fuchsia où qu'on soit. */
+.mlong-btn.rose{background:#e8308a;color:#fdfdfc}
 .mlong-btn.rose.on{background:#e8308a;color:#fdfdfc;box-shadow:0 2px 8px rgba(232,48,138,.35)}
 /* ⚠ LA PASTILLE NE PREND PLUS DE PLACE (Mag, 19/09/2026 : « le 1 prend trop de place,
    la bulle peut se mettre un peu en haut ») : posée SUR le coin haut-droit du bouton,
@@ -4915,11 +4918,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .ctacarte{display:block;width:100%;margin:12px 0 4px;padding:11px 14px;
   border:1.5px solid var(--noir);border-radius:14px;background:#fdfdfc;color:var(--noir);
   font-family:inherit;text-align:left;cursor:pointer}
-.paieL{display:flex;align-items:center;gap:9px;margin:12px 0 0;padding:7px 12px;
-  border:1.5px solid #e8308a;border-radius:10px;background:#fbd3e6;font-size:13.5px;color:#7d1f4d}
-.paieL i{font-style:normal;font-family:ui-monospace,monospace;font-size:11px;font-weight:800;
-  letter-spacing:.08em;background:#e8308a;color:#fdfdfc;border-radius:12px;padding:2px 9px}
-.paieL b{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+/* La pastille du salaire, dans la barre du haut avec le bus et la météo : même dessin,
+   couleur fuchsia (Mag, 20 et 21/09/2026). */
+.paieP{display:inline-flex;align-items:center;gap:5px;flex:none;
+  border:1px solid #f2a8cb;border-radius:999px;background:#fbd3e6;padding:3px 9px 3px 7px;color:#7d1f4d}
+.paieP svg,.paieP .pico{width:13px;height:13px;flex:none}
+.paieP b{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.06em}
 .ctatete{display:flex;align-items:center;gap:11px}
 .ctatete b{font-size:16px}
 .ctatete .rd{width:34px;height:34px;flex:none;border-radius:50%;background:#A9C8E8;color:#1b1b1b;
@@ -7657,6 +7661,8 @@ const ICONS = {
      redessiner » par elle, comme picto/homme.svg. */
   enveloppe:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.8 7l8.2 6.2L20.2 7"/></g>',
   /* La flèche de « Revenir », retournée : les deux gestes se lisent comme une paire. */
+  /* L'argent : un billet et une pièce, pour le jour de paie (Mag, 21/09/2026). */
+  argent: '<g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="15" height="9" rx="2"/><circle cx="10" cy="10.5" r="2.2"/><path d="M21.5 9v7.5a2 2 0 0 1-2 2H6"/></g>',
   /* La flèche qui descend : une arrivée qu'on fait passer en entretien (Mag, 20/09/2026). */
   flechebas: '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5.5 12.5 12 19l6.5-6.5"/></g>',
   /* La flèche qui remonte : le geste de la ligne qui repart dans « À voir » (Mag, 20/09/2026). */
@@ -15298,12 +15304,14 @@ function paieProchaine(){
    20/09/2026 : « ça doit être en fuchsia et, apparemment, que 3 jours avant », « avec
    un décompte comme J-2 »). Le reste du mois, l'accueil n'en parle pas : une date de
    paie lointaine n'est pas une chose à faire aujourd'hui. */
-function paieLigne(){
+/* La pastille du haut : le picto de l'argent et le décompte. Trois jours avant, pas
+   plus — au-delà, ce n'est pas une chose du jour. L'infobulle dit quoi et quand. */
+function paiePastille(){
   const p=paieProchaine(); if(!p || p.jours>3) return '';
   const quand = p.jours===0 ? 'aujourd’hui' : p.jours===1 ? 'demain'
     : p.date.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   const dec = p.jours===0 ? 'JOUR J' : 'J-'+p.jours;
-  return '<div class="paieL"><i>'+dec+'</i><b>'+esc(p.quoi)+'</b><span>'+esc(quand)+'</span></div>';
+  return '<span class="paieP" title="'+esc(p.quoi+' — '+quand)+'">'+icon('argent')+'<b>'+dec+'</b></span>';
 }
 function accueilFige(){
   /* ═══ LE BLOCAGE EST RETIRÉ (20/09/2026) ═══
@@ -18175,7 +18183,10 @@ function vHome(){
     /* La date, puis les deux pastilles groupées à droite (idée 3). Le groupe existe
        même vide : c'est lui qui porte le seul `margin-left:auto` de la ligne. */
     '<div class="hdate"><span class="hjour">'+esc(dateTxt)+'</span>'+
-      '<span class="hbadges">'+busLigne()+meteoLigne()+'</span></div>'+
+      /* ⚠ LE SALAIRE REJOINT LE BUS ET LA MÉTÉO (Mag, 21/09/2026 : « pour le salaire, mets
+         un picto avec ceux-là et le décompte, un picto qui représente de l'argent ») :
+         trois pastilles de la même famille, et plus de ligne à part sous le bonjour. */
+      '<span class="hbadges">'+paiePastille()+busLigne()+meteoLigne()+'</span></div>'+
     /* Sans prénom, tout tient sur une ligne : pas de ligne vide sous « Bonjour ». */
     '<div class="hbonj">'+(nomAffiche()
       ? '<span>Bonjour'+bonjourPicto(0)+'</span><span>'+esc(nomAffiche())+bonjourPicto(1)+'</span>'
@@ -18294,7 +18305,6 @@ function vHome(){
     /* ═══ LE JOUR DE PAIE (Mag, 20/09/2026) ═══ Trois jours avant, en fuchsia, avec le
        décompte. Les dates viennent de son calendrier 2026 (`documents/salaire.pdf`, non
        mis en ligne : deux signatures manuscrites, et `documents/` est public). */
-    h+=paieLigne();
     h+='<div class="ctacarte" role="button" tabindex="0" onclick="go(\'#/liste\')" '+
        'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();go(\'#/liste\');}">'+
        '<span class="ctatete"><span class="rd">'+icon('folder')+'</span>'+
