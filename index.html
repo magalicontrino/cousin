@@ -4992,6 +4992,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accsl-b .dembtn{flex:1;justify-content:center}
 .accsl-b .dembtn[disabled]{opacity:.4}
 .accsl-b .dembtn.ok{background:var(--noir);color:#f2eee6;border-color:var(--noir)}
+.accsl-roi{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  margin-top:10px;padding:11px 14px;border:1.25px solid var(--trait);border-radius:14px;
+  background:var(--barre);font-family:inherit;font-size:14px;font-weight:600;
+  color:var(--noir);cursor:pointer}
+.accsl-roi svg,.accsl-roi .pico{width:17px;height:17px}
 .accsl-s{font-size:11.5px;color:var(--enc2);line-height:1.45;margin:12px 0 0;
   border-top:1px solid var(--ligne);padding-top:9px}
 .popcard.permdoc{max-width:460px}
@@ -5021,6 +5026,11 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:5px 7px;flex:none}
 .roibtn span{display:flex;flex-direction:column;min-width:0;font-size:13.5px;line-height:1.2}
 .roibtn em{font-style:normal;font-size:10.5px;color:#8b8984;margin-top:2px}
+/* La rangée des entretiens : les étiquettes à gauche, les pictos à droite, et
+   chaque groupe va à la ligne pour son compte. */
+.entbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.entbar-g{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1 1 auto;min-width:0}
+.entbar-d{display:flex;gap:6px;align-items:center;flex:0 0 auto;margin-left:auto}
 .entacc{display:inline-flex;align-items:center;gap:8px;border:1.25px solid var(--trait);border-radius:20px;
   padding:8px 14px;background:#fdfdfc;font-family:inherit;font-size:13.5px;color:var(--noir);cursor:pointer}
 .entacc svg,.entacc .pico{width:17px;height:17px}
@@ -38616,8 +38626,9 @@ function accSlideDessine(){
         ? '<button class="dembtn ok" onclick="document.getElementById(\'accSlBg\').classList.remove(\'on\')">Terminé</button>'
         : '<button class="dembtn ok" onclick="accSlideAller(1)">Suivant</button>')+
     '</div>'+
-    '<p class="accsl-s">Pour toi pendant l’entretien — ce n’est pas un document à remettre. '+
-    'Repris du ROI du centre.</p>'+
+    '<button class="accsl-roi" onclick="document.getElementById(\'accSlBg\').classList.remove(\'on\');roiOuvrir()">'+
+      icon('imprimer')+'Imprimer le ROI</button>'+
+    '<p class="accsl-s">Pour toi — pas à remettre.</p>'+
   '</div>';
   bg.classList.add('on');
 }
@@ -39009,12 +39020,21 @@ function entretiensCorps(){
        même page, c'en était une de trop.
        ⏸ « Règlement » et « Charte d'engagement » viendront ici, à imprimer tels quels,
        le jour où Mag m'envoie les deux fichiers. */
-    '<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
-      '<button class="entacc" onclick="go(\'#/accueil-personne\')">'+icon('accomp')+'Accueil social</button>'+
-      '<button class="entacc" onclick="go(\'#/accueil-personne/med\')">'+icon('medical')+'Accueil médical</button>'+
-      '<button class="entacc" onclick="accSlideOuvrir()">'+icon('bulb')+'Ce qu’il faut dire</button>'+
-      '<button class="entacc" onclick="roiOuvrir()">'+icon('imprimer')+'Charte &amp; ROI</button>'+
-      '<span style="flex:1"></span>'+
+    /* ⚠ DEUX GROUPES, PAS UNE SEULE RANGÉE (Mag, 22/09/2026 : « ce n'est pas beau
+       l'alignement »). La rangée était UNE liste à la file avec un ressort au milieu
+       (`flex:1`) pour pousser les pictos à droite. Tant qu'il y avait trois étiquettes
+       ça tenait ; avec la quatrième, elles passaient à la ligne et le ressort atterrissait
+       n'importe où — « Charte & ROI » se retrouvait seule, décalée, et les pictos loin
+       au-dessus. Maintenant les étiquettes sont dans un groupe à gauche qui va à la
+       ligne tout seul, les pictos dans un groupe à droite qui ne se disloque pas. */
+    '<div class="imprligne entbar">'+
+      '<div class="entbar-g">'+
+        '<button class="entacc" onclick="go(\'#/accueil-personne\')">'+icon('accomp')+'Accueil social</button>'+
+        '<button class="entacc" onclick="go(\'#/accueil-personne/med\')">'+icon('medical')+'Accueil médical</button>'+
+        '<button class="entacc" onclick="accSlideOuvrir()">'+icon('bulb')+'Mémo ROI</button>'+
+        '<button class="entacc" onclick="roiOuvrir()">'+icon('imprimer')+'Charte &amp; ROI</button>'+
+      '</div>'+
+      '<div class="entbar-d">'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
       /* ═══ UN SEUL PICTO PARTAGER (Mag, 19/09/2026 : « retire le picto mail. Garde un
@@ -39023,6 +39043,7 @@ function entretiensCorps(){
          Mail et WhatsApp avaient chacun leur bouton : ils rentrent dans la fenêtre du
          partage, avec le lien affiché et un bouton pour le copier. */
       '<button class="imprbtn nu" onclick="entretiensPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
+      '</div>'+
     '</div>'+
     '<div class="pcarte entcarte">'+
     /* ═══ DEUX ÉTAGES (Mag, 19/09/2026 — trois dessins proposés, elle a choisi le B :
