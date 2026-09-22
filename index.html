@@ -5010,7 +5010,21 @@ body.pan-ouvert #view{animation:none;transform:none}
 .hrg .tx{display:flex;flex-direction:column;gap:1px;min-width:0}
 .hrg .tx em{font-style:normal;font-size:11.5px;font-weight:700;color:var(--enc2);
   letter-spacing:.06em;text-transform:uppercase}
-.hrg .tx b{font-size:16px;font-weight:700;line-height:1.25}
+/* ⚠ `.popcard b` MET TOUT EN CAPITALES ET EN BLOC. Sans ces trois lignes, « 21 h 30 »
+   s'affichait « 21 H 30 » et « Petit déjeuner » devenait un titre (Mag, 22/09/2026 :
+   « le H, c'est pas beau »). C'est le deuxième endroit où cette règle mord — voir la
+   même correction dans le mémo. */
+.hrg .tx b{font-size:16.5px;font-weight:700;line-height:1.3;
+  text-transform:none;letter-spacing:0}
+/* ⚠ L'HEURE NE SE COUPE PAS. « Petit déjeuner 7 h 30 → 10 h » se cassait après le
+   « 7 » et l'heure repartait à la ligne suivante : illisible d'un coup d'œil. Le mot
+   et l'heure sont deux morceaux, l'heure reste d'un seul tenant. */
+.hrg .tx b{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 7px}
+.hrg .tx b i{font-style:normal;font-weight:400;color:var(--enc2);flex:none}
+.hrg .tx b s{text-decoration:none;white-space:nowrap}
+/* Les numéros à donner quand quelqu'un rentre tard. */
+.hrg .tx u{text-decoration:none;font-size:12px;line-height:1.35;color:var(--enc2);
+  margin-top:3px;font-weight:600}
 /* De l'air sous le dernier élément de l'accueil, pour qu'il ne finisse jamais collé
    à la barre du bas.
    ⚠ CE N'EST PAS LA CAUSE DU « ça ne s'ouvre pas » (Mag, 22/09/2026). J'avais mesuré
@@ -38669,7 +38683,9 @@ const H={
   reouverture:'6 h 00',     // on peut ressortir
   presence:'21 h 40',       // présence en chambre attendue
   calme:'de 21 h à 8 h',    // ⚠ 8 h, pas 7 h — le mémo se trompait
-  fumoirCalme:'21 h'        // plus de bruit au fumoir
+  fumoirCalme:'21 h',       // plus de bruit au fumoir
+  tel:'02 329 05 94',       // l'accueil du centre
+  telRegul:'0800 99 340'    // la régulation du Samusocial
 };
 /* ⚠ CE QUI REDIT ENCORE L'HEURE, HORS DE CE TABLEAU — à changer À LA MAIN le jour où
    l'heure de rentrée bouge. Ce sont des textes de COURS, pas des horaires affichés :
@@ -38684,7 +38700,11 @@ const HORAIRES={
   centre:[
     {t:'Accès au centre', h:['Fermé de '+H.fermeture+' à '+H.reouverture]},
     {t:'Présence en chambre', h:['À partir de '+H.presence]},
-    {t:'Repas', h:['Petit déjeuner 7 h 30 → 10 h','Midi 12 h → 13 h 30','Soir 18 h → 19 h 30']},
+    /* ⚠ EN DEUX MORCEAUX : le nom du repas se lit en clair, l'heure en gras. Tout
+       en gras, « PETIT DÉJEUNER 7 H 30 » se lisait comme un titre et l'heure se
+       perdait dedans (Mag, 22/09/2026 : « moins gras, ce qui est vraiment important »). */
+    {t:'Repas', h:[['Petit déjeuner','7 h 30 → 10 h'],['Midi','12 h → 13 h 30'],
+                   ['Soir','18 h → 19 h 30']]},
     {t:'Salle informatique', h:['8 h → 21 h'], n:'Sur réservation'},
     {t:'Tickets de transport', h:['À partir de 17 h la veille du rendez-vous'],
      n:'Sur présentation d’une preuve de rendez-vous'},
@@ -38694,7 +38714,7 @@ const HORAIRES={
     {t:'Literie', h:['Draps et linge : chaque samedi','Couvertures : toutes les 2 semaines']},
     {t:'Kit hygiène', h:['Toutes les 2 semaines, samedi et dimanche'],
      n:'Les dates de retrait sont affichées dans le couloir de l’entrée'},
-    {t:'Fumoir', h:['Plus de bruit à partir de '+H.fumoirCalme]},
+    {t:'Fumoir', h:[['Plus de bruit à partir de', H.fumoirCalme]]},
     {t:'Calme dans le centre', h:[H.calme], n:'Aucune nuisance sonore'}
   ],
 
@@ -38732,7 +38752,9 @@ const PERMANENCES=HORAIRES.services;
    Les pictos sont CEUX DE LA FEUILLE, validés un par un le 21/09 : à l'écran et sur
    le papier, on regarde le même dessin. */
 HORAIRES.memo=[
-  {ic:'horaires',        t:'La rentrée',    v:H.fermeture+' → '+H.reouverture, c:'#6FC7D9'},
+  /* « La rentrée » écarté le 22/09 : elle veut qu'on nomme la chose, la nuit. */
+  {ic:'horaires',        t:'La nuit dans le centre', v:H.fermeture+' → '+H.reouverture,
+   n:'En retard : '+H.tel+' · '+H.telRegul, c:'#6FC7D9'},
   {ic:'hebergement',     t:'Les présences', v:H.presence,                      c:'#4fa06f'},
   {ic:'repas-couverts',  t:'Les repas',     ou:'centre',   k:'Repas',          c:'#e0a52a'},
   {ic:'social',          t:'Service social',ou:'services', k:'Service social', c:'#d4568c'},
@@ -38785,7 +38807,7 @@ const ACC_POINTS=[
    l:['Rentrer avant <b>'+H.fermeture+'</b>. On ne ressort pas avant <b>'+H.reouverture+'</b>.',
       'Plus tard ? <b>Prévenir un travailleur social à l’avance.</b>',
       'À <b>'+H.presence+'</b>, chacun est dans sa chambre : on compte les présences.',
-      'Urgence : <b>02 329 05 94</b> ou <b>0800 99 340</b>.']},
+      'Urgence : <b>'+H.tel+'</b> ou <b>'+H.telRegul+'</b>.']},
   {ic:'bed', c:'#4fa06f', t:'Dormir ailleurs', p:['social','clock'],
    l:['Ça se <b>demande à l’équipe</b>. Ce n’est pas automatique.',
       '<b>3 nuits d’affilée</b> au maximum, <b>10 jours par mois</b>.']},
@@ -38897,7 +38919,14 @@ function horairesOuvrir(){
       return '<div class="hrg" style="--hc:'+m.c+'">'+
         '<span class="rd">'+icon(m.ic)+'</span>'+
         '<span class="tx"><em>'+esc(m.t)+'</em>'+
-          hMemoHeures(m).map(function(h){ return '<b>'+esc(h)+'</b>'; }).join('')+
+          /* Une heure peut venir seule, ou avec le mot qui la nomme (« Midi »). Le mot
+             se lit en clair, l'heure en gras : c'est l'heure qu'on cherche. */
+          hMemoHeures(m).map(function(h){
+            return Array.isArray(h)
+              ? '<b><i>'+esc(h[0])+'</i><s>'+esc(h[1])+'</s></b>'
+              : '<b><s>'+esc(h)+'</s></b>';
+          }).join('')+
+          (m.n?'<u>'+esc(m.n)+'</u>':'')+
         '</span>'+
       '</div>';
     }).join('')+'</div>'+
