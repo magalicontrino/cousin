@@ -4939,16 +4939,26 @@ body.pan-ouvert #view{animation:none;transform:none}
   display:inline-flex;align-items:center;justify-content:center}
 .ctatete .rd svg,.ctatete .rd .pico{width:19px;height:19px}
 .ctatete .chv{margin-left:auto;font-size:20px;color:#8b8984}
-.ctal{display:flex;align-items:baseline;gap:8px;width:100%;border:0;border-top:1px solid var(--ligne);
-  background:none;padding:9px 0 7px;font-family:inherit;font-size:14.5px;color:var(--noir);
+/* ═══ LES ÉTIQUETTES (Mag, 22/09/2026, dessin 2 sur cinq) ═══
+   Avant : des lignes séparées par un filet. Maintenant : une carte blanche par info,
+   une languette de couleur sur le flanc gauche, le picto, puis le chiffre en gros.
+   ⚠ LA LANGUETTE VA JUSQU'AUX BORDS : `align-self:stretch` et `overflow:hidden` sur
+   le bouton. Sans le second, elle dépasse des coins arrondis. */
+.ctal{display:flex;align-items:center;gap:11px;width:100%;
+  border:1px solid var(--trait);border-radius:12px;background:var(--carte);
+  padding:9px 12px 9px 0;overflow:hidden;margin-top:8px;
+  font-family:inherit;font-size:14.5px;color:var(--noir);
   text-align:left;cursor:pointer}
-.ctal:first-of-type{border-top:1.5px solid var(--noir);margin-top:8px}
-.ctal b{font-size:17px}
+.ctal .lang{width:8px;align-self:stretch;background:var(--cc);flex:none}
+.ctal .ic{width:22px;height:22px;flex:none;display:inline-flex;color:var(--noir)}
+.ctal b{font-size:23px;font-weight:800;letter-spacing:-.02em;min-width:26px;line-height:1}
 .ctal span{flex:1}
 .ctal i{font-style:normal;font-size:18px;color:#8b8984}
 /* Le mémo est la dernière ligne de la carte : il ne compte rien et ne disparaît
    jamais, donc il se lit plus bas que les lignes à chiffre (dessin B, 22/09/2026). */
-.ctal.ctamemo{color:var(--enc2);padding:8px 0 6px;align-items:center}
+/* Le mémo garde sa ligne discrète : ni languette ni chiffre, il ne compte rien. */
+.ctal.ctamemo{color:var(--enc2);padding:8px 12px;align-items:center;gap:9px;
+  background:none;border-color:transparent;margin-top:2px}
 .ctal.ctamemo .ic{width:17px;height:17px;flex:none;display:inline-flex}
 .ctal.ctamemo span{font-size:13.5px;font-weight:600}
 .ctal.ctamemo i{font-size:16px}
@@ -18504,8 +18514,23 @@ function vHome(){
     const nArr=(typeof ENT_N_ARR==='number')?ENT_N_ARR:0;
     const nSoc=(typeof ENT_N_SOC==='number')?ENT_N_SOC:0;
     const nMed=(typeof ENT_N_MED==='number')?ENT_N_MED:0;
-    const ligneCta=function(n, mot, ou){
-      return '<button class="ctal" onclick="event.stopPropagation();go(\''+ou+'\')">'+
+    /* ═══ LES ÉTIQUETTES — DESSIN 2 SUR CINQ (Mag, 22/09/2026) ═══
+       « Les informations comme "3 entrants" sont top. Je veux juste qu'on trouve un
+       moyen de mettre ces infos à l'accueil, mais de manière jolie et ludique, juste
+       pour attirer l'attention. »
+       Une languette de couleur sur le flanc, un picto, le chiffre en gros. C'est la
+       même ligne qu'avant, habillée : elle ne change ni de place ni de destination.
+       ⚠ UNE COULEUR PAR SUJET, et elle ne veut rien dire d'autre que « ce n'est pas la
+       même chose que la ligne du dessus ». Ce n'est pas un code de gravité.
+       ⚠ LE PICTO DE MA LISTE EST `list`, PAS `clipboard`. J'avais écrit `clipboard` en
+       pensant « planchette à pince » : dans l'app, ce nom porte le CARRÉ À QUATRE
+       CASES, celui du Réseau. Ça dit une grille, pas une liste. Regarder le dessin,
+       pas seulement son nom. */
+    const ligneCta=function(n, mot, ou, ic, c){
+      return '<button class="ctal" style="--cc:'+(c||'var(--trait)')+'" '+
+        'onclick="event.stopPropagation();go(\''+ou+'\')">'+
+        '<span class="lang"></span>'+
+        (ic?'<span class="ic">'+icon(ic)+'</span>':'')+
         '<b>'+n+'</b><span>'+mot+'</span><i>›</i></button>';
     };
     /* ═══ LE JOUR DE PAIE (Mag, 20/09/2026) ═══ Trois jours avant, en fuchsia, avec le
@@ -18518,11 +18543,11 @@ function vHome(){
        /* ⚠ DES TITRES COURTS (Mag, 20/09/2026 : « je n'aime pas trop les titres, marque
           juste… ») : « à faire », « arrivés » et « pour toi » sont partis — la carte dit
           déjà que c'est ce qui attend. */
-       (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s':''),'#/liste/entretiens'):'')+
-       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens'):'')+
-       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens'):'')+
-       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste'):'')+
-       (nMoi?ligneCta(nMoi,'sur ta liste','#/liste'):'')+
+       (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s':''),'#/liste/entretiens','hebergement','#A9C8E8'):'')+
+       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
+       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
+       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4'):'')+
+       (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
        /* ═══ LE MÉMO, EN DERNIER (Mag, 22/09/2026 — dessin B sur deux) ═══
           « Quand ce sera terminé, tu pourras rajouter le mémo quelque part ici. »
           ⚠ IL NE PORTE PAS DE CHIFFRE, ET C'EST EXPRÈS. Toutes les autres lignes
