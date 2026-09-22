@@ -3743,6 +3743,9 @@ body.pan-ouvert #view{animation:none;transform:none}
   /* ⚠ ELLE SUIT SON CONTENU, puis défile : un texte de vingt lignes ne doit pas pousser
      « Enregistrer » hors de l'écran. Même règle que la fenêtre de la passation. */
   max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* Sur un téléphone, `vh` ignore les barres du navigateur : la carte dépassait le bas
+   de l'écran. `dvh` mesure ce qu'on voit vraiment. */
+@supports(height:100dvh){.popcard{max-height:90dvh}}
 /* ⚠ LE TITRE SE MET À LA LARGEUR DE L'ÉCRAN (Mag, 22/08/2026 : « écrit plus petit,
    "supprimer cette passation" — vu que le point d'interrogation, il part à la ligne »).
    22 px en capitales, c'est trop pour une question de quatre mots sur un téléphone : le
@@ -4970,29 +4973,79 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le filet qui met les permanences et le ROI à part du travail du jour. Rien d'écrit
    au-dessus : un trait suffit à dire « ce n'est plus la même chose » (pas de phrase
    d'explication, sa règle du 22/08). */
-/* Le bouton des horaires : une rangée compacte, pas une grande carte. Il est là pour
-   qui le cherche, il ne prend pas la place des tuiles du jour. */
-.horbtn{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;
-  border:1px solid var(--trait);border-radius:14px;background:var(--carte);
-  color:inherit;font:inherit;cursor:pointer;text-align:left}
-.horbtn .ic{width:20px;height:20px;flex:none;color:var(--enc2);display:inline-flex}
-.horbtn b{font-size:14.5px;font-weight:700;flex:1}
-.horbtn .chv{color:var(--enc2);font-size:17px;line-height:1}
-.permbas{margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--ligne);
+/* ═══ LE BOUTON DES HORAIRES : UNE HORLOGE, RIEN D'AUTRE (Mag, 22/09/2026) ═══
+   « Je trouve qu'il n'est pas beau. Il devrait mettre juste un picto centralisé avec
+   une horloge qui ouvrirait une pop-up, un truc un peu plus original et design. »
+   C'était une rangée pleine largeur avec un titre : le poids d'une carte pour une
+   porte qu'on pousse une fois par jour. Ici, un seul rond au milieu de la page.
+   ⚠ IL N'A PAS D'ÉTIQUETTE À L'ÉCRAN : le nom vit dans `aria-label` et `title`, pour
+   le lecteur d'écran et pour qui s'arrête dessus. C'est son choix. */
+.horbtn{display:flex;align-items:center;justify-content:center;
+  width:58px;height:58px;margin:0 auto;padding:0;border-radius:50%;
+  border:1.5px solid var(--trait-fort);background:var(--creme);
+  color:var(--noir);cursor:pointer;
+  box-shadow:0 2px 0 var(--trait-fort)}
+.horbtn:active{transform:translateY(2px);box-shadow:none}
+.horbtn .ic{width:27px;height:27px;display:inline-flex;color:inherit}
+.horbtn .ic .pico{width:100%;height:100%}
+
+/* ═══ LA FENÊTRE : SIX RANGÉES, UN GROS ROND, L'HEURE EN GROS ═══
+   Le même dessin que les rangées d'horaires de la feuille papier : le picto noir dans
+   un cercle de couleur, l'intitulé petit au-dessus, l'heure dessous en gras. */
+.popcard.hormemo{max-width:380px;padding:30px 24px 24px}
+.hrgs{display:flex;flex-direction:column;gap:2px;margin:4px 0 0}
+.hrg{display:flex;align-items:center;gap:14px;padding:11px 0}
+.hrg+.hrg{border-top:1px solid var(--ligne)}
+.hrg .rd{width:46px;height:46px;flex:none;border-radius:50%;border:2.5px solid var(--hc);
+  background:#fdfdfc;display:inline-flex;align-items:center;justify-content:center}
+.hrg .rd .pico,.hrg .rd svg{width:25px;height:25px;color:var(--noir)}
+.hrg .tx{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hrg .tx em{font-style:normal;font-size:11.5px;font-weight:700;color:var(--enc2);
+  letter-spacing:.06em;text-transform:uppercase}
+.hrg .tx b{font-size:16px;font-weight:700;line-height:1.25}
+/* ⚠ « ÇA NE S'OUVRE PAS » (Mag, 22/09/2026) — ET C'ÉTAIT VRAI. Mesuré sur le site :
+   la barre du bas occupe les 88 derniers pixels de l'écran, et le bouton tombait
+   juste dedans. Il s'affichait, mais le doigt tapait sur la barre. Un bouton qui
+   n'est pas cliquable ne se voit pas dans le code : il faut le mesurer à l'écran.
+   ⚠ GARDER CETTE MARGE. C'est le dernier élément de l'accueil : sans air en dessous,
+   il repasse sous la barre. */
+.permbas{margin:22px 0 32px;padding-top:18px;border-top:1px solid var(--ligne);
   display:flex;flex-direction:column;gap:10px}
 /* L'aide-mémoire de l'entretien : un point par écran. La couleur vient du point
    affiché (`--ac`), comme sur la feuille du résumé.
    ⚠ AÉRÉE (Mag, 22/09/2026 : « cette pop-up elle est chouette, mais aère beaucoup
    plus quand même »). Tout a grandi : les marges, l'interligne, l'espace entre les
    lignes et entre les blocs. On lit un point à la fois — autant qu'il respire. */
-.popcard.accsl{max-width:400px;border-color:var(--ac);padding:26px 24px 22px}
+/* ⚠ LE BAS DE LA CARTE ÉTAIT COUPÉ (Mag, 22/09/2026 : « ici, c'est coupé, j'aime
+   pas trop »). Le bouton ROI / CHARTE passait sous le bord de l'écran sur un
+   téléphone. Deux causes, corrigées ensemble :
+   · `92vh` compte l'écran SANS les barres du navigateur mobile — donc la carte
+     dépassait pour de vrai. Le repli en `dvh` est plus bas, avec `100vh` comme
+     secours pour les navigateurs qui ne le connaissent pas.
+   · et même à la bonne hauteur, c'est toute la carte qui défilait : le titre et les
+     flèches partaient avec le texte. Maintenant SEULE LA LISTE défile, le point où
+     l'on en est et les boutons restent sous les yeux. */
+/* ⚠ HAUTEUR FIXE, ET C'EST TOUT L'INTÉRÊT (Mag, 22/09/2026 : « j'aime pas que les
+   boutons précédent/suivant bougent de haut en bas, c'est embêtant »). La carte
+   suivait son contenu : l'écran « Ce qui est interdit » fait six points, « Dormir
+   ailleurs » en fait deux — les flèches sautaient de place à chaque fois, et il
+   fallait rechercher le bouton des yeux au milieu d'un entretien.
+   Maintenant la carte garde la même taille du premier au dernier écran. Le prix,
+   c'est du blanc sous les écrans courts ; c'est le bon prix. */
+.popcard.accsl{max-width:400px;border-color:var(--ac);padding:26px 24px 22px;
+  display:flex;flex-direction:column;overflow:hidden;
+  height:min(86vh,620px)}
+@supports(height:100dvh){.popcard.accsl{height:min(86dvh,620px)}}
+.popcard.accsl>*{flex:none}
 .accsl-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .accsl-h .rd{width:58px;height:58px;border-radius:50%;border:3px solid var(--ac);background:#fdfdfc;
   display:inline-flex;align-items:center;justify-content:center}
 .accsl-h .rd .ic{width:29px;height:29px}
 .accsl-h i{font-style:normal;font-size:12px;font-weight:700;color:var(--enc2);letter-spacing:.08em}
 .popcard.accsl>b{display:block;font-size:23px;line-height:1.18;margin-bottom:18px}
-.popcard.accsl ul{list-style:none;margin:0;padding:0}
+.popcard.accsl ul{list-style:none;margin:0;padding:0;
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch}
 .popcard.accsl li{font-size:15px;line-height:1.6;padding:12px 0;position:relative}
 .popcard.accsl li.avecpic{display:flex;gap:13px;align-items:flex-start;padding-left:0}
 .accsl-lp{width:24px;height:24px;flex:none;margin-top:2px;color:var(--noir);display:block}
@@ -7829,6 +7882,13 @@ const PICTOS={/* ═══ DEUX DESSINS AJOUTÉS LE 26/08/2026 ═══
               ⚠ PROVISOIRES au sens de la planche : ils sont de moi, pas d'elle. S'ils
               ne lui vont pas, il n'y a que ces deux fichiers à remplacer. */
               fontaine:'fontaine.svg', toilettes:'toilettes.svg',
+              /* ═══ DEUX DESSINS DU RÈGLEMENT QUI ENTRENT DANS L'APP (22/09/2026) ═══
+                 Ce sont deux des 28 pictos qu'elle a validés un par un le 21/09 pour la
+                 feuille du Résumé ROI. La fenêtre des horaires reprend les mêmes dessins
+                 que le papier : c'est la même chose qu'on regarde, à l'écran ou en main. */
+              'repas-couverts':'repas-couverts.svg', 'fumoir-cigarette':'fumoir-cigarette.svg',
+              /* L'horloge de la feuille — la même que celle du titre « Accès au centre ». */
+              'horaires':'horaires.svg',
               /* ═══ QUATRE DESSINS AJOUTÉS LE 04/09/2026 (Mag : « trouve des pictos
                  aussi, il ne faut pas qu'il y ait des pictos qui se répètent ») ═══
                  Mesuré avant de dessiner, tuile par tuile : TROIS boutons du Centre
@@ -18585,9 +18645,9 @@ function vHome(){
      la question qu'on pose aux polyvalents dans le couloir. Un seul bouton, discret,
      sans condition de groupe : eux aussi doivent pouvoir répondre. */
   h+='<div class="permbas">'+
-       '<button class="horbtn" onclick="horairesOuvrir()">'+
-         '<span class="ic">'+icon('clock')+'</span>'+
-         '<b>Les horaires</b><span class="chv">›</span>'+
+       '<button class="horbtn" onclick="horairesOuvrir()" '+
+         'aria-label="Les horaires" title="Les horaires">'+
+         '<span class="ic">'+icon('horaires')+'</span>'+
        '</button>'+
      '</div>';
 
@@ -38649,6 +38709,35 @@ const HORAIRES={
    services, et rien d'autre dans le fichier ne connaît `PERMANENCES`. */
 const PERMANENCES=HORAIRES.services;
 
+/* ═══ LE MÉMO DU MÉMO (Mag, 22/09/2026) ═══
+   « Je veux que les polyvalents aient accès à quelque chose de très, très simple.
+   C'est juste le mémo du mémo. Parce que eux, ils n'ont pas accès aux mémos ni au
+   ROI. Il n'y a rien. »
+   ⭐ SIX LIGNES, PAS UNE DE PLUS. La fenêtre montrait les treize lignes du document —
+   le linge, la literie, la télévision, le kit hygiène. « Là, il y a trop, et c'est mal
+   fait. » Ce qui reste, c'est ce qu'on demande à quelqu'un dans le couloir.
+   ⚠ NE PAS Y REMETTRE LE RESTE. Le document complet, c'est la feuille du Résumé ROI.
+   ⚠ AUCUNE HEURE N'EST ÉCRITE ICI : chaque ligne va chercher la sienne dans le
+   tableau au-dessus. `ou` dit dans quelle liste, `t` dit laquelle.
+   Les pictos sont CEUX DE LA FEUILLE, validés un par un le 21/09 : à l'écran et sur
+   le papier, on regarde le même dessin. */
+HORAIRES.memo=[
+  {ic:'horaires',        t:'La rentrée',    v:H.fermeture+' → '+H.reouverture, c:'#6FC7D9'},
+  {ic:'hebergement',     t:'Les présences', v:H.presence,                      c:'#4fa06f'},
+  {ic:'repas-couverts',  t:'Les repas',     ou:'centre',   k:'Repas',          c:'#e0a52a'},
+  {ic:'social',          t:'Service social',ou:'services', k:'Service social', c:'#d4568c'},
+  {ic:'educatif',        t:'Éducateurs',    ou:'services', k:'Service éducatif',c:'#8a9a3b'},
+  {ic:'fumoir-cigarette',t:'Le fumoir',     ou:'centre',   k:'Fumoir',         c:'#8a7fa8'}
+];
+/* Les heures d'une ligne du mémo : soit elle les porte (`v`), soit elle dit où les
+   prendre. On ne recopie jamais. */
+function hMemoHeures(m){
+  if(m.v) return [m.v];
+  const l=(HORAIRES[m.ou]||[]).filter(function(x){ return x.t===m.k; })[0];
+  if(!l) return [];
+  return m.ou==='centre' ? l.h : l.r[0][1];
+}
+
 /* La ligne des services du mémo, fabriquée à partir du tableau au lieu d'être
    recopiée : « Social 24 h/24 · Éducatif 7 h → 18 h · … ». `res` dit quelles rangées
    résumer — pour le pôle médicalisé, l'ouverture, pas le détail des médicaments. */
@@ -38777,16 +38866,14 @@ function accSlideDessine(){
    ⚠ Les mots restent ceux du Résumé ROI ; seules les étiquettes de gauche sont à moi
    (« Ouvert », « Médicaments », « Matinée ») — c'est de la mise en page d'un écran de
    l'app, pas une réécriture du document du Centre. */
-/* ═══ LA FENÊTRE DES HORAIRES (Mag, 22/09/2026) ═══
-   « Tu peux rajouter aussi un bouton horaire et faire une petite pop-up avec juste les
-   horaires. Même du centre un résumé, pour que les polyvalents puissent savoir
-   répondre aux demandes. »
-   ⚠ ELLE EST POUR TOUT LE MONDE, GROUPE D COMPRIS — c'est même sa raison d'être. Le
-   ROI, lui, reste caché aux polyvalents : on ne leur demande pas d'expliquer le
-   règlement, on leur demande de savoir à quelle heure ouvre l'infirmerie.
-   ⚠ ELLE REMPLACE « Les permanences » : mêmes services, plus les heures du bâtiment.
-   Deux fenêtres pour des heures, c'était une de trop.
-   Elle ne contient AUCUNE heure en propre : tout vient de `HORAIRES`. */
+/* ═══ LA FENÊTRE DES HORAIRES — LE MÉMO DU MÉMO (Mag, 22/09/2026) ═══
+   « Fais un truc hyper schématisé, très facile. Là, il y a trop, et c'est mal fait. »
+   Six rangées, un gros picto par rangée, l'heure en gros. Rien à lire, tout à voir.
+   ⚠ ELLE EST POUR TOUT LE MONDE, GROUPE D COMPRIS — c'est sa raison d'être : les
+   polyvalents n'ont ni le mémo ni le ROI, et ce sont eux qu'on arrête dans le couloir.
+   ⚠ ELLE REMPLACE « Les permanences ». Deux fenêtres pour des heures, c'était une de
+   trop.
+   ⚠ AUCUNE HEURE EN PROPRE : tout vient de `HORAIRES`. */
 function horairesOuvrir(){
   let bg=document.getElementById('permBg');
   if(!bg){
@@ -38794,30 +38881,16 @@ function horairesOuvrir(){
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
     document.body.appendChild(bg);
   }
-  const rangee=function(t,heures,note){
-    return '<dt>'+esc(t)+'</dt><dd>'+
-      heures.map(function(h){ return '<i>'+esc(h)+'</i>'; }).join('')+
-      (note?'<u>'+esc(note)+'</u>':'')+'</dd>';
-  };
-  bg.innerHTML='<div class="popcard permdoc" role="dialog" aria-modal="true">'+
+  bg.innerHTML='<div class="popcard hormemo" role="dialog" aria-modal="true">'+
     '<b>Les horaires</b>'+
-    /* Le bâtiment d'abord : c'est ce qu'on demande le plus souvent à l'accueil. */
-    '<div class="permg hcentre" style="--pc:var(--enc2)">'+
-      '<div class="permt"><b>Le centre</b></div>'+
-      '<dl>'+HORAIRES.centre.map(function(x){
-        return rangee(x.t, x.h, x.n);
-      }).join('')+'</dl>'+
-    '</div>'+
-    HORAIRES.services.map(function(g){
-      return '<div class="permg" style="--pc:'+g.c+'">'+
-        '<div class="permt"><b>'+esc(g.t)+'</b>'+(g.s?'<em>'+esc(g.s)+'</em>':'')+'</div>'+
-        '<dl>'+g.r.map(function(x){
-          return '<dt>'+esc(x[0])+'</dt><dd>'+
-            x[1].map(function(h){ return '<i>'+esc(h)+'</i>'; }).join('')+'</dd>';
-        }).join('')+'</dl>'+
-        (g.n?'<p class="permn">'+esc(g.n)+'</p>':'')+
+    '<div class="hrgs">'+HORAIRES.memo.map(function(m){
+      return '<div class="hrg" style="--hc:'+m.c+'">'+
+        '<span class="rd">'+icon(m.ic)+'</span>'+
+        '<span class="tx"><em>'+esc(m.t)+'</em>'+
+          hMemoHeures(m).map(function(h){ return '<b>'+esc(h)+'</b>'; }).join('')+
+        '</span>'+
       '</div>';
-    }).join('')+
+    }).join('')+'</div>'+
     '<p class="permsrc">Recopié du Résumé ROI du centre, mise à jour du 24-02-25. '+
     'Les panneaux d’affichage du couloir font foi.</p>'+
     '<div class="entpart-b"><button class="dembtn" onclick="document.getElementById(\'permBg\').classList.remove(\'on\')">Fermer</button></div>'+

@@ -1,5 +1,26 @@
 # -*- coding: utf-8 -*-
-import re, base64, html as H
+# ═══════════════════════════════════════════════════════════════════════════
+#  UN GENERATEUR, PLUSIEURS LANGUES (Mag, 22/09/2026)
+#  `python3 propositions/gen-resume-roi.py`       → le francais
+#  `python3 propositions/gen-resume-roi.py en`    → l'anglais
+#  Le francais reste ECRIT ICI : c'est le document de reference, celui qu'on a
+#  verifie mot pour mot contre le PDF du centre. Les autres langues vivent dans
+#  propositions/resume-langues/<code>.json — meme ordre, memes cles, meme nombre
+#  de phrases. Le dessin, les pictos et les couleurs sont les memes pour toutes.
+#  ⚠ LES TRADUCTIONS FOURNIES PAR LE CENTRE SONT DES SORTIES DE MACHINE
+#    (onlinedoctranslator.com) ET ELLES SE TROMPENT SUR LE FOND. L'anglais disait
+#    « Medications are available at the infirmary » la ou le francais demande de
+#    REMETTRE ses medicaments a l'infirmerie : le sens est retourne. C'est pour ca
+#    qu'on refait les textes au lieu de recopier ces fichiers.
+#  ⚠ CHAQUE LANGUE DOIT ETRE RELUE PAR QUELQU'UN QUI LA PARLE avant d'etre remise
+#    a une personne hebergee. Tant que ce n'est pas fait, la feuille reste dans
+#    propositions/ et ne monte pas dans documents/roi/.
+# ═══════════════════════════════════════════════════════════════════════════
+import re, base64, html as H, sys, json, os
+LANG = (sys.argv[1] if len(sys.argv)>1 else 'fr').lower()
+TR = None
+if LANG != 'fr':
+    TR = json.load(open('propositions/resume-langues/%s.json'%LANG, encoding='utf-8'))
 
 def svg(nom, klass='pic'):
     # ⚠ Les dessins que j'ai faits ne sont PAS dans picto/ : ils attendent son oeil
@@ -115,6 +136,40 @@ PMS=[
  ('sante-mentale','Service psychologique','En matinée : 09h-13h<br>En journée et soirée : 14h30-17h'),
 ]
 
+# ═══ LES MOTS DE LA PAGE, PAS DU DOCUMENT ═══
+# Le titre, les deux intertitres, la legende du QR et les fonctions du pied. Ils ne
+# viennent pas du resume : ce sont les meubles de la feuille. Chaque JSON de langue
+# porte son bloc `ui` ; sans lui, on reste en francais.
+UI_FR = {
+ 'titre':'Accueil bénéficiaire', 'lieu':'Résumé ROI — PDL', 'maj':'MAJ : 24-02-25',
+ 'pagen':'Horaires des services', 'collectifs':'Services collectifs', 'pms':'Services PMS',
+ 'qr':'Scannez pour ouvrir le ROI général', 'imprimer':'Imprimer',
+ 'r1':'Responsable de Centre', 'r2':'Coordinateur médical', 'r3':'Coordinatrice sociale',
+}
+UI = dict(UI_FR)
+if TR:
+    UI.update(TR.get('ui') or {})
+    # ⚠ ON REMPLACE LE TEXTE, JAMAIS LE DESSIN. Les pictos, les couleurs et l'ORDRE
+    #   restent ceux du francais : le JSON ne fournit que des mots, et il doit avoir
+    #   exactement autant d'entrees, sinon on s'arrete plutot que de publier une
+    #   feuille a laquelle il manque une phrase.
+    assert len(TR['sections'])==len(SECTIONS), 'sections : %d au lieu de %d'%(len(TR['sections']),len(SECTIONS))
+    assert len(TR['collectifs'])==len(COLLECTIFS), 'collectifs : %d au lieu de %d'%(len(TR['collectifs']),len(COLLECTIFS))
+    assert len(TR['pms'])==len(PMS), 'pms : %d au lieu de %d'%(len(TR['pms']),len(PMS))
+    SECTIONS=[(pic, TR['sections'][i]['t'], coul, TR['sections'][i]['l'])
+              for i,(pic,titre,coul,lignes) in enumerate(SECTIONS)]
+    COLLECTIFS=[(COLLECTIFS[i][0], TR['collectifs'][i]['t'], TR['collectifs'][i]['v'])
+                for i in range(len(COLLECTIFS))]
+    PMS=[(PMS[i][0], TR['pms'][i]['t'], TR['pms'][i]['v']) for i in range(len(PMS))]
+    # les couleurs sont rangees par TITRE FRANCAIS : on refait la table sur les nouveaux
+    COULEURS = {TR['sections'][i]['t']: c for i,c in enumerate(
+        [COULEURS[t] for t in ['GÉNÉRALITÉ','VOTRE ACCUEIL','VOTRE DÉPART','SERVICES COLLECTIFS',
+         'SERVICES PMS','RÈGLES DE VIVRE-ENSEMBLE','SANCTIONS','CONFIDENTIALITÉ',
+         'PROCÉDURE DE PLAINTES','ACCÈS À L’ENSEMBLE DE VOS DROITS']])}
+    COUL_QR = TR['sections'][9]['t']
+else:
+    COUL_QR = 'ACCÈS À L’ENSEMBLE DE VOS DROITS'
+
 def ligne(t):
     non = t.startswith('NON|')
     return '<li%s>%s</li>'%(' class=non' if non else '', t[4:] if non else t)
@@ -130,24 +185,29 @@ def ligne(t):
 # avant ». Cette adresse est l'outil de l'equipe, ce n'est pas un lien qu'on met dans
 # les mains d'un heberge. On reprend donc l'IMAGE du PDF (pdfimages, num 22), telle
 # quelle, sans savoir ni changer ou elle mene. ⚠ NE PAS LA REMPLACER.
+# ⚠ IL VIVAIT DANS UN DOSSIER TEMPORAIRE DE SESSION (22/09/2026). Le jour ou ce
+# dossier disparait, le generateur du document officiel ne tourne plus du tout.
+# Range dans le depot : propositions/qr-roi.png.
 import base64 as _b64
-QR = _b64.b64encode(open('/private/tmp/claude-501/-Users-magalicontrino-SAMU/34b0f6d0-5f97-4b3a-861a-6e57ec121a27/scratchpad/qr-roi.png','rb').read()).decode()
+QR = _b64.b64encode(open('propositions/qr-roi.png','rb').read()).decode()
 
 sect=''
 for nom,titre,coul,lignes in SECTIONS:
     coul = COULEURS.get(titre, coul)
+    # ⚠ PAS `if 'DROITS' in titre` : en anglais le titre ne contient pas ce mot, et le
+    #   QR disparaissait de la feuille sans que rien ne le signale.
     apres = ('<div class="qr"><img src="data:image/png;base64,%s" alt="QR code du document">'
-             '<em>Scannez pour ouvrir le ROI général</em></div>' % QR) if 'DROITS' in titre else ''
+             '<em>%s</em></div>' % (QR, H.escape(UI['qr']))) if titre==COUL_QR else ''
     sect+=('<section class="bl %s"><h2>%s<span>%s</span></h2><ul>%s</ul>%s</section>'
            %(coul, rond(nom,coul), H.escape(titre), ''.join(ligne(l) for l in lignes), apres))
 
 def rang(nom,lib,val,coul):
     return ('<div class="rg">%s<div class="tx"><b>%s</b><span>%s</span></div></div>'%(rond(nom,coul),lib,val))
 
-hor=('<div class="bl turq"><h2>%s<span>Services collectifs</span></h2><div class="rgs">%s</div></div>'
-     %(rond(['hebergement','tv-antenne','ico-ondes','repas-cloche'],COULEURS['SERVICES COLLECTIFS']), ''.join(rang(*c,'turq') for c in COLLECTIFS)))
-hor+=('<div class="bl vert"><h2>%s<span>Services PMS</span></h2><div class="rgs">%s</div></div>'
-      %(rond(['medical','sante-mentale','social'],COULEURS['SERVICES PMS']), ''.join(rang(*c,'vert') for c in PMS)))
+hor=('<div class="bl turq"><h2>%s<span>%s</span></h2><div class="rgs">%s</div></div>'
+     %(rond(['hebergement','tv-antenne','ico-ondes','repas-cloche'],list(COULEURS.values())[3]), H.escape(UI['collectifs']), ''.join(rang(*c,'turq') for c in COLLECTIFS)))
+hor+=('<div class="bl vert"><h2>%s<span>%s</span></h2><div class="rgs">%s</div></div>'
+      %(rond(['medical','sante-mentale','social'],list(COULEURS.values())[4]), H.escape(UI['pms']), ''.join(rang(*c,'vert') for c in PMS)))
 
 polices=''
 for w,f in [('400','eastman-regular'),('600','eastman-demibold'),('800','eastman-extrabold')]:
@@ -232,7 +292,7 @@ b.tel{font-size:12.5pt;font-weight:800;white-space:nowrap}
 """
 
 DOC = ("""<!doctype html>
-<html lang="fr"><head><meta charset="utf-8">
+<html lang=""" + '"'+LANG+'"' + """><head><meta charset="utf-8">
 <title>Résumé ROI — proposition de mise en page</title>
 <!--
   PROPOSITION du 21/09/2026 — Mag :
@@ -255,32 +315,36 @@ DOC = ("""<!doctype html>
 <style>""" + CSS + """</style></head><body>
 
 <div class="f">
-  <h1>Accueil bénéficiaire</h1>
-  <p class="lieu">Résumé ROI — PDL</p>
-  <p class="src-h">MAJ : 24-02-25</p>
+  <h1>""" + H.escape(UI['titre']) + """</h1>
+  <p class="lieu">""" + H.escape(UI['lieu']) + """</p>
+  <p class="src-h">""" + H.escape(UI['maj']) + """</p>
   <div class="bar"></div>
 """ + sect + """
 </div>
 
 <div class="f">
-  <p class="pagen">Horaires des services</p>
+  <p class="pagen">""" + H.escape(UI['pagen']) + """</p>
 """ + hor + """
   <div class="pied">
     <!-- ⚠ LE SEUL ENDROIT OU CETTE FEUILLE S'ECARTE DU DOCUMENT D'ORIGINE, et c'est
          Mag qui le dicte (21/09/2026 : « le responsable du centre, maintenant, c'est
          Marc »). Le resume PDF du 24-02-25 dit encore « Joan » : c'est le PDF officiel
          qui est perime, pas la feuille. A faire corriger a la source. -->
-    <div><em>Responsable de Centre</em><b>Marc</b></div>
-    <div><em>Coordinateur médical</em><b>Claude</b></div>
-    <div><em>Coordinatrice sociale</em><b>Laura</b></div>
+    <div><em>""" + H.escape(UI['r1']) + """</em><b>Marc</b></div>
+    <div><em>""" + H.escape(UI['r2']) + """</em><b>Claude</b></div>
+    <div><em>""" + H.escape(UI['r3']) + """</em><b>Laura</b></div>
   </div>
 
 </div>
 
-<div class="noprint"><button onclick="window.print()">Imprimer</button></div>
+<div class="noprint"><button onclick="window.print()">""" + H.escape(UI['imprimer']) + """</button></div>
 </body></html>""")
 
-open('propositions/resume-roi.html','w',encoding='utf-8').write(DOC)
+# ⚠ LE FRANCAIS GARDE SON NOM DE FICHIER. Les autres langues prennent un suffixe :
+#   l'app et la memoire renvoient deja vers resume-roi.html et resume-roi-minimal.html.
+SORTIE  = 'propositions/resume-roi.html' if LANG=='fr' else 'propositions/resume-roi-%s.html'%LANG
+SORTIE3 = 'propositions/resume-roi-minimal.html' if LANG=='fr' else 'propositions/resume-roi-%s-3p.html'%LANG
+open(SORTIE,'w',encoding='utf-8').write(DOC)
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LA VERSION MINIMALE (Mag, 21/09/2026 : « une version minimal, c'est-a-dire
@@ -331,8 +395,8 @@ DOC_MINI = DOC_MINI.replace('<div class="bar"></div>\n', '<div class="bar"></div
 DOC_MINI = DOC_MINI.replace('\n</div>\n\n<div class="f">\n  <p class="pagen">',
                             '</div>\n</div>\n\n<div class="f">\n  <p class="pagen">', 1)
 # les horaires aussi
-DOC_MINI = DOC_MINI.replace('<p class="pagen">Horaires des services</p>\n',
-                            '<p class="pagen">Horaires des services</p>\n<div class="cols">', 1)
+_pg = '<p class="pagen">'+H.escape(UI['pagen'])+'</p>\n'
+DOC_MINI = DOC_MINI.replace(_pg, _pg+'<div class="cols">', 1)
 DOC_MINI = DOC_MINI.replace('  <div class="pied">', '  </div>\n  <div class="pied">', 1)
-open('propositions/resume-roi-minimal.html','w',encoding='utf-8').write(DOC_MINI)
-print("normal :", len(DOC), "| minimal :", len(DOC_MINI))
+open(SORTIE3,'w',encoding='utf-8').write(DOC_MINI)
+print("%s → %s (%d) et %s (%d)"%(LANG, SORTIE, len(DOC), SORTIE3, len(DOC_MINI)))
