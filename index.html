@@ -18567,10 +18567,8 @@ function vHome(){
      C'est la page la plus ouverte de la journée, et elle n'était qu'une ligne du petit
      menu. Un seul grand bouton, avant « À faire aujourd'hui », qui dit ce qui attend :
      les entretiens à voir, puis ce qui reste dans sa liste.
-     ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin.
-     ⚠ La pastille de l'onglet Entretiens et ce compte lisent la même chose. */
+     ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
   if(!estGroupeD()){
-    const nEnt=(typeof voitEntrants==='function' && voitEntrants() && typeof ENT_N_AVOIR==='number') ? ENT_N_AVOIR : 0;
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
        additionnait les tâches de la check-list de son métier ET ses rappels : un chiffre
@@ -19198,7 +19196,12 @@ k:['Formations COUSIN']},
          Une check-list ne regarde que celui qui la coche.
      ⚠ La page `#/liste` et la feuille qui monte ne bougent pas — c'est le BOUTON
      dans le Centre qui part, pas la check-list. */
-  let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', true);
+  /* ⚠ PAS DE FLÈCHE RETOUR ICI (Mag, 22/09/2026 : « quand on clique dans Urgence ou
+     Centre, dans le titre il y a une flèche qui revient en arrière, ça n'a aucun
+     sens »). Elle a raison : Le centre est une destination de la barre du bas, pas
+     une sous-page. Revenir en arrière depuis une page de premier niveau, ça ne veut
+     rien dire — on en sort par la barre, comme on y est entré. */
+  let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', 'aucun');
 
   /* LA RÈGLE DU GROUPE D, corrigée le 07/08/2026 par Mag : la section « Les outils
      de l'équipe » NE DISPARAÎT PAS. Elle reste, avec son titre, et on n'en retire
@@ -19758,7 +19761,9 @@ function vListe(){
   const nAttente=(typeof ENTRANTS!=='undefined' && ENTRANTS && ENTRANTS.length)
     ? ENTRANTS.filter(function(e){ return !entretienFait(e,'acc'); }).length
     : ENT_N_AVOIR;
-  return heroBandeau('Liste et Notes', dateTxt, '#A9C8E8','folder', true)+
+  /* Liste et Notes s'ouvre depuis le bouton dossier de la barre du haut, visible
+     partout : c'est une destination, pas une sous-page. */
+  return heroBandeau('Liste et Notes', dateTxt, '#A9C8E8','folder', 'aucun')+
     '<div class="mlong">'+
     '<button class="mlong-btn'+(onglet==='entretiens'?' on':'')+(nAttente?' rose':'')+'" '+
       'onclick="mlVue(\'entretiens\')"><span class="ic">'+icon('accomp')+'</span>Entretiens'+
@@ -27499,7 +27504,9 @@ function urgParReseau(list,cc){
 function toggleUrgCat(btn,i){ urgCat=(urgCat===i)?null:i; render(); }
 function vUrgences(){
   /* Bandeau noir + 112/101 en cartes rouges + catégories dépliables (handoff). */
-  return heroBandeau('Urgences','','#e63329','siren',true)+
+  /* Même raison que Le centre : une destination de la barre du bas n'a pas de
+     « retour ». */
+  return heroBandeau('Urgences','','#e63329','siren','aucun')+
     urgencesListHTML()+wikiBloc('urgences')+
     '<div style="height:26px"></div>';
 }
@@ -38435,7 +38442,17 @@ async function loadEntrantsCompte(){
     const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,mi_parcours,pour_entretien');
     if(!r.error){
       const d=r.data||[];
-      ENT_N_AVOIR=d.filter(function(e){ return e.pour_entretien!==false && !entretienFait(e,'acc'); }).length;
+      /* ⚠ LE MÊME FILTRE QUE L'ONGLET, ET C'EST TOUTE LA CORRECTION (Mag, 22/09/2026 :
+         « quand on arrive sur Liste et Notes, le bouton n'est pas marqué en rose et n'a
+         pas de notification, même s'il y a des choses à voir dans les entretiens »).
+         Ce compte écartait les arrivées (`pour_entretien===false`) ; l'onglet, lui, les
+         AFFICHE — il liste tout ce qui n'a pas été coché. Trois personnes attendaient,
+         l'onglet disait 3 et restait blanc dès qu'on regardait depuis Liste ou Notes.
+         ⭐ UNE PASTILLE COMPTE CE QU'ON VA TROUVER EN CLIQUANT. Si les deux filtres
+         diffèrent, elle ment — dans un sens ou dans l'autre.
+         (Les arrivées gardent leur compte à part, `ENT_N_ARR`, pour la carte de
+         l'accueil : c'est un autre besoin, pas la même pastille.) */
+      ENT_N_AVOIR=d.filter(function(e){ return !entretienFait(e,'acc'); }).length;
       ENT_N_ARR=d.filter(function(e){ return e.pour_entretien===false; }).length;
       /* ⚠ LE SOCIAL ET LE MÉDICAL SE COMPTENT À PART (Mag, 20/09/2026 : « parfois il y a
          des socios qui sont faits et pas encore des médicaux, ou l'inverse ») : un seul
