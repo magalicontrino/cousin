@@ -4943,6 +4943,12 @@ body.pan-ouvert #view{animation:none;transform:none}
 .ctal b{font-size:17px}
 .ctal span{flex:1}
 .ctal i{font-style:normal;font-size:18px;color:#8b8984}
+/* Le mémo est la dernière ligne de la carte : il ne compte rien et ne disparaît
+   jamais, donc il se lit plus bas que les lignes à chiffre (dessin B, 22/09/2026). */
+.ctal.ctamemo{color:var(--enc2);padding:8px 0 6px;align-items:center}
+.ctal.ctamemo .ic{width:17px;height:17px;flex:none;display:inline-flex}
+.ctal.ctamemo span{font-size:13.5px;font-weight:600}
+.ctal.ctamemo i{font-size:16px}
 .entbtns{display:inline-flex;gap:8px;margin-left:auto;flex:none}
 /* La réserve de secours : le bandeau de reprise et le petit mot « enregistré ». */
 .notsec{border:1px dashed #c9c6c0;border-radius:10px;background:#f7f6f3;padding:9px 12px;margin-top:8px}
@@ -4964,6 +4970,14 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le filet qui met les permanences et le ROI à part du travail du jour. Rien d'écrit
    au-dessus : un trait suffit à dire « ce n'est plus la même chose » (pas de phrase
    d'explication, sa règle du 22/08). */
+/* Le bouton des horaires : une rangée compacte, pas une grande carte. Il est là pour
+   qui le cherche, il ne prend pas la place des tuiles du jour. */
+.horbtn{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;
+  border:1px solid var(--trait);border-radius:14px;background:var(--carte);
+  color:inherit;font:inherit;cursor:pointer;text-align:left}
+.horbtn .ic{width:20px;height:20px;flex:none;color:var(--enc2);display:inline-flex}
+.horbtn b{font-size:14.5px;font-weight:700;flex:1}
+.horbtn .chv{color:var(--enc2);font-size:17px;line-height:1}
 .permbas{margin:22px 0 4px;padding-top:18px;border-top:1px solid var(--ligne);
   display:flex;flex-direction:column;gap:10px}
 /* L'aide-mémoire de l'entretien : un point par écran. La couleur vient du point
@@ -5022,6 +5036,22 @@ body.pan-ouvert #view{animation:none;transform:none}
 .permg dd{margin:0;display:flex;flex-wrap:wrap;gap:5px}
 .permg dd i{font-style:normal;font-size:12.5px;font-weight:700;white-space:nowrap;
   background:var(--barre);border:1px solid var(--trait);border-radius:7px;padding:2px 7px}
+/* ⚠ LE BLOC « LE CENTRE » A DES INTITULÉS LONGS (« Tickets de transport », « Calme
+   dans le centre »). Le dessin des permanences serre le titre sur une seule ligne
+   (`white-space:nowrap`) : ici on le laisse revenir à la ligne, et sur un téléphone
+   on empile le titre puis ses heures, sinon la colonne des heures est écrasée. */
+.permg.hcentre dt{white-space:normal}
+/* ⚠ Les heures des permanences tiennent en un mot (« 24 h/24 ») et ne reviennent
+   jamais à la ligne ; celles du centre sont des phrases (« Toutes les 2 semaines,
+   samedi et dimanche ») et sortaient de l'écran, coupées sans prévenir. */
+.permg.hcentre dd i{white-space:normal}
+.permg.hcentre dd u{display:block;width:100%;text-decoration:none;font-size:11.5px;
+  color:var(--enc2);line-height:1.35;margin-top:2px;font-weight:400}
+@media(max-width:420px){
+  .permg.hcentre dl{grid-template-columns:1fr;gap:2px}
+  .permg.hcentre dt{margin-top:4px}
+  .permg.hcentre dd{margin:0 0 6px}
+}
 .permn{font-size:12px;line-height:1.4;color:var(--enc2);margin:7px 0 0}
 .permsrc{font-size:11.5px;color:var(--enc2);line-height:1.45;margin:14px 0 0;
   border-top:1px solid var(--ligne);padding-top:10px}
@@ -18402,6 +18432,16 @@ function vHome(){
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste'):'')+
+       /* ═══ LE MÉMO, EN DERNIER (Mag, 22/09/2026 — dessin B sur deux) ═══
+          « Quand ce sera terminé, tu pourras rajouter le mémo quelque part ici. »
+          ⚠ IL NE PORTE PAS DE CHIFFRE, ET C'EST EXPRÈS. Toutes les autres lignes
+          comptent quelque chose et disparaissent à zéro ; lui est là tout le temps.
+          Lui inventer un compte (« 6 écrans »), ce serait refaire l'erreur du
+          « 14 sur ta liste » du 20/09 : un chiffre qui ne correspond à rien.
+          ⚠ Sa ligne est plus discrète que celles qui comptent — c'est le dessin B
+          qu'elle a choisi, pas une ligne comme les autres. */
+       '<button class="ctal ctamemo" onclick="event.stopPropagation();accSlideOuvrir()">'+
+         '<span class="ic">'+icon('bulb')+'</span><span>Le mémo</span><i>›</i></button>'+
        '</div>';
   }
   /* ═══ CE QUI RÉCLAME PASSE DEVANT (Mag, 10/08/2026) ═══
@@ -18535,43 +18575,20 @@ function vHome(){
      mène sur grand écran. Seule la section de l'accueil part. */
 
 
-  /* ═══ LES PERMANENCES, TOUT EN BAS ET À PART (Mag, 21/09/2026) ═══
-     « Mets ce bouton tout en dessous, à part les boutons du centre qu'il y a
-     vraiment. » Je l'avais posée dans la rangée du travail du jour — avec le linge,
-     les poubelles, les chambres. C'était faux, et elle l'a dit tout de suite : ces
-     boutons-là sont des CHOSES À FAIRE aujourd'hui, celui-ci est un renseignement
-     qu'on vient chercher. Les mélanger, c'est faire croire qu'il y a une tâche de
-     plus.
-     ⚠ NE PAS LA REMETTRE DANS `boules`. Elle vit seule, après tout le reste,
-     séparée par un filet.
-     ⚠ ET ELLE RESTE UNE LIGNE, PAS UN BLOC : l'accueil tient en un écran, et c'est
-     en ajoutant un bloc que je l'avais cassé le 20/09 ([[cousin-accueil-fige]]). */
-  /* ⚠ LE ROI EST À CÔTÉ, PAS DEDANS (Mag, 21/09/2026 : « mettre le ROI en ligne et à
-     imprimer »). Il ouvre la fenêtre « Charte & ROI » qui existe depuis le 20/09 : le
-     règlement entier, son résumé et la charte à signer, en huit langues — chacun
-     s'ouvre dans un onglet où l'on peut lire, imprimer ou enregistrer.
-     Elle n'était atteignable que depuis l'onglet des entretiens, donc réservée à ceux
-     qui le voient. Le règlement du centre, tout le monde en a besoin.
-     ⚠ NE PAS LA FONDRE DANS « PERMANENCES » : les heures et le règlement sont deux
-     choses. Deux lignes, deux portes. */
+  /* ═══ LES DEUX GRANDES RANGÉES DU BAS SONT PARTIES (Mag, 22/09/2026 : « retire ça ») ═══
+     Il y avait « Permanences » et « Le ROI », deux rangées pleine largeur au bas de
+     l'accueil. Sur un écran qui ne défile pas ([[cousin-accueil-fige]]), deux blocs de
+     cette taille prennent la place de ce qui sert tous les jours.
+     ⚠ NE PAS LES REMETTRE. Le ROI s'ouvre depuis le mémo, dans Liste et Notes.
+     ⚠ MAIS LES HORAIRES GARDENT UNE PORTE, ET POUR TOUT LE MONDE. Sans elle, les
+     heures de l'infirmerie n'étaient plus atteignables nulle part — et c'est justement
+     la question qu'on pose aux polyvalents dans le couloir. Un seul bouton, discret,
+     sans condition de groupe : eux aussi doivent pouvoir répondre. */
   h+='<div class="permbas">'+
-       '<button class="grosse" onclick="permanencesOuvrir()">'+
-         '<span class="rd"><span class="ic" style="color:#6FC7D9">'+icon('medical')+'</span></span>'+
-         '<span class="tx"><b>Permanences</b><em>Médical · social · psy</em></span>'+
-         '<span class="chv">›</span>'+
+       '<button class="horbtn" onclick="horairesOuvrir()">'+
+         '<span class="ic">'+icon('clock')+'</span>'+
+         '<b>Les horaires</b><span class="chv">›</span>'+
        '</button>'+
-       /* ⚠ PAS POUR LE GROUPE D (Mag, 21/09/2026 : « retire le ROI de l'accueil des
-          polyvalents. Il n'en parle pas. Ils n'ont pas à voir ça »). Les polyvalents
-          et les agents d'entretien ne mènent pas les entretiens et n'expliquent pas le
-          règlement — le leur mettre sous les yeux, c'est leur suggérer un rôle qui
-          n'est pas le leur. Les permanences, elles, restent : tout le monde a besoin
-          de savoir quand l'infirmerie est ouverte. */
-       (estGroupeD() ? '' :
-       '<button class="grosse" onclick="roiOuvrir()">'+
-         '<span class="rd"><span class="ic" style="color:#8a7fa8">'+icon('book')+'</span></span>'+
-         '<span class="tx"><b>Le ROI</b><em>Règlement, résumé et charte · à lire et à imprimer</em></span>'+
-         '<span class="chv">›</span>'+
-       '</button>')+
      '</div>';
 
   /* ⚠ LA SIGNATURE « COUSIN @mag » EST RETIRÉE (Mag, 21/08/2026 : « retire
@@ -38559,6 +38576,92 @@ const ROI_DOCS=[
    ⚠ LES HEURES SONT RECOPIÉES DU RÉSUMÉ ROI DU CENTRE (MAJ 24-02-25), mot pour mot.
    On ne les invente pas et on ne les arrondit pas : ce sont les panneaux du couloir
    qui font foi, et c'est écrit au bas de la fenêtre. */
+/* ═══ TOUS LES HORAIRES DU CENTRE, À UN SEUL ENDROIT (Mag, 22/09/2026) ═══
+   « Centralise bien toutes les infos des horaires, parce qu'il est possible que jeudi,
+   quand j'arrive au travail, je demande les horaires et ça changera. Il va falloir que
+   je rechange une fois ce qui changera tout. »
+   ⭐ C'EST LA SEULE SOURCE POUR L'APP. La fenêtre des horaires, celle des permanences
+   et la ligne des services du mémo lisent toutes CE tableau. Corriger une heure ici la
+   corrige partout — c'est exactement ce qu'elle demande.
+   ⚠ NE JAMAIS RÉÉCRIRE UNE HEURE AILLEURS DANS LE FICHIER. Avant ça, le mémo recopiait
+   les permanences à la main, et il annonçait « Calme de 21 h à 7 h » là où le document
+   dit 21 h → 8 h. Une heure écrite à deux endroits finit toujours par dire deux choses.
+   ⚠ LA FEUILLE PAPIER N'EST PAS ICI, ET C'EST VOULU. `propositions/gen-resume-roi.py`
+   produit le Résumé ROI, un document du Centre repris mot pour mot (sa règle du
+   21/09). Si une heure change pour de vrai, elle change ICI ; la feuille, elle, ne
+   bouge que le jour où le Centre réédite son document.
+   Source des heures : Résumé ROI du centre, mise à jour du 24-02-25. */
+/* ⭐ LES HEURES QUI SERVENT À PLUSIEURS ENDROITS SONT NOMMÉES ICI, ET NULLE PART
+   AILLEURS. « 21 h 30 » se dit dans la fenêtre des horaires ET dans le mémo : écrit
+   deux fois, il finira par dire deux choses. Écrit une fois, elle le change une fois. */
+const H={
+  fermeture:'21 h 30',      // la porte ferme
+  reouverture:'6 h 00',     // on peut ressortir
+  presence:'21 h 40',       // présence en chambre attendue
+  calme:'de 21 h à 8 h',    // ⚠ 8 h, pas 7 h — le mémo se trompait
+  fumoirCalme:'21 h'        // plus de bruit au fumoir
+};
+/* ⚠ CE QUI REDIT ENCORE L'HEURE, HORS DE CE TABLEAU — à changer À LA MAIN le jour où
+   l'heure de rentrée bouge. Ce sont des textes de COURS, pas des horaires affichés :
+   ils sont écrits avant `H` dans le fichier, donc ils ne peuvent pas le lire.
+   · la fiche de cours « Rentrer le soir » (`L’heure de rentrée`, `Les présences`)
+   · la page du règlement (`Rentrer`, `Les présences`)
+   · l'infirmerie la nuit, « 21 h 30 à 22 h 30 », à deux endroits
+   Les chercher avec : 21 h 30 · 21h30 · 21 h 40. */
+const HORAIRES={
+
+  /* Les heures du bâtiment — ce qu'on demande le plus à l'accueil. */
+  centre:[
+    {t:'Accès au centre', h:['Fermé de '+H.fermeture+' à '+H.reouverture]},
+    {t:'Présence en chambre', h:['À partir de '+H.presence]},
+    {t:'Repas', h:['Petit déjeuner 7 h 30 → 10 h','Midi 12 h → 13 h 30','Soir 18 h → 19 h 30']},
+    {t:'Salle informatique', h:['8 h → 21 h'], n:'Sur réservation'},
+    {t:'Tickets de transport', h:['À partir de 17 h la veille du rendez-vous'],
+     n:'Sur présentation d’une preuve de rendez-vous'},
+    {t:'Machine à laver', h:['Dépôt à l’accueil 7 h → 12 h'],
+     n:'Le jour correspondant à son étage uniquement'},
+    {t:'Télévision', h:['8 h → minuit']},
+    {t:'Literie', h:['Draps et linge : chaque samedi','Couvertures : toutes les 2 semaines']},
+    {t:'Kit hygiène', h:['Toutes les 2 semaines, samedi et dimanche'],
+     n:'Les dates de retrait sont affichées dans le couloir de l’entrée'},
+    {t:'Fumoir', h:['Plus de bruit à partir de '+H.fumoirCalme]},
+    {t:'Calme dans le centre', h:[H.calme], n:'Aucune nuisance sonore'}
+  ],
+
+  /* Les permanences — qui reçoit, et à quelles heures. */
+  services:[
+    {t:'Service social', court:'Social', res:[0], c:'#6FC7D9',
+     r:[['Permanence',['24 h/24']]], n:'Hors réunions'},
+    {t:'Service éducatif', court:'Éducatif', res:[0], c:'#4fa06f',
+     r:[['Tous les jours',['7 h → 18 h']]], n:'Hors réunions en après-midi'},
+    {t:'Pôle médicalisé', s:'infirmerie du 2ᵉ étage', court:'Infirmerie du 2ᵉ', res:[0], c:'#e63329',
+     r:[['Ouvert',['24 h/24','7 j/7']],
+        ['Médicaments',['07h30 → 09h30','11h30 → 12h30','17h30 → 19h30','21h30 → 22h30']],
+        ['Soins de plaies',['10h00 → 12h30']]],
+     n:'En dehors de ces heures, l’infirmerie reste disponible pour toute autre demande'},
+    {t:'Pôle fragile', s:'infirmerie du rez-de-chaussée', court:'Rez', res:[0], c:'#f8763f',
+     r:[['Ouvert',['9 h → 20 h','7 j/7']]]},
+    {t:'Service psychologique', court:'Psy', res:[0,1], c:'#8a7fa8',
+     r:[['Matinée',['9 h → 13 h']],['Journée et soirée',['14 h 30 → 17 h']]]}
+  ]
+};
+/* Le nom d'avant continue de marcher : la fenêtre des permanences ne lit que les
+   services, et rien d'autre dans le fichier ne connaît `PERMANENCES`. */
+const PERMANENCES=HORAIRES.services;
+
+/* La ligne des services du mémo, fabriquée à partir du tableau au lieu d'être
+   recopiée : « Social 24 h/24 · Éducatif 7 h → 18 h · … ». `res` dit quelles rangées
+   résumer — pour le pôle médicalisé, l'ouverture, pas le détail des médicaments. */
+function hServicesCourt(){
+  return HORAIRES.services.map(function(g){
+    /* ⚠ LA PREMIÈRE HEURE DE LA RANGÉE, PAS TOUTES. En prenant tout, le pôle
+       médicalisé donnait « 24 h/24 · 7 j/7 » et le point médian servait à la fois à
+       séparer deux heures et deux services : on ne voyait plus où finissait l'un. */
+    const h=(g.res||[0]).map(function(i){ return g.r[i][1][0]; }).join(' et ');
+    return '<b>'+g.court+'</b> '+h;
+  }).join(' · ')+'.';
+}
+
 /* ═══ « CE QU'IL FAUT DIRE » — L'AIDE-MÉMOIRE DE L'ENTRETIEN (Mag, 21/09/2026) ═══
    « Un petit picto qui envoie vers une espèce de slide juste personnelle pour faire
    l'entretien, pour donner les informations des règlements, pour rien oublier. Les
@@ -38580,9 +38683,9 @@ const ROI_DOCS=[
    navigateur avant de publier. */
 const ACC_POINTS=[
   {ic:'clock', c:'#6FC7D9', t:'La porte', p:['clock','social','bed','phone'],
-   l:['Rentrer avant <b>21 h 30</b>. On ne ressort pas avant <b>6 h 00</b>.',
+   l:['Rentrer avant <b>'+H.fermeture+'</b>. On ne ressort pas avant <b>'+H.reouverture+'</b>.',
       'Plus tard ? <b>Prévenir un travailleur social à l’avance.</b>',
-      'À <b>21 h 40</b>, chacun est dans sa chambre : on compte les présences.',
+      'À <b>'+H.presence+'</b>, chacun est dans sa chambre : on compte les présences.',
       'Urgence : <b>02 329 05 94</b> ou <b>0800 99 340</b>.']},
   {ic:'bed', c:'#4fa06f', t:'Dormir ailleurs', p:['social','clock'],
    l:['Ça se <b>demande à l’équipe</b>. Ce n’est pas automatique.',
@@ -38600,14 +38703,14 @@ const ACC_POINTS=[
       '<b>Armes</b>, couteaux, cutters, marteaux.',
       '<b>Appareils qui chauffent</b>, bougies, encens.',
       '<b>Animaux</b>, <b>visites</b>, <b>photos</b> sans accord.',
-      'Fumer ailleurs qu’au <b>fumoir</b>. Calme de <b>21 h à 7 h</b>.']},
+      'Fumer ailleurs qu’au <b>fumoir</b>. Calme <b>'+H.calme+'</b>.']},
   {ic:'home', c:'#e0a52a', t:'La chambre, les repas', p:['bed','cle','colis'],
    l:['Chambre <b>partagée</b>, étages <b>non mixtes</b>, <b>trois bacs</b> maximum.',
       'L’équipe fait le tour des chambres : on frappe et on se présente.',
       'On mange <b>au réfectoire et au salon</b>. En chambre : seulement fruits et collations emballées.']},
   {ic:'social', c:'#8a9a3b', t:'Ce qu’on peut demander', p:['clipboard','clock','medical'],
    l:['Casier, téléphone, buanderie, kit d’hygiène, wifi, salle informatique, tickets, activités.',
-      '<b>Social</b> 24 h/24 · <b>Éducatif</b> 7 h → 18 h · <b>Infirmerie du 2ᵉ</b> 24 h/24 · <b>Rez</b> 9 h → 20 h · <b>Psy</b> 9 h → 13 h et 14 h 30 → 17 h.',
+      hServicesCourt(),
       'Les <b>médicaments</b> sont confiés à l’infirmerie.']},
   {ic:'check', c:'#8a7fa8', t:'Avant de finir', p:['check','imprimer','home','chat'],
    l:['Faire <b>signer la charte</b>.',
@@ -38674,31 +38777,38 @@ function accSlideDessine(){
    ⚠ Les mots restent ceux du Résumé ROI ; seules les étiquettes de gauche sont à moi
    (« Ouvert », « Médicaments », « Matinée ») — c'est de la mise en page d'un écran de
    l'app, pas une réécriture du document du Centre. */
-const PERMANENCES=[
-  {t:'Service social', c:'#6FC7D9',
-   r:[['Permanence',['24 h/24']]], n:'Hors réunions'},
-  {t:'Service éducatif', c:'#4fa06f',
-   r:[['Tous les jours',['7 h → 18 h']]], n:'Hors réunions en après-midi'},
-  {t:'Pôle médicalisé', s:'infirmerie du 2ᵉ étage', c:'#e63329',
-   r:[['Ouvert',['24 h/24','7 j/7']],
-      ['Médicaments',['07h30 → 09h30','11h30 → 12h30','17h30 → 19h30','21h30 → 22h30']],
-      ['Soins de plaies',['10h00 → 12h30']]],
-   n:'En dehors de ces heures, l’infirmerie reste disponible pour toute autre demande'},
-  {t:'Pôle fragile', s:'infirmerie du rez-de-chaussée', c:'#f8763f',
-   r:[['Ouvert',['9 h → 20 h','7 j/7']]]},
-  {t:'Service psychologique', c:'#8a7fa8',
-   r:[['Matinée',['9 h → 13 h']],['Journée et soirée',['14 h 30 → 17 h']]]}
-];
-function permanencesOuvrir(){
+/* ═══ LA FENÊTRE DES HORAIRES (Mag, 22/09/2026) ═══
+   « Tu peux rajouter aussi un bouton horaire et faire une petite pop-up avec juste les
+   horaires. Même du centre un résumé, pour que les polyvalents puissent savoir
+   répondre aux demandes. »
+   ⚠ ELLE EST POUR TOUT LE MONDE, GROUPE D COMPRIS — c'est même sa raison d'être. Le
+   ROI, lui, reste caché aux polyvalents : on ne leur demande pas d'expliquer le
+   règlement, on leur demande de savoir à quelle heure ouvre l'infirmerie.
+   ⚠ ELLE REMPLACE « Les permanences » : mêmes services, plus les heures du bâtiment.
+   Deux fenêtres pour des heures, c'était une de trop.
+   Elle ne contient AUCUNE heure en propre : tout vient de `HORAIRES`. */
+function horairesOuvrir(){
   let bg=document.getElementById('permBg');
   if(!bg){
     bg=document.createElement('div'); bg.id='permBg'; bg.className='popbg';
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
     document.body.appendChild(bg);
   }
+  const rangee=function(t,heures,note){
+    return '<dt>'+esc(t)+'</dt><dd>'+
+      heures.map(function(h){ return '<i>'+esc(h)+'</i>'; }).join('')+
+      (note?'<u>'+esc(note)+'</u>':'')+'</dd>';
+  };
   bg.innerHTML='<div class="popcard permdoc" role="dialog" aria-modal="true">'+
-    '<b>Les permanences</b>'+
-    PERMANENCES.map(function(g){
+    '<b>Les horaires</b>'+
+    /* Le bâtiment d'abord : c'est ce qu'on demande le plus souvent à l'accueil. */
+    '<div class="permg hcentre" style="--pc:var(--enc2)">'+
+      '<div class="permt"><b>Le centre</b></div>'+
+      '<dl>'+HORAIRES.centre.map(function(x){
+        return rangee(x.t, x.h, x.n);
+      }).join('')+'</dl>'+
+    '</div>'+
+    HORAIRES.services.map(function(g){
       return '<div class="permg" style="--pc:'+g.c+'">'+
         '<div class="permt"><b>'+esc(g.t)+'</b>'+(g.s?'<em>'+esc(g.s)+'</em>':'')+'</div>'+
         '<dl>'+g.r.map(function(x){
@@ -38714,6 +38824,8 @@ function permanencesOuvrir(){
   '</div>';
   bg.classList.add('on');
 }
+/* L'ancien nom mène à la même fenêtre : rien ne casse si un bouton l'appelle encore. */
+function permanencesOuvrir(){ horairesOuvrir(); }
 function roiOuvrir(){
   let bg=document.getElementById('roiBg');
   if(!bg){
