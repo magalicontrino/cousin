@@ -144,6 +144,9 @@ UI_FR = {
  'titre':'Accueil bénéficiaire', 'lieu':'Résumé ROI — PDL', 'maj':'MAJ : 24-02-25',
  'pagen':'Horaires des services', 'collectifs':'Services collectifs', 'pms':'Services PMS',
  'qr':'Scannez pour ouvrir le ROI général', 'imprimer':'Imprimer',
+ # le nom de l'onglet du navigateur, et celui du fichier qu'on enregistre
+ 'doc':'Résumé ROI — proposition de mise en page',
+ 'doc3':'Résumé ROI — version courte, 3 pages',
  'r1':'Responsable de Centre', 'r2':'Coordinateur médical', 'r3':'Coordinatrice sociale',
 }
 UI = dict(UI_FR)
@@ -293,7 +296,7 @@ b.tel{font-size:12.5pt;font-weight:800;white-space:nowrap}
 
 DOC = ("""<!doctype html>
 <html lang=""" + '"'+LANG+'"' + """><head><meta charset="utf-8">
-<title>Résumé ROI — proposition de mise en page</title>
+<title>""" + H.escape(UI['doc']) + """</title>
 <!--
   PROPOSITION du 21/09/2026 — Mag :
   « Sur la feuille il y a des pictos presque a chaque truc. Je veux qu'on fasse
@@ -387,8 +390,8 @@ b.tel{font-size:10.5pt}
 @page{size:A4;margin:9mm 10mm}
 """
 DOC_MINI = DOC.replace('</style>', MINI + '</style>', 1)
-DOC_MINI = DOC_MINI.replace('<title>Résumé ROI — proposition de mise en page</title>',
-                            '<title>Résumé ROI — version courte, 3 pages</title>', 1)
+DOC_MINI = DOC_MINI.replace('<title>'+H.escape(UI['doc'])+'</title>',
+                            '<title>'+H.escape(UI['doc3'])+'</title>', 1)
 # les sections en deux colonnes
 import re as _re
 DOC_MINI = DOC_MINI.replace('<div class="bar"></div>\n', '<div class="bar"></div>\n<div class="cols">', 1)
