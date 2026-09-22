@@ -28,8 +28,14 @@ h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px;line-heig
 p.s{font-size:14px;line-height:1.5;color:var(--enc);margin:0}
 p.s b{color:var(--noir)}
 .zone{width:100%;max-width:430px;display:flex;gap:12px;align-items:flex-start}
+/* ⚠ `flex:1` ÉTIRAIT LE CANVAS. Les attributs width/height d'un canvas donnent sa
+   résolution, pas sa taille à l'écran : étiré par flex, il se déformait et sa hauteur
+   restait celle de l'attribut, donc la grille sortait de l'écran sur un ordinateur.
+   Il garde maintenant sa taille propre, calculée par `taille()` sur la place
+   disponible EN LARGEUR ET EN HAUTEUR. */
 canvas{background:var(--carte);border:1.5px solid var(--noir);border-radius:12px;
-  touch-action:none;flex:1;min-width:0;display:block}
+  touch-action:none;flex:none;display:block}
+#jeu{margin-right:auto}
 .cote{width:88px;flex:none;display:flex;flex-direction:column;gap:10px}
 .bloc{border:1.25px solid var(--ligne);border-radius:10px;padding:8px;background:var(--carte)}
 .bloc em{display:block;font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.09em;
@@ -44,7 +50,9 @@ canvas{background:var(--carte);border:1.5px solid var(--noir);border-radius:12px
 .pied a{flex:1;min-width:150px;text-align:center;text-decoration:none;
   background:var(--noir);color:var(--creme);border-radius:12px;padding:13px 16px;
   font-size:14.5px;font-weight:700}
-.pied span{font-size:12px;color:var(--enc);line-height:1.45}
+.pied span{font-size:12px;color:var(--enc);line-height:1.6}
+.pied span b{color:var(--noir);background:var(--carte);border:1px solid var(--ligne);
+  border-radius:5px;padding:1px 5px;font-size:11.5px;font-weight:700}
 .fin{position:fixed;inset:0;background:rgba(27,27,27,.55);display:none;
   align-items:center;justify-content:center;padding:22px}
 .fin.on{display:flex}
@@ -81,7 +89,9 @@ canvas{background:var(--carte);border:1.5px solid var(--noir);border-radius:12px
 
 <div class="pied">
   <a href="/">Retour à l’accueil</a>
-  <span>Flèches du clavier, ou les boutons. Sur téléphone, tu peux aussi glisser le doigt.</span>
+  <span>Au clavier&nbsp;: <b>←</b> <b>→</b> pour déplacer, <b>↓</b> pour descendre,
+     <b>↑</b> ou <b>espace</b> pour tourner. Sur téléphone&nbsp;: glisse le doigt pour
+     déplacer, tape sur la grille pour tourner.</span>
 </div>
 
 <div class="fin" id="fin"><div>
@@ -270,12 +280,20 @@ jeu.addEventListener('touchmove', function(e){
 }, {passive:true});
 jeu.addEventListener('touchend', function(){ if(!bouge) agir('t'); }, {passive:true});
 
-/* La grille suit la largeur de l'écran, sans jamais dépasser la place disponible. */
+/* ⚠ LA GRILLE SE CALE SUR LES DEUX DIMENSIONS (Mag, 22/09/2026 : « ça rentre pas
+   dans l'écran »). Avant, seule la largeur comptait : sur un ordinateur, 18 rangées
+   de cases larges descendaient bien plus bas que la fenêtre.
+   On prend la plus petite des deux places — celle qui reste en largeur à côté de la
+   colonne « Lignes / Suite », et celle qui reste en hauteur sous le titre et
+   au-dessus des boutons — et on en déduit la taille d'une case. */
 function taille(){
-  const l=Math.min(250, jeu.parentElement.clientWidth - 100);
-  jeu.width=Math.floor(l/COL)*COL;
-  jeu.height=jeu.width/COL*RANG;
-  T=jeu.width/COL;
+  const dispoL = Math.min(250, jeu.parentElement.clientWidth - 100);
+  const hautCanvas = jeu.getBoundingClientRect().top;
+  const dispoH = window.innerHeight - hautCanvas - 205;
+  const t = Math.max(13, Math.floor(Math.min(dispoL/COL, dispoH/RANG)));
+  jeu.width = t*COL;
+  jeu.height = t*RANG;
+  T = t;
   dessine();
 }
 window.addEventListener('resize', taille);
