@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Page introuvable — COUSIN</title>
+<link rel="icon" href="/favicon.svg">
+<!--
+  LA PAGE 404 (Mag, 22/09/2026 : « je veux qu'elle soit très ludique. Même, pourquoi
+  pas, tu peux mettre un Tetris » — puis « un Tetris avec les pictos comme dessin »).
+  ⚠ AUTONOME ET LÉGÈRE. Pas de police embarquée, pas de CSS de l'app : une page 404
+  qui pèse 500 Ko, c'est une page d'erreur qui met trois secondes à s'afficher.
+  Les pictos sont appelés par CHEMIN ABSOLU (/picto/…) : cette page est servie à la
+  place de n'importe quelle adresse inconnue, y compris /propositions/nimporte-quoi,
+  et un chemin relatif pointerait alors à côté.
+  ⚠ LES SEPT PIÈCES PORTENT SEPT PICTOS DE L'APP, un par forme. Les couleurs sont
+  celles de la palette (turquoise en tête, le rouge en dernier).
+-->
+<style>
+:root{
+  --creme:#f2efe9; --noir:#1b1b1b; --enc:#56544f; --ligne:#d8d6d2; --carte:#fdfdfc;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--creme);color:var(--noir);
+  font-family:-apple-system,'Segoe UI',system-ui,sans-serif}
+body{min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:18px 16px calc(18px + env(safe-area-inset-bottom));gap:14px}
+header{width:100%;max-width:430px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px;line-height:1.1}
+p.s{font-size:14px;line-height:1.5;color:var(--enc);margin:0}
+p.s b{color:var(--noir)}
+.zone{width:100%;max-width:430px;display:flex;gap:12px;align-items:flex-start}
+canvas{background:var(--carte);border:1.5px solid var(--noir);border-radius:12px;
+  touch-action:none;flex:1;min-width:0;display:block}
+.cote{width:88px;flex:none;display:flex;flex-direction:column;gap:10px}
+.bloc{border:1.25px solid var(--ligne);border-radius:10px;padding:8px;background:var(--carte)}
+.bloc em{display:block;font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--enc);margin-bottom:4px}
+.bloc b{font-size:19px;font-weight:800;letter-spacing:-.02em}
+#suite{height:54px;display:block}
+.cmd{width:100%;max-width:430px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cmd button{height:52px;border:1.5px solid var(--noir);border-radius:12px;background:var(--carte);
+  font:inherit;font-size:19px;font-weight:700;color:var(--noir);cursor:pointer}
+.cmd button:active{transform:translateY(2px)}
+.pied{width:100%;max-width:430px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pied a{flex:1;min-width:150px;text-align:center;text-decoration:none;
+  background:var(--noir);color:var(--creme);border-radius:12px;padding:13px 16px;
+  font-size:14.5px;font-weight:700}
+.pied span{font-size:12px;color:var(--enc);line-height:1.45}
+.fin{position:fixed;inset:0;background:rgba(27,27,27,.55);display:none;
+  align-items:center;justify-content:center;padding:22px}
+.fin.on{display:flex}
+.fin div{background:var(--creme);border:1.5px solid var(--noir);border-radius:16px;
+  padding:26px 22px;max-width:320px;text-align:center}
+.fin b{display:block;font-size:21px;font-weight:800;margin-bottom:8px}
+.fin p{font-size:14px;line-height:1.5;color:var(--enc);margin:0 0 16px}
+.fin button{border:1.5px solid var(--noir);border-radius:12px;background:var(--noir);
+  color:var(--creme);font:inherit;font-size:14.5px;font-weight:700;padding:11px 20px;cursor:pointer}
+@media (min-width:520px){ h1{font-size:30px} }
+</style></head>
+<body>
+
+<header>
+  <h1>Cette page n’existe pas</h1>
+  <p class="s">L’adresse s’est perdue quelque part. En attendant, <b>fais tomber les pictos</b> —
+     ils viennent tous de l’app.</p>
+</header>
+
+<div class="zone">
+  <canvas id="jeu" width="250" height="450"></canvas>
+  <div class="cote">
+    <div class="bloc"><em>Lignes</em><b id="sc">0</b></div>
+    <div class="bloc"><em>Suite</em><canvas id="suite" width="66" height="50"></canvas></div>
+  </div>
+</div>
+
+<div class="cmd">
+  <button id="bg" aria-label="Gauche">‹</button>
+  <button id="bt" aria-label="Tourner">↻</button>
+  <button id="bd" aria-label="Droite">›</button>
+  <button id="bb" aria-label="Descendre">↓</button>
+</div>
+
+<div class="pied">
+  <a href="/">Retour à l’accueil</a>
+  <span>Flèches du clavier, ou les boutons. Sur téléphone, tu peux aussi glisser le doigt.</span>
+</div>
+
+<div class="fin" id="fin"><div>
+  <b>Perdu</b>
+  <p><span id="finsc"></span></p>
+  <button id="rejouer">Rejouer</button>
+</div></div>
+
+<script>
+/* ═══ LES SEPT PIÈCES ═══
+   Chaque forme porte SON picto et SA couleur. Les pictos sont ceux de l'app, appelés
+   en masque : un seul fichier SVG sert pour toutes les cases de la pièce. */
+const PIECES = [
+  {n:'I', c:'#6FC7D9', p:'horaires',        g:[[1,1,1,1]]},
+  {n:'O', c:'#4fa06f', p:'hebergement',     g:[[1,1],[1,1]]},
+  {n:'T', c:'#d4568c', p:'social',          g:[[0,1,0],[1,1,1]]},
+  {n:'S', c:'#e0a52a', p:'palette',         g:[[0,1,1],[1,1,0]]},
+  {n:'Z', c:'#e63329', p:'medical',         g:[[1,1,0],[0,1,1]]},
+  {n:'J', c:'#8a7fa8', p:'repas-couverts',  g:[[1,0,0],[1,1,1]]},
+  {n:'L', c:'#8a9a3b', p:'lune',            g:[[0,0,1],[1,1,1]]}
+];
+const COL=10, RANG=18;
+const jeu=document.getElementById('jeu'), ctx=jeu.getContext('2d');
+const suite=document.getElementById('suite'), sctx=suite.getContext('2d');
+let T=jeu.width/COL;
+
+/* Les pictos sont des SVG : on les charge une fois en <img>, puis on les dessine
+   dans chaque case. Tant qu'une image n'est pas prête, la case reste un aplat —
+   la partie n'attend pas le réseau. */
+const IMG={};
+PIECES.forEach(function(p){
+  const i=new Image();
+  i.onload=function(){ IMG[p.p]=i; dessine(); };
+  i.src='/picto/'+p.p+'.svg';
+});
+
+let grille, piece, px, py, prochaine, lignes, fini, timer;
+
+function vide(){ return Array.from({length:RANG}, function(){ return Array(COL).fill(null); }); }
+function tire(){ return PIECES[Math.floor(Math.random()*PIECES.length)]; }
+
+function neuve(){
+  piece = prochaine || tire();
+  prochaine = tire();
+  px = Math.floor((COL - piece.g[0].length)/2);
+  py = 0;
+  if(!place(piece.g, px, py)) perdu();
+  dessineSuite();
+}
+
+function place(g, x, y){
+  for(let r=0; r<g.length; r++) for(let c=0; c<g[r].length; c++){
+    if(!g[r][c]) continue;
+    const X=x+c, Y=y+r;
+    if(X<0 || X>=COL || Y>=RANG) return false;
+    if(Y>=0 && grille[Y][X]) return false;
+  }
+  return true;
+}
+
+function tourne(g){
+  const h=g.length, l=g[0].length, n=[];
+  for(let c=0; c<l; c++){ n.push([]); for(let r=h-1; r>=0; r--) n[c].push(g[r][c]); }
+  return n;
+}
+
+function pose(){
+  piece.g.forEach(function(row,r){ row.forEach(function(v,c){
+    if(v && py+r>=0) grille[py+r][px+c]={c:piece.c, p:piece.p};
+  }); });
+  /* Les lignes pleines s'en vont, les autres descendent. */
+  let n=0;
+  for(let r=RANG-1; r>=0; r--){
+    if(grille[r].every(function(x){ return x; })){
+      grille.splice(r,1); grille.unshift(Array(COL).fill(null)); n++; r++;
+    }
+  }
+  if(n){ lignes+=n; document.getElementById('sc').textContent=lignes; cadence(); }
+  neuve();
+}
+
+function bas(){
+  if(place(piece.g, px, py+1)){ py++; } else { pose(); }
+  dessine();
+}
+
+function cadence(){
+  clearInterval(timer);
+  const v=Math.max(140, 700 - lignes*35);
+  timer=setInterval(function(){ if(!fini) bas(); }, v);
+}
+
+function carre(g, x, y, t, co, pic){
+  g.fillStyle=co;
+  const r=Math.max(3, t*0.18);
+  g.beginPath();
+  if(g.roundRect) g.roundRect(x+1, y+1, t-2, t-2, r); else g.rect(x+1, y+1, t-2, t-2);
+  g.fill();
+  const im=IMG[pic];
+  if(im){
+    const m=t*0.26, s=t-2*m;
+    g.globalAlpha=.85;
+    g.drawImage(im, x+m, y+m, s, s);
+    g.globalAlpha=1;
+  }
+}
+
+function dessine(){
+  if(!grille) return;
+  ctx.clearRect(0,0,jeu.width,jeu.height);
+  /* le quadrillage, très pâle */
+  ctx.strokeStyle='#eceae6'; ctx.lineWidth=1;
+  for(let c=1;c<COL;c++){ ctx.beginPath(); ctx.moveTo(c*T,0); ctx.lineTo(c*T,jeu.height); ctx.stroke(); }
+  for(let r=1;r<RANG;r++){ ctx.beginPath(); ctx.moveTo(0,r*T); ctx.lineTo(jeu.width,r*T); ctx.stroke(); }
+  for(let r=0;r<RANG;r++) for(let c=0;c<COL;c++){
+    const v=grille[r][c]; if(v) carre(ctx, c*T, r*T, T, v.c, v.p);
+  }
+  if(piece) piece.g.forEach(function(row,r){ row.forEach(function(v,c){
+    if(v && py+r>=0) carre(ctx, (px+c)*T, (py+r)*T, T, piece.c, piece.p);
+  }); });
+}
+
+function dessineSuite(){
+  sctx.clearRect(0,0,suite.width,suite.height);
+  if(!prochaine) return;
+  /* ⚠ 16 px, pas 13 : en dessous, le picto de la pièce à venir n'est plus qu'une
+     tache et la case ressemble à un aplat de couleur. */
+  const g=prochaine.g, t=16;
+  const ox=(suite.width - g[0].length*t)/2, oy=(suite.height - g.length*t)/2;
+  g.forEach(function(row,r){ row.forEach(function(v,c){
+    if(v) carre(sctx, ox+c*t, oy+r*t, t, prochaine.c, prochaine.p);
+  }); });
+}
+
+function perdu(){
+  fini=true; clearInterval(timer);
+  document.getElementById('finsc').textContent =
+    lignes ? (lignes>1 ? lignes+' lignes. Pas mal.' : '1 ligne. C’est un début.')
+           : 'Aucune ligne. La page n’existe toujours pas.';
+  document.getElementById('fin').classList.add('on');
+}
+
+function depart(){
+  grille=vide(); lignes=0; fini=false; prochaine=null;
+  document.getElementById('sc').textContent='0';
+  document.getElementById('fin').classList.remove('on');
+  neuve(); cadence(); dessine();
+}
+
+function agir(quoi){
+  if(fini) return;
+  if(quoi==='g' && place(piece.g, px-1, py)) px--;
+  if(quoi==='d' && place(piece.g, px+1, py)) px++;
+  if(quoi==='b') { bas(); return; }
+  if(quoi==='t'){
+    const n=tourne(piece.g);
+    /* Si la rotation touche un bord, on décale d'une case plutôt que de refuser. */
+    if(place(n, px, py)) piece.g=n;
+    else if(place(n, px-1, py)){ piece.g=n; px--; }
+    else if(place(n, px+1, py)){ piece.g=n; px++; }
+  }
+  dessine();
+}
+
+document.getElementById('bg').onclick=function(){ agir('g'); };
+document.getElementById('bd').onclick=function(){ agir('d'); };
+document.getElementById('bt').onclick=function(){ agir('t'); };
+document.getElementById('bb').onclick=function(){ agir('b'); };
+document.getElementById('rejouer').onclick=depart;
+
+document.addEventListener('keydown', function(e){
+  const k={ArrowLeft:'g', ArrowRight:'d', ArrowDown:'b', ArrowUp:'t', ' ':'t'}[e.key];
+  if(k){ e.preventDefault(); agir(k); }
+});
+
+/* Glisser du doigt sur la grille : gauche, droite, bas. Une tape fait tourner. */
+let x0=0, y0=0, bouge=false;
+jeu.addEventListener('touchstart', function(e){
+  x0=e.touches[0].clientX; y0=e.touches[0].clientY; bouge=false;
+}, {passive:true});
+jeu.addEventListener('touchmove', function(e){
+  const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+  if(Math.abs(dx)>26 && Math.abs(dx)>Math.abs(dy)){
+    agir(dx>0?'d':'g'); x0=e.touches[0].clientX; bouge=true;
+  } else if(dy>30){ agir('b'); y0=e.touches[0].clientY; bouge=true; }
+}, {passive:true});
+jeu.addEventListener('touchend', function(){ if(!bouge) agir('t'); }, {passive:true});
+
+/* La grille suit la largeur de l'écran, sans jamais dépasser la place disponible. */
+function taille(){
+  const l=Math.min(250, jeu.parentElement.clientWidth - 100);
+  jeu.width=Math.floor(l/COL)*COL;
+  jeu.height=jeu.width/COL*RANG;
+  T=jeu.width/COL;
+  dessine();
+}
+window.addEventListener('resize', taille);
+taille(); depart();
+</script>
+</body></html>
