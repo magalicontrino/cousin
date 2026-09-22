@@ -5029,6 +5029,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 .hrg .tx b{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 7px}
 .hrg .tx b i{font-style:normal;font-weight:400;color:var(--enc2);flex:none}
 .hrg .tx b s{text-decoration:none;white-space:nowrap}
+/* Le h d'une heure : même taille, mais léger et gris. Il sépare sans peser.
+   ⚠ C'EST LUI QUI PORTE L'ESPACE. La règle qui l'isole avale l'espace qui le
+   précédait ; sans ces marges, on lit « 21h 30 » au lieu de « 21 h 30 ». */
+.hh{font-weight:400;color:var(--enc2);margin:0 .04em 0 .26em}
 /* Les numéros à donner quand quelqu'un rentre tard. */
 .hrg .tx u{text-decoration:none;font-size:12px;line-height:1.35;color:var(--enc2);
   margin-top:3px;font-weight:600}
@@ -38829,6 +38833,15 @@ const ACC_POINTS=[
      l'heure de rentrée, les présences, les numéros — et elles sont toutes dans la
      frise. Deux écrans qui se répètent, c'est un écran qu'on saute. */
   {ic:'horaires', c:'#6FC7D9', t:'Les horaires', horaires:true, l:[]},
+  /* ⚠ LES RETARDS SONT ICI (Mag, 22/09/2026 : « ici rajoute les retards »). Rentrer
+     tard et dormir ailleurs, c'est la même question posée à l'équipe : je ne serai
+     pas là à l'heure. La frise donne les deux numéros ; ce qu'elle ne dit pas, c'est
+     qu'il faut PRÉVENIR, et jusqu'où va le droit de découcher. */
+  {ic:'bed', c:'#4fa06f', t:'Dormir ailleurs, rentrer tard', p:['social','clock','phone'],
+   l:['Ça se <b>demande à l’équipe</b>. Ce n’est pas automatique.',
+      '<b>3 nuits d’affilée</b> au maximum, <b>10 jours par mois</b>.',
+      'Rentrer après <b>'+H.fermeture+'</b> : <b>prévenir à l’avance</b>. '+
+        'Un appel au <b>'+H.tel+'</b> ou <b>'+H.telRegul+'</b>.']},
   {ic:'alert', c:'#e63329', t:'Ce qui est interdit',
    /* ⚠ LA PREMIÈRE LIGNE VIENT DE MAG, PAS DU ROI (22/09/2026 : « les hommes ont une
       stricte interdiction d'aller dans la chambre des femmes et dans l'étage des
@@ -38932,6 +38945,14 @@ function accSlideDessine(){
 /* ⭐ LE DESSIN DE LA FRISE, ÉCRIT UNE FOIS. Il sert à DEUX endroits : la fenêtre que
    l'horloge ouvre, et le premier écran du mémo de l'entretien. « Ça doit être la même
    source pour tous » (Mag, 22/09/2026) — alors c'est le même code, pas une copie. */
+/* ⚠ LE « h » NE SE MET PAS EN GRAS (Mag, 22/09/2026 : « j'aime pas du tout le h dans
+   les heures, la police n'est pas très belle là »). En Eastman gras, le h d'« 7 h 30 »
+   pèse autant que les chiffres et coupe l'heure en trois morceaux. Ce qu'on lit, c'est
+   7 et 30 ; le h n'est qu'une liaison. Il garde donc sa place et son espace, mais en
+   graisse normale et en gris.
+   ⚠ LA RÈGLE NE VISE QUE LE h D'UNE HEURE : précédé d'un chiffre, et non suivi d'une
+   lettre — sinon elle mordrait sur « hygiène » ou « chambre ». */
+function hJoli(t){ return String(t).replace(/(\d)\s*h(?![a-zà-ÿ])/g, '$1<span class="hh">h</span>'); }
 function horairesFrise(){
   return '<div class="hrgs">'+HORAIRES.memo.map(function(m){
     return '<div class="hrg" style="--hc:'+m.c+'">'+
@@ -38939,8 +38960,8 @@ function horairesFrise(){
       '<span class="tx"><em>'+esc(m.t)+'</em>'+
         hMemoHeures(m).map(function(h){
           return Array.isArray(h)
-            ? '<b><i>'+esc(h[0])+'</i><s>'+esc(h[1])+'</s></b>'
-            : '<b><s>'+esc(h)+'</s></b>';
+            ? '<b><i>'+esc(h[0])+'</i><s>'+hJoli(esc(h[1]))+'</s></b>'
+            : '<b><s>'+hJoli(esc(h))+'</s></b>';
         }).join('')+
         (m.n?'<u>'+esc(m.n)+'</u>':'')+
       '</span>'+
