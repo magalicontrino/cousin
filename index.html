@@ -21078,7 +21078,7 @@ async function loadAdmin(){
     adminLoaded=true; return;
   }
   try{
-    const {data,error}=await sb.from('allowed_emails').select(champs+',derniere_connexion,visites').order('email');
+    const {data,error}=await sb.from('allowed_emails').select(champs+',derniere_connexion,visites,visites_jour,jour_visite').order('email');
     if(error) throw error;
     ADMIN.members=data||[];
   }catch(e){
@@ -21780,7 +21780,13 @@ function vAdmin(){
     const ligne=function(m){
       const q=depuis(m.derniere_connexion)||depuis(m.dernier_login);
       const sess=!m.derniere_connexion&&m.dernier_login;
-      const bas=q ? esc(q)+(sess?' · session':'')+(m.visites?' · '+m.visites+' visite'+(m.visites>1?'s':''):'')
+      /* LES VISITES DU JOUR ET LE TOTAL (Mag, 24/09/2026 : « j'aimerais voir hier combien
+         de visites et les visites au total »). `visites_jour` compte le jour de la
+         dernière ouverture ; il n'existe que depuis le 24/09 : avant, on garde le total seul. */
+      const nv=function(n){ return n+' visite'+(n>1?'s':''); };
+      const vis=m.visites_jour ? ' · '+nv(m.visites_jour)+(m.visites?' · '+m.visites+' au total':'')
+               : (m.visites?' · '+nv(m.visites):'');
+      const bas=q ? esc(q)+(sess?' · session':'')+vis
                   : 'jamais entré';
       return '<div class="venu'+(q?'':' pas')+'">'+
         '<b>'+esc(m.nom||m.email)+'</b><em>'+bas+'</em></div>';
