@@ -4986,6 +4986,18 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .entetat{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#6cb392;min-height:14px;margin-top:4px}
 .popcard.roidoc{max-width:460px}
+.popcard.marnum{max-width:440px}
+.marbl{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#8b8984;margin:16px 0 4px}
+.marli{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--ligne);color:var(--noir);text-decoration:none}
+.marli .nm{font-size:15px;min-width:0}
+.marli .nm i{font-style:normal;font-size:12.5px;color:#8b8984;margin-left:4px}
+.marli .nm em{display:block;font-style:normal;font-size:12px;color:#8b8984;margin-top:2px}
+.marli.doute .nm em{color:#b3261e}
+.marli b{display:inline;font-size:15.5px;font-weight:700;text-transform:none;letter-spacing:0;white-space:nowrap}
+.roidoc-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.roidoc-h .entacc{flex:0 0 auto}
 /* Le ROI entier, en bas de la fenêtre : un simple lien souligné, sans pastille ni
    cadre. Il est là si on le cherche, il ne prend la place de rien. */
 .roidisc{margin-top:16px;padding-top:12px;border-top:1px solid var(--ligne)}
@@ -19385,6 +19397,15 @@ k:['Formations COUSIN']},
        sur les familles. Et « Coordonnées utiles », ce sont des numéros à composer. */
     porteCentre('phone','Coordonnées utiles', nCentreFiches()+' fiches',
       "go('#/d/coord')")+
+    /* ═══ LES NUMÉROS DE LA MARAUDE (Mag, 26/09/2026 : « tout le monde ne peut pas
+       avoir accès, donc certainement pas le groupe D » — puis : un bouton dans le
+       Centre, groupes A, B, C) ═══
+       ⚠ LES NUMÉROS NE SONT PAS DANS CE FICHIER : ce sont des portables de collègues,
+       et ce code est public. Ils sont dans la table `numeros_internes`, que la base
+       n'envoie qu'aux groupes A, B, C (sql/numeros-maraude.sql). Cacher le bouton au
+       groupe D n'est que la politesse ; le vrai verrou est dans la base. */
+    (estGroupeD()?'':porteCentre('compass','Numéros maraude','Gsm de service · équipe de jour',
+      "maraudeNumeros()"))+
     '</div>';
   }
 
@@ -21229,8 +21250,11 @@ function depuis(iso){
   if(min<2) return "à l'instant";
   if(min<60) return 'il y a '+min+' min';
   const h=Math.floor(min/60); if(h<24) return 'il y a '+h+' h';
-  const j=Math.floor(h/24);
-  if(j===1) return 'hier';
+  /* ⚠ LES JOURS DU CALENDRIER, PAS DES TRANCHES DE 24 H (Mag, 25/09/2026). Le 23 à
+     16 h, vu le 25 à 13 h, faisait 45 h → « hier ». On compte les minuits passés. */
+  const a0=new Date(t.getFullYear(),t.getMonth(),t.getDate()), n0=new Date();
+  const j=Math.round((new Date(n0.getFullYear(),n0.getMonth(),n0.getDate())-a0)/864e5);
+  if(j<=1) return 'hier';
   if(j<31) return 'il y a '+j+' jours';
   const mo=Math.floor(j/30);
   return 'il y a '+mo+' mois';
@@ -21785,7 +21809,9 @@ function vAdmin(){
          dernière ouverture ; il n'existe que depuis le 24/09 : avant, on garde le total seul. */
       const nv=function(n){ return n+' visite'+(n>1?'s':''); };
       const vis=m.visites_jour ? ' · '+nv(m.visites_jour)+(m.visites?' · '+m.visites+' au total':'')
-               : (m.visites?' · '+nv(m.visites):'');
+               /* ⚠ Sans compte du jour, le chiffre seul se lisait comme « ce jour-là »
+                  (Mag, 25/09/2026 : « elle a fait 30 visites hier ? ») : c'était le total. */
+               : (m.visites?' · '+m.visites+' au total':'');
       const bas=q ? esc(q)+(sess?' · session':'')+vis
                   : 'jamais entré';
       return '<div class="venu'+(q?'':' pas')+'">'+
@@ -25040,36 +25066,10 @@ function demChoisir(c){ DEMARCHES_ACTIVE=c; render(); }
    ⚠ CHAQUE QUESTION PORTE SON NUMÉRO. Une question sans le numéro de qui peut y
    répondre, c'est une deuxième recherche à faire avant de pouvoir appeler. */
 const QUESTIONS_OUVERTES=[
-  /* ═══ TROIS VÉRIFICATIONS DU 22/09/2026 ═══
-     Elles viennent du mémo de l'entretien. Ce ne sont pas des questions posées à un
-     partenaire : elles se vérifient AU CENTRE, en dix minutes, par qui y travaille.
-     ⭐ Elles sont ici parce qu'elles ont le même défaut que les autres : une info
-     qu'on répète tous les jours et que personne n'a jamais vérifiée à la source.
-     Trois lignes du mémo viennent de la mémoire de Mag, pas des documents — et le
-     mémo, c'est ce qu'on dit à quelqu'un le jour où il arrive. */
-  {k:'fumoir-heure-fin',
-   q:'Le fumoir : à partir de quelle heure faut-il cesser de faire du bruit, et jusqu\'à quand ? Qu\'est-ce qui est écrit sur la porte qui donne sur la cour intérieure ?',
-   lieu:'La porte de la cour intérieure, au centre', tel:'02 329 05 94',
-   pourquoi:'Le résumé du ROI dit seulement « à partir de 21h00 », sans fin. Le ROI complet ne donne aucune heure : il renvoie à « l\'heure indiquée sur la porte donnant sur la cour intérieure ». Cette heure-là, personne ne l\'a recopiée. Le mémo n\'annonce donc qu\'un début, et on ne sait pas dire jusqu\'à quand le calme est demandé.',
-   pose:'22/09/2026'},
-  {k:'salle-informatique-etage',
-   q:'La salle informatique est-elle bien au 4ᵉ étage ?',
-   lieu:'Le centre', tel:'02 329 05 94',
-   pourquoi:'L\'étage vient de Mag, pas des documents : ni le résumé ni le ROI ne disent où est la salle. C\'est écrit dans le mémo, donc c\'est ce qu\'on annonce à quelqu\'un qui arrive — et envoyer quelqu\'un au mauvais étage le premier jour, c\'est le perdre.',
-   pose:'22/09/2026'},
-  {k:'manger-au-salon',
-   q:'Peut-on manger au salon, ou seulement au réfectoire ?',
-   lieu:'Le centre', tel:'02 329 05 94',
-   pourquoi:'Le ROI écrit « il n\'est autorisé de manger qu\'au réfectoire ET AU SALON ». Mag a fait retirer le salon du mémo le 22/09 : la pratique aurait changé. Tant que ce n\'est pas tranché, le document officiel et ce qu\'on dit à l\'entretien se contredisent. ⚠ Le même ROI interdit par ailleurs « de transporter de la nourriture ou des gobelets pleins en dehors du réfectoire » tout en autorisant fruits et aliments secs en chambre : il se contredit déjà tout seul.',
-   pose:'22/09/2026'},
-  /* ═══ POSÉE PAR MAG LE 24/09/2026, devant le Cadre des sanctions ═══
-     Sa question : « ce qui se passe si on garde des médicaments en chambre ou si on
-     ne donne pas son traitement ». Les documents ne répondent que pour la méthadone. */
-  {k:'medicaments-en-chambre',
-   q:'Que se passe-t-il si une personne garde des médicaments en chambre, ou refuse de confier son traitement à l\'infirmerie — hors méthadone ?',
-   lieu:'Le coordinateur médical du centre', tel:'02 329 05 94',
-   pourquoi:'Le Cadre des sanctions (février 2024) ne prévoit que la méthadone : possession en chambre = catégorie 2 (drogue), refus de la confier = fin d\'hébergement immédiate. Le ROI (24/11/2025) demande de « confier l\'ensemble de son traitement médicamenteux à l\'infirmerie » et prévoit seulement qu\'un refus de collaboration « peut » mettre fin à l\'hébergement. Pour les autres médicaments, aucun palier ni aucune sanction n\'est écrit : chacun répond à sa façon.',
-   pose:'24/09/2026'},
+  /* ⚠ RETIRÉES LE 26/09/2026 PAR MAG : « médicaments en chambre » (« retire »),
+     « fumoir-heure-fin » (réponse : 21 h → 7 h 30, reportée dans `H`),
+     « salle-informatique-etage » (réponse : oui, le 4ᵉ), « manger-au-salon »
+     (réponse : « les 2 » — le salon est revenu dans le mémo). */
   /* ═══ POSÉE PAR MAG LE 11/09/2026, mail d'équipe à l'appui ═══
      Elle a montré un mail de l'infirmerie du centre demandant un réquisitoire à une
      maison médicale, et sa question : « dans cette commune, est-ce qu'il faut envoyer
@@ -38949,7 +38949,9 @@ const H={
      sur la porte donnant sur la cour intérieure ».
      ⭐ Une heure qu'on croit connaître se vérifie quand même. Celle de la porte reste
      à aller lire ; tant qu'on ne l'a pas lue, on n'écrit que ce que le document dit. */
-  fumoirCalme:'21 h',       // le début, faute de connaître la fin
+  /* ✅ LA FIN EST CONNUE (Mag, 26/09/2026, en réponse au chantier : « de 21 h à
+     7 h 30, jusqu'au petit déj »). La question « fumoir-heure-fin » est retirée. */
+  fumoirCalme:'21 h → 7 h 30',
   tel:'02 329 05 94',       // l'accueil du centre
   telRegul:'0800 99 340'    // la régulation du Samusocial
 };
@@ -38980,7 +38982,7 @@ const HORAIRES={
     {t:'Literie', h:['Draps et linge : chaque samedi','Couvertures : toutes les 2 semaines']},
     {t:'Kit hygiène', h:['Toutes les 2 semaines, samedi et dimanche'],
      n:'Les dates de retrait sont affichées dans le couloir de l’entrée'},
-    {t:'Fumoir', h:[['Plus de bruit à partir de', H.fumoirCalme]]},
+    {t:'Fumoir', h:[['Pas de bruit', H.fumoirCalme]], n:'Jusqu’au petit déjeuner'},
     {t:'Calme dans le centre', h:[H.calme], n:'Aucune nuisance sonore'}
   ],
 
@@ -39138,7 +39140,7 @@ const ACC_POINTS=[
       /* ⚠ « Elle frappe et se présente — même quand la personne n'est pas là » a été
          RETIRÉE le 22/09/2026 (« retire ça »). Ne pas la remettre. */
       'L’équipe <b>passe dans les chambres</b> : hygiène, sécurité, incendie.',
-      /* ⚠ LE SALON EST RETIRÉ (Mag, 22/09/2026 : « et au salon, retire ça »). Le ROI
+      /* (ANNULÉ LE 26/09, voir juste en dessous) LE SALON AVAIT ÉTÉ RETIRÉ (Mag, 22/09/2026 : « et au salon, retire ça »). Le ROI
          écrit « qu'au réfectoire et au salon » — c'est donc un écart au document,
          assumé : c'est elle qui sait ce qui se pratique. Si le ROI est réédité, la
          phrase d'origine reste celle du document. */
@@ -39146,7 +39148,9 @@ const ACC_POINTS=[
          emballés » (« retire ça »). L'exception existe dans le ROI, mais le même
          document interdit par ailleurs de transporter de la nourriture hors du
          réfectoire — deux phrases qui se contredisent. Ne pas la remettre sans elle. */
-      'On mange <b>au réfectoire</b>. On n’en sort <b>ni nourriture ni gobelet plein</b>.',
+      /* ✅ LE SALON EST REVENU (Mag, 26/09/2026, au chantier : « les 2 »). Le ROI
+         avait raison : réfectoire ET salon. */
+      'On mange <b>au réfectoire</b> et <b>au salon</b>. <b>Ni nourriture ni gobelet plein</b> ailleurs.',
       /* Le ROI, point B) Repas : le frigo est géré par l'équipe, et les micro-ondes
          sont dans la salle commune à côté du réfectoire. */
       'Un <b>frigo</b> pour ce qu’on apporte du dehors — <b>48 h</b>, ensuite c’est jeté. '+
@@ -39323,6 +39327,41 @@ function horairesOuvrir(){
 }
 /* L'ancien nom mène à la même fenêtre : rien ne casse si un bouton l'appelle encore. */
 function permanencesOuvrir(){ horairesOuvrir(); }
+/* Les numéros de la maraude : lus dans la base à chaque ouverture (voir le bouton
+   dans le Centre). ⚠ « La base n'a pas répondu » n'est jamais « aucun numéro ». */
+function maraudeNumeros(){
+  let bg=document.getElementById('marBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='marBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  const cadre=function(corps){
+    bg.innerHTML='<div class="popcard marnum" role="dialog" aria-modal="true">'+
+      '<b>Numéros maraude</b>'+corps+
+      '<div class="entpart-b"><button class="dembtn" onclick="document.getElementById(\'marBg\').classList.remove(\'on\')">Fermer</button></div>'+
+    '</div>';
+  };
+  cadre('<p>Chargement…</p>');
+  bg.classList.add('on');
+  sb.from('numeros_internes').select('bloc,ordre,nom,role,tel,note').order('bloc').order('ordre').then(function(r){
+    if(r.error){ cadre('<p>La base n’a pas répondu. Réessaie dans un instant.</p>'); return; }
+    const L=r.data||[];
+    if(!L.length){ cadre('<p>Aucun numéro à afficher pour ton compte.</p>'); return; }
+    const blocs=[];
+    L.forEach(function(x){ if(blocs.indexOf(x.bloc)<0) blocs.push(x.bloc); });
+    cadre(blocs.map(function(bl){
+      return '<div class="marbl">'+esc(bl)+'</div>'+
+        L.filter(function(x){ return x.bloc===bl; }).map(function(x){
+          const doute=/v[ée]rifier/i.test(x.note||'');
+          return '<a class="marli'+(doute?' doute':'')+'" href="tel:'+esc(String(x.tel).replace(/[^0-9+]/g,''))+'">'+
+            '<span class="nm">'+esc(x.nom)+(x.role?' <i>'+esc(x.role)+'</i>':'')+
+              (x.note?'<em>'+(doute?'⚠ ':'')+esc(x.note)+'</em>':'')+'</span>'+
+            '<b>'+esc(x.tel)+'</b></a>';
+        }).join('');
+    }).join(''));
+  });
+}
 function roiOuvrir(){
   let bg=document.getElementById('roiBg');
   if(!bg){
@@ -39331,7 +39370,10 @@ function roiOuvrir(){
     document.body.appendChild(bg);
   }
   bg.innerHTML='<div class="popcard roidoc" role="dialog" aria-modal="true">'+
-    '<b>Charte &amp; ROI</b>'+
+    /* Le mémo (le diaporama du règlement) se lance d'ici, à côté du titre : on
+       l'a sous la main quand on remet la charte (Mag, 25/09/2026). */
+    '<div class="roidoc-h"><b>Charte &amp; ROI</b>'+
+      '<button class="entacc" onclick="document.getElementById(\'roiBg\').classList.remove(\'on\');accSlideOuvrir()">'+icon('bulb')+'Mémo</button></div>'+
     ROI_DOCS.map(function(g){
       if(g.d) return '<div class="roidisc">'+g.l.map(function(d){
         return '<a href="documents/roi/'+d.f+'" target="_blank" rel="noopener">'+
@@ -39674,7 +39716,9 @@ function entretiensCorps(){
       '<div class="entbar-g">'+
         '<button class="entacc" onclick="go(\'#/accueil-personne\')">'+icon('accomp')+'Accueil social</button>'+
         '<button class="entacc" onclick="go(\'#/accueil-personne/med\')">'+icon('medical')+'Accueil médical</button>'+
-        '<button class="entacc" onclick="accSlideOuvrir()">'+icon('bulb')+'ROI / CHARTE</button>'+
+        /* ⚠ LE BOUTON OUVRE LES DOCUMENTS, LE MÉMO EST DEDANS (Mag, 25/09/2026 : « non
+           l'inverse. Ça ouvre les chartes et ROI, et là un bouton mémo »). */
+        '<button class="entacc" onclick="roiOuvrir()">'+icon('bulb')+'ROI / CHARTE</button>'+
       '</div>'+
       '<div class="entbar-d">'+
       boutonImprimer('', true)+
