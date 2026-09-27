@@ -51,6 +51,6 @@ insert into public.numeros_internes (bloc, ordre, nom, role, tel, note) values
   -- La feuille donne le meme numero a Christelle et a Thomas. Mag, 27/09/2026 : c'est
   -- sans doute un telephone de travail qui passe de l'un a l'autre -- "tu mets
   -- Christelle ou Thomas, et tu mets le numero".
-  ('Maraude jour', 6, 'Christelle ou Thomas', 'infi / AS', '0499 68 93 72', null),
+  ('Maraude jour', 6, 'Christelle ou Thomas', 'infi / AS', '0499 68 93 72', U&'T\00e9l\00e9phone partag\00e9 ? \00c0 v\00e9rifier'),
   ('Maraude jour', 7, 'Sabrine', 'infi', '0498 64 11 47', null),
   ('Maraude jour', 8, 'Aline', 'AS', '0499 05 86 22', null);
