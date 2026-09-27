@@ -955,7 +955,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   text-transform:uppercase;color:var(--enc2);padding:14px 0 2px;border-top:1px solid var(--ligne);
   margin-top:4px}
 .famdedans > .famgp:first-child{border-top:0;margin-top:0;padding-top:8px}
-.famli.pressee .tx b::after{content:'';display:inline-block;width:7px;height:7px;
+.famz .sacsq{display:flex;gap:4px;flex:none}
+.famz .sacsq i{width:10px;height:10px;border-radius:2px}
+.famli.pressee .tx b::after,.famz.pressee .tx b::after{content:'';display:inline-block;width:7px;height:7px;
   border-radius:50%;background:#f5c542;margin-left:7px;vertical-align:middle}
 #view .qneuf{max-width:620px;padding-top:16px}
 #view .qneuf .sectl{margin-top:22px}
@@ -19729,8 +19731,45 @@ k:['Formations COUSIN']},
      Le quotidien de la maison — linge, poubelles, chambres — est le terrain des
      polyvalents et de la logistique. Il a donc sa propre section, qui porte la
      « Gestion du centre ». Même dessin de section que les deux autres. */
-  const sectPoly=centreSectTete('poly','#6cb392','Polyvalents et logistique',1)+
-    (centreSectOuverte('poly')?gcentre:'');
+  /* ═══ SEPT BOUTONS, PLUS DE DÉPLIANT (Mag, 27/09/2026 : « ce serait bien que ce
+     soit, à chaque fois, des boutons séparés. C'est le même problème qu'on avait eu
+     dans les outils de l'équipe ») ═══
+     « Gestion du centre » était un bouton qui en cachait sept autres, en lignes
+     serrées : deux clics pour le linge. Chaque porte devient une carte, du même
+     dessin que « Les outils de l'équipe ». Les sous-titres du jour restent (étage du
+     linge, couleur des sacs) : c'est ce qu'on vient lire.
+     ⚠ `gcentre` (le dépliant) n'est plus affiché ; son code reste au-dessus, prêt à
+     revenir si elle le redemande. */
+  const tuileG=function(pic,titre,sous,action,cl,extra){
+    return '<button class="famz'+(cl?' '+cl:'')+'" onclick="'+action+'">'+
+      '<span class="rd" style="background:'+pastel('#6cb392')+'">'+
+        (String(pic).charAt(0)==='<'?pic:'<span class="ic">'+icon(pic)+'</span>')+'</span>'+
+      '<span class="tx"><b>'+titre+'</b><em>'+sous+'</em></span>'+
+      (extra||'')+'<span class="chv">›</span></button>';
+  };
+  const gTuiles=
+    (l?tuileG('linge','Linge — aujourd’hui',
+      esc(l.etage+(l.chambres?' · ch. '+l.chambres:''))+(lt?' · demain '+esc(lt.etage):''),
+      "go('#/linge')"):'')+
+    (col?tuileG(pictoPoubelle('#1b1b1b','#ffffff',21),
+      'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
+      "goFiche(/poubelle/i)", '',
+      '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>'):'')+
+    tuileG('cle','Chambres',
+      (chEnCours()?chEnCours()+' en cours — vider, nettoyer, libérer':'Vider, nettoyer, libérer'),
+      "go('#/chambres')")+
+    tuileG('list','Tour des chambres', esc(tbResumeCourt()),
+      "go('#/tourbacs')", tbPresse()?'pressee':'')+
+    tuileG('imprimer','Feuille congélateur','Punaises · −40°, 24 h · à remplir au stylo',
+      "imprimerCongelateur()")+
+    tuileG('colis',
+      'Distribution des produits'+(produitsJour()?' — '+produitsJour().quand:''), esc(distTxt),
+      "goFiche(/produits/i)", produitsJour()?'pressee':'')+
+    tuileG('phone','Coordonnées utiles', nCentreFiches()+' fiches',
+      "go('#/d/coord')");
+  const nTuiles=(gTuiles.match(/class="famz/g)||[]).length;
+  const sectPoly=centreSectTete('poly','#6cb392','Polyvalents et logistique',nTuiles)+
+    (centreSectOuverte('poly')?gTuiles:'');
   /* ═══ LE GROUPE D (Mag, 24/08/2026) : il ne garde que la gestion du centre (le linge,
      les poubelles) et « Sortir et apprendre ». Ni l'accueil entrant (déjà retiré plus
      haut), ni les outils de l'équipe, ni Protocole. Le bloc `sectPoly` et `outilsBas`
