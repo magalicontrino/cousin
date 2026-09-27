@@ -48,9 +48,9 @@ insert into public.numeros_internes (bloc, ordre, nom, role, tel, note) values
   ('Maraude jour', 3, U&'Dieudonn\00e9', 'TS', '0494 17 64 71', null),
   ('Maraude jour', 4, 'Sonia', 'psy', '0490 30 00 54', null),
   ('Maraude jour', 5, 'Robin', 'psy', '0494 17 64 63', null),
-  -- La feuille donne le MEME numero a Christelle et a Thomas : un des deux est faux.
-  -- On ne choisit pas -- les deux lignes le disent, jusqu'a ce que Mag tranche.
-  ('Maraude jour', 6, 'Christelle', 'infi', '0499 68 93 72', U&'M\00eame num\00e9ro que Thomas sur la feuille : \00e0 v\00e9rifier'),
+  -- La feuille donne le meme numero a Christelle et a Thomas. Mag, 27/09/2026 : c'est
+  -- sans doute un telephone de travail qui passe de l'un a l'autre -- "tu mets
+  -- Christelle ou Thomas, et tu mets le numero".
+  ('Maraude jour', 6, 'Christelle ou Thomas', 'infi / AS', '0499 68 93 72', null),
   ('Maraude jour', 7, 'Sabrine', 'infi', '0498 64 11 47', null),
-  ('Maraude jour', 8, 'Thomas', 'AS', '0499 68 93 72', U&'M\00eame num\00e9ro que Christelle sur la feuille : \00e0 v\00e9rifier'),
-  ('Maraude jour', 9, 'Aline', 'AS', '0499 05 86 22', null);
+  ('Maraude jour', 8, 'Aline', 'AS', '0499 05 86 22', null);
