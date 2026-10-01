@@ -4880,6 +4880,14 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .entarr-add input#arrJour{flex:1 1 150px;font-family:ui-monospace,monospace;font-size:13px}
 .entarr-add .entc{flex:none}
 /* Le choix entre deux : un seul bouton coupé en deux, la moitié vraie en noir. */
+.entsw{display:inline-flex;align-items:center;gap:9px;flex:none;border:0;background:none;cursor:pointer;
+  font-family:inherit;font-size:14px;padding:4px 6px;color:#9b9892}
+.entsw span.on{color:var(--noir);font-weight:700}
+.entsw-b{width:46px;height:26px;border-radius:13px;background:#A9C8E8;position:relative;transition:background .2s}
+.entsw-b::after{content:'';position:absolute;top:3px;left:23px;width:20px;height:20px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+.entsw.lam .entsw-b{background:#e8308a}
+.entsw.lam .entsw-b::after{left:3px}
 .entseg{display:inline-flex;border:1.25px solid var(--trait);border-radius:20px;overflow:hidden;flex:none}
 .entseg button{border:0;background:#fdfdfc;color:#8b8984;font-family:inherit;font-size:12px;
   padding:5px 11px;cursor:pointer}
@@ -5245,6 +5253,13 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .entl{padding:11px 0 11px 11px;border-bottom:1px solid var(--ligne);box-shadow:inset 3px 0 0 #f5c542}
 .entl:last-child{border-bottom:0}
 .entl.vu{box-shadow:none}
+.entafaire{margin-top:14px;border-radius:14px;padding:12px 14px 6px;background:#ece8e1;
+  border:1px solid #dcd6cc;border-left:5px solid #8b8478}
+.entafaire-t{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:#5f5a51}
+.entafaire .entl{background:#fdfdfc;border-radius:12px;border-bottom:0;padding:10px 12px;margin:8px 0;
+  box-shadow:inset 3px 0 0 #8b8478,0 1px 3px rgba(0,0,0,.1)}
+.entafaire .entl.mi{box-shadow:inset 3px 0 0 #6fc7d9,0 1px 3px rgba(0,0,0,.1)}
 .entl-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .entl-h b{font-size:16px}
 .entl-h .entch,.entl-h .entj{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.06em;
@@ -38881,10 +38896,13 @@ function arriveesHTML(){
       '<input id="arrJour" type="date" value="'+esc(arrJourDefaut())+'" '+
         'title="Jour d’arrivée" oninput="ARR_BR_JOUR=this.value">'+
       /* LAM en fuchsia, Médical en bleu (Mag, 20/09/2026 : « mets le médical en bleu »). */
-      '<span class="entseg">'+
-        '<button type="button" class="'+(ARR_BR_LAM?'on':'')+'" onclick="ARR_BR_LAM=true;render()">LAM</button>'+
-        '<button type="button" class="med'+(ARR_BR_LAM?'':' on')+'" onclick="ARR_BR_LAM=false;render()">Médical</button>'+
-      '</span>'+
+      /* ═══ UN INTERRUPTEUR (Mag, 01/10/2026 — quatre dessins proposés, elle a choisi
+         le B) ═══ À gauche LAM (fuchsia), à droite Médical (bleu) ; le mot choisi est
+         en gras. Un seul bouton : on touche n'importe où dessus pour basculer. */
+      '<button type="button" class="entsw'+(ARR_BR_LAM?' lam':'')+'" onclick="ARR_BR_LAM=!ARR_BR_LAM;render()" '+
+        'role="switch" aria-checked="'+(ARR_BR_LAM?'false':'true')+'" title="LAM ou Médical">'+
+        '<span class="'+(ARR_BR_LAM?'on':'')+'">LAM</span><span class="entsw-b"></span>'+
+        '<span class="'+(ARR_BR_LAM?'':'on')+'">Médical</span></button>'+
       '<button class="chaddbtn" onclick="arriveeAjouter()">Ajouter</button>'+
     '</div>'+
     /* ═══ DEUX ÉTAGES (Mag, 20/09/2026, dessin B sur trois : « c'est brouillon,
@@ -39881,13 +39899,18 @@ function entretiensCorps(){
        entrant » est RETIRÉ. Tout le monde entre par les arrivées, puis la flèche le fait
        descendre ici. La chambre, la langue, le commentaire et le mi-parcours se posent
        ensuite sur la ligne, d'un clic. Ne pas remettre un deuxième formulaire. */
-    '<div class="entavoir"><b>Entretiens à faire</b><span>'+
-      (aVoir.length ? aVoir.length : 'aucun entretien à faire')+'</span></div>'+
+    /* ═══ UN CADRE GRIS CHAUD (Mag, 01/10/2026 — trois couleurs proposées, elle a choisi
+       la 3) ═══ « Les entretiens à faire, ça doit être vraiment d'une autre couleur. »
+       Le haut est bleu avec des cartes blanches ; le bas prend le même dessin en gris
+       chaud. Chaque personne sur sa carte blanche. */
     (ENTRANTS_PANNE?'<div class="dempanne">'+esc(ENTRANTS_PANNE)+'</div>':'')+
     /* ⚠ PAS DE GRAND ENCART QUAND C'EST VIDE (Mag, 19/09/2026 : « c'est beaucoup trop
-       grand, t'es pas obligé d'expliquer, tu marques juste pas d'entretien ») : le
-       sous-titre « À voir · pas d'entretien » le dit déjà. */
-    aVoir.map(ligne).join('')+
+       grand, t'es pas obligé d'expliquer, tu marques juste pas d'entretien ») : vide,
+       il ne reste que le titre, sans le cadre. */
+    (aVoir.length
+      ? '<div class="entafaire"><div class="entafaire-t">Entretiens à faire · '+aVoir.length+'</div>'+
+          aVoir.map(ligne).join('')+'</div>'
+      : '<div class="entavoir"><b>Entretiens à faire</b><span>aucun entretien à faire</span></div>')+
   '</div>'+
   /* ═══ LES VUS, DANS UNE CARTE À PART (Mag, 19/09/2026 — trois dessins proposés, elle
      a choisi le A) ═══
