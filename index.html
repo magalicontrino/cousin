@@ -4885,8 +4885,15 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   padding:5px 11px;cursor:pointer}
 .entseg button.on{background:#e8308a;color:#fdfdfc;font-weight:700}
 .entseg button.med.on{background:#A9C8E8;color:#12354f}
-.entarr-l{padding:8px 0;border-top:1px solid #d7e5f2}
-.entarr-n .entarr-nb{font-size:17px;font-weight:800;letter-spacing:.01em}
+.entarr-l{display:flex;gap:12px;align-items:center;background:#fdfdfc;border-radius:12px;
+  padding:10px 12px;margin-top:8px;box-shadow:0 1px 3px rgba(18,53,79,.12)}
+.entarr-c{flex:1;min-width:0}
+.entarr-cal{flex:none;width:50px;border-radius:10px;background:#fdfdfc;border:1.5px solid #A9C8E8;
+  text-align:center;padding:4px 0;line-height:1.05;cursor:pointer;color:var(--noir)}
+.entarr-cal small{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;
+  color:#2b5d84;font-weight:700}
+.entarr-cal b{display:block;font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:22px}
+.entarr-n .entarr-nb{font-weight:700}
 .entarr-n .entarr-nr{font-weight:400;color:#5d6b78}
 .entarr-n{display:block;width:100%;text-align:left;border:0;background:none;padding:0;cursor:pointer;
   font-family:inherit;font-size:14.5px;font-weight:600;line-height:1.3;color:var(--noir)}
@@ -38840,6 +38847,13 @@ function arrJourDefaut(){
   const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 /* « jeudi 24/09 » — le jour compte autant que la date : on s'organise par jour. */
+/* Le petit calendrier : « VEN » au-dessus, « 02 » en gros. Sans date : un tiret. */
+function arrCalHTML(iso){
+  if(!iso) return '<small>—</small><b>?</b>';
+  const d=new Date(String(iso)+'T12:00:00');
+  const j=d.toLocaleDateString('fr-BE',{weekday:'short'}).replace('.','').slice(0,3).toUpperCase();
+  return '<small>'+esc(j)+'</small><b>'+String(d.getDate()).padStart(2,'0')+'</b>';
+}
 function arrJourTxt(iso){
   if(!iso) return '';
   const d=new Date(String(iso)+'T12:00:00');
@@ -38879,7 +38893,14 @@ function arriveesHTML(){
        ⚠ UNE SEULE PASTILLE QUI BASCULE, plus deux moitiés : le choix prenait autant de
        place que le nom. On voit ce qui EST, on clique pour changer. */
     L.map(function(e){
+      /* ═══ A + LES DATES DE B (Mag, 01/10/2026, quatre dessins proposés) ═══ Chaque
+         entrant sur sa carte blanche, sorti du fond bleu, avec le jour en petit
+         calendrier à gauche (« VEN 02 ») — on voit QUAND, puis QUI. Le calendrier se
+         touche pour changer le jour, comme l'ancienne étiquette de date. */
       return '<div class="entarr-l">'+
+        '<button type="button" class="entarr-cal" onclick="arriveeJour('+e.id+')" '+
+          'title="'+esc(arrJourTxt(e.arrive_le)||'Sans date')+' — changer le jour">'+arrCalHTML(e.arrive_le)+'</button>'+
+        '<div class="entarr-c">'+
         /* Le nom se corrige : on le tape vite, à l'oreille (Mag, 20/09/2026 : « on doit
            aussi pouvoir modifier les noms qu'on a écrits »). */
         /* ⚠ SANS CRAYON (Mag, 21/09/2026 : « retire le crayon ») : le nom se clique, ça
@@ -38888,13 +38909,11 @@ function arriveesHTML(){
         '<div class="entarr-d">'+
           '<button class="entarr-lam'+(e.lam?' lam':'')+'" onclick="arriveeLam('+e.id+','+(e.lam?'false':'true')+')" '+
             'title="'+(e.lam?'Passer en Médical':'Passer en LAM')+'">'+(e.lam?'LAM':'MÉD')+'</button>'+
-          '<button type="button" class="entarr-j" onclick="arriveeJour('+e.id+')" '+
-            'title="Changer le jour d’arrivée">'+esc(arrJourTxt(e.arrive_le)||'sans date')+'</button>'+
           '<span style="flex:1"></span>'+
           '<button class="entvus-b" onclick="arriveeVersEntretien('+e.id+')" title="Descendre en entretien" aria-label="Descendre en entretien">'+icon('flechebas')+'</button>'+
           (peutRetirerEntrant()?'<button class="entvus-b sup" onclick="entrantRetirer('+e.id+')" title="Retirer" aria-label="Retirer">'+icon('trash')+'</button>':'')+
         '</div>'+
-      '</div>';
+      '</div></div>';
     }).join('')+
   '</div>';
 }
