@@ -20618,6 +20618,11 @@ function popFermer(){
   if(et){ et.style.display='none'; et.innerHTML=''; }
   popReprCacher();
   _popQuandOui=null; _popQuandAutre=null; _popChamp=false; _popPlus=false; _popMulti=false; _popEtq=false; _popCle='';
+  /* La relecture de Ma liste remise à plus tard (voir `rafraichirPerso`) : après, pour
+     que ce qu'on vient d'enregistrer soit parti d'abord. */
+  if(typeof _persoApresPop!=='undefined' && _persoApresPop){
+    _persoApresPop=false; setTimeout(function(){ rafraichirPerso(true); }, 1500);
+  }
 }
 function popValider(){
   const c=document.getElementById(_popMulti?'popChampM':'popChamp');
@@ -36164,9 +36169,17 @@ document.addEventListener('visibilitychange',function(){
    ⚠ On relit quand l'onglet revient au premier plan, et en ARRIVANT sur sa liste :
    c'est là qu'on se pose la question. Pas en boucle — 15 secondes de repos entre
    deux lectures, sauf quand on demande expressément. */
-var _dernierPerso=0;
+var _dernierPerso=0, _persoApresPop=false;
 async function rafraichirPerso(force){
   if(!sb||!PROFILE||!PROFILE.uid) return;
+  /* ⚠ PAS PENDANT QU'UNE FENÊTRE EST OUVERTE (Mag, 01/10/2026 : « j'ai modifié un texte
+     dans la liste et ça n'a rien changé, j'ai dû recommencer 2 fois »). Relire la base
+     REMPLACE les lignes de Ma liste par de nouvelles copies ; la fenêtre « Modifier »,
+     elle, tenait encore l'ancienne. Enregistrer écrivait dans une ligne qui n'était plus
+     dans la liste — rien ne changeait, sans un mot. Il suffisait de passer sur une autre
+     appli et de revenir, fenêtre ouverte. On relit donc APRÈS la fermeture. */
+  const bg=document.getElementById('popBg');
+  if(bg && bg.classList.contains('on')){ _persoApresPop=true; return; }
   if(!force && Date.now()-_dernierPerso < 15000) return;
   _dernierPerso=Date.now();
   try{ await chargerReglages(); render(); }catch(e){}
@@ -38403,6 +38416,10 @@ function rappelModifier(id){
     quandAutre:function(){ rappelRetirer(id); },
     quandOui:function(v, plus, etq){
       v=(v||'').trim(); if(!v) return;
+      /* ⚠ LA LIGNE SE RETROUVE AU MOMENT D'ENREGISTRER, pas à l'ouverture : si Ma liste
+         a été relue entre-temps, l'ancienne copie n'est plus dans la liste. */
+      const r=MESRAPPELS.find(function(x){ return x.id===id; });
+      if(!r){ copyTxt(v,'Cette ligne n’est plus dans ta liste — ton texte est copié, colle-le.'); return; }
       r.texte=v.slice(0,4000);
       const ch=((plus&&plus.deux)||'').trim();
       if(ch) r.chambre=ch.slice(0,12); else delete r.chambre;
