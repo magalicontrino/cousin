@@ -39716,31 +39716,59 @@ function entretiensEnTexte(){
      « Vus ») : elle a vu la feuille avec les noms et veut la même partout. La phrase qui
      expliquait la règle et le pied du mail, eux, restent retirés.
      Une seule fonction pour les trois gestes : ils ne peuvent pas diverger. */
+  /* ═══ LISIBLE DANS WHATSAPP (Mag, 02/10/2026 : « quand j'envoie par WhatsApp, ça
+     ressemble à rien. Je voudrais un truc très, très lisible : les personnes qui
+     doivent rentrer les jours qui suivent, les entretiens à faire, les entretiens
+     faits ») ═══
+     Trois blocs, un titre en gras chacun (WhatsApp met en gras ce qui est entre
+     étoiles), une personne par puce. Pour un entretien à faire, on écrit ce qui
+     MANQUE — c'est ce qu'on vient chercher — et plus les « — » des cases vides.
+     ⚠ Plus d'alignement par espaces : WhatsApp les écrase, c'est ce qui faisait
+     « ressembler à rien ». */
   const liste=entrantsTries();
   const aVoir=liste.filter(function(e){ return !entretienFait(e,'acc'); });
   const vus=liste.filter(function(e){ return entretienFait(e,'acc'); });
-  const le=function(d){ return d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'}) : ''; };
-  const cs=function(e,k){ return e[k+'_le'] ? '✓ '+(e[k+'_par']||'') : '—'; };
+  const arr=arriveesTriees();
+  const jour=function(d){
+    if(!d) return 'date à préciser';
+    const a=new Date(String(d)+'T12:00:00'), n=new Date(); n.setHours(12,0,0,0);
+    const k=Math.round((a-n)/864e5);
+    const t=a.toLocaleDateString('fr-BE',{weekday:'short',day:'2-digit',month:'2-digit'}).replace('.','');
+    return k===0?'aujourd’hui':k===1?'demain':t;
+  };
+  const cases=function(e){ return [['acc_social','social'],['acc_medical','médical']].concat(e.mi_parcours?[]:[['roi','ROI']]); };
+  const tete=function(e){
+    return '• *'+e.nom+'*'+(e.chambre?' — ch. '+e.chambre:'')+(e.langue?' — '+e.langue:'')+(e.mi_parcours?' — mi-parcours':'');
+  };
   const L=[];
-  L.push('PASSATION ENTRETIENS — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}));
-  if(!liste.length){ L.push(''); L.push('Personne dans la liste.'); return L.join('\n'); }
+  L.push('*ENTRETIENS — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+'*');
+
   L.push('');
-  L.push(aVoir.length ? 'À VOIR · '+aVoir.length : 'Personne n’attend son entretien.');
+  L.push('*LES ENTRANTS · '+arr.length+'*');
+  if(!arr.length) L.push('Personne d’annoncé.');
+  arr.forEach(function(e){ L.push('• '+jour(e.arrive_le)+' — *'+e.nom+'* ('+(e.lam?'LAM':'médical')+')'); });
+
+  L.push('');
+  L.push('*ENTRETIENS À FAIRE · '+aVoir.length+'*');
+  if(!aVoir.length) L.push('Aucun.');
   aVoir.forEach(function(e){
-    const j=entrantJours(e);
-    L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  '+entrantAjout(e));
-    L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
-    if(e.commentaire) L.push('     commentaire : '+e.commentaire+(e.commentaire_par?' ('+e.commentaire_par+')':''));
-  });
-  if(vus.length){
+    const manque=cases(e).filter(function(c){ return !e[c[0]+'_le']; }).map(function(c){ return c[1]; });
+    const fait=cases(e).filter(function(c){ return e[c[0]+'_le']; }).map(function(c){ return c[1]+(e[c[0]+'_par']?' ('+e[c[0]+'_par']+')':''); });
+    L.push(tete(e));
+    L.push('   Manque : '+manque.join(', '));
+    if(fait.length) L.push('   Fait : '+fait.join(', '));
+    if(e.commentaire) L.push('   « '+e.commentaire+' »'+(e.commentaire_par?' — '+e.commentaire_par:''));
     L.push('');
-    L.push('DÉJÀ VUS · '+vus.length);
-    vus.forEach(function(e){
-      L.push('  '+e.nom+(e.mi_parcours?'  (mi-parcours)':'')+(e.chambre?'  —  ch. '+e.chambre:'')+(e.langue?'  —  '+e.langue:'')+'  —  mis à jour '+le(entretienFaitLe(e)));
-      L.push('     social : '+cs(e,'acc_social')+'  ·  médical : '+cs(e,'acc_medical')+(e.mi_parcours?'':'  ·  ROI : '+cs(e,'roi')));
-      if(e.commentaire) L.push('     commentaire : '+e.commentaire+(e.commentaire_par?' ('+e.commentaire_par+')':''));
-    });
-  }
+  });
+  if(aVoir.length) L.pop();
+
+  L.push('');
+  L.push('*ENTRETIENS FAITS · '+vus.length+'*');
+  if(!vus.length) L.push('Aucun.');
+  vus.forEach(function(e){
+    L.push(tete(e));
+    L.push('   '+cases(e).map(function(c){ return c[1]+(e[c[0]+'_par']?' ('+e[c[0]+'_par']+')':''); }).join(', '));
+  });
   return L.join('\n');
 }
 function envoyerEntretiensParMail(){
