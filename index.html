@@ -15875,23 +15875,44 @@ function imprimer(){
           (e.mi_parcours?' <span style="font-family:ui-monospace,monospace;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;background:#d9f1f7;border:1px solid #6fc7d9;border-radius:3px;padding:1px 5px">mi-parcours</span>':'')+
           (e.langue?'<br><span style="font-size:10pt;color:#444">'+esc(e.langue)+'</span>':'')+
           (e.commentaire?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(e.commentaire)+
-            (e.commentaire_par?' — '+esc(e.commentaire_par):'')+'</span>':'')+'</td>'+
+            (e.commentaire_par?' — '+esc(e.commentaire_par):'')+'</span>':'')+
+          /* Qui a mis la ligne (Mag, 02/10/2026 : « dans le print mets plus de détails »). */
+          (e.ajoute_par?'<br><span style="font-size:9.5pt;color:#666">Ajouté·e par '+esc(e.ajoute_par)+'</span>':'')+'</td>'+
           '<td '+tdv+'>'+esc(e.chambre||'')+'</td><td '+tdv+'>'+colDate(e)+'</td>'+
           '<td '+tdv+'>'+c(e,'acc_social')+'</td><td '+tdv+'>'+c(e,'acc_medical')+'</td>'+
           '<td '+tdv+'>'+(e.mi_parcours?'':c(e,'roi'))+'</td></tr>';
       };
       const table='<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px">'+col+tete;
-      corps =
+      /* ═══ LES ENTRANTS EN TÊTE DE FEUILLE (Mag, 02/10/2026 : « plus de détails ») ═══
+         Le même ordre que le texte de Copier : qui arrive, puis ce qui reste à faire.
+         Le jour en DATE, jamais « demain » : la feuille se lit le lendemain. */
+      const arr=arriveesTriees();
+      const jourP=function(d){ return d ? new Date(String(d)+'T12:00:00').toLocaleDateString('fr-BE',{weekday:'short',day:'2-digit',month:'2-digit'}) : '—'; };
+      const blocArr = arr.length
+        ? bande('Les entrants · '+arr.length,'#e8f0fa','#a9c8e8')+
+          '<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px">'+
+          '<colgroup><col style="width:18%"><col style="width:44%"><col style="width:14%"><col style="width:24%"></colgroup>'+
+          '<tr><th '+th+'>Jour</th><th '+th+'>Nom</th><th '+th+'>LAM / Méd.</th><th '+th+'>Ajouté par</th></tr>'+
+          arr.map(function(e){
+            return '<tr><td '+td+'>'+esc(jourP(e.arrive_le))+'</td>'+
+              '<td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid #a9c8e8;overflow-wrap:anywhere"><b>'+esc(e.nom)+'</b></td>'+
+              '<td '+td+'>'+(e.lam?'LAM':'Médical')+'</td><td '+td+'>'+esc(e.ajoute_par||'')+'</td></tr>';
+          }).join('')+'</table>'
+        : '';
+      corps = blocArr +
         (lst.length
           ? bande('À voir · '+lst.length,'#fdf6e3','#f5c542')+table+
-            lst.map(function(e){ return rangee(e, function(x){ return le(x.arrive_le); }, false); }).join('')+'</table>'
+            lst.map(function(e){ return rangee(e, function(x){
+              const j=entrantJours(x);
+              return le(x.arrive_le)+(j?'<br><span style="font-size:10pt;color:#b3261e;font-weight:700">J+'+j+'</span>':'');
+            }, false); }).join('')+'</table>'
           : bande('Personne n’attend son entretien','#fdf6e3','#f5c542'))+
         (vus.length
           ? bande('Déjà vus · '+vus.length,'#eceae6','#b9b6b0')+
             table.replace('>Ajouté<','>Mis à jour<')+
             vus.map(function(e){ return rangee(e, function(x){ return le(entretienFaitLe(x)); }, true); }).join('')+'</table>'
           : '')+
-        (!lst.length && !vus.length ? '<p class="vide">Personne dans la liste.</p>' : '');
+        (!lst.length && !vus.length && !arr.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
     }
     if(current && current.view==='tourbacs'){
