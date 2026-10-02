@@ -17742,9 +17742,32 @@ const view=document.getElementById('view');
    même — et la bande de panne le dit.
    ⚠ NE PAS remettre le travail ici : c'est cette coquille qui garantit qu'un clic
    aboutit toujours à quelque chose. */
+/* ═══ « QUAND J'ÉCRIS DANS LES NOTES, ÇA SAUTE » (Mag, 02/10/2026) ═══
+   Pendant qu'on tape dans la case des notes, l'app continue de recevoir des choses
+   (compte des entrants, passations, synchro) et chacune appelait `render()`, qui
+   réécrit toute la page : la case était remplacée sous les doigts, le clavier se
+   fermait, la page sautait. Le texte n'était pas perdu (il est gardé à chaque
+   frappe), mais on ne pouvait plus écrire.
+   ⚠ LA RÈGLE : tant que la case des notes a le curseur, sur le même écran, un
+   redessin qui vient D'AILLEURS attend que la case soit quittée (`notCaseQuittee`).
+   ⚠ Ce que fait la note elle-même (micro, Corriger…) passe par `notRedessine`, qui
+   force le passage avec `RENDU_FORCE` — sinon le bouton du micro ne changerait plus. */
+var RENDU_DIFFERE=false, RENDU_FORCE=false;
 function render(){
+  try{
+    const a=document.activeElement;
+    if(!RENDU_FORCE && a && a.id==='notTxt' && current && current.view==='liste' &&
+       _dernierEcranRendu===keyOf(current)){ RENDU_DIFFERE=true; return; }
+  }catch(e){}
+  RENDU_FORCE=false; RENDU_DIFFERE=false;
   try{ renderInterne(); }
   catch(e){ panneNoter('render', e); panneBandeau(); }
+}
+function notCaseQuittee(){
+  if(RENDU_DIFFERE) setTimeout(function(){
+    const a=document.activeElement;
+    if(RENDU_DIFFERE && !(a && a.id==='notTxt')) render();
+  }, 0);
 }
 /* ═══ « QUAND JE REVIENS SUR LA PAGE, ELLE SAUTE ET REVIENT AU DÉBUT »
    (Mag, 03/09/2026) ═══
@@ -19907,7 +19930,16 @@ function mlOnglet(){
   const o=(current&&current.onglet)||'';
   return (o==='notes'||o==='entretiens')?o:'liste';
 }
-function mlVue(v){ go('#/liste'+(v==='liste'?'':'/'+v)); }
+/* ═══ CHANGER D'ONGLET NE RAMÈNE PLUS EN HAUT (Mag, 02/10/2026 : « quand je change
+   d'onglet, à chaque fois, ça revient au début. Je dois chaque fois rechercher ») ═══
+   `go()` dit « on OUVRE quelque chose » et pose la page en haut. Entre Entretiens,
+   Liste et Notes, on ne s'en va pas : on passe d'un onglet à l'autre. Chaque onglet
+   retrouve donc l'endroit où on l'a laissé ; la première fois seulement, en haut. */
+function mlVue(v){
+  const cle=keyOf({view:'liste', onglet:(v==='liste'?'':v)});
+  if(!(scrollMem[cle]>0)){ go('#/liste'+(v==='liste'?'':'/'+v)); return; }
+  NAV_PAS++; location.hash='#/liste'+(v==='liste'?'':'/'+v);
+}
 function vListe(){
   const d=new Date();
   const dateTxt=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+' '+d.getDate()+' '+MOIS_L[d.getMonth()];
@@ -30936,7 +30968,7 @@ function notRedessine(){
     if(NOT_PANNE){ toast(NOT_PANNE); NOT_PANNE=''; }
     return;
   }
-  if(NOT_CIBLE) entRafraichir(); else render();
+  if(NOT_CIBLE) entRafraichir(); else { RENDU_FORCE=true; render(); }
 }
 
 /* ═══ LA DEMANDE DE CORRECTION, EN UN SEUL ENDROIT (16/09/2026) ═══
@@ -31179,7 +31211,7 @@ function notesCorps(){
      rangée — voir `notCollerIci`. */
   const champ='<textarea id="notTxt" class="notchamp" '+
       'placeholder="Ce que tu dis s\'écrit ici" '+
-      'oninput="notSaisie(this.value)">'+esc(NOT_TXT)+'</textarea>';
+      'oninput="notSaisie(this.value)" onblur="notCaseQuittee()">'+esc(NOT_TXT)+'</textarea>';
   /* ⚠ L'ORDRE A CHANGÉ LE 10/09/2026, et c'est le point : le message du téléphone
      passait AVANT tous les autres, donc sur son Samsung l'app ne disait jamais que le
      micro était bloqué. On dit d'abord ce qui EMPÊCHE, ensuite le reste.
