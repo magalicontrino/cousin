@@ -30752,8 +30752,14 @@ function notEcrire(t, champ){
    ne recopie pas le chevauchement.
    ⚠ LE SEUIL DE DIX CARACTÈRES EST LÀ POUR LES VRAIES RÉPÉTITIONS : quelqu'un qui dit
    « non, non » doit garder ses deux « non ». En dessous de dix, on ne présume rien. */
+/* ⚠ LES RETOURS À LA LIGNE RESTENT (Mag, 03/10/2026 : « dans ma note j'avais mis des
+   espaces — quand je fais un audio, ça retire toutes les espaces »). On ne resserrait
+   pas que les espaces : `\s` mange aussi les sauts de ligne, et toute la note déjà
+   écrite repartait sur une seule ligne dès qu'on dictait la suite. On ne resserre plus
+   que les espaces et tabulations ; les paragraphes ne bougent pas. */
+function notSerre(t){ return String(t||'').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n'); }
 function notColler(a,b){
-  a=(a||'').replace(/\s+/g,' ').trim(); b=(b||'').replace(/\s+/g,' ').trim();
+  a=notSerre(a).trim(); b=notSerre(b).trim();
   if(!a) return b; if(!b) return a;
   const A=a.toLowerCase(), B=b.toLowerCase();
   if(B.length>=10 && B.indexOf(A)===0) return b;
@@ -30768,7 +30774,7 @@ function notAssemble(enCours){
   Object.keys(NOT_CASIER).map(Number).sort(function(a,b){ return a-b; })
     .forEach(function(i){ t=notColler(t,NOT_CASIER[i]); });
   if(enCours) t=notColler(t,enCours);
-  return t.replace(/\s+/g,' ').trim();
+  return notSerre(t).trim();
 }
 /* ⚠ ON NE MANGE PAS LA PHRASE EN COURS. Le texte assemblé ne contient que le
    DÉFINITIF ; la phrase en train de se dire est, elle, déjà à l'écran — et ce qu'on a
@@ -38737,7 +38743,7 @@ function rappelAjouter(){
   /* ⚠ 400 CARACTÈRES, comme dans la feuille du crayon : « on doit mettre vraiment
      beaucoup de choses ». Couper à 120 ici et à 400 là aurait tronqué en silence ce
      qu'on vient d'écrire. */
-  const ligne={id:'r'+Date.now(), texte:t.slice(0,400)};
+  const ligne={id:'r'+Date.now(), texte:t.slice(0,4000)};  /* 4000 comme « Modifier » : à 400, une note d'entretien était coupée (03/10/2026) */
   if(ch) ligne.chambre=ch.slice(0,12);
   /* Chaque encodé coché (absence, désencodage…) recopie son drapeau sur la note. */
   if(RAP_TAGS.absence) ligne.absence=true;
