@@ -18067,7 +18067,22 @@ function renderInterne(){
      la page qui a buté — et toutes les autres continuent de s'ouvrir. */
   try{
   if(APERCU_TEL){ /* rien à dessiner ici : le cadre s'en charge plus bas */ }
-  else if(current.view==='home'){ view.innerHTML=vHome(); setTimeout(brancherGeste,0); chargerMeteo(); chargerBus(); }
+  else if(current.view==='home'){
+    /* ⚠ L'ACCUEIL NE SE RÉÉCRIT QUE S'IL A CHANGÉ (04/10/2026, tu m'as dit : « quand on
+       clique sur l'accueil, il n'y a plus aucun lien qui marche, et ce n'est pas la
+       première fois »). Mesuré : en arrivant sur l'accueil, `rafraichirPerso` relit ta
+       liste dans la base puis rappelle `render()` — et la page entière était jetée et
+       refaite, même identique. Sur téléphone ça tombe 2 à 4 s après l'arrivée : le
+       bouton sous le doigt est détruit entre l'appui et le relâchement, le clic n'existe
+       plus. On compare donc au dernier dessin, et on vérifie que c'est bien NOTRE dessin
+       qui est encore en place (une autre page a pu passer par là entre-temps). */
+    const h=vHome();
+    if(!(view.__homeHtml===h && view.__homeNoeud && view.__homeNoeud===view.firstElementChild)){
+      view.innerHTML=h; view.__homeHtml=h; view.__homeNoeud=view.firstElementChild;
+      setTimeout(brancherGeste,0);
+    }
+    chargerMeteo(); chargerBus();
+  }
   else if(current.view==='domaine') view.innerHTML=vDomaine(current.key);
   else if(current.view==='fiche'){ view.innerHTML=vFiche(BYSID[current.sid]);
     /* Les avis arrivent après : la fiche s'affiche tout de suite, sans attendre la
