@@ -36502,6 +36502,52 @@ function rafraichirEnArrivant(vue){
   if(vue==='liste'||vue==='home') rafraichirPerso(true);
 }
 
+/* ═══ UN TIROIR PAR COMPTE SUR UN APPAREIL PARTAGÉ (Mag, 03/10/2026 : « je vois ce
+   qu'Elfine a mis en notes perso, je les vois dans mes notes et je n'arrive pas à les
+   effacer ») ═══
+   ⚠ LA CAUSE : Ma liste, À voir, les notes… sont gardées dans le navigateur SANS le
+   nom du compte. Sur l'ordinateur du centre, Elfine écrit, puis Mag se connecte : la
+   règle « le dernier qui a écrit fait foi » voyait une liste locale plus récente, la
+   prenait pour celle de Mag et l'ENVOYAIT SUR SON COMPTE — à chaque ouverture, d'où
+   l'effacement qui ne tenait pas.
+   LA RÈGLE : le navigateur retient quel compte a rempli ses tiroirs. Si un autre compte
+   se connecte, on RANGE les données du précédent à part (rien n'est effacé), on sort
+   celles du nouveau s'il en a, et on recharge la page une fois.
+   ⚠ La toute première fois (pas encore de compte noté), on ne sait pas à qui sont les
+   données présentes : c'est la BASE qui fait foi, pour ne pas recommencer le mélange. */
+const COMPTE_K='cousin_compte_uid';
+const COMPTE_GARDER=['lux_meteo','lux_liste_vue','lux_onb','lux_derniere_ouverture','lux_vues','lux_reprise'];
+function compteLocalCles(){
+  const L=[];
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+    if(k && k.indexOf('lux_')===0 && COMPTE_GARDER.indexOf(k)<0) L.push(k); } }catch(e){}
+  return L;
+}
+function compteChanger(uid){
+  try{
+    if(!uid) return false;
+    const avant=localStorage.getItem(COMPTE_K);
+    if(avant===uid) return false;
+    if(!avant){
+      compteLocalCles().filter(function(k){ return k.indexOf('lux_reg_maj_')===0; })
+        .forEach(function(k){ localStorage.removeItem(k); });
+      localStorage.setItem(COMPTE_K, uid);
+      return false;
+    }
+    const cles=compteLocalCles(), sac={};
+    cles.forEach(function(k){ sac[k]=localStorage.getItem(k); });
+    localStorage.setItem('cousin_sac_'+avant, JSON.stringify(sac));
+    cles.forEach(function(k){ localStorage.removeItem(k); });
+    const garde=localStorage.getItem('cousin_sac_'+uid);
+    if(garde){
+      const o=JSON.parse(garde);
+      Object.keys(o).forEach(function(k){ if(o[k]!==null) localStorage.setItem(k,o[k]); });
+      localStorage.removeItem('cousin_sac_'+uid);
+    }
+    localStorage.setItem(COMPTE_K, uid);
+    return true;
+  }catch(e){ panneNoter('changement de compte', e); return false; }
+}
 async function loadProfile(){
   profileLoaded=false;
   if(!sb) return;
@@ -36512,6 +36558,8 @@ async function loadProfile(){
       if(ss&&ss.user){ email=ss.user.email||''; uid=ss.user.id||'';
         const mt=ss.user.user_metadata||{}; nom=mt.full_name||mt.name||mt.nom||''; }
     }catch(e){}
+    /* Un autre compte que celui d'avant sur cet appareil : on range, on recharge. */
+    if(compteChanger(uid)){ location.reload(); return; }
     let equipe='',pfo=false,admin=false,listes=[],pavesPerso=null;
     /* ⚠ NE JAMAIS PERDRE SON RÔLE À CAUSE D'UNE COLONNE MANQUANTE : une seule colonne
        absente faisait échouer toute la requête, et Mag se retrouvait sans badge et sans
