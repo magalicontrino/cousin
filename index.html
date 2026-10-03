@@ -5008,6 +5008,11 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   color:#6cb392;min-height:14px;margin-top:4px}
 .popcard.roidoc{max-width:460px}
 .popcard.marnum{max-width:440px}
+.accgardes{margin-top:18px}
+.accgarde{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--ligne)}
+.accgarde span{flex:1 1 150px;font-size:14px}
+.accgarde .accb{padding:7px 10px}
+.accgarde .accb svg{width:14px;height:14px}
 /* ═══ L'ONGLET ABSENCES (03/10/2026) — dessin E ═══ */
 .absbar{margin:0 auto 8px}
 .abscarte{max-width:620px;margin:0 auto;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:16px;padding:14px}
@@ -32275,7 +32280,10 @@ var ACC={};
    ce qui permet à l'écriture en cours de ne mettre à jour QUE le sien.
    12 h = une garde : au-delà, ce n'est plus « la coupure de courant de tout à
    l'heure », c'est un vieux papier qui traîne. */
-const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=12*3600*1000, ACC_MAX=2;
+/* ⚠ DIX ENTRETIENS, PAS DEUX (Mag, 03/10/2026 : « il faut absolument qu'il y ait 10
+   backups, qu'on puisse retrouver les notes — dans la journée faire plus d'entretiens
+   et, après, pouvoir les copier »). Et 18 h au lieu de 12 : une journée entière. */
+const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=18*3600*1000, ACC_MAX=10;
 let ACC_PROPOSE=null;     /* celui que le bandeau propose, tant qu'on n'a pas répondu */
 let ACC_SESSION=null;     /* l'id de celui qu'on est en train d'écrire */
 let _accEcritDans=null;
@@ -32472,14 +32480,67 @@ function accNoteMaj(k){
     else if(bas > el.scrollTop+el.clientHeight) el.scrollTop=bas-el.clientHeight+10;
   }catch(e){ panneNoter('la note qui suit', e); }
 }
+/* ═══ « EFFACER » DEVIENT « NOUVEL ENTRETIEN » (Mag, 03/10/2026) ═══
+   Vider la page ne jette plus rien : l'entretien qu'on quitte reste dans les dix
+   gardés, en bas de la page, pour être copié plus tard dans la journée. On jette
+   un entretien gardé avec SA corbeille, pas en vidant la page. */
 function accEffacer(){
-  if(!confirm('Effacer tout ce qui est écrit sur cette page ?')) return;
-  /* ⚠ ON N'EFFACE QUE LE SIEN : l'autre entretien gardé ne nous appartient pas.
-     `ACC_SESSION` repart à zéro — la page vidée, c'est un nouvel entretien. */
-  ACC={};
-  accBrouillonsEcrire(accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION; }));
-  ACC_SESSION=null; accBrouillonRelire();
-  render(); toast('Page vidée');
+  if(accVide()){ toast('La page est déjà vide'); return; }
+  if(!confirm('Commencer un nouvel entretien ?\n\nCelui-ci reste gardé sur cet appareil, en bas de la page.')) return;
+  clearTimeout(_accEcritDans);
+  let l=accBrouillonsLire();
+  if(!ACC_SESSION) ACC_SESSION=Date.now();
+  l=l.filter(function(b){ return b.id!==ACC_SESSION; });
+  l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
+  accBrouillonsEcrire(l);
+  ACC={}; ACC_SESSION=null; ACC_PROPOSE=null;
+  render(); toast('Nouvel entretien — le précédent est gardé');
+}
+/* La liste des entretiens gardés : l'heure et le volet, JAMAIS le contenu (poste partagé). */
+function accGardesHTML(){
+  const L=accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION; });
+  if(!L.length) return '';
+  return '<div class="accgardes"><div class="acct">Entretiens gardés · '+L.length+'</div>'+
+    L.map(function(b){
+      return '<div class="accgarde"><span><b>'+(b.volet==='med'?'Médical':'Social')+'</b> · commencé à '+esc(accBrouillonHeure(b))+'</span>'+
+        '<button class="accb" onclick="accGardeReprendre('+b.id+')">Reprendre</button>'+
+        '<button class="accb" onclick="accGardeCopier('+b.id+')">Copier</button>'+
+        '<button class="accb accb-att" onclick="accGardeJeter('+b.id+')" aria-label="Jeter" title="Jeter">'+icon('trash')+'</button></div>';
+    }).join('')+'</div>';
+}
+function accGardeTrouver(id){ return accBrouillonsLire().find(function(b){ return b.id===id; }); }
+function accGardeReprendre(id){
+  const b=accGardeTrouver(id); if(!b) return;
+  const prendre=function(){
+    /* celui qu'on quitte reste gardé */
+    if(!accVide()){
+      let l=accBrouillonsLire(); if(!ACC_SESSION) ACC_SESSION=Date.now();
+      l=l.filter(function(x){ return x.id!==ACC_SESSION; });
+      l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
+      accBrouillonsEcrire(l);
+    }
+    ACC=b.acc||{}; ACC_SESSION=b.id; ACC_PROPOSE=null;
+    const v=b.volet==='med'?'/med':'';
+    if(((current&&current.volet)||'')!==(b.volet||'')) go('#/accueil-personne'+v); else render();
+    toast('Entretien repris');
+  };
+  prendre();
+}
+function accGardeCopier(id){
+  const b=accGardeTrouver(id); if(!b) return;
+  const garde=ACC, gardeS=ACC_SESSION;
+  ACC=b.acc||{};
+  const t=accNote(b.volet||'');
+  ACC=garde; ACC_SESSION=gardeS;
+  if(!t){ toast('Cet entretien est vide'); return; }
+  copyTxt(t,'Note copiée — colle-la dans KAIROS');
+}
+function accGardeJeter(id){
+  const b=accGardeTrouver(id); if(!b) return;
+  cousinConfirme('Jeter l’entretien de '+accBrouillonHeure(b)+' ?', 'Pense à le copier d’abord : il ne sera plus nulle part.', function(){
+    accBrouillonsEcrire(accBrouillonsLire().filter(function(x){ return x.id!==id; }));
+    render();
+  }, {ok:'Jeter', danger:true});
 }
 /* ⚠ UNE SEULE DÉFINITION pour les trois usages : l'écran, la note à coller, et la
    feuille vierge à imprimer. Ajouter une question ici la fait apparaître aux trois
@@ -32797,8 +32858,9 @@ function vAccueilPersonne(volet){
   h+='<div class="accact">'+
      '<button class="accb plein" onclick="accCopier(\''+(volet||'')+'\')">'+icon('clipboard')+'Copier la note</button>'+
      '<button class="accb" onclick="accImprimer(\''+(volet||'')+'\')">'+icon('imprimer')+'Imprimer</button>'+
-     '<button class="accb" onclick="accEffacer()">Effacer</button>'+
+     '<button class="accb" onclick="accEffacer()">Nouvel entretien</button>'+
      '</div>';
+  h+=accGardesHTML();
   h+='</div></div>';   /* .acccote puis .accdeux */
   return h+'<div class="accfin" style="height:26px"></div>';
 }
