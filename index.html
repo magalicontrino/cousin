@@ -36563,6 +36563,7 @@ function compteChanger(uid){
       compteLocalCles().filter(function(k){ return k.indexOf('lux_reg_maj_')===0; })
         .forEach(function(k){ localStorage.removeItem(k); });
       localStorage.setItem(COMPTE_K, uid);
+      localStorage.setItem('cousin_base_seule','1');
       return false;
     }
     const cles=compteLocalCles(), sac={};
@@ -36767,6 +36768,7 @@ function reglagePousser(cle,valeur){
 /* ⚠ ON LIT `.error`. Une écriture refusée doit se DIRE : sinon on referme l'app en
    croyant avoir enregistré, et c'est exactement ce qui lui est arrivé. */
 function reglageEnvoyer(cle,valeur){
+  if(cle==='ma_liste'){ rapEnvoyerFusion(); return; }
   const q=sb.from('reglages_perso').upsert(
     {user_id:PROFILE.uid, cle:cle, valeur:valeur, maj_le:new Date().toISOString()},
     {onConflict:'user_id,cle'});
@@ -36849,6 +36851,108 @@ function fusionnerRecords(a,b){
   });
   return out;
 }
+/* ═══ ⚠⚠ MA LISTE SE FUSIONNE NOTE PAR NOTE (Mag, 03/10/2026) ═══
+   « Quand je fais une note qui est bien, corrigée, et que je la passe en passation, elle
+   se remet à un état précédent… j'ai l'impression de travailler pour rien. »
+   LA CAUSE : Ma liste partait EN BLOC — « le dernier qui a écrit fait foi » pour la liste
+   ENTIÈRE. Téléphone et ordinateur ouverts en même temps : le premier qui enregistrait
+   quoi que ce soit (une coche) renvoyait SA copie de toute la liste, avec l'ancienne
+   version de la note corrigée ailleurs — et l'écrasait.
+   MAINTENANT : chaque note porte l'heure de sa dernière modification (`m`), posée toute
+   seule à l'enregistrement (`rappelsTimbrer` compare avec ce qu'on avait). Une note
+   retirée laisse une trace datée (`ma_liste_suppr`, 14 jours). À chaque envoi ET à
+   chaque chargement, on fusionne avec la base NOTE PAR NOTE : la plus récente gagne,
+   une note retirée ne revient pas.
+   ⚠ Ne pas revenir à l'envoi en bloc. Les filets d'avant restent : envoi immédiat,
+   échec dit à l'écran, copies de secours sur l'appareil. */
+const RAP_SUPPR_K='lux_ma_liste_suppr';
+let RAP_VU=null;
+function rapCle(r){ const c=Object.assign({},r); delete c.m; return JSON.stringify(c); }
+function rapSupprLire(){ try{ const l=JSON.parse(localStorage.getItem(RAP_SUPPR_K)||'[]'); return Array.isArray(l)?l:[]; }catch(e){ return []; } }
+function rapSupprEcrire(l){
+  const lim=Date.now()-14*864e5, par={};
+  (l||[]).forEach(function(x){ if(x && x.id && (x.q||0)>lim) par[x.id]=Math.max(par[x.id]||0, x.q||0); });
+  const out=Object.keys(par).map(function(id){ return {id:id, q:par[id]}; });
+  try{ localStorage.setItem(RAP_SUPPR_K, JSON.stringify(out)); }catch(e){}
+  return out;
+}
+function rapVuPoser(){ RAP_VU={}; (MESRAPPELS||[]).forEach(function(r){ if(r && r.id) RAP_VU[r.id]=rapCle(r); }); }
+function rappelsTimbrer(){
+  if(!RAP_VU) rapVuPoser();
+  const now=Date.now(), vus={};
+  (MESRAPPELS||[]).forEach(function(r){
+    if(!r || !r.id) return; vus[r.id]=1;
+    const k=rapCle(r); if(RAP_VU[r.id]!==k){ r.m=now; RAP_VU[r.id]=k; }
+  });
+  const sup=rapSupprLire(); let ch=false;
+  Object.keys(RAP_VU).forEach(function(id){ if(!vus[id]){ sup.push({id:id, q:now}); delete RAP_VU[id]; ch=true; } });
+  if(ch) rapSupprEcrire(sup);
+}
+/* Note par note : la plus récente gagne ; à égalité, celle d'ici. L'ordre d'ici d'abord,
+   puis ce qui n'existait qu'en base. Une trace de retrait plus récente efface la note. */
+function rapFusion(ici, base, sup){
+  ici=Array.isArray(ici)?ici:[]; base=Array.isArray(base)?base:[];
+  const tomb={}; (sup||[]).forEach(function(x){ if(x && x.id) tomb[x.id]=Math.max(tomb[x.id]||0, x.q||0); });
+  const par={}, ordre=[];
+  ici.forEach(function(r){ if(r && r.id && !par[r.id]){ par[r.id]=r; ordre.push(r.id); } });
+  base.forEach(function(r){
+    if(!r || !r.id) return;
+    const l=par[r.id];
+    if(!l){ par[r.id]=r; ordre.push(r.id); }
+    else if((r.m||0)>(l.m||0)) par[r.id]=r;
+  });
+  return ordre.map(function(id){ return par[id]; })
+    .filter(function(r){ return !(tomb[r.id] && tomb[r.id]>=(r.m||0)); });
+}
+let _rapEnvoi=null;
+async function rapEnvoyerFusion(){
+  if(!sb||!PROFILE||!PROFILE.uid) return;
+  try{
+    const r=await sb.from('reglages_perso').select('cle,valeur').in('cle',['ma_liste','ma_liste_suppr']);
+    if(r.error) throw r.error;
+    const l={}; (r.data||[]).forEach(function(x){ l[x.cle]=x.valeur; });
+    rappelsTimbrer();
+    const sup=rapSupprEcrire(rapSupprLire().concat(Array.isArray(l.ma_liste_suppr)?l.ma_liste_suppr:[]));
+    const fus=rapFusion(MESRAPPELS, l.ma_liste, sup);
+    const quand=new Date().toISOString();
+    const w=await sb.from('reglages_perso').upsert([
+      {user_id:PROFILE.uid, cle:'ma_liste', valeur:fus, maj_le:quand},
+      {user_id:PROFILE.uid, cle:'ma_liste_suppr', valeur:sup, maj_le:quand}
+    ], {onConflict:'user_id,cle'});
+    if(w.error) throw w.error;
+    const t=String(Date.now());
+    try{ localStorage.setItem('lux_reg_base_ma_liste', t); localStorage.setItem('lux_reg_maj_ma_liste', t); }catch(e){}
+    /* Ce qui a changé ailleurs arrive ici — sans écraser ce qu'on a tapé pendant l'envoi. */
+    rappelsTimbrer();
+    const ici=rapFusion(MESRAPPELS, fus, sup);
+    if(JSON.stringify(ici)!==JSON.stringify(MESRAPPELS)){
+      MESRAPPELS=ici;
+      try{ localStorage.setItem('lux_mes_rappels', JSON.stringify(MESRAPPELS)); }catch(e){}
+      rapVuPoser(); render();
+    }
+  }catch(e){
+    if(typeof toast==='function') toast('⚠ PAS ENREGISTRÉ dans la base — '+((e&&e.message)||'pas de réseau ?'));
+    panneNoter('reglage ma_liste', (e&&e.message)||String(e));
+  }
+}
+/* Au chargement : même fusion. ⚠ Sur un appareil qui vient d'être adopté par un compte
+   (`cousin_base_seule`, posé par `compteChanger`), la BASE seule fait foi : on ne sait
+   pas à qui sont les notes qui traînaient là. */
+function rapChargerFusion(lignes, premiere){
+  let seule=false; try{ seule=!!localStorage.getItem('cousin_base_seule'); localStorage.removeItem('cousin_base_seule'); }catch(e){}
+  const base=lignes.ma_liste;
+  if(!Array.isArray(base)){
+    if(!seule && premiere && MESRAPPELS.length) reglagePousser('ma_liste', MESRAPPELS);
+    rapVuPoser(); return MESRAPPELS;
+  }
+  if(!seule) rappelsTimbrer();
+  const sup=rapSupprEcrire(rapSupprLire().concat(Array.isArray(lignes.ma_liste_suppr)?lignes.ma_liste_suppr:[]));
+  const fus = seule ? base.slice() : rapFusion(MESRAPPELS, base, sup);
+  try{ localStorage.setItem('lux_mes_rappels', JSON.stringify(fus)); }catch(e){}
+  MESRAPPELS=fus; rapVuPoser();
+  if(JSON.stringify(fus)!==JSON.stringify(base)) reglagePousser('ma_liste', fus);
+  return fus;
+}
 async function chargerReglages(){
   if(!sb||!PROFILE||!PROFILE.uid) return false;
   let lignes;
@@ -36880,7 +36984,7 @@ async function chargerReglages(){
      La base écrasait la liste locale sans regarder laquelle était la plus récente —
      et écrasait la copie du téléphone au passage. Une modification faite juste avant
      de fermer l'app disparaissait des DEUX endroits. */
-  MESRAPPELS=reglageGarderLePlusRecent('ma_liste', lignes.ma_liste, MESRAPPELS, 'lux_mes_rappels', premiere);
+  MESRAPPELS=rapChargerFusion(lignes, premiere);
   AVOIR    =reglageGarderLePlusRecent('a_voir',   lignes.a_voir,   AVOIR,      'lux_a_voir',      premiere);
   /* Les notes suivent la même règle que le reste : le dernier qui a écrit fait foi,
      et une copie de secours reste sur le téléphone quoi qu'il arrive. */
@@ -37112,6 +37216,7 @@ async function resetListe(nom){
 let MESRAPPELS;
 try{ MESRAPPELS=JSON.parse(localStorage.getItem('lux_mes_rappels')||'[]'); }catch(e){ MESRAPPELS=[]; }
 if(!Array.isArray(MESRAPPELS)) MESRAPPELS=[];
+try{ rapVuPoser(); }catch(e){}
 /* ═══ LE BROUILLON DU CHAMP « CE QUE TU NE VEUX PAS OUBLIER » (24/08/2026) ═══
    Mag tapait une note et la page a « sauté » — un `render()` déclenché entre-temps
    (rafraîchissement en arrivant, données qui se rechargent) reconstruit le champ à
@@ -37405,6 +37510,7 @@ function carteAVoir(){
   '</div>';
 }
 function rappelsSauver(){
+  rappelsTimbrer();
   try{ localStorage.setItem('lux_mes_rappels',JSON.stringify(MESRAPPELS)); }catch(e){}
   /* ⚠ LE FILET : une copie que la base ne touche JAMAIS. Si l'arbitrage entre le
      téléphone et la base se trompe encore un jour, ce qui a été écrit ICI est
@@ -37832,7 +37938,12 @@ function passRetirer(id){
     async function(){
       const txt=String(p.texte||'').trim();
       const com=String(p.commentaire||'').trim();
-      MESRAPPELS.push({id:'r'+Date.now(), texte:(com?txt+' — '+com:txt).slice(0,120)});
+      /* ⚠ PLUS DE COUPE À 120 CARACTÈRES (Mag, 03/10/2026 : la note corrigée « revient
+         à l'état précédent ») : une note longue redescendait tronquée. 4000, comme
+         partout dans Ma liste ; et la chambre redescend avec elle. */
+      const ret={id:'r'+Date.now(), texte:(com?txt+' — '+com:txt).slice(0,4000)};
+      if(p.chambre) ret.chambre=String(p.chambre).slice(0,12);
+      MESRAPPELS.push(ret);
       rappelsSauver();
       try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
         if(error) throw error;
