@@ -59,3 +59,18 @@ alter table public.absences add column if not exists note text
 
 -- La cle de la porte (les policies ne suffisent pas).
 grant select, insert, update, delete on public.absences to authenticated;
+
+-- 03/10/2026 : "derniere mise a jour ... et par qui". Une seule ligne, reecrite apres
+-- chaque ecriture (corbeille comprise). Memes droits : A, B, C.
+create table if not exists public.absences_maj (
+  id int primary key default 1 check (id = 1),
+  le timestamptz not null default now(),
+  par text);
+alter table public.absences_maj enable row level security;
+drop policy if exists absmaj_lecture on public.absences_maj;
+create policy absmaj_lecture on public.absences_maj for select to authenticated using (public.peut_voir_entrants());
+drop policy if exists absmaj_ajout on public.absences_maj;
+create policy absmaj_ajout on public.absences_maj for insert to authenticated with check (public.peut_voir_entrants());
+drop policy if exists absmaj_maj on public.absences_maj;
+create policy absmaj_maj on public.absences_maj for update to authenticated using (public.peut_voir_entrants()) with check (public.peut_voir_entrants());
+grant select, insert, update on public.absences_maj to authenticated;

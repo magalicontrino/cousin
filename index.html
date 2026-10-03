@@ -5017,6 +5017,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 /* Sur téléphone (Mag, 03/10/2026 : « pas assez de padding à gauche et à droite ») :
    le bouton prend toute la place qui reste à côté de l'interrupteur. */
 @media (max-width:560px){ .absbtn{flex:1 1 auto} }
+.absmaj{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.04em;color:#55534f;background:#f3f1ec;border-radius:8px;padding:7px 10px;margin-bottom:10px}
 .abstot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
 .abstot-c{border:1.5px solid var(--ligne);border-radius:12px;padding:9px 6px;text-align:center;background:#fff}
 .abstot-c b{display:block;font-family:'Eastman Grotesque',sans-serif;font-weight:900;font-size:26px;line-height:1}
@@ -16010,7 +16011,8 @@ function imprimer(){
           }).join('')+'</table>';
       };
       const hautA=absTri(ABSENCES.filter(absATraiter)), basA=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
-      corps=(ABSENCES.length ? '<div style="font-size:15pt;font-weight:700;margin:4px 0 6px">'+esc(absTotal())+'</div>' : '')+
+      corps=(absMajTexte() ? '<div style="font-size:10.5pt;color:#444;margin:2px 0 4px">'+esc(absMajTexte())+'</div>' : '')+
+            (ABSENCES.length ? '<div style="font-size:15pt;font-weight:700;margin:4px 0 6px">'+esc(absTotal())+'</div>' : '')+
             (hautA.length ? bandeA('À traiter · '+hautA.length,'#fbe3e1','#c4291f')+tableA(hautA) : '')+
             (basA.length ? bandeA((hautA.length?'Les autres absences':'Les absences')+' · '+basA.length,'#eceae6','#b9b6b0')+tableA(basA) : '')+
             (!ABSENCES.length ? '<p class="vide">Personne d’absent.</p>' : '');
@@ -40241,7 +40243,7 @@ function copierEntretiens(){
      ce soir s'il n'est pas compté, sinon la nuit d'avant la première. 7 boules au plus ; le chiffre
      donne le vrai total. Une boule se touche pour corriger.
    ═══════════════════════════════════════════════════════════════════════════ */
-let ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_PANNE='', ABS_ECRIT=0, ABS_BR_NOM='', ABS_BR_LAM=false;
+let ABS_MAJ=null, ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_PANNE='', ABS_ECRIT=0, ABS_BR_NOM='', ABS_BR_LAM=false;
 const ABS_STATUTS=[
   {k:'nonjust', l:'Non justifiée', ic:'question', cl:'q'},
   {k:'just',    l:'Justifiée',     ic:'check',    cl:'c'},
@@ -40258,6 +40260,8 @@ async function loadAbsences(){
   try{
     const t0=Date.now(), avant=JSON.stringify(ABSENCES)+ABS_PANNE;
     const r=await sb.from('absences').select('*').order('cree_le',{ascending:true});
+    try{ const m=await sb.from('absences_maj').select('le,par').eq('id',1).limit(1);
+      if(!m.error && m.data && m.data[0]) ABS_MAJ=m.data[0]; }catch(e){}
     if(ABS_ECRIT>=t0-5000){ ABS_ENCOURS=false; return; }
     /* « La base n'a pas répondu » n'est jamais « personne d'absent ». */
     if(r.error) ABS_PANNE="La liste des absences n'a pas répondu.";
@@ -40267,6 +40271,27 @@ async function loadAbsences(){
     return;
   }catch(e){ ABS_PANNE="La liste des absences n'a pas répondu."; }
   ABS_LU=Date.now(); ABS_ENCOURS=false; render();
+}
+/* ═══ « DERNIÈRE MISE À JOUR » (Mag, 03/10/2026 : « si ma collègue va voir les
+   absences, elle va voir les absences d'hier — dès que je fais une mise à jour, il
+   faut marquer en haut "dernière mise à jour". Et par qui aussi ») ═══
+   Une seule ligne dans `absences_maj`, réécrite après CHAQUE écriture réussie —
+   corbeille comprise : une ligne retirée ne peut plus porter sa date elle-même. */
+function absNoterMaj(){
+  const m={id:1, le:new Date().toISOString(), par:(nomAffiche()||'')};
+  ABS_MAJ={le:m.le, par:m.par};
+  sb.from('absences_maj').upsert(m,{onConflict:'id'}).then(function(r){
+    if(r && r.error) panneNoter('absences_maj', r.error.message||'refus');
+  });
+}
+function absMajTexte(){
+  if(!ABS_MAJ || !ABS_MAJ.le) return '';
+  const d=new Date(ABS_MAJ.le), auj=absJour(), j=absJour(d);
+  const h=d.getHours()+' h '+String(d.getMinutes()).padStart(2,'0');
+  const quand = j===auj ? 'aujourd’hui à '+h
+    : j===absDecale(auj,-1) ? 'hier à '+h
+    : d.toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+' à '+h;
+  return 'Dernière mise à jour : '+quand+(ABS_MAJ.par?' · par '+ABS_MAJ.par:'');
 }
 /* Ce qui monte en haut : 3 nuits ou plus. */
 function absATraiter(a){ return absNuits(a).length>=3; }
@@ -40279,7 +40304,9 @@ function absMaj(a, champs){
     if(r.error || !r.data || !r.data.length){
       Object.assign(a, avant); render();
       toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
+      return;
     }
+    absNoterMaj(); render();
   });
 }
 function absAjouter(){
@@ -40288,7 +40315,7 @@ function absAjouter(){
   sb.from('absences').insert({nom:n.slice(0,80), lam:!!ABS_BR_LAM, nuits:[absJour()],
     ajoute_par:(nomAffiche()||'')}).select().then(function(r){
     if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
-    ABSENCES.push(r.data[0]); ABS_BR_NOM=''; ABS_BR_LAM=false; RENDU_FORCE=true; render();
+    ABSENCES.push(r.data[0]); ABS_BR_NOM=''; ABS_BR_LAM=false; absNoterMaj(); RENDU_FORCE=true; render();
   });
 }
 function absPlus(id){
@@ -40312,7 +40339,7 @@ function absRetirer(id){
     ABS_ECRIT=Date.now();
     sb.from('absences').delete().eq('id',id).select().then(function(r){
       if(r.error || !r.data || !r.data.length){ toast("Pas retiré — la base n'a pas répondu. Réessaie."); return; }
-      ABSENCES=ABSENCES.filter(function(x){ return x.id!==id; }); render();
+      ABSENCES=ABSENCES.filter(function(x){ return x.id!==id; }); absNoterMaj(); render();
     });
   }, {ok:'Retirer', danger:true});
 }
@@ -40391,6 +40418,7 @@ function absencesCorps(){
       '<button class="imprbtn nu" onclick="absPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
     '</div></div>'+
     '<div class="abscarte">'+
+    (absMajTexte()?'<div class="absmaj">'+esc(absMajTexte())+'</div>':'')+
     '<div class="absadd">'+
       '<input id="absNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ABS_BR_NOM)+'" '+
         'oninput="ABS_BR_NOM=this.value" onblur="notCaseQuittee()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();absAjouter();}">'+
@@ -40456,6 +40484,7 @@ function absencesEnTexte(){
   const haut=absTri(ABSENCES.filter(absATraiter)), bas=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
   const ic={nonjust:'❓',just:'✅',hospit:'💉'};
   const L=['*📋 ABSENCES — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+'*'];
+  if(absMajTexte()) L.push('_'+absMajTexte()+'_');
   if(ABSENCES.length){ L.push(''); L.push('*'+absTotal()+'*'); }
   const bloc=function(titre, liste){
     if(!liste.length) return;
