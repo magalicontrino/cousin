@@ -5024,6 +5024,24 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    le bouton prend toute la place qui reste à côté de l'interrupteur. */
 @media (max-width:560px){ .absbtn{flex:1 1 auto} }
 .absmaj{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.04em;color:#55534f;background:#f3f1ec;border-radius:8px;padding:7px 10px;margin-bottom:10px}
+.abstag{cursor:pointer;font:inherit;font-family:ui-monospace,monospace;font-size:10px;font-weight:700}
+.abstag.apreciser{background:#fff4d6;color:#7a5c0a;border:1.25px dashed #e0a52a}
+.absrappel{margin:6px 0 2px;padding:8px 10px;border-radius:8px;background:#fff4d6;border-left:5px solid #e0a52a;font-size:13px;font-weight:600;color:#5c4407}
+.popcard.abscol{max-width:520px;max-height:86vh;overflow:auto}
+.abscol textarea{width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:10px;padding:10px}
+.abscol-g{margin-top:14px}
+.abscol-t{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-bottom:4px;border-bottom:1.5px solid var(--noir)}
+.abscol-t.rouge{color:#c4291f;border-color:#c4291f}
+.abscol-t span{font-weight:400;letter-spacing:0;text-transform:none;color:#73716b;margin-left:8px}
+.abscol-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid var(--ligne);font-size:14px;cursor:pointer}
+.abscol-l b{font-size:14px;text-transform:none;letter-spacing:0;display:inline}
+.abscol-l em{font-style:normal;font-size:12px;color:#73716b;margin-left:auto}
+.abscol-v{font-size:13px;color:#8b8984;padding:6px 0}
+.abscol-lam{display:inline-flex;gap:4px;margin-left:auto}
+.abscol-lam button{border:1.25px solid var(--trait);background:#fff;border-radius:6px;padding:4px 9px;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;cursor:pointer}
+.abscol-lam button.on.lam{background:#e8308a;color:#fff;border-color:#e8308a}
+.abscol-lam button.on.med{background:#dce9f5;color:#12354f;border-color:#A9C8E8}
+.abscol-rappel{margin-top:12px;padding:8px 10px;border-radius:8px;background:#fff4d6;font-size:13px;color:#5c4407}
 .abstot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
 .abstot-c{border:1.5px solid var(--ligne);border-radius:12px;padding:9px 6px;text-align:center;background:#fff}
 .abstot-c b{display:block;font-family:'Eastman Grotesque',sans-serif;font-weight:900;font-size:26px;line-height:1}
@@ -16024,9 +16042,9 @@ function imprimer(){
           '<colgroup><col style="width:32%"><col style="width:14%"><col style="width:22%"><col style="width:32%"></colgroup>'+
           '<tr><th '+thA+'>Nom</th><th '+thA+'>Type</th><th '+thA+'>Nuits</th><th '+thA+'>Dates</th></tr>'+
           liste.map(function(a){
-            return '<tr><td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid '+(a.lam?'#c4291f':'#A9C8E8')+';overflow-wrap:anywhere">'+
+            return '<tr><td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid '+(a.lam===true?'#c4291f':'#A9C8E8')+';overflow-wrap:anywhere">'+
                 '<b>'+esc(a.nom)+'</b>'+(a.note?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(a.note)+'</span>':'')+'</td>'+
-              '<td '+tdA+'>'+(a.lam?'LAM':'Médical')+'</td>'+
+              '<td '+tdA+'>'+(a.lam===true?'LAM':(a.lam===false?'Médical':'À préciser'))+'</td>'+
               '<td '+tdA+'><b>'+esc(absPhrase(a))+'</b></td>'+
               '<td '+tdA+'><span style="font-size:10.5pt">'+esc(dates(a))+'</span></td></tr>';
           }).join('')+'</table>';
@@ -40558,7 +40576,12 @@ function absNote(id){
   cousinPop({titre:'La note', texte:a.nom, champ:a.note||'', max:300, ok:'Enregistrer', sansAudio:1,
     quandOui:function(v){ const t=String(v||'').trim().slice(0,300); absMaj(a,{note:t||null}); }});
 }
-function absTag(a){ return '<span class="abstag'+(a.lam?' lam':'')+'">'+(a.lam?'LAM':'MÉD')+'</span>'; }
+function absTag(a){
+  if(a.lam===null || a.lam===undefined)
+    return '<button type="button" class="abstag apreciser" onclick="absLamOuvrir('+a.id+')" title="Préciser LAM ou médical">LAM ou MÉD ?</button>';
+  return '<button type="button" class="abstag'+(a.lam?' lam':'')+'" onclick="absLamOuvrir('+a.id+')" title="Changer">'+(a.lam?'LAM':'MÉD')+'</button>';
+}
+function absType(a){ return a.lam===true?'LAM':(a.lam===false?'médical':'LAM ou médical ?'); }
 function absCorbeille(a){
   return '<button type="button" class="abssup" onclick="absRetirer('+a.id+')" aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>';
 }
@@ -40573,7 +40596,9 @@ function absencesCorps(){
   /* ═══ IMPRIMER · COPIER · PARTAGER (Mag, 03/10/2026 : « on doit pouvoir imprimer et
      copier, comme pour tout le reste ») ═══ Les trois mêmes pictos que les Entretiens,
      au même endroit. */
-  let h='<div class="imprligne entbar absbar"><div class="entbar-g"></div><div class="entbar-d">'+
+  let h='<div class="imprligne entbar absbar"><div class="entbar-g">'+
+      '<button class="entacc" onclick="absCollerOuvrir()">'+icon('collerleger')+'Coller la liste du jour</button>'+
+    '</div><div class="entbar-d">'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="absCopier()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
       '<button class="imprbtn nu" onclick="absPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
@@ -40594,12 +40619,15 @@ function absencesCorps(){
      nombre, mais revois le design ») : le chiffre en gros, le mot en dessous — c'est ce
      qu'on compare d'un coup d'œil avec le programme. */
   if(ABSENCES.length){
-    const nl=ABSENCES.filter(function(a){ return a.lam; }).length, nt=ABSENCES.length;
+    const nl=ABSENCES.filter(function(a){ return a.lam===true; }).length, nt=ABSENCES.length,
+          nm=ABSENCES.filter(function(a){ return a.lam===false; }).length, np=nt-nl-nm;
     h+='<div class="abstot">'+
       '<div class="abstot-c"><b>'+nt+'</b><span>absence'+(nt>1?'s':'')+'</span></div>'+
       '<div class="abstot-c lam"><b>'+nl+'</b><span>LAM</span></div>'+
-      '<div class="abstot-c med"><b>'+(nt-nl)+'</b><span>médical</span></div>'+
+      '<div class="abstot-c med"><b>'+nm+'</b><span>médical</span></div>'+
     '</div>';
+    /* « Il faut que tu me fasses penser à le préciser » (Mag, 03/10/2026). */
+    if(np) h+='<div class="absrappel">'+np+' absence'+(np>1?'s':'')+' sans LAM ni MÉD — touche « LAM ou MÉD ? » sur la ligne.</div>';
   }
   if(haut.length){
     h+='<div class="abst rouge">À traiter · '+haut.length+'</div>';
@@ -40636,8 +40664,9 @@ function absPhrase(a){
    liste, parce que je dois pouvoir comparer là et le programme ») ═══ Le même chiffre
    à l'écran, dans le texte copié et sur la feuille. */
 function absTotal(){
-  const n=ABSENCES.length, nl=ABSENCES.filter(function(a){ return a.lam; }).length;
-  return n+' absence'+(n>1?'s':'')+' · '+nl+' LAM · '+(n-nl)+' médical';
+  const n=ABSENCES.length, nl=ABSENCES.filter(function(a){ return a.lam===true; }).length,
+        nm=ABSENCES.filter(function(a){ return a.lam===false; }).length, np=n-nl-nm;
+  return n+' absence'+(n>1?'s':'')+' · '+nl+' LAM · '+nm+' médical'+(np?' · '+np+' à préciser':'');
 }
 function absTri(L){ return L.slice().sort(function(a,b){
   return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); }); }
@@ -40651,7 +40680,7 @@ function absencesEnTexte(){
     if(!liste.length) return;
     L.push(''); L.push('*'+titre+' · '+liste.length+'*'); L.push('');
     liste.forEach(function(a){
-      L.push('• *'+a.nom+'* — '+(a.lam?'LAM':'médical'));
+      L.push('• *'+a.nom+'* — '+absType(a));
       L.push('   '+ic[a.statut||'nonjust']+' '+absPhrase(a));
       if(a.note) L.push('   💬 '+a.note);
       L.push('');
@@ -40683,6 +40712,175 @@ function absPartager(){
       '<button class="dembtn" onclick="copyTxt(\''+lien+'\',\'Lien copié\');document.getElementById(\'absPartBg\').classList.remove(\'on\')">Copier le lien</button>'+
     '</div></div>';
   bg.classList.add('on');
+}
+/* ═══ « COLLER LA LISTE DU JOUR » (Mag, 03/10/2026) ═══
+   « Demain je vais recommencer : il y aura peut-être 12 absents, dont une personne qui
+   n'était pas absente la veille, et d'autres qui étaient absentes hier et ne le sont
+   plus. » Elle colle l'export KAIROS tel quel ; l'app compare avec la liste en cours :
+   · toujours absents → la nuit de ce soir (une seule fois par jour) ;
+   · nouveaux → ajoutés, « LAM ou MÉD ? » tant qu'elle ne l'a pas dit ;
+   · plus dans la liste → retirés (« ne jamais retenir ceux qui ne sont plus là »).
+   Rien ne s'applique avant « Valider ».
+   ⚠ ON NE GARDE QUE LES NOMS. L'export porte la date de naissance, la nationalité, la
+   chambre, les dates de « report » : tout ça est jeté à la lecture, rien ne va en base.
+   ⚠ LAM / MÉDICAL n'est jamais dans l'export : on garde ce qu'elle a déjà précisé. */
+function absNomCle(t){
+  return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()
+    .replace(/[^A-Z' -]/g,' ').split(/[\s-]+/).filter(Boolean).sort().join(' ');
+}
+function absMemePersonne(a,b){
+  const A=absNomCle(a).split(' '), B=absNomCle(b).split(' ');
+  if(A.join(' ')===B.join(' ')) return true;
+  /* l'un contient tous les mots de l'autre (au moins deux mots) : « HADDAD NEBRAS » et
+     « HADDAD NEBRAS 2 », ou un prénom composé écrit d'un côté seulement */
+  const court=A.length<=B.length?A:B, long=A.length<=B.length?B:A;
+  return court.length>=2 && court.every(function(m){ return long.indexOf(m)>=0; });
+}
+/* Lit l'export KAIROS (un numéro, le NOM, « User Photo », puis la ligne « PRÉNOM ⇥ date… »)
+   — ou, à défaut, une liste simple : un nom par ligne, « NOM / 5J / LAM ». */
+function absLireListe(txt){
+  const L=String(txt||'').split(/\r?\n/).map(function(x){ return x.replace(/ /g,' '); });
+  const out=[], date=/\d{2}\/\d{2}\/\d{4}/;
+  for(let i=0;i<L.length;i++){
+    if(!/^\s*\d+\s*$/.test(L[i])) continue;
+    let nom='', prenom='', j=i+1;
+    for(; j<L.length && j<i+20; j++){
+      const t=L[j].trim();
+      if(!t || /^user photo$/i.test(t)) continue;
+      if(!nom){ nom=t; continue; }
+      if(date.test(L[j])){ prenom=L[j].split('\t')[0].replace(date,'').trim(); break; }
+    }
+    if(nom) out.push({nom:(nom+' '+prenom).replace(/\s+/g,' ').trim(), lam:null});
+    i=j;
+  }
+  if(out.length) return out;
+  /* Liste simple */
+  L.forEach(function(l){
+    const t=l.trim(); if(!t || /^[-*•]?\s*\**\s*$/.test(t) || /^absences?\b/i.test(t)) return;
+    if(/^\*+$/.test(t)) return;
+    const morceaux=t.replace(/^[-•*]\s*/,'').split(/\s*\/\s*|\t/);
+    const nom=morceaux[0].replace(/\s+\d+\s*j?$/i,'').trim();
+    if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) return;
+    /* Un nom de la liste s'écrit en MAJUSCULES ; une ligne surtout en minuscules est une
+       note (« Disparition inquiétante faite le 01/10 »), pas une personne. */
+    const lettres=nom.replace(/[^A-Za-zÀ-ÿ]/g,''), maj=nom.replace(/[^A-ZÀ-Þ]/g,'');
+    if(maj.length < lettres.length/2) return;
+    const lam=/\bLAM\b/i.test(t) ? true : (/\bM[ÉE]D(ICAL)?\b/i.test(t) ? false : null);
+    out.push({nom:nom, lam:lam});
+  });
+  return out;
+}
+let ABS_PLAN=null;
+function absCollerOuvrir(){
+  let bg=document.getElementById('absColBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='absColBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  ABS_PLAN=null;
+  bg.innerHTML='<div class="popcard abscol" role="dialog" aria-modal="true">'+
+    '<b>La liste du jour</b>'+
+    '<textarea id="absColTxt" rows="8" placeholder="Colle ici la liste de KAIROS"></textarea>'+
+    '<div class="entpart-b">'+
+      '<button class="dembtn clair" onclick="document.getElementById(\'absColBg\').classList.remove(\'on\')">Annuler</button>'+
+      '<button class="dembtn" onclick="absCollerComparer()">Comparer</button>'+
+    '</div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const t=document.getElementById('absColTxt'); if(t) t.focus(); },50);
+}
+function absCollerComparer(){
+  const t=document.getElementById('absColTxt');
+  const lus=absLireListe(t&&t.value);
+  if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  const auj=absJour(), pris={}, encore=[], nouveaux=[];
+  lus.forEach(function(p){
+    const a=ABSENCES.find(function(x){ return !pris[x.id] && absMemePersonne(x.nom,p.nom); });
+    if(a){ pris[a.id]=1; encore.push({a:a, ok:true, deja:absNuits(a).indexOf(auj)>=0}); }
+    else if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,p.nom); }))
+      nouveaux.push({nom:p.nom, lam:p.lam, ok:true});
+  });
+  const partis=ABSENCES.filter(function(a){ return !pris[a.id]; }).map(function(a){ return {a:a, ok:true}; });
+  ABS_PLAN={encore:encore, nouveaux:nouveaux, partis:partis};
+  absCollerDessine();
+}
+function absCollerDessine(){
+  const bg=document.getElementById('absColBg'); if(!bg||!ABS_PLAN) return;
+  const P=ABS_PLAN;
+  const cb=function(g,i,on){ return '<input type="checkbox" '+(on?'checked':'')+' onchange="ABS_PLAN.'+g+'['+i+'].ok=this.checked">'; };
+  const lamBtn=function(i,v){
+    return '<span class="abscol-lam">'+
+      '<button class="'+(v===true?'on lam':'')+'" onclick="ABS_PLAN.nouveaux['+i+'].lam=true;absCollerDessine()">LAM</button>'+
+      '<button class="'+(v===false?'on med':'')+'" onclick="ABS_PLAN.nouveaux['+i+'].lam=false;absCollerDessine()">MÉD</button></span>';
+  };
+  let h='<b>La liste du jour</b>';
+  h+='<div class="abscol-g"><div class="abscol-t">Toujours absents · '+P.encore.length+'<span>une nuit de plus</span></div>'+
+    (P.encore.length?P.encore.map(function(x,i){
+      return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+absTag(x.a)+
+        '<em>'+(x.deja?'ce soir déjà compté':(absNuits(x.a).length+' → '+(absNuits(x.a).length+1)+' nuits'))+'</em></label>';
+    }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
+  h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés avec la nuit de ce soir</span></div>'+
+    (P.nouveaux.length?P.nouveaux.map(function(x,i){
+      return '<div class="abscol-l">'+cb('nouveaux',i,x.ok)+'<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</div>';
+    }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
+  h+='<div class="abscol-g"><div class="abscol-t rouge">Plus dans la liste · '+P.partis.length+'<span>revenus — retirés</span></div>'+
+    (P.partis.length?P.partis.map(function(x,i){
+      return '<label class="abscol-l">'+cb('partis',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+absTag(x.a)+'</label>';
+    }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
+  const sansLam=P.nouveaux.filter(function(x){ return x.ok && x.lam===null; }).length;
+  if(sansLam) h+='<div class="abscol-rappel">'+sansLam+' nouveau'+(sansLam>1?'x':'')+' sans LAM ni MÉD — tu pourras le préciser après, sur sa ligne.</div>';
+  h+='<div class="entpart-b">'+
+      '<button class="dembtn clair" onclick="absCollerOuvrir()">Recoller</button>'+
+      '<button class="dembtn" onclick="absCollerValider()">Valider</button></div>';
+  bg.firstElementChild.innerHTML=h;
+}
+async function absCollerValider(){
+  const P=ABS_PLAN; if(!P) return;
+  const bg=document.getElementById('absColBg'); if(bg) bg.classList.remove('on');
+  const auj=absJour(); let rate=0, fait=0;
+  ABS_ECRIT=Date.now();
+  for(const x of P.encore){
+    if(!x.ok || x.deja) continue;
+    const L=absNuits(x.a).concat([auj]).sort();
+    const r=await sb.from('absences').update({nuits:L}).eq('id',x.a.id).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { x.a.nuits=L; fait++; }
+  }
+  for(const x of P.nouveaux){
+    if(!x.ok) continue;
+    const r=await sb.from('absences').insert({nom:x.nom.slice(0,80), lam:x.lam, nuits:[auj], ajoute_par:(nomAffiche()||'')}).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { ABSENCES.push(r.data[0]); fait++; }
+  }
+  for(const x of P.partis){
+    if(!x.ok) continue;
+    const r=await sb.from('absences').delete().eq('id',x.a.id).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { ABSENCES=ABSENCES.filter(function(y){ return y.id!==x.a.id; }); fait++; }
+  }
+  ABS_PLAN=null;
+  if(fait) absNoterMaj();
+  render();
+  toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
+             : 'Liste du jour appliquée');
+}
+/* LAM ou MÉD, à préciser sur la ligne : on touche l'étiquette. */
+function absLamOuvrir(id){
+  const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
+  let bg=document.getElementById('absBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='absBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML='<div class="popcard abspop" role="dialog" aria-modal="true">'+
+    '<b>LAM ou médical ?</b><div class="abspop-s">'+esc(a.nom)+'</div>'+
+    '<button class="abspop-o'+(a.lam===true?' on':'')+'" onclick="absLamChoisir('+a.id+',true)"><span class="abstag lam">LAM</span>LAM</button>'+
+    '<button class="abspop-o'+(a.lam===false?' on':'')+'" onclick="absLamChoisir('+a.id+',false)"><span class="abstag">MÉD</span>Médical</button>'+
+  '</div>';
+  bg.classList.add('on');
+}
+function absLamChoisir(id,v){
+  const bg=document.getElementById('absBg'); if(bg) bg.classList.remove('on');
+  const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a || a.lam===v) return;
+  absMaj(a,{lam:v});
 }
 /* Le compte de l'onglet, quand on n'y est pas : seulement les nuits, pas les noms —
    même règle que les entretiens (on ne va pas chercher des noms pour un onglet caché). */

@@ -74,3 +74,7 @@ create policy absmaj_ajout on public.absences_maj for insert to authenticated wi
 drop policy if exists absmaj_maj on public.absences_maj;
 create policy absmaj_maj on public.absences_maj for update to authenticated using (public.peut_voir_entrants()) with check (public.peut_voir_entrants());
 grant select, insert, update on public.absences_maj to authenticated;
+
+-- 03/10/2026 : LAM ou medical peut rester "a preciser" (null) apres un collage de la
+-- liste KAIROS, qui ne le dit jamais. L'ecran rappelle de le preciser.
+alter table public.absences alter column lam drop not null;
