@@ -40161,7 +40161,7 @@ function copierEntretiens(){
    ⚠ PAS DE « RENTRÉ » NI DE « DÉSENCODÉ » : une corbeille, c'est tout (« on s'en fout
      qu'on ait désencodé, ça regarde personne — il faut juste pouvoir les retirer »).
    ⚠ LE + EST TOUJOURS ACTIF (« il faut qu'on puisse toujours rajouter une nuit ») :
-     il ajoute la nuit qui suit la dernière comptée. 7 boules au plus ; le chiffre
+     ce soir s'il n'est pas compté, sinon la nuit d'avant la première. 7 boules au plus ; le chiffre
      donne le vrai total. Une boule se touche pour corriger.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_PANNE='', ABS_ECRIT=0, ABS_BR_NOM='', ABS_BR_LAM=false;
@@ -40216,9 +40216,12 @@ function absAjouter(){
 }
 function absPlus(id){
   const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
-  const L=absNuits(a);
-  const suiv=L.length ? absDecale(L[L.length-1],1) : absJour();
-  absMaj(a,{nuits:L.concat([suiv])});
+  /* ⚠ JAMAIS DANS LE FUTUR (vu au test du 03/10/2026 : deux + d'affilée comptaient
+     dimanche et lundi un samedi). Ce soir s'il n'est pas compté ; sinon la nuit
+     d'AVANT la première — c'est comme ça qu'on remplit quinze jours d'hôpital. */
+  const L=absNuits(a), auj=absJour();
+  const n=(L.indexOf(auj)<0) ? auj : absDecale(L[0],-1);
+  absMaj(a,{nuits:L.concat([n]).sort()});
 }
 function absBoule(id, jour){
   const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
