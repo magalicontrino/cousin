@@ -5009,6 +5009,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .popcard.roidoc{max-width:460px}
 .popcard.marnum{max-width:440px}
 /* ═══ L'ONGLET ABSENCES (03/10/2026) — dessin E ═══ */
+.absbar{margin:0 auto 8px}
 .abscarte{max-width:620px;margin:0 auto;background:#fdfdfc;border:1.5px solid var(--noir);border-radius:16px;padding:14px}
 .absadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
 .absadd input{flex:1 1 160px;min-width:0;border:1.25px solid var(--trait);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:#fff}
@@ -15967,6 +15968,35 @@ function imprimer(){
           : '')+
         (!lst.length && !vus.length && !arr.length ? '<p class="vide">Personne dans la liste.</p>' : '');
       t='Passation entretiens';
+    }
+    /* ═══ LA FEUILLE DES ABSENCES (Mag, 03/10/2026) ═══ Même dessin que la feuille des
+       entretiens : un bandeau par groupe, un trait de couleur par ligne (rouge LAM,
+       bleu médical), les nuits en DATES — la feuille se lit le lendemain. */
+    if(current && current.view==='liste' && current.onglet==='absences'){
+      const thA='style="text-align:left;font-family:ui-monospace,monospace;font-size:9pt;letter-spacing:.08em;text-transform:uppercase;color:#444;padding:6px 8px;border-bottom:2px solid #000;white-space:nowrap"';
+      const tdA='style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top"';
+      const bandeA=function(txt,fond,trait){
+        return '<div style="margin-top:18px;padding:7px 10px;background:'+fond+';border-left:6px solid '+trait+
+          ';font-family:ui-monospace,monospace;font-size:10pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b1b1b">'+txt+'</div>';
+      };
+      const dates=function(a){ return absNuits(a).map(function(d){ return d.slice(8,10)+'/'+d.slice(5,7); }).join(' · '); };
+      const tableA=function(liste){
+        return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:6px">'+
+          '<colgroup><col style="width:34%"><col style="width:10%"><col style="width:22%"><col style="width:34%"></colgroup>'+
+          '<tr><th '+thA+'>Nom</th><th '+thA+'>Type</th><th '+thA+'>Nuits</th><th '+thA+'>Dates</th></tr>'+
+          liste.map(function(a){
+            return '<tr><td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid '+(a.lam?'#c4291f':'#A9C8E8')+';overflow-wrap:anywhere">'+
+                '<b>'+esc(a.nom)+'</b>'+(a.note?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(a.note)+'</span>':'')+'</td>'+
+              '<td '+tdA+'>'+(a.lam?'LAM':'Médical')+'</td>'+
+              '<td '+tdA+'><b>'+esc(absPhrase(a))+'</b></td>'+
+              '<td '+tdA+'><span style="font-size:10.5pt">'+esc(dates(a))+'</span></td></tr>';
+          }).join('')+'</table>';
+      };
+      const hautA=absTri(ABSENCES.filter(absATraiter)), basA=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
+      corps=(hautA.length ? bandeA('À traiter · '+hautA.length,'#fbe3e1','#c4291f')+tableA(hautA) : '')+
+            (basA.length ? bandeA((hautA.length?'Les autres absences':'Les absences')+' · '+basA.length,'#eceae6','#b9b6b0')+tableA(basA) : '')+
+            (!ABSENCES.length ? '<p class="vide">Personne d’absent.</p>' : '');
+      t='Les absences';
     }
     if(current && current.view==='tourbacs'){
       const ouv=TOURBACS.filter(tbOuverte).sort(function(a,b){
@@ -40307,7 +40337,15 @@ function absencesCorps(){
     return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); });
   const bas=ABSENCES.filter(function(a){ return !absATraiter(a); }).sort(function(a,b){
     return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); });
-  let h='<div class="abscarte">'+
+  /* ═══ IMPRIMER · COPIER · PARTAGER (Mag, 03/10/2026 : « on doit pouvoir imprimer et
+     copier, comme pour tout le reste ») ═══ Les trois mêmes pictos que les Entretiens,
+     au même endroit. */
+  let h='<div class="imprligne entbar absbar"><div class="entbar-g"></div><div class="entbar-d">'+
+      boutonImprimer('', true)+
+      '<button class="imprbtn nu" onclick="absCopier()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
+      '<button class="imprbtn nu" onclick="absPartager()" title="Partager" aria-label="Partager">'+icon('partage')+'</button>'+
+    '</div></div>'+
+    '<div class="abscarte">'+
     '<div class="absadd">'+
       '<input id="absNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ABS_BR_NOM)+'" '+
         'oninput="ABS_BR_NOM=this.value" onblur="notCaseQuittee()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();absAjouter();}">'+
@@ -40341,6 +40379,56 @@ function absencesCorps(){
   }
   if(!ABSENCES.length && !ABS_PANNE) h+='<div class="empty" style="margin-top:14px">Personne d’absent.</div>';
   return h+'</div>';
+}
+/* LE TEXTE QUI PART (Copier, WhatsApp) — même dessin que celui des entretiens :
+   titres en gras entre étoiles, une personne par puce, de l'air entre les deux. */
+function absPhrase(a){
+  const n=absNuits(a).length, nn=n+' nuit'+(n>1?'s':'');
+  return a.statut==='hospit' ? nn+' · hospitalisé·e'
+       : nn+' '+(a.statut==='just' ? (n>1?'justifiées':'justifiée') : (n>1?'non justifiées':'non justifiée'));
+}
+function absTri(L){ return L.slice().sort(function(a,b){
+  return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); }); }
+function absencesEnTexte(){
+  const haut=absTri(ABSENCES.filter(absATraiter)), bas=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
+  const ic={nonjust:'❓',just:'✅',hospit:'💉'};
+  const L=['*📋 ABSENCES — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+'*'];
+  const bloc=function(titre, liste){
+    if(!liste.length) return;
+    L.push(''); L.push('*'+titre+' · '+liste.length+'*'); L.push('');
+    liste.forEach(function(a){
+      L.push('• *'+a.nom+'* — '+(a.lam?'LAM':'médical'));
+      L.push('   '+ic[a.statut||'nonjust']+' '+absPhrase(a));
+      if(a.note) L.push('   💬 '+a.note);
+      L.push('');
+    });
+    while(L.length && L[L.length-1]==='') L.pop();
+  };
+  bloc('🔴 À TRAITER', haut);
+  bloc(haut.length?'LES AUTRES ABSENCES':'LES ABSENCES', bas);
+  if(!ABSENCES.length){ L.push(''); L.push('Personne d’absent.'); }
+  return L.join('\n');
+}
+function absCopier(){
+  if(!ABSENCES.length){ toast('La liste est vide — rien à copier.'); return; }
+  copyTxt(absencesEnTexte(),'Copié');
+}
+function absPartager(){
+  const lien=COUSIN_URL+'/#/liste/absences';
+  let bg=document.getElementById('absPartBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='absPartBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML='<div class="popcard entpart" role="dialog" aria-modal="true">'+
+    '<b>Partager</b>'+
+    '<div class="entpart-b">'+
+      '<button class="dembtn clair" onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(absencesEnTexte()+\'\\n\\n'+lien+'\'),\'_blank\',\'noopener\');document.getElementById(\'absPartBg\').classList.remove(\'on\')">'+
+        '<img src="picto/whatsapp.svg" alt="" style="width:16px;height:16px">WhatsApp</button>'+
+      '<button class="dembtn" onclick="copyTxt(\''+lien+'\',\'Lien copié\');document.getElementById(\'absPartBg\').classList.remove(\'on\')">Copier le lien</button>'+
+    '</div></div>';
+  bg.classList.add('on');
 }
 /* Le compte de l'onglet, quand on n'y est pas : seulement les nuits, pas les noms —
    même règle que les entretiens (on ne va pas chercher des noms pour un onglet caché). */
