@@ -5017,6 +5017,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 /* Sur téléphone (Mag, 03/10/2026 : « pas assez de padding à gauche et à droite ») :
    le bouton prend toute la place qui reste à côté de l'interrupteur. */
 @media (max-width:560px){ .absbtn{flex:1 1 auto} }
+.abstotal{margin:14px 0 2px;font-size:16px;font-weight:700}
 .abst{margin:16px 0 6px;font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#73716b}
 .abst.rouge{color:#c4291f}
 .abscd{border:1.5px solid var(--ligne);border-left:6px solid #A9C8E8;border-radius:12px;padding:12px;margin-top:10px;background:#fdfdfc;box-shadow:0 1px 6px rgba(18,53,79,.10)}
@@ -15996,7 +15997,8 @@ function imprimer(){
           }).join('')+'</table>';
       };
       const hautA=absTri(ABSENCES.filter(absATraiter)), basA=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
-      corps=(hautA.length ? bandeA('À traiter · '+hautA.length,'#fbe3e1','#c4291f')+tableA(hautA) : '')+
+      corps=(ABSENCES.length ? '<div style="font-size:15pt;font-weight:700;margin:4px 0 6px">'+esc(absTotal())+'</div>' : '')+
+            (hautA.length ? bandeA('À traiter · '+hautA.length,'#fbe3e1','#c4291f')+tableA(hautA) : '')+
             (basA.length ? bandeA((hautA.length?'Les autres absences':'Les absences')+' · '+basA.length,'#eceae6','#b9b6b0')+tableA(basA) : '')+
             (!ABSENCES.length ? '<p class="vide">Personne d’absent.</p>' : '');
       t='Les absences';
@@ -40386,6 +40388,7 @@ function absencesCorps(){
       '<button class="absbtn" onclick="absAjouter()">Absent</button>'+
     '</div>';
   if(ABS_PANNE) h+='<div class="dempanne">'+esc(ABS_PANNE)+'</div>';
+  if(ABSENCES.length) h+='<div class="abstotal">'+esc(absTotal())+'</div>';
   if(haut.length){
     h+='<div class="abst rouge">À traiter · '+haut.length+'</div>';
     haut.forEach(function(a){
@@ -40417,12 +40420,20 @@ function absPhrase(a){
   return a.statut==='hospit' ? nn+' · hospitalisé·e'
        : nn+' '+(a.statut==='just' ? (n>1?'justifiées':'justifiée') : (n>1?'non justifiées':'non justifiée'));
 }
+/* ═══ LE TOTAL EN TÊTE (Mag, 03/10/2026 : « mettre le nombre d'absences en début de
+   liste, parce que je dois pouvoir comparer là et le programme ») ═══ Le même chiffre
+   à l'écran, dans le texte copié et sur la feuille. */
+function absTotal(){
+  const n=ABSENCES.length, nl=ABSENCES.filter(function(a){ return a.lam; }).length;
+  return n+' absence'+(n>1?'s':'')+' · '+nl+' LAM · '+(n-nl)+' médical';
+}
 function absTri(L){ return L.slice().sort(function(a,b){
   return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); }); }
 function absencesEnTexte(){
   const haut=absTri(ABSENCES.filter(absATraiter)), bas=absTri(ABSENCES.filter(function(a){ return !absATraiter(a); }));
   const ic={nonjust:'❓',just:'✅',hospit:'💉'};
   const L=['*📋 ABSENCES — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+'*'];
+  if(ABSENCES.length){ L.push(''); L.push('*'+absTotal()+'*'); }
   const bloc=function(titre, liste){
     if(!liste.length) return;
     L.push(''); L.push('*'+titre+' · '+liste.length+'*'); L.push('');
