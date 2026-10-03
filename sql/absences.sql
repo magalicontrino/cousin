@@ -53,5 +53,9 @@ create policy abs_retirer on public.absences for delete to authenticated
 --   Coordination, Infirmier, Travailleur social : ecrit / voit / retire.
 --   Polyvalent : ecriture refusee, ne voit rien. Aucune ligne de test restee.
 
+-- 03/10/2026 : une note sous le nom ("Disparition inquietante faite le 01/10").
+alter table public.absences add column if not exists note text
+  check (note is null or char_length(note) <= 300);
+
 -- La cle de la porte (les policies ne suffisent pas).
 grant select, insert, update, delete on public.absences to authenticated;
