@@ -4115,6 +4115,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    raccourcir quand on efface. */
 .chadd textarea{resize:none;overflow:hidden;line-height:1.45;min-height:76px;display:block}
 .chadd input:focus,.chadd textarea:focus{outline:0;border-color:var(--trait-fort)}
+.chaddbtn.entmi{background:#d9f1f7;color:#1e6472;border:1.25px solid #6fc7d9;margin-left:6px;border-radius:6px}
 .chaddbtn{flex:none;background:var(--noir);color:#f2eee6;border-radius:0;padding:11px 16px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
 .chrgpd{display:flex;gap:10px;border:1px solid var(--ligne);border-left:7px solid #f5c542;background:#f4f3f0;
@@ -39151,7 +39152,8 @@ function arriveesHTML(){
   return '<div class="entarr">'+
     /* ⚠ LES MOTS DE L'ÉQUIPE (Mag, 20/09/2026) : le bloc du haut, ce sont LES ENTRANTS ;
        celui du bas, LES ENTRETIENS. « Arrivées » et « À voir » étaient de moi. */
-    '<div class="entarr-t">Les entrants de la semaine'+(L.length?' · '+L.length:'')+'</div>'+
+    /* Le titre dit les deux (Mag, 03/10/2026 : « mettre entretiens et entrants de la semaine »). */
+    '<div class="entarr-t">Entretiens et entrants de la semaine'+(L.length?' · '+L.length:'')+'</div>'+
     '<div class="entarr-add">'+
       '<input id="arrNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ARR_BR_NOM)+'" '+
         'oninput="ARR_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();arriveeAjouter();}">'+
@@ -39166,6 +39168,11 @@ function arriveesHTML(){
         '<span class="'+(ARR_BR_LAM?'on':'')+'">LAM</span><span class="entsw-b"></span>'+
         '<span class="'+(ARR_BR_LAM?'':'on')+'">Médical</span></button>'+
       '<button class="chaddbtn" onclick="arriveeAjouter()">Ajouter</button>'+
+      /* ═══ MI-PARCOURS, DIRECTEMENT (Mag, 03/10/2026 : « quand on rajoute un nom et qu'il
+         est déjà dans le centre, quand on doit faire un mi-parcours, on doit pouvoir déjà
+         cliquer sur mi-parcours — ça va directement à l'entretien en mi-parcours ») ═══
+         La personne est déjà là : elle ne passe pas par les entrants. */
+      '<button class="chaddbtn entmi" onclick="arriveeMiParcours()">Mi-parcours</button>'+
     '</div>'+
     /* ═══ DEUX ÉTAGES (Mag, 20/09/2026, dessin B sur trois : « c'est brouillon,
        simplifie ») ═══ Le nom seul sur sa ligne — ils font une ligne entière à eux
@@ -39233,6 +39240,15 @@ function arriveeJour(id){
         }
       });
     }});
+}
+function arriveeMiParcours(){
+  const n=(ARR_BR_NOM||'').trim(); if(!n){ toast('Écris un nom.'); return; }
+  entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), lam:!!ARR_BR_LAM, pour_entretien:true,
+    mi_parcours:true, ajoute_par:(nomAffiche()||'')}).select().then(function(r){
+    if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
+    ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_LAM=false; render();
+    toast(n+' — entretien de mi-parcours à faire');
+  });
 }
 function arriveeVersEntretien(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
@@ -40134,7 +40150,10 @@ function entretiensCorps(){
            dans « vu » (`entretienFait`) : la règle des trois cases reste la sienne.
            Colonnes `encode_*` / `etage_*` (sql/entrants-encode-etage.sql). */
       '</div>'+
-      '<div class="entl-c2">'+caseH(e,'encode','Encodé',true)+caseH(e,'etage','Liste étage',true)+'</div>'+
+      /* ⚠ PAS POUR UN MI-PARCOURS (Mag, 03/10/2026 : « concernant le mi-parcours, tu peux
+         enlever les deux cases encodé et liste étage ») : la personne est déjà encodée
+         et déjà sur la liste étage depuis son arrivée. */
+      (e.mi_parcours?'':'<div class="entl-c2">'+caseH(e,'encode','Encodé',true)+caseH(e,'etage','Liste étage',true)+'</div>')+
       '</div>';
   };
   return '<div class="ml3"><div class="ml3-c">'+
