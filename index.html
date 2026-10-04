@@ -37154,14 +37154,24 @@ function cleDuRythme(r){
 }
 function rythmeDe(t){ return (t&&t.rythme)||'jour'; }
 async function loadListes(){
-  listesLoaded=false; CHECKLISTS=[]; DONE={};
+  /* ═══ ON NE VIDE PLUS L'ÉCRAN PENDANT QU'ON RELIT (04/10/2026, tu m'as demandé :
+     « pourquoi la fenêtre saute tout le temps ? ») ═══ MESURÉ : à chaque retour sur
+     l'onglet, cette fonction remettait `listesLoaded` à faux et vidait les listes AVANT
+     de lire la base. La page Liste passait de 10 700 à 5 400 caractères — toute la
+     partie du bas remplacée par « Chargement… » —, le navigateur remontait en haut
+     (600 → 0 px), puis la liste revenait. On lit maintenant dans des variables à part,
+     et on ne remplace ce qui est affiché qu'une fois la réponse arrivée. Une lecture
+     ratée garde la liste d'avant au lieu d'afficher du vide. */
   if(!sb) { listesLoaded=true; return; }
-  let cl=[];
-  try{ const {data}=await sb.from('checklists').select('id,liste,tache,ordre,rythme').order('ordre'); cl=data||[]; }catch(e){}
+  let cl=[], rate=false;
+  try{ const r=await sb.from('checklists').select('id,liste,tache,ordre,rythme').order('ordre');
+       if(r.error) rate=true; else cl=r.data||[]; }catch(e){ rate=true; }
+  if(rate && listesLoaded) return;
+  const DONE_NEUF={};
   const groups={},order=[];
   cl.forEach(t=>{ if(!groups[t.liste]){groups[t.liste]=[];order.push(t.liste);} groups[t.liste].push(t); });
   // On voit toutes les listes auxquelles la base donne accès, mais les siennes d'abord.
-  CHECKLISTS=order.map(k=>({liste:k,taches:groups[k],mienne:MES_LISTES.indexOf(k)>=0}))
+  const CL_NEUF=order.map(k=>({liste:k,taches:groups[k],mienne:MES_LISTES.indexOf(k)>=0}))
                   .sort((a,b)=>(b.mienne-a.mienne)||(listeRank(a.liste)-listeRank(b.liste)));
   /* ⚠ ON LIT LES TROIS DATES D'UN COUP, puis on ne garde, pour chaque tâche, que la
      coche posée sur SA date à elle. Sans ce filtre, une tâche quotidienne cochée
@@ -37170,8 +37180,9 @@ async function loadListes(){
     const cles=[todayStr(), lundiDeLaSemaine(), repriseLe()].filter(Boolean);
     const {data:done}=await sb.from('checklist_faites').select('tache_id,jour').in('jour',cles);
     const parTache={}; cl.forEach(function(t){ parTache[t.id]=cleDuRythme(rythmeDe(t)); });
-    (done||[]).forEach(function(d){ if(parTache[d.tache_id]===d.jour) DONE[d.tache_id]=true; });
+    (done||[]).forEach(function(d){ if(parTache[d.tache_id]===d.jour) DONE_NEUF[d.tache_id]=true; });
   }catch(e){}
+  CHECKLISTS=CL_NEUF; DONE=DONE_NEUF;
   listesLoaded=true;
 }
 /* La date sur laquelle poser la coche d'une tâche donnée. */
