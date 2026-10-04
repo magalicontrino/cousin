@@ -38055,8 +38055,11 @@ async function passSupprimer(id){
   cousinConfirme('Supprimer cette passation ?', p.texte,
     async function(){
       if(!sb){ toast('Pas de connexion'); return; }
-      try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
+      /* ⚠ UN REFUS DE LA BASE NE FAISAIT AUCUN BRUIT (04/10/2026) : sans le droit, la
+         suppression « réussit » sur zéro ligne et la note restait là. On compte. */
+      try{ const {data,error}=await sb.from('passations').delete().eq('id',p.id).select('id');
         if(error) throw error;
+        if(!data || !data.length){ toast('Pas supprimée : seule la personne qui l’a écrite peut la supprimer.'); return; }
         if(String(PASS_EDIT)===String(p.id)){ PASS_EDIT=null; PASS_FEUILLE=false; }
         await loadPassations(); render();
       }catch(e){ toast('Suppression refusée'); }
@@ -38428,7 +38431,8 @@ function imprimerPassation(pour){
   let corps='';
   if(moments.length)
     corps+='<section class="ch"><div class="st"><span>Réveil</span>'+
-      '<em>'+moments.length+' · c’est la nuit qui coche</em></div>'+
+      /* « c'est la nuit qui coche » retiré (Mag, 04/10/2026 : « ça veut rien dire ») */
+      '<em>'+moments.length+'</em></div>'+
       moments.map(function(m){ return ligneP(m.p); }).join('')+
     '</section>';
   if(infos.length)
