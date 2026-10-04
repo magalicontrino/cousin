@@ -37144,6 +37144,12 @@ async function chargerReglages(){
      et une copie de secours reste sur le téléphone quoi qu'il arrive. */
   try{ NOTES=reglageGarderLePlusRecent('notes', lignes.notes, NOTES, 'lux_notes', premiere)||[]; }catch(e){}
   if(!Array.isArray(NOTES)) NOTES=[];
+  /* Les passations d'autrui retirées de mon écran : l'union des deux côtés (on ne
+     fait que retirer, jamais remettre). */
+  if(Array.isArray(lignes.pass_masquees)){
+    lignes.pass_masquees.forEach(function(id){ id=String(id); if(PASS_MASQUEES.indexOf(id)<0) PASS_MASQUEES.push(id); });
+    try{ localStorage.setItem('lux_pass_masquees', JSON.stringify(PASS_MASQUEES)); }catch(e){}
+  }
   // SON PETIT NOM : la base fait foi, il la suit d'un téléphone à l'autre.
   if(typeof lignes.pseudo==='string'){
     PSEUDO=lignes.pseudo;
@@ -38071,6 +38077,11 @@ async function passSupprimer(id){
   /* ⚠ PAS DE PHRASE D'EXPLICATION (Mag, 22/08/2026 : « retire, elle ne reviendra pas
      dans ta liste, elle est effacée »). Le bouton rouge dit « Supprimer » : ce qu'il
      fait n'a pas besoin d'être raconté au-dessus. */
+  if(!passMienne(p)){
+    cousinConfirme('Retirer de ton écran ?', p.texte+(p.par?'\n\nElle reste chez '+String(p.par).split(/\s+/)[0]+'.':''),
+      function(){ passMasquer(p); }, {ok:'Retirer', danger:true});
+    return;
+  }
   cousinConfirme('Supprimer cette passation ?', p.texte,
     async function(){
       if(!sb){ toast('Pas de connexion'); return; }
@@ -38372,8 +38383,24 @@ function passLigne(p, mienne, role, heure){
 function passToutes(){
   const vues={};
   return passTri(passPourMoi().concat(passEcrites()).filter(function(p){
-    if(vues[p.id]) return false; vues[p.id]=1; return true;
+    if(vues[p.id]) return false; vues[p.id]=1;
+    return (typeof PASS_MASQUEES==="undefined"||PASS_MASQUEES.indexOf(String(p.id))<0);
   }));
+}
+/* ═══ RETIRER CHEZ MOI LA PASSATION D'UN·E AUTRE (Mag, 04/10/2026 : « c'est une note
+   d'Elfine, et moi quand je veux l'effacer ça ne marche pas ») ═══
+   La base ne laisse supprimer une passation qu'à celle ou celui qui l'a écrite. La
+   corbeille, sur la ligne d'un·e autre, la RETIRE DE MON ÉCRAN (et de ma feuille) :
+   elle reste chez son auteur·e. Rangé dans les réglages perso → suit d'un appareil à
+   l'autre. ⚠ Écran et papier lisent `passToutes` : ils restent identiques. */
+var PASS_MASQUEES=[];
+try{ PASS_MASQUEES=JSON.parse(localStorage.getItem('lux_pass_masquees')||'[]'); }catch(e){}
+if(!Array.isArray(PASS_MASQUEES)) PASS_MASQUEES=[];
+function passMasquer(p){
+  const id=String(p.id); if(PASS_MASQUEES.indexOf(id)<0) PASS_MASQUEES.push(id);
+  try{ localStorage.setItem('lux_pass_masquees', JSON.stringify(PASS_MASQUEES)); }catch(e){}
+  reglagePousser('pass_masquees', PASS_MASQUEES.slice());
+  render(); toast('Retirée de ton écran');
 }
 /* ⚠ DOUBLON DE CONTENU (Mag, 24/08/2026 : « je ne comprends pas pourquoi il y a deux fois
    le même nom, donc la même note »). La même passation peut exister deux fois en base
