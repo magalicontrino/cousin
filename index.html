@@ -5012,7 +5012,11 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .accgardes{margin-top:18px}
 .accb.accpic{padding:10px 14px;min-width:48px;justify-content:center}
 .accb.accpic svg,.accb.accpic .pico{width:20px;height:20px;margin:0}
-.accgarde{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--ligne)}
+.accgarde{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 12px;margin:8px 0;
+  border-radius:12px;background:#fbe9f0;border:1px solid #f2b8cd;border-left:5px solid #e98bb0}
+.accgarde.med{background:#fce9e7;border-color:#f3bdb8;border-left-color:#e98a82}
+.accgarde .accb{background:#fff}
+.accgarde .accb.accb-cop{background:#f5c542;border-color:#f5c542}
 .accgarde span{flex:1 1 150px;font-size:14px}
 .accgarde span i{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:11px;color:#73716b;margin-top:2px}
 .accgarde .accb{padding:7px 10px}
@@ -32554,7 +32558,12 @@ function accNoteMaj(k){
    un entretien gardé avec SA corbeille, pas en vidant la page. */
 function accEffacer(){
   if(accVide()){ toast('La page est déjà vide'); return; }
-  if(!confirm('Commencer un nouvel entretien ?\n\nCelui-ci reste gardé sur cet appareil, en bas de la page.')) return;
+  /* La fenêtre COUSIN, pas celle du navigateur (04/10/2026, tu m'as dit : « je voudrais
+     qu'il y ait une pop-up Cousin personnalisée »). */
+  cousinConfirme('Nouvel entretien ?','Celui-ci reste gardé sur cet appareil, en bas de la page.',
+    accEffacerOui,{ok:'Nouvel entretien'});
+}
+function accEffacerOui(){
   clearTimeout(_accEcritDans);
   let l=accBrouillonsLire();
   if(!ACC_SESSION) ACC_SESSION=Date.now();
@@ -32576,10 +32585,13 @@ function accGardesHTML(){
       const d=new Date(b.id);
       const quand=d.toLocaleDateString('fr-BE',{weekday:'short',day:'numeric',month:'numeric'})+' · '+
         String(d.getHours()).padStart(2,'0')+' h '+String(d.getMinutes()).padStart(2,'0');
-      return '<div class="accgarde"><span><b>'+(nom?esc(nom):'Sans nom')+'</b>'+
+      /* ⚠ EN COULEUR (04/10/2026, tu m'as dit : « plus en couleur et mieux en évidence ») :
+         rose pour le social, rouge clair pour le médical — les couleurs des entretiens sur
+         l'accueil. Et Copier est le picto copier, comme partout. */
+      return '<div class="accgarde '+(b.volet==='med'?'med':'soc')+'"><span><b>'+(nom?esc(nom):'Sans nom')+'</b>'+
         '<i>'+(b.volet==='med'?'Médical':'Social')+' · '+esc(quand)+'</i></span>'+
         '<button class="accb" onclick="accGardeReprendre('+b.id+')">Reprendre</button>'+
-        '<button class="accb" onclick="accGardeCopier('+b.id+')">Copier</button>'+
+        '<button class="accb accb-cop" onclick="accGardeCopier('+b.id+')" aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
         '<button class="accb accb-att" onclick="accGardeJeter('+b.id+')" aria-label="Jeter" title="Jeter">'+icon('trash')+'</button></div>';
     }).join('')+'</div>';
 }
