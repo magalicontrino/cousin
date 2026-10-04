@@ -20966,6 +20966,31 @@ function popValider(){
   popFermer();
   if(f) f(v, plus, etq);
 }
+let _popCorr=false;
+function popBarreHTML(id){
+  let h=txCopierCollerHTML(id);
+  if(_popCorr){
+    const hi=CH_HIST[id]||{};
+    h+='<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
+         'onclick="popCorriger(\'champCorriger\')"'+(CH_ENCOURS===id?' disabled':'')+'>'+
+         (CH_ENCOURS===id?'…':'Corriger')+'</button>'+
+       (hi.avant?'<button type="button" class="txb pic" onclick="popCorriger(\'champRevenir\')" title="Revenir" aria-label="Revenir">'+icon('undo')+'</button>':'')+
+       (hi.apres?'<button type="button" class="txb pic" onclick="popCorriger(\'champRetablir\')" title="Rétablir" aria-label="Rétablir">'+icon('redo')+'</button>':'');
+  }
+  h+=notBoutonHTML(id, true);
+  if(_popCorr && (CH_HIST[id]||{}).alerte) h+='<div class="notalerte" style="flex-basis:100%">'+esc(CH_HIST[id].alerte)+'</div>';
+  return h;
+}
+/* La barre de la fenêtre n'est pas dans `render()` : on la redessine à la main, avant
+   (le « … » pendant que ça corrige) et après. */
+async function popCorriger(quoi){
+  const id=_popMulti?'popChampM':'popChamp';
+  const bar=document.getElementById('popBarre');
+  const maj=function(){ if(bar && _popCorr) bar.innerHTML=popBarreHTML(id); };
+  const r=window[quoi](id); maj();
+  try{ await r; }catch(e){}
+  maj();
+}
 function cousinPop(o){
   /* Une dictée en cours dans la page (le champ d'ajout de Ma liste) s'arrête ici : la
      fenêtre qui s'ouvre passe DEVANT sa case, et on ne dicte pas dans ce qu'on ne voit
@@ -21003,9 +21028,14 @@ function cousinPop(o){
        lecture de ce qui existe.
        ⚠ ET LA BARRE DU CHAMP DE PASSATION GARDE SES G/S : elle les y a demandés le
        22/08, et là le rendu marche. Ne pas confondre les deux endroits. */
-    bar.innerHTML=popTexte
-      ? txCopierCollerHTML(popCase)+notBoutonHTML(popCase, true)
-      : '';
+    /* ═══ « CORRIGER » AUSSI DANS « MODIFIER » (Mag, 04/10/2026 : « quand on corrige
+       une note qu'on a déjà faite dans la liste, on ne peut plus la corriger avec
+       l'IA, c'est dommage ») ═══ Le champ du haut de Ma liste l'a depuis le 16/09 ;
+       la fenêtre ne l'avait pas. Même correction (`champCorriger`), même Revenir /
+       Rétablir. Seulement pour les fenêtres qui le demandent (`o.corriger`). */
+    _popCorr = !!(o.corriger && popTexte);
+    if(_popCorr) delete CH_HIST[popCase];
+    bar.innerHTML=popTexte ? popBarreHTML(popCase) : '';
   }
   if(autre){ autre.style.display='none'; autre.value=''; }
   _popChamp = (typeof o.champ==='string');
@@ -39031,7 +39061,7 @@ function rappelModifier(id){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   cousinPop({
     titre:'Modifier', texte:'', champ:r.texte||'', max:4000, multi:true, ok:'Enregistrer',
-    cle:'rappel-'+id,
+    cle:'rappel-'+id, corriger:true,
     plus:{ deux:r.chambre||'', deuxMax:12, deuxNum:true,
            deuxPlaceholder:'N° de chambre' },
     /* ═══ ON PEUT POSER OU RETIRER ABSENCE / DÉSENCODAGE ICI (Mag, 24/08/2026 : « comment
