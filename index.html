@@ -32381,7 +32381,10 @@ function accBrouillonsLire(){
 function accBrouillonsEcrire(l){
   try{
     if(!l.length) localStorage.removeItem(ACC_BROUILLON);
-    else localStorage.setItem(ACC_BROUILLON, JSON.stringify(l.slice(0,ACC_MAX)));
+    /* ACC_MAX PAR VOLET (04/10/2026) : dix sociaux et dix médicaux, chacun sa page. */
+    else localStorage.setItem(ACC_BROUILLON, JSON.stringify(
+      l.filter(function(b){ return (b.volet||'')!=='med'; }).slice(0,ACC_MAX)
+       .concat(l.filter(function(b){ return (b.volet||'')==='med'; }).slice(0,ACC_MAX))));
   }catch(e){ /* mémoire pleine ou navigation privée : on n'en fait pas une panne */ }
 }
 function accVide(){ return !Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); }); }
@@ -32591,13 +32594,17 @@ function accEffacerOui(enregistre){
   accBrouillonsEcrire(l);
   ACC={}; ACC_SESSION=null; ACC_PROPOSE=null;
   render();
-  const n=accBrouillonsLire().length;
+  const n=accBrouillonsLire().filter(function(b){ return (b.volet||'')===((current&&current.volet)||''); }).length;
   if(n>=ACC_STOCK_TROP) toast('Trop d’entretiens en stock : il faut les copier dans KAIROS');
   else toast(enregistre===true ? 'Enregistré — en bas de la page' : 'Nouvel entretien — le précédent est enregistré en bas');
 }
 /* La liste des entretiens gardés : l'heure et le volet, JAMAIS le contenu (poste partagé). */
 function accGardesHTML(){
-  const L=accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION; });
+  /* ⚠ CHAQUE PAGE SES ENTRETIENS (04/10/2026, tu m'as dit : « tu veux pas mettre que les
+     entretiens médicaux dans la page entretiens médicaux ? ») : le médical ne voit que
+     les médicaux, le social que les sociaux. */
+  const v=(current&&current.volet)||'';
+  const L=accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION && (b.volet||'')===v; });
   if(!L.length) return '';
   return '<div class="accgardes"><div class="acct">Entretiens gardés · '+L.length+'</div>'+
     (L.length>=ACC_STOCK_TROP ? '<div class="acctrop">Trop d’entretiens en stock : il faut les copier dans KAIROS.</div>' : '')+
