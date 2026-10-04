@@ -17911,6 +17911,9 @@ const view=document.getElementById('view');
    ⚠ Ce que fait la note elle-même (micro, Corriger…) passe par `notRedessine`, qui
    force le passage avec `RENDU_FORCE` — sinon le bouton du micro ne changerait plus. */
 var RENDU_DIFFERE=false, RENDU_FORCE=false;
+/* Un redessin venu d'une relecture en arrière-plan, pas d'un clic (voir la page Liste). */
+var RENDU_FOND=false;
+function renderFond(){ RENDU_FOND=true; try{ render(); }finally{ RENDU_FOND=false; } }
 function render(){
   try{
     const a=document.activeElement;
@@ -18111,7 +18114,18 @@ function renderInterne(){
   else if(current.view==='femmes') view.innerHTML=vFemmes();
   else if(current.view==='fil'){ view.innerHTML=vFil(); rafraichirFil(); }
   else if(current.view==='liste' && estGroupeD()){ location.replace('#/'); }
-  else if(current.view==='liste'){ view.innerHTML=vListe();
+  else if(current.view==='liste'){
+    /* ⚠ UNE RELECTURE DE LA BASE QUI NE CHANGE RIEN NE REDESSINE PAS LA PAGE (04/10/2026,
+       tu m'as demandé : « pourquoi la fenêtre saute tout le temps ? »). En revenant sur
+       l'onglet, ta liste, les passations et les listes d'équipe sont relues, et CHAQUE
+       réponse redessinait toute la page : les cases repartaient petites, la page
+       raccourcissait un instant et le navigateur remontait. `renderFond()` marque ces
+       redessins-là ; on n'écrit alors que si le dessin a changé ET que c'est bien le
+       nôtre qui est en place. Un clic à toi redessine toujours, comme avant. */
+    const h=vListe();
+    if(!(RENDU_FOND && view.__listeHtml===h && view.__listeNoeud && view.__listeNoeud===view.firstElementChild)){
+      view.innerHTML=h; view.__listeHtml=h; view.__listeNoeud=view.firstElementChild;
+    }
     if(NOT_TXT) setTimeout(function(){var c=document.getElementById('notTxt');if(c){c.style.height='auto';c.style.height=c.scrollHeight+'px';}},10); }
   else if(current.view==='chambres'){ view.innerHTML=vChambres(); rafraichirChambres(); }
   else if(current.view==='tourbacs'){ view.innerHTML=vTourBacs(); rafraichirTourBacs(); }
@@ -36557,9 +36571,9 @@ function rafraichirPartage(force){
       const r=fn();
       if(r && typeof r.then==='function'){
         r.then(function(){
-          if(current && current.view===vueAvant && typeof render==='function') render();
+          if(current && current.view===vueAvant && typeof render==='function') renderFond();
         }).catch(function(){
-          if(current && current.view===vueAvant && typeof render==='function') render();
+          if(current && current.view===vueAvant && typeof render==='function') renderFond();
         });
       }
     }catch(e){}
@@ -36607,7 +36621,7 @@ async function rafraichirPerso(force){
   if(bg && bg.classList.contains('on')){ _persoApresPop=true; return; }
   if(!force && Date.now()-_dernierPerso < 15000) return;
   _dernierPerso=Date.now();
-  try{ await chargerReglages(); render(); }catch(e){}
+  try{ await chargerReglages(); renderFond(); }catch(e){}
 }
 /* Et en ARRIVANT sur un écran partagé : on vient souvent d'y aller exprès pour
    voir où en est l'équipe. `force` saute le délai des 20 secondes — ce clic-là est
