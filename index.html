@@ -5017,6 +5017,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .accgarde.med{background:#fce9e7;border-color:#f3bdb8;border-left-color:#e98a82}
 .accgarde .accb{background:#fff}
 .accgarde .accb.accb-cop{background:#f5c542;border-color:#f5c542}
+.acctrop{margin:10px 0 4px;padding:10px 12px;border-radius:12px;background:#e5484d;color:#fff;font-weight:700;font-size:14px}
 .accgarde span{flex:1 1 150px;font-size:14px}
 .accgarde span i{display:block;font-style:normal;font-family:ui-monospace,monospace;font-size:11px;color:#73716b;margin-top:2px}
 .accgarde .accb{padding:7px 10px}
@@ -8021,6 +8022,8 @@ const ICONS = {
      16 px. Un mégaphone avait été essayé entre-temps, puis écarté. Celle-ci est la
      forme que tout le monde reconnaît, et elle reste nette en petit. */
   etoile5:'<path d="M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.4l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94z"/>',  calendrier:'<path d="M7 2v2H5.5A2.5 2.5 0 0 0 3 6.5v13A2.5 2.5 0 0 0 5.5 22h13a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 18.5 4H17V2h-2v2H9V2H7zM5 9h14v10.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H7zm4 0v2h2v-2h-2z"/>',
+  /* La disquette : « Enregistrer » un entretien du Premier accueil (04/10/2026). */
+  disquette:'<path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/>',
   /* L'absence : un calendrier barré d'un trait, pour dire « ce jour-là, absent ».
      C'est un jour marqué, pas une personne — le picto reste dans la famille des
      calendriers de l'app (11/09/2026). */
@@ -32356,6 +32359,10 @@ var ACC={};
    backups, qu'on puisse retrouver les notes — dans la journée faire plus d'entretiens
    et, après, pouvoir les copier »). Et 18 h au lieu de 12 : une journée entière. */
 const ACC_BROUILLON='cousin_acc_brouillon', ACC_PEREMPTION=18*3600*1000, ACC_MAX=10;
+/* À 9 en stock, on prévient (04/10/2026, tu m'as dit : « au bout de 9 entretiens, on dit :
+   vous avez trop d'entretiens en stock, il faut les copier dans KAIROS ») : au-delà de
+   ACC_MAX, le plus ancien serait perdu. */
+const ACC_STOCK_TROP=9;
 let ACC_PROPOSE=null;     /* celui que le bandeau propose, tant qu'on n'a pas répondu */
 let ACC_SESSION=null;     /* l'id de celui qu'on est en train d'écrire */
 let _accEcritDans=null;
@@ -32563,7 +32570,11 @@ function accEffacer(){
   cousinConfirme('Nouvel entretien ?','Celui-ci reste gardé sur cet appareil, en bas de la page.',
     accEffacerOui,{ok:'Nouvel entretien'});
 }
-function accEffacerOui(){
+function accEnregistrer(){
+  if(accVide()){ toast('La page est vide'); return; }
+  accEffacerOui(true);
+}
+function accEffacerOui(enregistre){
   clearTimeout(_accEcritDans);
   let l=accBrouillonsLire();
   if(!ACC_SESSION) ACC_SESSION=Date.now();
@@ -32571,13 +32582,17 @@ function accEffacerOui(){
   l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
   accBrouillonsEcrire(l);
   ACC={}; ACC_SESSION=null; ACC_PROPOSE=null;
-  render(); toast('Nouvel entretien — le précédent est gardé');
+  render();
+  const n=accBrouillonsLire().length;
+  if(n>=ACC_STOCK_TROP) toast('Trop d’entretiens en stock : il faut les copier dans KAIROS');
+  else toast(enregistre===true ? 'Enregistré — en bas de la page' : 'Nouvel entretien — le précédent est enregistré en bas');
 }
 /* La liste des entretiens gardés : l'heure et le volet, JAMAIS le contenu (poste partagé). */
 function accGardesHTML(){
   const L=accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION; });
   if(!L.length) return '';
   return '<div class="accgardes"><div class="acct">Entretiens gardés · '+L.length+'</div>'+
+    (L.length>=ACC_STOCK_TROP ? '<div class="acctrop">Trop d’entretiens en stock : il faut les copier dans KAIROS.</div>' : '')+
     L.map(function(b){
       /* Le nom et la date en titre (Mag, 03/10/2026 : « comme titre mets plutôt la date
          mais aussi le nom »). Le nom vient de la case « Nom » de l'entretien. */
@@ -32947,6 +32962,12 @@ function vAccueilPersonne(volet){
         Le mot reste au survol et pour la lecture à voix haute. */
      '<button class="accb plein accpic" onclick="accCopier(\''+(volet||'')+'\')" title="Copier la note" aria-label="Copier la note">'+icon('copyleger')+'</button>'+
      '<button class="accb accpic" onclick="accImprimer(\''+(volet||'')+'\')" title="Imprimer" aria-label="Imprimer">'+icon('imprimer')+'</button>'+
+     /* ═══ LA DISQUETTE (04/10/2026, tu m'as dit : « c'est un peu paniquant, quand on clique
+        sur Nouvel entretien ce n'est pas marqué Enregistré », « il faudrait une petite
+        disquette qu'on puisse au moins l'enregistrer, et qui passe en dessous après ») ═══
+        Elle range l'entretien dans les gardés, en bas, et vide la page — sans question :
+        rien n'est perdu. */
+     '<button class="accb accpic" onclick="accEnregistrer()" title="Enregistrer" aria-label="Enregistrer">'+icon('disquette')+'</button>'+
      '<button class="accb" onclick="accEffacer()">Nouvel entretien</button>'+
      '</div>';
   h+=accGardesHTML();
