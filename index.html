@@ -5183,6 +5183,23 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    et l'heure sont deux morceaux, l'heure reste d'un seul tenant. */
 .hrg .tx b{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 7px}
 .hrg .tx b i{font-style:normal;font-weight:400;color:var(--enc2);flex:none}
+/* ═══ LES DEUX ONGLETS : LE CENTRE, LES INFIRMERIES (05/10/2026) ═══
+   « Les horaires vont dépasser la fenêtre » : deux pages qui se basculent. L'onglet
+   choisi est NOIR (le clic = noir, comme partout). Seule la page montrée défile, les
+   onglets et le bouton Fermer restent sous les yeux. */
+.horong{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.popcard.hormemo>.horong,.popcard.accsl>.horong{flex:1 1 auto;min-height:0}
+.horong-b{display:flex;gap:8px;margin:2px 0 8px;flex:none}
+.horong-b button{flex:1;border:1.5px solid var(--trait-fort,var(--noir));border-radius:20px;
+  background:none;color:var(--noir);font:inherit;font-size:13px;font-weight:700;padding:9px 6px;cursor:pointer}
+.horong:not(.inf) .o-cen,.horong.inf .o-inf{background:var(--noir);color:#f2eee6;border-color:var(--noir)}
+.horong-cen,.horong-inf{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.horong.inf .horong-cen,.horong:not(.inf) .horong-inf{display:none}
+/* C'est la page montrée qui défile, pas la frise : sinon la frise s'étire jusqu'en
+   bas de l'écran et son fil gris descend sous du vide. Une seule rangée = pas de fil. */
+.horong-cen,.horong-inf{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.horong .hrgs{flex:none;overflow:visible}
+.hrgs:has(> .hrg:only-child):before{display:none}
 .hrg .tx b s{text-decoration:none;white-space:nowrap}
 /* Le h d'une heure : même taille, mais léger et gris. Il sépare sans peser.
    ⚠ C'EST LUI QUI PORTE L'ESPACE. La règle qui l'isole avale l'espace qui le
@@ -5281,6 +5298,14 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .accsl-p button{flex:1;height:8px;border-radius:4px;background:var(--ligne);
   cursor:pointer;border:0;padding:0;font:inherit}
 .accsl-p button.on{background:var(--ac)}
+/* Les flèches du PC (Mag, 05/10/2026) : cachées sur un écran tactile, où l'on glisse. */
+.accsl-fl{display:none;width:38px;height:38px;flex:none;border-radius:50%;
+  border:1.5px solid var(--noir);background:var(--barre);color:var(--noir);
+  align-items:center;justify-content:center;padding:0;cursor:pointer}
+.accsl-fl svg,.accsl-fl .pico{width:17px;height:17px}
+.accsl-fl.d svg,.accsl-fl.d .pico{transform:rotate(180deg)}
+.accsl-fl:disabled{opacity:.25;cursor:default}
+@media (hover:hover) and (pointer:fine){ .accsl-fl{display:inline-flex} }
 .accsl-doc{display:contents}
 .accsl-doc button{width:38px;height:38px;flex:none;border-radius:50%;
   border:1.5px solid var(--noir);background:var(--barre);color:var(--noir);
@@ -5332,7 +5357,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .roigr i{font-style:normal;margin-left:auto;font-size:11px}
 .roiL{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
 .roibtn{display:flex;align-items:center;gap:9px;border:1.5px solid var(--ligne);border-radius:11px;
-  padding:8px 10px;background:#fdfdfc;color:var(--noir);cursor:pointer}
+  padding:8px 10px;background:#fdfdfc;color:var(--noir);cursor:pointer;font:inherit;text-align:left}
 .roibtn b{font-family:ui-monospace,monospace;font-size:12px;font-weight:700;border-radius:7px;
   padding:5px 7px;flex:none}
 .roibtn span{display:flex;flex-direction:column;min-width:0;font-size:13.5px;line-height:1.2}
@@ -16074,7 +16099,7 @@ function imprimer(){
           liste.map(function(a){
             return '<tr><td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid '+(a.lam===true?'#c4291f':'#A9C8E8')+';overflow-wrap:anywhere">'+
                 '<b>'+esc(a.nom)+'</b>'+(a.note?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(a.note)+'</span>':'')+'</td>'+
-              '<td '+tdA+'>'+(a.lam===true?'LAM':(a.lam===false?'Médical':'À préciser'))+'</td>'+
+              '<td '+tdA+'>'+(a.lam===true?'LAM':(a.lam===false?'Médical':(absATraiter(a)?'À préciser':'')))+'</td>'+
               '<td '+tdA+'><b>'+esc(absPhrase(a))+'</b></td>'+
               '<td '+tdA+'><span style="font-size:10.5pt">'+esc(dates(a))+'</span></td></tr>';
           }).join('')+'</table>';
@@ -32040,7 +32065,7 @@ const RGL=[
      l'une avec l'autre : un horaire faux fait rater un soin. Les deux versions sont
      dans la fiche « Les deux infirmeries du centre », et ici on affiche le doute. */
   {t:'Les infirmeries', ic:'medical', l:[
-    ['Au 2e étage (LAM)','7 h 45 → 9 h 30 · 11 h 30 → 12 h 30 · 17 h 30 → 19 h 30.', 0],
+    ['Au 2e étage','7 h 45 → 9 h 30 · 11 h 30 → 12 h 30 · 17 h 30 → 19 h 30.', 0],
     ['La nuit','Au 2e étage, de 21 h 30 à 22 h 30. Une seule infirmière : pour une urgence, c’est le 112.', 0],
     /* ⚠ CE SONT LES HEURES DE L'AFFICHE DU COULOIR (relevée le 08/08/2026), et
        c'est son choix : « laisse les horaires de l'affiche pour l'instant, on est
@@ -39836,7 +39861,11 @@ const ROI_DOCS=[
      toujours — c'est `propositions/resume-roi.html`, produite par le générateur — mais
      elle n'est plus publiée. Ne pas la remettre sans qu'elle le demande. */
   {t:'Le résumé, remis en page', c:'#d9f1f7', e:'#1e6472', l:[
-    {f:'resume-remis-3p.html', n:'Version courte · 3 pages', k:'3P'}
+    /* « Marque "nouvelle version" à la place, et à côté, mets le print du mémo »
+       (Mag, 05/10/2026). Le mémo n'est pas un fichier : `fn` dit quelle fonction
+       dessine la feuille. */
+    {f:'resume-remis-3p.html', n:'Nouvelle version', k:'3P'},
+    {fn:'imprimerMemo', n:'Le mémo', k:'MÉMO'}
   ]},
   {t:'La charte à faire signer', c:'#fbd3e6', e:'#993556', l:[
     {f:'charte-fr.pdf', n:'Français', k:'FR'}, {f:'charte-nl.pdf', n:'Néerlandais', k:'NL'},
@@ -39958,8 +39987,10 @@ const HORAIRES={
      r:[['Tous les jours',['7 h → 18 h']]], n:'Hors réunions en après-midi'},
     {t:'Pôle médicalisé', s:'infirmerie du 2ᵉ étage', court:'Infirmerie du 2ᵉ', res:[0], c:'#e63329',
      r:[['Ouvert',['24 h/24','7 j/7']],
-        ['Médicaments',['07h30 → 09h30','11h30 → 12h30','17h30 → 19h30','21h30 → 22h30']],
-        ['Soins de plaies',['10h00 → 12h30']]],
+        /* 7 h 45, PAS 7 h 30 : c'est l'affiche « Horaire infirmerie » du 2ᵉ (photo de
+           Mag, 05/10/2026), et la fiche des deux infirmeries disait déjà 7 h 45. */
+        ['Médicaments',['7 h 45 → 9 h 30','11 h 30 → 12 h 30','17 h 30 → 19 h 30','21 h 30 → 22 h 30']],
+        ['Soins de plaies',['10 h → 12 h 30']]],
      n:'En dehors de ces heures, l’infirmerie reste disponible pour toute autre demande'},
     {t:'Pôle fragile', s:'infirmerie du rez-de-chaussée', court:'Rez', res:[0], c:'#f8763f',
      r:[['Ouvert',['9 h → 20 h','7 j/7']]]},
@@ -39995,14 +40026,9 @@ HORAIRES.memo=[
   {ic:'hebergement',     t:'Les présences', v:H.presence,                      c:'#4fa06f'},
   {ic:'repas-couverts',  t:'Les repas',     ou:'centre',   k:'Repas',          c:'#e0a52a'},
   {ic:'social',          t:'Service social',ou:'services', k:'Service social', c:'#d4568c'},
-  /* ═══ MÉDICAL ET LAM (04/10/2026, tu m'as dit : « mets les horaires du service social et
-     médical et LAM aussi ») ═══ Médical = l'infirmerie du rez (Pôle fragile), LAM = celle
-     du 2ᵉ étage (Pôle médicalisé) — ta dictée du 08/08. Les heures viennent du tableau
-     `services`, rien n'est recopié. `joint` met « 24 h/24 · 7 j/7 » sur une seule ligne.
-     ⚠ Le rez a deux versions (Résumé ROI : 9 h → 20 h ; affiche du couloir : 9 h → 13 h,
-     15 h → 20 h) : c'est le Résumé ROI qui est montré, à trancher sur place. */
-  {ic:'medical',         t:'Médical · infirmerie du rez', ou:'services', k:'Pôle fragile',    c:'#f8763f', joint:true},
-  {ic:'medical',         t:'LAM · infirmerie du 2ᵉ',      ou:'services', k:'Pôle médicalisé', c:'#e63329', joint:true},
+  /* ⚠ MÉDICAL ET LAM ONT LEUR PROPRE PAGE (05/10/2026, tu m'as dit : « les horaires
+     vont dépasser la fenêtre, il faudrait diviser en deux pages »). Voir
+     `HORAIRES.infirmeries` juste en dessous. */
   /* ⚠ PAS LE CHAPEAU D'ÉTUDIANT (Mag, 22/09/2026 : « le picto n'est pas adapté pour les
      éducs, ils font des activités »). `educatif` dessine un chapeau de diplômé : il
      dit l'école, et l'éducatif du centre ne fait pas classe. La palette dit « on fait
@@ -40014,6 +40040,21 @@ HORAIRES.memo=[
      toujours dans `HORAIRES.centre` (« Calme dans le centre · de 21 h à 8 h ») — elle
      n'est simplement plus montrée. Ne pas la remettre sans elle. */
 ];
+/* ═══ LA DEUXIÈME PAGE : L'INFIRMERIE (05/10/2026) ═══
+   La fenêtre des horaires a deux onglets, « Le centre » et « L'infirmerie » : avec
+   les heures des médicaments, une seule page dépassait de l'écran.
+   ⭐ UNIQUEMENT L'AFFICHE (Mag, 05/10/2026 : « base-toi juste et uniquement sur ce que
+   je viens de t'envoyer en photo ») — l'affiche « Horaire infirmerie » du 2ᵉ étage :
+   Morning · Noon · Evening · Sleeping time. Pas de 24 h/24, pas de soins de plaies, pas
+   d'infirmerie du rez : ce n'est pas sur l'affiche.
+   ⛔ JAMAIS « LAM » ICI. « LAM, c'est professionnel, c'est entre équipes » : ce n'est
+   pas un nom qu'on donne aux hébergés, et cette page s'imprime pour eux.
+   Les heures sont lues dans le tableau `services` (ligne Médicaments), rien n'est
+   recopié. */
+HORAIRES.infirmeries=[
+  {ic:'medical', t:'Infirmerie · 2ᵉ étage', ou:'services', k:'Pôle médicalisé', c:'#e63329', ri:1,
+   lab:['Matin','Midi','Soir','Coucher']}
+];
 /* Les heures d'une ligne du mémo : soit elle les porte (`v`), soit elle dit où les
    prendre. On ne recopie jamais. */
 function hMemoHeures(m){
@@ -40021,7 +40062,9 @@ function hMemoHeures(m){
   const l=(HORAIRES[m.ou]||[]).filter(function(x){ return x.t===m.k; })[0];
   if(!l) return [];
   if(m.ou==='centre') return l.h;
-  return m.joint ? [l.r[0][1].join(' · ')] : l.r[0][1];
+  const r=l.r[m.ri||0][1];
+  if(m.lab) return r.map(function(h,i){ return m.lab[i] ? [m.lab[i],h] : h; });
+  return m.joint ? [r.join(' · ')] : r;
 }
 
 
@@ -40156,7 +40199,144 @@ const ACC_POINTS=[
       'Si ça ne va pas : la coordination, ou <b>complaint@samusocial.be</b>.']}
 ];
 let ACC_I=0;
-function accSlideOuvrir(){ ACC_I=0; accSlideDessine(); }
+/* ═══ LE MÉMO SUR PAPIER (Mag, 05/10/2026) ═══
+   « Pour faire des rappels pour les gens qui voudraient avoir juste le strict minimum
+   à savoir. » Puis, en voyant ma première feuille : « j'aurais préféré EXACTEMENT LES
+   MÊMES PICTOS ET LES MÊMES MISES EN PAGE — ça peut être un A4 recto-verso. »
+   Donc : les six écrans du mémo, dans leur dessin d'écran (titre, ronds cerclés à la
+   couleur de l'écran, frise des horaires), sur DEUX PAGES.
+   · recto : les horaires — le centre et les infirmeries côte à côte — puis « Dormir
+     ailleurs, rentrer tard » ;
+   · verso : les quatre autres écrans, deux par deux.
+   Tout est LU sur les mêmes sources que l'écran (`HORAIRES.memo`,
+   `HORAIRES.infirmeries`, `ACC_POINTS`) : corriger une ligne la corrige sur le papier.
+   ⚠ UN PICTO EN MASQUE CSS NE S'IMPRIME PAS (les navigateurs jettent les fonds) :
+   `memoPicPapier` repose chaque picto en <img>, avec le même fichier que l'écran. */
+function memoPicPapier(nom){
+  const h=icon(nom);
+  const m=/mask-image:url\('([^']+)'\)/.exec(h);
+  if(m) return '<img src="'+esc(new URL(m[1], location.href).href)+'" alt="">';
+  return h.replace(/src="([^"]+)"/, function(x,u){ return 'src="'+esc(new URL(u, location.href).href)+'"'; });
+}
+function imprimerMemo(){
+  const frise=function(liste){
+    return '<div class="hrgs">'+liste.map(function(m){
+      return '<div class="hrg" style="--hc:'+m.c+'">'+
+        '<span class="rd">'+memoPicPapier(m.ic)+'</span>'+
+        '<span class="tx"><em>'+esc(m.t)+'</em>'+
+          hMemoHeures(m).map(function(h){
+            return Array.isArray(h)
+              ? '<b class="pl"><i>'+esc(h[0])+'</i>'+esc(h[1])+'</b>'
+              : '<b>'+esc(h)+'</b>';
+          }).join('')+
+          (m.n?'<u>'+esc(m.n)+'</u>':'')+
+        '</span></div>';
+    }).join('')+'</div>';
+  };
+  const ecran=function(p){
+    return '<div class="ec" style="--ac:'+p.c+'"><div class="ec-t">'+esc(p.t)+'</div><ul>'+
+      p.l.map(function(x,i){
+        const k=(p.p&&p.p[i])||null;
+        return '<li'+(k?' class="avecpic"':'')+'>'+
+          (k?'<span class="lp'+(k==='interdit'?' rouge':'')+'">'+memoPicPapier(k)+'</span>':'')+
+          '<span>'+x+'</span></li>';
+      }).join('')+'</ul></div>';
+  };
+  const autres=ACC_POINTS.filter(function(x){ return !x.horaires; });
+  const dormir=autres[0], verso=autres.slice(1);
+  const hor=ACC_POINTS.filter(function(x){ return x.horaires; })[0]||{c:'#6FC7D9',t:'Les horaires'};
+  const date=esc(new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long',year:'numeric'}));
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+    '<meta name="viewport" content="width=900">'+
+    '<title>Le mémo du centre — COUSIN</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;font-size:11px;'+
+      'text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;min-height:297mm;margin:26px auto;padding:13mm 15mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '.date{font-size:12px;color:#444;margin-bottom:8px}'+
+    /* L'écran : un cadre fin à sa couleur, le titre en gros, comme sur le téléphone. */
+    '.ec{border:2px solid var(--ac);border-radius:14px;padding:14px 16px 8px;break-inside:avoid}'+
+    '.ec-t{font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:-.01em;line-height:1.1;margin-bottom:8px}'+
+    '.deux{display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start}'+
+    '.pile{display:flex;flex-direction:column;gap:6mm}'+
+    '.sous{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px}'+
+    /* La frise : le fil derrière les ronds, le rond cerclé, l'intitulé petit, l'heure en gras. */
+    '.hrgs{position:relative}'+
+    '.hrgs:before{content:"";position:absolute;left:19px;top:20px;bottom:20px;width:2px;background:#d6d4d0}'+
+    '.hrg{display:flex;align-items:center;gap:12px;padding:6px 0;position:relative}'+
+    '.hrg .rd{width:40px;height:40px;flex:none;border-radius:50%;border:2.5px solid var(--hc);background:#fff;'+
+      'display:flex;align-items:center;justify-content:center;position:relative;z-index:1}'+
+    '.rd img,.rd svg{width:22px;height:22px;display:block;color:#1b1b1b}'+
+    '.hrg .tx{display:flex;flex-direction:column;gap:1px}'+
+    '.hrg em{font-style:normal;font-size:11px;font-weight:700;color:#444;letter-spacing:.06em;text-transform:uppercase}'+
+    '.hrg b{font-size:17px;font-weight:800;line-height:1.25}'+
+    '.hrg b.pl{font-size:15px}'+
+    '.hrg b i{font-style:normal;font-weight:400;color:#444;margin-right:6px}'+
+    '.hrg u{text-decoration:none;font-size:11.5px;font-weight:700;color:#444}'+
+    /* Les lignes : le rond cerclé devant, ou le point de couleur. */
+    'ul{list-style:none}'+
+    'li{font-size:14.5px;line-height:1.45;padding:7px 0;position:relative}'+
+    'li+li{border-top:1px solid #e2e0dc}'+
+    'li.avecpic{display:flex;gap:11px;align-items:center}'+
+    'li:not(.avecpic){padding-left:16px}'+
+    'li:not(.avecpic):before{content:"";position:absolute;left:0;top:15px;width:7px;height:7px;border-radius:50%;background:var(--ac)}'+
+    '.lp{width:34px;height:34px;flex:none;border-radius:50%;border:2.4px solid var(--ac);background:#fff;'+
+      'display:flex;align-items:center;justify-content:center}'+
+    '.lp img,.lp svg{width:18px;height:18px;display:block;color:#1b1b1b}'+
+    '.lp.rouge{border-color:#e63329;background:#fdeeed}'+
+    'li span span{font-size:13px}'+
+    '.pied{margin-top:6mm;padding-top:8px;border-top:2.5px solid #1b1b1b;display:flex;'+
+      'justify-content:space-between;font-size:14px;font-weight:700}'+
+    '@media print{.bar{display:none}.pg{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}'+
+      '.pg+.pg{break-before:page}@page{size:A4;margin:12mm 14mm}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Le mémo — aperçu · A4 recto-verso</b>'+
+      '<button onclick="window.close()">Fermer</button>'+
+      '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    /* RECTO */
+    '<div class="pg"><div class="date">'+date+'</div><div class="pile">'+
+      '<div class="ec" style="--ac:'+hor.c+'"><div class="ec-t">'+esc(hor.t)+'</div>'+
+        '<div class="deux">'+
+          '<div><div class="sous">Le centre</div>'+frise(HORAIRES.memo)+'</div>'+
+          '<div><div class="sous">L’infirmerie</div>'+frise(HORAIRES.infirmeries)+'</div>'+
+        '</div></div>'+
+      (dormir?ecran(dormir):'')+
+    '</div></div>'+
+    /* VERSO */
+    '<div class="pg"><div class="deux">'+
+      /* Les deux longs (l'interdit, ce qu'on peut demander) chacun dans sa colonne,
+         pour que le verso tienne sur une page. */
+      '<div class="pile">'+[verso[0],verso[3]].filter(Boolean).map(ecran).join('')+'</div>'+
+      '<div class="pile">'+[verso[1],verso[2]].filter(Boolean).map(ecran).join('')+'</div>'+
+    '</div>'+
+    '<div class="pied"><span>Urgences : 112</span><span>Le centre : '+esc(H.tel)+'</span></div>'+
+    '</div></body></html>');
+  w.document.close();
+}
+/* ═══ L'HORLOGE OUVRE LE MÉMO, RÉDUIT AUX HORAIRES (Mag, 05/10/2026) ═══
+   « Le picto qu'on a mis pour les polyvalents, ça devrait ouvrir la page du mémo — et
+   tu mets que les horaires. » Même page plein écran, même dessin, mais un seul écran :
+   pas de compte « 1 / 6 », pas de jauge, pas de flèches, pas d'imprimante. */
+let ACC_SEUL=false;
+function accSlideOuvrir(){ ACC_SEUL=false; ACC_I=0; accSlideDessine(); }
+function accHorairesOuvrir(){
+  ACC_SEUL=true;
+  ACC_I=Math.max(0, ACC_POINTS.findIndex(function(x){ return x.horaires; }));
+  accSlideDessine();
+}
+/* Les flèches du clavier tournent les écrans du mémo, quand il est ouvert. */
+document.addEventListener('keydown', function(e){
+  const bg=document.getElementById('accSlBg');
+  if(!bg || !bg.classList.contains('on') || ACC_SEUL) return;
+  if(e.key==='ArrowRight') accSlideAller(1);
+  else if(e.key==='ArrowLeft') accSlideAller(-1);
+});
 function accSlideAller(d){
   ACC_I=Math.max(0, Math.min(ACC_POINTS.length-1, ACC_I+d));
   accSlideDessine();
@@ -40171,14 +40351,14 @@ function accSlideDessine(){
   const p=ACC_POINTS[ACC_I], n=ACC_POINTS.length, dernier=(ACC_I===n-1);
   bg.innerHTML='<div class="popcard accsl" role="dialog" aria-modal="true" style="--ac:'+p.c+'">'+
     /* Plus de gros picto : le titre et le compte, sur une ligne. */
-    '<div class="accsl-h"><i>'+(ACC_I+1)+' / '+n+'</i>'+
+    '<div class="accsl-h"><i>'+(ACC_SEUL?'':(ACC_I+1)+' / '+n)+'</i>'+
       '<button class="accsl-x" onclick="document.getElementById(\'accSlBg\').classList.remove(\'on\')" '+
       'aria-label="Fermer">'+icon('x')+'</button></div>'+
     '<b>'+esc(p.t)+'</b>'+
     /* Un écran marqué `horaires` affiche la frise, celle-là même que l'horloge de la
        barre du haut ouvre. Le code du dessin est partagé : `horairesFrise()`. */
     (p.horaires
-      ? horairesFrise()
+      ? horairesOnglets()
       : '<ul>'+p.l.map(function(x,i){
           const k=(p.p&&p.p[i])||null;
           return '<li'+(k?' class="avecpic"':'')+'>'+
@@ -40191,15 +40371,26 @@ function accSlideDessine(){
     /* ═══ LE BAS : LA JAUGE EST LA COMMANDE (dessin D, Mag 22/09/2026) ═══
        Chaque barre est un bouton : on tape celle qu'on veut et on y va. Pas de flèche
        à viser, pas de « suivant » à lire. Et le papier tient dans un rond. */
-    '<div class="accsl-nav">'+
+    /* ⚠ SUR PC, DEUX FLÈCHES DE PART ET D'AUTRE DE LA JAUGE (Mag, 05/10/2026 : « sur le
+       PC, c'est pas très intuitif qu'il faille cliquer sur les barres »). Sur un
+       téléphone on glisse du doigt : elles n'y sont pas montrées (voir `.accsl-fl`).
+       Les touches ← et → du clavier font la même chose. */
+    (ACC_SEUL?'':'<div class="accsl-nav">'+
+      '<button type="button" class="accsl-fl" onclick="accSlideAller(-1)" aria-label="Écran précédent"'+
+        (ACC_I===0?' disabled':'')+'>'+icon('chevron')+'</button>'+
       '<div class="accsl-p">'+ACC_POINTS.map(function(q,i){
         return '<button type="button" class="'+(i===ACC_I?'on':'')+'" onclick="accSlideVersEcran('+i+')" '+
           'aria-label="'+esc(q.t)+'"></button>'; }).join('')+'</div>'+
+      '<button type="button" class="accsl-fl d" onclick="accSlideAller(1)" aria-label="Écran suivant"'+
+        (ACC_I===ACC_POINTS.length-1?' disabled':'')+'>'+icon('chevron')+'</button>'+
       '<div class="accsl-doc">'+
-        '<button onclick="document.getElementById(\'accSlBg\').classList.remove(\'on\');roiOuvrir()" '+
-          'aria-label="ROI / Charte" title="ROI / Charte">'+icon('imprimer')+'</button>'+
+        /* ⚠ L'IMPRIMANTE IMPRIME LE MÉMO (Mag, 05/10/2026 : « j'aimerais qu'on puisse
+           imprimer le mémo, juste le strict minimum à savoir »). Elle menait avant à la
+           fenêtre Charte & ROI, qui reste ouverte depuis le dossier de la barre du haut. */
+        '<button onclick="imprimerMemo()" '+
+          'aria-label="Imprimer le mémo" title="Imprimer le mémo">'+icon('imprimer')+'</button>'+
       '</div>'+
-    '</div>'+
+    '</div>')+
   '</div>';
   /* ⚠ ON GLISSE POUR CHANGER D'ÉCRAN. C'est ce qui remplace les flèches : le doigt
      part à gauche, l'écran suivant arrive. 45 px de course au minimum, et le geste
@@ -40212,7 +40403,7 @@ function accSlideDessine(){
   }, {passive:true});
   carte.addEventListener('touchend', function(e){
     const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
-    if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.5) accSlideAller(dx<0?1:-1);
+    if(!ACC_SEUL && Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.5) accSlideAller(dx<0?1:-1);
   }, {passive:true});
   bg.classList.add('on');
 }
@@ -40268,8 +40459,8 @@ function lingeParEtage(){
    ⚠ LA RÈGLE NE VISE QUE LE h D'UNE HEURE : précédé d'un chiffre, et non suivi d'une
    lettre — sinon elle mordrait sur « hygiène » ou « chambre ». */
 function hJoli(t){ return String(t).replace(/(\d)\s*h(?![a-zà-ÿ])/g, '$1<span class="hh">h</span>'); }
-function horairesFrise(){
-  return '<div class="hrgs">'+HORAIRES.memo.map(function(m){
+function horairesFrise(liste){
+  return '<div class="hrgs">'+(liste||HORAIRES.memo).map(function(m){
     return '<div class="hrg" style="--hc:'+m.c+'">'+
       '<span class="rd">'+icon(m.ic)+'</span>'+
       '<span class="tx"><em>'+esc(m.t)+'</em>'+
@@ -40283,7 +40474,25 @@ function horairesFrise(){
     '</div>';
   }).join('')+'</div>';
 }
-function horairesOuvrir(){
+/* ═══ DEUX PAGES : LE CENTRE, LES INFIRMERIES (05/10/2026) ═══
+   Les deux pages sont dessinées d'un coup, l'onglet ne fait que montrer l'une et
+   cacher l'autre (classe `inf` sur le cadre). Elles se BASCULENT, jamais empilées.
+   Le même dessin sert à l'horloge de la barre du haut et au premier écran du mémo. */
+function horairesOnglets(){
+  const o=function(inf,t){
+    return '<button type="button" class="'+(inf?'o-inf':'o-cen')+'" '+
+      'onclick="this.parentNode.parentNode.classList.toggle(\'inf\','+(inf?'true':'false')+')">'+t+'</button>';
+  };
+  return '<div class="horong">'+
+    '<div class="horong-b">'+o(0,'Le centre')+o(1,'L’infirmerie')+'</div>'+
+    '<div class="horong-cen">'+horairesFrise(HORAIRES.memo)+'</div>'+
+    '<div class="horong-inf">'+horairesFrise(HORAIRES.infirmeries)+'</div>'+
+  '</div>';
+}
+function horairesOuvrir(){ accHorairesOuvrir(); }
+/* L'ancienne fenêtre (carte au milieu de l'écran), gardée sous un autre nom : plus
+   rien ne l'ouvre depuis le 05/10/2026, l'horloge mène au mémo réduit aux horaires. */
+function horairesFenetreOuvrir(){
   let bg=document.getElementById('permBg');
   if(!bg){
     bg=document.createElement('div'); bg.id='permBg'; bg.className='popbg';
@@ -40292,7 +40501,7 @@ function horairesOuvrir(){
   }
   bg.innerHTML='<div class="popcard hormemo" role="dialog" aria-modal="true">'+
     '<b>Les horaires</b>'+
-    horairesFrise()+
+    horairesOnglets()+
     /* ⚠ PAS DE LIGNE DE SOURCE ICI (Mag, 22/09/2026 : « retire ça, du petit pop-up
        horaire. Ils s'en foutent, les polyvalents, de ça. En plus, ça rentre pas dans
        l'écran »). C'était « Recopié du Résumé ROI du centre, MAJ 24-02-25 ». La
@@ -40359,6 +40568,10 @@ function roiOuvrir(){
       return '<div class="roigr" style="background:'+g.c+';color:'+g.e+'">'+esc(g.t)+
           '<i>'+g.l.length+'</i></div>'+
         '<div class="roiL">'+g.l.map(function(d){
+          if(d.fn) return '<button type="button" class="roibtn" style="border-color:'+g.c+'" '+
+            'onclick="document.getElementById(\'roiBg\').classList.remove(\'on\');'+d.fn+'()">'+
+            '<b style="background:'+g.c+';color:'+g.e+'">'+d.k+'</b>'+
+            '<span>'+esc(d.n)+'<em>ouvrir · imprimer</em></span></button>';
           /* ⚠ `.html` COMME `.pdf` : ça s'OUVRE, ça ne se télécharge pas. Sans ça,
              notre feuille refaite partait dans les téléchargements au lieu de
              s'afficher — et on ne peut pas l'imprimer depuis les téléchargements. */
@@ -41052,12 +41265,17 @@ function absNote(id){
   cousinPop({titre:'La note', texte:a.nom, champ:a.note||'', max:300, ok:'Enregistrer', sansAudio:1,
     quandOui:function(v){ const t=String(v||'').trim().slice(0,300); absMaj(a,{note:t||null}); }});
 }
+/* ⚠ LA QUESTION « LAM OU MÉD ? » N'APPARAÎT QU'À PARTIR DE 3 NUITS (Mag, 05/10/2026 :
+   « c'est seulement après 3 jours qu'on doit se poser la question. Tant qu'on ne doit
+   pas les encoder, on s'en fout un peu que ce soit en bas ou en haut »). Avant, la
+   ligne ne la pose pas ; une réponse déjà donnée, elle, reste affichée. */
 function absTag(a){
+  if((a.lam===null || a.lam===undefined) && !absATraiter(a)) return '';
   if(a.lam===null || a.lam===undefined)
     return '<button type="button" class="abstag apreciser" onclick="absLamOuvrir('+a.id+')" title="Préciser LAM ou médical">LAM ou MÉD ?</button>';
   return '<button type="button" class="abstag'+(a.lam?' lam':'')+'" onclick="absLamOuvrir('+a.id+')" title="Changer">'+(a.lam?'LAM':'MÉD')+'</button>';
 }
-function absType(a){ return a.lam===true?'LAM':(a.lam===false?'médical':'LAM ou médical ?'); }
+function absType(a){ return a.lam===true?'LAM':(a.lam===false?'médical':(absATraiter(a)?'LAM ou médical ?':'')); }
 function absCorbeille(a){
   return '<button type="button" class="abssup" onclick="absRetirer('+a.id+')" aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>';
 }
@@ -41096,7 +41314,10 @@ function absencesCorps(){
      qu'on compare d'un coup d'œil avec le programme. */
   if(ABSENCES.length){
     const nl=ABSENCES.filter(function(a){ return a.lam===true; }).length, nt=ABSENCES.length,
-          nm=ABSENCES.filter(function(a){ return a.lam===false; }).length, np=nt-nl-nm;
+          nm=ABSENCES.filter(function(a){ return a.lam===false; }).length,
+          /* Le rappel ne compte que les absences de 3 nuits et plus : en dessous, la
+             question ne se pose pas encore. */
+          np=ABSENCES.filter(function(a){ return (a.lam===null||a.lam===undefined) && absATraiter(a); }).length;
     h+='<div class="abstot">'+
       '<div class="abstot-c"><b>'+nt+'</b><span>absence'+(nt>1?'s':'')+'</span></div>'+
       '<div class="abstot-c lam"><b>'+nl+'</b><span>LAM</span></div>'+
@@ -41141,7 +41362,8 @@ function absPhrase(a){
    à l'écran, dans le texte copié et sur la feuille. */
 function absTotal(){
   const n=ABSENCES.length, nl=ABSENCES.filter(function(a){ return a.lam===true; }).length,
-        nm=ABSENCES.filter(function(a){ return a.lam===false; }).length, np=n-nl-nm;
+        nm=ABSENCES.filter(function(a){ return a.lam===false; }).length,
+        np=ABSENCES.filter(function(a){ return (a.lam===null||a.lam===undefined) && absATraiter(a); }).length;
   return n+' absence'+(n>1?'s':'')+' · '+nl+' LAM · '+nm+' médical'+(np?' · '+np+' à préciser':'');
 }
 function absTri(L){ return L.slice().sort(function(a,b){
@@ -41156,7 +41378,7 @@ function absencesEnTexte(){
     if(!liste.length) return;
     L.push(''); L.push('*'+titre+' · '+liste.length+'*'); L.push('');
     liste.forEach(function(a){
-      L.push('• *'+a.nom+'* — '+absType(a));
+      L.push('• *'+a.nom+'*'+(absType(a)?' — '+absType(a):''));
       L.push('   '+ic[a.statut||'nonjust']+' '+absPhrase(a));
       if(a.note) L.push('   💬 '+a.note);
       L.push('');
