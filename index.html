@@ -1982,9 +1982,10 @@ body.pan-ouvert #view{animation:none;transform:none}
   padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;
   white-space:pre-wrap;word-break:break-word;max-height:min(420px,46vh);overflow:auto}
 .accnote-a{font-family:inherit;font-size:14.5px;line-height:1.5;white-space:normal}
-.accnote-a p{margin:0}
-.accnote-a .ana-s{margin:0 0 14px}
-.accnote-a .ana-s:last-child{margin-bottom:0}
+.accnote-a p{margin:12px 0 2px}
+.accnote-a p:first-child{margin-top:0}
+.accnote-a ul{margin:0;padding-left:20px}
+.accnote-a li{margin:1px 0}
 .accnote-a u{text-underline-offset:3px}
 .accnote.vide{color:var(--enc2);font-family:inherit;font-size:14px;line-height:1.5}
 .accact{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
@@ -32643,39 +32644,38 @@ function accFin(g){
    autre programme ne connaît pas nos styles. Mêmes règles que `accNote` : `hn`, sans
    doublon d'étiquette, courtes puis longues, la phrase de fin. */
 function accNoteA(volet, k, pourCopie){
-  /* ⚠ UN PARAGRAPHE PAR LIGNE, PAS DE <br> (Mag, 05/10/2026, collé dans KAIROS : « ici il
-     manque des retours à la ligne »). Son programme garde le gras et les paragraphes,
-     mais AVALE les <br> : tout un bloc arrivait sur une seule ligne. Chaque ligne est
-     donc un <p>, et pour la copie un paragraphe vide sépare les blocs (les marges, elles,
-     ne passent pas d'un programme à l'autre). */
+  /* ═══ UNE VRAIE LISTE À PUCES (Mag, 05/10/2026 — quatre essais collés dans KAIROS,
+     elle a gardé le 2) ═══ KAIROS avale les <br> et met un grand blanc après chaque
+     <p> : une ligne par paragraphe étirait toute la note. Les listes <ul>/<li>, il les
+     garde serrées. Donc : le titre en <p> gras souligné, puis une liste ; la phrase de
+     fin en <p> italique. Même rendu à l'écran. Des balises simples, pas de classes. */
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const P=function(h){ return '<p style="margin:0">'+h+'</p>'; };
   const out=[];
   accJeu(volet).forEach(function(g){
     const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
-    const lig=[];
-    const ici=function(f,h){ return (k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h; };
+    const li=[];
+    const ici=function(f,h){ return '<li>'+((k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h)+'</li>'; };
     remplis.filter(function(f){ return !accEstLong(f); }).forEach(function(f){
-      if(f.t==='case'){ lig.push(P(ici(f,'• <b>'+esc(accEtiq(f))+'</b>'))); return; }
+      if(f.t==='case'){ li.push(ici(f,'<b>'+esc(accEtiq(f))+'</b>')); return; }
       const e=accSansDoublon(accEtiq(f), g.s);
-      lig.push(P(ici(f,'• '+(e?esc(e)+' : ':'')+'<b>'+esc(String(ACC[f.k]).trim())+'</b>')));
+      li.push(ici(f,(e?esc(e)+' : ':'')+'<b>'+esc(String(ACC[f.k]).trim())+'</b>'));
     });
     remplis.filter(function(f){ return accEstLong(f); }).forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
-      if(e) lig.push(P(ici(f,'• '+esc(e)+' :')));
-      String(ACC[f.k]).trim().split('\n').forEach(function(x){
-        lig.push(P(x.trim() ? ici(f,esc(x)) : '&nbsp;'));
+      const lignes=String(ACC[f.k]).trim().split('\n').filter(function(x){ return x.trim(); });
+      lignes.forEach(function(x,n){
+        li.push(ici(f,(n===0 && e ? esc(e)+' : ' : '')+esc(x.trim())));
       });
     });
-    if(accFin(g)) lig.push(P('<i>→ '+esc(accFin(g))+'</i>'));
-    out.push('<div class="ana-s">'+(g.noteSansTitre?'':P('<b><u>'+esc(g.s)+'</u></b>'))+lig.join('')+'</div>');
+    out.push((g.noteSansTitre?'':'<p><b><u>'+esc(g.s)+'</u></b></p>')+
+      '<ul>'+li.join('')+'</ul>'+
+      (accFin(g)?'<p><i>→ '+esc(accFin(g))+'</i></p>':''));
   });
   if(!out.length) return '';
-  const sep=pourCopie ? P('&nbsp;') : '';
-  return '<div class="ana-s">'+P('<span style="color:#73716b">'+(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d+'</span>')+'</div>'+
-    sep+out.join(sep);
+  return '<p><span style="color:#73716b">'+(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d+'</span></p>'+out.join('');
 }
+
 
 function accNoteHTML(lignes, k){
   return lignes.map(function(x){
