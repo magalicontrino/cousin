@@ -1981,6 +1981,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accnote{margin:0;background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;
   padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;
   white-space:pre-wrap;word-break:break-word;max-height:min(420px,46vh);overflow:auto}
+.accnote-a{font-family:inherit;font-size:14.5px;line-height:1.5;white-space:normal}
+.accnote-a p{margin:0 0 14px}
+.accnote-a p:last-child{margin-bottom:0}
+.accnote-a u{text-underline-offset:3px}
 .accnote.vide{color:var(--enc2);font-family:inherit;font-size:14px;line-height:1.5}
 .accact{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
 .accb{display:inline-flex;align-items:center;gap:8px;background:#fdfdfc;border:1.25px solid var(--trait);
@@ -32631,6 +32635,35 @@ function accOuiNon(k,v){
 function accFin(g){
   return (g.fin && g.fin.si.every(function(k){ return (ACC[k]||'').trim(); })) ? g.fin.t : '';
 }
+/* ═══ LA NOTE EN « A » (Mag, 05/10/2026 — quatre dessins comparés, puis collés dans son
+   programme : elle a choisi le A) ═══ Le titre en gras souligné, une puce par réponse,
+   la réponse courte en gras, un blanc entre les blocs. Des balises SIMPLES (b, u, i,
+   br, p) et pas des classes : c'est ce HTML qui part aussi dans le presse-papier, et un
+   autre programme ne connaît pas nos styles. Mêmes règles que `accNote` : `hn`, sans
+   doublon d'étiquette, courtes puis longues, la phrase de fin. */
+function accNoteA(volet, k){
+  const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const out=[];
+  accJeu(volet).forEach(function(g){
+    const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
+    if(!remplis.length) return;
+    const lig=[];
+    const ici=function(f,h){ return (k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h; };
+    remplis.filter(function(f){ return !accEstLong(f); }).forEach(function(f){
+      if(f.t==='case'){ lig.push(ici(f,'• <b>'+esc(accEtiq(f))+'</b>')); return; }
+      const e=accSansDoublon(accEtiq(f), g.s);
+      lig.push(ici(f,'• '+(e?esc(e)+' : ':'')+'<b>'+esc(String(ACC[f.k]).trim())+'</b>'));
+    });
+    remplis.filter(function(f){ return accEstLong(f); }).forEach(function(f){
+      const e=accSansDoublon(accEtiq(f), g.s);
+      lig.push(ici(f,(e?'• '+esc(e)+' :<br>':'')+esc(String(ACC[f.k]).trim()).replace(/\n/g,'<br>')));
+    });
+    if(accFin(g)) lig.push('<i>→ '+esc(accFin(g))+'</i>');
+    out.push('<p><b><u>'+esc(g.s)+'</u></b><br>'+lig.join('<br>')+'</p>');
+  });
+  if(!out.length) return '';
+  return '<p style="color:#73716b">'+(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d+'</p>'+out.join('');
+}
 function accNoteHTML(lignes, k){
   return lignes.map(function(x){
     let t;
@@ -32654,7 +32687,7 @@ function accNoteMaj(k){
   /* ⚠ `innerHTML` ET PAS `textContent` : il faut poser un repère sur la ligne du
      champ qu'on remplit. Tout est échappé — et le texte qui part dans le
      presse-papier ou sur la feuille vient de `accNote()`, pas d'ici. */
-  el.innerHTML=accNoteHTML(lignes, k);
+  el.innerHTML=accNoteA(current&&current.volet, k);
   /* ═══ ON VOIT TOUJOURS CE QU'ON ÉCRIT (Mag, 26/08/2026) ═══
      Dès que la note dépasse la hauteur de sa fenêtre, la ligne qu'on est en train
      de remplir peut sortir du cadre — on écrit sans se relire.
@@ -33113,9 +33146,9 @@ function vAccueilPersonne(volet){
      le curseur au milieu d'un mot — c'est le piège déjà payé trois fois ici. */
   h+='<div class="acccote">';
   h+='<div class="accnotebloc"><div class="acct">La note</div>'+
-     '<pre id="accNote" class="accnote'+(accNote(volet)?'':' vide')+'">'+
-     accNoteHTML(accNoteLignes(volet))+
-     '</pre></div>';
+     '<div id="accNote" class="accnote accnote-a'+(accNote(volet)?'':' vide')+'">'+
+     accNoteA(volet)+
+     '</div></div>';
   h+='<div class="accact">'+
      /* Deux pictos, sans mot (Mag, 03/10/2026 : « mets juste les pictos copier et print »).
         Le mot reste au survol et pour la lecture à voix haute. */
@@ -33273,6 +33306,21 @@ function accNote(volet){
 function accCopier(volet){
   const t=accNote(volet);
   if(!t){ toast('Rien à copier — la page est vide'); return; }
+  /* ⚠ DEUX VERSIONS DANS LE PRESSE-PAPIER (Mag, 05/10/2026, après l'essai des quatre
+     dessins dans son programme) : la mise en forme A (gras, souligné) pour un programme
+     qui la lit, et le texte simple d'avant pour celui qui ne la lit pas. Chaque
+     programme prend celle qu'il sait coller. Si le navigateur refuse, le texte seul. */
+  try{
+    if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+      const html='<div style="font-family:Arial,sans-serif;font-size:14px">'+accNoteA(volet)+'</div>';
+      navigator.clipboard.write([new ClipboardItem({
+        'text/html':new Blob([html],{type:'text/html'}),
+        'text/plain':new Blob([t],{type:'text/plain'})
+      })]).then(function(){ toast('Note copiée — colle-la dans KAIROS'); },
+               function(){ copyTxt(t,'Note copiée — colle-la dans KAIROS'); });
+      return;
+    }
+  }catch(e){}
   copyTxt(t,'Note copiée — colle-la dans KAIROS');
 }
 /* La feuille : remplie si on a écrit, VIERGE sinon. C'est la même trame dans les deux
