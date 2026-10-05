@@ -32623,6 +32623,21 @@ function accOuiNon(k,v){
   accNoteMaj(k); accBrouillonSauver();
 }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
+/* ═══ LES TITRES ET LES RÉPONSES EN GRAS, À L'ÉCRAN (Mag, 05/10/2026 : « ce sont les
+   titres qui devraient être en gras, et la réponse — le "oui" à "veut voir une psy" —
+   pour qu'en lecture diagonale on voie les réponses ») ═══ Le texte COPIÉ pour KAIROS
+   reste brut (`accNote`) : le gras ne passe pas dans un presse-papier de texte.
+   Seules les réponses COURTES sont en gras — un paragraphe en gras ne se lit plus. */
+function accNoteHTML(lignes, k){
+  return lignes.map(function(x){
+    let t;
+    if(x.titre) t='<b>'+esc(x.t)+'</b>';
+    else if(x.rep && x.t.slice(-x.rep.length)===x.rep)
+      t=esc(x.t.slice(0, x.t.length-x.rep.length))+'<b>'+esc(x.rep)+'</b>';
+    else t=esc(x.t);
+    return (k && x.k===k) ? '<span id="accIci">'+t+'</span>' : t;
+  }).join('\n');
+}
 function accNoteMaj(k){
   const el=document.getElementById('accNote'); if(!el) return;
   const lignes=accNoteLignes(current&&current.volet);
@@ -32636,10 +32651,7 @@ function accNoteMaj(k){
   /* ⚠ `innerHTML` ET PAS `textContent` : il faut poser un repère sur la ligne du
      champ qu'on remplit. Tout est échappé — et le texte qui part dans le
      presse-papier ou sur la feuille vient de `accNote()`, pas d'ici. */
-  el.innerHTML=lignes.map(function(x){
-    const t=esc(x.t);
-    return (k && x.k===k) ? '<span id="accIci">'+t+'</span>' : t;
-  }).join('\n');
+  el.innerHTML=accNoteHTML(lignes, k);
   /* ═══ ON VOIT TOUJOURS CE QU'ON ÉCRIT (Mag, 26/08/2026) ═══
      Dès que la note dépasse la hauteur de sa fenêtre, la ligne qu'on est en train
      de remplir peut sortir du cadre — on écrit sans se relire.
@@ -33096,7 +33108,7 @@ function vAccueilPersonne(volet){
   h+='<div class="acccote">';
   h+='<div class="accnotebloc"><div class="acct">La note</div>'+
      '<pre id="accNote" class="accnote'+(accNote(volet)?'':' vide')+'">'+
-     esc(accNote(volet)||'')+
+     accNoteHTML(accNoteLignes(volet))+
      '</pre></div>';
   h+='<div class="accact">'+
      /* Deux pictos, sans mot (Mag, 03/10/2026 : « mets juste les pictos copier et print »).
@@ -33183,7 +33195,7 @@ function accNoteLignes(volet){
        même pas son titre — sinon la note s'ouvrirait sur un intertitre suivi de rien. */
     const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
-    l.push({t:g.s.toUpperCase()});
+    l.push({t:g.s.toUpperCase(), titre:1});
     /* ⚠ LA FORME SUIT LA LONGUEUR — proposition B, choisie par toi le 27/08/2026.
        « Interprète / oui » et le récit de la situation des enfants ne peuvent pas
        avoir la même forme : sur une seule ligne, une réponse d'entretien devient un
@@ -33199,9 +33211,11 @@ function accNoteLignes(volet){
     const courts=remplis.filter(function(f){ return !accEstLong(f); });
     const longs =remplis.filter(function(f){ return  accEstLong(f); });
     courts.forEach(function(f){
-      const e=accSansDoublon(accEtiq(f), g.s);
-      l.push({t:(e ? ('· '+e+' / '+String(ACC[f.k]).trim())
-                   : ('· '+String(ACC[f.k]).trim())), k:f.k});
+      /* Une case cochée s'écrit seule, sans « / OK » (Mag, 05/10/2026 : « enlève les
+         OK ») : être dans la note dit déjà que c'est fait. */
+      if(f.t==='case'){ l.push({t:'· '+accEtiq(f), k:f.k, rep:accEtiq(f)}); return; }
+      const e=accSansDoublon(accEtiq(f), g.s), r=String(ACC[f.k]).trim();
+      l.push({t:(e ? ('· '+e+' / '+r) : ('· '+r)), k:f.k, rep:r});
     });
     longs.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
@@ -33233,6 +33247,7 @@ function accNote(volet){
     const courts=remplis.filter(function(f){ return !accEstLong(f); });
     const longs =remplis.filter(function(f){ return  accEstLong(f); });
     courts.forEach(function(f){
+      if(f.t==='case'){ l.push('· '+accEtiq(f)); return; }
       const e=accSansDoublon(accEtiq(f), g.s);
       l.push(e ? ('· '+e+' / '+String(ACC[f.k]).trim()) : ('· '+String(ACC[f.k]).trim()));
     });
