@@ -1966,6 +1966,12 @@ body.pan-ouvert #view{animation:none;transform:none}
    dans une note qui part au dossier. Tant qu'on n'a pas cliqué, rien ne s'écrit.
    Recliquer sur la réponse déjà choisie l'efface — on peut se tromper.
    ⚠ RIEN NE BOUGE AU SURVOL (sa règle du 18/08) : seule la couleur change. */
+.acccase{display:inline-flex;align-items:center;gap:10px;font:inherit;font-size:16px;color:var(--noir);
+  background:#fdfdfc;border:1.25px solid var(--trait);border-radius:12px;padding:10px 14px;cursor:pointer}
+.acccase .bx{width:22px;height:22px;border:1.75px solid #9b9892;border-radius:6px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:14px;font-weight:800;flex:none}
+.acccase.on{border-color:var(--noir)}
+.acccase.on .bx{background:var(--noir);border-color:var(--noir);color:#fdfdfc}
 .accon{display:flex;gap:8px}
 .accon button{font:inherit;font-size:15px;font-weight:600;color:var(--noir);
   background:#fdfdfc;border:1.25px solid var(--trait);border-radius:10px;
@@ -32602,6 +32608,12 @@ function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); }
 /* ⚠ ON NE REDESSINE PAS LE FORMULAIRE — on ne change que la couleur des deux
    boutons. Redessiner à chaque clic effacerait le curseur du champ d'à côté :
    c'est le piège déjà payé trois fois sur cette page. */
+function accCase(k){
+  ACC[k]=ACC[k]?'':'OK';
+  const b=document.getElementById('acccase-'+k);
+  if(b){ b.classList.toggle('on',!!ACC[k]); const x=b.querySelector('.bx'); if(x) x.textContent=ACC[k]?'✓':''; }
+  accNoteMaj(k); accBrouillonSauver();
+}
 function accOuiNon(k,v){
   ACC[k]=(ACC[k]===v)?'':v;
   const w=document.getElementById('accon-'+k);
@@ -32993,6 +33005,15 @@ const ACC_CHAMPS=[
      meilleur bien-être, et laisse une fenêtre à remplir ». Dans les DEUX entretiens. */
   {s:'Bien-être', c:[
     {k:'bienetre',l:'Ce qui pourrait être fait pour un meilleur bien-être',n:'Pour un meilleur bien-être',b:1}
+  ]},
+  /* ═══ LES SIGNATURES, À COCHER AU MOMENT OÙ ÇA SE FAIT (Mag, 05/10/2026 : « ROI
+     signé, copie du ROI rendue, charte d'engagement signée — que je puisse cocher
+     quand je fais signer à la personne et quand je rends la copie ») ═══ Une case
+     cochée part dans la note avec « OK » ; décochée, rien. */
+  {s:'Documents', c:[
+    {k:'roi_signe',l:'ROI signé',t:'case',n:'ROI signé'},
+    {k:'roi_copie',l:'Copie du ROI rendue',t:'case',n:'Copie du ROI rendue'},
+    {k:'charte_signee',l:'Charte d’engagement signée',t:'case',n:'Charte d’engagement signée'}
   ]}
 ];
 function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : ACC_CHAMPS; }
@@ -33027,6 +33048,11 @@ function vAccueilPersonne(volet){
         const v=esc(ACC[f.k]||'');
         /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
            renvoie le clic à son premier contrôle, et la réponse se poserait deux fois. */
+        if(f.t==='case'){
+          return '<div class="accf"><button type="button" id="acccase-'+f.k+'" '+
+            'class="acccase'+(ACC[f.k]?' on':'')+'" onclick="accCase(\''+f.k+'\')">'+
+            '<span class="bx">'+(ACC[f.k]?'✓':'')+'</span>'+esc(f.l)+'</button></div>';
+        }
         if(f.t==='ouinon'){
           return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
             '<div class="accon" id="accon-'+f.k+'">'+
@@ -33238,6 +33264,9 @@ function accImprimer(volet){
        à cocher au stylo. Une ligne pointillée invitait à écrire une phrase là où on
        n'attend qu'un mot, et la feuille vierge doit se remplir aussi vite que
        l'écran. Feuille remplie : la réponse est cochée. */
+    if(f.t==='case'){
+      return '<div class="ch"><span class="cs">'+(v?'☒':'☐')+' '+esc(f.l)+'</span></div>';
+    }
     if(f.t==='ouinon'){
       const cases=['Oui','Non'].map(function(x){
         return '<span class="cs">'+(v===x?'☒':'☐')+' '+x+'</span>';
