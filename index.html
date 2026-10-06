@@ -41530,16 +41530,20 @@ function absCollerDessine(){
   const bg=document.getElementById('absColBg'); if(!bg||!ABS_PLAN) return;
   const P=ABS_PLAN;
   const cb=function(g,i,on){ return '<input type="checkbox" '+(on?'checked':'')+' onchange="ABS_PLAN.'+g+'['+i+'].ok=this.checked">'; };
-  const lamBtn=function(i,v){
+  /* ⚠ ON PEUT TOUJOURS CORRIGER (Mag, 06/10/2026 : « on doit quand même pouvoir changer
+     au cas où ») : l'étiquette lue dans KAIROS est pré-choisie, un toucher la change,
+     pour les nouveaux comme pour ceux qui sont toujours absents. */
+  const lamBtn=function(i,v,g){
+    g=g||'nouveaux';
     return '<span class="abscol-lam">'+
-      '<button class="'+(v===true?'on lam':'')+'" onclick="ABS_PLAN.nouveaux['+i+'].lam=true;absCollerDessine()">LAM</button>'+
-      '<button class="'+(v===false?'on med':'')+'" onclick="ABS_PLAN.nouveaux['+i+'].lam=false;absCollerDessine()">MÉD</button></span>';
+      '<button class="'+(v===true?'on lam':'')+'" onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].lam=true;absCollerDessine()">LAM</button>'+
+      '<button class="'+(v===false?'on med':'')+'" onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].lam=false;absCollerDessine()">MÉD</button></span>';
   };
   let h='<b>La liste du jour</b>';
   h+='<div class="abscol-g"><div class="abscol-t">Toujours absents · '+P.encore.length+'<span>une nuit de plus</span></div>'+
     (P.encore.length?P.encore.map(function(x,i){
       return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+
-        absTag(x.lam===undefined ? x.a : Object.assign({}, x.a, {lam:x.lam}))+
+        lamBtn(i, x.lam===undefined ? x.a.lam : x.lam, 'encore')+
         '<em>'+(x.deja?'ce soir déjà compté':(absNuits(x.a).length+' → '+(absNuits(x.a).length+1)+' nuits'))+'</em></label>';
     }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés avec la nuit de ce soir</span></div>'+
@@ -41564,7 +41568,7 @@ async function absCollerValider(){
   ABS_ECRIT=Date.now();
   /* L'étiquette lue dans KAIROS remplace l'ancienne, même si la nuit est déjà comptée. */
   for(const x of P.encore){
-    if(!x.ok || x.lam===undefined) continue;
+    if(!x.ok || x.lam===undefined || x.lam===x.a.lam) continue;
     const r=await sb.from('absences').update({lam:x.lam}).eq('id',x.a.id).select();
     if(r.error||!r.data||!r.data.length) rate++; else { x.a.lam=x.lam; fait++; }
   }
