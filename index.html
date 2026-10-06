@@ -5332,6 +5332,19 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .accsl-fl:disabled{opacity:.25;cursor:default}
 @media (hover:hover) and (pointer:fine){ .accsl-fl{display:inline-flex} }
 .accsl-doc{display:contents}
+/* La grande fenêtre du mémo, sur ordinateur (06/10/2026) : la feuille, en grand. */
+.popcard.mmf{max-width:1040px;width:calc(100% - 48px);max-height:92vh;display:flex;flex-direction:column;
+  overflow:hidden;padding:20px 26px 22px;background:#fff}
+.popcard.mmf.seul{max-width:900px}
+.popcard.mmf>*{flex:none}
+.mmf-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.popcard.mmf.seul .mmf-h{margin-bottom:-30px;position:relative;z-index:2;padding-right:14px;padding-top:12px}
+.popcard.mmf .mmf-h b{flex:1;font-size:26px;line-height:1.1}
+.mmf-b{width:38px;height:38px;flex:none;border-radius:50%;border:1.5px solid var(--noir);background:#fff;color:var(--noir);
+  display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.mmf-b svg,.mmf-b .pico{width:16px;height:16px}
+.mmf-corps{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+.mmf-sep{height:6mm}
 .accsl-doc button{width:38px;height:38px;flex:none;border-radius:50%;
   border:1.5px solid var(--noir);background:var(--barre);color:var(--noir);
   display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
@@ -40460,33 +40473,95 @@ function memoPicPapier(nom){
   if(m) return '<img src="'+esc(new URL(m[1], location.href).href)+'" alt="">';
   return h.replace(/src="([^"]+)"/, function(x,u){ return 'src="'+esc(new URL(u, location.href).href)+'"'; });
 }
-function imprimerMemo(){
+/* ═══ UN SEUL DESSIN POUR LA FEUILLE ET POUR LE GRAND ÉCRAN (Mag, 06/10/2026) ═══
+   « La pop-up sur écran m'énerve : tout rentre pas, t'as pas de vue d'ensemble. Fais
+   une pop-up qui ressemble presque exactement au print » — puis « remplace ».
+   `memoCorpsHTML` dessine le recto et le verso ; la feuille imprimée et la grande
+   fenêtre de l'ordinateur les affichent tels quels. `memoCss(p)` porte les règles,
+   préfixées par `p` (vide pour la feuille, « .mmf » dans l'app).
+   ⚠ DES CLASSES À ELLES (mf-…) : l'app a déjà `.hrg`, `.hrgs`, `.popcard b`… qui
+   se seraient invités dans le dessin. */
+function memoCorpsHTML(seul){
   const frise=function(liste){
-    return '<div class="hrgs">'+liste.map(function(m){
-      return '<div class="hrg" style="--hc:'+m.c+'">'+
-        '<span class="rd">'+memoPicPapier(m.ic)+'</span>'+
-        '<span class="tx"><em>'+esc(m.t)+'</em>'+
+    return '<div class="mf-hrgs">'+liste.map(function(m){
+      return '<div class="mf-hrg" style="--hc:'+m.c+'">'+
+        '<span class="mf-rd">'+memoPicPapier(m.ic)+'</span>'+
+        '<span class="mf-tx"><em>'+esc(m.t)+'</em>'+
           hMemoHeures(m).map(function(h){
             return Array.isArray(h)
-              ? '<b class="pl"><i>'+esc(h[0])+'</i>'+esc(h[1])+'</b>'
-              : '<b>'+esc(h)+'</b>';
+              ? '<strong class="mf-pl"><i>'+esc(h[0])+'</i>'+esc(h[1])+'</strong>'
+              : '<strong>'+esc(h)+'</strong>';
           }).join('')+
           (m.n?'<u>'+esc(m.n)+'</u>':'')+
         '</span></div>';
     }).join('')+'</div>';
   };
   const ecran=function(p){
-    return '<div class="ec" style="--ac:'+p.c+'"><div class="ec-t">'+esc(p.t)+'</div><ul>'+
+    return '<div class="mf-ec" style="--ac:'+p.c+'"><div class="mf-t">'+esc(p.t)+'</div><ul class="mf-ul">'+
       p.l.map(function(x,i){
         const k=(p.p&&p.p[i])||null;
-        return '<li'+(k?' class="avecpic"':'')+'>'+
-          (k?'<span class="lp'+(k==='interdit'?' rouge':'')+'">'+memoPicPapier(k)+'</span>':'')+
+        return '<li'+(k?' class="mf-avec"':'')+'>'+
+          (k?'<span class="mf-lp'+(k==='interdit'?' rouge':'')+'">'+memoPicPapier(k)+'</span>':'')+
           '<span>'+x+'</span></li>';
       }).join('')+'</ul></div>';
   };
   const autres=ACC_POINTS.filter(function(x){ return !x.horaires; });
   const dormir=autres[0], verso=autres.slice(1);
   const hor=ACC_POINTS.filter(function(x){ return x.horaires; })[0]||{c:'#6FC7D9',t:'Les horaires'};
+  const horaires='<div class="mf-ec" style="--ac:'+hor.c+'"><div class="mf-t">'+esc(hor.t)+'</div>'+
+    '<div class="mf-deux">'+
+      '<div><div class="mf-sous">Le centre</div>'+frise(HORAIRES.memo)+'</div>'+
+      '<div><div class="mf-sous">L’infirmerie</div>'+frise(HORAIRES.infirmeries)+'</div>'+
+    '</div></div>';
+  if(seul) return {recto:horaires, verso:''};
+  return {
+    recto:'<div class="mf-pile">'+horaires+(dormir?ecran(dormir):'')+'</div>',
+    /* Les deux longs (l'interdit, ce qu'on peut demander) chacun dans sa colonne. */
+    verso:'<div class="mf-deux">'+
+      '<div class="mf-pile">'+[verso[0],verso[3]].filter(Boolean).map(ecran).join('')+'</div>'+
+      '<div class="mf-pile">'+[verso[1],verso[2]].filter(Boolean).map(ecran).join('')+'</div>'+
+    '</div>'+
+    '<div class="mf-pied"><span>Urgences : 112</span><span>Le centre : '+esc(H.tel)+'</span></div>'
+  };
+}
+function memoCss(p){
+  const r=function(sel, decl){ return sel.split(',').map(function(x){ return p+' '+x.trim(); }).join(',')+'{'+decl+'}'; };
+  return [
+    r('.mf-ec','border:2px solid var(--ac);border-radius:14px;padding:14px 16px 8px;break-inside:avoid'),
+    r('.mf-t','font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:-.01em;line-height:1.1;margin-bottom:8px'),
+    r('.mf-deux','display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start'),
+    r('.mf-pile','display:flex;flex-direction:column;gap:6mm'),
+    r('.mf-sous','font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px'),
+    /* La frise : le fil derrière les ronds, le rond cerclé, l'intitulé petit, l'heure en gras. */
+    r('.mf-hrgs','position:relative'),
+    r('.mf-hrgs:before','content:"";position:absolute;left:19px;top:20px;bottom:20px;width:2px;background:#d6d4d0'),
+    r('.mf-hrgs:has(> .mf-hrg:only-child):before','display:none'),
+    r('.mf-hrg','display:flex;align-items:center;gap:12px;padding:6px 0;position:relative'),
+    r('.mf-rd','width:40px;height:40px;flex:none;border-radius:50%;border:2.5px solid var(--hc);background:#fff;display:flex;align-items:center;justify-content:center;position:relative;z-index:1'),
+    r('.mf-rd img,.mf-rd svg','width:22px;height:22px;display:block;color:#1b1b1b'),
+    r('.mf-tx','display:flex;flex-direction:column;gap:1px'),
+    r('.mf-tx em','font-style:normal;font-size:11px;font-weight:700;color:#444;letter-spacing:.06em;text-transform:uppercase'),
+    r('.mf-tx strong','display:block;font-size:17px;font-weight:800;line-height:1.25;text-transform:none;letter-spacing:0'),
+    r('.mf-tx strong.mf-pl','font-size:15px'),
+    r('.mf-tx strong i','font-style:normal;font-weight:400;color:#444;margin-right:6px'),
+    r('.mf-tx u','text-decoration:none;font-size:11.5px;font-weight:700;color:#444'),
+    /* Les lignes : le rond cerclé devant, ou le point de couleur. */
+    r('.mf-ul','list-style:none;margin:0;padding:0'),
+    r('.mf-ul li','font-size:14.5px;line-height:1.45;padding:7px 0;position:relative'),
+    r('.mf-ul li+li','border-top:1px solid #e2e0dc'),
+    r('.mf-ul li.mf-avec','display:flex;gap:11px;align-items:center'),
+    r('.mf-ul li:not(.mf-avec)','padding-left:16px'),
+    r('.mf-ul li:not(.mf-avec):before','content:"";position:absolute;left:0;top:15px;width:7px;height:7px;border-radius:50%;background:var(--ac)'),
+    r('.mf-ul b','display:inline;font-size:inherit;text-transform:none;letter-spacing:0;font-weight:700'),
+    r('.mf-lp','width:34px;height:34px;flex:none;border-radius:50%;border:2.4px solid var(--ac);background:#fff;display:flex;align-items:center;justify-content:center'),
+    r('.mf-lp img,.mf-lp svg','width:18px;height:18px;display:block;color:#1b1b1b'),
+    r('.mf-lp.rouge','border-color:#e63329;background:#fdeeed'),
+    r('.mf-ul li span span','font-size:13px'),
+    r('.mf-pied','margin-top:6mm;padding-top:8px;border-top:2.5px solid #1b1b1b;display:flex;justify-content:space-between;font-size:14px;font-weight:700')
+  ].join('');
+}
+function imprimerMemo(){
+  const c=memoCorpsHTML(false);
   const date=esc(new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long',year:'numeric'}));
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
@@ -40502,72 +40577,55 @@ function imprimerMemo(){
     '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
     '.pg{width:210mm;min-height:297mm;margin:26px auto;padding:13mm 15mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
     '.date{font-size:12px;color:#444;margin-bottom:8px}'+
-    /* L'écran : un cadre fin à sa couleur, le titre en gros, comme sur le téléphone. */
-    '.ec{border:2px solid var(--ac);border-radius:14px;padding:14px 16px 8px;break-inside:avoid}'+
-    '.ec-t{font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:-.01em;line-height:1.1;margin-bottom:8px}'+
-    '.deux{display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start}'+
-    '.pile{display:flex;flex-direction:column;gap:6mm}'+
-    '.sous{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px}'+
-    /* La frise : le fil derrière les ronds, le rond cerclé, l'intitulé petit, l'heure en gras. */
-    '.hrgs{position:relative}'+
-    '.hrgs:before{content:"";position:absolute;left:19px;top:20px;bottom:20px;width:2px;background:#d6d4d0}'+
-    '.hrg{display:flex;align-items:center;gap:12px;padding:6px 0;position:relative}'+
-    '.hrg .rd{width:40px;height:40px;flex:none;border-radius:50%;border:2.5px solid var(--hc);background:#fff;'+
-      'display:flex;align-items:center;justify-content:center;position:relative;z-index:1}'+
-    '.rd img,.rd svg{width:22px;height:22px;display:block;color:#1b1b1b}'+
-    '.hrg .tx{display:flex;flex-direction:column;gap:1px}'+
-    '.hrg em{font-style:normal;font-size:11px;font-weight:700;color:#444;letter-spacing:.06em;text-transform:uppercase}'+
-    '.hrg b{font-size:17px;font-weight:800;line-height:1.25}'+
-    '.hrg b.pl{font-size:15px}'+
-    '.hrg b i{font-style:normal;font-weight:400;color:#444;margin-right:6px}'+
-    '.hrg u{text-decoration:none;font-size:11.5px;font-weight:700;color:#444}'+
-    /* Les lignes : le rond cerclé devant, ou le point de couleur. */
-    'ul{list-style:none}'+
-    'li{font-size:14.5px;line-height:1.45;padding:7px 0;position:relative}'+
-    'li+li{border-top:1px solid #e2e0dc}'+
-    'li.avecpic{display:flex;gap:11px;align-items:center}'+
-    'li:not(.avecpic){padding-left:16px}'+
-    'li:not(.avecpic):before{content:"";position:absolute;left:0;top:15px;width:7px;height:7px;border-radius:50%;background:var(--ac)}'+
-    '.lp{width:34px;height:34px;flex:none;border-radius:50%;border:2.4px solid var(--ac);background:#fff;'+
-      'display:flex;align-items:center;justify-content:center}'+
-    '.lp img,.lp svg{width:18px;height:18px;display:block;color:#1b1b1b}'+
-    '.lp.rouge{border-color:#e63329;background:#fdeeed}'+
-    'li span span{font-size:13px}'+
-    '.pied{margin-top:6mm;padding-top:8px;border-top:2.5px solid #1b1b1b;display:flex;'+
-      'justify-content:space-between;font-size:14px;font-weight:700}'+
+    memoCss('')+
     '@media print{.bar{display:none}.pg{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}'+
       '.pg+.pg{break-before:page}@page{size:A4;margin:12mm 14mm}}'+
     '</style></head><body>'+
     '<div class="bar"><b>Le mémo — aperçu · A4 recto-verso</b>'+
       '<button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
-    /* RECTO */
-    '<div class="pg"><div class="date">'+date+'</div><div class="pile">'+
-      '<div class="ec" style="--ac:'+hor.c+'"><div class="ec-t">'+esc(hor.t)+'</div>'+
-        '<div class="deux">'+
-          '<div><div class="sous">Le centre</div>'+frise(HORAIRES.memo)+'</div>'+
-          '<div><div class="sous">L’infirmerie</div>'+frise(HORAIRES.infirmeries)+'</div>'+
-        '</div></div>'+
-      (dormir?ecran(dormir):'')+
-    '</div></div>'+
-    /* VERSO */
-    '<div class="pg"><div class="deux">'+
-      /* Les deux longs (l'interdit, ce qu'on peut demander) chacun dans sa colonne,
-         pour que le verso tienne sur une page. */
-      '<div class="pile">'+[verso[0],verso[3]].filter(Boolean).map(ecran).join('')+'</div>'+
-      '<div class="pile">'+[verso[1],verso[2]].filter(Boolean).map(ecran).join('')+'</div>'+
-    '</div>'+
-    '<div class="pied"><span>Urgences : 112</span><span>Le centre : '+esc(H.tel)+'</span></div>'+
-    '</div></body></html>');
+    '<div class="pg"><div class="date">'+date+'</div>'+c.recto+'</div>'+
+    '<div class="pg">'+c.verso+'</div>'+
+    '</body></html>');
   w.document.close();
+}
+/* ═══ LA GRANDE FENÊTRE DE L'ORDINATEUR (Mag, 06/10/2026 : « remplace ») ═══
+   Sur un grand écran à souris, le mémo et l'horloge ouvrent la feuille elle-même,
+   en grand : tout se voit d'un coup, une seule page qu'on fait défiler. Sur
+   téléphone, rien ne change — les écrans un par un restent la bonne forme. */
+function memoGrandEcran(){
+  try{ return window.matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches; }
+  catch(e){ return false; }
+}
+function memoFeuilleOuvrir(seul){
+  if(!document.getElementById('mmfCss')){
+    const st=document.createElement('style'); st.id='mmfCss'; st.textContent=memoCss('.mmf'); document.head.appendChild(st);
+  }
+  let bg=document.getElementById('mmfBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='mmfBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  const c=memoCorpsHTML(seul);
+  bg.innerHTML='<div class="popcard mmf'+(seul?' seul':'')+'" role="dialog" aria-modal="true">'+
+    /* Réduit aux horaires, le cadre porte déjà le titre : l'en-tête ne garde que la croix. */
+    '<div class="mmf-h"><b>'+(seul?'':'Le mémo')+'</b>'+
+      (seul?'':'<button class="mmf-b" onclick="imprimerMemo()" aria-label="Imprimer le mémo" title="Imprimer le mémo">'+icon('imprimer')+'</button>')+
+      '<button class="mmf-b" onclick="document.getElementById(\'mmfBg\').classList.remove(\'on\')" aria-label="Fermer" title="Fermer">'+icon('x')+'</button>'+
+    '</div>'+
+    '<div class="mmf-corps">'+c.recto+(c.verso?'<div class="mmf-sep"></div>'+c.verso:'')+'</div>'+
+  '</div>';
+  bg.classList.add('on');
 }
 /* ═══ L'HORLOGE OUVRE LE MÉMO, RÉDUIT AUX HORAIRES (Mag, 05/10/2026) ═══
    « Le picto qu'on a mis pour les polyvalents, ça devrait ouvrir la page du mémo — et
    tu mets que les horaires. » Même page plein écran, même dessin, mais un seul écran :
    pas de compte « 1 / 6 », pas de jauge, pas de flèches, pas d'imprimante. */
 let ACC_SEUL=false;
-function accSlideOuvrir(){ ACC_SEUL=false; ACC_I=0; accSlideDessine(); }
+function accSlideOuvrir(){ if(memoGrandEcran()){ memoFeuilleOuvrir(false); return; } ACC_SEUL=false; ACC_I=0; accSlideDessine(); }
 function accHorairesOuvrir(){
+  if(memoGrandEcran()){ memoFeuilleOuvrir(true); return; }
   ACC_SEUL=true;
   ACC_I=Math.max(0, ACC_POINTS.findIndex(function(x){ return x.horaires; }));
   accSlideDessine();
