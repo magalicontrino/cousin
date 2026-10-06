@@ -39875,10 +39875,18 @@ function arrCollerOuvrir(){
   bg.classList.add('on');
   setTimeout(function(){ const t=document.getElementById('arrColTxt'); if(t) t.focus(); },50);
 }
-function arrCollerLire(){
+async function arrCollerLire(){
   const t=document.getElementById('arrColTxt');
   const lus=arrLireListe(t&&t.value);
   if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  /* ═══ LA CORBEILLE (Mag, 06/10/2026 : « Irfan est déjà passé — dis que c'est passé
+     dans la base, que ça a été validé et passé à la corbeille ») ═══ Chaque entrant
+     retiré y laisse une copie pendant 15 jours (sql/entrants-corbeille.sql). Un nom
+     qui s'y trouve ne revient pas comme « nouveau ».
+     ⚠ « La base n'a pas répondu » n'est jamais « personne à la corbeille » : on le dit. */
+  let corb=[], corbPanne=false;
+  const rc=await sb.from('entrants_corbeille').select('nom,lam,arrive_le,retire_le').order('retire_le',{ascending:false});
+  if(rc.error) corbPanne=true; else corb=rc.data||[];
   /* Comme la liste du jour des absences : les NOUVEAUX d'un côté, ceux DÉJÀ ÉCRITS de
      l'autre (« parfois ils remettent à jour une liste en rajoutant juste des gens »).
      Pour un nom déjà écrit, on ne propose que ce qui a changé : le jour, LAM / MÉD. */
@@ -39886,6 +39894,11 @@ function arrCollerLire(){
   lus.forEach(function(x){
     const e=ENTRANTS.find(function(y){ return absMemePersonne(y.nom, x.nom); });
     const lam=x.lam===null ? null : x.lam;
+    const c=!e && corb.find(function(y){ return absMemePersonne(y.nom, x.nom); });
+    if(c){
+      nouveaux.push({nom:x.nom, jour:x.jour||arrJourDefaut(), lam:lam===null?!!c.lam:lam, ok:false, corb:c});
+      return;
+    }
     if(!e){
       if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,x.nom); }))
         nouveaux.push({nom:x.nom, jour:x.jour||arrJourDefaut(), lam:lam===null?false:lam, ok:true});
@@ -39902,7 +39915,7 @@ function arrCollerLire(){
     if(lam!==null && !!e.lam!==lam) ch.lam=lam;
     deja.push({e:e, ch:ch, ok:Object.keys(ch).length>0});
   });
-  ARR_PLAN={nouveaux:nouveaux, deja:deja};
+  ARR_PLAN={nouveaux:nouveaux, deja:deja, corbPanne:corbPanne};
   arrCollerDessine();
 }
 function arrCollerDessine(){
@@ -39915,22 +39928,32 @@ function arrCollerDessine(){
   };
   const jourC=function(iso){ const t=arrJourTxt(iso); return t ? t.replace(/^\w/,function(c){ return c.toUpperCase(); }) : 'Sans date'; };
   let h='<b>Les prochains entrants</b>';
-  const groupe=function(passe){
+  const genre=function(x){ return x.corb ? 'corb' : (x.passe ? 'passe' : 'nouv'); };
+  const groupe=function(k){
     let g='', jour=null;
     P.nouveaux.forEach(function(x,i){
-      if(!!x.passe!==passe) return;
+      if(genre(x)!==k) return;
+      if(k==='corb'){
+        const d=new Date(x.corb.retire_le);
+        g+='<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.nouveaux['+i+'].ok=this.checked">'+
+          '<b>'+esc(x.nom)+'</b><em>validé · à la corbeille le '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'</em></label>';
+        return;
+      }
       if(x.jour!==jour){ jour=x.jour; g+='<div class="abscol-j">'+esc(jourC(jour))+'</div>'; }
       g+='<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.nouveaux['+i+'].ok=this.checked">'+
         '<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</label>';
     });
     return g;
   };
-  const nNouv=P.nouveaux.filter(function(x){ return !x.passe; }).length,
-        nPasse=P.nouveaux.length-nNouv;
+  const nb=function(k){ return P.nouveaux.filter(function(x){ return genre(x)===k; }).length; };
+  const nNouv=nb('nouv'), nPasse=nb('passe'), nCorb=nb('corb');
   h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+nNouv+'<span>ajoutés aux entrants de la semaine</span></div>'+
-    (nNouv?groupe(false):'<div class="abscol-v">Personne</div>')+'</div>';
+    (nNouv?groupe('nouv'):'<div class="abscol-v">Personne</div>')+'</div>';
+  if(nCorb) h+='<div class="abscol-g"><div class="abscol-t rouge">⚠ Déjà passés · '+nCorb+'<span>validés, à la corbeille — coche pour les reprendre (retour d’hospitalisation…)</span></div>'+
+    groupe('corb')+'</div>';
   if(nPasse) h+='<div class="abscol-g"><div class="abscol-t">Date passée · '+nPasse+'<span>normalement déjà entrés — coche pour les ajouter</span></div>'+
-    groupe(true)+'</div>';
+    groupe('passe')+'</div>';
+  if(P.corbPanne) h+='<div class="abscol-rappel">La corbeille n’a pas répondu : je ne peux pas dire qui est déjà passé. Vérifie avant de valider.</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Déjà dans la liste · '+P.deja.length+'<span>rien n’est ajouté deux fois</span></div>';
   if(!P.deja.length) h+='<div class="abscol-v">Personne</div>';
   P.deja.forEach(function(x,i){
