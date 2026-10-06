@@ -41428,7 +41428,11 @@ function absPartager(){
    Rien ne s'applique avant « Valider ».
    ⚠ ON NE GARDE QUE LES NOMS. L'export porte la date de naissance, la nationalité, la
    chambre, les dates de « report » : tout ça est jeté à la lecture, rien ne va en base.
-   ⚠ LAM / MÉDICAL n'est jamais dans l'export : on garde ce qu'elle a déjà précisé. */
+   ⭐ LAM / MÉDICAL EST LU DANS L'EXPORT (Mag, 06/10/2026 : « dans leur mise à jour, on
+   voit si c'est LAM ou MED, donc j'ai plus besoin de te le dire — mets-le
+   automatiquement »). KAIROS porte l'étiquette « Médical » ou « LAM » sur chaque
+   personne : elle est lue à la lecture, et c'est ELLE qui fait foi, même sur quelqu'un
+   déjà dans la liste. Si une ligne n'en porte pas, on garde ce qui était déjà dit. */
 function absNomCle(t){
   return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()
     .replace(/[^A-Z' -]/g,' ').split(/[\s-]+/).filter(Boolean).sort().join(' ');
@@ -41458,7 +41462,16 @@ function absLireListe(txt){
       if(!nom){ nom=t; continue; }
       if(date.test(L[j])){ prenom=L[j].split('\t')[0].replace(date,'').trim(); break; }
     }
-    if(nom) out.push({nom:(nom+' '+prenom).replace(/\s+/g,' ').trim(), lam:null});
+    /* L'étiquette LAM / Médical : une case à elle seule (entre deux tabulations ou
+       seule sur sa ligne), quelque part entre la ligne du prénom et la personne
+       suivante. Une case seule, pour ne pas prendre « médical » dans une note. */
+    let lam=null;
+    for(let k=j; k<L.length && k<j+12 && !(k>j && /^\s*\d+\s*$/.test(L[k])); k++){
+      const cases=L[k].split('\t').map(function(c){ return c.trim(); });
+      if(cases.some(function(c){ return /^LAM$/i.test(c); })){ lam=true; break; }
+      if(cases.some(function(c){ return /^M[ÉE]D(ICAL)?$/i.test(c); })){ lam=false; break; }
+    }
+    if(nom) out.push({nom:(nom+' '+prenom).replace(/\s+/g,' ').trim(), lam:lam});
     i=j;
   }
   if(out.length) return out;
@@ -41504,7 +41517,8 @@ function absCollerComparer(){
   const auj=absJour(), pris={}, encore=[], nouveaux=[];
   lus.forEach(function(p){
     const a=ABSENCES.find(function(x){ return !pris[x.id] && absMemePersonne(x.nom,p.nom); });
-    if(a){ pris[a.id]=1; encore.push({a:a, ok:true, deja:absNuits(a).indexOf(auj)>=0}); }
+    if(a){ pris[a.id]=1; encore.push({a:a, ok:true, deja:absNuits(a).indexOf(auj)>=0,
+             lam:(p.lam!==null && p.lam!==a.lam) ? p.lam : undefined}); }
     else if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,p.nom); }))
       nouveaux.push({nom:p.nom, lam:p.lam, ok:true});
   });
@@ -41524,7 +41538,8 @@ function absCollerDessine(){
   let h='<b>La liste du jour</b>';
   h+='<div class="abscol-g"><div class="abscol-t">Toujours absents · '+P.encore.length+'<span>une nuit de plus</span></div>'+
     (P.encore.length?P.encore.map(function(x,i){
-      return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+absTag(x.a)+
+      return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+
+        absTag(x.lam===undefined ? x.a : Object.assign({}, x.a, {lam:x.lam}))+
         '<em>'+(x.deja?'ce soir déjà compté':(absNuits(x.a).length+' → '+(absNuits(x.a).length+1)+' nuits'))+'</em></label>';
     }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés avec la nuit de ce soir</span></div>'+
@@ -41547,6 +41562,12 @@ async function absCollerValider(){
   const bg=document.getElementById('absColBg'); if(bg) bg.classList.remove('on');
   const auj=absJour(); let rate=0, fait=0;
   ABS_ECRIT=Date.now();
+  /* L'étiquette lue dans KAIROS remplace l'ancienne, même si la nuit est déjà comptée. */
+  for(const x of P.encore){
+    if(!x.ok || x.lam===undefined) continue;
+    const r=await sb.from('absences').update({lam:x.lam}).eq('id',x.a.id).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { x.a.lam=x.lam; fait++; }
+  }
   for(const x of P.encore){
     if(!x.ok || x.deja) continue;
     const L=absNuits(x.a).concat([auj]).sort();
