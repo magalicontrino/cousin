@@ -4129,6 +4129,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd textarea{resize:none;overflow:hidden;line-height:1.45;min-height:76px;display:block}
 .chadd input:focus,.chadd textarea:focus{outline:0;border-color:var(--trait-fort)}
 .chaddbtn.entmi{background:#d9f1f7;color:#1e6472;border:1.25px solid #6fc7d9;margin-left:6px;border-radius:6px}
+.entmi-case{white-space:nowrap;display:inline-flex;align-items:center;gap:5px;font-family:ui-monospace,monospace;font-size:11px;color:#73716b;cursor:pointer;flex:none}
+.entmi-case input{width:15px;height:15px;margin:0;accent-color:#6fc7d9}
 .chaddbtn{flex:none;background:var(--noir);color:#f2eee6;border-radius:0;padding:11px 16px;
   font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
 .chrgpd{display:flex;gap:10px;border:1px solid var(--ligne);border-left:7px solid #f5c542;background:#f4f3f0;
@@ -39725,7 +39727,7 @@ function entrantMiBasculer(id){
    encore de chambre ; il faut mettre que des noms et LAM au médical »). Ce qui compte
    ici, c'est le NOM, le JOUR où la personne arrive, et si c'est un LAM. La chambre se
    met plus tard, sur la ligne de l'entretien. */
-let ARR_BR_NOM='', ARR_BR_JOUR='', ARR_BR_LAM=false;
+let ARR_BR_NOM='', ARR_BR_JOUR='', ARR_BR_LAM=false, ARR_BR_MI=false;
 function arrJourDefaut(){
   if(ARR_BR_JOUR) return ARR_BR_JOUR;
   const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -39762,7 +39764,7 @@ function arriveesHTML(){
     '<div class="entarr-t">Entretiens et entrants de la semaine'+(L.length?' · '+L.length:'')+'</div>'+
     '<div class="entarr-add">'+
       '<input id="arrNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ARR_BR_NOM)+'" '+
-        'oninput="ARR_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();arriveeAjouter();}">'+
+        'oninput="ARR_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();(ARR_BR_MI?arriveeMiParcours:arriveeAjouter)();}">'+
       '<input id="arrJour" type="date" value="'+esc(arrJourDefaut())+'" '+
         'title="Jour d’arrivée" oninput="ARR_BR_JOUR=this.value">'+
       /* LAM en fuchsia, Médical en bleu (Mag, 20/09/2026 : « mets le médical en bleu »). */
@@ -39773,12 +39775,15 @@ function arriveesHTML(){
         'role="switch" aria-checked="'+(ARR_BR_LAM?'false':'true')+'" title="LAM ou Médical">'+
         '<span class="'+(ARR_BR_LAM?'on':'')+'">LAM</span><span class="entsw-b"></span>'+
         '<span class="'+(ARR_BR_LAM?'':'on')+'">Médical</span></button>'+
-      '<button class="chaddbtn" onclick="arriveeAjouter()">Ajouter</button>'+
+      '<button class="chaddbtn" onclick="(ARR_BR_MI?arriveeMiParcours:arriveeAjouter)()">Ajouter</button>'+
       /* ═══ MI-PARCOURS, DIRECTEMENT (Mag, 03/10/2026 : « quand on rajoute un nom et qu'il
          est déjà dans le centre, quand on doit faire un mi-parcours, on doit pouvoir déjà
          cliquer sur mi-parcours — ça va directement à l'entretien en mi-parcours ») ═══
          La personne est déjà là : elle ne passe pas par les entrants. */
-      '<button class="chaddbtn entmi" onclick="arriveeMiParcours()">Mi-parcours</button>'+
+      /* ⚠ UNE PETITE CASE, PLUS UN BOUTON (Mag, 06/10/2026 : « une petite case à cocher
+         discrète, ça prend trop de place — le mi-parcours, c'est assez rare »). Cochée,
+         « Ajouter » envoie la personne directement en entretien de mi-parcours. */
+      '<label class="entmi-case"><input type="checkbox" '+(ARR_BR_MI?'checked':'')+' onchange="ARR_BR_MI=this.checked">mi-parcours</label>'+
     '</div>'+
     /* ═══ DEUX ÉTAGES (Mag, 20/09/2026, dessin B sur trois : « c'est brouillon,
        simplifie ») ═══ Le nom seul sur sa ligne — ils font une ligne entière à eux
@@ -40030,7 +40035,7 @@ function arriveeMiParcours(){
   entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), lam:!!ARR_BR_LAM, pour_entretien:true,
     mi_parcours:true, ajoute_par:(nomAffiche()||'')}).select().then(function(r){
     if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
-    ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_LAM=false; render();
+    ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_LAM=false; ARR_BR_MI=false; render();
     toast(n+' — entretien de mi-parcours à faire');
   });
 }
