@@ -5117,6 +5117,22 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .abspop-o.on{border-color:var(--noir);box-shadow:inset 0 0 0 1px var(--noir)}
 .abspop-o.note{margin-top:14px;border-style:dashed;font-weight:500}
 .absnote{font-size:13px;color:#55534f;margin-top:4px;font-style:italic}
+/* Piste B (06/10/2026) : l'alerte garde le dessin des cartes, cadre rouge épais et fond rosé. */
+.abscd.alerte{border:2.5px solid #c4291f;border-left-width:8px;background:#fdeeed;box-shadow:0 2px 10px rgba(196,41,31,.18)}
+.abscd.alerte .abscd-h b{color:#c4291f}
+.abscd.alerte .absk{color:#c4291f}
+.absdep{display:inline-block;margin-top:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:#c4291f;background:#fdeeed;border:1.25px solid #c4291f;border-radius:6px;padding:3px 8px}
+.absdep em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400}
+.absecart{display:flex;align-items:center;gap:8px;width:100%;margin-top:16px;border:1.25px solid var(--ligne);background:#fff;border-radius:10px;
+  padding:10px 12px;font:inherit;font-size:13.5px;color:#55534f;cursor:pointer;text-align:left}
+.absecart b{color:var(--noir);font-weight:700}
+.absecart i{margin-left:auto;font-style:normal;display:inline-flex}
+.absecart i svg,.absecart i .pico{width:14px;height:14px;transform:rotate(-90deg);transition:transform .2s}
+.absecart.ouvert i svg,.absecart.ouvert i .pico{transform:rotate(90deg)}
+.abspop-o.alerte{border-color:#c4291f;color:#c4291f;font-weight:700;margin-top:10px}
+.abspop-o.alerte .abspic{background:#c4291f;border-color:#c4291f;color:#fff;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
+.abspop-o.alerte.on{background:#fdeeed}
 .abspop-o .abspic{width:36px;height:36px;cursor:inherit}
 .marbl{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:#8b8984;margin:16px 0 4px}
@@ -16102,7 +16118,8 @@ function imprimer(){
           '<tr><th '+thA+'>Nom</th><th '+thA+'>Type</th><th '+thA+'>Nuits</th><th '+thA+'>Dates</th></tr>'+
           liste.map(function(a){
             return '<tr><td style="padding:9px 8px;border-bottom:1px solid #ccc;font-size:12pt;vertical-align:top;border-left:4px solid '+(a.lam===true?'#c4291f':'#A9C8E8')+';overflow-wrap:anywhere">'+
-                '<b>'+esc(a.nom)+'</b>'+(a.note?'<br><span style="font-size:10.5pt;font-style:italic;color:#333">'+esc(a.note)+'</span>':'')+'</td>'+
+                (absAlerte(a)?'<span style="color:#c4291f;font-weight:700">⚠ ALERTE · </span>':'')+
+                '<b>'+esc(a.nom)+'</b>'+(a.note?'<br><span style="font-size:10.5pt;font-style:italic;color:'+(absDepassee(a)?'#c4291f':'#333')+'">'+esc(a.note)+'</span>':'')+'</td>'+
               '<td '+tdA+'>'+(a.lam===true?'LAM':(a.lam===false?'Médical':(absATraiter(a)?'À préciser':'')))+'</td>'+
               '<td '+tdA+'><b>'+esc(absPhrase(a))+'</b></td>'+
               '<td '+tdA+'><span style="font-size:10.5pt">'+esc(dates(a))+'</span></td></tr>';
@@ -41174,6 +41191,29 @@ function absMajTexte(){
 }
 /* Ce qui monte en haut : 3 nuits ou plus. */
 function absATraiter(a){ return absNuits(a).length>=3; }
+/* ═══ L'ALERTE, LA JUSTIFICATION DÉPASSÉE, L'ÉCART (Mag, 06/10/2026 — piste B) ═══
+   · ALERTE : « disparition inquiétante » — la dame de 90 ans qui ne peut pas dormir
+     dehors. Posée à la main depuis la fenêtre du rond ; tout en haut, cadre rouge.
+     Colonne `alerte` (sql/absences-alerte.sql).
+   · JUSTIFICATION DÉPASSÉE : l'autorisation est finie et la personne n'est pas
+     rentrée (« peut-être qu'elle a eu un problème avec le train ») → elle remonte
+     dans « À traiter », marquée, pour qu'on l'appelle.
+   · À L'ÉCART : justifiées et hospitalisées, repliées en bas derrière un bouton.
+   ⚠ LE PETIT ROND RESTE COMME IL EST (« laisse le petit rond comme ça ») : l'alerte
+   change le cadre de la carte, pas le rond du statut. */
+const ABS_NOTE_DEP=/^Justification dépassée · devait revenir le (\d{2}\/\d{2})$/;
+function absDepassee(a){
+  if(a.statut==='just') return absAutoFinie(a);
+  return a.statut!=='hospit' && ABS_NOTE_DEP.test(a.note||'');
+}
+/* La date de retour prévue, pour l'étiquette. */
+function absDevaitRevenir(a){
+  const m=ABS_NOTE_DEP.exec(a.note||'') || ABS_NOTE_AUTO.exec(a.note||'');
+  return m ? (m[2] ? m[1]+'/'+m[2] : m[1]) : '';
+}
+function absAlerte(a){ return a.alerte===true; }
+function absAEcart(a){ return !absAlerte(a) && !absDepassee(a) && (a.statut==='just' || a.statut==='hospit'); }
+let ABS_ECART_OUVERT=false;
 function absCompteATraiter(){ return ABSENCES.filter(absATraiter).length; }
 /* Une écriture : on montre tout de suite, et on revient en arrière si la base refuse. */
 function absMaj(a, champs){
@@ -41238,10 +41278,17 @@ function absStatutOuvrir(id){
       return '<button class="abspop-o'+(a.statut===s.k?' on':'')+'" onclick="absStatutChoisir('+a.id+',\''+s.k+'\')">'+
         '<span class="abspic '+s.cl+'">'+icon(s.ic)+'</span>'+s.l+'</button>';
     }).join('')+
+    '<button class="abspop-o alerte'+(absAlerte(a)?' on':'')+'" onclick="absAlerteBascule('+a.id+')">'+
+      '<span class="abspic">!</span>'+(absAlerte(a)?'Retirer l’alerte':'Disparition inquiétante')+'</button>'+
     '<button class="abspop-o note" onclick="absNote('+a.id+')"><span class="abspic">'+icon('crayon')+'</span>'+
       (a.note?'Modifier la note':'Ajouter une note')+'</button>'+
   '</div>';
   bg.classList.add('on');
+}
+function absAlerteBascule(id){
+  const bg=document.getElementById('absBg'); if(bg) bg.classList.remove('on');
+  const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
+  absMaj(a,{alerte:!absAlerte(a)});
 }
 function absStatutChoisir(id,k){
   const bg=document.getElementById('absBg'); if(bg) bg.classList.remove('on');
@@ -41264,12 +41311,22 @@ function absBoules(a){
     (avant?'<span class="absavant">+'+avant+' avant</span>':'');
 }
 function absPic(a){
-  const s=absStatut(a);
+  /* Une justification dépassée se dessine « non justifiée » : la base dit encore
+     « justifiée » jusqu'à la prochaine liste collée, mais ce n'est plus vrai. */
+  const s=absDepassee(a) ? ABS_STATUTS[0] : absStatut(a);
   return '<button type="button" class="abspic '+s.cl+'" onclick="absStatutOuvrir('+a.id+')" title="'+s.l+'" aria-label="'+s.l+'">'+icon(s.ic)+'</button>';
 }
 /* La note (03/10/2026 : « Disparition inquiétante faite le 01/10 », « Justifié
    jusqu'au 04/10 ») : une ligne sous le nom, qui s'écrit depuis la fenêtre du rond. */
-function absNoteHTML(a){ return a.note ? '<div class="absnote">'+esc(a.note)+'</div>' : ''; }
+function absNoteHTML(a){
+  if(!a.note || absDepassee(a)) return '';
+  return '<div class="absnote">'+esc(a.note)+'</div>';
+}
+function absDepHTML(a){
+  if(!absDepassee(a)) return '';
+  const d=absDevaitRevenir(a);
+  return '<div class="absdep">Justification dépassée'+(d?'<em> · devait revenir le '+esc(d)+'</em>':'')+'</div>';
+}
 function absNote(id){
   const bg=document.getElementById('absBg'); if(bg) bg.classList.remove('on');
   const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
@@ -41294,10 +41351,14 @@ function absencesCorps(){
   if(!voitEntrants()) return '<div class="ml3"><div class="ml3-c">'+
     '<div class="empty" style="margin-top:16px"><b>Cette liste n’est pas ouverte à ton métier.</b></div></div></div>';
   if(!ABS_ENCOURS && Date.now()-ABS_LU>60000) setTimeout(loadAbsences,0);
-  const haut=ABSENCES.filter(absATraiter).sort(function(a,b){
-    return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); });
-  const bas=ABSENCES.filter(function(a){ return !absATraiter(a); }).sort(function(a,b){
-    return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); });
+  const tri=function(a,b){ return ((b.lam?1:0)-(a.lam?1:0)) || (absNuits(b).length-absNuits(a).length); };
+  const alertes=ABSENCES.filter(absAlerte).sort(tri);
+  const ecart=ABSENCES.filter(absAEcart).sort(tri);
+  const reste=ABSENCES.filter(function(a){ return !absAlerte(a) && !absAEcart(a); });
+  /* La justification dépassée remonte avec « À traiter », quel que soit le nombre de nuits. */
+  const haut=reste.filter(function(a){ return absATraiter(a) || absDepassee(a); })
+    .sort(function(a,b){ return ((absDepassee(b)?1:0)-(absDepassee(a)?1:0)) || tri(a,b); });
+  const bas=reste.filter(function(a){ return !absATraiter(a) && !absDepassee(a); }).sort(tri);
   /* ═══ IMPRIMER · COPIER · PARTAGER (Mag, 03/10/2026 : « on doit pouvoir imprimer et
      copier, comme pour tout le reste ») ═══ Les trois mêmes pictos que les Entretiens,
      au même endroit. */
@@ -41337,21 +41398,45 @@ function absencesCorps(){
     /* « Il faut que tu me fasses penser à le préciser » (Mag, 03/10/2026). */
     if(np) h+='<div class="absrappel">'+np+' absence'+(np>1?'s':'')+' sans LAM ni MÉD — touche « LAM ou MÉD ? » sur la ligne.</div>';
   }
+  const carte=function(a, cl){
+    const n=absNuits(a).length;
+    return '<div class="abscd'+(a.lam?' lam':'')+(cl?' '+cl:'')+'">'+
+        '<div class="abscd-h">'+absPic(a)+'<b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+n+'</span>'+absCorbeille(a)+'</div>'+
+        absDepHTML(a)+absNoteHTML(a)+
+        '<div class="absligne">'+absBoules(a)+'</div>'+
+        '<div class="absmsg">'+esc(absPhrase(a))+'</div>'+
+      '</div>';
+  };
+  if(alertes.length){
+    h+='<div class="abst rouge">⚠ Alerte · '+alertes.length+'</div>';
+    alertes.forEach(function(a){ h+=carte(a,'alerte'); });
+  }
   if(haut.length){
     h+='<div class="abst rouge">À traiter · '+haut.length+'</div>';
     haut.forEach(function(a){
       const n=absNuits(a).length, s=absStatut(a);
       h+='<div class="abscd'+(a.lam?' lam':'')+'">'+
         '<div class="abscd-h">'+absPic(a)+'<b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+n+'</span>'+absCorbeille(a)+'</div>'+
-        absNoteHTML(a)+
+        absDepHTML(a)+absNoteHTML(a)+
         '<div class="absligne">'+absBoules(a)+'</div>'+
-        '<div class="absmsg">'+n+' nuits '+(a.statut==='hospit'?'· hospitalisé·e':(a.statut==='just'?'justifiées':'non justifiées'))+'</div>'+
+        '<div class="absmsg">'+esc(absPhrase(a))+'</div>'+
       '</div>';
     });
   }
   if(bas.length){
     h+='<div class="abst">'+(haut.length?'Les autres absences':'Les absences')+' · '+bas.length+'</div>';
     bas.forEach(function(a){
+      h+='<div class="absre">'+absPic(a)+'<div class="absre-c">'+
+        '<div class="absre-n"><b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+absNuits(a).length+'</span>'+absCorbeille(a)+'</div>'+
+        absNoteHTML(a)+
+        '<div class="absligne">'+absBoules(a)+'</div></div></div>';
+    });
+  }
+  /* À l'écart, replié : un bouton, et la liste dessous quand on l'ouvre. */
+  if(ecart.length){
+    h+='<button type="button" class="absecart'+(ABS_ECART_OUVERT?' ouvert':'')+'" onclick="ABS_ECART_OUVERT=!ABS_ECART_OUVERT;render()" aria-expanded="'+ABS_ECART_OUVERT+'">'+
+      '<b>Justifiées · hospitalisées</b> '+ecart.length+'<i>'+icon('chevron')+'</i></button>';
+    if(ABS_ECART_OUVERT) ecart.forEach(function(a){
       h+='<div class="absre">'+absPic(a)+'<div class="absre-c">'+
         '<div class="absre-n"><b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+absNuits(a).length+'</span>'+absCorbeille(a)+'</div>'+
         absNoteHTML(a)+
@@ -41366,7 +41451,7 @@ function absencesCorps(){
 function absPhrase(a){
   const n=absNuits(a).length, nn=n+' nuit'+(n>1?'s':'');
   return a.statut==='hospit' ? nn+' · hospitalisé·e'
-       : nn+' '+(a.statut==='just' ? (n>1?'justifiées':'justifiée') : (n>1?'non justifiées':'non justifiée'));
+       : nn+' '+(a.statut==='just' && !absDepassee(a) ? (n>1?'justifiées':'justifiée') : (n>1?'non justifiées':'non justifiée'));
 }
 /* ═══ LE TOTAL EN TÊTE (Mag, 03/10/2026 : « mettre le nombre d'absences en début de
    liste, parce que je dois pouvoir comparer là et le programme ») ═══ Le même chiffre
@@ -41389,7 +41474,8 @@ function absencesEnTexte(){
     if(!liste.length) return;
     L.push(''); L.push('*'+titre+' · '+liste.length+'*'); L.push('');
     liste.forEach(function(a){
-      L.push('• *'+a.nom+'*'+(absType(a)?' — '+absType(a):''));
+      L.push('• '+(absAlerte(a)?'⚠ ALERTE · ':'')+'*'+a.nom+'*'+(absType(a)?' — '+absType(a):''));
+      if(absDepassee(a)) L.push('   ⏰ Justification dépassée'+(absDevaitRevenir(a)?' · devait revenir le '+absDevaitRevenir(a):''));
       L.push('   '+ic[a.statut||'nonjust']+' '+absPhrase(a));
       if(a.note) L.push('   💬 '+a.note);
       L.push('');
@@ -41535,7 +41621,8 @@ function absStatutPropose(a, revient){
     return {statut:'just', lib:'jusqu\'au '+note.slice(-5),
             note:(a && a.note && !ABS_NOTE_AUTO.test(a.note)) ? a.note : note};
   }
-  if(a && absAutoFinie(a)) return {statut:'nonjust', note:null};
+  if(a && absAutoFinie(a))
+    return {statut:'nonjust', note:'Justification dépassée · devait revenir le '+absDevaitRevenir(a)};
   return null;
 }
 function absCollerOuvrir(){
@@ -41593,7 +41680,7 @@ function absCollerDessine(){
   const stBtn=function(g,i,x){
     if(!x.st) return '';
     const t = x.st.statut==='just' ? '✓ Justifiée · '+x.st.lib
-                                   : 'Autorisation finie → non justifiée';
+                                   : 'Justification dépassée → non justifiée';
     return '<button type="button" class="abscol-st'+(x.stOk?' on':'')+'" '+
       'onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].stOk=!ABS_PLAN.'+g+'['+i+'].stOk;absCollerDessine()">'+esc(t)+'</button>';
   };

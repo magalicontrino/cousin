@@ -1,0 +1,234 @@
+<title>Absences : alerte et écart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap">
+<style>
+/* Les maquettes reprennent le dessin de la liste des absences de COUSIN :
+   carte crème cerclée de noir, lignes à trait de couleur à gauche, boules des nuits. */
+:root{
+  color-scheme:light;
+  --creme:#f0efed; --carte:#fdfdfc; --noir:#1b1b1b; --gris:#73716b; --ligne:#d6d4d0;
+  --rouge:#c4291f; --rouge-pale:#fdeeed; --lam:#e8308a; --med:#A9C8E8; --med-pale:#dce9f5;
+  --vert:#4fa06f; --vert-pale:#e3f2e8; --orange:#e0a52a; --orange-pale:#fff4d6;
+  --titre:'Archivo',system-ui,sans-serif; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+body{background:var(--creme);color:var(--noir);font-family:var(--titre);padding-block:28px 60px;padding-inline:16px}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-weight:900;font-size:clamp(28px,5vw,42px);text-transform:uppercase;letter-spacing:-.01em;line-height:1;margin:0 0 10px;text-wrap:balance}
+.chap{font-size:15px;line-height:1.5;max-width:62ch;margin:0 0 8px}
+.regles{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 26px}
+.regles span{font-family:var(--mono);font-size:11px;letter-spacing:.04em;background:var(--carte);border:1.25px solid var(--ligne);border-radius:8px;padding:6px 9px}
+.regles b{color:var(--rouge)}
+.pistes{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:22px;align-items:start}
+.piste{min-width:0}
+.piste h2{font-weight:900;font-size:22px;text-transform:uppercase;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.piste h2 i{font-style:normal;font-family:var(--mono);font-size:13px;background:var(--noir);color:#fff;border-radius:6px;padding:3px 8px}
+.piste p{font-size:13.5px;line-height:1.45;color:#3b3a37;margin:0 0 12px;max-width:52ch}
+
+/* La carte des absences */
+.carte{background:var(--carte);border:1.5px solid var(--noir);border-radius:16px;padding:14px}
+.st{margin:14px 0 6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);display:flex;gap:8px;align-items:center}
+.st:first-child{margin-top:0}
+.st.rouge{color:var(--rouge)}
+.cd{border:1.5px solid var(--ligne);border-left:6px solid var(--med);border-radius:12px;padding:11px 12px;margin-top:9px;background:var(--carte)}
+.cd.lam{border-left-color:var(--rouge)}
+.h{display:flex;align-items:center;gap:8px}
+.h b{font-weight:800;font-size:16px;min-width:0}
+.rd{width:30px;height:30px;flex:none;border-radius:50%;border:1.75px solid var(--ligne);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--gris);background:#fff}
+.rd.q{border-color:#e6b0aa;color:var(--rouge)}
+.rd.c{border-color:#a8d5b7;color:#2e7a4b;background:var(--vert-pale)}
+.rd.h{border-color:var(--med);color:#12354f;background:#eef4fb}
+.tag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;border-radius:5px;padding:2px 6px;background:var(--med-pale);color:#12354f;border:1.25px solid var(--med);flex:none}
+.tag.lam{background:var(--lam);color:#fff;border-color:var(--lam)}
+.k{margin-left:auto;font-weight:900;font-size:22px;line-height:1;color:#12354f}
+.cd.lam .k{color:var(--rouge)}
+.note{font-size:13px;font-style:italic;color:#55534f;margin:5px 0 0 38px}
+.nuits{display:flex;gap:4px;margin:8px 0 0 38px}
+.nuits u{width:16px;height:16px;border-radius:50%;border:1.5px solid #cfccc6;display:block}
+.nuits u.x{background:#f0a8a3;border-color:#f0a8a3}
+.nuits u.r{background:var(--rouge);border-color:var(--rouge)}
+
+/* Justification dépassée */
+.dep{display:inline-flex;align-items:center;gap:6px;margin:7px 0 0 38px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rouge);background:var(--rouge-pale);border:1.25px solid var(--rouge);border-radius:6px;padding:3px 8px}
+.dep em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400}
+.dep.jaune{color:#5c4407;background:var(--orange-pale);border-color:var(--orange)}
+
+/* L'alerte */
+.al{border-color:var(--rouge);border-width:2.5px;border-left-width:8px;background:var(--rouge-pale)}
+.al .h b{color:var(--rouge)}
+.al .rd{border-color:var(--rouge);background:var(--rouge);color:#fff}
+.al-plein{background:var(--rouge);border-color:var(--rouge);color:#fff}
+.al-plein .h b,.al-plein .k{color:#fff}
+.al-plein .note{color:#ffe1de}
+.al-plein .rd{background:#fff;border-color:#fff;color:var(--rouge)}
+.al-plein .nuits u{border-color:#f6b9b4}
+.al-plein .nuits u.r{background:#fff;border-color:#fff}
+.al-plein .tag{background:#fff;color:var(--rouge);border-color:#fff}
+.sirene{border-radius:12px;background:var(--rouge);color:#fff;padding:12px 14px;margin-bottom:12px}
+.sirene .t{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.sirene .p{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.35)}
+.sirene .p b{font-weight:900;font-size:18px}
+.sirene .p span{font-size:13px;opacity:.9}
+.sirene .p i{margin-left:auto;font-style:normal;font-weight:900;font-size:20px}
+
+/* À l'écart : justifiées et hospitalisées */
+.ecart{margin-top:16px;border-top:1.5px dashed var(--ligne);padding-top:10px}
+.mini{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--ligne);font-size:13.5px;color:#55534f}
+.mini .rd{width:24px;height:24px;font-size:12px}
+.mini b{font-weight:600;color:var(--noir)}
+.mini em{margin-left:auto;font-style:normal;font-size:12px;color:var(--gris);white-space:nowrap}
+.pli{display:flex;align-items:center;gap:8px;width:100%;border:1.25px solid var(--ligne);background:#fff;border-radius:10px;padding:10px 12px;font:inherit;font-size:13.5px;color:#55534f;cursor:pointer;margin-top:16px}
+.pli b{color:var(--noir)} .pli i{margin-left:auto;font-style:normal}
+.carte2{margin-top:14px;background:#f6f5f2;border:1.5px solid var(--ligne);border-radius:16px;padding:12px 14px}
+
+/* La fenêtre du rond (comment on pose l'alerte) */
+.pop{background:var(--carte);border:1.5px solid var(--noir);border-radius:16px;padding:16px;max-width:360px}
+.pop b.t{display:block;font-weight:900;font-size:18px;text-transform:uppercase}
+.pop .s{font-size:13px;color:var(--gris);margin:2px 0 10px}
+.opt{display:flex;align-items:center;gap:10px;border:1.25px solid var(--ligne);border-radius:10px;padding:9px 10px;margin-top:7px;font-size:14px;background:#fff}
+.opt.on{border-color:var(--noir);border-width:2px}
+.opt.alerte{border-color:var(--rouge);background:var(--rouge-pale);color:var(--rouge);font-weight:800;border-width:2px;margin-top:12px}
+.opt.alerte .rd{background:var(--rouge);border-color:var(--rouge);color:#fff}
+.bas{margin-top:34px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;align-items:start}
+.bas h2{font-weight:900;font-size:20px;text-transform:uppercase;margin:0 0 8px}
+.q{background:var(--carte);border:1.5px solid var(--ligne);border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5}
+.q ol{margin:6px 0 0;padding-left:20px} .q li+li{margin-top:8px}
+.ex{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);margin-top:22px}
+</style>
+
+<div class="wrap">
+  <h1>Absences : l'alerte et l'écart</h1>
+  <p class="chap">Trois façons de ranger la liste. Les trois suivent les mêmes règles ; seul le dessin change.</p>
+  <div class="regles">
+    <span><b>1.</b> Disparition inquiétante → tout en haut, en rouge</span>
+    <span><b>2.</b> Justification dépassée → remonte, marquée</span>
+    <span><b>3.</b> Non justifiées → comme aujourd'hui</span>
+    <span><b>4.</b> Justifiées, hospitalisées → en bas, à l'écart</span>
+  </div>
+
+  <div class="pistes">
+
+    <!-- ═══ PISTE A ═══ -->
+    <section class="piste">
+      <h2><i>A</i>Le rouge plein</h2>
+      <p>L'alerte est une carte entièrement rouge, impossible à rater. La justification dépassée a une étiquette rouge sous le nom. En bas, les justifiées et hospitalisées sont réduites à une ligne chacune, toujours visibles.</p>
+      <div class="carte">
+        <div class="st rouge">⚠ Alerte · 1</div>
+        <div class="cd al-plein">
+          <div class="h"><span class="rd">!</span><b>MARTIN ODETTE</b><span class="tag">MÉD</span><span class="k">1</span></div>
+          <div class="note">90 ans · pancarte autour du cou</div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u></u><u></u><u class="r"></u></div>
+        </div>
+        <div class="st rouge">À traiter · 2</div>
+        <div class="cd lam">
+          <div class="h"><span class="rd q">?</span><b>KOVAC STEFAN</b><span class="tag lam">LAM</span><span class="k">4</span></div>
+          <div class="dep">Justification dépassée <em>· devait revenir le 07/10</em></div>
+          <div class="nuits"><u></u><u></u><u></u><u class="r"></u><u class="r"></u><u class="r"></u><u class="r"></u></div>
+        </div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>BENALI KARIM</b><span class="tag">MÉD</span><span class="k">3</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u class="x"></u><u class="x"></u><u class="x"></u></div>
+        </div>
+        <div class="st">Les autres absences · 1</div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>NOWAK PIOTR</b><span class="tag">MÉD</span><span class="k">1</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u></u><u></u><u class="x"></u></div>
+        </div>
+        <div class="ecart">
+          <div class="st">Justifiées · hospitalisées · 3</div>
+          <div class="mini"><span class="rd c">✓</span><b>SILVA ANA</b><em>jusqu'au 09/10</em></div>
+          <div class="mini"><span class="rd c">✓</span><b>DIALLO MOUSSA</b><em>jusqu'au 11/10</em></div>
+          <div class="mini"><span class="rd h">+</span><b>PETERS JAN</b><em>hospitalisé · 2 nuits</em></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ PISTE B ═══ -->
+    <section class="piste">
+      <h2><i>B</i>Le cadre rouge</h2>
+      <p>L'alerte garde le dessin des autres cartes, avec un cadre rouge épais et un fond rosé. La justification dépassée a la même étiquette rouge. En bas, les justifiées et hospitalisées sont repliées derrière un bouton.</p>
+      <div class="carte">
+        <div class="st rouge">⚠ Alerte · 1</div>
+        <div class="cd al">
+          <div class="h"><span class="rd">!</span><b>MARTIN ODETTE</b><span class="tag">MÉD</span><span class="k" style="color:var(--rouge)">1</span></div>
+          <div class="note">90 ans · pancarte autour du cou</div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u></u><u></u><u class="r"></u></div>
+        </div>
+        <div class="st rouge">À traiter · 2</div>
+        <div class="cd lam">
+          <div class="h"><span class="rd q">?</span><b>KOVAC STEFAN</b><span class="tag lam">LAM</span><span class="k">4</span></div>
+          <div class="dep">Justification dépassée <em>· devait revenir le 07/10</em></div>
+          <div class="nuits"><u></u><u></u><u></u><u class="r"></u><u class="r"></u><u class="r"></u><u class="r"></u></div>
+        </div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>BENALI KARIM</b><span class="tag">MÉD</span><span class="k">3</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u class="x"></u><u class="x"></u><u class="x"></u></div>
+        </div>
+        <div class="st">Les autres absences · 1</div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>NOWAK PIOTR</b><span class="tag">MÉD</span><span class="k">1</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u></u><u></u><u class="x"></u></div>
+        </div>
+        <button class="pli" type="button"><span class="rd c" style="width:24px;height:24px;font-size:12px">✓</span><b>Justifiées · hospitalisées</b> 3<i>▾</i></button>
+      </div>
+    </section>
+
+    <!-- ═══ PISTE C ═══ -->
+    <section class="piste">
+      <h2><i>C</i>La sirène en tête</h2>
+      <p>Un bandeau rouge tout en haut de la liste, au-dessus des cartes, qui ne contient que les alertes. La justification dépassée a une étiquette jaune, pour la distinguer de l'alerte. Les justifiées et hospitalisées ont leur propre carte grise, sous la liste.</p>
+      <div class="carte">
+        <div class="sirene">
+          <div class="t">⚠ Disparition inquiétante</div>
+          <div class="p"><b>MARTIN ODETTE</b><span>90 ans · pancarte autour du cou</span><i>1</i></div>
+        </div>
+        <div class="st rouge">À traiter · 2</div>
+        <div class="cd lam">
+          <div class="h"><span class="rd q">?</span><b>KOVAC STEFAN</b><span class="tag lam">LAM</span><span class="k">4</span></div>
+          <div class="dep jaune">Justification dépassée <em>· devait revenir le 07/10</em></div>
+          <div class="nuits"><u></u><u></u><u></u><u class="r"></u><u class="r"></u><u class="r"></u><u class="r"></u></div>
+        </div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>BENALI KARIM</b><span class="tag">MÉD</span><span class="k">3</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u class="x"></u><u class="x"></u><u class="x"></u></div>
+        </div>
+        <div class="st">Les autres absences · 1</div>
+        <div class="cd">
+          <div class="h"><span class="rd q">?</span><b>NOWAK PIOTR</b><span class="tag">MÉD</span><span class="k">1</span></div>
+          <div class="nuits"><u></u><u></u><u></u><u></u><u></u><u></u><u class="x"></u></div>
+        </div>
+      </div>
+      <div class="carte2">
+        <div class="st">Justifiées · hospitalisées · 3</div>
+        <div class="mini"><span class="rd c">✓</span><b>SILVA ANA</b><em>jusqu'au 09/10</em></div>
+        <div class="mini"><span class="rd c">✓</span><b>DIALLO MOUSSA</b><em>jusqu'au 11/10</em></div>
+        <div class="mini"><span class="rd h">+</span><b>PETERS JAN</b><em>hospitalisé · 2 nuits</em></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="bas">
+    <section>
+      <h2>Poser l'alerte (les trois pistes)</h2>
+      <div class="pop">
+        <b class="t">Cette absence</b>
+        <div class="s">MARTIN ODETTE · 1 nuit</div>
+        <div class="opt on"><span class="rd q">?</span>Non justifiée</div>
+        <div class="opt"><span class="rd c">✓</span>Justifiée</div>
+        <div class="opt"><span class="rd h">+</span>Hospitalisé·e</div>
+        <div class="opt alerte"><span class="rd">!</span>Disparition inquiétante</div>
+      </div>
+      <p class="chap" style="font-size:13.5px;margin-top:10px">Un bouton rouge en plus dans la fenêtre du rond, celle où l'on choisit déjà justifiée ou hospitalisée. Un toucher pose l'alerte, un autre la retire.</p>
+    </section>
+    <section>
+      <h2>À trancher</h2>
+      <div class="q">
+        <ol>
+          <li><b>A, B ou C ?</b></li>
+          <li><b>L'alerte suit la personne ?</b> Aujourd'hui, une absence disparaît de la liste quand la personne revient. Pour la dame de 90 ans, faut-il que l'alerte revienne toute seule à sa prochaine absence, ou la repose-t-on à chaque fois ?</li>
+          <li><b>La justification dépassée</b> reste marquée jusqu'à quand ? Je propose : jusqu'à ce que la personne revienne, ou jusqu'à ce qu'on change son statut à la main.</li>
+        </ol>
+      </div>
+      <div class="ex">Noms inventés · maquette</div>
+    </section>
+  </div>
+</div>
