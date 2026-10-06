@@ -41715,14 +41715,16 @@ function absCompteATraiter(){ return ABSENCES.filter(absATraiter).length; }
 /* Une écriture : on montre tout de suite, et on revient en arrière si la base refuse. */
 function absMaj(a, champs){
   const avant={}; Object.keys(champs).forEach(function(k){ avant[k]=a[k]; });
-  Object.assign(a, champs); ABS_ECRIT=Date.now(); render();
+  /* `RENDU_FORCE` : c'est un clic, pas une frappe. Sans lui, si la case « Nom » avait
+     gardé le curseur, la page ne bougeait pas — on croyait que rien n'avait changé. */
+  Object.assign(a, champs); ABS_ECRIT=Date.now(); RENDU_FORCE=true; render();
   sb.from('absences').update(champs).eq('id',a.id).select().then(function(r){
     if(r.error || !r.data || !r.data.length){
-      Object.assign(a, avant); render();
+      Object.assign(a, avant); RENDU_FORCE=true; render();
       toast("Pas enregistré — la base n'a pas répondu. Réessaie.");
       return;
     }
-    absNoterMaj(); render();
+    absNoterMaj(); RENDU_FORCE=true; render();
   });
 }
 function absAjouter(){
@@ -41787,10 +41789,16 @@ function absAlerteBascule(id){
   const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
   absMaj(a,{alerte:!absAlerte(a)});
 }
+/* ⚠ CHOISIR UN ÉTAT RETIRE L'ALERTE (Mag, 06/10/2026 : « quand je change l'état, quand
+   je mets le point d'interrogation, ça retire l'alerte — mais ça reste en haut »). On
+   revient au rond pour dire où en est la personne : c'est qu'on n'est plus dans la
+   disparition inquiétante. Re-toucher l'état déjà choisi retire aussi l'alerte. */
 function absStatutChoisir(id,k){
   const bg=document.getElementById('absBg'); if(bg) bg.classList.remove('on');
-  const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a || a.statut===k) return;
-  absMaj(a,{statut:k});
+  const a=ABSENCES.find(function(x){ return x.id===id; }); if(!a) return;
+  if(a.statut===k && !absAlerte(a)) return;
+  const champs={statut:k}; if(absAlerte(a)) champs.alerte=false;
+  absMaj(a,champs);
 }
 function absBoules(a){
   const L=absNuits(a), aujourd=absJour();
