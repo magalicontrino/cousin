@@ -38836,33 +38836,47 @@ function allerPassation(){
   })();
 }
 /* La passation en texte, pour le mail — même source que l'écran et la feuille
-   (`passToutes`). Les réveils d'abord, par heure, puis les infos. */
+   (`passToutes`). ⚠ AÉRÉE (Mag, 06/10/2026 : « essaye que ce soit plus aéré ») : un
+   bandeau par partie, une ligne vide entre chaque passation, l'heure et la chambre
+   sur leur propre ligne, le texte en retrait dessous. */
 function passEnTexte(){
   const toutes=passUnique(passToutes()).filter(function(p){ return !passFait(p); });
+  const auj=agIso(new Date());
   const ligne=function(p, h){
-    const t=[]; if(h) t.push(h+' h'); if(p.chambre) t.push('ch. '+p.chambre);
-    let x='• '+(t.length?t.join(' · ')+' — ':'')+String(p.texte||'').trim().replace(/\n/g,'\n   ');
-    if(p.commentaire) x+='\n   '+String(p.commentaire).trim();
-    return x;
+    const t=[]; if(h) t.push(h+' h'); if(p.chambre) t.push('chambre '+p.chambre);
+    if(p.jour && p.jour>auj) t.push('demain');
+    const out=[];
+    if(t.length) out.push('▸ '+t.join(' · '));
+    String(p.texte||'').trim().split('\n').forEach(function(x,i){
+      if(x.trim()) out.push((t.length||i>0?'   ':'▸ ')+x.trim());
+    });
+    if(p.commentaire) out.push('   ('+String(p.commentaire).trim()+')');
+    return out.join('\n');
   };
+  const bandeau=function(t){ return ['','━━━━━━━━━━━━━━━━','  '+t,'━━━━━━━━━━━━━━━━','']; };
   const L=['PASSATION — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})];
   const moments=passProgramme(toutes), infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
-  if(moments.length){ L.push('','RÉVEIL'); moments.forEach(function(m){ L.push(ligne(m.p, m.heure)); }); }
-  if(infos.length){ L.push('','INFO'); infos.forEach(function(p){ L.push(ligne(p)); }); }
+  if(moments.length){ L.push.apply(L, bandeau('RÉVEIL')); L.push(moments.map(function(m){ return ligne(m.p, m.heure); }).join('\n\n')); }
+  if(infos.length){ L.push.apply(L, bandeau('INFO')); L.push(infos.map(function(p){ return ligne(p); }).join('\n\n')); }
   if(!moments.length && !infos.length) L.push('','Rien n’a été passé.');
   return L.join('\n');
 }
+/* ═══ DIRECTEMENT DANS GMAIL (Mag, 06/10/2026 : « surtout que ça soit directement sur
+   Gmail ») ═══ Les comptes de l'équipe sont des comptes Google : on ouvre la fenêtre
+   « Nouveau message » de Gmail, déjà remplie, dans un nouvel onglet. COUSIN n'envoie
+   toujours rien : c'est elle qui choisit à qui, et qui appuie sur Envoyer. */
 function passEnvoyerMail(){
   /* L'objet ne porte aucun nom : il s'affiche sur l'écran verrouillé des téléphones. */
   const objet='Passation — '+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'});
-  const lien='mailto:?subject='+encodeURIComponent(objet)+'&body='+encodeURIComponent(passEnTexte());
-  if(lien.length>1900){
-    cousinConfirme('La passation est longue',
-      'Ton logiciel de mail risque de la couper. Ouvrir quand même ? (Sinon : imprimer.)',
-      function(){ location.href=lien; }, {ok:'Ouvrir quand même'});
+  const lien='https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(objet)+
+    '&body='+encodeURIComponent(passEnTexte());
+  const ouvrir=function(){ const w=window.open(lien,'_blank','noopener'); if(!w) location.href=lien; };
+  if(lien.length>7000){
+    cousinConfirme('La passation est très longue',
+      'Gmail risque de la couper. Ouvrir quand même ? (Sinon : imprimer.)', ouvrir, {ok:'Ouvrir quand même'});
     return;
   }
-  location.href=lien;
+  ouvrir();
 }
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
