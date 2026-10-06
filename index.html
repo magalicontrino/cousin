@@ -40270,7 +40270,9 @@ HORAIRES.memo=[
      nuit d'un seul regard, l'horloge ne disait rien de plus que l'heure écrite à côté.
      ⛔ NE PLUS LA REMPLACER. */
   {ic:'lune',            t:'La nuit dans le centre', v:H.fermeture+' → '+H.reouverture,
-   n:'En retard : '+H.tel+' · '+H.telRegul, c:'#6FC7D9'},
+   n:'En retard : '+H.tel+' · '+H.telRegul, c:'#6FC7D9',
+   /* `np` = la note sur la feuille « Bon à savoir », qui parle à la personne. */
+   np:'En retard ? Appelle le '+H.tel+' ou le '+H.telRegul},
   {ic:'hebergement',     t:'Les présences', v:H.presence,                      c:'#4fa06f'},
   {ic:'repas-couverts',  t:'Les repas',     ou:'centre',   k:'Repas',          c:'#e0a52a'},
   {ic:'social',          t:'Service social',ou:'services', k:'Service social', c:'#d4568c'},
@@ -40308,7 +40310,7 @@ HORAIRES.infirmeries=[
      15 h → 20 h. Quand la photo arrive : écrire SES heures ici, avec `v`, et retirer
      « À vérifier ». */
   {ic:'medical', t:'Infirmerie · rez-de-chaussée', ou:'services', k:'Pôle fragile', c:'#f8763f', joint:true,
-   n:'À vérifier'}
+   n:'À vérifier', np:''}
 ];
 /* Les heures d'une ligne du mémo : soit elle les porte (`v`), soit elle dit où les
    prendre. On ne recopie jamais. */
@@ -40481,7 +40483,52 @@ function memoPicPapier(nom){
    préfixées par `p` (vide pour la feuille, « .mmf » dans l'app).
    ⚠ DES CLASSES À ELLES (mf-…) : l'app a déjà `.hrg`, `.hrgs`, `.popcard b`… qui
    se seraient invités dans le dessin. */
-function memoCorpsHTML(seul){
+/* ═══ « BON À SAVOIR » — LA FEUILLE QU'ON DONNE (Mag, 06/10/2026) ═══
+   « Elle n'a aucun intérêt à être imprimée s'il y a des phrases qui nous sont
+   personnelles. » Le mémo est l'aide-mémoire de L'ÉQUIPE ; la feuille est pour LA
+   PERSONNE : même dessin, mais ses propres phrases. Ses réponses :
+   · TUTOIEMENT, comme la feuille du règlement ;
+   · « Avant de finir » N'Y EST PAS (signer la charte, faire visiter : nos consignes).
+     Ses deux lignes utiles ont déménagé : les médicaments dans la chambre, la
+     plainte en bas de page ;
+   · pas de « À vérifier », pas de date ; titre « Bon à savoir » ;
+   · elle la veut EN TOUTES LES LANGUES : ces textes sont la VERSION FRANÇAISE de
+     référence, les autres langues se traduiront à partir d'ici.
+   ⚠ LES PICTOS ET LES COULEURS VIENNENT DU MÉMO (`ACC_POINTS`) : on ne change que
+   les mots. Si une règle change dans le mémo, la changer AUSSI ici. */
+const BON_A_SAVOIR=[
+  {de:'Dormir ailleurs, rentrer tard', t:'Dormir ailleurs, rentrer tard',
+   l:['Tu veux dormir ailleurs ? Vois avec les <b>travailleurs sociaux</b>.',
+      '<b>3 nuits d’affilée</b> au maximum, <b>10 jours par mois</b>.',
+      'Tu rentres après <b>'+H.fermeture+'</b> ? <b>Préviens à l’avance</b> : '+
+        '<b>'+H.tel+'</b> ou <b>'+H.telRegul+'</b>.']},
+  {de:'Ce qui est interdit', t:'Ce qui est interdit',
+   l:['<b>Un homme n’entre jamais dans une chambre de femmes, ni à l’étage des femmes.</b> Cela peut mener à l’exclusion du centre.',
+      '<b>Violence</b>, <b>drogue</b>, <b>alcool</b>, <b>vol</b>, <b>armes</b>.',
+      '<b>Appareils qui chauffent</b>, bougies, encens.',
+      'Garder des <b>médicaments</b> dans ta chambre.',
+      '<b>Les animaux</b>.',
+      '<b>Les visites</b> et <b>les photos</b> sans accord.',
+      'Fumer ailleurs qu’au <b>fumoir</b>.']},
+  {de:'La chambre, les repas', t:'Ta chambre, les repas', p:['bed','colis','cle','repas-couverts','panier','medical'],
+   l:['Ta chambre est <b>partagée</b>, les étages ne sont <b>pas mixtes</b>.',
+      '<b>Trois bacs</b> au maximum pour tes affaires.',
+      'L’équipe <b>passe dans les chambres</b> : hygiène, sécurité, incendie.',
+      'Tu manges <b>au réfectoire</b> ou <b>au salon</b>. <b>Pas de nourriture ni de gobelet plein</b> ailleurs.',
+      'Un <b>frigo</b> pour ce que tu apportes du dehors — <b>48 h</b>, ensuite c’est jeté. '+
+        '<b>Micro-ondes</b> à côté du réfectoire.',
+      'Tes <b>médicaments</b> sont gardés à l’<b>infirmerie</b>.']},
+  {de:'Ce qu’on peut demander', t:'Ce que tu peux demander',
+   l:['Un <b>casier</b> — demande à l’accueil',
+      'Le <b>téléphone</b>',
+      'La <b>buanderie</b>'+lingeParEtage(),
+      'Un <b>kit d’hygiène</b>',
+      'Le <b>wifi</b>',
+      'La <b>salle informatique</b>, au <b>4ᵉ</b>',
+      'Des <b>tickets</b> de transport',
+      'Les <b>activités</b>']}
+];
+function memoCorpsHTML(seul, papier){
   const frise=function(liste){
     return '<div class="mf-hrgs">'+liste.map(function(m){
       return '<div class="mf-hrg" style="--hc:'+m.c+'">'+
@@ -40492,7 +40539,7 @@ function memoCorpsHTML(seul){
               ? '<strong class="mf-pl"><i>'+esc(h[0])+'</i>'+esc(h[1])+'</strong>'
               : '<strong>'+esc(h)+'</strong>';
           }).join('')+
-          (m.n?'<u>'+esc(m.n)+'</u>':'')+
+          ((papier && m.np!==undefined ? m.np : m.n)?'<u>'+esc(papier && m.np!==undefined ? m.np : m.n)+'</u>':'')+
         '</span></div>';
     }).join('')+'</div>';
   };
@@ -40506,8 +40553,29 @@ function memoCorpsHTML(seul){
       }).join('')+'</ul></div>';
   };
   const autres=ACC_POINTS.filter(function(x){ return !x.horaires; });
-  const dormir=autres[0], verso=autres.slice(1);
+  let dormir=autres[0], verso=autres.slice(1);
   const hor=ACC_POINTS.filter(function(x){ return x.horaires; })[0]||{c:'#6FC7D9',t:'Les horaires'};
+  if(papier && !seul){
+    /* La feuille : les mots de BON_A_SAVOIR, les pictos et couleurs du mémo. */
+    const B=BON_A_SAVOIR.map(function(b){
+      const m=ACC_POINTS.filter(function(x){ return x.t===b.de; })[0]||{};
+      return {t:b.t, c:m.c, p:b.p||m.p, l:b.l};
+    });
+    const hb='<div class="mf-ec" style="--ac:'+hor.c+'"><div class="mf-t">'+esc(hor.t)+'</div>'+
+      '<div class="mf-deux">'+
+        '<div><div class="mf-sous">Le centre</div>'+frise(HORAIRES.memo)+'</div>'+
+        '<div><div class="mf-sous">L’infirmerie</div>'+frise(HORAIRES.infirmeries)+'</div>'+
+      '</div></div>';
+    return {
+      recto:'<div class="mf-h1">Bon à savoir</div><div class="mf-pile">'+hb+ecran(B[0])+'</div>',
+      verso:'<div class="mf-deux">'+
+        '<div class="mf-pile">'+ecran(B[1])+ecran(B[2])+'</div>'+
+        '<div class="mf-pile">'+ecran(B[3])+'</div>'+
+      '</div>'+
+      '<div class="mf-pied"><span>Urgences : 112</span><span>Le centre : '+esc(H.tel)+'</span></div>'+
+      '<div class="mf-plainte">Si ça ne va pas : la <b>coordination</b>, ou <b>complaint@samusocial.be</b></div>'
+    };
+  }
   const horaires='<div class="mf-ec" style="--ac:'+hor.c+'"><div class="mf-t">'+esc(hor.t)+'</div>'+
     '<div class="mf-deux">'+
       '<div><div class="mf-sous">Le centre</div>'+frise(HORAIRES.memo)+'</div>'+
@@ -40557,17 +40625,18 @@ function memoCss(p){
     r('.mf-lp img,.mf-lp svg','width:18px;height:18px;display:block;color:#1b1b1b'),
     r('.mf-lp.rouge','border-color:#e63329;background:#fdeeed'),
     r('.mf-ul li span span','font-size:13px'),
+    r('.mf-h1','font-size:34px;font-weight:900;text-transform:uppercase;letter-spacing:-.01em;line-height:1;margin:0 0 6mm'),
+    r('.mf-plainte','margin-top:3mm;font-size:13.5px;text-align:center'),
     r('.mf-pied','margin-top:6mm;padding-top:8px;border-top:2.5px solid #1b1b1b;display:flex;justify-content:space-between;font-size:14px;font-weight:700')
   ].join('');
 }
 function imprimerMemo(){
-  const c=memoCorpsHTML(false);
-  const date=esc(new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long',year:'numeric'}));
+  const c=memoCorpsHTML(false, true);
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
   w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
     '<meta name="viewport" content="width=900">'+
-    '<title>Le mémo du centre — COUSIN</title><style>'+
+    '<title>Bon à savoir — COUSIN</title><style>'+
     '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#1b1b1b}'+
     '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
@@ -40578,13 +40647,13 @@ function imprimerMemo(){
     '.pg{width:210mm;min-height:297mm;margin:26px auto;padding:13mm 15mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
     '.date{font-size:12px;color:#444;margin-bottom:8px}'+
     memoCss('')+
-    '@media print{.bar{display:none}.pg{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}'+
+    '@media print{body{background:#fff}.bar{display:none}.pg{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}'+
       '.pg+.pg{break-before:page}@page{size:A4;margin:12mm 14mm}}'+
     '</style></head><body>'+
-    '<div class="bar"><b>Le mémo — aperçu · A4 recto-verso</b>'+
+    '<div class="bar"><b>Bon à savoir — aperçu · A4 recto-verso</b>'+
       '<button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
-    '<div class="pg"><div class="date">'+date+'</div>'+c.recto+'</div>'+
+    '<div class="pg">'+c.recto+'</div>'+
     '<div class="pg">'+c.verso+'</div>'+
     '</body></html>');
   w.document.close();
