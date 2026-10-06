@@ -41513,9 +41513,14 @@ let ABS_PLAN=null;
 /* La note posée par l'autorisation : « Autorisation · revient le 07/10 ». C'est elle
    qui dit qu'un « justifié » vient de KAIROS — et qu'on peut donc le retirer tout seul
    quand la date de retour est passée. Un justifié posé à la main n'est jamais touché. */
-function absNoteAuto(iso){ return 'Autorisation · revient le '+iso.slice(8,10)+'/'+iso.slice(5,7); }
+/* ⚠ « JUSTIFIÉ JUSQU'AU 07/10 » (Mag, 06/10/2026 : « plutôt justifié jusqu'au 7 du 10 »).
+   La première version écrivait « Autorisation · revient le 07/10 » : les notes déjà
+   en base sous cette forme sont encore reconnues (`ABS_NOTE_AUTO`), et la prochaine
+   liste collée les remplace par la nouvelle. « Jusqu'au 07/10 » = il revient le 07. */
+const ABS_NOTE_AUTO=/^(?:Autorisation · revient le|Justifié jusqu'au) (\d{2})\/(\d{2})$/;
+function absNoteAuto(iso){ return 'Justifié jusqu\'au '+iso.slice(8,10)+'/'+iso.slice(5,7); }
 function absAutoFinie(a){
-  const m=/^Autorisation · revient le (\d{2})\/(\d{2})$/.exec(a.note||''); if(!m) return false;
+  const m=ABS_NOTE_AUTO.exec(a.note||''); if(!m) return false;
   const auj=absJour();
   let an=+auj.slice(0,4); if(+m[2] < +auj.slice(5,7)-6) an++;   // passage d'année
   return a.statut==='just' && auj >= an+'-'+m[2]+'-'+m[1];
@@ -41526,9 +41531,9 @@ function absStatutPropose(a, revient){
     if(a && a.statut==='hospit') return null;
     const note=absNoteAuto(revient);
     if(a && a.statut==='just' && a.note===note) return null;
-    if(a && a.note && !/^Autorisation · revient le /.test(a.note) && a.statut==='just') return null;
-    return {statut:'just', lib:note.replace(/^Autorisation · /,''),
-            note:(a && a.note && !/^Autorisation · revient le /.test(a.note)) ? a.note : note};
+    if(a && a.note && !ABS_NOTE_AUTO.test(a.note) && a.statut==='just') return null;
+    return {statut:'just', lib:'jusqu\'au '+note.slice(-5),
+            note:(a && a.note && !ABS_NOTE_AUTO.test(a.note)) ? a.note : note};
   }
   if(a && absAutoFinie(a)) return {statut:'nonjust', note:null};
   return null;
