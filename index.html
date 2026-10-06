@@ -10745,7 +10745,7 @@ ${ficheLiens('Où l’envoyer', [['Médecins du Monde – CASO Bruxelles','CASO 
   /* Écrit par Mag (06/10/2026), recopié mot pour mot : seuls les noms sont devenus des
      [crochets]. C'est le mail quand la personne dit elle-même qui la suit. */
   mailtpl("Elle dit être suivie par un CPAS — confirmer","La personne indique son CPAS et son assistant·e social·e : on demande confirmation.",["Suivi social","CPAS"],
-    "Suivi CPAS — [nom]",
+    "Suivi CPAS — [NOM Prénom] - [date de naissance]",
     "Bonjour,\n\nDans le cadre de l’accompagnement de [Madame/Monsieur] [nom], je me permets de vous contacter afin d’obtenir des informations concernant sa situation auprès du CPAS.\n\n[Madame/Monsieur] [nom] m’indique être suivi·e par le CPAS de [commune], notamment par [nom de l’assistant·e social·e]. Pourriez-vous, s’il vous plaît, me confirmer cette information ?\n\nJe vous remercie par avance pour votre retour.\n\nBien à vous,", "Social"),
   mailtpl("Où en est sa demande d'accueil ? — Fedasil","Demande de protection internationale : l'accueil et les soins passent par Fedasil, pas par le CPAS. Modèle écrit par Claude — à relire.",["Fedasil","Asile","Suivi social"],
     "Demande d'accueil — [NOM Prénom] - [date de naissance] - n° SP [numéro, si connu]",
@@ -39697,7 +39697,7 @@ async function loadEntrantsCompte(){
        et les entretiens à faire ») : l'accueil ne charge pas la liste entière, il ne
        connaissait donc que zéro. On compte ici les DEUX — les arrivées annoncées et les
        entretiens qui restent à faire. */
-    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,mi_parcours,pour_entretien');
+    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,encode_le,etage_le,mi_parcours,pour_entretien');
     if(!r.error){
       const d=r.data||[];
       /* ⚠ LE MÊME FILTRE QUE L'ONGLET, ET C'EST TOUTE LA CORRECTION (Mag, 22/09/2026 :
@@ -39772,14 +39772,23 @@ function entrantAjout(e){
    pas les 3, ce n'est pas ok ») : Social + Médical + ROI signé. Un mi-parcours n'a pas
    de ROI (« il ne doit pas être signé ») : deux cases suffisent. Cette fonction décide
    pour tout — le tri, « À voir », « Déjà vus », la feuille, le mail, la fenêtre. */
+/* ═══ ENCODÉ + LISTE ÉTAGE COMPTENT AUSSI (Mag, 07/10/2026 : « oui, il faut encoder
+   et liste étage, les cocher ») ═══ Une ligne ne descend dans « Déjà vus » que quand
+   ces deux cases sont cochées en plus. ⚠ PAS POUR UN MI-PARCOURS : la ligne ne les
+   montre pas (03/10 : la personne est déjà encodée et sur la liste depuis l'arrivée). ⭐ `entCases` est la SEULE liste : la règle, « Déjà vus », la
+   descente, la fenêtre « Corriger les cases » et le message la lisent. */
+function entCases(e){
+  return [{k:'acc_social', l:'Social', c:'social'},{k:'acc_medical', l:'Médical', c:'médical'}]
+    .concat(e.mi_parcours?[]:[{k:'roi', l:'ROI signé', c:'ROI'},
+      {k:'encode', l:'Encodé', c:'encodé'},{k:'etage', l:'Liste étage', c:'liste étage'}]);
+}
 function entretienFait(e, ph){
-  const ok=!!(e[ph+'_social_le'] && e[ph+'_medical_le']);
-  if(ph==='acc' && !e.mi_parcours) return ok && !!e.roi_le;
-  return ok;
+  if(ph==='acc') return entCases(e).every(function(c){ return !!e[c.k+'_le']; });
+  return !!(e[ph+'_social_le'] && e[ph+'_medical_le']);
 }
 /* Le jour où c'est devenu « fait » : la dernière des cases qui comptent. */
 function entretienFaitLe(e){
-  return [e.acc_social_le, e.acc_medical_le, e.mi_parcours?null:e.roi_le].filter(Boolean).sort().pop();
+  return entCases(e).map(function(c){ return e[c.k+'_le']; }).filter(Boolean).sort().pop();
 }
 function entrantJours(e){
   const a=new Date(String(e.arrive_le)+'T12:00:00'), n=new Date();
@@ -39845,7 +39854,7 @@ function entrantCocher(id, k){
        et pas en décochant. C'est l'instant où l'on sait que la personne a été vue. */
     if(on && !etaitFait && entretienFait(e, ph)){
       cousinPop({titre:(e.mi_parcours?'Mi-parcours':'Entretien d’arrivée')+' : c’est fait',
-        texte: e.nom+' a été vu·e par le social et par le médical'+(e.mi_parcours?'.':', et le ROI est signé.'),
+        texte: e.nom+' a été vu·e par le social et par le médical'+(e.mi_parcours?'.':', le ROI est signé, c’est encodé et sur la liste étage.'),
         ok:'OK', seul:true, quandOui:function(){}});
     }
   });
@@ -41172,7 +41181,7 @@ function entrantVersArrivee(id){
 /* Elle descend dans « Déjà vus » : on coche ce qui manque, à son nom. */
 function entrantVersVus(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
-  const cases=['acc_social','acc_medical'].concat(e.mi_parcours?[]:['roi']);
+  const cases=entCases(e).map(function(c){ return c.k; });
   const manque=cases.filter(function(k){ return !e[k+'_le']; });
   if(!manque.length){ toast('Déjà complet.'); return; }
   cousinConfirme(e.nom+' : c’est fait ?',
@@ -41250,8 +41259,7 @@ function entrantCommenter(id){
    ⚠ Recocher ici met SON nom et l'heure, comme sur la ligne. */
 function entrantRemonter(id){
   const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
-  const cases=[{k:'acc_social', l:'Social'},{k:'acc_medical', l:'Médical'}]
-    .concat(e.mi_parcours?[]:[{k:'roi', l:'ROI signé'}]);
+  const cases=entCases(e);
   const etq=cases.map(function(c){
     return {k:c.k, l:c.l+(e[c.k+'_par']?' — '+e[c.k+'_par']:'')};
   });
@@ -41333,7 +41341,7 @@ function entretiensEnTexte(){
     const t=a.toLocaleDateString('fr-BE',{weekday:'short',day:'2-digit',month:'2-digit'}).replace('.','');
     return k===0?'aujourd’hui':k===1?'demain':t;
   };
-  const cases=function(e){ return [['acc_social','social'],['acc_medical','médical']].concat(e.mi_parcours?[]:[['roi','ROI']]); };
+  const cases=function(e){ return entCases(e).map(function(c){ return [c.k,c.c]; }); };
   const tete=function(e){
     return '• *'+e.nom+'*'+' — '+(e.lam?'LAM':'médical')+(e.chambre?' — ch. '+e.chambre:'')+(e.langue?' — '+e.langue:'')+(e.mi_parcours?' — mi-parcours':'');
   };
@@ -41472,8 +41480,8 @@ function entretiensCorps(){
         (e.mi_parcours?'':'<span class="entsep"></span>'+caseH(e,'roi','ROI signé'))+
         /* ═══ ENCODÉ + LISTE ÉTAGE (Mag, 01/10/2026 : « une case pour bien signaler que
            c'est déjà encodé et une autre pour préciser que c'est bien sur la liste
-           étage ») ═══ Même geste que les autres : qui et quand. ⚠ ELLES NE COMPTENT PAS
-           dans « vu » (`entretienFait`) : la règle des trois cases reste la sienne.
+           étage ») ═══ Même geste que les autres : qui et quand. ⚠ DEPUIS LE 07/10 ELLES COMPTENT (voir `entCases`) — AVANT, ELLES NE COMPTAIENT PAS
+           dans « vu » (`entretienFait`).
            Colonnes `encode_*` / `etage_*` (sql/entrants-encode-etage.sql). */
       '</div>'+
       /* ⚠ PAS POUR UN MI-PARCOURS (Mag, 03/10/2026 : « concernant le mi-parcours, tu peux
