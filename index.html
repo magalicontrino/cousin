@@ -5064,6 +5064,10 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .abscol-lam button{border:1.25px solid var(--trait);background:#fff;border-radius:6px;padding:4px 9px;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;cursor:pointer}
 .abscol-lam button.on.lam{background:#e8308a;color:#fff;border-color:#e8308a}
 .abscol-lam button.on.med{background:#dce9f5;color:#12354f;border-color:#A9C8E8}
+/* Le statut lu dans KAIROS (06/10/2026) : coché = appliqué, décoché = ignoré. */
+.abscol-st{flex-basis:100%;text-align:left;border:1.25px dashed var(--trait);background:#fff;border-radius:6px;
+  padding:4px 9px;font-size:12px;color:#73716b;cursor:pointer;text-decoration:line-through}
+.abscol-st.on{border-style:solid;border-color:#4fa06f;background:#e3f2e8;color:#1f5b33;font-weight:700;text-decoration:none}
 .abscol-rappel{margin-top:12px;padding:8px 10px;border-radius:8px;background:#fff4d6;font-size:13px;color:#5c4407}
 .abstot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
 .abstot-c{border:1.5px solid var(--ligne);border-radius:12px;padding:9px 6px;text-align:center;background:#fff}
@@ -41471,7 +41475,21 @@ function absLireListe(txt){
       if(cases.some(function(c){ return /^LAM$/i.test(c); })){ lam=true; break; }
       if(cases.some(function(c){ return /^M[ÉE]D(ICAL)?$/i.test(c); })){ lam=false; break; }
     }
-    if(nom) out.push({nom:(nom+' '+prenom).replace(/\s+/g,' ').trim(), lam:lam});
+    /* ═══ L'AUTORISATION DE DÉCOUCHER (Mag, 06/10/2026) ═══
+       « Autorisation de découcher 04/10 → 07/10 » veut dire : il ne dort pas là le 4,
+       le 5 et le 6 — il REVIENT le 7 et dort là. Donc la nuit de ce soir est
+       justifiée si  du ≤ ce soir < au.  On ne garde que la date de retour. */
+    let bloc='';
+    for(let k=j; k<L.length && k<j+12 && !(k>j && /^\s*\d+\s*$/.test(L[k])); k++) bloc+=L[k]+'\n';
+    let revient=null;
+    const ia=bloc.normalize('NFD').replace(/[\u0300-\u036f]/g,'').search(/autorisation de decoucher/i);
+    if(ia>=0){
+      const ds=(bloc.slice(ia).match(/\d{2}\/\d{2}\/\d{4}/g)||[]).map(function(d){
+        return d.slice(6,10)+'-'+d.slice(3,5)+'-'+d.slice(0,2); });
+      const auj=absJour();
+      for(let k=0;k+1<ds.length;k+=2) if(ds[k]<=auj && auj<ds[k+1]){ revient=ds[k+1]; break; }
+    }
+    if(nom) out.push({nom:(nom+' '+prenom).replace(/\s+/g,' ').trim(), lam:lam, revient:revient});
     i=j;
   }
   if(out.length) return out;
@@ -41492,6 +41510,29 @@ function absLireListe(txt){
   return out;
 }
 let ABS_PLAN=null;
+/* La note posée par l'autorisation : « Autorisation · revient le 07/10 ». C'est elle
+   qui dit qu'un « justifié » vient de KAIROS — et qu'on peut donc le retirer tout seul
+   quand la date de retour est passée. Un justifié posé à la main n'est jamais touché. */
+function absNoteAuto(iso){ return 'Autorisation · revient le '+iso.slice(8,10)+'/'+iso.slice(5,7); }
+function absAutoFinie(a){
+  const m=/^Autorisation · revient le (\d{2})\/(\d{2})$/.exec(a.note||''); if(!m) return false;
+  const auj=absJour();
+  let an=+auj.slice(0,4); if(+m[2] < +auj.slice(5,7)-6) an++;   // passage d'année
+  return a.statut==='just' && auj >= an+'-'+m[2]+'-'+m[1];
+}
+/* Ce que la liste collée change au statut : {statut, note} ou null. */
+function absStatutPropose(a, revient){
+  if(revient){
+    if(a && a.statut==='hospit') return null;
+    const note=absNoteAuto(revient);
+    if(a && a.statut==='just' && a.note===note) return null;
+    if(a && a.note && !/^Autorisation · revient le /.test(a.note) && a.statut==='just') return null;
+    return {statut:'just', lib:note.replace(/^Autorisation · /,''),
+            note:(a && a.note && !/^Autorisation · revient le /.test(a.note)) ? a.note : note};
+  }
+  if(a && absAutoFinie(a)) return {statut:'nonjust', note:null};
+  return null;
+}
 function absCollerOuvrir(){
   let bg=document.getElementById('absColBg');
   if(!bg){
@@ -41517,10 +41558,13 @@ function absCollerComparer(){
   const auj=absJour(), pris={}, encore=[], nouveaux=[];
   lus.forEach(function(p){
     const a=ABSENCES.find(function(x){ return !pris[x.id] && absMemePersonne(x.nom,p.nom); });
-    if(a){ pris[a.id]=1; encore.push({a:a, ok:true, deja:absNuits(a).indexOf(auj)>=0,
-             lam:(p.lam!==null && p.lam!==a.lam) ? p.lam : undefined}); }
-    else if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,p.nom); }))
-      nouveaux.push({nom:p.nom, lam:p.lam, ok:true});
+    if(a){ pris[a.id]=1; const st=absStatutPropose(a, p.revient);
+           encore.push({a:a, ok:true, deja:absNuits(a).indexOf(auj)>=0,
+             lam:(p.lam!==null && p.lam!==a.lam) ? p.lam : undefined, st:st, stOk:!!st}); }
+    else if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,p.nom); })){
+      const st=absStatutPropose(null, p.revient);
+      nouveaux.push({nom:p.nom, lam:p.lam, ok:true, st:st, stOk:!!st});
+    }
   });
   const partis=ABSENCES.filter(function(a){ return !pris[a.id]; }).map(function(a){ return {a:a, ok:true}; });
   ABS_PLAN={encore:encore, nouveaux:nouveaux, partis:partis};
@@ -41539,16 +41583,25 @@ function absCollerDessine(){
       '<button class="'+(v===true?'on lam':'')+'" onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].lam=true;absCollerDessine()">LAM</button>'+
       '<button class="'+(v===false?'on med':'')+'" onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].lam=false;absCollerDessine()">MÉD</button></span>';
   };
+  /* Le statut lu dans KAIROS : une pastille cochée, qu'un toucher décoche (« on doit
+     quand même pouvoir changer au cas où »). */
+  const stBtn=function(g,i,x){
+    if(!x.st) return '';
+    const t = x.st.statut==='just' ? '✓ Justifiée · '+x.st.lib
+                                   : 'Autorisation finie → non justifiée';
+    return '<button type="button" class="abscol-st'+(x.stOk?' on':'')+'" '+
+      'onclick="event.preventDefault();ABS_PLAN.'+g+'['+i+'].stOk=!ABS_PLAN.'+g+'['+i+'].stOk;absCollerDessine()">'+esc(t)+'</button>';
+  };
   let h='<b>La liste du jour</b>';
   h+='<div class="abscol-g"><div class="abscol-t">Toujours absents · '+P.encore.length+'<span>une nuit de plus</span></div>'+
     (P.encore.length?P.encore.map(function(x,i){
       return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+
-        lamBtn(i, x.lam===undefined ? x.a.lam : x.lam, 'encore')+
+        lamBtn(i, x.lam===undefined ? x.a.lam : x.lam, 'encore')+stBtn('encore',i,x)+
         '<em>'+(x.deja?'ce soir déjà compté':(absNuits(x.a).length+' → '+(absNuits(x.a).length+1)+' nuits'))+'</em></label>';
     }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés avec la nuit de ce soir</span></div>'+
     (P.nouveaux.length?P.nouveaux.map(function(x,i){
-      return '<div class="abscol-l">'+cb('nouveaux',i,x.ok)+'<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</div>';
+      return '<div class="abscol-l">'+cb('nouveaux',i,x.ok)+'<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+stBtn('nouveaux',i,x)+'</div>';
     }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t rouge">Plus dans la liste · '+P.partis.length+'<span>revenus — retirés</span></div>'+
     (P.partis.length?P.partis.map(function(x,i){
@@ -41568,9 +41621,13 @@ async function absCollerValider(){
   ABS_ECRIT=Date.now();
   /* L'étiquette lue dans KAIROS remplace l'ancienne, même si la nuit est déjà comptée. */
   for(const x of P.encore){
-    if(!x.ok || x.lam===undefined || x.lam===x.a.lam) continue;
-    const r=await sb.from('absences').update({lam:x.lam}).eq('id',x.a.id).select();
-    if(r.error||!r.data||!r.data.length) rate++; else { x.a.lam=x.lam; fait++; }
+    if(!x.ok) continue;
+    const ch={};
+    if(x.lam!==undefined && x.lam!==x.a.lam) ch.lam=x.lam;
+    if(x.st && x.stOk){ ch.statut=x.st.statut; ch.note=x.st.note; }
+    if(!Object.keys(ch).length) continue;
+    const r=await sb.from('absences').update(ch).eq('id',x.a.id).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { Object.assign(x.a, ch); fait++; }
   }
   for(const x of P.encore){
     if(!x.ok || x.deja) continue;
@@ -41580,7 +41637,9 @@ async function absCollerValider(){
   }
   for(const x of P.nouveaux){
     if(!x.ok) continue;
-    const r=await sb.from('absences').insert({nom:x.nom.slice(0,80), lam:x.lam, nuits:[auj], ajoute_par:(nomAffiche()||'')}).select();
+    const ligne={nom:x.nom.slice(0,80), lam:x.lam, nuits:[auj], ajoute_par:(nomAffiche()||'')};
+    if(x.st && x.stOk){ ligne.statut=x.st.statut; ligne.note=x.st.note; }
+    const r=await sb.from('absences').insert(ligne).select();
     if(r.error||!r.data||!r.data.length) rate++; else { ABSENCES.push(r.data[0]); fait++; }
   }
   for(const x of P.partis){
