@@ -5124,12 +5124,13 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .absdep{display:inline-block;margin-top:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:#c4291f;background:#fdeeed;border:1.25px solid #c4291f;border-radius:6px;padding:3px 8px}
 .absdep em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400}
-.absecart{display:flex;align-items:center;gap:8px;width:100%;margin-top:16px;border:1.25px solid var(--ligne);background:#fff;border-radius:10px;
-  padding:10px 12px;font:inherit;font-size:13.5px;color:#55534f;cursor:pointer;text-align:left}
-.absecart b{color:var(--noir);font-weight:700}
-.absecart i{margin-left:auto;font-style:normal;display:inline-flex}
-.absecart i svg,.absecart i .pico{width:14px;height:14px;transform:rotate(-90deg);transition:transform .2s}
-.absecart.ouvert i svg,.absecart.ouvert i .pico{transform:rotate(90deg)}
+.absetat{display:inline-block;margin-top:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:6px;padding:3px 8px}
+.absetat.c{background:#e3f2e8;color:#1f5b33;border:1.25px solid #a8d5b7}
+.absetat.h{background:#eef4fb;color:#12354f;border:1.25px solid #A9C8E8}
+/* En sourdine : on voit tout, on comprend que ça peut attendre. */
+.abscd.sourd{background:#f6f5f2;border-left-color:#cfccc6;box-shadow:none}
+.abscd.sourd .abscd-h b{color:#55534f}
+.abscd.sourd .absk{color:#73716b}
 .abspop-o.alerte{border-color:#c4291f;color:#c4291f;font-weight:700;margin-top:10px}
 .abspop-o.alerte .abspic{background:#c4291f;border-color:#c4291f;color:#fff;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
 .abspop-o.alerte.on{background:#fdeeed}
@@ -41212,8 +41213,9 @@ function absDevaitRevenir(a){
   return m ? (m[2] ? m[1]+'/'+m[2] : m[1]) : '';
 }
 function absAlerte(a){ return a.alerte===true; }
-function absAEcart(a){ return !absAlerte(a) && !absDepassee(a) && (a.statut==='just' || a.statut==='hospit'); }
-let ABS_ECART_OUVERT=false;
+/* ⚠ À 3 NUITS, ON REMONTE (Mag, 06/10/2026 : « les groupes qu'il faut moins surveiller,
+   à 3 jours, faut qu'elle repasse en haut ») — justifiées comme hospitalisées. */
+function absAEcart(a){ return !absAlerte(a) && !absDepassee(a) && (a.statut==='just' || a.statut==='hospit') && !absATraiter(a); }
 function absCompteATraiter(){ return ABSENCES.filter(absATraiter).length; }
 /* Une écriture : on montre tout de suite, et on revient en arrière si la base refuse. */
 function absMaj(a, champs){
@@ -41318,8 +41320,23 @@ function absPic(a){
 }
 /* La note (03/10/2026 : « Disparition inquiétante faite le 01/10 », « Justifié
    jusqu'au 04/10 ») : une ligne sous le nom, qui s'écrit depuis la fenêtre du rond. */
+/* L'état d'une justifiée ou d'une hospitalisée : une étiquette, pas une phrase en
+   italique (06/10/2026, piste B : « j'aime pas comment terminent les justifications »).
+   La note automatique (« Justifié jusqu'au 07/10 », ou l'ancienne « Autorisation ·
+   revient le 07/10 ») devient cette étiquette et n'est plus répétée en dessous. */
+function absEtatHTML(a){
+  if(absDepassee(a)) return '';
+  const n=absNuits(a).length;
+  if(a.statut==='hospit')
+    return '<div class="absetat h">Hospitalisé·e'+(n>=3?' · '+n+' nuits':'')+'</div>';
+  if(a.statut==='just'){
+    const m=ABS_NOTE_AUTO.exec(a.note||'');
+    return '<div class="absetat c">Justifié'+(m?' jusqu’au '+m[1]+'/'+m[2]:'')+'</div>';
+  }
+  return '';
+}
 function absNoteHTML(a){
-  if(!a.note || absDepassee(a)) return '';
+  if(!a.note || absDepassee(a) || ABS_NOTE_AUTO.test(a.note)) return '';
   return '<div class="absnote">'+esc(a.note)+'</div>';
 }
 function absDepHTML(a){
@@ -41402,9 +41419,9 @@ function absencesCorps(){
     const n=absNuits(a).length;
     return '<div class="abscd'+(a.lam?' lam':'')+(cl?' '+cl:'')+'">'+
         '<div class="abscd-h">'+absPic(a)+'<b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+n+'</span>'+absCorbeille(a)+'</div>'+
-        absDepHTML(a)+absNoteHTML(a)+
+        absDepHTML(a)+absEtatHTML(a)+absNoteHTML(a)+
         '<div class="absligne">'+absBoules(a)+'</div>'+
-        '<div class="absmsg">'+esc(absPhrase(a))+'</div>'+
+        (cl==='sourd'?'':'<div class="absmsg">'+esc(absPhrase(a))+'</div>')+
       '</div>';
   };
   if(alertes.length){
@@ -41413,15 +41430,7 @@ function absencesCorps(){
   }
   if(haut.length){
     h+='<div class="abst rouge">À traiter · '+haut.length+'</div>';
-    haut.forEach(function(a){
-      const n=absNuits(a).length, s=absStatut(a);
-      h+='<div class="abscd'+(a.lam?' lam':'')+'">'+
-        '<div class="abscd-h">'+absPic(a)+'<b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+n+'</span>'+absCorbeille(a)+'</div>'+
-        absDepHTML(a)+absNoteHTML(a)+
-        '<div class="absligne">'+absBoules(a)+'</div>'+
-        '<div class="absmsg">'+esc(absPhrase(a))+'</div>'+
-      '</div>';
-    });
+    haut.forEach(function(a){ h+=carte(a); });
   }
   if(bas.length){
     h+='<div class="abst">'+(haut.length?'Les autres absences':'Les absences')+' · '+bas.length+'</div>';
@@ -41432,16 +41441,12 @@ function absencesCorps(){
         '<div class="absligne">'+absBoules(a)+'</div></div></div>';
     });
   }
-  /* À l'écart, replié : un bouton, et la liste dessous quand on l'ouvre. */
+  /* ═══ À L'ÉCART, EN SOURDINE (piste B, Mag 06/10/2026) ═══
+     « Il faut aller trop vérifier en dépliant, je suis pas d'accord » : plus de bouton
+     à déplier. Les mêmes cartes que les autres, boules comprises, sur fond gris. */
   if(ecart.length){
-    h+='<button type="button" class="absecart'+(ABS_ECART_OUVERT?' ouvert':'')+'" onclick="ABS_ECART_OUVERT=!ABS_ECART_OUVERT;render()" aria-expanded="'+ABS_ECART_OUVERT+'">'+
-      '<b>Justifiées · hospitalisées</b> '+ecart.length+'<i>'+icon('chevron')+'</i></button>';
-    if(ABS_ECART_OUVERT) ecart.forEach(function(a){
-      h+='<div class="absre">'+absPic(a)+'<div class="absre-c">'+
-        '<div class="absre-n"><b>'+esc(a.nom)+'</b>'+absTag(a)+'<span class="absk">'+absNuits(a).length+'</span>'+absCorbeille(a)+'</div>'+
-        absNoteHTML(a)+
-        '<div class="absligne">'+absBoules(a)+'</div></div></div>';
-    });
+    h+='<div class="abst">Justifiées · hospitalisées · '+ecart.length+'</div>';
+    ecart.forEach(function(a){ h+=carte(a,'sourd'); });
   }
   if(!ABSENCES.length && !ABS_PANNE) h+='<div class="empty" style="margin-top:14px">Personne d’absent.</div>';
   return h+'</div>';
