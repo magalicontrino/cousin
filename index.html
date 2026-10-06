@@ -39847,6 +39847,10 @@ function arrLireListe(txt){
     const p=/\(([^)]*)\)/.exec(nm);
     const nom=nm.replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
     if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) return;
+    /* Un nom de cette liste porte toujours le NOM DE FAMILLE EN MAJUSCULES. Une phrase
+       (« Bonjour, », « voici les entrants… », « Merci beaucoup ! ») n'en a pas : elle est
+       ignorée, même dans un message sans tirets. */
+    if(!/(^|[\s,])[A-ZÀ-Þ][A-ZÀ-Þ'’-]+(?=$|[\s,])/.test(nom.replace(/,.*$/,''))) return;
     const type=p ? p[1] : '';
     const lam=/\bLAM\b/i.test(type) ? true : (/m[ée]d/i.test(type) ? false : null);
     out.push({nom:nom.slice(0,80), jour:jour, lam:lam});
@@ -39885,6 +39889,12 @@ function arrCollerLire(){
     if(!e){
       if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,x.nom); }))
         nouveaux.push({nom:x.nom, jour:x.jour||arrJourDefaut(), lam:lam===null?false:lam, ok:true});
+      /* ⚠ LA DATE EST PASSÉE (Mag, 06/10/2026 : « Irfan est déjà passé cette semaine,
+         mais c'est bien que tu le rappelles — mets ceux dont la date est passée quelque
+         part : normalement, ils sont déjà entrés »). Ils restent visibles, à part et
+         DÉCOCHÉS : on ne les ajoute que si on le décide. */
+      const d=nouveaux[nouveaux.length-1];
+      if(d && d.nom===x.nom && d.jour < absJour()){ d.passe=true; d.ok=false; }
       return;
     }
     const ch={};
@@ -39905,15 +39915,22 @@ function arrCollerDessine(){
   };
   const jourC=function(iso){ const t=arrJourTxt(iso); return t ? t.replace(/^\w/,function(c){ return c.toUpperCase(); }) : 'Sans date'; };
   let h='<b>Les prochains entrants</b>';
-  h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés aux entrants de la semaine</span></div>';
-  if(!P.nouveaux.length) h+='<div class="abscol-v">Personne</div>';
-  let jour=null;
-  P.nouveaux.forEach(function(x,i){
-    if(x.jour!==jour){ jour=x.jour; h+='<div class="abscol-j">'+esc(jourC(jour))+'</div>'; }
-    h+='<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.nouveaux['+i+'].ok=this.checked">'+
-      '<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</label>';
-  });
-  h+='</div>';
+  const groupe=function(passe){
+    let g='', jour=null;
+    P.nouveaux.forEach(function(x,i){
+      if(!!x.passe!==passe) return;
+      if(x.jour!==jour){ jour=x.jour; g+='<div class="abscol-j">'+esc(jourC(jour))+'</div>'; }
+      g+='<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.nouveaux['+i+'].ok=this.checked">'+
+        '<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</label>';
+    });
+    return g;
+  };
+  const nNouv=P.nouveaux.filter(function(x){ return !x.passe; }).length,
+        nPasse=P.nouveaux.length-nNouv;
+  h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+nNouv+'<span>ajoutés aux entrants de la semaine</span></div>'+
+    (nNouv?groupe(false):'<div class="abscol-v">Personne</div>')+'</div>';
+  if(nPasse) h+='<div class="abscol-g"><div class="abscol-t">Date passée · '+nPasse+'<span>normalement déjà entrés — coche pour les ajouter</span></div>'+
+    groupe(true)+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Déjà dans la liste · '+P.deja.length+'<span>rien n’est ajouté deux fois</span></div>';
   if(!P.deja.length) h+='<div class="abscol-v">Personne</div>';
   P.deja.forEach(function(x,i){
