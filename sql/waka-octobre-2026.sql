@@ -1,3 +1,4 @@
+-- ═══ EXÉCUTÉ le 06/10/2026 par Claude (via l app connectée, compte admin) : 29 lignes insérées, vérifiées. ═══
 -- Programme d'OCTOBRE 2026 de WAKA UP, encodé d'après leur calendrier
 -- (image envoyée par Mag le 05/10/2026). Texte en base64 : le presse-papier vers
 -- l'éditeur SQL abîme les accents. pour_qui = 'femmes' DÈS l'encodage (voir waka-femmes.sql).
