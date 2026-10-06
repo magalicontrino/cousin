@@ -32740,6 +32740,13 @@ function accFin(g){
    br, p) et pas des classes : c'est ce HTML qui part aussi dans le presse-papier, et un
    autre programme ne connaît pas nos styles. Mêmes règles que `accNote` : `hn`, sans
    doublon d'étiquette, courtes puis longues, la phrase de fin. */
+/* La réponse telle qu'elle part dans la note : une date du calendrier (AAAA-MM-JJ)
+   s'écrit JJ/MM/AAAA. */
+function accVal(f){
+  const v=String(ACC[f.k]||'').trim();
+  if(f.t==='date' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4);
+  return v;
+}
 function accNoteA(volet, k, pourCopie){
   /* ═══ UNE VRAIE LISTE À PUCES (Mag, 05/10/2026 — quatre essais collés dans KAIROS,
      elle a gardé le 2) ═══ KAIROS avale les <br> et met un grand blanc après chaque
@@ -32756,7 +32763,7 @@ function accNoteA(volet, k, pourCopie){
     remplis.filter(function(f){ return !accEstLong(f); }).forEach(function(f){
       if(f.t==='case'){ li.push(ici(f,'<b>'+esc(accEtiq(f))+'</b>')); return; }
       const e=accSansDoublon(accEtiq(f), g.s);
-      li.push(ici(f,(e?esc(e)+' : ':'')+'<b>'+esc(String(ACC[f.k]).trim())+'</b>'));
+      li.push(ici(f,(e?esc(e)+' : ':'')+'<b>'+esc(accVal(f))+'</b>'));
     });
     remplis.filter(function(f){ return accEstLong(f); }).forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
@@ -33100,6 +33107,15 @@ const ACC_CHAMPS=[
    {k:'revenu',l:'Revenu : type et montant',n:'Revenu'},
    {k:'adresse',l:'Adresse : commune · dernier domicile',n:'Adresse'}
  ]},
+ /* ═══ LA CARTE MÉDICALE (Mag, 06/10/2026 : « rajoute carte médicale oui non, le choix
+    d'une date, et une case pour mettre une info ») ═══ Juste après la situation
+    administrative : c'est la question qui décide si on peut l'envoyer chez un médecin
+    demain. La date se choisit dans un calendrier (`t:'date'`) et part en JJ/MM/AAAA. */
+ {s:'Carte médicale', c:[
+   {k:'cm',l:'A une carte médicale ?',t:'ouinon',n:'A une carte médicale'},
+   {k:'cm_date',l:'Valable jusqu’au',t:'date',n:'Valable jusqu’au'},
+   {k:'cm_info',l:'Infos',n:'Infos carte médicale',b:1}
+ ]},
  {s:'Réseaux', c:[
    {k:'suivie',l:'Personne suivie ? Par qui ?',n:'Personnes suivies',b:1},
    /* La famille en Belgique est une question de RÉSEAU, pas d'état civil : ce qu'on
@@ -33216,6 +33232,10 @@ function vAccueilPersonne(volet){
           return '<div class="accf"><button type="button" id="acccase-'+f.k+'" '+
             'class="acccase'+(ACC[f.k]?' on':'')+'" onclick="accCase(\''+f.k+'\')">'+
             '<span class="bx">'+(ACC[f.k]?'✓':'')+'</span>'+esc(f.l)+'</button></div>';
+        }
+        if(f.t==='date'){
+          return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
+            '<input type="date" class="accdate" value="'+v+'" oninput="accSet(\''+f.k+'\',this.value)"></label>';
         }
         if(f.t==='ouinon'){
           return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
@@ -33365,7 +33385,7 @@ function accNoteLignes(volet){
       /* Une case cochée s'écrit seule, sans « / OK » (Mag, 05/10/2026 : « enlève les
          OK ») : être dans la note dit déjà que c'est fait. */
       if(f.t==='case'){ l.push({t:'· '+accEtiq(f), k:f.k, rep:accEtiq(f)}); return; }
-      const e=accSansDoublon(accEtiq(f), g.s), r=String(ACC[f.k]).trim();
+      const e=accSansDoublon(accEtiq(f), g.s), r=accVal(f);
       l.push({t:(e ? ('· '+e+' / '+r) : ('· '+r)), k:f.k, rep:r});
     });
     longs.forEach(function(f){
@@ -33443,7 +33463,7 @@ function accImprimer(volet){
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
   const w=window.open('','_blank'); if(!w){ toast('Le navigateur a bloqué la fenêtre'); return; }
   const ligne=function(f){
-    const v=(ACC[f.k]||'').trim();
+    const v=f.t==='date' ? accVal(f) : (ACC[f.k]||'').trim();
     /* ⚠ SUR LE PAPIER, UN OUI/NON N'EST PAS UNE LIGNE À REMPLIR : c'est deux cases
        à cocher au stylo. Une ligne pointillée invitait à écrire une phrase là où on
        n'attend qu'un mot, et la feuille vierge doit se remplir aussi vite que
