@@ -39799,6 +39799,102 @@ function arriveeAjouter(){
     ENTRANTS.push(r.data[0]); ARR_BR_NOM=''; ARR_BR_LAM=false; render();
   });
 }
+/* ═══ COLLER LES PROCHAINS ENTRANTS (Mag, 06/10/2026) ═══
+   « Je reçois le nom des prochains entrants sous cette forme » :
+       Mercredi 07/10:
+       -NIKOLIC Zoran (LAM)
+       -BOICHENKO Viacheslav (Medical)
+   Une ligne avec une date = le jour d'arrivée des noms qui suivent ; une ligne qui
+   commence par un tiret = un nom, avec LAM ou Médical entre parenthèses. Ils vont dans
+   « Entretiens et entrants de la semaine » (pas encore arrivés). Rien ne s'applique
+   avant « Ajouter » ; LAM / MÉD se change d'un toucher, une ligne se décoche. Un nom
+   déjà dans la liste n'est pas ajouté deux fois. */
+let ARR_PLAN=null;
+function arrLireListe(txt){
+  const out=[]; let jour=null;
+  const auj=new Date();
+  String(txt||'').split(/\r?\n/).forEach(function(l){
+    const t=l.replace(/\u00a0/g,' ').trim(); if(!t) return;
+    const m=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(t);
+    if(m && !/^[-•*–]/.test(t)){
+      let an=m[3] ? (m[3].length===2 ? 2000+(+m[3]) : +m[3]) : auj.getFullYear();
+      if(!m[3] && (+m[2]) < auj.getMonth()+1-6) an++;
+      jour=an+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0');
+      return;
+    }
+    const nm=t.replace(/^[-•*–]\s*/,'');
+    const p=/\(([^)]*)\)/.exec(nm);
+    const nom=nm.replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
+    if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) return;
+    const type=p ? p[1] : '';
+    const lam=/\bLAM\b/i.test(type) ? true : (/m[ée]d/i.test(type) ? false : null);
+    out.push({nom:nom.slice(0,80), jour:jour, lam:lam});
+  });
+  return out;
+}
+function arrCollerOuvrir(){
+  let bg=document.getElementById('arrColBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='arrColBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  ARR_PLAN=null;
+  bg.innerHTML='<div class="popcard abscol" role="dialog" aria-modal="true">'+
+    '<b>Les prochains entrants</b>'+
+    '<textarea id="arrColTxt" rows="8" placeholder="Mercredi 07/10:\n-NOM Prénom (LAM)\n-NOM Prénom (Medical)"></textarea>'+
+    '<div class="entpart-b">'+
+      '<button class="dembtn clair" onclick="document.getElementById(\'arrColBg\').classList.remove(\'on\')">Annuler</button>'+
+      '<button class="dembtn" onclick="arrCollerLire()">Lire</button>'+
+    '</div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const t=document.getElementById('arrColTxt'); if(t) t.focus(); },50);
+}
+function arrCollerLire(){
+  const t=document.getElementById('arrColTxt');
+  const lus=arrLireListe(t&&t.value);
+  if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  ARR_PLAN=lus.map(function(x){
+    const deja=ENTRANTS.some(function(e){ return absMemePersonne(e.nom, x.nom); });
+    return {nom:x.nom, jour:x.jour||arrJourDefaut(), lam:x.lam===null?false:x.lam, ok:!deja, deja:deja};
+  });
+  arrCollerDessine();
+}
+function arrCollerDessine(){
+  const bg=document.getElementById('arrColBg'); if(!bg||!ARR_PLAN) return;
+  let h='<b>Les prochains entrants</b><div class="abscol-g">';
+  let jour=null;
+  ARR_PLAN.forEach(function(x,i){
+    if(x.jour!==jour){ jour=x.jour; h+='<div class="abscol-t">'+esc(arrJourTxt(jour))+'</div>'; }
+    h+='<label class="abscol-l">'+
+      '<input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN['+i+'].ok=this.checked">'+
+      '<b>'+esc(x.nom)+'</b>'+
+      (x.deja ? '<em>déjà dans la liste</em>' :
+      '<span class="abscol-lam">'+
+        '<button class="'+(x.lam?'on lam':'')+'" onclick="event.preventDefault();ARR_PLAN['+i+'].lam=true;arrCollerDessine()">LAM</button>'+
+        '<button class="'+(!x.lam?'on med':'')+'" onclick="event.preventDefault();ARR_PLAN['+i+'].lam=false;arrCollerDessine()">MÉD</button></span>')+
+    '</label>';
+  });
+  h+='</div><div class="entpart-b">'+
+    '<button class="dembtn clair" onclick="arrCollerOuvrir()">Recoller</button>'+
+    '<button class="dembtn" onclick="arrCollerValider()">Ajouter</button></div>';
+  bg.firstElementChild.innerHTML=h;
+}
+async function arrCollerValider(){
+  const P=ARR_PLAN; if(!P) return;
+  const bg=document.getElementById('arrColBg'); if(bg) bg.classList.remove('on');
+  let rate=0, fait=0;
+  for(const x of P){
+    if(!x.ok) continue;
+    entEcrit();
+    const r=await sb.from('entrants').insert({nom:x.nom, arrive_le:x.jour, lam:!!x.lam,
+      pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { ENTRANTS.push(r.data[0]); fait++; }
+  }
+  ARR_PLAN=null; render();
+  toast(rate ? '⚠ '+rate+' nom'+(rate>1?'s':'')+' pas ajouté'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle-les.'
+             : fait+' entrant'+(fait>1?'s':'')+' ajouté'+(fait>1?'s':''));
+}
 /* La ligne descend dans les entretiens : le nom et la chambre sont déjà là. */
 /* Le calendrier de la fenêtre (`date:1`) rend une date au format AAAA-MM-JJ. */
 /* Le choix LAM / Médical d'une ligne déjà posée. */
@@ -40982,6 +41078,8 @@ function entretiensCorps(){
         /* ⚠ LE BOUTON OUVRE LES DOCUMENTS, LE MÉMO EST DEDANS (Mag, 25/09/2026 : « non
            l'inverse. Ça ouvre les chartes et ROI, et là un bouton mémo »). */
         '<button class="entacc" onclick="roiOuvrir()">'+icon('bulb')+'ROI / CHARTE</button>'+
+        /* Les prochains entrants, collés tels qu'ils arrivent par message (06/10/2026). */
+        '<button class="entacc" onclick="arrCollerOuvrir()">'+icon('collerleger')+'Coller les entrants</button>'+
       '</div>'+
       '<div class="entbar-d">'+
       boutonImprimer('', true)+
