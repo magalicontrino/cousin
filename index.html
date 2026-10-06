@@ -5060,6 +5060,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .abscol-l b{font-size:14px;text-transform:none;letter-spacing:0;display:inline}
 .abscol-l em{font-style:normal;font-size:12px;color:#73716b;margin-left:auto}
 .abscol-v{font-size:13px;color:#8b8984;padding:6px 0}
+.abscol-j{font-size:12.5px;font-weight:700;margin-top:8px;color:#55534f}
 .abscol-lam{display:inline-flex;gap:4px;margin-left:auto}
 .abscol-lam button{border:1.25px solid var(--trait);background:#fff;border-radius:6px;padding:4px 9px;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;cursor:pointer}
 .abscol-lam button.on.lam{background:#e8308a;color:#fff;border-color:#e8308a}
@@ -39854,46 +39855,81 @@ function arrCollerLire(){
   const t=document.getElementById('arrColTxt');
   const lus=arrLireListe(t&&t.value);
   if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
-  ARR_PLAN=lus.map(function(x){
-    const deja=ENTRANTS.some(function(e){ return absMemePersonne(e.nom, x.nom); });
-    return {nom:x.nom, jour:x.jour||arrJourDefaut(), lam:x.lam===null?false:x.lam, ok:!deja, deja:deja};
+  /* Comme la liste du jour des absences : les NOUVEAUX d'un côté, ceux DÉJÀ ÉCRITS de
+     l'autre (« parfois ils remettent à jour une liste en rajoutant juste des gens »).
+     Pour un nom déjà écrit, on ne propose que ce qui a changé : le jour, LAM / MÉD. */
+  const nouveaux=[], deja=[];
+  lus.forEach(function(x){
+    const e=ENTRANTS.find(function(y){ return absMemePersonne(y.nom, x.nom); });
+    const lam=x.lam===null ? null : x.lam;
+    if(!e){
+      if(!nouveaux.some(function(n){ return absMemePersonne(n.nom,x.nom); }))
+        nouveaux.push({nom:x.nom, jour:x.jour||arrJourDefaut(), lam:lam===null?false:lam, ok:true});
+      return;
+    }
+    const ch={};
+    if(x.jour && !e.pour_entretien && x.jour!==e.arrive_le) ch.arrive_le=x.jour;
+    if(lam!==null && !!e.lam!==lam) ch.lam=lam;
+    deja.push({e:e, ch:ch, ok:Object.keys(ch).length>0});
   });
+  ARR_PLAN={nouveaux:nouveaux, deja:deja};
   arrCollerDessine();
 }
 function arrCollerDessine(){
   const bg=document.getElementById('arrColBg'); if(!bg||!ARR_PLAN) return;
-  let h='<b>Les prochains entrants</b><div class="abscol-g">';
+  const P=ARR_PLAN;
+  const lamBtn=function(i,v){
+    return '<span class="abscol-lam">'+
+      '<button class="'+(v?'on lam':'')+'" onclick="event.preventDefault();ARR_PLAN.nouveaux['+i+'].lam=true;arrCollerDessine()">LAM</button>'+
+      '<button class="'+(!v?'on med':'')+'" onclick="event.preventDefault();ARR_PLAN.nouveaux['+i+'].lam=false;arrCollerDessine()">MÉD</button></span>';
+  };
+  const jourC=function(iso){ const t=arrJourTxt(iso); return t ? t.replace(/^\w/,function(c){ return c.toUpperCase(); }) : 'Sans date'; };
+  let h='<b>Les prochains entrants</b>';
+  h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés aux entrants de la semaine</span></div>';
+  if(!P.nouveaux.length) h+='<div class="abscol-v">Personne</div>';
   let jour=null;
-  ARR_PLAN.forEach(function(x,i){
-    if(x.jour!==jour){ jour=x.jour; h+='<div class="abscol-t">'+esc(arrJourTxt(jour))+'</div>'; }
+  P.nouveaux.forEach(function(x,i){
+    if(x.jour!==jour){ jour=x.jour; h+='<div class="abscol-j">'+esc(jourC(jour))+'</div>'; }
+    h+='<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.nouveaux['+i+'].ok=this.checked">'+
+      '<b>'+esc(x.nom)+'</b>'+lamBtn(i,x.lam)+'</label>';
+  });
+  h+='</div>';
+  h+='<div class="abscol-g"><div class="abscol-t">Déjà dans la liste · '+P.deja.length+'<span>rien n’est ajouté deux fois</span></div>';
+  if(!P.deja.length) h+='<div class="abscol-v">Personne</div>';
+  P.deja.forEach(function(x,i){
+    const ch=x.ch, mots=[];
+    if(ch.arrive_le) mots.push('jour : '+arrJourTxt(x.e.arrive_le)+' → '+arrJourTxt(ch.arrive_le));
+    if(ch.lam!==undefined) mots.push((x.e.lam?'LAM':'MÉD')+' → '+(ch.lam?'LAM':'MÉD'));
     h+='<label class="abscol-l">'+
-      '<input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN['+i+'].ok=this.checked">'+
-      '<b>'+esc(x.nom)+'</b>'+
-      (x.deja ? '<em>déjà dans la liste</em>' :
-      '<span class="abscol-lam">'+
-        '<button class="'+(x.lam?'on lam':'')+'" onclick="event.preventDefault();ARR_PLAN['+i+'].lam=true;arrCollerDessine()">LAM</button>'+
-        '<button class="'+(!x.lam?'on med':'')+'" onclick="event.preventDefault();ARR_PLAN['+i+'].lam=false;arrCollerDessine()">MÉD</button></span>')+
-    '</label>';
+      (mots.length?'<input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.deja['+i+'].ok=this.checked">':'<span style="width:18px;flex:none"></span>')+
+      '<b>'+esc(x.e.nom)+'</b><span class="abstag'+(x.e.lam?' lam':'')+'">'+(x.e.lam?'LAM':'MÉD')+'</span>'+
+      '<em>'+(mots.length?esc(mots.join(' · ')):(x.e.pour_entretien?'déjà arrivé·e':'inchangé'))+'</em></label>';
   });
   h+='</div><div class="entpart-b">'+
     '<button class="dembtn clair" onclick="arrCollerOuvrir()">Recoller</button>'+
-    '<button class="dembtn" onclick="arrCollerValider()">Ajouter</button></div>';
+    '<button class="dembtn" onclick="arrCollerValider()">Valider</button></div>';
   bg.firstElementChild.innerHTML=h;
 }
 async function arrCollerValider(){
   const P=ARR_PLAN; if(!P) return;
   const bg=document.getElementById('arrColBg'); if(bg) bg.classList.remove('on');
   let rate=0, fait=0;
-  for(const x of P){
+  for(const x of P.nouveaux){
     if(!x.ok) continue;
     entEcrit();
     const r=await sb.from('entrants').insert({nom:x.nom, arrive_le:x.jour, lam:!!x.lam,
       pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select();
     if(r.error||!r.data||!r.data.length) rate++; else { ENTRANTS.push(r.data[0]); fait++; }
   }
+  for(const x of P.deja){
+    if(!x.ok || !Object.keys(x.ch).length) continue;
+    entEcrit();
+    const r=await sb.from('entrants').update(x.ch).eq('id',x.e.id).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { Object.assign(x.e, x.ch); fait++; }
+  }
   ARR_PLAN=null; render();
-  toast(rate ? '⚠ '+rate+' nom'+(rate>1?'s':'')+' pas ajouté'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle-les.'
-             : fait+' entrant'+(fait>1?'s':'')+' ajouté'+(fait>1?'s':''));
+  toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
+             : (fait ? 'Liste des entrants appliquée' : 'Rien de nouveau'));
 }
 /* La ligne descend dans les entretiens : le nom et la chambre sont déjà là. */
 /* Le calendrier de la fenêtre (`date:1`) rend une date au format AAAA-MM-JJ. */
