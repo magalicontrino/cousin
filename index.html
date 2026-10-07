@@ -5660,6 +5660,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   font:inherit;font-weight:700;font-size:13.5px;color:var(--noir);cursor:pointer}
 .passqui-b.on{background:var(--noir);color:#fff}
 .passqui-b.social.on{background:#6cb392;border-color:#6cb392}
+/* Le bouton qui envoie une ligne de Ma liste à l'autre : la couleur de la carte du binôme. */
+.rapPass.binvers{background:#d6f0f5}
 .binrep{margin:6px 0 4px 34px;padding:7px 10px;border-left:3px solid #6FC7D9;background:#f3fafb}
 .binrep-h{display:flex;align-items:baseline;gap:8px;font-size:12px}
 .binrep-h span{font-family:ui-monospace,monospace;font-size:10px;color:#77736b}
@@ -42524,20 +42526,15 @@ function carteBinome(){
     const lignes=BIN_LIGNES.filter(function(l){ return l.binome===b; });
     const aFaire=lignes.filter(function(l){ return !l.fait_le; });
     const faites=lignes.filter(function(l){ return !!l.fait_le; });
-    const id='binTxt'+BINOMES.indexOf(b);
+    if(!lignes.length && !BIN_PANNE) return '';
     return '<div class="pcarte binome">'+
       '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
         '<b>'+esc(b)+'</b>'+
         '<span>'+(lignes.length ? faites.length+' / '+lignes.length+' faites' : 'rien pour l’instant')+'</span>'+
       '</div></div>'+
-      '<div class="chadd empile ecrire">'+
-        '<textarea id="'+id+'" rows="1" placeholder="" autocomplete="off" oninput="passGrandir(this)" '+
-          'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();binAjouter(\''+esc(b)+'\',\''+id+'\');}"></textarea>'+
-        '<div class="chadd-b">'+
-          '<input id="'+id+'Ch" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" inputmode="numeric">'+
-          '<button class="chaddbtn" onclick="binAjouter(\''+esc(b)+'\',\''+id+'\')">OK</button>'+
-        '</div>'+
-      '</div>'+
+      /* ⚠ PAS DE CHAMP D'ÉCRITURE ICI (Mag, 07/10/2026 : « ça, je ne dois pas le voir.
+         Je dois juste passer de mes notes »). On écrit dans Ma liste perso ; le bouton
+         au nom de l'autre y envoie la ligne. */
       (BIN_PANNE ? '<div class="cal-e" style="border-left-color:var(--rouge);margin-top:10px"><b>La base n’a pas répondu</b>'+
                    '<p class="insc">'+esc(BIN_PANNE)+'</p></div>' : '')+
       aFaire.map(binLigne).join('')+
@@ -42590,6 +42587,26 @@ function binRetirer(id){
     BIN_LIGNES=BIN_LIGNES.filter(function(x){ return x.id!==id; });
     BIN_REPONSES=BIN_REPONSES.filter(function(x){ return x.ligne_id!==id; }); render();
   }, {ok:'Retirer', danger:true});
+}
+/* Le nom à mettre sur le bouton : l'AUTRE (« Mag + Afaf » vu par Mag → « Afaf »). */
+function binAutre(b){
+  const moi=String(nomAffiche()||'').trim().toLowerCase();
+  const autres=String(b).split('+').map(function(x){ return x.trim(); })
+    .filter(function(x){ return x && x.toLowerCase()!==moi; });
+  return autres.length===1 ? autres[0] : b;
+}
+/* ⚠ LA LIGNE QUITTE MA LISTE SEULEMENT QUAND LA BASE A DIT OUI — la leçon du 05/09
+   (un texte retiré avant d'être arrivé ailleurs, c'est un texte perdu). */
+async function binDepuisRappel(rid, i){
+  const r=MESRAPPELS.find(function(x){ return x.id===rid; }); const b=BINOMES[i];
+  if(!r || !b) return;
+  if(!sb){ toast('Pas de connexion'); return; }
+  const l={binome:b, texte:String(r.texte||'').slice(0,4000), chambre:r.chambre||null, par:nomAffiche()};
+  const {data,error}=await sb.from('binome_lignes').insert(l).select();
+  if(error){ toast('Pas envoyée : '+error.message); return; }
+  if(data && data[0]) BIN_LIGNES.push(data[0]);
+  MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
+  rappelsSauver(); render(); toast('Envoyée à '+binAutre(b)+' ✓');
 }
 function binRepondre(id){
   const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l) return;
@@ -42954,6 +42971,12 @@ function rappelsHTML(enCarte){
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
+          /* ═══ VERS LA LISTE À DEUX (Mag, 07/10/2026 : « je dois juste passer de mes
+             notes ») ═══ Comme la passation : on écrit ICI, et un bouton l'envoie. */
+          BINOMES.map(function(b, i){
+            return '<button class="rapPass mini binvers" onclick="binDepuisRappel(\''+r.id+'\','+i+')">'+
+              esc(binAutre(b))+'</button>';
+          }).join('')+
         '</div>'+
         /* ═══ CLIQUER SUR LE TEXTE MODIFIE, IL NE COCHE PLUS (Mag, 03/09/2026) ═══
            « Quand on clique sur le texte, la fenêtre doit s'ouvrir pour faire une
