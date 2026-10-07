@@ -5669,9 +5669,10 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .binrep-t{font-size:14px;line-height:1.4;margin-top:2px}
 .binrep-b{margin:4px 0 6px 34px;border:1.25px solid var(--noir);background:#fdfdfc;border-radius:8px;
   padding:4px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
-.binneuf>.pl2-t b::after,.binrep.binneuf .binrep-h b::after{content:'nouveau';margin-left:8px;
-  font:700 9px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#fff;
-  background:#e63329;border-radius:6px;padding:2px 5px;vertical-align:middle}
+.socneuf{display:inline-block;margin:6px 0 2px;font:700 9px ui-monospace,monospace;letter-spacing:.1em;
+  text-transform:uppercase;color:#fff;background:#e63329;border-radius:6px;padding:2px 5px}
+.binrep-h .socneuf{margin:0}
+.socl+.socl{border-top:1px solid #e4e0d8;margin-top:6px;padding-top:4px}
 .pcarte-social .ptitre{background:#dff0e7;margin:-14px -14px 10px;padding:12px 14px;border-radius:10px 10px 0 0}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
    comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
@@ -38097,7 +38098,7 @@ function rappelViser(){
    ⚠ AUCUN NOM : numéro de chambre et initiales, comme sur les chambres. Et jamais
    le motif — on va réveiller la 312 à 5 h 30, on ne dit pas pourquoi.
    ═══════════════════════════════════════════════════════════════════════════ */
-var PASSATIONS=[], PASS_PANNE='', PASS_CHARGE=false;
+var PASSATIONS=[], PASS_PANNE='', PASS_CHARGE=false, PASS_REPONSES=[];
 var PASS_POUR='pfo-nuit';      /* à qui : l'équipe de nuit — voir `passRoles` */
 var PASS_GENRE='passation';    /* passation ou réveil */
 
@@ -38137,6 +38138,15 @@ async function loadPassations(){
       return p && p.id && p._pose && p._pose>ilYAPeu && !recu.some(function(x){ return x.id===p.id; });
     });
     PASSATIONS=fraiches.concat(recu); PASS_PANNE='';
+    /* Les réponses sous les passations du service social (07/10/2026). Une panne ici
+       n'efface pas la passation : on garde ce qu'on avait. */
+    try{
+      const ids=PASSATIONS.filter(function(p){ return p.pour===PASS_SOCIAL; }).map(function(p){ return p.id; });
+      if(ids.length){
+        const q=await sb.from('passation_reponses').select('*').in('passation_id',ids).order('cree_le',{ascending:true});
+        if(!q.error) PASS_REPONSES=q.data||[];
+      } else PASS_REPONSES=[];
+    }catch(e2){}
   }catch(e){ PASSATIONS=[]; PASS_PANNE=(e&&e.message)||String(e); }
   PASS_CHARGE=true;
 }
@@ -38977,15 +38987,78 @@ function passEnvoyerMail(){
 }
 /* ═══ LA PASSATION DU SERVICE SOCIAL, SA CARTE À ELLE (Mag, 07/10/2026) ═══
    Pas de ligne = pas de carte. */
+/* ═══ UNE SEULE CARTE (Mag, 07/10/2026 : « pourquoi il y en a deux, tout doit être
+   ensemble ») ═══ La liste à deux avec Afaf et la passation du service social ne font
+   plus qu'UNE : Afaf est au service social. On y envoie depuis Ma liste perso, tout le
+   service social la lit, et chacun répond sous la ligne. */
 function carteServiceSocial(){
   const l=passUnique(passSociales());
   if(!l.length) return '';
+  const der=l.concat(PASS_REPONSES).filter(binDeLautre)
+    .reduce(function(m,x){ return String(x.cree_le||'')>m ? String(x.cree_le) : m; }, '');
+  if(der>BIN_VU) setTimeout(function(){
+    if(current && current.view==='liste') binMarquerVu(der);
+  }, 3000);
   return '<div class="pcarte pcarte-lire pcarte-social">'+
     '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
-      '<b>Passation</b><span>Service social</span>'+
+      '<b>Service social</b>'+
     '</div></div>'+
-    l.map(function(p){ return passLigne(p); }).join('')+
+    l.map(function(p){
+      const reps=PASS_REPONSES.filter(function(x){ return x.passation_id===p.id; });
+      return '<div class="socl">'+
+        (binNeuf(p)?'<span class="socneuf">nouveau</span>':'')+
+        passLigne(p)+
+        reps.map(function(x){
+          return '<div class="binrep">'+
+            '<div class="binrep-h"><b>'+esc(String(x.par||'').split(/\s+/)[0])+'</b>'+
+              '<span>'+esc(binQuand(x.cree_le))+'</span>'+
+              (binNeuf(x)?'<span class="socneuf">nouveau</span>':'')+
+              (PROFILE && x.uid===PROFILE.uid
+                ? '<button class="binrep-x" onclick="socReponseRetirer('+x.id+')" aria-label="Retirer ma réponse">✕</button>' : '')+
+            '</div>'+
+            '<div class="binrep-t">'+passRiche(x.texte)+'</div></div>';
+        }).join('')+
+        '<button class="binrep-b" onclick="socRepondre('+p.id+')">Répondre</button>'+
+      '</div>';
+    }).join('')+
   '</div>';
+}
+function socRepondre(id){
+  const p=PASSATIONS.find(function(x){ return x.id===id; }); if(!p) return;
+  cousinPop({
+    titre:'Répondre', texte:String(p.texte||'').slice(0,140), champ:'', max:4000, multi:true, ok:'Envoyer',
+    cle:'socrep-'+id,
+    quandOui:async function(v){
+      v=(v||'').trim(); if(!v) return;
+      const {data,error}=await sb.from('passation_reponses')
+        .insert({passation_id:id, texte:v.slice(0,4000), par:nomAffiche()}).select();
+      if(error){ copyTxt(v,'Pas envoyée — ta réponse est copiée, colle-la.'); return; }
+      if(data && data[0]) PASS_REPONSES.push(data[0]);
+      render();
+    }
+  });
+}
+function socReponseRetirer(id){
+  const x=PASS_REPONSES.find(function(r){ return r.id===id; }); if(!x) return;
+  cousinConfirme('Retirer ta réponse ?', x.texte, async function(){
+    const {error}=await sb.from('passation_reponses').delete().eq('id',id);
+    if(error){ toast('Pas retirée : '+error.message); return; }
+    PASS_REPONSES=PASS_REPONSES.filter(function(r){ return r.id!==id; }); render();
+  }, {ok:'Retirer', danger:true});
+}
+/* Le bouton « Service social » d'une ligne de Ma liste : elle part directement, sans
+   la feuille. ⚠ Retirée de Ma liste SEULEMENT quand la base a dit oui (leçon du 05/09). */
+async function socDepuisRappel(rid){
+  const r=MESRAPPELS.find(function(x){ return x.id===rid; }); if(!r) return;
+  if(!sb){ toast('Pas de connexion'); return; }
+  const l={texte:String(r.texte||'').slice(0,4000), pour:PASS_SOCIAL, genre:'passation',
+           par:nomAffiche(), chambre:r.chambre||null, jour:todayStr()};
+  if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
+  const {data,error}=await sb.from('passations').insert(l).select();
+  if(error){ toast('Pas envoyée : '+error.message); return; }
+  if(data && data[0]){ data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]); }
+  MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
+  rappelsSauver(); render(); toast('Envoyée au service social ✓');
 }
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
@@ -42438,10 +42511,19 @@ var BINOMES=[], BIN_LIGNES=[], BIN_REPONSES=[], BIN_PANNE='', BIN_CHARGE=false;
    (ligne ou réponse) après cette date. Suit d'un appareil à l'autre (`binome_vu`). */
 var BIN_VU='';
 try{ BIN_VU=localStorage.getItem('lux_binome_vu')||''; }catch(e){}
-function binDeLautre(x){ return !!x && !!PROFILE && x.uid!==PROFILE.uid; }
+/* ⚠ PAR LE NOM AUSSI : Mag a deux comptes (deux uid). Ce qu'elle écrit avec l'un ne
+   doit pas s'annoncer « nouveau » sur l'autre. */
+function binDeLautre(x){
+  if(!x || !PROFILE || x.uid===PROFILE.uid) return false;
+  const moi=String(nomAffiche()||'').trim().toLowerCase();
+  return !moi || String(x.par||'').trim().split(/\s+/)[0].toLowerCase()!==moi;
+}
 function binNeuf(x){ return binDeLautre(x) && String(x.cree_le||'')>BIN_VU; }
 function binNouveaux(){
-  try{ return BIN_LIGNES.filter(binNeuf).length+BIN_REPONSES.filter(binNeuf).length; }
+  try{
+    return passUnique(passSociales()).filter(binNeuf).length+
+      PASS_REPONSES.filter(function(x){ return binNeuf(x) && passSociales().some(function(p){ return p.id===x.passation_id; }); }).length;
+  }
   catch(e){ return 0; }
 }
 /* Vu = jusqu'à la dernière chose AFFICHÉE, pas « maintenant » : une ligne arrivée
@@ -42516,6 +42598,9 @@ function binQuand(t){
   catch(e){ return ''; }
 }
 function carteBinome(){
+  /* ⚠ RETIRÉE DE L'ÉCRAN le 07/10/2026 : fondue dans la carte « Service social » (voir
+     `carteServiceSocial`). Les tables `binome_*` restent ; enlever ce return la remet. */
+  return '';
   if(!BINOMES.length) return '';
   /* On marque vu ce qui est montré, un peu après : la marque « nouveau » reste le temps
      de cette visite. Pas de render() ici (voir [[cousin-innerhtml-qui-tremble]]). */
@@ -42975,10 +43060,11 @@ function rappelsHTML(enCarte){
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
           /* ═══ VERS LA LISTE À DEUX (Mag, 07/10/2026 : « je dois juste passer de mes
              notes ») ═══ Comme la passation : on écrit ICI, et un bouton l'envoie. */
-          BINOMES.map(function(b, i){
-            return '<button class="rapPass mini binvers" onclick="binDepuisRappel(\''+r.id+'\','+i+')">'+
-              esc(binAutre(b))+'</button>';
-          }).join('')+
+          /* Ce bouton-là est pour le service social seulement : les autres passent par
+             « Passation » et ses deux boutons. */
+          ((PROFILE && PROFILE.equipe==='Travailleur social')
+            ? '<button class="rapPass mini binvers" onclick="socDepuisRappel(\''+r.id+'\')">Service social</button>'
+            : '')+
         '</div>'+
         /* ═══ CLIQUER SUR LE TEXTE MODIFIE, IL NE COCHE PLUS (Mag, 03/09/2026) ═══
            « Quand on clique sur le texte, la fenêtre doit s'ouvrir pour faire une
