@@ -5660,6 +5660,16 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   font:inherit;font-weight:700;font-size:13.5px;color:var(--noir);cursor:pointer}
 .passqui-b.on{background:var(--noir);color:#fff}
 .passqui-b.social.on{background:#6cb392;border-color:#6cb392}
+.binrep{margin:6px 0 4px 34px;padding:7px 10px;border-left:3px solid #6FC7D9;background:#f3fafb}
+.binrep-h{display:flex;align-items:baseline;gap:8px;font-size:12px}
+.binrep-h span{font-family:ui-monospace,monospace;font-size:10px;color:#77736b}
+.binrep-x{margin-left:auto;border:0;background:none;color:#77736b;cursor:pointer;font-size:12px}
+.binrep-t{font-size:14px;line-height:1.4;margin-top:2px}
+.binrep-b{margin:4px 0 6px 34px;border:1.25px solid var(--noir);background:#fdfdfc;border-radius:8px;
+  padding:4px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.binneuf>.pl2-t b::after,.binrep.binneuf .binrep-h b::after{content:'nouveau';margin-left:8px;
+  font:700 9px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#fff;
+  background:#e63329;border-radius:6px;padding:2px 5px;vertical-align:middle}
 .pcarte-social .ptitre{background:#dff0e7;margin:-14px -14px 10px;padding:12px 14px;border-radius:10px 10px 0 0}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
    comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
@@ -18228,7 +18238,9 @@ function renderInterne(){
        ne voit pas est une passation qui n'a pas eu lieu. */
     const reste=(typeof resteAListe==='function'?resteAListe():0)
       +(typeof resteRappels==='function'?resteRappels():0)
-      +(typeof passPourMoi==='function'?passPourMoi().filter(function(p){ return !passFait(p); }).length:0);
+      +(typeof passPourMoi==='function'?passPourMoi().filter(function(p){ return !passFait(p); }).length:0)
+      /* Ce que l'autre a écrit dans la liste du binôme et qu'on n'a pas vu. */
+      +(typeof binNouveaux==='function'?binNouveaux():0);
     /* Même garde que pour le rail (voir `renderTabs`) : on ne réécrit que si ça a
        changé, sinon le bouton est détruit et refait à chaque redessin. */
     const lbHTML='<span class="ic">'+icon('folder')+'</span>'+(reste?'<i class="dot"></i>':'');
@@ -20387,7 +20399,8 @@ function vListe(){
       (nAttente?'<i class="mlong-n">'+nAttente+'</i>':'')+'</button>'+
     '<button class="mlong-btn'+(onglet==='liste'?' on':'')+'" '+
       'onclick="mlVue(\'liste\')"><span class="ic">'+icon('list')+'</span>Liste'+
-      (nPass?'<i class="mlong-n rouge" title="Passations">'+nPass+'</i>':'')+'</button>'+
+      (nPass?'<i class="mlong-n rouge" title="Passations">'+nPass+'</i>':'')+
+      (binNouveaux()?'<i class="mlong-n rouge" title="Nouveau dans la liste à deux">'+binNouveaux()+'</i>':'')+'</button>'+
     /* ═══ ABSENCES À LA PLACE DE NOTES (Mag, 03/10/2026) ═══ Ce que faisait Notes, la
        case de Ma liste perso le fait déjà (copier, coller, Corriger, Audio, étiquette
        NOTE). ⚠ LA PAGE DES NOTES N'EST PAS EFFACÉE : `#/liste/notes` l'ouvre toujours,
@@ -37489,6 +37502,10 @@ async function chargerReglages(){
   if(!Array.isArray(NOTES)) NOTES=[];
   /* Les passations d'autrui retirées de mon écran : l'union des deux côtés (on ne
      fait que retirer, jamais remettre). */
+  if(typeof lignes.binome_vu==='string' && lignes.binome_vu>BIN_VU){
+    BIN_VU=lignes.binome_vu;
+    try{ localStorage.setItem('lux_binome_vu', BIN_VU); }catch(e){}
+  }
   if(Array.isArray(lignes.pass_masquees)){
     lignes.pass_masquees.forEach(function(id){ id=String(id); if(PASS_MASQUEES.indexOf(id)<0) PASS_MASQUEES.push(id); });
     try{ localStorage.setItem('lux_pass_masquees', JSON.stringify(PASS_MASQUEES)); }catch(e){}
@@ -42410,7 +42427,27 @@ async function loadAbsCompte(){
    on écrit à deux en même temps sans rien perdre. Ma liste perso reste privée.
    Qui est dans quel binôme : `binome_membres` (voir sql/binome.sql). Le nom du binôme
    est le titre de la carte. Pas de binôme = pas de carte. */
-var BINOMES=[], BIN_LIGNES=[], BIN_PANNE='', BIN_CHARGE=false;
+var BINOMES=[], BIN_LIGNES=[], BIN_REPONSES=[], BIN_PANNE='', BIN_CHARGE=false;
+/* ═══ LA NOTIFICATION (Mag, 07/10/2026 : « je veux une notification aussi ») ═══
+   ⚠ C'EST LA PASTILLE DANS L'APP — COUSIN n'envoie rien sur le téléphone.
+   `BIN_VU` = la date de ce qu'on a déjà vu. Est « nouveau » ce que L'AUTRE a écrit
+   (ligne ou réponse) après cette date. Suit d'un appareil à l'autre (`binome_vu`). */
+var BIN_VU='';
+try{ BIN_VU=localStorage.getItem('lux_binome_vu')||''; }catch(e){}
+function binDeLautre(x){ return !!x && !!PROFILE && x.uid!==PROFILE.uid; }
+function binNeuf(x){ return binDeLautre(x) && String(x.cree_le||'')>BIN_VU; }
+function binNouveaux(){
+  try{ return BIN_LIGNES.filter(binNeuf).length+BIN_REPONSES.filter(binNeuf).length; }
+  catch(e){ return 0; }
+}
+/* Vu = jusqu'à la dernière chose AFFICHÉE, pas « maintenant » : une ligne arrivée
+   entre deux lectures ne doit pas être marquée vue sans avoir été montrée. */
+function binMarquerVu(jusqua){
+  if(!jusqua || jusqua<=BIN_VU) return;
+  BIN_VU=jusqua;
+  try{ localStorage.setItem('lux_binome_vu', BIN_VU); }catch(e){}
+  if(typeof reglagePousser==='function') reglagePousser('binome_vu', BIN_VU);
+}
 async function loadBinome(){
   if(!sb || !PROFILE){ BIN_CHARGE=true; return; }
   try{
@@ -42418,10 +42455,12 @@ async function loadBinome(){
     if(m.error) throw m.error;
     const noms=[]; (m.data||[]).forEach(function(x){ if(noms.indexOf(x.binome)<0) noms.push(x.binome); });
     BINOMES=noms;
-    if(!noms.length){ BIN_LIGNES=[]; BIN_PANNE=''; BIN_CHARGE=true; return; }
+    if(!noms.length){ BIN_LIGNES=[]; BIN_REPONSES=[]; BIN_PANNE=''; BIN_CHARGE=true; return; }
     const r=await sb.from('binome_lignes').select('*').in('binome',noms).order('cree_le',{ascending:true});
     if(r.error) throw r.error;
-    BIN_LIGNES=r.data||[]; BIN_PANNE='';
+    const q=await sb.from('binome_reponses').select('*').in('binome',noms).order('cree_le',{ascending:true});
+    if(q.error) throw q.error;
+    BIN_LIGNES=r.data||[]; BIN_REPONSES=q.data||[]; BIN_PANNE='';
   }catch(e){
     /* ⚠ UNE PANNE N'EST PAS « RIEN » : on garde ce qu'on avait et on le dit. */
     BIN_PANNE=(e&&e.message)||String(e);
@@ -42437,7 +42476,8 @@ function binLigne(l){
   if(l.chambre) bas.push('<b class="plch">ch. '+esc(l.chambre)+'</b>');
   if(qui) bas.push('de '+esc(qui));
   if(ok && quiFait) bas.push('fait par '+esc(quiFait));
-  return '<div class="pl2'+(ok?' faite':'')+'">'+
+  const reps=BIN_REPONSES.filter(function(x){ return x.ligne_id===l.id; });
+  return '<div class="pl2'+(ok?' faite':'')+(binNeuf(l)?' binneuf':'')+'">'+
     '<div class="pl2-h">'+
       '<button class="cas" onclick="binCocher('+l.id+')" aria-label="Cocher">'+
         (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
@@ -42452,10 +42492,34 @@ function binLigne(l){
     '<div class="pl2-t" onclick="binModifier('+l.id+')">'+
       '<b>'+passRiche(l.texte)+'</b>'+
       (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
-    '</div></div>';
+    '</div>'+
+    /* ═══ LES RÉPONSES SOUS LA LIGNE (Mag, 07/10/2026) ═══ Signées, datées ; la ligne
+       d'origine ne bouge pas. On ne retire que les siennes. */
+    reps.map(function(x){
+      return '<div class="binrep'+(binNeuf(x)?' binneuf':'')+'">'+
+        '<div class="binrep-h"><b>'+esc(String(x.par||'').split(/\s+/)[0])+'</b>'+
+          '<span>'+esc(binQuand(x.cree_le))+'</span>'+
+          (PROFILE && x.uid===PROFILE.uid
+            ? '<button class="binrep-x" onclick="binReponseRetirer('+x.id+')" aria-label="Retirer ma réponse">✕</button>' : '')+
+        '</div>'+
+        '<div class="binrep-t">'+passRiche(x.texte)+'</div></div>';
+    }).join('')+
+    '<button class="binrep-b" onclick="binRepondre('+l.id+')">Répondre</button>'+
+    '</div>';
+}
+function binQuand(t){
+  try{ return new Date(t).toLocaleString('fr-BE',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
 }
 function carteBinome(){
   if(!BINOMES.length) return '';
+  /* On marque vu ce qui est montré, un peu après : la marque « nouveau » reste le temps
+     de cette visite. Pas de render() ici (voir [[cousin-innerhtml-qui-tremble]]). */
+  const der=BIN_LIGNES.concat(BIN_REPONSES).filter(binDeLautre)
+    .reduce(function(m,x){ return String(x.cree_le||'')>m ? String(x.cree_le) : m; }, '');
+  if(der>BIN_VU) setTimeout(function(){
+    if(current && current.view==='liste') binMarquerVu(der);
+  }, 3000);
   return BINOMES.map(function(b){
     const lignes=BIN_LIGNES.filter(function(l){ return l.binome===b; });
     const aFaire=lignes.filter(function(l){ return !l.fait_le; });
@@ -42523,7 +42587,31 @@ function binRetirer(id){
   cousinConfirme('Retirer cette ligne ?', l.texte, async function(){
     const {error}=await sb.from('binome_lignes').delete().eq('id',id);
     if(error){ toast('Pas retirée : '+error.message); return; }
-    BIN_LIGNES=BIN_LIGNES.filter(function(x){ return x.id!==id; }); render();
+    BIN_LIGNES=BIN_LIGNES.filter(function(x){ return x.id!==id; });
+    BIN_REPONSES=BIN_REPONSES.filter(function(x){ return x.ligne_id!==id; }); render();
+  }, {ok:'Retirer', danger:true});
+}
+function binRepondre(id){
+  const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l) return;
+  cousinPop({
+    titre:'Répondre', texte:String(l.texte||'').slice(0,140), champ:'', max:4000, multi:true, ok:'Envoyer',
+    cle:'binrep-'+id,
+    quandOui:async function(v){
+      v=(v||'').trim(); if(!v) return;
+      const {data,error}=await sb.from('binome_reponses')
+        .insert({ligne_id:id, binome:l.binome, texte:v.slice(0,4000), par:nomAffiche()}).select();
+      if(error){ copyTxt(v,'Pas envoyée — ta réponse est copiée, colle-la.'); return; }
+      if(data && data[0]) BIN_REPONSES.push(data[0]);
+      render();
+    }
+  });
+}
+function binReponseRetirer(id){
+  const x=BIN_REPONSES.find(function(r){ return r.id===id; }); if(!x) return;
+  cousinConfirme('Retirer ta réponse ?', x.texte, async function(){
+    const {error}=await sb.from('binome_reponses').delete().eq('id',id);
+    if(error){ toast('Pas retirée : '+error.message); return; }
+    BIN_REPONSES=BIN_REPONSES.filter(function(r){ return r.id!==id; }); render();
   }, {ok:'Retirer', danger:true});
 }
 /* Passer une ligne du binôme : la même feuille que Ma liste. ⚠ La ligne RESTE dans la
