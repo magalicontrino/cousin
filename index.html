@@ -5660,8 +5660,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   font:inherit;font-weight:700;font-size:13.5px;color:var(--noir);cursor:pointer}
 .passqui-b.on{background:var(--noir);color:#fff}
 .passqui-b.social.on{background:#6cb392;border-color:#6cb392}
-.pgt-social{color:#3f7d61}
-.pass-social>*{border-left:4px solid #6cb392}
+.pcarte-social .ptitre{background:#dff0e7;margin:-14px -14px 10px;padding:12px 14px;border-radius:10px 10px 0 0}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
    comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
 /* ⚠ MÊME HAUTEUR QUE LE BOUTON D'IMPRESSION (Mag, 22/08/2026 : « tu mets le bouton
@@ -20375,7 +20374,7 @@ function vListe(){
      Le même compte que la carte « La passation » (`passToutes`, dédoublonnée), moins ce
      qui est coché fait. Seule la pastille est rouge : le bouton ne change pas. */
   const nPass=(typeof passToutes==='function' && typeof passUnique==='function')
-    ? passUnique(passToutes()).filter(function(p){ return !passFait(p); }).length : 0;
+    ? passUnique(passToutes().concat(passSociales())).filter(function(p){ return !passFait(p); }).length : 0;
   /* Les absences à 3 nuits ou plus, en rouge sur l'onglet : la liste si on l'a, sinon le compte. */
   if(voitEntrants() && onglet!=='absences' && !ABS_N_ENCOURS && Date.now()-ABS_N_LU>60000) setTimeout(loadAbsCompte,0);
   const nAbs=(ABS_LU ? absCompteATraiter() : ABS_N);
@@ -20539,7 +20538,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+carteMaListe()+carteBinome()+passationsHTML()+
+    return h+carteAVoir()+carteMaListe()+carteBinome()+passationsHTML()+carteServiceSocial()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -20666,7 +20665,7 @@ function listeCorps(){
      et c'est elle qui l'a placée là ». C'était vrai pour la carte des entretiens, qui
      a été retirée le même jour. */
   h+='<div class="ml3-c">'+carteMaListe()+carteBinome()+'</div>';
-  h+='<div class="ml3-c">'+passationsHTML()+'</div>';
+  h+='<div class="ml3-c">'+passationsHTML()+carteServiceSocial()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
@@ -38743,7 +38742,13 @@ function passLigne(p, mienne, role, heure){
    propre à quelqu'un qui ne va pas ouvrir l'app.
    ⚠ DÉDOUBLONNÉ PAR `id` : une ligne que j'ai écrite POUR MA PROPRE équipe est dans les
    deux ensembles à la fois, et sortait deux fois. */
-function passToutes(){
+/* ⚠ LE SERVICE SOCIAL N'EST PAS DANS `passToutes` (Mag, 07/10/2026 : « ça s'est mis
+   dans l'équipe de nuit »). `passToutes` nourrit la carte de la nuit, SA feuille
+   imprimée et SON mail : une note pour le service social n'a rien à y faire. Elle a
+   sa carte à elle — voir `passSociales` et `carteServiceSocial`. */
+function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL; }); }
+function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL; }); }
+function passToutesBrut(){
   const vues={};
   return passTri(passPourMoi().concat(passEcrites()).filter(function(p){
     if(vues[p.id]) return false; vues[p.id]=1;
@@ -38949,6 +38954,18 @@ function passEnvoyerMail(){
   }
   ouvrir();
 }
+/* ═══ LA PASSATION DU SERVICE SOCIAL, SA CARTE À ELLE (Mag, 07/10/2026) ═══
+   Pas de ligne = pas de carte. */
+function carteServiceSocial(){
+  const l=passUnique(passSociales());
+  if(!l.length) return '';
+  return '<div class="pcarte pcarte-lire pcarte-social">'+
+    '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
+      '<b>Passation</b><span>Service social</span>'+
+    '</div></div>'+
+    l.map(function(p){ return passLigne(p); }).join('')+
+  '</div>';
+}
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
      doit être sur le papier, sans exception. */
@@ -39007,11 +39024,8 @@ function passationsHTML(){
        — c'est le trait de couleur à gauche de chaque ligne qui continue de dire le
        genre, pas un titre séparé. Une Info n'a pas d'heure : elle garde son bloc à
        elle, à la fin, comme avant. */
-    /* ⚠ LE SERVICE SOCIAL A SON BLOC, à la fin, avec son trait vert (07/10/2026). */
-    const social=toutes.filter(function(p){ return p.pour===PASS_SOCIAL; });
-    const nuit=toutes.filter(function(p){ return p.pour!==PASS_SOCIAL; });
-    const moments=passProgramme(nuit);
-    const infos=nuit.filter(function(p){ return !passGenreDe(p.genre).heure; });
+    const moments=passProgramme(toutes);
+    const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
     if(moments.length){
       rien=false;
       /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
@@ -39025,11 +39039,6 @@ function passationsHTML(){
       rien=false;
       h+='<div class="pgt">Info</div>'+
          infos.map(function(p){ return passLigne(p); }).join('');
-    }
-    if(social.length){
-      rien=false;
-      h+='<div class="pgt pgt-social">Service social</div>'+
-         '<div class="pass-social">'+social.map(function(p){ return passLigne(p); }).join('')+'</div>';
     }
     if(rien) h+='<div class="pvide">Rien n’a été passé</div>';
   }
