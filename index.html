@@ -5650,6 +5650,18 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   transition:transform .15s ease;transform:rotate(90deg);margin-left:6px}
 .pcarte.plie .ptitre-lire .ch{transform:rotate(0deg)}
 .pcarte.plie{padding-bottom:14px}
+/* La liste du binôme (07/10/2026) : le bandeau turquoise de sa maquette. */
+.pcarte.binome .ptitre{background:#d6f0f5;margin:-14px -14px 10px;padding:12px 14px;border-radius:10px 10px 0 0}
+.binini{flex:none;width:24px;height:24px;border-radius:50%;background:#f3c6da;color:#8a2c58;
+  font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+/* Passation : l'équipe de nuit OU le service social. */
+.passqui{display:flex;gap:8px;margin:2px 0 8px}
+.passqui-b{flex:1;padding:10px 6px;border-radius:10px;border:1.5px solid var(--noir);background:#fdfdfc;
+  font:inherit;font-weight:700;font-size:13.5px;color:var(--noir);cursor:pointer}
+.passqui-b.on{background:var(--noir);color:#fff}
+.passqui-b.social.on{background:#6cb392;border-color:#6cb392}
+.pgt-social{color:#3f7d61}
+.pass-social>*{border-left:4px solid #6cb392}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
    comme l'étiquette qu'il remplace — mais rester plus discret que le titre. */
 /* ⚠ MÊME HAUTEUR QUE LE BOUTON D'IMPRESSION (Mag, 22/08/2026 : « tu mets le bouton
@@ -20527,7 +20539,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+carteMaListe()+passationsHTML()+
+    return h+carteAVoir()+carteMaListe()+carteBinome()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -20535,7 +20547,7 @@ function listeCorps(){
       '<div style="height:26px"></div>';
 
   if(!miennes.length)
-    h+=carteAVoir()+carteMaListe()+
+    h+=carteAVoir()+carteMaListe()+carteBinome()+
       replie('Liste de métier — aucune à toi',
         'Aucune liste n’est attribuée à ton rôle. Celles d’en dessous sont là pour '+
         'jeter un œil : ce que tu y coches ne compte que pour toi.');
@@ -20653,7 +20665,7 @@ function listeCorps(){
      ⚠ CE QUI ÉTAIT ÉCRIT ICI AVANT, et qui ne vaut plus : « juste après la check-list,
      et c'est elle qui l'a placée là ». C'était vrai pour la carte des entretiens, qui
      a été retirée le même jour. */
-  h+='<div class="ml3-c">'+carteMaListe()+'</div>';
+  h+='<div class="ml3-c">'+carteMaListe()+carteBinome()+'</div>';
   h+='<div class="ml3-c">'+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
@@ -36914,7 +36926,7 @@ const ECRANS_PARTAGES={
   tourbacs:  ['tourbacs'],
   passation: ['passations'],
   fil:       ['feed'],
-  liste:     ['listes'],
+  liste:     ['listes','binome'],
   /* ⚠ L'ACCUEIL EST VOLONTAIREMENT ABSENT (Mag, 10/08/2026 : « la carte tremble et
      le clic ne fonctionne plus »). Il y était pour rafraîchir ses deux compteurs —
      mais chaque rechargement termine par un render(), et un render() sur l'accueil
@@ -36964,6 +36976,7 @@ function rafraichirPartage(force){
   app('chambres',   typeof loadChambres==='function'?loadChambres:null);
   app('tourbacs',   typeof loadTourBacs==='function'?loadTourBacs:null);
   app('passations', typeof loadPassations==='function'?loadPassations:null);
+  app('binome',     typeof loadBinome==='function'?loadBinome:null);
   app('feed',       typeof loadFeed==='function'?loadFeed:null);
   app('listes',     typeof loadListes==='function'?loadListes:null);
   app('activites',  typeof loadActivites==='function'?loadActivites:null);
@@ -37164,6 +37177,8 @@ async function loadProfile(){
       /* La passation : la pastille de Ma liste doit savoir, en arrivant, que l'équipe
          d'avant a laissé quelque chose. */
       enParallele(loadPassations),
+      /* La liste du binôme (07/10/2026). */
+      enParallele(loadBinome),
       /* Le carnet des propositions d'activités au centre. */
       enParallele(loadPropositions),
       /* ⭐ SES CHECK-LISTS : c'est celle-ci qu'elle attendait. */
@@ -38116,7 +38131,7 @@ function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid);
 function passGerable(p){
   if(passMienne(p)) return true;
   if(!p || !PROFILE) return false;
-  return (MES_LISTES||[]).some(function(l){ return l===p.pour; });
+  return passPourEstAMoi(p.pour);
 }
 /* On ne touche qu'à une classe : pas de `render()` sur une page qui a des champs. */
 function passDeplier(b){
@@ -38131,10 +38146,21 @@ function passPourMoi(){
   try{
     const m=MES_LISTES||[];
     return (Array.isArray(PASSATIONS)?PASSATIONS:[])
-      .filter(function(p){ return p && m.indexOf(p.pour)>=0; });
+      .filter(function(p){ return p && passPourEstAMoi(p.pour); });
   }catch(e){ panneNoter('compte des passations', e); return []; }
 }
 function passEcrites(){ return PASSATIONS.filter(passMienne); }
+/* ═══ LE SERVICE SOCIAL (Mag, 07/10/2026 : « faire passer quelques notes dans une
+   passation partagée avec le service social ») ═══
+   Une passation « Service social » (clé `ts`) arrive chez tous les comptes dont le
+   métier est « Travailleur social », ET chez ceux qui ont la liste `ts`.
+   ⚠ PAS PAR `MES_LISTES` SEULE : presque aucun travailleur social n'a de liste (Afaf
+   n'en a pas) — la passation serait partie dans le vide.
+   ⏸ Elle doit encore donner LES NOMS : c'est ici qu'on restreindra. */
+function passPourEstAMoi(k){
+  if((MES_LISTES||[]).indexOf(k)>=0) return true;
+  return k===PASS_SOCIAL && !!PROFILE && PROFILE.equipe==='Travailleur social';
+}
 /* Les réveils d'abord, par heure. Une heure vide part à la fin — mieux vaut la voir
    en dernier que de la voir écraser l'ordre de celles qui en ont une. */
 /* ⚠ L'ORDRE EST CELUI DE LA NUIT, pas celui de l'écriture (étendu le 13/08/2026).
@@ -38233,10 +38259,14 @@ const PASSE_A={
    l'effacer : c'est la seule trace écrite de ces règles-là.
    Voir [[cousin-groupes-de-passation]]. */
 const PASS_EQUIPE='pfo-nuit';
-function passRoles(){ return [PASS_EQUIPE]; }
+/* ⚠ DEUX BOUTONS, PAS LE MENU DES DOUZE (Mag, 07/10/2026) : l'équipe de nuit, ou le
+   service social. Rien d'autre. */
+const PASS_SOCIAL='ts';
+function passRoles(){ return [PASS_EQUIPE, PASS_SOCIAL]; }
 /* Le nom affiché du destinataire d'une passation. Voir la note ci-dessus : ce n'est pas
    `LISTE_LABELS`, qui nomme des check-lists. */
 function passPourNom(k, dansUnePhrase){
+  if((k||PASS_POUR)===PASS_SOCIAL) return dansUnePhrase ? 'le service social' : 'Service social';
   if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
   /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
      est bonne en titre, mauvaise au milieu d'une phrase. */
@@ -38369,6 +38399,9 @@ async function passAjouter(){
        ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
        croire que rien n'est parti. */
     PASS_AJEUN=false; PASS_FEUILLE=false; PASS_GARDE=null;
+    /* On revient à la nuit : sinon la note suivante partirait au service social
+       sans qu'on y pense. */
+    if(!PASS_EDIT) PASS_POUR=PASS_EQUIPE;
     await loadPassations(); render(); toast('Passée ✓');
   }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
 }
@@ -38928,7 +38961,12 @@ function passationsHTML(){
     '<div class="ptitre ptitre-lire">'+
       '<button class="ptitre-pli" onclick="passPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
         '<b>La passation</b>'+
-        '<span>'+esc(passPourNom(PASS_POUR))+'</span>'+
+        /* Le titre dit à qui vont les lignes MONTRÉES, pas le choix en cours. */
+        '<span>'+esc((function(){
+          const eq=[]; toutes.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
+          if(!eq.length) eq.push(PASS_EQUIPE);
+          return eq.map(function(k){ return passPourNom(k); }).join(' · ');
+        })())+'</span>'+
       '</button>'+
       /* ⚠ LE DESSIN D'IMPRIMANTE, comme partout ailleurs (Mag, 11/09/2026 : « le logo
          print, parce que sinon on ne va jamais s'en sortir »). C'était une feuille. */
@@ -38968,8 +39006,11 @@ function passationsHTML(){
        — c'est le trait de couleur à gauche de chaque ligne qui continue de dire le
        genre, pas un titre séparé. Une Info n'a pas d'heure : elle garde son bloc à
        elle, à la fin, comme avant. */
-    const moments=passProgramme(toutes);
-    const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
+    /* ⚠ LE SERVICE SOCIAL A SON BLOC, à la fin, avec son trait vert (07/10/2026). */
+    const social=toutes.filter(function(p){ return p.pour===PASS_SOCIAL; });
+    const nuit=toutes.filter(function(p){ return p.pour!==PASS_SOCIAL; });
+    const moments=passProgramme(nuit);
+    const infos=nuit.filter(function(p){ return !passGenreDe(p.genre).heure; });
     if(moments.length){
       rien=false;
       /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
@@ -38983,6 +39024,11 @@ function passationsHTML(){
       rien=false;
       h+='<div class="pgt">Info</div>'+
          infos.map(function(p){ return passLigne(p); }).join('');
+    }
+    if(social.length){
+      rien=false;
+      h+='<div class="pgt pgt-social">Service social</div>'+
+         '<div class="pass-social">'+social.map(function(p){ return passLigne(p); }).join('')+'</div>';
     }
     if(rien) h+='<div class="pvide">Rien n’a été passé</div>';
   }
@@ -39063,9 +39109,17 @@ function passFeuilleHTML(){
       /* ⚠ « À L'ÉQUIPE DE NUIT », avec le « à » (Mag, 22/08/2026). Sans lui, le nom
          posé seul sous le champ de texte se lisait comme un titre de section ; avec
          lui, c'est une phrase qui dit où la ligne s'en va. */
-      '<div class="passl"><div class="passl-1">'+
-        'À '+roles.map(function(k){ return esc(passPourNom(k, true)); }).join(' · ')+
-      '</div></div>'+
+      /* ⚠ PLUSIEURS DESTINATAIRES = DES BOUTONS (07/10/2026) : la nuit, ou le service
+         social. On choisit l'un OU l'autre. */
+      (roles.length>1
+        ? '<div class="passqui">'+roles.map(function(k){
+            return '<button type="button" class="passqui-b'+(PASS_POUR===k?' on':'')+
+              (k===PASS_SOCIAL?' social':'')+'" onclick="passPourChoix(\''+k+'\')">'+
+              esc(passPourNom(k))+'</button>';
+          }).join('')+'</div>'
+        : '<div class="passl"><div class="passl-1">'+
+            'À '+roles.map(function(k){ return esc(passPourNom(k, true)); }).join(' · ')+
+          '</div></div>')+
       '<div class="chdep pass4" style="margin:2px 0 0">'+
         PASS_GENRES.map(function(x){
           return '<button class="chdep-b'+(PASS_GENRE===x.k?' on':'')+'" '+
@@ -39379,7 +39433,7 @@ function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false
    de corriger : sinon, une feuille ouverte par erreur ne se referme jamais. */
 /* ⚠ ON OUBLIE D'OÙ ON VENAIT EN FERMANT : sinon une note ouverte puis abandonnée
    partirait à la prochaine passation, celle d'une AUTRE note. */
-function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; render(); }
+function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; PASS_POUR=PASS_EQUIPE; render(); }
 
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
@@ -42336,6 +42390,145 @@ async function loadAbsCompte(){
     }
   }catch(e){}
   ABS_N_LU=Date.now(); ABS_N_ENCOURS=false;
+}
+/* ═══ LA LISTE DU BINÔME (Mag, 07/10/2026) ═══
+   « Je souhaiterais travailler en binôme avec Afaf. J'aimerais pouvoir lui donner
+   accès à ma liste. »
+   ⚠ CE N'EST PAS MA LISTE PERSO PARTAGÉE, et c'est son choix. Ma liste perso est
+   sauvée EN BLOC (« le dernier qui a écrit fait foi ») : à deux dessus, l'une efface
+   l'autre en silence. Ici chaque ligne est une rangée de la base (`binome_lignes`) —
+   on écrit à deux en même temps sans rien perdre. Ma liste perso reste privée.
+   Qui est dans quel binôme : `binome_membres` (voir sql/binome.sql). Le nom du binôme
+   est le titre de la carte. Pas de binôme = pas de carte. */
+var BINOMES=[], BIN_LIGNES=[], BIN_PANNE='', BIN_CHARGE=false;
+async function loadBinome(){
+  if(!sb || !PROFILE){ BIN_CHARGE=true; return; }
+  try{
+    const m=await sb.from('binome_membres').select('binome,email');
+    if(m.error) throw m.error;
+    const noms=[]; (m.data||[]).forEach(function(x){ if(noms.indexOf(x.binome)<0) noms.push(x.binome); });
+    BINOMES=noms;
+    if(!noms.length){ BIN_LIGNES=[]; BIN_PANNE=''; BIN_CHARGE=true; return; }
+    const r=await sb.from('binome_lignes').select('*').in('binome',noms).order('cree_le',{ascending:true});
+    if(r.error) throw r.error;
+    BIN_LIGNES=r.data||[]; BIN_PANNE='';
+  }catch(e){
+    /* ⚠ UNE PANNE N'EST PAS « RIEN » : on garde ce qu'on avait et on le dit. */
+    BIN_PANNE=(e&&e.message)||String(e);
+  }
+  BIN_CHARGE=true;
+}
+function binIni(nom){ return (String(nom||'').trim().charAt(0)||'?').toUpperCase(); }
+function binLigne(l){
+  const ok=!!l.fait_le;
+  const qui=String(l.par||'').trim().split(/\s+/)[0];
+  const quiFait=String(l.fait_par||'').trim().split(/\s+/)[0];
+  const bas=[];
+  if(l.chambre) bas.push('<b class="plch">ch. '+esc(l.chambre)+'</b>');
+  if(qui) bas.push('de '+esc(qui));
+  if(ok && quiFait) bas.push('fait par '+esc(quiFait));
+  return '<div class="pl2'+(ok?' faite':'')+'">'+
+    '<div class="pl2-h">'+
+      '<button class="cas" onclick="binCocher('+l.id+')" aria-label="Cocher">'+
+        (ok?'<span class="ic">'+icon('check')+'</span>':'')+'</button>'+
+      '<span class="pl2-sep"></span>'+
+      '<button class="ib" onclick="binModifier('+l.id+')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+      '<button class="ib" onclick="copyTxt(BIN_LIGNES.find(function(x){return x.id==='+l.id+'}).texte)" '+
+        'aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
+      '<button class="ib sup" onclick="binRetirer('+l.id+')" aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
+      '<span class="binini" title="'+esc(qui)+'">'+esc(binIni(qui))+'</span>'+
+      '<button class="rapPass mini" onclick="binPasser('+l.id+')">Passation</button>'+
+    '</div>'+
+    '<div class="pl2-t" onclick="binModifier('+l.id+')">'+
+      '<b>'+passRiche(l.texte)+'</b>'+
+      (bas.length?'<em>'+bas.join(' · ')+'</em>':'')+
+    '</div></div>';
+}
+function carteBinome(){
+  if(!BINOMES.length) return '';
+  return BINOMES.map(function(b){
+    const lignes=BIN_LIGNES.filter(function(l){ return l.binome===b; });
+    const aFaire=lignes.filter(function(l){ return !l.fait_le; });
+    const faites=lignes.filter(function(l){ return !!l.fait_le; });
+    const id='binTxt'+BINOMES.indexOf(b);
+    return '<div class="pcarte binome">'+
+      '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
+        '<b>'+esc(b)+'</b>'+
+        '<span>'+(lignes.length ? faites.length+' / '+lignes.length+' faites' : 'rien pour l’instant')+'</span>'+
+      '</div></div>'+
+      '<div class="chadd empile ecrire">'+
+        '<textarea id="'+id+'" rows="1" placeholder="" autocomplete="off" oninput="passGrandir(this)" '+
+          'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();binAjouter(\''+esc(b)+'\',\''+id+'\');}"></textarea>'+
+        '<div class="chadd-b">'+
+          '<input id="'+id+'Ch" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" inputmode="numeric">'+
+          '<button class="chaddbtn" onclick="binAjouter(\''+esc(b)+'\',\''+id+'\')">OK</button>'+
+        '</div>'+
+      '</div>'+
+      (BIN_PANNE ? '<div class="cal-e" style="border-left-color:var(--rouge);margin-top:10px"><b>La base n’a pas répondu</b>'+
+                   '<p class="insc">'+esc(BIN_PANNE)+'</p></div>' : '')+
+      aFaire.map(binLigne).join('')+
+      (faites.length ? '<div class="pgt">Faites</div>'+faites.map(binLigne).join('') : '')+
+    '</div>';
+  }).join('');
+}
+async function binAjouter(b, id){
+  const e=document.getElementById(id), c=document.getElementById(id+'Ch');
+  const t=e?(e.value||'').trim():''; if(!t){ if(e) e.focus(); return; }
+  if(!sb){ toast('Pas de connexion'); return; }
+  const l={binome:b, texte:t.slice(0,4000), chambre:(c&&c.value.trim())||null, par:nomAffiche()};
+  /* ⚠ LE TEXTE RESTE DANS LE CHAMP TANT QUE LA BASE N'A PAS DIT OUI. */
+  const {data,error}=await sb.from('binome_lignes').insert(l).select();
+  if(error){ toast('Pas enregistré : '+error.message); return; }
+  if(data && data[0]) BIN_LIGNES.push(data[0]);
+  if(e) e.value=''; if(c) c.value='';
+  render();
+  setTimeout(function(){ const n=document.getElementById(id); if(n) n.focus(); }, 60);
+}
+async function binCocher(id){
+  const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l||!sb) return;
+  const ch=l.fait_le ? {fait_le:null, fait_par:null} : {fait_le:new Date().toISOString(), fait_par:nomAffiche()};
+  const {error}=await sb.from('binome_lignes').update(ch).eq('id',id);
+  if(error){ toast('Pas enregistré : '+error.message); return; }
+  Object.assign(l,ch); render();
+}
+function binModifier(id){
+  const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l) return;
+  cousinPop({
+    titre:'Modifier', texte:'', champ:l.texte||'', max:4000, multi:true, ok:'Enregistrer',
+    cle:'binome-'+id, corriger:true,
+    plus:{ deux:l.chambre||'', deuxMax:12, deuxNum:true, deuxPlaceholder:'N° de chambre' },
+    autre:'Retirer',
+    quandAutre:function(){ binRetirer(id); },
+    quandOui:async function(v, plus){
+      v=(v||'').trim(); if(!v) return;
+      const ch={texte:v.slice(0,4000), chambre:((plus&&plus.deux)||'').trim().slice(0,12)||null};
+      const {error}=await sb.from('binome_lignes').update(ch).eq('id',id);
+      if(error){ copyTxt(v,'Pas enregistré — ton texte est copié, colle-le.'); return; }
+      Object.assign(l,ch); render();
+    }
+  });
+}
+function binRetirer(id){
+  const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l) return;
+  cousinConfirme('Retirer cette ligne ?', l.texte, async function(){
+    const {error}=await sb.from('binome_lignes').delete().eq('id',id);
+    if(error){ toast('Pas retirée : '+error.message); return; }
+    BIN_LIGNES=BIN_LIGNES.filter(function(x){ return x.id!==id; }); render();
+  }, {ok:'Retirer', danger:true});
+}
+/* Passer une ligne du binôme : la même feuille que Ma liste. ⚠ La ligne RESTE dans la
+   liste du binôme — elle est à deux, on ne la fait pas disparaître chez l'autre. */
+function binPasser(id){
+  const l=BIN_LIGNES.find(function(x){ return x.id===id; }); if(!l) return;
+  PASS_DEPUIS_RAPPEL=null; PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
+  PASS_GENRE='passation';
+  render();
+  setTimeout(function(){
+    const e=document.getElementById('passTxt'); if(!e) return;
+    e.value=String(l.texte||''); e.focus(); passGrandir(e);
+    const cc=document.getElementById('passCh'); if(cc && l.chambre) cc.value=l.chambre;
+    toast('Repris dans la passation — à envoyer');
+  }, 80);
 }
 function carteMaListe(){
   const tot=MESRAPPELS.length, fait=MESRAPPELS.filter(rappelFait).length;
