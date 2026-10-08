@@ -409,6 +409,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 #ppJour{width:auto;flex:none}
 /* Les rendez-vous (08/10/2026). */
 .rdvform{border:1.5px solid var(--noir);border-radius:14px;padding:14px;margin:6px 0 14px;background:#fdfdfc}
+.rdvform textarea{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);padding:10px 12px;width:100%;min-width:0;resize:none;overflow:hidden;min-height:64px;line-height:1.4}
 .rdvform input{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);padding:10px 12px;width:100%;min-width:0}
 .rdvf-t{display:block;font-size:17px;margin-bottom:6px}
 .rdvf-l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 5px}
@@ -16541,7 +16542,7 @@ async function rdvEnregistrer(){
   const ligne={jour:F.jour, heure:F.heure||null, nom:F.nom.trim().slice(0,80), chambre:(F.chambre||'').trim().slice(0,12)||null,
     genre:F.genre, lieu:(F.lieu||'').trim().slice(0,120)||null, adresse:(F.adresse||'').trim().slice(0,200)||null,
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
-    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,400)||null};
+    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null};
   let res;
   if(F.id){ ligne.modifie_par=nomAffiche(); ligne.modifie_le=new Date().toISOString();
     res=await sb.from('rendez_vous').update(ligne).eq('id',F.id).select('id'); }
@@ -16587,7 +16588,10 @@ function rdvFormHTML(){
       '<input id="rdvMain" list="rdvEquipe" placeholder="À trouver — ou écrire un prénom" value="'+esc(F.accomp_nom||'')+'" autocomplete="off">'+
       '<datalist id="rdvEquipe">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   }
-  h+='<p class="rdvf-l">Une précision</p><input id="rdvNote" placeholder="Facultatif — ex. prendre la carte d’identité" value="'+esc(F.note||'')+'" autocomplete="off">'+
+  /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
+     explicatives ») : une zone de texte qui grandit avec ce qu'on écrit. */
+  h+='<p class="rdvf-l">Une précision</p><textarea id="rdvNote" rows="2" placeholder="Facultatif — ex. prendre la carte d’identité" '+
+      'oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(F.note||'')+'</textarea>'+
     '<div class="rdvf-b"><button class="chaddbtn" onclick="rdvEnregistrer()">Enregistrer</button>'+
     '<button class="chaddbtn clair" onclick="rdvAnnuler()">Annuler</button></div></div>';
   return h;
