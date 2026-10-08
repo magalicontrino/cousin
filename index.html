@@ -16401,6 +16401,7 @@ function ppImprimer(quoi){
    ⏸ Les MAILS de rappel (jeudi 7 h récap, la veille 18 h, le matin 7 h) attendent le
      compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
    ═══════════════════════════════════════════════════════════════════════════ */
+var RDV_ENVOI=false;
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 const RDV_GARDE=14;
 /* ⚠ LES COULEURS DE TA PALETTE, ET AUCUNE AUTRE (09/10/2026 : « on a des couleurs de
@@ -16555,13 +16556,31 @@ async function rdvEnregistrer(){
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
     pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null};
+  /* Deux appuis sur « Enregistrer » = deux rendez-vous : le second attend le premier. */
+  if(RDV_ENVOI) return;
+  RDV_ENVOI=true;
+  const bt=document.querySelector('.rdvf-b .chaddbtn'); if(bt){ bt.disabled=true; bt.textContent='Enregistrement…'; }
   let res;
-  if(F.id){ ligne.modifie_par=nomAffiche(); ligne.modifie_le=new Date().toISOString();
-    res=await sb.from('rendez_vous').update(ligne).eq('id',F.id).select('id'); }
-  else { ligne.cree_par=nomAffiche(); res=await sb.from('rendez_vous').insert(ligne).select('id'); }
+  try{
+    if(F.id){ ligne.modifie_par=nomAffiche(); ligne.modifie_le=new Date().toISOString();
+      res=await sb.from('rendez_vous').update(ligne).eq('id',F.id).select('*'); }
+    else { ligne.cree_par=nomAffiche(); res=await sb.from('rendez_vous').insert(ligne).select('*'); }
+  } finally { RDV_ENVOI=false; }
   /* ⚠ Une écriture refusée revient avec 0 ligne, sans erreur : on le dit. */
-  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
-  RDV_FORM=null; await loadRdv(); render(); toast('Rendez-vous enregistré');
+  if(res.error || !res.data || !res.data.length){
+    if(bt){ bt.disabled=false; bt.textContent='Enregistrer'; }
+    toast('Pas enregistré : la base a refusé'); return;
+  }
+  /* ⚠ LE FORMULAIRE SE VIDE TOUT DE SUITE (09/10/2026 : « j'ai enregistré, et quand je
+     voulais réécrire autre chose en haut, c'était encore écrit »). Il attendait la
+     relecture de tout l'agenda — plusieurs secondes sur un téléphone, pendant
+     lesquelles on croyait devoir réécrire, et ce qu'on retapait se perdait ensuite.
+     On pose la ligne que la base vient de rendre, on ferme, PUIS on relit. */
+  const r=res.data[0];
+  RDV=RDV.filter(function(x){ return x.id!==r.id; }).concat([r])
+    .sort(function(a,b){ return (String(a.jour)+String(a.heure||'')).localeCompare(String(b.jour)+String(b.heure||'')); });
+  RDV_FORM=null; render(); toast('Rendez-vous enregistré');
+  await loadRdv(); render();
 }
 function rdvRetirer(id){
   const r=rdvLigne(id); if(!r) return;
