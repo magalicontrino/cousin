@@ -363,6 +363,20 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 /* ═══ UNE FENÊTRE ÉTROITE ET VERTICALE (Mag, 19/09/2026 : « plutôt verticale et
    chouette, avec des beaux bords ») ═══ Les deux gestes l'un sous l'autre, pleine
    largeur, à la taille du pouce ; le titre centré ; un cadre noir aux coins ronds. */
+/* Le backup des notes (08/10/2026) : la fenêtre de la poubelle et le cadre en pointillés. */
+.bkppop-t{font-size:13px;color:#555;text-align:center;margin:-8px 0 16px;white-space:pre-line}
+.dembtn.bkp-rouge{color:#c8412e;border-color:#c8412e}
+.bkp{margin:14px 0 4px;border:1.5px dashed var(--trait);border-radius:16px;padding:4px 12px}
+.bkp-tete{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:9px 0;
+  font:inherit;color:var(--noir);cursor:pointer;text-align:left}
+.bkp-tete b{font-size:15px}
+.bkp-tete span{margin-left:auto;font-size:13px;color:#555}
+.bkp-n{background:#fff;border-radius:10px;padding:10px;margin:0 0 10px}
+.bkp-n p{margin:0;font-size:14px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.bkp-n em{display:block;font-style:normal;font-size:12px;color:#777;margin:6px 0 8px}
+.bkp-b{display:flex;flex-wrap:wrap;gap:8px}
+.bkp-b .dembtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px}
+.bkp-b .dembtn svg,.bkp-b .dembtn .ic{width:15px;height:15px}
 .popcard.entpart{max-width:300px;background:#fdfdfc;border:2px solid #1b1b1b;border-radius:22px;padding:26px 22px 22px}
 .popcard.entpart b{text-align:center;margin-bottom:18px}
 .entpart .entpart-b{flex-direction:column;gap:10px;margin-top:0}
@@ -31677,10 +31691,9 @@ function notToutEffacer(){
 }
 function notRetirer(id){
   const n=NOTES.find(function(x){ return x.id===id; }); if(!n) return;
-  cousinConfirme('Effacer cette note ?', (n.t||'').slice(0,90)+'…', function(){
-    NOTES=NOTES.filter(function(x){ return x.id!==id; });
-    notesSauver(); render();
-  }, {ok:'Effacer', danger:true});
+  bkpDemander('Effacer cette note ?', (n.t||'').length>90 ? (n.t||'').slice(0,90)+'…' : (n.t||''), 'notes',
+    function(){ return [{texte:n.t||'', donnees:{t:n.t||'', q:n.q||null}}]; },
+    function(){ NOTES=NOTES.filter(function(x){ return x.id!==id; }); notesSauver(); render(); });
 }
 function notHeure(iso){
   try{ const d=new Date(iso);
@@ -37202,6 +37215,8 @@ async function loadProfile(){
       /* La passation : la pastille de Ma liste doit savoir, en arrivant, que l'équipe
          d'avant a laissé quelque chose. */
       enParallele(loadPassations),
+      /* Le backup des notes effacées (08/10/2026). */
+      enParallele(loadBackup),
       /* La liste du binôme (07/10/2026). */
       enParallele(loadBinome),
       /* Le carnet des propositions d'activités au centre. */
@@ -39940,9 +39955,12 @@ function rappelReunion(id){
    la création de la note, pas ligne par ligne — voir `RAP_TAGS` et `rappelAjouter`. */
 function rappelRetirer(id){
   const r=MESRAPPELS.find(x=>x.id===id); if(!r) return;
-  cousinConfirme('Retirer ce rappel ?', r.texte, function(){
-    MESRAPPELS=MESRAPPELS.filter(x=>x.id!==id); rappelsSauver(); render();
-  }, {ok:'Retirer', danger:true});
+  /* ⚠ BACKUP OU EFFACER (08/10/2026) : voir `bkpDemander`. On retrouve la ligne par son id
+     au moment de retirer — la liste a pu être relue entre-temps. */
+  const apercu=(r.texte||'').length>90 ? (r.texte||'').slice(0,90)+'…' : (r.texte||'');
+  bkpDemander('Retirer cette note ?', apercu, 'liste',
+    function(){ const x=MESRAPPELS.find(y=>y.id===id); return x?[bkpDeLigne(x)]:[]; },
+    function(){ MESRAPPELS=MESRAPPELS.filter(x=>x.id!==id); rappelsSauver(); render(); });
 }
 /* ⚠ LA PASTILLE NE COMPTE QUE CE QUI RÉCLAME AUJOURD'HUI. Un rappel daté à mardi
    ne doit rien allumer lundi — sinon la pastille est allumée en permanence, et une
@@ -42997,7 +43015,7 @@ function carteMaListe(){
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
       '<em class="ch" onclick="rapPlier()" aria-hidden="true">›</em>'+
     '</div>'+
-    (plie ? '' : rappelsHTML(true))+
+    (plie ? '' : rappelsHTML(true)+bkpHTML())+
     '</div>';
 }
 /* ⚠ ON EFFACE SA LISTE, PAS SES PASSATIONS. Ce qui est parti à l'équipe de nuit ne
@@ -43009,12 +43027,139 @@ function carteMaListe(){
 function rappelsEffacer(){
   const tot=MESRAPPELS.length; if(!tot) return;
   const reste=MESRAPPELS.filter(function(r){ return !rappelFait(r); }).length;
-  cousinConfirme('Effacer toute ta liste ?',
+  bkpDemander('Effacer toute ta liste ?',
     tot+(tot>1?' lignes seront effacées':' ligne sera effacée')+
     (reste? ', dont '+reste+(reste>1?' que tu n’as pas cochées':' que tu n’as pas cochée') : '')+
     '.\n\nCe qui est parti en passation n’est pas touché : ça reste chez l’équipe de nuit.',
-    function(){ MESRAPPELS=[]; RAP_BROUILLON=''; RAP_CH_BROUILLON=''; rappelsSauver(); render(); },
-    {ok:'Effacer', danger:true});
+    'liste',
+    function(){ return MESRAPPELS.map(bkpDeLigne); },
+    function(){ MESRAPPELS=[]; RAP_BROUILLON=''; RAP_CH_BROUILLON=''; rappelsSauver(); render(); });
+}
+/* ═══ LE BACKUP DES NOTES (Mag, 08/10/2026) ═══
+   « Parfois, dans Kairos, il y a des notes qui se perdent. Mais comme j'ai déjà effacé
+   dans Cousin, j'ai complètement perdu ma note. » La poubelle demande donc : « Backup 7
+   jours » ou « Effacer pour de bon » (dessin A de propositions/notes-reserve.html ; le mot
+   est « Backup », juste Backup). Le backup vit EN BASE (table `notes_backup`, privée :
+   sql/notes-backup.sql) — effacée au téléphone, la note se retrouve à l'ordinateur.
+   ⚠ LA LIGNE N'EST RETIRÉE QU'APRÈS LE OUI DE LA BASE. Si la base ne répond pas, on le
+   dit et la note reste là : un backup raté ne doit jamais devenir une note perdue.
+   En bas de Ma liste : un cadre en pointillés « Backup · N », replié, qui s'ouvre. */
+const BKP_JOURS=7;
+let BACKUP=[], BKP_OUVERT=false, BKP_PANNE=false;
+const BKP_ICO='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '+
+  'stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/>'+
+  '<path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>';
+const BKP_POUB='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '+
+  'stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
+/* Une ligne de Ma liste → ce qu'on garde : le texte lisible (texte + note dictée), et
+   la ligne ENTIÈRE pour la remettre telle quelle. */
+function bkpDeLigne(r){
+  const d=Object.assign({}, r); delete d.id; delete d.m;
+  const t=[r.chambre?('Ch. '+r.chambre+' · '):'' , r.texte||'', r.note?('\n'+r.note):''].join('');
+  return {texte:t||'(vide)', donnees:d};
+}
+function bkpDemander(titre, texte, origine, lignes, retirer){
+  let bg=document.getElementById('bkpBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='bkpBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  bg.innerHTML='<div class="popcard entpart bkppop" role="dialog" aria-modal="true">'+
+    '<b>'+esc(titre)+'</b>'+(texte?'<p class="bkppop-t">'+esc(texte)+'</p>':'')+
+    '<div class="entpart-b">'+
+      '<button class="dembtn" id="bkpOui">'+BKP_ICO+'Backup '+BKP_JOURS+' jours</button>'+
+      '<button class="dembtn clair bkp-rouge" id="bkpEff">'+BKP_POUB+'Effacer pour de bon</button>'+
+      '<button class="dembtn clair" id="bkpNon">Annuler</button>'+
+    '</div></div>';
+  const fermer=function(){ bg.classList.remove('on'); };
+  document.getElementById('bkpNon').onclick=fermer;
+  document.getElementById('bkpEff').onclick=function(){ fermer(); retirer(); };
+  document.getElementById('bkpOui').onclick=async function(){
+    const b=this; b.disabled=true;
+    const ok=await bkpMettre(lignes(), origine);
+    fermer();
+    if(ok){ retirer(); toast('Gardée '+BKP_JOURS+' jours en backup'); }
+  };
+  bg.classList.add('on');
+}
+async function bkpMettre(lignes, origine){
+  if(!lignes || !lignes.length) return true;
+  if(!sb){ toast('La base n’a pas répondu : rien n’est retiré.'); return false; }
+  try{
+    const {data,error}=await sb.from('notes_backup')
+      .insert(lignes.map(function(l){ return {origine:origine, texte:l.texte, donnees:l.donnees}; }))
+      .select('id,origine,texte,donnees,cree_le');
+    if(error || !data || !data.length){
+      toast('Le backup n’a pas marché : la note reste là.'); return false;
+    }
+    BACKUP=data.concat(BACKUP);
+    return true;
+  }catch(e){ toast('Le backup n’a pas marché : la note reste là.'); return false; }
+}
+async function loadBackup(){
+  if(!sb) return;
+  try{
+    const lim=new Date(Date.now()-BKP_JOURS*864e5).toISOString();
+    /* Ce qui a passé 7 jours part tout seul (on ne regarde pas la réponse : la ligne
+       est de toute façon ignorée à l'affichage). */
+    sb.from('notes_backup').delete().lt('cree_le', lim).then(function(){}, function(){});
+    const {data,error}=await sb.from('notes_backup').select('id,origine,texte,donnees,cree_le')
+      .gte('cree_le', lim).order('cree_le',{ascending:false}).limit(200);
+    if(error){ BKP_PANNE=true; return; }
+    BKP_PANNE=false; BACKUP=data||[];
+  }catch(e){ BKP_PANNE=true; }
+}
+function bkpVivants(){
+  const lim=Date.now()-BKP_JOURS*864e5;
+  return BACKUP.filter(function(b){ return new Date(b.cree_le).getTime()>=lim; });
+}
+function bkpJour(d){
+  const j=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
+  return j+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+}
+function bkpPlier(){ BKP_OUVERT=!BKP_OUVERT; render(); }
+function bkpHTML(){
+  const L=bkpVivants();
+  if(!L.length) return '';
+  let h='<div class="bkp'+(BKP_OUVERT?' on':'')+'">'+
+    '<button class="bkp-tete" onclick="bkpPlier()" aria-expanded="'+(BKP_OUVERT?'true':'false')+'">'+
+      BKP_ICO+'<b>Backup · '+L.length+'</b><span>'+(BKP_OUVERT?'fermer':'ouvrir')+' ›</span></button>';
+  if(BKP_OUVERT){
+    L.forEach(function(b){
+      const d=new Date(b.cree_le), f=new Date(d.getTime()+BKP_JOURS*864e5);
+      h+='<div class="bkp-n"><p>'+esc(b.texte)+'</p>'+
+        '<em>Mise en backup '+bkpJour(d)+' · part '+bkpJour(f)+'</em>'+
+        '<div class="bkp-b">'+
+          '<button class="dembtn clair" onclick="bkpCopier('+b.id+')">'+icon('copyleger')+'Copier</button>'+
+          '<button class="dembtn clair" onclick="bkpRemettre('+b.id+')">'+
+            (b.origine==='notes'?'Remettre dans les notes':'Remettre dans ma liste')+'</button>'+
+        '</div></div>';
+    });
+  }
+  return h+'</div>';
+}
+function bkpCopier(id){
+  const b=BACKUP.find(function(x){ return x.id===id; }); if(!b) return;
+  copyTxt(b.texte,'Copié');
+}
+async function bkpRemettre(id){
+  const b=BACKUP.find(function(x){ return x.id===id; }); if(!b) return;
+  /* ⚠ UN NOUVEL ID : l'ancien a laissé une trace « retirée » (`ma_liste_suppr`) qui
+     ferait disparaître la ligne à la prochaine fusion. */
+  if(b.origine==='notes'){
+    NOTES.unshift({id:'n'+Date.now(), t:(b.donnees&&b.donnees.t)||b.texte, q:new Date().toISOString()});
+    notesSauver();
+  } else {
+    const d=Object.assign({}, b.donnees||{texte:b.texte});
+    d.id='r'+Date.now(); delete d.m;
+    MESRAPPELS.push(d); rappelsSauver();
+  }
+  BACKUP=BACKUP.filter(function(x){ return x.id!==id; });
+  render(); toast(b.origine==='notes'?'Remise dans les notes':'Remise dans ta liste');
+  /* La note est déjà revenue : si la base refuse d'effacer le backup, il reste une copie
+     en trop pendant 7 jours, rien de perdu. */
+  try{ await sb.from('notes_backup').delete().eq('id',id); }catch(e){}
 }
 /* ═══ LA RANGÉE DE MA LISTE PERSO (Mag, 22/08/2026) ═══
    Ses mots, et c'est le plan exact : « on doit mettre vraiment beaucoup de choses, et
