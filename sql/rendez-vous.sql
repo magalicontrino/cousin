@@ -40,6 +40,9 @@ revoke all on function public.peut_ecrire_rdv() from public;
 grant execute on function public.peut_ecrire_rdv() to authenticated;
 
 -- Les prénoms de l'équipe, pour choisir qui accompagne.
+-- ⚠ 09/10/2026 : « ici, il ne doit absolument pas y avoir les polyvalents, ni les
+-- coordinateurs ». Et un même compte Google en double (tes deux adresses) ne fait
+-- qu'un prénom : on garde l'adresse samusocial.
 create or replace function public.equipe_prenoms()
 returns table(email text, prenom text)
 language plpgsql stable security definer set search_path = public as $$
@@ -48,16 +51,23 @@ begin
                   where lower(a.email) = lower(auth.jwt() ->> 'email') and coalesce(a.actif, true))
   then return; end if;
   return query
-    select lower(a.email)::text,
-           coalesce(
-             nullif(split_part(coalesce(u.raw_user_meta_data ->> 'full_name',
-                                        u.raw_user_meta_data ->> 'name', ''), ' ', 1), ''),
-             initcap(split_part(split_part(a.email, '@', 1), '.', 1))
-           )::text
-      from public.allowed_emails a
-      left join auth.users u on lower(u.email) = lower(a.email)
-     where coalesce(a.actif, true)
-     order by 2;
+    select x.email, x.prenom from (
+      select distinct on (lower(coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), a.email)))
+             lower(a.email)::text as email,
+             coalesce(
+               nullif(split_part(coalesce(u.raw_user_meta_data ->> 'full_name',
+                                          u.raw_user_meta_data ->> 'name', ''), ' ', 1), ''),
+               initcap(split_part(split_part(a.email, '@', 1), '.', 1))
+             )::text as prenom
+        from public.allowed_emails a
+        left join auth.users u on lower(u.email) = lower(a.email)
+       where coalesce(a.actif, true)
+         and public.equipe_propre(a.equipe) not like 'polyvalent%'
+         and public.equipe_propre(a.equipe) not in ('coordi', 'coordination')
+       order by lower(coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), a.email)),
+                (lower(a.email) like '%@samusocial.be') desc
+    ) x
+    order by 2;
 end $$;
 revoke all on function public.equipe_prenoms() from public;
 grant execute on function public.equipe_prenoms() to authenticated;
