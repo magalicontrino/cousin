@@ -40,6 +40,8 @@ revoke all on function public.peut_ecrire_rdv() from public;
 grant execute on function public.peut_ecrire_rdv() to authenticated;
 
 -- Les prénoms de l'équipe, pour choisir qui accompagne.
+-- ⚠ 09/10/2026 : « tu ne marques jamais Magali, tu mets Mag » : le PSEUDO du profil passe
+-- avant le prénom Google.
 -- ⚠ 09/10/2026 : « ici, il ne doit absolument pas y avoir les polyvalents, ni les
 -- coordinateurs ». Et un même compte Google en double (tes deux adresses) ne fait
 -- qu'un prénom : on garde l'adresse samusocial.
@@ -55,12 +57,14 @@ begin
       select distinct on (lower(coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), a.email)))
              lower(a.email)::text as email,
              coalesce(
+               nullif(trim(ps.valeur #>> '{}'), ''),
                nullif(split_part(coalesce(u.raw_user_meta_data ->> 'full_name',
                                           u.raw_user_meta_data ->> 'name', ''), ' ', 1), ''),
                initcap(split_part(split_part(a.email, '@', 1), '.', 1))
              )::text as prenom
         from public.allowed_emails a
         left join auth.users u on lower(u.email) = lower(a.email)
+        left join public.reglages_perso ps on ps.user_id = u.id and ps.cle = 'pseudo'
        where coalesce(a.actif, true)
          and public.equipe_propre(a.equipe) not like 'polyvalent%'
          and public.equipe_propre(a.equipe) not in ('coordi', 'coordination')

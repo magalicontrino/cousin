@@ -39,6 +39,8 @@ create policy pr_ecriture on public.passation_reponses for insert to authenticat
 -- Les prénoms à cocher : les comptes actifs « Travailleur social ». Le prénom vient du
 -- compte Google ; sans lui, du début de l'adresse (selma.sefiani → Selma).
 -- Seul quelqu'un du service social (ou l'administration) reçoit la liste.
+-- ⚠ 09/10/2026 : « tu ne marques jamais Magali, tu mets Mag » : le PSEUDO choisi dans le
+-- profil passe avant le prénom du compte Google.
 create or replace function public.service_social()
 returns table(email text, prenom text)
 language plpgsql stable security definer set search_path = public as $$
@@ -53,12 +55,14 @@ begin
   return query
     select lower(a.email)::text,
            coalesce(
+             nullif(trim(ps.valeur #>> '{}'), ''),
              nullif(split_part(coalesce(u.raw_user_meta_data ->> 'full_name',
                                         u.raw_user_meta_data ->> 'name', ''), ' ', 1), ''),
              initcap(split_part(split_part(a.email, '@', 1), '.', 1))
            )::text
       from public.allowed_emails a
       left join auth.users u on lower(u.email) = lower(a.email)
+      left join public.reglages_perso ps on ps.user_id = u.id and ps.cle = 'pseudo'
      where coalesce(a.actif, true)
        and public.equipe_propre(a.equipe) in ('travailleur social', 'ts')
      order by 2;

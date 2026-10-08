@@ -15943,7 +15943,7 @@ function vTourBacs(){
   if(TB_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>Le tour n’a pas pu être lu</b>'+
       '<p>Ce n’est pas qu’il est vide : la base a refusé de répondre. '+
-      'Si c’est la première fois, c’est sans doute que la table n’a pas encore été créée — préviens Magali.</p>'+
+      'Si c’est la première fois, c’est sans doute que la table n’a pas encore été créée — préviens Mag.</p>'+
       '<p class="insc">'+esc(TB_PANNE)+'</p></div>';
   } else if(!TOURBACS.length){
     h+= TB_CHARGE
@@ -16512,7 +16512,13 @@ function rdvLireChamps(){
   ['nom','chambre','jour','heure','lieu','adresse','note'].forEach(function(k){
     const x=v('rdv'+k.charAt(0).toUpperCase()+k.slice(1)); if(x!==undefined) RDV_FORM[k]=x;
   });
-  const m=v('rdvMain'); if(m!==undefined && m.trim()){ RDV_FORM.accomp_nom=m.trim(); RDV_FORM.accomp_email=''; }
+  /* Le champ écrit à la main fait foi, vide compris (= à trouver). Un prénom de l'équipe
+     tapé en entier garde son adresse : c'est elle qui recevra le rappel un jour. */
+  const m=v('rdvMain');
+  if(m!==undefined){
+    const n=m.trim(), p=RDV_EQUIPE.find(function(x){ return x.prenom.toLowerCase()===n.toLowerCase(); });
+    RDV_FORM.accomp_nom=p?p.prenom:n; RDV_FORM.accomp_email=p?p.email:'';
+  }
 }
 function rdvChoix(champ, val){
   rdvLireChamps();
@@ -16557,7 +16563,6 @@ function rdvFormHTML(){
   const F=RDV_FORM;
   const pill=function(on, txt, act, c){ return '<button class="rdvp'+(on?' on':'')+'" style="--c:'+(c||'#6FC7D9')+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
   const lieux=(typeof DATA!=='undefined'?DATA:[]).map(function(f){ return '<option value="'+esc(f.nom)+'">'; }).join('');
-  const surListe=!F.accomp_nom || RDV_EQUIPE.some(function(p){ return p.email===F.accomp_email; });
   let h='<div class="rdvform"><b class="rdvf-t">'+(F.id?'Modifier le rendez-vous':'Un rendez-vous')+'</b>'+
     '<p class="rdvf-l">Pour qui</p>'+
     '<div class="tbduo"><input id="rdvNom" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
@@ -16571,12 +16576,16 @@ function rdvFormHTML(){
     '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
     '<p class="rdvf-l">Accompagnement</p><div class="rdvps">'+
       pill(F.accompagne, 'Oui', "rdvChoix('accompagne',true)")+
-      pill(!F.accompagne, 'Non, il y va seul', "rdvChoix('accompagne',false)")+'</div>';
+      pill(!F.accompagne, 'Non', "rdvChoix('accompagne',false)")+'</div>';
+  /* ═══ QUI ACCOMPAGNE : ÉCRIT À LA MAIN (09/10/2026 : « trop de monde là, et tout le
+     monde n'est pas encore sur l'appli — il faudrait qu'on puisse l'écrire à la main ») ═══
+     Plus de pastilles : un seul champ. Les prénoms de l'équipe se proposent pendant
+     qu'on tape (sans polyvalents ni coordination) ; tout autre nom s'écrit tel quel.
+     Vide = à trouver — c'est ce que l'agenda écrit en rouge. */
   if(F.accompagne){
-    h+='<p class="rdvf-l">Qui accompagne</p><div class="rdvps">'+
-      pill(!F.accomp_nom, 'À trouver', "rdvChoix('accomp','')", '#f3c6da')+
-      RDV_EQUIPE.map(function(p){ return pill(F.accomp_email===p.email, p.prenom, "rdvChoix('accomp','"+p.email+"')"); }).join('')+
-    '</div><input id="rdvMain" placeholder="Ou écrire un nom (ex. un bénévole)" value="'+(surListe?'':esc(F.accomp_nom||''))+'" autocomplete="off" style="margin-top:8px">';
+    h+='<p class="rdvf-l">Qui accompagne</p>'+
+      '<input id="rdvMain" list="rdvEquipe" placeholder="À trouver — ou écrire un prénom" value="'+esc(F.accomp_nom||'')+'" autocomplete="off">'+
+      '<datalist id="rdvEquipe">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   }
   h+='<p class="rdvf-l">Une précision</p><input id="rdvNote" placeholder="Facultatif — ex. prendre la carte d’identité" value="'+esc(F.note||'')+'" autocomplete="off">'+
     '<div class="rdvf-b"><button class="chaddbtn" onclick="rdvEnregistrer()">Enregistrer</button>'+
@@ -16668,7 +16677,8 @@ function rdvImprimerJour(){
   const ligne=function(r){
     const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
     return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
-      '<span class="hh">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
+      /* « 09:30 », comme la passation : « 9 h 30 » se coupait en deux dans la colonne. */
+      '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
@@ -30997,7 +31007,7 @@ function activitesHTML(){
     (ACT_PANNE?'lecture impossible':(ACTIVITES.length+' date'+(ACTIVITES.length>1?'s':'')))+'</em></div>';
   if(ACT_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>Le programme n’a pas pu être lu</b>'
-      +'<p>Ce n’est pas qu’il est vide : la base a refusé de répondre. '+(peut?'':'Préviens Magali.')+'</p>'
+      +'<p>Ce n’est pas qu’il est vide : la base a refusé de répondre. '+(peut?'':'Préviens Mag.')+'</p>'
       +'<p class="insc">'+esc(ACT_PANNE)+'</p></div>';
   } else if(!ACTIVITES.length){
     h+='<div class="cal-vide">'+(ACT_CHARGE
