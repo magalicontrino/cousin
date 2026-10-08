@@ -407,6 +407,26 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 #ppColle,#ppJour{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);
   border-radius:0;padding:10px 12px;width:100%;resize:vertical}
 #ppJour{width:auto;flex:none}
+/* Les rendez-vous (08/10/2026). */
+.rdvform{border:1.5px solid var(--noir);border-radius:14px;padding:14px;margin:6px 0 14px;background:#fdfdfc}
+.rdvform input{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);padding:10px 12px;width:100%;min-width:0}
+.rdvf-t{display:block;font-size:17px;margin-bottom:6px}
+.rdvf-l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 5px}
+.rdvps{display:flex;flex-wrap:wrap;gap:6px}
+.rdvp{font:inherit;font-size:13px;border:1.5px solid var(--noir);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer;color:var(--noir)}
+.rdvp.on{background:var(--c);font-weight:600}
+.rdvf-b{display:flex;gap:8px;margin-top:16px}.rdvf-b .chaddbtn{flex:1}
+.rdvc{display:flex;gap:10px;border:1.5px solid var(--trait);border-left:6px solid var(--c);border-radius:12px;padding:10px;margin-bottom:8px;background:#fdfdfc}
+.rdvc.passe{opacity:.75}
+.rdvc-h{font-size:17px;font-weight:700;min-width:52px}
+.rdvc-x{flex:1;min-width:0}
+.rdvc-x b{display:block;font-size:15px}
+.rdvc-t{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;background:var(--c);border-radius:999px;padding:2px 8px;margin:3px 0}
+.rdvc-x p{margin:2px 0 0;font-size:13px;color:#444;line-height:1.35}
+.rdvc-a{color:var(--noir)!important;font-weight:600}
+.rdvc-a.rouge{color:#c8412e!important}
+.rdvc-s{font-size:11px!important;color:#888!important}
+.rdv-pj{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#777;margin:8px 0 4px}
 .chaddbtn.clair{background:#fdfdfc;color:var(--noir);border:1.25px solid var(--noir)}
 .popcard.entpart{max-width:300px;background:#fdfdfc;border:2px solid #1b1b1b;border-radius:22px;padding:26px 22px 22px}
 .popcard.entpart b{text-align:center;margin-bottom:18px}
@@ -16355,6 +16375,287 @@ function ppImprimer(quoi){
   w.document.close();
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES RENDEZ-VOUS ET ACCOMPAGNEMENTS (Mag, 08/10/2026)
+   « rdv médicaux et sociaux plus accompagnement plus mail de rappel ou sms ? »
+   Un agenda COMMUN (elle a choisi toute l'équipe ; le 08/08 elle avait écarté les
+   accompagnements partagés — c'est sa décision du 08/10). Ses choix :
+   · le NOM EN ENTIER + chambre, le type, le lieu (cherché dans le Réseau), et
+     l'accompagnement comme un CHOIX (oui / non, seul) ; si oui : un collègue, « à
+     trouver », ou un nom écrit à la main ;
+   · tout le monde lit, polyvalents compris ; tout le monde écrit SAUF les polyvalents
+     (la base le vérifie : `peut_ecrire_rdv()`, sql/rendez-vous.sql) ;
+   · un BACKUP DE 2 SEMAINES : les rendez-vous passés restent 14 jours, puis partent ;
+   · le papier : la feuille du jour, et le carton à donner à la personne (FR + EN).
+   ⏸ Les MAILS de rappel (jeudi 7 h récap, la veille 18 h, le matin 7 h) attendent le
+     compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
+const RDV_GARDE=14;
+const RDV_TYPES=[
+  {k:'medical',       l:'Médical',        en:'Medical',        c:'#e8524f'},
+  {k:'social',        l:'Social',         en:'Social',         c:'#6FC7D9'},
+  {k:'administratif', l:'Administratif',  en:'Administrative', c:'#f5c542'},
+  {k:'autre',         l:'Autre',          en:'Other',          c:'#b9a7d6'}
+];
+function rdvType(k){ return RDV_TYPES.find(function(t){ return t.k===k; })||RDV_TYPES[3]; }
+async function loadRdv(){
+  if(!sb){ RDV_CHARGE=true; return; }
+  try{
+    const lim=ppAjoute(agIso(new Date()), -RDV_GARDE);
+    const {data,error}=await sb.from('rendez_vous').select('*')
+      .gte('jour', lim).order('jour',{ascending:true}).order('heure',{ascending:true}).limit(400);
+    if(error) throw error;
+    RDV=data||[]; RDV_PANNE='';
+    /* Le backup de 2 semaines : ce qui a passé 14 jours part (seuls ceux qui écrivent le
+       peuvent ; pour les autres la base refuse, sans conséquence). */
+    if(rdvPeutEcrire()) sb.from('rendez_vous').delete().lt('jour', lim).then(function(){}, function(){});
+  }catch(e){ RDV=[]; RDV_PANNE=(e&&e.message)||String(e); }
+  RDV_CHARGE=true;
+  if(!RDV_EQUIPE.length){
+    try{ const r=await sb.rpc('equipe_prenoms'); if(!r.error && r.data) RDV_EQUIPE=r.data; }catch(e){}
+  }
+}
+let _rdvVu=0, _rdvSignature='';
+function rafraichirRdv(){
+  if(!sb) return;
+  if(Date.now()-_rdvVu < 20000) return;
+  _rdvVu=Date.now();
+  loadRdv().then(function(){
+    const sig=JSON.stringify(RDV);
+    if(sig!==_rdvSignature){ _rdvSignature=sig; if(current.view==='rdv' && !RDV_FORM) render(); }
+  });
+}
+/* « Tous sauf les polyvalents ». L'écran cache les boutons ; la base, elle, refuse. */
+function rdvPeutEcrire(){
+  try{
+    if(typeof vueAdmin==='function' && vueAdmin()) return true;
+    const m=String((PROFILE&&PROFILE.equipe)||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+    return m.indexOf('polyvalent')!==0;
+  }catch(e){ return false; }
+}
+function rdvHeureFr(h){ if(!h) return ''; const p=String(h).split(':'); return parseInt(p[0],10)+' h'+(p[1]&&p[1]!=='00'?' '+p[1]:''); }
+function rdvAccTexte(r){
+  if(!r.accompagne) return 'Seul';
+  return r.accomp_nom ? 'Accompagné par '+r.accomp_nom : 'Accompagnement : personne encore';
+}
+function rdvLigne(id){ return RDV.find(function(x){ return String(x.id)===String(id); }); }
+function rdvAujourdhui(){ const a=agIso(new Date()); return RDV.filter(function(r){ return r.jour===a; }).length; }
+function rdvResumeCourt(){
+  if(RDV_PANNE) return 'Lecture impossible';
+  if(!RDV_CHARGE) return 'Chargement…';
+  const a=agIso(new Date());
+  const n=rdvAujourdhui(), sans=RDV.filter(function(r){ return r.jour>=a && r.accompagne && !r.accomp_nom; }).length;
+  return (n ? n+' aujourd’hui' : 'Rien aujourd’hui')+(sans ? ' · '+sans+' sans accompagnant' : '');
+}
+
+/* ── le formulaire ──────────────────────────────────────────────────────── */
+function rdvNouveau(){
+  if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
+  RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
+            accompagne:false, accomp_email:'', accomp_nom:'', note:''};
+  render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
+}
+function rdvModifier(id){
+  const r=rdvLigne(id); if(!r) return;
+  if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
+  RDV_FORM=Object.assign({}, r); render(); window.scrollTo(0,0);
+}
+function rdvAnnuler(){ RDV_FORM=null; render(); }
+/* On lit les champs AVANT chaque redessin : un choix (type, accompagnement) redessine le
+   formulaire, et ce qui était tapé ne doit pas disparaître. */
+function rdvLireChamps(){
+  if(!RDV_FORM) return;
+  const v=function(id){ const e=document.getElementById(id); return e?e.value:undefined; };
+  ['nom','chambre','jour','heure','lieu','adresse','note'].forEach(function(k){
+    const x=v('rdv'+k.charAt(0).toUpperCase()+k.slice(1)); if(x!==undefined) RDV_FORM[k]=x;
+  });
+  const m=v('rdvMain'); if(m!==undefined && m.trim()){ RDV_FORM.accomp_nom=m.trim(); RDV_FORM.accomp_email=''; }
+}
+function rdvChoix(champ, val){
+  rdvLireChamps();
+  if(champ==='accomp'){
+    if(val===''){ RDV_FORM.accomp_email=''; RDV_FORM.accomp_nom=''; }
+    else { const p=RDV_EQUIPE.find(function(x){ return x.email===val; }); RDV_FORM.accomp_email=val; RDV_FORM.accomp_nom=p?p.prenom:''; }
+  } else RDV_FORM[champ]=val;
+  render();
+}
+/* Le lieu : si le texte tapé est le nom d'une fiche du Réseau, son adresse vient avec. */
+function rdvLieuSaisi(v){
+  const f=(typeof DATA!=='undefined'?DATA:[]).find(function(x){ return x.nom===v; });
+  if(f){ const a=document.getElementById('rdvAdresse'); if(a && !a.value) a.value=[f.adr,f.commune].filter(Boolean).join(', '); }
+}
+async function rdvEnregistrer(){
+  rdvLireChamps();
+  const F=RDV_FORM; if(!F) return;
+  if(!F.nom.trim()){ toast('Il manque le nom'); return; }
+  if(!F.jour){ toast('Il manque le jour'); return; }
+  const ligne={jour:F.jour, heure:F.heure||null, nom:F.nom.trim().slice(0,80), chambre:(F.chambre||'').trim().slice(0,12)||null,
+    genre:F.genre, lieu:(F.lieu||'').trim().slice(0,120)||null, adresse:(F.adresse||'').trim().slice(0,200)||null,
+    accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
+    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,400)||null};
+  let res;
+  if(F.id){ ligne.modifie_par=nomAffiche(); ligne.modifie_le=new Date().toISOString();
+    res=await sb.from('rendez_vous').update(ligne).eq('id',F.id).select('id'); }
+  else { ligne.cree_par=nomAffiche(); res=await sb.from('rendez_vous').insert(ligne).select('id'); }
+  /* ⚠ Une écriture refusée revient avec 0 ligne, sans erreur : on le dit. */
+  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  RDV_FORM=null; await loadRdv(); render(); toast('Rendez-vous enregistré');
+}
+function rdvRetirer(id){
+  const r=rdvLigne(id); if(!r) return;
+  cousinConfirme('Retirer ce rendez-vous ?', r.nom+' · '+ppJourFr(r.jour)+(r.heure?' · '+rdvHeureFr(r.heure):''),
+    async function(){
+      const {data,error}=await sb.from('rendez_vous').delete().eq('id',r.id).select('id');
+      if(error || !data || !data.length){ toast('Pas retiré : la base a refusé'); return; }
+      await loadRdv(); render();
+    }, {ok:'Retirer', danger:true});
+}
+function rdvFormHTML(){
+  const F=RDV_FORM;
+  const pill=function(on, txt, act, c){ return '<button class="rdvp'+(on?' on':'')+'" style="--c:'+(c||'#6FC7D9')+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
+  const lieux=(typeof DATA!=='undefined'?DATA:[]).map(function(f){ return '<option value="'+esc(f.nom)+'">'; }).join('');
+  const surListe=!F.accomp_nom || RDV_EQUIPE.some(function(p){ return p.email===F.accomp_email; });
+  let h='<div class="rdvform"><b class="rdvf-t">'+(F.id?'Modifier le rendez-vous':'Un rendez-vous')+'</b>'+
+    '<p class="rdvf-l">Pour qui</p>'+
+    '<div class="tbduo"><input id="rdvNom" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
+      '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
+    '<p class="rdvf-l">Quoi</p><div class="rdvps">'+RDV_TYPES.map(function(t){
+      return pill(F.genre===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
+    '<p class="rdvf-l">Quand</p><div class="tbduo"><input id="rdvJour" type="date" value="'+esc(F.jour)+'">'+
+      '<input id="rdvHeure" type="time" value="'+esc(F.heure||'')+'"></div>'+
+    '<p class="rdvf-l">Où</p><input id="rdvLieu" list="rdvLieux" placeholder="Chercher dans le Réseau, ou écrire" value="'+esc(F.lieu||'')+'" oninput="rdvLieuSaisi(this.value)" autocomplete="off">'+
+      '<datalist id="rdvLieux">'+lieux+'</datalist>'+
+    '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
+    '<p class="rdvf-l">Accompagnement</p><div class="rdvps">'+
+      pill(F.accompagne, 'Oui', "rdvChoix('accompagne',true)")+
+      pill(!F.accompagne, 'Non, il y va seul', "rdvChoix('accompagne',false)")+'</div>';
+  if(F.accompagne){
+    h+='<p class="rdvf-l">Qui accompagne</p><div class="rdvps">'+
+      pill(!F.accomp_nom, 'À trouver', "rdvChoix('accomp','')", '#f2b8ae')+
+      RDV_EQUIPE.map(function(p){ return pill(F.accomp_email===p.email, p.prenom, "rdvChoix('accomp','"+p.email+"')"); }).join('')+
+    '</div><input id="rdvMain" placeholder="Ou écrire un nom (ex. un bénévole)" value="'+(surListe?'':esc(F.accomp_nom||''))+'" autocomplete="off" style="margin-top:8px">';
+  }
+  h+='<p class="rdvf-l">Une précision</p><input id="rdvNote" placeholder="Facultatif — ex. prendre la carte d’identité" value="'+esc(F.note||'')+'" autocomplete="off">'+
+    '<div class="rdvf-b"><button class="chaddbtn" onclick="rdvEnregistrer()">Enregistrer</button>'+
+    '<button class="chaddbtn clair" onclick="rdvAnnuler()">Annuler</button></div></div>';
+  return h;
+}
+
+/* ── l'agenda ───────────────────────────────────────────────────────────── */
+function rdvCarte(r, passe){
+  const t=rdvType(r.genre), ecr=rdvPeutEcrire();
+  const acc=rdvAccTexte(r), rouge=(r.accompagne && !r.accomp_nom);
+  return '<div class="rdvc'+(passe?' passe':'')+'" style="--c:'+t.c+'">'+
+    '<span class="rdvc-h">'+(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvc-x">'+
+      '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
+      '<span class="rdvc-t">'+t.l+'</span>'+
+      (r.lieu||r.adresse?'<p>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+'</p>':'')+
+      '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+
+      (r.note?'<p>'+esc(r.note)+'</p>':'')+
+      '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
+      '<div class="ppc-b" style="justify-content:flex-start">'+
+        '<button onclick="rdvCarton(\''+r.id+'\')">Carton</button>'+
+        (ecr?'<button onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
+      '</div></div></div>';
+}
+function rdvJourTitre(j){
+  const a=agIso(new Date());
+  if(j===a) return 'Aujourd’hui · '+ppJourFr(j);
+  if(j===ppAjoute(a,1)) return 'Demain · '+ppJourFr(j);
+  return ppJourFr(j);
+}
+function vRdv(){
+  const a=agIso(new Date());
+  const avenir=RDV.filter(function(r){ return r.jour>=a; });
+  const passes=RDV.filter(function(r){ return r.jour<a; }).reverse();
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+    '<h1>Rendez-vous</h1></div>';
+  h+='<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
+     '<button class="fbtn" onclick="rdvImprimerJour()"><span class="ic">'+icon('imprimer')+'</span>La feuille du jour</button></div>';
+  if(RDV_FORM) h+=rdvFormHTML();
+  else if(rdvPeutEcrire()) h+='<div class="chadd"><button class="chaddbtn" style="flex:1" onclick="rdvNouveau()">+ Un rendez-vous</button></div>';
+  if(RDV_PANNE){
+    h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>L’agenda n’a pas pu être lu</b>'+
+      '<p>Ce n’est pas qu’il est vide : la base n’a pas répondu.</p><p class="insc">'+esc(RDV_PANNE)+'</p></div>';
+  } else if(!avenir.length){
+    h+= RDV_CHARGE ? '<div class="empty"><b>Aucun rendez-vous à venir.</b></div>' : '<div class="empty"><b>Chargement…</b></div>';
+  }
+  const jours=[]; avenir.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
+  jours.forEach(function(j){
+    h+='<div class="ghead">'+esc(rdvJourTitre(j))+'</div>'+
+      avenir.filter(function(r){ return r.jour===j; }).map(function(r){ return rdvCarte(r,false); }).join('');
+  });
+  if(passes.length){
+    h+='<div class="bkp'+(RDV_PASSES?' on':'')+'" style="margin-top:18px"><button class="bkp-tete" onclick="RDV_PASSES=!RDV_PASSES;render()">'+
+      '<b>Passés · '+RDV_GARDE+' jours</b><span>'+passes.length+' · '+(RDV_PASSES?'fermer':'ouvrir')+' ›</span></button>'+
+      (RDV_PASSES?passes.map(function(r){ return '<p class="rdv-pj">'+esc(ppJourFr(r.jour))+'</p>'+rdvCarte(r,true); }).join(''):'')+'</div>';
+  }
+  h+=wikiBloc('rdv');
+  return h;
+}
+
+/* ── le papier ──────────────────────────────────────────────────────────── */
+function rdvFenetre(titre, corps, css, paysage){
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>'+esc(titre)+'</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:Calibri,"Segoe UI",Helvetica,Arial,sans-serif;background:#e8e7e4;color:#000}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#1b1b1b;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#1b1b1b}'+
+    '.pg{width:210mm;min-height:297mm;margin:22px auto;padding:16mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){ .pg{width:auto;min-height:0;margin:12px;padding:8mm} }'+css+
+    '@media print{.bar{display:none}body{background:#fff}.pg{width:100%;min-height:0;margin:0;padding:0;box-shadow:none}@page{size:A4 portrait;margin:14mm}}'+
+    '</style></head><body><div class="bar"><b>'+esc(titre)+' — aperçu</b><button onclick="window.close()">Fermer</button>'+
+    '<button class="ok" onclick="window.print()">Imprimer</button></div>'+corps+'</body></html>');
+  w.document.close();
+}
+function rdvImprimerJour(){
+  const j=agIso(new Date());
+  const L=RDV.filter(function(r){ return r.jour===j; });
+  let rows=L.map(function(r){
+    const t=rdvType(r.genre);
+    return '<tr><td class="h">'+(rdvHeureFr(r.heure)||'—')+'</td>'+
+      '<td><b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+'<br><span class="ty" style="background:'+t.c+'">'+t.l+'</span> '+
+        esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+(r.note?'<br><i>'+esc(r.note)+'</i>':'')+'</td>'+
+      '<td class="'+(r.accompagne&&!r.accomp_nom?'r':'')+'">'+esc(rdvAccTexte(r))+'</td><td class="no"></td></tr>';
+  }).join('');
+  for(let i=0;i<3;i++) rows+='<tr><td class="h"></td><td></td><td></td><td class="no"></td></tr>';
+  rdvFenetre('Rendez-vous du jour',
+    '<section class="pg"><h1>Rendez-vous — '+esc(ppJourFr(j))+'</h1>'+
+    '<table><thead><tr><th>Heure</th><th>Qui · quoi · où</th><th>Accompagnement</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<p class="pied">Imprimé le '+esc(ppJourFr(j))+' à '+ppHeure(new Date().toISOString())+'</p></section>',
+    'h1{font-size:20pt;margin-bottom:6mm}table{width:100%;border-collapse:collapse}'+
+    'th{text-align:left;font-size:10pt;padding:2mm;border-bottom:2px solid #000}'+
+    'td{border-bottom:1px solid #000;padding:3mm 2mm;vertical-align:top;font-size:12pt}'+
+    'td.h{font-size:15pt;font-weight:700;width:22mm}td.r{color:#c8412e;font-weight:700}td.no{width:40mm;height:18mm;border-left:1px solid #000}'+
+    '.ty{font-size:9pt;font-weight:700;text-transform:uppercase;padding:0 2mm;border-radius:2mm}.pied{font-size:10pt;color:#444;margin-top:5mm}');
+}
+function rdvCarton(id){
+  const r=rdvLigne(id); if(!r) return;
+  const t=rdvType(r.genre);
+  const acc = r.accompagne ? (r.accomp_nom ? 'Vous serez accompagné·e par '+r.accomp_nom+'.' : 'Vous serez accompagné·e.') : '';
+  const accEn = r.accompagne ? 'Someone from the team will go with you.' : '';
+  const carte='<div class="ct"><p class="t">Votre rendez-vous · <i>Your appointment</i></p>'+
+    '<p class="nom">'+esc(r.nom)+'</p>'+
+    '<p class="gros">'+esc(ppJourFr(r.jour))+(r.heure?' · '+rdvHeureFr(r.heure):'')+'</p>'+
+    '<p class="en"><i>'+esc(ppJourEn(r.jour))+(r.heure?' · '+esc(r.heure):'')+'</i></p>'+
+    (r.lieu?'<p class="lieu"><b>'+esc(r.lieu)+'</b>'+(r.adresse?'<br>'+esc(r.adresse):'')+'</p>':(r.adresse?'<p class="lieu">'+esc(r.adresse)+'</p>':''))+
+    '<p>'+t.l+' · <i>'+t.en+'</i></p>'+
+    (acc?'<p>'+esc(acc)+'<br><i>'+accEn+'</i></p>':'')+
+    (r.note?'<p>'+esc(r.note)+'</p>':'')+'</div>';
+  /* Deux cartons par feuille : on en garde un au besoin, ou on coupe en deux. */
+  rdvFenetre('Carton de rendez-vous', '<section class="pg">'+carte+carte+'</section>',
+    '.ct{border:2px dashed #888;border-radius:4mm;padding:9mm;margin-bottom:12mm}'+
+    '.ct p{font-size:14pt;margin:2mm 0;line-height:1.3}.ct .t{font-size:13pt}.ct .nom{font-size:16pt;font-weight:700}'+
+    '.ct .gros{font-size:24pt;font-weight:700;margin-top:4mm}.ct .en{font-size:13pt;color:#333}.ct .lieu{font-size:16pt;margin:5mm 0}'+
+    '.ct i{color:#444}');
+}
+
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
 const FKEY='lux_favs';
 let FAVS;
@@ -18288,6 +18589,7 @@ function parseRoute(){
   if(seg[0]==='chambres') return {view:'chambres'};
   if(seg[0]==='tourbacs') return {view:'tourbacs'};
   if(seg[0]==='punaises') return {view:'punaises'};
+  if(seg[0]==='rdv') return {view:'rdv'};
   if(seg[0]==='print') return {view:'print'};
   if(seg[0]==='linge') return {view:'linge'};
   if(seg[0]==='recherche') return {view:'recherche'};
@@ -18815,6 +19117,9 @@ function renderInterne(){
   else if(current.view==='chambres'){ view.innerHTML=vChambres(); rafraichirChambres(); }
   else if(current.view==='tourbacs'){ view.innerHTML=vTourBacs(); rafraichirTourBacs(); }
   else if(current.view==='punaises'){ view.innerHTML=vPunaises(); rafraichirPunaises(); }
+  /* ⚠ On relit le formulaire AVANT de redessiner : un rafraîchissement ne doit pas
+     effacer ce qui est en train d'être tapé. */
+  else if(current.view==='rdv'){ rdvLireChamps(); view.innerHTML=vRdv(); rafraichirRdv(); }
   else if(current.view==='print') view.innerHTML=vPrint();
   else if(current.view==='linge') view.innerHTML=vLinge();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
@@ -20370,6 +20675,9 @@ k:['Formations COUSIN']},
     /* LE PROTOCOLE PUNAISES DU JEUDI (08/10/2026), à côté du tour : le même couloir. */
     porteCentre('punaise','Protocole punaises', esc(ppResumeCourt()),
       "go('#/punaises')", ppAlertes()?'pressee':'')+
+    /* Les polyvalents (groupe D) ne voient pas « Les outils de l'équipe » : l'agenda des
+       rendez-vous leur arrive ici, en lecture (08/10/2026). */
+    (estGroupeD()?porteCentre('calendrier','Rendez-vous', esc(rdvResumeCourt()), "go('#/rdv')"):'')+
     /* ⚠ LA FEUILLE CONGÉLATEUR ENTRE ICI (Mag, 21/08/2026 : « dans gestion du
        centre »). Elle vivait dans Print et dans les Ressources — deux étagères. Or
        on ne la cherche pas quand on se documente : on la cherche quand on descend
@@ -20622,6 +20930,12 @@ k:['Formations COUSIN']},
       '<span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('folder')+'</span></span>'+
       '<span class="tx"><b>Liste et Notes</b><em>Entretiens · Liste · Notes</em></span>'+
       '<span class="chv">›</span></button>';
+  /* LES RENDEZ-VOUS ET ACCOMPAGNEMENTS (08/10/2026) : l'agenda commun. */
+  const btnRdv=
+    '<button class="famz" onclick="go(\'#/rdv\')">'+
+      '<span class="rd" style="background:'+pastel('#e8524f')+'"><span class="ic">'+icon('calendrier')+'</span></span>'+
+      '<span class="tx"><b>Rendez-vous</b><em>'+esc(rdvResumeCourt())+'</em></span>'+
+      '<span class="chv">›</span></button>';
   const btnMemoRoi=
     '<button class="famz" onclick="accSlideOuvrir()">'+
       '<span class="rd" style="background:'+pastel('#c9bfe3')+'"><span class="ic">'+icon('bulb')+'</span></span>'+
@@ -20797,10 +21111,10 @@ k:['Formations COUSIN']},
       /* ⚠ ON COMPTE LES BOUTONS AFFICHÉS, plus les portes d'une famille : depuis ce
          matin il y a quatre boutons ici, et `nPortesFam[0]` n'en connaissait qu'un.
          Un chiffre faux au-dessus d'une liste, c'est ce qu'elle relève depuis le 21/08. */
-      /* +6 : Protocole, Le règlement, Liste et Notes, Mémo ROI, Numéros maraude, Immersion. */
-      const n=outilsHaut.length+6+(blocAccueil?1:0);
+      /* +7 : Protocole, Le règlement, Liste et Notes, Rendez-vous, Mémo ROI, Numéros maraude, Immersion. */
+      const n=outilsHaut.length+7+(blocAccueil?1:0);
       h+=centreSectTete('outils','#A9C8E8','Les outils de l’équipe',n)+
-         (centreSectOuverte('outils')?blocAccueil+outilsHaut.join('')+btnProtocole+btnReglement+btnListeNotes+btnMemoRoi+btnMaraude+btnImmersion:'');
+         (centreSectOuverte('outils')?blocAccueil+outilsHaut.join('')+btnProtocole+btnReglement+btnListeNotes+btnRdv+btnMemoRoi+btnMaraude+btnImmersion:'');
     }
     h+=sectPoly;
     h+=sectionsBas.sortir;
@@ -22119,7 +22433,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
     linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
@@ -22476,7 +22790,7 @@ const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressourc
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Jeux et quiz', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
-  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', linge:'Le linge', centre:'Le centre',
+  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
   if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
@@ -36691,7 +37005,7 @@ function wikiNomPage(p){
    La règle : un `wikiBloc('x')` quelque part ⇒ une ligne `x:'…'` ici, dans le
    même commit. C'est la même famille que les portes du Centre rangées par nom. */
 const WIKI_PAGES={
-  linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises',
+  linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', rdv:'Rendez-vous',
   print:'Les feuilles à imprimer', quartier:'Autour d’ici', reglement:'Le règlement',
   eau:'Les fontaines', wc:'Les toilettes', centre:'Le Centre',
   benevolat:'Ressources bénévoles', schemas:'Schémas',
@@ -37048,7 +37362,7 @@ function renderTabs(){
            /* ⚠ « liste » ne rallume plus Centre : depuis qu'elle a sa propre ligne dans
               le rail, deux boutons s'allumaient en même temps sur #/liste — l'erreur
               exacte qu'on avait corrigée le 06/08. Une ligne à soi, une lumière à soi. */
-            ['#/centre','Centre','cible','#A9C8E8',(v==='centre'||isTool||v==='quartier'||v==='ticket'||v==='chambres'||v==='tourbacs'||v==='punaises'||v==='linge'||v==='femmes')],
+            ['#/centre','Centre','cible','#A9C8E8',(v==='centre'||isTool||v==='quartier'||v==='ticket'||v==='chambres'||v==='tourbacs'||v==='punaises'||v==='rdv'||v==='linge'||v==='femmes')],
            ['#/urgences','Urgences','siren','#e63329',v==='urgences']];
   /* Les 4 secondaires ne s'affichent que sur grand écran (rail de gauche) : sur
      téléphone elles vivent déjà dans la barre du haut. Handoff « Bureau », 06/08/2026. */
@@ -37433,6 +37747,7 @@ const ECRANS_PARTAGES={
   chambres:  ['chambres'],
   tourbacs:  ['tourbacs'],
   punaises:  ['punaises'],
+  rdv:       ['rdv'],
   passation: ['passations'],
   fil:       ['feed'],
   liste:     ['listes','binome'],
@@ -37485,6 +37800,7 @@ function rafraichirPartage(force){
   app('chambres',   typeof loadChambres==='function'?loadChambres:null);
   app('tourbacs',   typeof loadTourBacs==='function'?loadTourBacs:null);
   app('punaises',   typeof loadPunaises==='function'?loadPunaises:null);
+  app('rdv',        typeof loadRdv==='function'?loadRdv:null);
   app('passations', typeof loadPassations==='function'?loadPassations:null);
   app('binome',     typeof loadBinome==='function'?loadBinome:null);
   app('feed',       typeof loadFeed==='function'?loadFeed:null);
@@ -37686,6 +38002,8 @@ async function loadProfile(){
       enParallele(loadTourBacs),
       /* Le protocole punaises du jeudi : la boule de l'accueil doit savoir s'il y a un pas-prévenu. */
       enParallele(loadPunaises),
+      /* L'agenda des rendez-vous : le Centre dit combien aujourd'hui. */
+      enParallele(loadRdv),
       /* La passation : la pastille de Ma liste doit savoir, en arrivant, que l'équipe
          d'avant a laissé quelque chose. */
       enParallele(loadPassations),
