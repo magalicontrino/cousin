@@ -16482,6 +16482,14 @@ function rdvAccTexte(r){
   if(!r.accompagne) return 'Seul';
   return r.accomp_nom ? 'Accompagné par '+r.accomp_nom : 'Accompagnement : personne encore';
 }
+/* « PMR · Taxi à commander · Réveil 6 h 30 » — ce qui est à prévoir, sur une ligne. */
+function rdvAPrevoir(r){
+  const l=[];
+  if(r.pmr) l.push('PMR');
+  if(r.taxi) l.push('Taxi à commander');
+  if(r.reveil) l.push('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''));
+  return l.join(' · ');
+}
 function rdvLigne(id){ return RDV.find(function(x){ return String(x.id)===String(id); }); }
 function rdvAujourdhui(){ const a=agIso(new Date()); return RDV.filter(function(r){ return r.jour===a; }).length; }
 function rdvResumeCourt(){
@@ -16496,7 +16504,7 @@ function rdvResumeCourt(){
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', note:''};
+            accompagne:false, accomp_email:'', accomp_nom:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:''};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -16510,6 +16518,7 @@ function rdvAnnuler(){ RDV_FORM=null; render(); }
 function rdvLireChamps(){
   if(!RDV_FORM) return;
   const v=function(id){ const e=document.getElementById(id); return e?e.value:undefined; };
+  const rv=v('rdvReveil'); if(rv!==undefined) RDV_FORM.reveil_heure=rv;
   ['nom','chambre','jour','heure','lieu','adresse','note'].forEach(function(k){
     const x=v('rdv'+k.charAt(0).toUpperCase()+k.slice(1)); if(x!==undefined) RDV_FORM[k]=x;
   });
@@ -16539,10 +16548,13 @@ async function rdvEnregistrer(){
   const F=RDV_FORM; if(!F) return;
   if(!F.nom.trim()){ toast('Il manque le nom'); return; }
   if(!F.jour){ toast('Il manque le jour'); return; }
+  /* Un réveil sans heure n'en est pas un (même règle que la passation, 22/08/2026). */
+  if(F.reveil && !F.reveil_heure){ toast('Il manque l’heure du réveil'); const e=document.getElementById('rdvReveil'); if(e) e.focus(); return; }
   const ligne={jour:F.jour, heure:F.heure||null, nom:F.nom.trim().slice(0,80), chambre:(F.chambre||'').trim().slice(0,12)||null,
     genre:F.genre, lieu:(F.lieu||'').trim().slice(0,120)||null, adresse:(F.adresse||'').trim().slice(0,200)||null,
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
-    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null};
+    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
+    pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null};
   let res;
   if(F.id){ ligne.modifie_par=nomAffiche(); ligne.modifie_le=new Date().toISOString();
     res=await sb.from('rendez_vous').update(ligne).eq('id',F.id).select('id'); }
@@ -16588,6 +16600,16 @@ function rdvFormHTML(){
       '<input id="rdvMain" list="rdvEquipe" placeholder="À trouver — ou écrire un prénom" value="'+esc(F.accomp_nom||'')+'" autocomplete="off">'+
       '<datalist id="rdvEquipe">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   }
+  /* ═══ À PRÉVOIR (09/10/2026) : « préciser si la personne est PMR — c'est important —,
+     ou s'il faut commander un taxi », « on doit pouvoir demander un réveil ». Trois
+     cases qui s'allument ; le réveil demande son heure. Le lien avec la passation de
+     nuit reste à décider ensemble : rien ne part tout seul. */
+  h+='<p class="rdvf-l">À prévoir</p><div class="rdvps">'+
+      pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")")+
+      pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")")+
+      pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")")+'</div>'+
+    (F.reveil?'<div class="tbduo" style="margin-top:8px;align-items:center;gap:10px"><span style="font-size:13px">Réveil à</span>'+
+      '<input id="rdvReveil" type="time" value="'+esc(F.reveil_heure||'')+'" style="max-width:150px"></div>':'');
   /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
      explicatives ») : une zone de texte qui grandit avec ce qu'on écrit. */
   h+='<p class="rdvf-l">Une précision</p><textarea id="rdvNote" rows="2" placeholder="Facultatif — ex. prendre la carte d’identité" '+
@@ -16607,6 +16629,7 @@ function rdvCarte(r, passe){
       '<span class="rdvc-t">'+t.l+'</span>'+
       (r.lieu||r.adresse?'<p>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+'</p>':'')+
       '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+
+      (rdvAPrevoir(r)?'<p class="rdvc-a">'+esc(rdvAPrevoir(r))+'</p>':'')+
       (r.note?'<p>'+esc(r.note)+'</p>':'')+
       '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
       '<div class="ppc-b" style="justify-content:flex-start">'+
@@ -16687,6 +16710,7 @@ function rdvImprimerJour(){
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
         '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>'+
+        (rdvAPrevoir(r)?'<span class="com" style="color:#1b1b1b;font-weight:700">'+esc(rdvAPrevoir(r))+'</span>':'')+
         (r.note?'<span class="com">'+esc(r.note)+'</span>':'')+
       '</span></div>';
   };

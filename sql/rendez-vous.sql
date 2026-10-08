@@ -86,3 +86,11 @@ create policy rdv_maj on public.rendez_vous for update to authenticated using (p
 drop policy if exists rdv_suppr on public.rendez_vous;
 create policy rdv_suppr on public.rendez_vous for delete to authenticated using (public.peut_ecrire_rdv());
 grant select, insert, update, delete on public.rendez_vous to authenticated;
+
+-- ═══ À PRÉVOIR (09/10/2026) : « préciser si la personne est PMR, ou s'il faut commander un
+-- taxi » ; « on doit pouvoir demander un réveil » (le lien avec la passation est à voir
+-- ensemble). Passé dans Supabase le 09/10/2026.
+alter table public.rendez_vous add column if not exists pmr boolean not null default false;
+alter table public.rendez_vous add column if not exists taxi boolean not null default false;
+alter table public.rendez_vous add column if not exists reveil boolean not null default false;
+alter table public.rendez_vous add column if not exists reveil_heure text;
