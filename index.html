@@ -413,9 +413,6 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvform input{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);padding:10px 12px;width:100%;min-width:0}
 .rdvf-t{display:block;font-size:17px;margin-bottom:6px}
 .rdvf-l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 5px}
-.rdvps{display:flex;flex-wrap:wrap;gap:6px}
-.rdvp{font:inherit;font-size:13px;border:1.5px solid var(--noir);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer;color:var(--noir)}
-.rdvp.on{background:var(--c);font-weight:600}
 .rdvf-b{display:flex;gap:8px;margin-top:16px}.rdvf-b .chaddbtn{flex:1}
 .rdvc{display:flex;gap:10px;border:1.5px solid var(--trait);border-left:6px solid var(--c);border-radius:12px;padding:10px;margin-bottom:8px;background:#fdfdfc}
 .rdvc.passe{opacity:.75}
@@ -16593,22 +16590,26 @@ function rdvRetirer(id){
 }
 function rdvFormHTML(){
   const F=RDV_FORM;
-  const pill=function(on, txt, act, c){ return '<button class="rdvp'+(on?' on':'')+'" style="--c:'+(c||'#6FC7D9')+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
+  /* ⚠ LE BOUTON DE CHOIX DE L'APP, PAS UN AUTRE (09/10/2026 : « j'aime pas les couleurs,
+     utilise les couleurs qu'on utilise d'habitude ») : le `.chip` des filtres du Réseau —
+     un petit carré de couleur, et un fond pâle de la même couleur quand c'est choisi.
+     Les aplats pleins (rouge, turquoise) sont retirés. */
+  const pill=function(on, txt, act, c){ return '<button class="chip'+(on?' on':'')+'" style="--c:'+(c||chipCouleur(0))+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
   const lieux=(typeof DATA!=='undefined'?DATA:[]).map(function(f){ return '<option value="'+esc(f.nom)+'">'; }).join('');
   let h='<div class="rdvform"><b class="rdvf-t">'+(F.id?'Modifier le rendez-vous':'Un rendez-vous')+'</b>'+
     '<p class="rdvf-l">Pour qui</p>'+
     '<div class="tbduo"><input id="rdvNom" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
-    '<p class="rdvf-l">Quoi</p><div class="rdvps">'+RDV_TYPES.map(function(t){
+    '<p class="rdvf-l">Quoi</p><div class="chips">'+RDV_TYPES.map(function(t){
       return pill(rdvType(F.genre).k===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
     '<p class="rdvf-l">Quand</p><div class="tbduo"><input id="rdvJour" type="date" value="'+esc(F.jour)+'">'+
       '<input id="rdvHeure" type="time" value="'+esc(F.heure||'')+'"></div>'+
     '<p class="rdvf-l">Où</p><input id="rdvLieu" list="rdvLieux" placeholder="Chercher dans le Réseau, ou écrire" value="'+esc(F.lieu||'')+'" oninput="rdvLieuSaisi(this.value)" autocomplete="off">'+
       '<datalist id="rdvLieux">'+lieux+'</datalist>'+
     '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
-    '<p class="rdvf-l">Accompagnement</p><div class="rdvps">'+
-      pill(F.accompagne, 'Oui', "rdvChoix('accompagne',true)")+
-      pill(!F.accompagne, 'Non', "rdvChoix('accompagne',false)")+'</div>';
+    '<p class="rdvf-l">Accompagnement</p><div class="chips">'+
+      pill(F.accompagne, 'Oui', "rdvChoix('accompagne',true)", chipCouleur(2))+
+      pill(!F.accompagne, 'Non', "rdvChoix('accompagne',false)", chipCouleur(1))+'</div>';
   /* ═══ QUI ACCOMPAGNE : ÉCRIT À LA MAIN (09/10/2026 : « trop de monde là, et tout le
      monde n'est pas encore sur l'appli — il faudrait qu'on puisse l'écrire à la main ») ═══
      Plus de pastilles : un seul champ. Les prénoms de l'équipe se proposent pendant
@@ -16623,10 +16624,10 @@ function rdvFormHTML(){
      ou s'il faut commander un taxi », « on doit pouvoir demander un réveil ». Trois
      cases qui s'allument ; le réveil demande son heure. Le lien avec la passation de
      nuit reste à décider ensemble : rien ne part tout seul. */
-  h+='<p class="rdvf-l">À prévoir</p><div class="rdvps">'+
-      pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")")+
-      pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")")+
-      pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")")+'</div>'+
+  h+='<p class="rdvf-l">À prévoir</p><div class="chips">'+
+      pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
+      pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
+      pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+'</div>'+
     (F.reveil?'<div class="tbduo" style="margin-top:8px;align-items:center;gap:10px"><span style="font-size:13px">Réveil à</span>'+
       '<input id="rdvReveil" type="time" value="'+esc(F.reveil_heure||'')+'" style="max-width:150px"></div>':'');
   /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
