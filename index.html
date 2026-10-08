@@ -38946,8 +38946,10 @@ function allerPassation(){
    (`passToutes`). ⚠ AÉRÉE (Mag, 06/10/2026 : « essaye que ce soit plus aéré ») : un
    bandeau par partie, une ligne vide entre chaque passation, l'heure et la chambre
    sur leur propre ligne, le texte en retrait dessous. */
-function passEnTexte(){
-  const toutes=passUnique(passToutes()).filter(function(p){ return !passFait(p); });
+/* `quoi` = 'social' pour la passation du service social (08/10/2026) ; sinon la nuit. */
+function passEnTexte(quoi){
+  const social=quoi==='social';
+  const toutes=passUnique(social?passSociales():passToutes()).filter(function(p){ return !passFait(p); });
   const auj=agIso(new Date());
   const ligne=function(p, h){
     const t=[]; if(h) t.push(h+' h'); if(p.chambre) t.push('chambre '+p.chambre);
@@ -38958,10 +38960,14 @@ function passEnTexte(){
       if(x.trim()) out.push((t.length||i>0?'   ':'▸ ')+x.trim());
     });
     if(p.commentaire) out.push('   ('+String(p.commentaire).trim()+')');
+    /* Les réponses sous la ligne (service social), avec le prénom de qui a répondu. */
+    (social?PASS_REPONSES:[]).filter(function(x){ return x.passation_id===p.id; }).forEach(function(x){
+      out.push('   ↳ '+String(x.par||'').split(/\s+/)[0]+' : '+String(x.texte||'').trim().replace(/\n+/g,' '));
+    });
     return out.join('\n');
   };
   const bandeau=function(t){ return ['','━━━━━━━━━━━━━━━━','  '+t,'━━━━━━━━━━━━━━━━','']; };
-  const L=['PASSATION — '+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})];
+  const L=[(social?'PASSATION SERVICE SOCIAL — ':'PASSATION — ')+new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})];
   const moments=passProgramme(toutes), infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
   if(moments.length){ L.push.apply(L, bandeau('RÉVEIL')); L.push(moments.map(function(m){ return ligne(m.p, m.heure); }).join('\n\n')); }
   if(infos.length){ L.push.apply(L, bandeau('INFO')); L.push(infos.map(function(p){ return ligne(p); }).join('\n\n')); }
@@ -38972,11 +38978,11 @@ function passEnTexte(){
    Gmail ») ═══ Les comptes de l'équipe sont des comptes Google : on ouvre la fenêtre
    « Nouveau message » de Gmail, déjà remplie, dans un nouvel onglet. COUSIN n'envoie
    toujours rien : c'est elle qui choisit à qui, et qui appuie sur Envoyer. */
-function passEnvoyerMail(){
+function passEnvoyerMail(quoi){
   /* L'objet ne porte aucun nom : il s'affiche sur l'écran verrouillé des téléphones. */
-  const objet='Passation — '+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'});
+  const objet=(quoi==='social'?'Passation service social — ':'Passation — ')+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'});
   const lien='https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(objet)+
-    '&body='+encodeURIComponent(passEnTexte());
+    '&body='+encodeURIComponent(passEnTexte(quoi));
   const ouvrir=function(){ const w=window.open(lien,'_blank','noopener'); if(!w) location.href=lien; };
   if(lien.length>7000){
     cousinConfirme('La passation est très longue',
@@ -38984,6 +38990,34 @@ function passEnvoyerMail(){
     return;
   }
   ouvrir();
+}
+/* ═══ UN BOUTON « PARTAGER » POUR TOUTES LES PASSATIONS (08/10/2026, tu m'as dit :
+   « plutôt que mail, plutôt copier », « un bouton Partager, et dedans ça ouvre une
+   pop-up : copier la passation, envoyer par mail, envoyer par WhatsApp — et ce pour
+   toutes les passations ») ═══ Les trois gestes partent du MÊME texte (`passEnTexte`),
+   la mise en forme que tu aimais pour le mail. COUSIN n'envoie rien lui-même. */
+function passPartager(quoi){
+  const q=quoi==='social'?'social':'';
+  let bg=document.getElementById('passPartBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='passPartBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  const fermer='document.getElementById(\'passPartBg\').classList.remove(\'on\');';
+  bg.innerHTML='<div class="popcard entpart passpart" role="dialog" aria-modal="true">'+
+    '<b>Partager la passation</b>'+
+    '<div class="entpart-b">'+
+      '<button class="dembtn" onclick="'+fermer+'passCopier(\''+q+'\')">'+icon('copyleger')+'Copier la passation</button>'+
+      '<button class="dembtn clair" onclick="'+fermer+'passEnvoyerMail(\''+q+'\')">'+icon('mail')+'Envoyer par mail</button>'+
+      '<button class="dembtn clair" onclick="'+fermer+'passWhatsApp(\''+q+'\')">'+
+        '<img src="picto/whatsapp.svg" alt="">Envoyer par WhatsApp</button>'+
+    '</div></div>';
+  bg.classList.add('on');
+}
+function passCopier(quoi){ copyTxt(passEnTexte(quoi),'Passation copiée'); }
+function passWhatsApp(quoi){
+  window.open('https://wa.me/?text='+encodeURIComponent(passEnTexte(quoi)),'_blank','noopener');
 }
 /* ═══ LA PASSATION DU SERVICE SOCIAL, SA CARTE À ELLE (Mag, 07/10/2026) ═══
    Pas de ligne = pas de carte. */
@@ -39002,7 +39036,10 @@ function carteServiceSocial(){
   return '<div class="pcarte pcarte-lire pcarte-social">'+
     '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
       '<b>Service social</b>'+
-    '</div></div>'+
+    '</div>'+
+      '<button class="ptitre-i" onclick="passPartager(\'social\')" aria-label="Partager la passation" '+
+        'title="Partager la passation">'+icon('partage')+'</button>'+
+    '</div>'+
     l.map(function(p){
       const reps=PASS_REPONSES.filter(function(x){ return x.passation_id===p.id; });
       return '<div class="socl">'+
@@ -39086,10 +39123,8 @@ function passationsHTML(){
         'title="Imprimer la passation">'+icon('imprimer')+'</button>'+
       /* ═══ PAR MAIL (Mag, 06/10/2026 : « on doit pouvoir envoyer la passation par
          mail ») ═══ Un brouillon s'ouvre dans son logiciel : COUSIN n'envoie rien. */
-      '<button class="ptitre-i" onclick="passEnvoyerMail()" aria-label="Envoyer la passation par mail" '+
-        'title="Envoyer la passation par mail"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" '+
-        'stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/>'+
-        '<path d="M3.5 7l8.5 6 8.5-6"/></svg></button>'+
+      '<button class="ptitre-i" onclick="passPartager()" aria-label="Partager la passation" '+
+        'title="Partager la passation">'+icon('partage')+'</button>'+
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : il passe en dernier, après le
          bouton d'impression. Dans le bouton-pli, `margin-left:auto` le poussait à
          droite du TITRE mais restait à gauche de l'imprimeur. */
