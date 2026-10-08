@@ -368,6 +368,18 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .entpart .entpart-b{flex-direction:column;gap:10px;margin-top:0}
 .entpart .entpart-b .dembtn{justify-content:center;width:100%;padding:15px 16px;font-size:15px;border-radius:14px;gap:10px}
 .entpart .entpart-b .dembtn img{width:20px!important;height:20px!important}
+/* Service social — à qui ? (08/10/2026, la maquette validée) : des pastilles à cocher,
+   « Tout le service social », et le bouton noir qui dit à qui ça part. */
+.popcard.socqui{max-width:340px}
+.socqui-l{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
+.socqui-p{font:inherit;font-size:14px;border:1.5px solid var(--trait);background:#fdfdfc;color:#1b1b1b;
+  border-radius:999px;padding:8px 13px;cursor:pointer}
+.socqui-p.on{background:var(--turq);border-color:#1b1b1b;font-weight:600}
+.socqui-tous{display:block;margin:2px auto 14px;font:inherit;font-size:13px;background:none;border:0;
+  text-decoration:underline;color:#1b1b1b;cursor:pointer}
+.socqui-ok{display:block;width:100%;font:inherit;font-weight:600;font-size:15px;background:#1b1b1b;color:#fff;
+  border:0;border-radius:14px;padding:14px 16px;cursor:pointer}
+.socqui-ok[disabled]{opacity:.35;cursor:default}
 /* L'onglet Entretiens quand quelqu'un attend : le rose de l'app, pâle fermé, fuchsia
    ouvert (Mag, 19/09/2026). */
 /* ⚠ MÊME FUCHSIA, OUVERT OU FERMÉ (Mag, 21/09/2026 : « le bouton entretien doit être de
@@ -38139,6 +38151,7 @@ async function loadPassations(){
        n'efface pas la passation : on garde ce qu'on avait. */
     try{
       const ids=PASSATIONS.filter(function(p){ return p.pour===PASS_SOCIAL; }).map(function(p){ return p.id; });
+      if(ids.length && !SOC_MEMBRES) await loadSocMembres();
       if(ids.length){
         const q=await sb.from('passation_reponses').select('*').in('passation_id',ids).order('cree_le',{ascending:true});
         if(!q.error) PASS_REPONSES=q.data||[];
@@ -38172,7 +38185,7 @@ function passPourMoi(){
   try{
     const m=MES_LISTES||[];
     return (Array.isArray(PASSATIONS)?PASSATIONS:[])
-      .filter(function(p){ return p && passPourEstAMoi(p.pour); });
+      .filter(function(p){ return p && (passPourEstAMoi(p.pour) || socEstAMoi(p)); });
   }catch(e){ panneNoter('compte des passations', e); return []; }
 }
 function passEcrites(){ return PASSATIONS.filter(passMienne); }
@@ -38317,10 +38330,18 @@ function passGenreChoix(g){
 /* Demain, au format des champs date. C'est le jour par défaut d'un réveil : on le
    note le soir, pour le lendemain matin. */
 function passDemain(){ const d=new Date(); d.setDate(d.getDate()+1); return agIso(d); }
+let PASS_SOC_QUI;   /* undefined = pas encore demandé « à qui ? » */
 async function passAjouter(){
   const v=function(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; };
   const texte=v('passTxt');
   if(!texte){ const e=document.getElementById('passTxt'); if(e) e.focus(); return; }
+  /* Service social depuis la feuille : la même question « à qui ? » que le bouton de la
+     ligne (08/10/2026). La réponse est posée, puis on repasse ici. */
+  const socQui=PASS_SOC_QUI; PASS_SOC_QUI=undefined;
+  if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL && socQui===undefined){
+    socAQui(function(q){ PASS_SOC_QUI=q; passAjouter(); });
+    return;
+  }
   /* ⚠ UN RÉVEIL SANS HEURE N'EN EST PAS UN (Mag, 22/08/2026 : « quand c'est un réveil,
      il ne peut pas être sans heure — il doit y avoir un message, mais aussi une heure,
      sinon ça n'a pas de sens »).
@@ -38340,6 +38361,7 @@ async function passAjouter(){
      savoir. La colonne est un `text` en base — elle n'a pas de limite. Les 4000
      caractères ci-dessous ne sont qu'un garde-fou contre un collage accidentel. */
   const l={texte:texte.slice(0,4000), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
+  if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL) l.pour_qui=socQui||null;
   /* ⚠ ON SIGNE CE QU'ON ÉCRIT (Mag, 24/08/2026) : sans `uid`, `passMienne` ne reconnaît
      jamais la ligne comme sienne et les boutons « modifier / annuler » ne s'affichent
      pas — on ne peut plus retirer une passation qu'on vient de poser. */
@@ -38677,7 +38699,9 @@ function passLigne(p, mienne, role, heure, gauche){
      clair ». Il ne s'écrit que si la ligne part AILLEURS que là où pointe la carte —
      là, il apprend quelque chose. */
   /* Le bloc « Service social » porte déjà son titre : on ne le répète pas. */
-  if(mienne){ if(p.pour!==PASS_POUR && p.pour!==PASS_SOCIAL) bas.push('pour '+esc(passPourNom(p.pour, true))); }
+  /* Service social : « Mag → Afaf » (08/10/2026) — de qui ET pour qui, sur la même ligne. */
+  if(p.pour===PASS_SOCIAL) bas.push(esc(socDeVers(p)));
+  else if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(passPourNom(p.pour, true))); }
   else if(qui) bas.push('de '+esc(qui));
   /* ⚠ LE JOUR SEULEMENT S'IL N'EST PAS AUJOURD'HUI : un réveil noté le samedi pour le
      dimanche se lit sinon comme un réveil pour tout de suite. */
@@ -39089,19 +39113,135 @@ function socReponseRetirer(id){
     PASS_REPONSES=PASS_REPONSES.filter(function(r){ return r.id!==id; }); render();
   }, {ok:'Retirer', danger:true});
 }
-/* Le bouton « Service social » d'une ligne de Ma liste : elle part directement, sans
-   la feuille. ⚠ Retirée de Ma liste SEULEMENT quand la base a dit oui (leçon du 05/09). */
-async function socDepuisRappel(rid){
+/* ═══ SERVICE SOCIAL — À QUI ? (08/10/2026, tu as choisi : « je choisis à chaque
+   fois ») ═══
+   Avant d'envoyer, une fenêtre montre les prénoms du service social ; on coche. Coché
+   d'avance : les mêmes que la dernière fois (`lux_soc_dernier`, rangé avec le compte).
+   En base, `pour_qui` = les e-mails cochés ; NULL = tout le service social (c'est le
+   cas de toutes les lignes d'avant). ⚠ C'EST LA BASE QUI TRIE (sql/service-social-a-qui.sql) :
+   une ligne réservée à Afaf n'arrive jamais sur le téléphone d'un autre.
+   Les prénoms viennent de la base (`service_social()`), groupés par prénom : tes deux
+   comptes font une seule pastille « Magali ». */
+let SOC_MEMBRES=null;       /* [{prenom, emails:[…]}] */
+async function loadSocMembres(){
+  if(!sb) return SOC_MEMBRES||[];
+  try{
+    const {data,error}=await sb.rpc('service_social');
+    if(error) throw error;
+    const g={};
+    (data||[]).forEach(function(m){
+      const k=String(m.prenom||'').trim()||prenomDeMail(m.email);
+      (g[k]=g[k]||[]).push(String(m.email||'').toLowerCase());
+    });
+    SOC_MEMBRES=Object.keys(g).sort(function(a,b){ return a.localeCompare(b,'fr'); })
+      .map(function(k){ return {prenom:k, emails:g[k]}; });
+  }catch(e){ panneNoter('prénoms du service social', e); }
+  return SOC_MEMBRES||[];
+}
+function prenomDeMail(m){
+  const s=String(m||'').split('@')[0].split(/[._-]/)[0];
+  return s ? s.charAt(0).toUpperCase()+s.slice(1) : '';
+}
+/* « Mag → Afaf » / « Mag → tout le service social » : sous chaque ligne de la carte. */
+function socDeVers(p){
+  const de=String(p.par||'').trim().split(/\s+/)[0];
+  let vers='tout le service social';
+  if(Array.isArray(p.pour_qui) && p.pour_qui.length){
+    const noms=[];
+    p.pour_qui.forEach(function(e){
+      const m=(SOC_MEMBRES||[]).find(function(x){ return x.emails.indexOf(String(e).toLowerCase())>=0; });
+      const n=m?m.prenom:prenomDeMail(e);
+      if(n && n.toLowerCase()!==de.toLowerCase() && noms.indexOf(n)<0) noms.push(n);
+    });
+    if(noms.length) vers=noms.join(', ');
+  }
+  return (de?de+' → ':'→ ')+vers;
+}
+function socEstAMoi(p){
+  return !!(p && PROFILE && Array.isArray(p.pour_qui) &&
+    p.pour_qui.indexOf(String(PROFILE.email||'').toLowerCase())>=0);
+}
+let SOC_COCHES=[], SOC_SUITE=null;
+function socMoi(m){ return !!PROFILE && m.emails.indexOf(String(PROFILE.email||'').toLowerCase())>=0; }
+async function socAQui(suite){
+  SOC_SUITE=suite;
+  const membres=(await loadSocMembres()).filter(function(m){ return !socMoi(m); });
+  let der=null; try{ der=JSON.parse(localStorage.getItem('lux_soc_dernier')||'null'); }catch(e){}
+  SOC_COCHES = der==='tous' ? membres.map(function(m){ return m.prenom; })
+    : (Array.isArray(der) ? der.filter(function(n){ return membres.some(function(m){ return m.prenom===n; }); }) : []);
+  let bg=document.getElementById('socQuiBg');
+  if(!bg){
+    bg=document.createElement('div'); bg.id='socQuiBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
+    document.body.appendChild(bg);
+  }
+  socQuiDessiner();
+  bg.classList.add('on');
+}
+function socQuiDessiner(){
+  const bg=document.getElementById('socQuiBg'); if(!bg) return;
+  const membres=(SOC_MEMBRES||[]).filter(function(m){ return !socMoi(m); });
+  const tous=membres.length>0 && SOC_COCHES.length===membres.length;
+  const lib = !SOC_COCHES.length ? 'Envoyer'
+    : (tous ? 'Envoyer à tout le service social' : 'Envoyer à '+SOC_COCHES.join(', '));
+  bg.innerHTML='<div class="popcard entpart socqui" role="dialog" aria-modal="true">'+
+    '<b>Service social — à qui ?</b>'+
+    '<div class="socqui-l">'+membres.map(function(m,i){
+      const on=SOC_COCHES.indexOf(m.prenom)>=0;
+      return '<button class="socqui-p'+(on?' on':'')+'" aria-pressed="'+on+'" onclick="socCocher('+i+')">'+
+        (on?'✓ ':'')+esc(m.prenom)+'</button>';
+    }).join('')+'</div>'+
+    '<button class="socqui-tous" onclick="socTous()">Tout le service social</button>'+
+    '<button class="socqui-ok"'+(SOC_COCHES.length?'':' disabled')+' onclick="socEnvoyer()">'+esc(lib)+'</button>'+
+  '</div>';
+}
+function socCocher(i){
+  const m=(SOC_MEMBRES||[]).filter(function(x){ return !socMoi(x); })[i]; if(!m) return;
+  const k=SOC_COCHES.indexOf(m.prenom);
+  if(k>=0) SOC_COCHES.splice(k,1); else SOC_COCHES.push(m.prenom);
+  socQuiDessiner();
+}
+function socTous(){
+  SOC_COCHES=(SOC_MEMBRES||[]).filter(function(m){ return !socMoi(m); }).map(function(m){ return m.prenom; });
+  socQuiDessiner();
+}
+function socEnvoyer(){
+  const membres=(SOC_MEMBRES||[]).filter(function(m){ return !socMoi(m); });
+  if(!SOC_COCHES.length) return;
+  const tous=SOC_COCHES.length===membres.length;
+  let q=null;
+  if(!tous){
+    /* Les cochés seulement. L'auteur relit sa ligne par son compte (`uid`) — ⚠ donc pas
+       depuis son AUTRE compte : ajouter tes deux adresses ici te ferait écrire
+       « Mag → Afaf, Magali » chez Afaf. */
+    q=[];
+    membres.forEach(function(m){
+      if(SOC_COCHES.indexOf(m.prenom)>=0) m.emails.forEach(function(e){ if(q.indexOf(e)<0) q.push(e); });
+    });
+  }
+  try{ localStorage.setItem('lux_soc_dernier', JSON.stringify(tous?'tous':SOC_COCHES)); }catch(e){}
+  const bg=document.getElementById('socQuiBg'); if(bg) bg.classList.remove('on');
+  const f=SOC_SUITE; SOC_SUITE=null;
+  if(f) f(q);
+}
+/* Le bouton « Service social » d'une ligne de Ma liste : d'abord « à qui ? », puis elle
+   part. ⚠ Retirée de Ma liste SEULEMENT quand la base a dit oui (leçon du 05/09). */
+function socDepuisRappel(rid){
+  if(!sb){ toast('Pas de connexion'); return; }
+  socAQui(function(q){ socEnvoyerRappel(rid, q); });
+}
+async function socEnvoyerRappel(rid, q){
   const r=MESRAPPELS.find(function(x){ return x.id===rid; }); if(!r) return;
   if(!sb){ toast('Pas de connexion'); return; }
   const l={texte:String(r.texte||'').slice(0,4000), pour:PASS_SOCIAL, genre:'passation',
-           par:nomAffiche(), chambre:r.chambre||null, jour:todayStr()};
+           par:nomAffiche(), chambre:r.chambre||null, jour:todayStr(), pour_qui:q};
   if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
   const {data,error}=await sb.from('passations').insert(l).select();
   if(error){ toast('Pas envoyée : '+error.message); return; }
   if(data && data[0]){ data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]); }
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
-  rappelsSauver(); render(); toast('Envoyée au service social ✓');
+  rappelsSauver(); render();
+  toast(q ? 'Envoyée à '+socDeVers({pour_qui:q, par:nomAffiche()}).split('→ ')[1]+' ✓' : 'Envoyée au service social ✓');
 }
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
