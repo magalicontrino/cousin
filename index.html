@@ -16655,26 +16655,41 @@ function rdvFenetre(titre, corps, css, paysage){
     '<button class="ok" onclick="window.print()">Imprimer</button></div>'+corps+'</body></html>');
   w.document.close();
 }
+/* ═══ LA FEUILLE DU JOUR, COMME LA PASSATION (09/10/2026 : « un peu plus contrastée —
+   prends exemple sur les feuilles de passation, elles sont vraiment très belles ») ═══
+   Elle passe par `feuilleImprimer`, le même papier que la passation : un bloc par sorte
+   de rendez-vous, son bandeau de couleur, le trait de gauche, l'heure puis la chambre en
+   gros. Les couleurs sont celles de l'écran (rouge médical, turquoise social, brun). */
 function rdvImprimerJour(){
   const j=agIso(new Date());
-  const L=RDV.filter(function(r){ return r.jour===j; });
-  let rows=L.map(function(r){
-    const t=rdvType(r.genre);
-    return '<tr><td class="h">'+(rdvHeureFr(r.heure)||'—')+'</td>'+
-      '<td><b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+'<br><span class="ty" style="background:'+t.c+'">'+t.l+'</span> '+
-        esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+(r.note?'<br><i>'+esc(r.note)+'</i>':'')+'</td>'+
-      '<td class="'+(r.accompagne&&!r.accomp_nom?'r':'')+'">'+esc(rdvAccTexte(r))+'</td><td class="no"></td></tr>';
-  }).join('');
-  for(let i=0;i<3;i++) rows+='<tr><td class="h"></td><td></td><td></td><td class="no"></td></tr>';
-  rdvFenetre('Rendez-vous du jour',
-    '<section class="pg"><h1>Rendez-vous — '+esc(ppJourFr(j))+'</h1>'+
-    '<table><thead><tr><th>Heure</th><th>Qui · quoi · où</th><th>Accompagnement</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-    '<p class="pied">Imprimé le '+esc(ppJourFr(j))+' à '+ppHeure(new Date().toISOString())+'</p></section>',
-    'h1{font-size:20pt;margin-bottom:6mm}table{width:100%;border-collapse:collapse}'+
-    'th{text-align:left;font-size:10pt;padding:2mm;border-bottom:2px solid #000}'+
-    'td{border-bottom:1px solid #000;padding:3mm 2mm;vertical-align:top;font-size:12pt}'+
-    'td.h{font-size:15pt;font-weight:700;width:22mm}td.r{color:#e63329;font-weight:700}td.no{width:40mm;height:18mm;border-left:1px solid #000}'+
-    '.ty{font-size:9pt;font-weight:700;text-transform:uppercase;padding:0 2mm;border-radius:2mm}.pied{font-size:10pt;color:#444;margin-top:5mm}');
+  const L=RDV.filter(function(r){ return r.jour===j; }).slice()
+    .sort(function(a,b){ return String(a.heure||'99').localeCompare(String(b.heure||'99')); });
+  const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
+  const ligne=function(r){
+    const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
+    return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
+      '<span class="hh">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
+      (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
+      '<span class="tx"><b>'+esc(r.nom)+'</b>'+
+        ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
+        '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>'+
+        (r.note?'<span class="com">'+esc(r.note)+'</span>':'')+
+      '</span></div>';
+  };
+  let corps='';
+  RDV_TYPES.forEach(function(t){
+    const l=L.filter(function(r){ return rdvType(r.genre).k===t.k; });
+    if(l.length) corps+='<section class="ch"><div class="st"><span>'+t.l+'</span><em>'+l.length+'</em></div>'+
+      l.map(ligne).join('')+'</section>';
+  });
+  if(!corps) corps='<p class="vide">Aucun rendez-vous aujourd’hui.</p>';
+  feuilleImprimer({
+    onglet:'Rendez-vous — '+ppJourFr(j),
+    entete:'Les rendez-vous du jour — aperçu',
+    titre:'Rendez-vous',
+    sous:ppJourFr(j),
+    corps:corps
+  });
 }
 function rdvCarton(id){
   const r=rdvLigne(id); if(!r) return;
@@ -17853,6 +17868,10 @@ function feuilleImprimer(o){
     '.ch:has(.k-abs) .st,.ch:has(.k-pre) .st,.ch:has(.k-rv) .st{background:#e8308a}'+
     '.ch:has(.k-not) .st{background:#b28b7a}.ch:has(.k-vid) .st{background:#f8763f}'+
     '.ch:has(.k-inf) .st{background:#2b8ea3}'+
+    /* Les rendez-vous (09/10/2026) : médical en rouge, « autre » en brun ; le social prend
+       le turquoise des infos (`k-inf`). */
+    '.l.k-rdvmed{border-left-color:#e63329}.ch:has(.k-rdvmed) .st{background:#e63329}'+
+    '.l.k-rdvaut{border-left-color:#b28b7a}.ch:has(.k-rdvaut) .st{background:#b28b7a}'+
     '.ch:has(.k-par) .st{background:#f5c542;color:#1b1b1b}.ch:has(.k-reu) .st{background:#a9c8e8;color:#1b1b1b}'+
     '.ch:has(.k-par) .st em,.ch:has(.k-reu) .st em{color:#4a4844}'+
     /* ⚠ LE CROCHET NOIR AUTOUR DES RÉVEILS A ÉTÉ ESSAYÉ PUIS RETIRÉ LE MÊME JOUR
