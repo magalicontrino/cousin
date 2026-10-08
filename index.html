@@ -434,6 +434,14 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 /* Service social — à qui ? (08/10/2026, la maquette validée) : des pastilles à cocher,
    « Tout le service social », et le bouton noir qui dit à qui ça part. */
 .popcard.socqui{max-width:340px}
+/* À prendre en charge (09/10/2026) : une rangée par tâche, le trait de la couleur du rdv. */
+.rdvtaches .ptitre span{font-family:ui-monospace,monospace;font-size:11px;margin-left:8px;color:#6b6963}
+.rdvt{border-left:4px solid var(--c);border-radius:8px;padding:8px 10px;margin:0 0 8px;background:#fdfdfc}
+.rdvt b{display:block;font-size:15px}
+.rdvt span{display:block;font-size:12.5px;color:#555;margin-top:2px}
+.rdvt .binrep-b{margin:8px 0 0}
+.rdvdate{font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px;background:#fdfdfc;color:var(--noir)}
+.rdvau{align-self:center;font-size:13px}
 /* La barre « Rendez-vous » de l'accueil (09/10/2026) : blanche, cernée noir, le calendrier
    dans un rond turquoise — que des couleurs de ta palette. */
 .rdvbarre{display:flex;align-items:center;gap:12px;width:100%;background:#fdfdfc;color:#1b1b1b;
@@ -16398,7 +16406,7 @@ function ppImprimer(quoi){
    ⏸ Les MAILS de rappel (jeudi 7 h récap, la veille 18 h, le matin 7 h) attendent le
      compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
    ═══════════════════════════════════════════════════════════════════════════ */
-var RDV_ENVOI=false;
+var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='';
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 const RDV_GARDE=14;
 /* ⚠ LES COULEURS DE TA PALETTE, ET AUCUNE AUTRE (09/10/2026 : « on a des couleurs de
@@ -16464,7 +16472,8 @@ function rafraichirRdv(){
   loadRdv().then(function(){
     const sig=JSON.stringify(RDV);
     if(sig!==_rdvSignature){ _rdvSignature=sig;
-      if((current.view==='rdv' && !RDV_FORM) || current.view==='home') render(); }
+      if((current.view==='rdv' && !RDV_FORM) || current.view==='home') render();
+      else if(current.view==='liste') renderFond(); }
   });
 }
 /* « Tous sauf les polyvalents ». L'écran cache les boutons ; la base, elle, refuse. */
@@ -16486,7 +16495,83 @@ function rdvAPrevoir(r){
   if(r.pmr) l.push('PMR');
   if(r.taxi) l.push('Taxi à commander');
   if(r.reveil) l.push('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''));
+  if(r.prevenir) l.push('Prévenir la personne');
   return l.join(' · ');
+}
+/* Qui s'occupe de quoi, sous le rendez-vous : « Prévenir : Afaf — je préviens monsieur ».
+   Rien de pris = en rouge, comme l'accompagnant à trouver. */
+function rdvPrisEnCharge(r){
+  const l=[];
+  [['prevenir','Prévenir'],['reveil','Réveil']].forEach(function(t){
+    if(!r[t[0]]) return;
+    const qui=r[t[0]+'_par'];
+    l.push(qui
+      ? '<p class="rdvc-a">'+t[1]+' : '+esc(qui)+(r[t[0]+'_note']?' — '+esc(r[t[0]+'_note']):'')+'</p>'
+      : '<p class="rdvc-a rouge">'+t[1]+' : personne encore</p>');
+  });
+  return l.join('');
+}
+/* ═══ À PRENDRE EN CHARGE (09/10/2026) ═══ Tes mots : prévenir la personne (« une
+   infirmière aussi peut prévenir »), et le réveil — visibles par TOUT LE MONDE dès que le
+   rendez-vous est écrit (« dès qu'on le sait, on le met »). On les prend avec « Je m'en
+   occupe » : PAS un simple appui (« que ce ne soit pas une erreur ») — une fenêtre où il
+   FAUT écrire ce qu'on fait, puis la tâche descend dans SA liste perso. */
+function rdvTaches(){
+  const a=agIso(new Date()), t=[];
+  (RDV||[]).forEach(function(r){
+    if(r.jour<a) return;
+    if(r.prevenir && !r.prevenir_par) t.push({r:r, k:'prevenir'});
+    if(r.reveil && !r.reveil_par) t.push({r:r, k:'reveil'});
+  });
+  return t.sort(function(x,y){ return (String(x.r.jour)+String(x.r.heure||'')).localeCompare(String(y.r.jour)+String(y.r.heure||'')); });
+}
+function carteAPrendre(){
+  if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
+  const t=rdvTaches(); if(!t.length) return '';
+  const peut=rdvPeutEcrire();
+  return '<div class="pcarte pcarte-lire rdvtaches"><div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
+      '<b>À prendre en charge</b><span>'+t.length+'</span></div></div>'+
+    t.map(function(x){
+      const r=x.r, ty=rdvType(r.genre);
+      const quoi = x.k==='reveil' ? 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):'') : 'Prévenir';
+      return '<div class="rdvt" style="--c:'+ty.c+'">'+
+        '<b>'+esc(quoi)+' — '+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
+        '<span>'+esc(ty.l)+' · '+esc(rdvQuandCourt(r))+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
+        (peut?'<button class="binrep-b" onclick="rdvPrendre(\''+r.id+'\',\''+x.k+'\')">Je m’en occupe</button>':'')+
+      '</div>';
+    }).join('')+
+  '</div>';
+}
+function rdvQuandCourt(r){
+  return (r.jour===agIso(new Date())?'aujourd’hui':ppJourFr(r.jour))+(r.heure?' '+rdvHeureFr(r.heure):'');
+}
+function rdvPrendre(id, k, deja){
+  const r=rdvLigne(id); if(!r) return;
+  const quoi = k==='reveil' ? 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):'') : 'Prévenir';
+  cousinPop({
+    titre:'Je m’en occupe — '+quoi, texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''),
+    champ:deja||'', max:300, multi:true, ok:'Je m’en occupe', sansAudio:true,
+    quandOui:async function(v){
+      v=(v||'').trim();
+      /* Le champ est OBLIGATOIRE : c'est lui qui prouve qu'on ne l'a pas pris par erreur. */
+      if(!v){ toast('Écris ce que tu fais (ex. « je préviens monsieur »)'); setTimeout(function(){ rdvPrendre(id,k); },50); return; }
+      const maj={}; maj[k+'_par']=nomAffiche()||'?'; maj[k+'_note']=v.slice(0,300); maj[k+'_le']=new Date().toISOString();
+      /* On n'écrase pas un collègue qui l'a pris entre-temps : la base ne met à jour que
+         si personne ne l'a encore. */
+      const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).is(k+'_par',null).select('*');
+      if(res.error){ toast('Pas enregistré : '+res.error.message); return; }
+      if(!res.data || !res.data.length){ toast('Quelqu’un s’en occupe déjà'); await loadRdv(); render(); return; }
+      Object.assign(r, res.data[0]);
+      /* La tâche descend dans MA liste perso — datée du jour du rendez-vous pour un
+         réveil, sans date pour prévenir (c'est à faire dès maintenant). */
+      const ligne={id:'r'+Date.now(), texte:(quoi+' — '+r.nom+' ('+rdvType(r.genre).l.toLowerCase()+', '+rdvQuandCourt(r)+
+        (r.lieu?', '+r.lieu:'')+') : '+v).slice(0,4000)};
+      if(r.chambre) ligne.chambre=String(r.chambre).slice(0,12);
+      if(k==='reveil') ligne.quand=r.jour;
+      MESRAPPELS.push(ligne); rappelsSauver();
+      render(); toast('C’est dans ta liste perso ✓');
+    }
+  });
 }
 function rdvLigne(id){ return RDV.find(function(x){ return String(x.id)===String(id); }); }
 function rdvAujourdhui(){ const a=agIso(new Date()); return RDV.filter(function(r){ return r.jour===a; }).length; }
@@ -16502,7 +16587,7 @@ function rdvResumeCourt(){
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:''};
+            accompagne:false, accomp_email:'', accomp_nom:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -16552,7 +16637,8 @@ async function rdvEnregistrer(){
     genre:F.genre, lieu:(F.lieu||'').trim().slice(0,120)||null, adresse:(F.adresse||'').trim().slice(0,200)||null,
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
-    pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null};
+    pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
+    prevenir:!!F.prevenir};
   /* Deux appuis sur « Enregistrer » = deux rendez-vous : le second attend le premier. */
   if(RDV_ENVOI) return;
   RDV_ENVOI=true;
@@ -16627,7 +16713,8 @@ function rdvFormHTML(){
   h+='<p class="rdvf-l">À prévoir</p><div class="chips">'+
       pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
       pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
-      pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+'</div>'+
+      pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+
+      pill(F.prevenir, 'Prévenir la personne', "rdvChoix('prevenir',"+(!F.prevenir)+")", chipCouleur(2))+'</div>'+
     (F.reveil?'<div class="tbduo" style="margin-top:8px;align-items:center;gap:10px"><span style="font-size:13px">Réveil à</span>'+
       '<input id="rdvReveil" type="time" value="'+esc(F.reveil_heure||'')+'" style="max-width:150px"></div>':'');
   /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
@@ -16650,10 +16737,11 @@ function rdvCarte(r, passe){
       (r.lieu||r.adresse?'<p>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+'</p>':'')+
       '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+
       (rdvAPrevoir(r)?'<p class="rdvc-a">'+esc(rdvAPrevoir(r))+'</p>':'')+
+      rdvPrisEnCharge(r)+
       (r.note?'<p>'+esc(r.note)+'</p>':'')+
       '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
       '<div class="ppc-b" style="justify-content:flex-start">'+
-        '<button onclick="rdvCarton(\''+r.id+'\')">Carton</button>'+
+        '<button onclick="rdvImprimer(null,null,\''+r.id+'\')">Imprimer</button>'+
         (ecr?'<button onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
       '</div></div></div>';
 }
@@ -16670,7 +16758,13 @@ function vRdv(){
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Rendez-vous</h1></div>';
   h+='<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
-     '<button class="fbtn" onclick="rdvImprimerJour()"><span class="ic">'+icon('imprimer')+'</span>La feuille du jour</button></div>';
+     /* Imprimer du … au … (09/10/2026 : « il faut pouvoir imprimer la liste des
+        rendez-vous, de date à date »). Par défaut : aujourd'hui seul = la feuille du jour. */
+     '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(RDV_IMPR_DU||a)+'" aria-label="Du">'+
+     '<span class="rdvau">au</span>'+
+     '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(RDV_IMPR_AU||a)+'" aria-label="Au">'+
+     '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
+  if(!RDV_FORM) h+=carteAPrendre();
   if(RDV_FORM) h+=rdvFormHTML();
   else if(rdvPeutEcrire()) h+='<div class="chadd"><button class="chaddbtn" style="flex:1" onclick="rdvNouveau()">+ Un rendez-vous</button></div>';
   if(RDV_PANNE){
@@ -16711,63 +16805,67 @@ function rdvFenetre(titre, corps, css, paysage){
     '<button class="ok" onclick="window.print()">Imprimer</button></div>'+corps+'</body></html>');
   w.document.close();
 }
-/* ═══ LA FEUILLE DU JOUR, COMME LA PASSATION (09/10/2026 : « un peu plus contrastée —
-   prends exemple sur les feuilles de passation, elles sont vraiment très belles ») ═══
-   Elle passe par `feuilleImprimer`, le même papier que la passation : un bloc par sorte
-   de rendez-vous, son bandeau de couleur, le trait de gauche, l'heure puis la chambre en
-   gros. Les couleurs sont celles de l'écran (rouge médical, turquoise social, brun). */
-function rdvImprimerJour(){
-  const j=agIso(new Date());
-  const L=RDV.filter(function(r){ return r.jour===j; }).slice()
-    .sort(function(a,b){ return String(a.heure||'99').localeCompare(String(b.heure||'99')); });
+/* ═══ LA FEUILLE DES RENDEZ-VOUS, COMME LA PASSATION (09/10/2026 : « un peu plus
+   contrastée — prends exemple sur les feuilles de passation ») ═══
+   Le même papier que la passation (`feuilleImprimer`) : bandeau de couleur, trait de
+   gauche, l'heure puis la chambre en gros.
+   ⚠ « CARTON, C'EST NUL » (09/10/2026) : le carton FR/EN pour l'hébergé est retiré. À sa
+   place, deux impressions sur cette même feuille :
+   · « Imprimer » sur un rendez-vous → ce rendez-vous seul ;
+   · en haut de la page → la liste DU … AU … (un seul jour = un bloc par sorte ; plusieurs
+     jours = un bloc par jour, la sorte écrite sur la ligne). */
+function rdvImprimer(du, au, seulId){
+  const a=agIso(new Date());
+  du=du||a; au=au||du; if(au<du){ const x=du; du=au; au=x; }
+  const L=RDV.filter(function(r){
+    return seulId ? String(r.id)===String(seulId) : (r.jour>=du && r.jour<=au);
+  }).slice().sort(function(x,y){ return (String(x.jour)+String(x.heure||'99')).localeCompare(String(y.jour)+String(y.heure||'99')); });
   const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
+  const unJour = seulId || du===au;
   const ligne=function(r){
     const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
     return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
       /* « 09:30 », comme la passation : « 9 h 30 » se coupait en deux dans la colonne. */
       '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
+      (unJour?'':'<span class="quoi">'+esc(t.l)+'</span>')+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
         '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>'+
         (rdvAPrevoir(r)?'<span class="com" style="color:#1b1b1b;font-weight:700">'+esc(rdvAPrevoir(r))+'</span>':'')+
-        (r.note?'<span class="com">'+esc(r.note)+'</span>':'')+
+        (r.note?'<span class="com">'+esc(r.note).replace(/\n/g,'<br>')+'</span>':'')+
       '</span></div>';
   };
   let corps='';
-  RDV_TYPES.forEach(function(t){
-    const l=L.filter(function(r){ return rdvType(r.genre).k===t.k; });
-    if(l.length) corps+='<section class="ch"><div class="st"><span>'+t.l+'</span><em>'+l.length+'</em></div>'+
-      l.map(ligne).join('')+'</section>';
-  });
-  if(!corps) corps='<p class="vide">Aucun rendez-vous aujourd’hui.</p>';
+  if(unJour){
+    RDV_TYPES.forEach(function(t){
+      const l=L.filter(function(r){ return rdvType(r.genre).k===t.k; });
+      if(l.length) corps+='<section class="ch"><div class="st"><span>'+t.l+'</span><em>'+l.length+'</em></div>'+
+        l.map(ligne).join('')+'</section>';
+    });
+  } else {
+    const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
+    jours.forEach(function(j){
+      const l=L.filter(function(r){ return r.jour===j; });
+      corps+='<section class="ch neutre"><div class="st"><span>'+esc(ppJourFr(j))+'</span><em>'+l.length+'</em></div>'+
+        l.map(ligne).join('')+'</section>';
+    });
+  }
+  if(!corps) corps='<p class="vide">Aucun rendez-vous'+(du===au?' ce jour-là':' sur ces dates')+'.</p>';
+  const r0=seulId && L[0];
+  const sous = r0 ? ppJourFr(r0.jour) : (du===au ? ppJourFr(du) : 'Du '+ppJourFr(du)+' au '+ppJourFr(au));
   feuilleImprimer({
-    onglet:'Rendez-vous — '+ppJourFr(j),
-    entete:'Les rendez-vous du jour — aperçu',
+    onglet:'Rendez-vous — '+sous,
+    entete:'Rendez-vous — aperçu',
     titre:'Rendez-vous',
-    sous:ppJourFr(j),
+    sous:sous,
     corps:corps
   });
 }
-function rdvCarton(id){
-  const r=rdvLigne(id); if(!r) return;
-  const t=rdvType(r.genre);
-  const acc = r.accompagne ? (r.accomp_nom ? 'Vous serez accompagné·e par '+r.accomp_nom+'.' : 'Vous serez accompagné·e.') : '';
-  const accEn = r.accompagne ? 'Someone from the team will go with you.' : '';
-  const carte='<div class="ct"><p class="t">Votre rendez-vous · <i>Your appointment</i></p>'+
-    '<p class="nom">'+esc(r.nom)+'</p>'+
-    '<p class="gros">'+esc(ppJourFr(r.jour))+(r.heure?' · '+rdvHeureFr(r.heure):'')+'</p>'+
-    '<p class="en"><i>'+esc(ppJourEn(r.jour))+(r.heure?' · '+esc(r.heure):'')+'</i></p>'+
-    (r.lieu?'<p class="lieu"><b>'+esc(r.lieu)+'</b>'+(r.adresse?'<br>'+esc(r.adresse):'')+'</p>':(r.adresse?'<p class="lieu">'+esc(r.adresse)+'</p>':''))+
-    '<p>'+t.l+' · <i>'+t.en+'</i></p>'+
-    (acc?'<p>'+esc(acc)+'<br><i>'+accEn+'</i></p>':'')+
-    (r.note?'<p>'+esc(r.note)+'</p>':'')+'</div>';
-  /* Deux cartons par feuille : on en garde un au besoin, ou on coupe en deux. */
-  rdvFenetre('Carton de rendez-vous', '<section class="pg">'+carte+carte+'</section>',
-    '.ct{border:2px dashed #888;border-radius:4mm;padding:9mm;margin-bottom:12mm}'+
-    '.ct p{font-size:14pt;margin:2mm 0;line-height:1.3}.ct .t{font-size:13pt}.ct .nom{font-size:16pt;font-weight:700}'+
-    '.ct .gros{font-size:24pt;font-weight:700;margin-top:4mm}.ct .en{font-size:13pt;color:#333}.ct .lieu{font-size:16pt;margin:5mm 0}'+
-    '.ct i{color:#444}');
+function rdvImprimerDates(){
+  const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
+  RDV_IMPR_DU=v('rdvDu')||RDV_IMPR_DU; RDV_IMPR_AU=v('rdvAu')||RDV_IMPR_AU;
+  rdvImprimer(RDV_IMPR_DU, RDV_IMPR_AU);
 }
 
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
@@ -17930,6 +18028,8 @@ function feuilleImprimer(o){
        le turquoise des infos (`k-inf`). */
     '.l.k-rdvmed{border-left-color:#e63329}.ch:has(.k-rdvmed) .st{background:#e63329}'+
     '.l.k-rdvaut{border-left-color:#b28b7a}.ch:has(.k-rdvaut) .st{background:#b28b7a}'+
+    /* Plusieurs jours : un bloc par jour, bandeau gris (les sortes s'y mélangent). */
+    '.ch.neutre .st{background:#4a4844!important;color:#fff!important}.ch.neutre .st em{color:rgba(255,255,255,.85)!important}'+
     '.ch:has(.k-par) .st{background:#f5c542;color:#1b1b1b}.ch:has(.k-reu) .st{background:#a9c8e8;color:#1b1b1b}'+
     '.ch:has(.k-par) .st em,.ch:has(.k-reu) .st em{color:#4a4844}'+
     /* ⚠ LE CROCHET NOIR AUTOUR DES RÉVEILS A ÉTÉ ESSAYÉ PUIS RETIRÉ LE MÊME JOUR
@@ -21486,7 +21586,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+carteMaListe()+carteBinome()+carteServiceSocial()+passationsHTML()+
+    return h+carteAVoir()+carteMaListe()+carteBinome()+carteAPrendre()+carteServiceSocial()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -21614,7 +21714,7 @@ function listeCorps(){
      a été retirée le même jour. */
   h+='<div class="ml3-c">'+carteMaListe()+carteBinome()+'</div>';
   /* Le service social AVANT la nuit (Mag, 07/10/2026 : « passation social avant nuit »). */
-  h+='<div class="ml3-c">'+carteServiceSocial()+passationsHTML()+'</div>';
+  h+='<div class="ml3-c">'+carteAPrendre()+carteServiceSocial()+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :

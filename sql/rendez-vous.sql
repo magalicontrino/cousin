@@ -94,3 +94,14 @@ alter table public.rendez_vous add column if not exists pmr boolean not null def
 alter table public.rendez_vous add column if not exists taxi boolean not null default false;
 alter table public.rendez_vous add column if not exists reveil boolean not null default false;
 alter table public.rendez_vous add column if not exists reveil_heure text;
+
+-- ═══ « JE M'EN OCCUPE » (09/10/2026) ═══ Prévenir la personne et le réveil deviennent des
+-- tâches visibles par tous ; qui la prend écrit obligatoirement ce qu'il fait (champ libre),
+-- et la tâche descend dans SA liste perso. Passé dans Supabase le 09/10/2026.
+alter table public.rendez_vous add column if not exists prevenir boolean not null default false;
+alter table public.rendez_vous add column if not exists prevenir_par text;
+alter table public.rendez_vous add column if not exists prevenir_note text;
+alter table public.rendez_vous add column if not exists prevenir_le timestamptz;
+alter table public.rendez_vous add column if not exists reveil_par text;
+alter table public.rendez_vous add column if not exists reveil_note text;
+alter table public.rendez_vous add column if not exists reveil_le timestamptz;
