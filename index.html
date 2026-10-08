@@ -436,6 +436,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 /* Service social — à qui ? (08/10/2026, la maquette validée) : des pastilles à cocher,
    « Tout le service social », et le bouton noir qui dit à qui ça part. */
 .popcard.socqui{max-width:340px}
+/* La barre « Rendez-vous » de l'accueil (09/10/2026) : le turquoise presque blanc, cerné noir. */
+.rdvbarre{display:flex;align-items:center;gap:12px;width:100%;background:#e2f4f8;color:#1b1b1b;
+  border:2px solid #1b1b1b;border-radius:16px;padding:14px 16px;margin:0 0 14px;font:inherit;
+  font-weight:600;font-size:16px;box-shadow:0 4px 0 #1b1b1b;cursor:pointer;text-align:left}
+.rdvbarre svg{width:22px;height:22px;flex:none}
+.rdvbarre b{margin-left:auto;background:#1b1b1b;color:#fff;border-radius:999px;padding:3px 11px;font-size:13px;font-weight:600}
+.rdvbarre:active{transform:translateY(2px);box-shadow:0 2px 0 #1b1b1b}
 .socqui-l{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
 .socqui-p{font:inherit;font-size:14px;border:1.5px solid var(--trait);background:#fdfdfc;color:#1b1b1b;
   border-radius:999px;padding:8px 13px;cursor:pointer}
@@ -16429,6 +16436,18 @@ async function loadRdv(){
     }catch(e){}
   }
 }
+/* ═══ LA BARRE « RENDEZ-VOUS » DE L'ACCUEIL (09/10/2026, dessin A, le 5 « presque
+   blanc ») ═══ Tu m'as dit : « toute l'équipe sera dans l'obligation de l'utiliser » —
+   un bouton au-dessus, à part des autres, en évidence. Pour tout le monde, groupe D
+   compris (les polyvalents lisent l'agenda). Le compte du jour n'apparaît que s'il y en a. */
+function rdvBarre(){
+  if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
+  const n=RDV_CHARGE?rdvAujourdhui():0;
+  return '<button class="rdvbarre" onclick="go(\'#/rdv\')">'+icon('calendrier')+
+    '<span>Rendez-vous</span>'+
+    (n?'<b>'+n+' aujourd’hui</b>':'')+
+  '</button>';
+}
 let _rdvVu=0, _rdvSignature='';
 function rafraichirRdv(){
   if(!sb) return;
@@ -16436,7 +16455,8 @@ function rafraichirRdv(){
   _rdvVu=Date.now();
   loadRdv().then(function(){
     const sig=JSON.stringify(RDV);
-    if(sig!==_rdvSignature){ _rdvSignature=sig; if(current.view==='rdv' && !RDV_FORM) render(); }
+    if(sig!==_rdvSignature){ _rdvSignature=sig;
+      if((current.view==='rdv' && !RDV_FORM) || current.view==='home') render(); }
   });
 }
 /* « Tous sauf les polyvalents ». L'écran cache les boutons ; la base, elle, refuse. */
@@ -19879,6 +19899,7 @@ function vHome(){
      menu. Un seul grand bouton, avant « À faire aujourd'hui », qui dit ce qui attend :
      les entretiens à voir, puis ce qui reste dans sa liste.
      ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
+  h+=rdvBarre();
   if(!estGroupeD()){
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
@@ -19949,8 +19970,8 @@ function vHome(){
        (nAbs?ligneCta(nAbs,'absence'+(nAbs>1?'s':'')+' à traiter','#/liste/absences','absence','#f0a8a3'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
-       /* Les rendez-vous du jour (Mag, 09/10/2026 : « oui »). Disparaît à zéro, comme les autres. */
-       ((typeof rdvAujourdhui==='function'&&rdvAujourdhui())?ligneCta(rdvAujourdhui(),'rendez-vous aujourd’hui','#/rdv','calendrier','#f3b0ae'):'')+
+       /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
+          (`rdvBarre`) — la même info deux fois sur le même écran ferait doublon. */
        /* ═══ LE MÉMO, EN DERNIER (Mag, 22/09/2026 — dessin B sur deux) ═══
           « Quand ce sera terminé, tu pourras rajouter le mémo quelque part ici. »
           ⚠ IL NE PORTE PAS DE CHIFFRE, ET C'EST EXPRÈS. Toutes les autres lignes
