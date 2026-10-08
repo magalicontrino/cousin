@@ -40981,9 +40981,27 @@ function entrantsTries(){
       || String(a.arrive_le).localeCompare(String(b.arrive_le));
   });
 }
-function entrantAjouter(){
+/* ═══ PAS DEUX FOIS LA MÊME PERSONNE (Mag, 09/10/2026 : « pourquoi il y a deux fois le
+   même nom ») ═══ MONTEIRO Jose avait été ajouté par toi le 06/10, puis à la main par
+   Afaf le 08/10 : le collage refusait déjà les doublons, le bouton « Ajouter », non.
+   On relit LA BASE juste avant d'écrire (la liste à l'écran peut dater d'avant l'ajout
+   d'un collègue) ; si elle ne répond pas, on compare à ce qu'on a à l'écran. */
+async function entrantDejaLa(nom){
+  let liste=ENTRANTS||[];
+  try{
+    const r=await sb.from('entrants').select('id,nom,arrive_le,pour_entretien');
+    if(!r.error && r.data) liste=r.data;
+  }catch(e){}
+  return liste.find(function(y){ return absMemePersonne(y.nom, nom); })||null;
+}
+function entrantDejaToast(e){
+  toast(e.nom+' est déjà dans la liste'+(e.arrive_le?' ('+rappelQuandFr(e.arrive_le)+')':'')+' — pas ajouté une 2e fois.');
+}
+async function entrantAjouter(){
   const n=(ENT_BR_NOM||'').trim(), c=(ENT_BR_CH||'').trim();
   if(!n){ toast('Écris d’abord le nom.'); return; }
+  /* Un mi-parcours peut viser quelqu'un déjà écrit pour son arrivée : on ne bloque pas. */
+  if(!ENT_BR_MI){ const d=await entrantDejaLa(n); if(d){ entrantDejaToast(d); return; } }
   /* La langue (Mag, 19/09/2026 : « on doit pouvoir aussi rajouter la langue ») : elle
      décide qui fait l'entretien, et s'il faut un interprète. */
   const lg=(ENT_BR_LG||'').trim();
@@ -41158,8 +41176,13 @@ function arriveesHTML(){
     }).join('')+
   '</div>';
 }
-function arriveeAjouter(){
+let ARR_AJOUT_ENCOURS=false;   /* deux appuis rapides = deux relectures vides = deux lignes */
+async function arriveeAjouter(){
   const n=(ARR_BR_NOM||'').trim(); if(!n){ toast('Écris un nom.'); return; }
+  if(ARR_AJOUT_ENCOURS) return;
+  ARR_AJOUT_ENCOURS=true;
+  let d=null; try{ d=await entrantDejaLa(n); } finally { ARR_AJOUT_ENCOURS=false; }
+  if(d){ entrantDejaToast(d); return; }
   entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), arrive_le:arrJourDefaut(),
     lam:!!ARR_BR_LAM, pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select().then(function(r){
     if(r.error || !r.data || !r.data.length){ toast("Pas ajouté — la base n'a pas répondu. Le nom est resté dans la case."); return; }
@@ -41352,9 +41375,11 @@ function arrCollerDessine(){
 async function arrCollerValider(){
   const P=ARR_PLAN; if(!P) return;
   const bg=document.getElementById('arrColBg'); if(bg) bg.classList.remove('on');
-  let rate=0, fait=0;
+  let rate=0, fait=0, deja=0;
   for(const x of P.nouveaux){
     if(!x.ok) continue;
+    /* Relu dans la base au moment d'écrire : un collègue a pu l'ajouter entre-temps. */
+    if(await entrantDejaLa(x.nom)){ deja++; continue; }
     entEcrit();
     const r=await sb.from('entrants').insert({nom:x.nom, arrive_le:x.jour, lam:!!x.lam,
       pour_entretien:false, ajoute_par:(nomAffiche()||'')}).select();
@@ -41368,7 +41393,8 @@ async function arrCollerValider(){
   }
   ARR_PLAN=null; render();
   toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
-             : (fait ? 'Liste des entrants appliquée' : 'Rien de nouveau'));
+             : (fait ? 'Liste des entrants appliquée' : 'Rien de nouveau')+
+               (deja ? ' · '+deja+' déjà dans la liste, pas ajouté'+(deja>1?'s':'') : ''));
 }
 /* La ligne descend dans les entretiens : le nom et la chambre sont déjà là. */
 /* Le calendrier de la fenêtre (`date:1`) rend une date au format AAAA-MM-JJ. */
