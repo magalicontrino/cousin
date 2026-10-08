@@ -16414,7 +16414,19 @@ async function loadRdv(){
   }catch(e){ RDV=[]; RDV_PANNE=(e&&e.message)||String(e); }
   RDV_CHARGE=true;
   if(!RDV_EQUIPE.length){
-    try{ const r=await sb.rpc('equipe_prenoms'); if(!r.error && r.data) RDV_EQUIPE=r.data; }catch(e){}
+    try{
+      const r=await sb.rpc('equipe_prenoms');
+      if(!r.error && r.data){
+        /* Deux « Charlotte » : on ajoute l'initiale du nom (prise dans l'adresse
+           prenom.nom@…) à ceux dont le prénom revient. */
+        const n={}; r.data.forEach(function(p){ n[p.prenom]=(n[p.prenom]||0)+1; });
+        RDV_EQUIPE=r.data.map(function(p){
+          if(n[p.prenom]<2) return p;
+          const nom=(String(p.email).split('@')[0].split('.')[1]||'').charAt(0).toUpperCase();
+          return {email:p.email, prenom:p.prenom+(nom?' '+nom+'.':'')};
+        });
+      }
+    }catch(e){}
   }
 }
 let _rdvVu=0, _rdvSignature='';
@@ -19937,6 +19949,8 @@ function vHome(){
        (nAbs?ligneCta(nAbs,'absence'+(nAbs>1?'s':'')+' à traiter','#/liste/absences','absence','#f0a8a3'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
+       /* Les rendez-vous du jour (Mag, 09/10/2026 : « oui »). Disparaît à zéro, comme les autres. */
+       ((typeof rdvAujourdhui==='function'&&rdvAujourdhui())?ligneCta(rdvAujourdhui(),'rendez-vous aujourd’hui','#/rdv','calendrier','#f3b0ae'):'')+
        /* ═══ LE MÉMO, EN DERNIER (Mag, 22/09/2026 — dessin B sur deux) ═══
           « Quand ce sera terminé, tu pourras rajouter le mémo quelque part ici. »
           ⚠ IL NE PORTE PAS DE CHIFFRE, ET C'EST EXPRÈS. Toutes les autres lignes
