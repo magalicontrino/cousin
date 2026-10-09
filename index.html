@@ -16726,9 +16726,11 @@ function vPunaises(){
     (al?'<span class="pastille" style="background:#e63329">'+al+' PAS PRÉVENU'+(al>1?'S':'')+'</span>':'')+
     '</div>';
   h+='<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
-     '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('list')+'</span>La feuille du jeudi</button>'+
+     /* UNE SEULE LISTE (Mag, 09/10/2026 : « la liste des entrées et la feuille du jeudi, ça devrait
+        être la même chose ; imprimer la liste, juste ») : les pas-prévenus y sont marqués. */
+     '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
-     '<button class="fbtn" onclick="ppImprimer(\'entree\')"><span class="ic">'+icon('imprimer')+'</span>La liste pour l’entrée</button></div>';
+     '</div>';
   h+='<div class="tbadd">'+
     /* ⚠ PAS DE CHOIX ENTRE TROIS PROTOCOLES (Mag, 09/10/2026 : « on ne va pas mettre ce
        genre de choix ; s'il faut faire les protocoles de la personne, il faut que ce soit
@@ -16871,7 +16873,8 @@ function ppImprimer(quoi){
     };
     const ligne=function(a){
       const c = a ? ppQui(a).c : '#ffffff';
-      return '<tr style="--c:'+c+'"><td class="ch"><span>'+(a?esc(a.numero):'')+'</span></td>'+
+      return '<tr style="--c:'+c+'"><td class="ch"><span>'+(a?esc(a.numero):'')+'</span>'+
+        (a&&ppEtat(a)==='alerte'?'<em class="aprev">À prévenir</em>':'')+'</td>'+
         '<td class="pr">'+proto(a)+'</td>'+
         '<td class="in">'+pers(a)+'</td>'+
         (pasPrev ? '<td class="ets1">'+bx(a&&a.prevenu_le)+'<b>Prévenu</b></td>' : '<td>'+etapes(a)+'</td>')+
@@ -16881,8 +16884,11 @@ function ppImprimer(quoi){
     const tete='<thead><tr><th>Ch.</th><th>Protocole</th><th>Personnes</th><th>'+(pasPrev?'':'Étapes')+'</th>'+
       '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
+    /* Rentokil ensemble, Mohamed à part — sur la MÊME feuille (Mag, 09/10/2026). */
     let blocs='';
-    if(lignes.length) blocs+=bloc(lignes.length+' chambre'+(lignes.length>1?'s':''), 'rk', lignes.map(ligne).join(''));
+    const rk=lignes.filter(ppRento), mo=lignes.filter(function(a){ return !ppRento(a); });
+    if(rk.length) blocs+=bloc('Rentokil · '+rk.length+' chambre'+(rk.length>1?'s':''), 'rk', rk.map(ligne).join(''));
+    if(mo.length) blocs+=bloc('Mohamed · '+mo.length+' chambre'+(mo.length>1?'s':''), 'mo', mo.map(ligne).join(''));
     const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
     let vrows=''; for(let i=0;i<vides;i++) vrows+=ligne(null);
     blocs+=bloc('À ajouter au stylo', 'vide', vrows);
@@ -16898,6 +16904,8 @@ function ppImprimer(quoi){
       'h1{font-size:19pt}.leg{display:flex;gap:4mm;flex-wrap:wrap;font-size:9pt}.leg i{display:inline-block;width:4mm;height:4mm;border-radius:1mm;vertical-align:-0.6mm;margin-right:1.2mm;border:1px solid #000}'+
       '.rel{font-size:10.5pt;margin:0 0 4mm;padding:2.5mm 4mm;border:2px solid #000;border-radius:2mm}'+
       '.band{font-size:11pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2mm 4mm;border-radius:2mm 2mm 0 0;margin-top:4mm}'+
+      '.band.rk{border-color:#6fc7d9;color:#1f7385}.band.mo{border-color:#f8763f;color:#c2551f}'+
+      '.aprev{display:block;font-style:normal;font-size:8pt;font-weight:700;color:#c8412e;border:1.5px solid #e63329;border-radius:2mm;padding:.3mm 1mm;margin-top:1mm;text-align:center}'+
       '.band{border:2px solid #000;border-bottom:0}.band.au{border-color:#b28b7a;color:#7a5a4c}.band.vide{border-color:#999;color:#555}'+
       'table{width:100%;border-collapse:collapse;break-inside:auto}tr{break-inside:avoid}'+
       'th{text-align:left;font-size:8.5pt;padding:1.5mm 2mm;border-bottom:2px solid #000;font-weight:600;color:#333}'+
@@ -19111,7 +19119,7 @@ const PRINT_FEUILLES=[
      l'accueil — elle doit être aussi dans les documents à imprimer »). Les chambres et
      les personnes du jeudi qui vient, déjà écrites ; sans chambre, la feuille vierge. */
   {k:'punaises', nom:'Protocole punaises',
-   sous:'La feuille du jeudi · chambres et personnes',
+   sous:'La liste · Rentokil et Mohamed, chambres et personnes',
    det:'Les chambres du jeudi, les deux personnes de chaque chambre, « pas autonome », '+
        'et les quatre étapes à cocher : prévenu, sacs faits, descendu, sacs rendus.',
    pages:'1 page · A4', pi:'punaise', act:"ppImprimerDepuisPrint()"},
