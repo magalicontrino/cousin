@@ -485,6 +485,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvbarre svg{width:21px;height:21px;flex:none}
 .rdvbarre b{margin-left:auto;background:#1b1b1b;color:#fff;border-radius:999px;padding:3px 11px;font-size:13px;font-weight:600}
 .rdvbarre:active{transform:translateY(2px);box-shadow:0 2px 0 #1b1b1b}
+/* La même barre dans Liste et notes : à la largeur des cartes de la colonne. */
+.rdvbarre-l{position:relative;max-width:620px;margin:20px 0 0;flex-wrap:wrap;row-gap:6px}
+.rdvbarre b{white-space:nowrap}
+#view .ml3 .rdvbarre-l{max-width:none}
+.rdvbarre .clair{margin-left:6px;background:#fdfdfc;color:#1b1b1b;border:1.5px solid #1b1b1b}
+.rdvbarre-l .rdvj-r{font-style:normal}
 .socqui-l{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
 .socqui-p{font:inherit;font-size:14px;border:1.5px solid var(--trait);background:#fdfdfc;color:#1b1b1b;
   border-radius:999px;padding:8px 13px;cursor:pointer}
@@ -16605,20 +16611,20 @@ function rdvPeutPrendre(){ return rdvPeutEcrire(); }
    de ce jour (« je veux qu'on aille sur une liste de rendez-vous ») ; « l'agenda › »
    ouvre la page entière. */
 function rdvJoursHTML(){
+  /* ⚠ LA BARRE DE L'ACCUEIL, PAS LES PETITS CALENDRIERS (09/10/2026 : « le même bouton qu'il
+     y a sur l'accueil, mais à la taille de la colonne des listes et des passations ») —
+     les calendriers (dessin B) sont retirés. Elle dit « N aujourd'hui · N demain », et le
+     rond rouge compte les passations à prendre. Un appui ouvre la liste des rendez-vous. */
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
-  const a=agIso(new Date()), taches=rdvTaches();
-  let h='<div class="rdvj-t"><span class="ic">'+icon('calendrier')+'</span><b>Rendez-vous</b>'+
-    '<button onclick="rdvOuvrirJour(\'\')">l’agenda ›</button></div><div class="rdvj">';
-  for(let i=0;i<4;i++){
-    const j=ppAjoute(a,i), d=new Date(j+'T12:00:00');
-    const n=RDV.filter(function(r){ return r.jour===j; }).length;
-    const t=taches.filter(function(x){ return x.r.jour===j; }).length;
-    const haut = i===0 ? 'AUJOURD’HUI' : (i===1 ? 'DEMAIN' : d.toLocaleDateString('fr-BE',{weekday:'short'}).replace('.','').slice(0,3).toUpperCase());
-    h+='<button class="rdvj-c'+(i<2?' fort':'')+'" onclick="rdvOuvrirJour(\''+j+'\')">'+
-      (t?'<i class="rdvj-r">'+t+'</i>':'')+
-      '<small>'+haut+'</small><b>'+d.getDate()+'</b><span>'+(RDV_CHARGE?n+' rdv':'…')+'</span></button>';
-  }
-  return h+'</div>';
+  const a=agIso(new Date());
+  const nA=RDV.filter(function(r){ return r.jour===a; }).length;
+  const nD=RDV.filter(function(r){ return r.jour===ppAjoute(a,1); }).length;
+  const t=rdvTaches().length;
+  return '<button class="rdvbarre rdvbarre-l" onclick="rdvOuvrirJour(\'\')">'+
+    (t?'<em class="rdvj-r">'+t+'</em>':'')+
+    '<i>'+icon('calendrier')+'</i><span>Rendez-vous</span>'+
+    (RDV_CHARGE?'<b>'+nA+' aujourd’hui</b><b class="clair">'+nD+' demain</b>':'')+
+  '</button>';
 }
 function rdvOuvrirJour(j){
   RDV_IMPR_DU=j||''; RDV_IMPR_AU=j||''; RDV_FORM=null; RDV_VUE='';
