@@ -16681,28 +16681,46 @@ function ppImprimer(quoi){
   if(quoi==='portes'){
     if(!L.length){ toast('Aucune chambre pour '+ppJourFr(jour)); return; }
     titre='Affiches des portes';
-    const c=function(img, fr, en){ return '<div class="c">'+img+'<div><b>'+fr+'</b><i>'+en+'</i></div></div>'; };
-    corps=L.map(function(a){
-      /* La vapeur ne demande ni sacs ni draps : l'affiche ne dit que ce qui la concerne. */
-      if(ppProto(a).k==='vapeur')
-        return '<section class="pg aff"><p class="num">'+esc(a.numero)+'</p>'+
-          '<h1>Punaises · Bed bugs</h1><p class="date">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</p>'+
-          c(pic('hebergement.svg'),'Votre chambre est traitée à la vapeur.','Your room will be steam-treated.')+
-          '<p class="pied">Une question ? Adressez-vous à l’accueil. · Questions? Ask at the front desk.</p></section>';
-      return '<section class="pg aff"><p class="num">'+esc(a.numero)+'</p>'+
-        '<h1>Punaises · Bed bugs</h1><p class="date">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</p>'+
-        /* Les heures du passage de CETTE chambre ; les sacs reviennent après 24 h (Mag, 09/10/2026). */
-        c(pic('colis.svg'),'Avant '+ppHFr(ppAvantSacs(a))+' : toutes vos affaires dans les sacs.','Before '+ppHEn(ppAvantSacs(a))+': put all your belongings in the bags.')+
-        c(pic('hebergement.svg'),'Enlevez vos draps.','Remove your bed sheets.')+
-        c(pic('interdit.svg'),'Ne pas entrer de '+ppHFr(ppDe(a))+' à '+ppHFr(ppAh(a))+'.','Do not enter from '+ppHEn(ppDe(a))+' to '+ppHEn(ppAh(a))+'.')+
-        c(flocon,'Vos sacs vous sont rendus après 24 heures.','Your bags will be returned after 24 hours.')+
-        '<p class="pied">Une question ? Adressez-vous à l’accueil. · Questions? Ask at the front desk.</p></section>';
-    }).join('');
-    css='.aff .num{font-size:110pt;font-weight:700;line-height:1}'+
-      '.aff h1{font-size:30pt;margin:4mm 0 2mm}.aff .date{font-size:18pt;padding-bottom:6mm;border-bottom:3px solid #000;margin-bottom:10mm}'+
-      '.c{display:flex;gap:7mm;align-items:flex-start;margin-bottom:9mm}.c img,.c svg{width:18mm;height:18mm;flex:none}'+
-      '.c b{display:block;font-size:22pt;line-height:1.2}.c i{display:block;font-size:16pt;color:#333;margin-top:1mm}'+
-      '.pied{font-size:13pt;margin-top:12mm;color:#333}';
+    paysage=true;
+    /* ═══ LES AFFICHES — DESSIN B, CHOISI (Mag, 09/10/2026 : « le B est parfait ») ═══
+       Deux affiches A5 par feuille A4 à l'horizontale, à couper en deux (« ça prend beaucoup de
+       papier »). Français + anglais seulement. ⚠ PEU D'ENCRE : des TRAITS de couleur, jamais
+       d'aplat. Le sac est un SAC POUBELLE (noué), la porte est FERMÉE À CLÉ (cadenas). Les
+       heures sont celles de la chambre. */
+    const sv=function(d){ return '<svg viewBox="0 0 48 48" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>'; };
+    const icSac=sv('<path d="M14 16c-3 6-5 14-4 22 1 3 4 5 14 5s13-2 14-5c1-8-1-16-4-22"/><path d="M14 16h20"/><path d="M19 16l-2-7M29 16l2-7M17 9c3 2 11 2 14 0"/><path d="M24 16l-2-5M24 16l2-5"/>');
+    const icLit=sv('<path d="M5 36V14M5 28h38v8M43 36v-8"/><rect x="9" y="20" width="9" height="6" rx="2"/><path d="M20 22h17a4 4 0 0 1 4 4v2"/><path d="M28 8l6 6M34 8l-6 6"/>');
+    const icCle=sv('<path d="M8 42V6h22v36"/><path d="M4 42h30"/><rect x="29" y="25" width="15" height="12" rx="2"/><path d="M32 25v-4a4.5 4.5 0 0 1 9 0v4"/><path d="M36.5 30v3"/>');
+    const icRendu=sv('<path d="M12 22c-2 5-3 11-2 16 1 2 3 4 11 4s10-2 11-4c1-5 0-11-2-16"/><path d="M12 22h18"/><path d="M36 10l4 4-4 4"/><path d="M40 14H31a6 6 0 0 0-6 6"/>');
+    const affiche=function(a){
+      const cs=function(col, ic, fr, en){ return '<div class="cs" style="--c:'+col+'"><span style="color:'+col+'">'+ic+'</span><b>'+fr+'</b><i>'+en+'</i></div>'; };
+      return '<div class="a5"><div class="tete"><div class="num">'+esc(a.numero)+'</div>'+
+        '<div class="tt">Punaises · Bed bugs</div>'+
+        '<div class="d">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</div></div>'+
+        '<div class="g">'+
+          cs('#6fc7d9', icSac, 'Avant '+ppHFr(ppAvantSacs(a))+'<br>tout dans les sacs', 'Before '+ppHEn(ppAvantSacs(a))+': everything in the bags')+
+          cs('#ff8cc6', icLit, 'Enlevez<br>vos draps', 'Remove your sheets')+
+          cs('#e63329', icCle, 'Fermé à clé<br>'+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a)), 'Locked '+ppHEn(ppDe(a))+' → '+ppHEn(ppAh(a)))+
+          cs('#6fb08e', icRendu, 'Sacs rendus<br>après 24 h', 'Bags back after 24 hours')+
+        '</div>'+
+        '<p class="pied">Une question ? L’accueil · Questions? Front desk</p></div>';
+    };
+    let pages='';
+    for(let i=0;i<L.length;i+=2)
+      pages+='<section class="pg duo">'+affiche(L[i])+(L[i+1]?affiche(L[i+1]):'<div class="a5"></div>')+'</section>';
+    corps=pages;
+    css='.pg.duo{display:flex;padding:0!important}'+
+      '.a5{width:50%;padding:9mm 10mm;position:relative}.a5+.a5{border-left:1.5px dashed #999}'+
+      '.tete{text-align:center;margin-bottom:4mm}'+
+      '.num{font-size:46pt;font-weight:800;line-height:1;display:inline-block;border:3px solid #000;border-radius:4mm;padding:0 5mm}'+
+      '.tt{font-size:15pt;font-weight:700;margin-top:2mm}'+
+      '.d{display:inline-block;margin-top:2mm;font-size:12pt;font-weight:700;border-bottom:3px solid #f8763f}'+
+      '.g{display:grid;grid-template-columns:1fr 1fr;gap:3mm}'+
+      '.cs{border:2.5px solid var(--c);border-radius:4mm;padding:3mm;text-align:center;min-height:52mm}'+
+      '.cs svg{width:20mm;height:20mm;stroke:currentColor}'+
+      '.cs b{display:block;font-size:13pt;line-height:1.15;margin:1mm 0 1.5mm}'+
+      '.cs i{display:block;font-style:normal;font-size:9pt;color:#333;line-height:1.3}'+
+      '.pied{font-size:8.5pt;color:#444;text-align:center;margin-top:4mm}';
   } else {
     const pasPrev = (quoi==='entree');
     const lignes = pasPrev ? L.filter(function(a){ return ppEtat(a)==='alerte'; }) : L;
@@ -16799,7 +16817,7 @@ function ppImprimer(quoi){
     '@media print{.bar{display:none}body{background:#fff}'+
       '.pg{width:100%;min-height:0;margin:0;padding:0;box-shadow:none;break-after:page;page-break-after:always}'+
       '.pg:last-child{break-after:auto;page-break-after:auto}@page{size:A4 '+(paysage?'landscape;margin:10mm':'portrait;margin:14mm')+'}}'+
-    (paysage?'.pg{width:297mm;min-height:210mm;padding:12mm 12mm}@media(max-width:310mm){ .pg{width:auto;min-height:0;margin:12px;padding:8mm} }':'')+
+    (paysage?'@media screen{.pg{width:297mm;min-height:210mm;padding:12mm 12mm}}@media screen and (max-width:310mm){ .pg{width:auto;min-height:0;margin:12px;padding:8mm} }':'')+
     '</style></head><body>'+
     '<div class="bar"><b>'+esc(titre)+' — aperçu</b><button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
