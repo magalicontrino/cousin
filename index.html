@@ -444,6 +444,20 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvt .binrep-b{margin:8px 0 0}
 .rdvdate{font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px;background:#fdfdfc;color:var(--noir)}
 .rdvau{align-self:center;font-size:13px}
+/* Les petits calendriers de Liste et notes (dessin B, 09/10/2026) — même calendrier que les entrants. */
+.rdvj-t{display:flex;align-items:center;gap:7px;margin:4px 0 8px}
+.rdvj-t .ic{width:18px;height:18px;display:inline-flex}.rdvj-t .ic svg{width:18px;height:18px}
+.rdvj-t b{font-size:14px}
+.rdvj-t button{margin-left:auto;font:inherit;font-size:12px;background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--noir)}
+.rdvj{display:flex;gap:7px;margin-bottom:14px}
+.rdvj-c{position:relative;flex:1;min-width:0;border:1.5px solid #A9C8E8;border-radius:10px;background:#fdfdfc;
+  text-align:center;padding:6px 2px;cursor:pointer;font:inherit;color:var(--noir)}
+.rdvj-c.fort{border:2px solid #1b1b1b}
+.rdvj-c small{display:block;font-family:ui-monospace,monospace;font-size:9px;font-weight:700;letter-spacing:.06em;color:#2b5d84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdvj-c b{display:block;font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:21px;line-height:1.15}
+.rdvj-c span{display:block;font-size:11px;font-weight:600}
+.rdvj-r{position:absolute;top:-8px;right:-8px;font-style:normal;background:#e63329;color:#fff;border:2px solid #f2f0ec;
+  border-radius:999px;font-size:10.5px;font-weight:700;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0 4px}
 /* La barre « Rendez-vous » de l'accueil (09/10/2026) : blanche, cernée noir, le calendrier
    dans un rond turquoise — que des couleurs de ta palette. */
 .rdvbarre{display:flex;align-items:center;gap:12px;width:100%;background:#fdfdfc;color:#1b1b1b;
@@ -16555,6 +16569,32 @@ function carteAPrendre(){
    « si demain je suis absente, c'est celui qui fait la passation à la nuit qui doit les
    descendre ») — tous ceux qui écrivent l'agenda. L'agenda dit ensuite QUI l'a descendu. */
 function rdvPeutPrendre(k){ return rdvPeutEcrire(); }
+/* ═══ LES PETITS CALENDRIERS DE LISTE ET NOTES (09/10/2026, dessin B) ═══
+   Aujourd'hui, demain, puis les deux jours suivants, avec le nombre de rendez-vous.
+   AUJOURD'HUI et DEMAIN sont cernés de noir. Le rond rouge = ce que personne n'a encore
+   pris en charge ce jour-là (réveil, prévenir). Un appui ouvre la LISTE des rendez-vous
+   de ce jour (« je veux qu'on aille sur une liste de rendez-vous ») ; « l'agenda › »
+   ouvre la page entière. */
+function rdvJoursHTML(){
+  if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
+  const a=agIso(new Date()), taches=rdvTaches();
+  let h='<div class="rdvj-t"><span class="ic">'+icon('calendrier')+'</span><b>Rendez-vous</b>'+
+    '<button onclick="rdvOuvrirJour(\'\')">l’agenda ›</button></div><div class="rdvj">';
+  for(let i=0;i<4;i++){
+    const j=ppAjoute(a,i), d=new Date(j+'T12:00:00');
+    const n=RDV.filter(function(r){ return r.jour===j; }).length;
+    const t=taches.filter(function(x){ return x.r.jour===j; }).length;
+    const haut = i===0 ? 'AUJOURD’HUI' : (i===1 ? 'DEMAIN' : d.toLocaleDateString('fr-BE',{weekday:'short'}).replace('.','').slice(0,3).toUpperCase());
+    h+='<button class="rdvj-c'+(i<2?' fort':'')+'" onclick="rdvOuvrirJour(\''+j+'\')">'+
+      (t?'<i class="rdvj-r">'+t+'</i>':'')+
+      '<small>'+haut+'</small><b>'+d.getDate()+'</b><span>'+(RDV_CHARGE?n+' rdv':'…')+'</span></button>';
+  }
+  return h+'</div>';
+}
+function rdvOuvrirJour(j){
+  RDV_IMPR_DU=j||''; RDV_IMPR_AU=j||''; RDV_FORM=null;
+  go('#/rdv');
+}
 function rdvQuandCourt(r){
   return (r.jour===agIso(new Date())?'aujourd’hui':ppJourFr(r.jour))+(r.heure?' '+rdvHeureFr(r.heure):'');
 }
@@ -21629,7 +21669,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+carteMaListe()+carteBinome()+carteServiceSocial()+carteAPrendre()+passationsHTML()+
+    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteServiceSocial()+carteAPrendre()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -21755,7 +21795,7 @@ function listeCorps(){
      ⚠ CE QUI ÉTAIT ÉCRIT ICI AVANT, et qui ne vaut plus : « juste après la check-list,
      et c'est elle qui l'a placée là ». C'était vrai pour la carte des entretiens, qui
      a été retirée le même jour. */
-  h+='<div class="ml3-c">'+carteMaListe()+carteBinome()+'</div>';
+  h+='<div class="ml3-c">'+rdvJoursHTML()+carteMaListe()+carteBinome()+'</div>';
   /* Le service social AVANT la nuit (Mag, 07/10/2026 : « passation social avant nuit »). */
   /* Le service social AU-DESSUS des réveils de l'agenda (09/10/2026). */
   h+='<div class="ml3-c">'+carteServiceSocial()+carteAPrendre()+passationsHTML()+'</div>';
