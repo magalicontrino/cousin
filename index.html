@@ -16284,6 +16284,7 @@ function ppNumero(id){
   const a=ppLigne(id); if(!a) return;
   cousinDemande('Numéro de chambre', 'Le numéro de la chambre.', a.numero==='?'?'':a.numero, function(v){
     v=String(v||'').trim().slice(0,10); if(!v || v===a.numero) return;
+    if(!ppChambreOk(v)){ toast('Numéro de chambre : 3 chiffres, de 101 à 630 (jamais au-dessus de 30)'); return; }
     ppMaj(a, {numero:v}, 'numéro : '+v);
   }, 10);
 }
@@ -16682,6 +16683,7 @@ async function ppAjouterTicket(){
   const n=document.getElementById('ppNum'), c=document.getElementById('ppColle'), j=document.getElementById('ppJour');
   const num=(n&&n.value||'').trim(), txt=(c&&c.value||PP_COLLE||'').trim();
   if(!num){ if(txt) ppColler(); else n&&n.focus(); return; }
+  if(!ppChambreOk(num)){ toast('Numéro de chambre : 3 chiffres, de 101 à 630 (jamais au-dessus de 30)'); n&&n.focus(); return; }
   const v1=document.getElementById('ppPers1'), v2=document.getElementById('ppPers2');
   const vn=[v1,v2].map(function(e){ return {nom:(e&&e.value||'').trim().slice(0,60), pa:false}; }).filter(function(x){ return x.nom; });
   const pers=vn.length ? vn : txt ? txt.split(/\s*(?:,|;|\n|\s+et\s+)\s*/i).map(function(x){ return {nom:x.trim().slice(0,60), pa:false}; })
@@ -16714,6 +16716,9 @@ const PP_MOIS=['janvier','fevrier','mars','avril','mai','juin','juillet','aout',
    On trouve : la date (sinon « demain », sinon AUJOURD'HUI, et on le dit), les heures (« de 12 h
    à 17 h », « à partir de 18 heures »), les mots douche / vêtement / complet, puis les numéros à
    trois chiffres. On MONTRE tout avant d'écrire. */
+/* ═══ UN NUMÉRO DE CHAMBRE (Mag, 09/10/2026) ═══ « Trois chiffres ; ça ne commence jamais par 7 et
+   ça ne va jamais au-dessus de 30 : 130, 230… 630. » → 1er chiffre 1 à 6, puis 01 à 30. */
+function ppChambreOk(n){ const m=/^([1-6])(\d\d)$/.exec(String(n||'').trim()); if(!m) return false; const x=parseInt(m[2],10); return x>=1 && x<=30; }
 function ppLireMail(txt){
   const sans=String(txt||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   let jour='', reste=sans;
@@ -16742,7 +16747,7 @@ function ppLireMail(txt){
   const brut=String(txt||'');
   const rx=/(?:pour\s+)?la\s+chambre\s+(\d{3})\b\s*,?\s*([^.!?\n]{12,})/gi; let mm;
   while((mm=rx.exec(brut))){ if(!/(?:est|sont)\s+termin|accessible/i.test(mm[2]) || /ne veut|refuse|absent/i.test(mm[2])) notes[mm[1]]=mm[2].trim().slice(0,280); }
-  const nums=[]; (reste.match(/\b\d{3}\b/g)||[]).forEach(function(x){ if(nums.indexOf(x)<0) nums.push(x); });
+  const nums=[]; (reste.match(/\b\d{3}\b/g)||[]).forEach(function(x){ if(ppChambreOk(x) && nums.indexOf(x)<0) nums.push(x); });
   /* Un mail d'UNE seule chambre ne fait pas de note : la phrase est la consigne elle-même. */
   if(nums.length<2) Object.keys(notes).forEach(function(k){ delete notes[k]; });
   return {jour:jour||agIso(new Date()), dateTrouvee:!!jour, nums:nums, de:de, a:a, perso:perso, fin:fin, notes:notes, rento:rento};
@@ -16865,7 +16870,8 @@ function vPunaises(){
     '<div class="ppv0-m"><textarea id="ppColle" rows="1" placeholder="…" '+
       'oninput="ppColleSaisie(this.value);this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(PP_COLLE)+'</textarea></div>'+
     '<div class="ppf-top">'+
-      '<input id="ppNum" class="ppv0-n" type="text" placeholder="N°" autocomplete="off" maxlength="10" value="'+esc(PP_F.num)+'">'+
+      '<input id="ppNum" class="ppv0-n" type="text" inputmode="numeric" placeholder="N°" autocomplete="off" maxlength="3" '+
+        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,3)" value="'+esc(PP_F.num)+'">'+
       '<button class="ppf-o'+(PP_RENTO_CHOIX?' on':'')+'" style="--c:#6fc7d9" onclick="ppFGarde();PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
       '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="ppFGarde();PP_RENTO_CHOIX=false;render()">Mohamed</button></div>'+
     '<div class="ppf-h"><span class="ppf-ic">'+ppPic('cle')+'</span><span>Fermée</span>'+
