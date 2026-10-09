@@ -404,6 +404,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppc-j i{font-style:normal;color:#777;font-size:11px}
 .ppc-ps{display:flex;flex-direction:column;gap:6px;margin:0 0 11px}
 .ppc-pt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.pp-heures{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pp-heures span{font-size:13px;color:#555}
+.pp-heures input{font:inherit;font-size:14px;font-weight:600;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px}
+.pp-heures-c{margin:0 0 10px}
 .ppc{border-left:7px solid var(--pc,var(--trait))}
 .ppc-rk.on{background:#1b1b1b;color:#fff;border-color:#1b1b1b}
 .ppc-ppb.on{background:#ff8cc6;border-color:#ff8cc6;color:#1b1b1b}
@@ -16145,7 +16149,7 @@ var PP_RENTO_CHOIX=true;
 function ppRento(a){ return a.rentokil!==false; }
 const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
 const PP_ET_PERS  ={k:'personne', l:'Personne faite', c:'P'};
-var PP_PROTO_CHOIX='produit';
+var PP_PROTO_CHOIX='produit', PP_DE='12:00', PP_A='17:00';
 function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(function(p){ return p.k===k; })||PP_PROTOS[1]; }
 function ppEtapesDe(a){
   const k=ppProto(a).k;
@@ -16185,7 +16189,20 @@ function ppJeudi(){
   return agIso(d);
 }
 function ppFait(a,k){ return !!a[k+'_le']; }
-function ppAbandon(a){ return !a.prevenu_le && new Date()>=ppA(a.jour,12); }
+/* ═══ L'HORAIRE DU PASSAGE (Mag, 09/10/2026 : « Rentokil, il faut l'oublier — parfois c'est
+   quelqu'un du Samu. Il faut un horaire : de telle heure à telle heure ») ═══
+   `produit_de` / `produit_a` = la chambre est FERMÉE de … à … ; le mail de fin (« accessible
+   à partir de 18 heures ») déplace `produit_a`. Midi n'est plus écrit en dur : c'est
+   l'heure où le produit commence qui clôt le relais. */
+function ppHM(t){ const m=/^(\d{1,2}):(\d{2})/.exec(t||''); return m?[parseInt(m[1],10),parseInt(m[2],10)]:null; }
+function ppDe(a){ return (a&&a.produit_de)||'12:00'; }
+function ppAh(a){ return (a&&a.produit_a)||'17:00'; }
+function ppHFr(t){ const x=ppHM(t); return x ? x[0]+' h'+(x[1]?' '+String(x[1]).padStart(2,'0'):'') : ''; }
+function ppHEn(t){ const x=ppHM(t); if(!x) return ''; const h=x[0]%12||12; return h+(x[1]?':'+String(x[1]).padStart(2,'0'):'')+(x[0]<12?' am':' pm'); }
+function ppDebut(a){ const x=ppHM(ppDe(a))||[12,0]; return ppA(a.jour, x[0], x[1]); }
+/* Les sacs : une heure avant le produit (11 h pour un produit à midi). */
+function ppAvantSacs(a){ const x=ppHM(ppDe(a))||[12,0]; return Math.max(0,x[0]-1)+':'+String(x[1]).padStart(2,'0'); }
+function ppAbandon(a){ return !a.prevenu_le && new Date()>=ppDebut(a); }
 function ppEtat(a){
   const E=ppEtapesDe(a);
   if(ppFait(a, E[E.length-1].k)) return 'fini';
@@ -16194,12 +16211,12 @@ function ppEtat(a){
   return 'cours';
 }
 /* QUI A LA MAIN pour une chambre pas encore prévenue, selon l'heure. */
-function ppRelais(jour){
+function ppRelais(jour, a){
   const t=new Date();
   if(t < ppA(ppAjoute(jour,-1),21)) return 'Polyvalents du soir';
   if(t < ppA(ppAjoute(jour,-1),22)) return 'Aux présences · 21 h – 22 h';
   if(t < ppA(jour,7)) return 'Nuit · passage vers 23 h';
-  if(t < ppA(jour,12)) return 'Éducateurs du matin · avant midi';
+  if(t < (a?ppDebut(a):ppA(jour,12))) return 'Éducateurs du matin · avant '+ppHFr(ppDe(a));
   return '';
 }
 function ppJourFr(jour){
@@ -16260,6 +16277,11 @@ function ppPersAjouter(id){
   P.push({nom:'', pa:false}); a.personnes=P; render();
   setTimeout(function(){ const e=document.getElementById('ppP'+id+'_'+(P.length-1)); if(e) e.focus(); }, 30);
 }
+function ppHeureChanger(id, k, v){
+  const a=ppLigne(id); if(!a || !v || a[k]===v) return;
+  const m={}; m[k]=v;
+  ppMaj(a, m, (k==='produit_de'?'fermée à partir de ':'rouverte à ')+ppHFr(v));
+}
 function ppChangerProto(id, k){
   const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
   const p=PP_PROTOS.find(function(x){ return x.k===k; });
@@ -16299,7 +16321,7 @@ function ppResumeCourt(){
   if(PP_PANNE) return 'Lecture impossible';
   if(!PP_CHARGE) return 'Chargement…';
   const act=ppActives().filter(function(a){ const e=ppEtat(a); return e!=='fini' && e!=='abandon'; });
-  if(!act.length) return 'Rentokil le jeudi — rien en cours';
+  if(!act.length) return 'Rien en cours';
   const al=ppAlertes();
   if(al) return al+' pas prévenu'+(al>1?'s':'')+' — sur '+act.length+' chambre'+(act.length>1?'s':'');
   return act.length+' chambre'+(act.length>1?'s':'')+' en cours';
@@ -16418,12 +16440,15 @@ function ppRetirer(id){
       await loadPunaises(); render();
     }, {ok:'Retirer', danger:true});
 }
-async function ppInserer(jour, nums, pers, note){
+async function ppInserer(jour, nums, pers, note, opt){
+  opt=opt||{};
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, cree_par:nomAffiche(),
-      journal: note ? [{le:new Date().toISOString(), par:nomAffiche(), txt:note}] : []};
+    return {jour:jour, numero:String(n), personnes:pers||[], protocole:opt.perso?'tout':PP_PROTO_CHOIX, cree_par:nomAffiche(),
+      produit_de:opt.de||PP_DE, produit_a:opt.a||PP_A,
+      journal: [note, (opt.notes||{})[String(n)]].filter(Boolean).map(function(t){
+        return {le:new Date().toISOString(), par:nomAffiche(), txt:t}; })};
   });
   if(!lignes.length){ toast('Déjà dans la liste'); return false; }
   const {error}=await sb.from('protocole_punaises').insert(lignes);
@@ -16438,7 +16463,7 @@ async function ppAjouter(){
   const num=(n&&n.value||'').trim(); if(!num){ n&&n.focus(); return; }
   const pers=[p1,p2].map(function(e){ return {nom:(e&&e.value||'').trim().slice(0,60), pa:false}; })
     .filter(function(x){ return x.nom; });
-  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers);
+  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers, '', {});
   if(ok){ [n,p1,p2].forEach(function(e){ if(e) e.value=''; }); }
 }
 /* ═══ COLLER LE MAIL ═══ Le mail type : « passage rentokil de demain 8 octobre 2026 voici
@@ -16446,36 +16471,81 @@ async function ppAjouter(){
    date (« 8 octobre », sinon « demain »), on l'ôte du texte, puis les nombres à trois
    chiffres = les chambres. On MONTRE ce qu'on a trouvé avant d'ajouter. */
 const PP_MOIS=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+/* ═══ LIRE LES MAILS (09/10/2026, sur les exemples de Mag) ═══ Trois sortes de mails arrivent :
+   · l'ANNONCE — « passage de demain 8 octobre, chambres 509-204-107… ramasser leurs affaires
+     dans des sacs et enlever leurs draps » → on crée les chambres ;
+   · la FIN — « la chambre 321 est terminée et sera accessible à partir de 18 heures, demander
+     aux personnes de prendre leurs douches et changer de vêtements » → on met à jour la chambre
+     (réouverture + protocole de la personne) ;
+   · le COMPLET — « traitement complet de la chambre 321, prendre les affaires pour mettre en
+     protocole » → la chambre, avec le protocole de la personne.
+   On trouve : la date (sinon « demain », sinon AUJOURD'HUI, et on le dit), les heures (« de 12 h
+   à 17 h », « à partir de 18 heures »), les mots douche / vêtement / complet, puis les numéros à
+   trois chiffres. On MONTRE tout avant d'écrire. */
 function ppLireMail(txt){
-  const sans=String(txt||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const sans=String(txt||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   let jour='', reste=sans;
   const m=/(\d{1,2})(?:er)?\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)(?:\s+(\d{4}))?/.exec(sans);
   if(m){
     const auj=new Date(), an=m[3]?parseInt(m[3],10):auj.getFullYear();
     const d=new Date(an, PP_MOIS.indexOf(m[2]), parseInt(m[1],10), 12);
-    jour=agIso(d); reste=sans.replace(m[0],' ');
+    jour=agIso(d); reste=reste.replace(m[0],' ');
   } else if(/demain/.test(sans)){
     const d=new Date(); d.setDate(d.getDate()+1); jour=agIso(d);
   }
+  const H='(\\d{1,2})\\s*(?:h|heures?)\\s*(\\d{2})?';
+  const hh=function(x,y){ return String(parseInt(x,10)).padStart(2,'0')+':'+(y||'00'); };
+  let de='', a='';
+  const p1=new RegExp('(?:de|entre)\\s*'+H+'\\s*(?:a|et|-|jusqu\'?a)\\s*'+H).exec(reste);
+  if(p1){ de=hh(p1[1],p1[2]); a=hh(p1[3],p1[4]); reste=reste.replace(p1[0],' '); }
+  const p2=new RegExp('(?:a partir de|des|accessible a)\\s*'+H).exec(reste);
+  if(p2){ a=hh(p2[1],p2[2]); reste=reste.replace(p2[0],' '); }
+  reste=reste.replace(new RegExp(H,'g'),' ');
+  const perso=/douche|vetement|complet/.test(sans);
+  const fin=/termine/.test(sans);
+  /* Une phrase qui parle d'UNE chambre (« pour la chambre 301, la résidente ne veut pas qu'on
+     touche à ses affaires… ») va en commentaire sous CETTE chambre, mot pour mot. */
+  const notes={};
+  const brut=String(txt||'');
+  const rx=/(?:pour\s+)?la\s+chambre\s+(\d{3})\b\s*,?\s*([^.!?\n]{12,})/gi; let mm;
+  while((mm=rx.exec(brut))){ if(!/(?:est|sont)\s+termin|accessible/i.test(mm[2]) || /ne veut|refuse|absent/i.test(mm[2])) notes[mm[1]]=mm[2].trim().slice(0,280); }
   const nums=[]; (reste.match(/\b\d{3}\b/g)||[]).forEach(function(x){ if(nums.indexOf(x)<0) nums.push(x); });
-  return {jour:jour||ppJeudi(), dateTrouvee:!!jour, nums:nums};
+  /* Un mail d'UNE seule chambre ne fait pas de note : la phrase est la consigne elle-même. */
+  if(nums.length<2) Object.keys(notes).forEach(function(k){ delete notes[k]; });
+  return {jour:jour||agIso(new Date()), dateTrouvee:!!jour, nums:nums, de:de, a:a, perso:perso, fin:fin, notes:notes};
 }
 function ppColleSaisie(v){ PP_COLLE=v||''; }
 function ppColler(){
   const c=document.getElementById('ppColle'); const t=(c&&c.value)||PP_COLLE;
   if(!t.trim()){ c&&c.focus(); return; }
   const r=ppLireMail(t);
-  const note=/rentokil/i.test(t) ? 'Mail : Rentokil' : 'Mail collé';
   if(!r.nums.length){ toast('Aucun numéro de chambre trouvé dans ce texte'); return; }
-  cousinConfirme('Rentokil · '+ppJourFr(r.jour),
-    (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
-    r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+
-    (PP_PROTO_CHOIX==='tout'?'\nAvec le protocole de la personne':'')+
-    '\n\nVérifie avant d’ajouter.',
+  /* Une chambre déjà dans la liste (pas terminée, passage récent) est MISE À JOUR, pas doublée. */
+  const lim=ppAjoute(agIso(new Date()),-3);
+  const existe=function(n){ return PUNAISES.filter(function(x){ return String(x.numero)===n && x.jour>=lim && ppEtat(x)!=='fini'; })
+    .sort(function(x,y){ return x.jour<y.jour?1:-1; })[0]; };
+  const maj=r.nums.filter(existe), neuves=r.nums.filter(function(n){ return !existe(n); });
+  const quoi=[];
+  if(r.de||r.a) quoi.push('Chambre fermée'+(r.de?' de '+ppHFr(r.de):'')+(r.a?(r.de?' à ':' jusqu’à ')+ppHFr(r.a):''));
+  if(r.perso) quoi.push('Protocole de la personne (douche, vêtements)');
+  const note=quoi.length?quoi.join(' · '):'';
+  cousinConfirme('Passage · '+ppJourFr(r.jour),
+    (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends aujourd’hui.\n\n')+
+    (neuves.length?'À ajouter : '+neuves.join(' · ')+'\n':'')+
+    (maj.length?'Déjà dans la liste, mis à jour : '+maj.join(' · ')+'\n':'')+
+    (note?'\n'+note+'\n':'')+
+    Object.keys(r.notes).map(function(n){ return '\nChambre '+n+' : « '+r.notes[n]+' »'; }).join('')+
+    '\nVérifie avant d’enregistrer.',
     async function(){
-      const ok=await ppInserer(r.jour, r.nums, [], note);
-      if(ok){ PP_COLLE=''; const e=document.getElementById('ppColle'); if(e) e.value=''; }
-    }, {ok:'Ajouter '+(r.nums.length>1?'les '+r.nums.length+' chambres':'la chambre')});
+      let ok=true;
+      for(const n of maj){
+        const x=existe(n), m={};
+        if(r.de) m.produit_de=r.de; if(r.a) m.produit_a=r.a; if(r.perso) m.protocole='tout';
+        ok = (await ppMaj(x, m, 'Mail : '+(r.fin?'traitement terminé':'mise à jour')+(note?' — '+note:'')+(r.notes[n]?' — '+r.notes[n]:''))) && ok;
+      }
+      if(neuves.length) ok = (await ppInserer(r.jour, neuves, [], note?'Mail : '+note:'', {de:r.de, a:r.a, perso:r.perso, notes:r.notes})) && ok;
+      if(ok){ PP_COLLE=''; const e=document.getElementById('ppColle'); if(e) e.value=''; if(maj.length) toast(maj.length+' chambre'+(maj.length>1?'s':'')+' mise'+(maj.length>1?'s':'')+' à jour'); }
+    }, {ok:'Enregistrer'});
 }
 
 /* ── l'écran ────────────────────────────────────────────────────────────── */
@@ -16490,6 +16560,9 @@ function ppCarte(a){
     '<div class="ppc-pt">'+
       '<button class="chip ppc-ppb'+(pr.k==='tout'?' on':'')+'" aria-pressed="'+(pr.k==='tout'?'true':'false')+'" '+
         'onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+(pr.k==='tout'?'✓ ':'')+'Protocole de la personne</button>'+'</div>'+
+    '<div class="pp-heures pp-heures-c"><span>Fermée de</span>'+
+      '<input type="time" value="'+esc(ppDe(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_de\',this.value)"><span>à</span>'+
+      '<input type="time" value="'+esc(ppAh(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_a\',this.value)"></div>'+
     ppPersHTML(a);
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à midi : pas de protocole, on ne touche pas à ses affaires.</p>';
@@ -16503,7 +16576,7 @@ function ppCarte(a){
       return '<button class="ppc-p'+(ok?' ok':'')+(rouge?' rouge':'')+'" onclick="ppEtape(\''+a.id+'\',\''+s.k+'\')">'+
         '<span class="ppc-r">'+(ok?'✓':s.c)+'</span><b>'+s.l+'</b><em>'+sous+'</em></button>';
     }).join('')+'</div>';
-    if(e==='alerte'){ const r=ppRelais(a.jour); if(r) h+='<p class="ppc-rel">À faire maintenant : <b>'+esc(r)+'</b></p>'; }
+    if(e==='alerte'){ const r=ppRelais(a.jour, a); if(r) h+='<p class="ppc-rel">À faire maintenant : <b>'+esc(r)+'</b></p>'; }
   }
   const J=Array.isArray(a.journal)?a.journal:[];
   if(J.length) h+='<div class="ppc-j">'+J.map(function(x){
@@ -16530,12 +16603,15 @@ function vPunaises(){
       'aria-pressed="'+(PP_PROTO_CHOIX==='tout'?'true':'false')+'" '+
       'onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
       (PP_PROTO_CHOIX==='tout'?'✓ ':'')+'Protocole de la personne</button></div>'+
-    '<textarea id="ppColle" rows="3" placeholder="Coller le mail de passage (Rentokil ou autre)" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
+    '<textarea id="ppColle" rows="3" placeholder="Coller le mail du passage" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
     '<div class="chadd" style="margin:0"><button class="chaddbtn" style="flex:1" onclick="ppColler()">Lire le mail et ajouter les chambres</button></div>'+
     '<div class="tbduo">'+
       '<input id="ppNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
       '<input id="ppJour" type="date" value="'+ppJeudi()+'">'+
     '</div>'+
+    '<div class="tbduo pp-heures"><span>Chambre fermée de</span>'+
+      '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'"><span>à</span>'+
+      '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"></div>'+
     '<div class="tbduo">'+
       '<input id="ppPers1" type="text" maxlength="60" placeholder="Personne 1" autocomplete="off">'+
       '<input id="ppPers2" type="text" maxlength="60" placeholder="Personne 2" autocomplete="off">'+
@@ -16554,7 +16630,7 @@ function vPunaises(){
       return (rang[ppEtat(a)]-rang[ppEtat(b)]) || String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true});
     });
     h+='<div class="ghead">'+esc(ppJourFr(j))+' <span style="color:var(--enc2)">'+L.length+'</span></div>'+
-       '<p class="pp-sous">Produit 12 h → 17 h · chambres rouvertes à 17 h · sacs rendus le lendemain matin</p>';
+       '<p class="pp-sous">Sacs préparés une heure avant, toujours avec la personne · sacs rendus le lendemain matin</p>';
     /* ⚠ PAS DE « RENTOKIL / AUTRE PASSAGE » (Mag, 09/10/2026 : « c'est nous qui gérons, on s'en
        fout, il y a des protocoles, c'est tout ») : une seule liste. Le mot vient du mail collé,
        en petit commentaire sous la chambre. */
@@ -16633,8 +16709,8 @@ function ppImprimer(quoi){
       }).join('')+'</div>';
     };
     const proto=function(a){
-      if(!a) return '<div class="pchoix"><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
-      return (ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
+      if(!a) return '<div class="pchoix"><span class="psous">Fermée de ……… à ………</span><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
+      return '<span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+(ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
     };
     const ligne=function(a){
       const c = (a && ppProto(a).k==='tout') ? '#ff8cc6' : '#ffffff';
@@ -16656,8 +16732,8 @@ function ppImprimer(quoi){
     corps='<section class="pg">'+
       '<div class="tt"><h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
         '</div>'+
-      '<p class="rel"><b>Produit 12 h → 17 h</b> · chambres rouvertes à 17 h · sacs préparés avant 11 h, <b>toujours avec la personne</b> · sacs rendus le lendemain matin. '+
-        '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. <b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
+      '<p class="rel">Sacs préparés une heure avant le passage, <b>toujours avec la personne</b> · sacs rendus le lendemain matin. '+
+        '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. <b>Pas prévenu à l’heure du passage = abandonné : on ne touche pas à ses affaires.</b></p>'+
       (pasPrev && !lignes.length ? '<p class="rel"><b>Tout le monde est prévenu.</b></p>' : '')+
       blocs+
       '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+'</p></section>';
@@ -16671,7 +16747,7 @@ function ppImprimer(quoi){
       'td{border-bottom:1px solid #000;padding:2.5mm 2mm;vertical-align:top;font-size:11pt}'+
       'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
-      '.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
+      '.pheure{display:block;font-size:11pt;font-weight:700;margin-bottom:1.5mm}.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
       '.pchoix .pc{display:block;font-size:9pt;margin-bottom:1mm}.pchoix .pc .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       'td.in{width:92mm}.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
       '.pn .nm{flex:1;min-width:40mm;min-height:7mm;border-bottom:1px dotted #000;font-size:12.5pt;font-weight:700}'+

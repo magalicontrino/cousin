@@ -15,3 +15,7 @@ alter table public.protocole_punaises add column if not exists personne_par text
 
 -- Rentokil ou un autre passage (Mag, 09/10/2026 : « séparer les Rentokil des non-Rentokil, en premier »)
 alter table public.protocole_punaises add column if not exists rentokil boolean not null default true;
+
+-- L'horaire du produit, par passage (Mag, 09/10/2026 : « Rentokil, il faut l'oublier ; mettre un horaire, de telle heure à telle heure »)
+alter table public.protocole_punaises add column if not exists produit_de text not null default '12:00';
+alter table public.protocole_punaises add column if not exists produit_a text not null default '17:00';
