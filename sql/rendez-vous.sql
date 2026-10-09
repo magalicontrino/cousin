@@ -116,3 +116,13 @@ alter table public.rendez_vous add column if not exists pas_autonome boolean not
 -- Posé à chaque fois que le nom de l'accompagnant change. Passé dans Supabase le 09/10/2026.
 alter table public.rendez_vous add column if not exists accomp_par text;
 alter table public.rendez_vous add column if not exists accomp_le timestamptz;
+
+-- ═══ LA CORRECTION PAR UN·E AUTRE, ET L'AUTEUR PRÉVENU (09/10/2026, piste B) ═══
+-- cree_uid : le compte de l'auteur (posé tout seul à la création).
+-- corrige_* : la dernière correction du lieu / de la date / de l'heure par quelqu'un d'autre
+-- (« Lieu : CHU Saint-Pierre → Institut Bordet »), et si l'auteur l'a vue. Passé le 09/10/2026.
+alter table public.rendez_vous add column if not exists cree_uid uuid default auth.uid();
+alter table public.rendez_vous add column if not exists corrige_txt text;
+alter table public.rendez_vous add column if not exists corrige_par text;
+alter table public.rendez_vous add column if not exists corrige_le timestamptz;
+alter table public.rendez_vous add column if not exists corrige_vu boolean not null default true;

@@ -463,6 +463,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvacc-x{flex:1;min-width:0}
 .rdvacc-x b{display:block;font-size:15px}
 .rdvacc-x span{display:block;font-size:13px;color:#555;margin-top:2px}
+.rdvacc-mod{margin-top:8px;font:inherit;font-size:12px;background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--noir);padding:0}
+.rdvc-corr{font-size:12px!important;color:#6b6963!important}
+.rdvc-notif{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0;padding:8px 10px;border:2px solid #f8763f;border-radius:10px;background:#fdfdfc}
+.rdvc-notif b{font-size:13px}.rdvc-notif span{font-size:13px;flex:1 1 100%}
+.rdvc-notif button{font:inherit;font-size:12px;font-weight:700;border:1.5px solid #1b1b1b;border-radius:8px;background:#fdfdfc;padding:4px 12px;cursor:pointer}
+.rdvbarre .corr{margin-left:6px;background:#f8763f;color:#1b1b1b}
 .rdvacc-qui{display:block;font-size:11.5px;color:#6b6963;margin-top:3px;font-family:ui-monospace,monospace;letter-spacing:.03em}
 .rdvacc-in{display:block;width:100%;margin-top:8px;font:inherit;font-size:14px;border:1.25px solid var(--trait);border-radius:8px;padding:8px 10px;background:#f4f3f0;color:var(--noir)}
 .rdvacc.manque .rdvacc-in{border-color:#e63329;background:#fdfdfc}
@@ -7863,7 +7869,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
        barre, à gauche de la liste — un seul chemin, pas deux. Sur grand écran, où la
        barre n'existe pas, c'est le rail de gauche qui le porte. -->
   <!-- « Tes favoris » est passé dans le Profil le 09/10/2026. -->
-  <button onclick="menuHautAller('#/partager')"><span class="ic" data-ic="partage"></span>Partager COUSIN</button>
+  <!-- « Partager COUSIN » retiré pour l'instant (09/10/2026) ; la page reste, et l'Admin y mène. -->
   <button id="menuAdmin" onclick="menuHautAller('#/admin')" style="display:none"><span class="ic" data-ic="cog"></span>Admin</button>
   <button onclick="menuHautFermer();ouvrirIdee()"><span class="ic" data-ic="plus"></span>Une suggestion</button>
 </div>
@@ -16506,10 +16512,11 @@ async function loadRdv(){
    compris (les polyvalents lisent l'agenda). Le compte du jour n'apparaît que s'il y en a. */
 function rdvBarre(){
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
-  const n=RDV_CHARGE?rdvAujourdhui():0;
-  return '<button class="rdvbarre" onclick="RDV_VUE=\'\';go(\'#/rdv\')"><i>'+icon('calendrier')+'</i>'+
+  const n=RDV_CHARGE?rdvAujourdhui():0, nc=RDV_CHARGE?rdvCorrigesPourMoi().length:0;
+  return '<button class="rdvbarre" onclick="'+(nc?'rdvOuvrirCorriges()':'RDV_VUE=\'\';go(\'#/rdv\')')+'"><i>'+icon('calendrier')+'</i>'+
     '<span>Rendez-vous</span>'+
     (n?'<b>'+n+' aujourd’hui</b>':'')+
+    (nc?'<b class="corr">'+nc+' rendez-vous corrigé'+(nc>1?'s':'')+'</b>':'')+
   '</button>';
 }
 /* ═══ LA BARRE « ACCOMPAGNEMENTS » DE L'ACCUEIL (09/10/2026 : « accompagnement de la semaine,
@@ -16641,11 +16648,12 @@ function rdvJoursHTML(){
   const a=agIso(new Date());
   const nA=RDV.filter(function(r){ return r.jour===a; }).length;
   const nD=RDV.filter(function(r){ return r.jour===ppAjoute(a,1); }).length;
-  const t=rdvTaches().length;
-  return '<button class="rdvbarre rdvbarre-l" onclick="rdvOuvrirJour(\'\')">'+
+  const t=rdvTaches().length, nc=rdvCorrigesPourMoi().length;
+  return '<button class="rdvbarre rdvbarre-l" onclick="'+(nc?'rdvOuvrirCorriges()':'rdvOuvrirJour(\'\')')+'">'+
     (t?'<em class="rdvj-r">'+t+'</em>':'')+
     '<i>'+icon('calendrier')+'</i><span>Rendez-vous</span>'+
     (RDV_CHARGE?'<b>'+nA+' aujourd’hui</b><b class="clair">'+nD+' demain</b>':'')+
+    (nc?'<b class="corr">'+nc+' corrigé'+(nc>1?'s':'')+'</b>':'')+
   '</button>';
 }
 function rdvOuvrirJour(j){
@@ -16767,6 +16775,27 @@ function rdvEtiquettes(r){
   if(!e.length) return '';
   return '<div class="rdvet">'+e.map(function(x){ return '<span style="background:'+x[1]+'">'+esc(x[0])+'</span>'; }).join('')+'</div>';
 }
+/* L'auteur : son compte (cree_uid) ; pour les rendez-vous d'avant cette colonne, son prénom. */
+function rdvEstAuteur(r){
+  if(!r || !PROFILE) return false;
+  if(r.cree_uid) return r.cree_uid===PROFILE.uid;
+  return !!r.cree_par && String(r.cree_par).toLowerCase()===String(nomAffiche()||'').toLowerCase();
+}
+function rdvCorrigesPourMoi(){ return (RDV||[]).filter(function(r){ return r.corrige_txt && !r.corrige_vu && rdvEstAuteur(r); }); }
+async function rdvCorrigeVu(id){
+  const r=rdvLigne(id); if(!r) return;
+  const res=await sb.from('rendez_vous').update({corrige_vu:true}).eq('id',r.id).select('id');
+  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré'); return; }
+  r.corrige_vu=true; render();
+}
+function rdvOuvrirCorriges(){
+  const c=rdvCorrigesPourMoi(); if(!c.length){ rdvOuvrirJour(''); return; }
+  const a=agIso(new Date());
+  let du=a, au=a; c.forEach(function(r){ if(r.jour<du) du=r.jour; if(r.jour>au) au=r.jour; });
+  RDV_IMPR_DU=du; RDV_IMPR_AU=au; RDV_FORM=null; RDV_VUE='';
+  go('#/rdv');
+  setTimeout(function(){ const e=document.querySelector('.rdvc-notif'); if(e && e.scrollIntoView) e.scrollIntoView({block:'center'}); }, 400);
+}
 function rdvLigne(id){ return RDV.find(function(x){ return String(x.id)===String(id); }); }
 function rdvAujourdhui(){ const a=agIso(new Date()); return RDV.filter(function(r){ return r.jour===a; }).length; }
 function rdvResumeCourt(){
@@ -16835,6 +16864,18 @@ async function rdvEnregistrer(){
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
   const avant=F.id ? rdvLigne(F.id) : null;
+  /* ═══ UNE CORRECTION PAR QUELQU'UN D'AUTRE (09/10/2026, piste B) ═══ Le lieu, la date ou
+     l'heure changés par un·e autre que l'auteur : on garde AVANT → APRÈS, et l'auteur le
+     verra en toutes lettres (« 1 rendez-vous corrigé ») jusqu'à ce qu'il appuie sur « Vu ». */
+  if(avant && !rdvEstAuteur(avant)){
+    const d=[];
+    const lieuA=[avant.lieu,avant.adresse].filter(Boolean).join(' — '), lieuB=[ligne.lieu,ligne.adresse].filter(Boolean).join(' — ');
+    if(lieuA!==lieuB) d.push('Lieu : '+(lieuA||'—')+' → '+(lieuB||'—'));
+    if(String(avant.jour)!==String(ligne.jour)) d.push('Date : '+ppJourFr(avant.jour)+' → '+ppJourFr(ligne.jour));
+    if(String(avant.heure||'').slice(0,5)!==String(ligne.heure||'').slice(0,5))
+      d.push('Heure : '+(rdvHeureFr(avant.heure)||'—')+' → '+(rdvHeureFr(ligne.heure)||'—'));
+    if(d.length){ ligne.corrige_txt=d.join(' · ').slice(0,600); ligne.corrige_par=nomAffiche(); ligne.corrige_le=new Date().toISOString(); ligne.corrige_vu=false; }
+  }
   if(String((avant&&avant.accomp_nom)||'')!==String(ligne.accomp_nom||'') && (ligne.accomp_nom || avant)){
     ligne.accomp_par=nomAffiche(); ligne.accomp_le=new Date().toISOString();
   }
@@ -16940,6 +16981,10 @@ function rdvCarte(r, passe){
       '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+rdvAccQui(r)+
       rdvEtiquettes(r)+
       rdvPrisEnCharge(r)+
+      (r.corrige_txt ? (rdvEstAuteur(r) && !r.corrige_vu
+        ? '<div class="rdvc-notif"><b>Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+'</b>'+
+            '<span>'+esc(r.corrige_txt)+'</span><button onclick="rdvCorrigeVu(\''+r.id+'\')">Vu</button></div>'
+        : '<p class="rdvc-corr">Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+' — '+esc(r.corrige_txt)+'</p>') : '')+
       (r.note?'<p>'+esc(r.note)+'</p>':'')+
       '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
       '<div class="ppc-b" style="justify-content:flex-start">'+
@@ -17015,6 +17060,7 @@ function vRdvAcc(){
   let h='<div class="subtop"><button class="cbtn" onclick="RDV_VUE=\'\';render()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Accompagnements de la semaine</h1></div>';
   h+='<p class="rdvacc-res">Réservé aux coordinateurs</p>';
+  if(RDV_FORM) h+=rdvFormHTML();
   h+='<div class="rdvacc-sem">'+
     '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
     '<span class="rdvau">au</span>'+
@@ -17036,6 +17082,8 @@ function vRdvAcc(){
         '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
           'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+
         rdvAccQui(r)+
+        /* Corriger le rendez-vous lui-même (09/10/2026) : le même formulaire, puis retour ici. */
+        (rdvPeutEcrire()?'<button class="rdvacc-mod" onclick="rdvModifier(\''+r.id+'\')">Modifier le rendez-vous</button>':'')+
       '</div></div>';
   });
   h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
@@ -38021,7 +38069,6 @@ function renderTabs(){
               « Pour qu'on voie que ce sont des choses à part » : le MOT aussi prend la
               couleur (le 5e champ à 1), pas seulement le picto comme « Une suggestion ». */
            ['#/mobilisation','Mobilisation','petition','#ff8cc6',1],
-           ['#/partager','Partager COUSIN','partage'],
            ['#/profil','Profil','user']])
           .concat(vueAdmin()?[['#/admin','Admin','cog']]:[])
           /* « Voir comme » vit dans le rail noir, discrètement, plutôt que de flotter
