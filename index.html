@@ -403,6 +403,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppc-j p{font-size:13px;margin:0 0 3px}
 .ppc-j i{font-style:normal;color:#777;font-size:11px}
 .ppc-ps{display:flex;flex-direction:column;gap:6px;margin:0 0 11px}
+.ppc-pt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.ppc-pt-f span{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#555;margin-right:4px}
+.ppc-pt-f em{flex:1 1 100%;font-style:normal;font-size:12.5px;color:#555}
 .ppc-pr{display:flex;gap:8px;align-items:center}
 .ppc-pr input{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:600;color:var(--noir);background:#f4f3f0;
   border:1.25px solid var(--trait);border-radius:8px;padding:8px 10px}
@@ -16121,6 +16124,25 @@ const PP_ETAPES=[
   {k:'descendu', l:'Descendu',    c:'C'},
   {k:'rendu',    l:'Sacs rendus', c:'D'}
 ];
+/* ═══ TROIS SORTES DE PROTOCOLE (Mag, 09/10/2026) ═══
+   « Parfois c'est juste la chambre qu'on passe à la vapeur. Un autre : on met du produit,
+   on doit faire les sacs, et on ne doit pas spécialement faire les gens. Et un autre où il
+   faut tout faire. » Chaque chambre porte sa sorte (`protocole`) et n'a QUE ses étapes. */
+const PP_PROTOS=[
+  {k:'vapeur',  l:'Vapeur',          s:'La chambre seule, à la vapeur'},
+  {k:'produit', l:'Produit + sacs',  s:'Produit, sacs ; pas la personne'},
+  {k:'tout',    l:'Tout',            s:'Produit, sacs et la personne'}
+];
+const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
+const PP_ET_PERS  ={k:'personne', l:'Personne faite', c:'P'};
+var PP_PROTO_CHOIX='produit';
+function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(function(p){ return p.k===k; })||PP_PROTOS[1]; }
+function ppEtapesDe(a){
+  const k=ppProto(a).k;
+  if(k==='vapeur') return [PP_ETAPES[0], PP_ET_VAPEUR];
+  if(k==='tout') return [PP_ETAPES[0], PP_ETAPES[1], PP_ETAPES[2], PP_ET_PERS, PP_ETAPES[3]];
+  return PP_ETAPES;
+}
 async function loadPunaises(){
   if(!sb){ PP_CHARGE=true; return; }
   try{
@@ -16156,7 +16178,8 @@ function ppJeudi(){
 function ppFait(a,k){ return !!a[k+'_le']; }
 function ppAbandon(a){ return !a.prevenu_le && new Date()>=ppA(a.jour,12); }
 function ppEtat(a){
-  if(a.rendu_le) return 'fini';
+  const E=ppEtapesDe(a);
+  if(ppFait(a, E[E.length-1].k)) return 'fini';
   if(ppAbandon(a)) return 'abandon';
   if(!a.prevenu_le) return 'alerte';
   return 'cours';
@@ -16217,6 +16240,11 @@ function ppPersAjouter(id){
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
   P.push({nom:'', pa:false}); a.personnes=P; render();
   setTimeout(function(){ const e=document.getElementById('ppP'+id+'_'+(P.length-1)); if(e) e.focus(); }, 30);
+}
+function ppChangerProto(id, k){
+  const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
+  const p=PP_PROTOS.find(function(x){ return x.k===k; });
+  ppMaj(a, {protocole:k}, 'protocole : '+p.l);
 }
 function ppPersHTML(a){
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
@@ -16324,7 +16352,8 @@ function ppChoix(titre, texte, boutons){
 }
 function ppEtape(id, k){
   const a=ppLigne(id); if(!a){ toast('Ligne introuvable — recharge la page'); return; }
-  const et=PP_ETAPES.find(function(e){ return e.k===k; });
+  const E=ppEtapesDe(a);
+  const et=E.find(function(e){ return e.k===k; }); if(!et) return;
   const qui=nomAffiche()+' · '+ppHeure(new Date().toISOString());
   if(ppFait(a,k)){
     cousinConfirme('Chambre '+a.numero, 'Décocher « '+et.l+' » ?\n\nTon prénom sera noté sous la chambre.',
@@ -16333,8 +16362,9 @@ function ppEtape(id, k){
     return;
   }
   if(ppAbandon(a)){ toast('Abandonné : pas prévenu à midi, on ne touche pas à ses affaires.'); return; }
-  const i=PP_ETAPES.indexOf(et);
-  if(i>0 && !ppFait(a, PP_ETAPES[i-1].k)){ toast('D’abord : '+PP_ETAPES[i-1].l); return; }
+  /* L'ordre est imposé ; le protocole de la personne ne demande que « prévenu ». */
+  const i=E.indexOf(et), avant=(k==='personne') ? E[0] : E[i-1];
+  if(i>0 && !ppFait(a, avant.k)){ toast('D’abord : '+avant.l); return; }
   const poser=function(extra, note){
     const m={}; m[k+'_le']=new Date().toISOString(); m[k+'_par']=nomAffiche();
     ppMaj(a, Object.assign(m, extra||{}), note);
@@ -16371,7 +16401,7 @@ async function ppInserer(jour, nums, pers){
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), personnes:pers||[], cree_par:nomAffiche()};
+    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, cree_par:nomAffiche()};
   });
   if(!lignes.length){ toast('Déjà dans la liste'); return false; }
   const {error}=await sb.from('protocole_punaises').insert(lignes);
@@ -16416,7 +16446,9 @@ function ppColler(){
   if(!r.nums.length){ toast('Aucun numéro de chambre trouvé dans ce texte'); return; }
   cousinConfirme('Rentokil · '+ppJourFr(r.jour),
     (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
-    r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+'\n\nVérifie avant d’ajouter.',
+    r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+
+    '\nProtocole : '+PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).l+
+    '\n\nVérifie avant d’ajouter.',
     async function(){
       const ok=await ppInserer(r.jour, r.nums, []);
       if(ok){ PP_COLLE=''; const e=document.getElementById('ppColle'); if(e) e.value=''; }
@@ -16426,15 +16458,20 @@ function ppColler(){
 /* ── l'écran ────────────────────────────────────────────────────────────── */
 function ppCarte(a){
   const e=ppEtat(a);
-  const fait=PP_ETAPES.filter(function(s){ return ppFait(a,s.k); }).length;
-  const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / 4';
+  const E=ppEtapesDe(a), pr=ppProto(a);
+  const fait=E.filter(function(s){ return ppFait(a,s.k); }).length;
+  const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / '+E.length;
   let h='<div class="ppc '+e+'">'+
     '<div class="ppc-h"><span class="ppc-n">'+esc(a.numero)+'</span>'+
-      '<span class="ppc-e">'+etat+'</span></div>'+ppPersHTML(a);
+      '<span class="ppc-e">'+etat+'</span></div>'+
+    '<div class="ppc-pt">'+PP_PROTOS.map(function(p){
+      return '<button class="chip'+(p.k===pr.k?' on':'')+'" aria-pressed="'+(p.k===pr.k?'true':'false')+'" '+
+        'onclick="ppChangerProto(\''+a.id+'\',\''+p.k+'\')">'+esc(p.l)+'</button>'; }).join('')+'</div>'+
+    ppPersHTML(a);
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à midi : pas de protocole, on ne touche pas à ses affaires.</p>';
   } else {
-    h+='<div class="ppc-f">'+PP_ETAPES.map(function(s){
+    h+='<div class="ppc-f" style="grid-template-columns:repeat('+E.length+',1fr)">'+E.map(function(s){
       const ok=ppFait(a,s.k), rouge=(s.k==='prevenu' && e==='alerte');
       let sous='';
       if(ok) sous=esc(a[s.k+'_par']||'')+' '+ppQuand(a[s.k+'_le'])+(s.k==='sacs'&&a.sacs_qui==='aide-soignant'?' · avec l’aide-soignant·e':'');
@@ -16463,7 +16500,11 @@ function vPunaises(){
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'entree\')"><span class="ic">'+icon('imprimer')+'</span>La liste pour l’entrée</button></div>';
   h+='<div class="tbadd">'+
-    '<textarea id="ppColle" rows="3" placeholder="Coller le mail de Rentokil" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
+    '<div class="ppc-pt ppc-pt-f"><span>Protocole</span>'+PP_PROTOS.map(function(p){
+      return '<button class="chip'+(p.k===PP_PROTO_CHOIX?' on':'')+'" aria-pressed="'+(p.k===PP_PROTO_CHOIX?'true':'false')+'" '+
+        'title="'+esc(p.s)+'" onclick="PP_PROTO_CHOIX=\''+p.k+'\';render()">'+esc(p.l)+'</button>'; }).join('')+
+      '<em>'+esc(PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).s)+'</em></div>'+
+    '<textarea id="ppColle" rows="3" placeholder="Coller le mail de passage (Rentokil ou autre)" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
     '<div class="chadd" style="margin:0"><button class="chaddbtn" style="flex:1" onclick="ppColler()">Lire le mail et ajouter les chambres</button></div>'+
     '<div class="tbduo">'+
       '<input id="ppNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
@@ -16514,6 +16555,12 @@ function ppImprimer(quoi){
     titre='Affiches des portes';
     const c=function(img, fr, en){ return '<div class="c">'+img+'<div><b>'+fr+'</b><i>'+en+'</i></div></div>'; };
     corps=L.map(function(a){
+      /* La vapeur ne demande ni sacs ni draps : l'affiche ne dit que ce qui la concerne. */
+      if(ppProto(a).k==='vapeur')
+        return '<section class="pg aff"><p class="num">'+esc(a.numero)+'</p>'+
+          '<h1>Punaises · Bed bugs</h1><p class="date">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</p>'+
+          c(pic('hebergement.svg'),'Votre chambre est traitée à la vapeur.','Your room will be steam-treated.')+
+          '<p class="pied">Une question ? Adressez-vous à l’accueil. · Questions? Ask at the front desk.</p></section>';
       return '<section class="pg aff"><p class="num">'+esc(a.numero)+'</p>'+
         '<h1>Punaises · Bed bugs</h1><p class="date">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</p>'+
         c(pic('colis.svg'),'Avant 11 h : toutes vos affaires dans les sacs.','Before 11 am: put all your belongings in the bags.')+
@@ -16537,6 +16584,15 @@ function ppImprimer(quoi){
     };
     /* Les personnes : un nom par ligne, et la case « pas autonome » cochée ou à cocher
        au stylo. Une chambre vide garde DEUX lignes à remplir (deux personnes par chambre). */
+    /* Les étapes SELON LE PROTOCOLE de la chambre (09/10/2026). Une ligne vide propose les
+       trois sortes à cocher au stylo, puis toutes les étapes possibles. */
+    const boite=function(ok,l,par){ return '<span class="et"><span class="bx">'+(ok?'✓':'')+'</span>'+l+(par?'<em>'+esc(par)+'</em>':'')+'</span>'; };
+    const etapesPapier=function(a){
+      if(!a) return '<td class="ets"><div class="pt">'+PP_PROTOS.map(function(p){ return boite(false,p.l); }).join('')+'</div>'+
+        '<div>'+boite(false,'Prévenu')+boite(false,'Vapeur')+boite(false,'Sacs')+boite(false,'Descendu')+boite(false,'Personne')+boite(false,'Sacs rendus')+'</div></td>';
+      return '<td class="ets"><div class="pt"><b>'+esc(ppProto(a).l)+'</b> — '+esc(ppProto(a).s)+'</div><div>'+
+        ppEtapesDe(a).map(function(e){ const ok=ppFait(a,e.k); return boite(ok, e.l, ok?(a[e.k+'_par']||''):''); }).join('')+'</div></td>';
+    };
     const pers=function(a){
       const P=a?ppPersonnes(a).filter(function(x){ return x.nom; }):[];
       while(P.length<2) P.push({nom:'', pa:false});
@@ -16547,8 +16603,7 @@ function ppImprimer(quoi){
     };
     const ligne=function(a){
       return '<tr><td class="ch">'+(a?esc(a.numero):'')+'</td><td class="in">'+pers(a)+'</td>'+
-        (pasPrev ? case_(a,'prevenu','Prévenu')
-                 : case_(a,'prevenu','Prévenu')+case_(a,'sacs','Sacs')+case_(a,'descendu','Descendu')+case_(a,'rendu','Sacs rendus'))+
+        (pasPrev ? case_(a,'prevenu','Prévenu') : etapesPapier(a))+
         '<td class="no"></td></tr>';
     };
     const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
@@ -16560,7 +16615,7 @@ function ppImprimer(quoi){
       '<p class="rel"><b>Pas prévenu ?</b> Soir → aux présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. '+
         '<b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
       (pasPrev && !lignes.length ? '<p class="s"><b>Tout le monde est prévenu.</b></p>' : '')+
-      '<table><thead><tr><th>Ch.</th><th>Personnes</th>'+(pasPrev?'<th></th>':'<th></th><th></th><th></th><th></th>')+
+      '<table><thead><tr><th>Ch.</th><th>Personnes</th>'+(pasPrev?'<th></th>':'<th>Protocole et étapes</th>')+
       '<th>Note (repasser la nuit, le matin…)</th></tr></thead><tbody>'+rows+'</tbody></table>'+
       '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+
         ' · cocher au stylo, puis dans COUSIN si possible</p></section>';
@@ -16574,6 +16629,9 @@ function ppImprimer(quoi){
       'td.cx{width:17mm;font-size:9pt;line-height:1.3}td.cx em{display:block;font-style:normal;font-size:9pt;color:#444}'+
       '.bx{display:inline-block;width:6mm;height:6mm;border:2px solid #000;vertical-align:middle;margin-right:2mm;text-align:center;font-weight:700;line-height:5.5mm}'+
       'td.no{height:22mm;min-width:30mm;border-left:1px solid #000}'+
+      'td.ets{font-size:9.5pt}td.ets .pt{margin-bottom:2mm;font-size:10pt}'+
+      'td.ets .et{display:inline-block;margin:0 3mm 1.5mm 0;white-space:nowrap}td.ets .et em{font-style:normal;font-size:8pt;color:#444;margin-left:1mm}'+
+      'td.ets .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
       '.pied{font-size:10pt;color:#444;margin-top:5mm}';
   }
   const w=window.open('','_blank');
