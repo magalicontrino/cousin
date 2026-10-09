@@ -470,6 +470,19 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppt-in{cursor:default;color:#1b1b1b;--c:#d8d4cd}
 .ppt-in input{font:inherit;font-size:12.5px;font-weight:700;border:0!important;background:none!important;box-shadow:none!important;
   color:inherit;padding:0!important;margin:0;height:auto!important;min-height:0!important;width:auto;max-width:120px;border-radius:0}
+.ppv0{position:relative;background:#fdfdfc;border:2.5px dashed var(--c);border-radius:20px;padding:14px 16px 14px 30px;margin:6px 0 22px}
+.ppv0-b{position:absolute;left:-2.5px;top:-2.5px;bottom:-2.5px;width:14px;border-radius:20px 0 0 20px;
+  background:repeating-linear-gradient(45deg,var(--c) 0 6px,#fdfdfc 6px 12px)}
+.ppv0-m{display:flex;align-items:flex-start;gap:10px;background:#f4f3f0;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#8b8984}
+.ppv0-m textarea{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--noir);background:none;border:0;resize:vertical;min-height:24px;padding:0}
+.ppv0-m textarea:focus{outline:none}
+.ppv0-n{width:120px;font:inherit;font-size:34px;font-weight:800;line-height:1;color:var(--noir);background:none;border:0;
+  border-bottom:3px dotted #c9c6bf;border-radius:0;padding:0 0 2px}
+.ppv0-n::placeholder{color:#c9c6bf}
+.ppv0-n:focus{outline:none;border-bottom-color:var(--c)}
+.ppv0 .ppf-top{align-items:center}
+.ppv0-f{opacity:.5;pointer-events:none}
+.ppv0 .ppf-h input[type=date]{font:inherit;font-size:13.5px;font-weight:600;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);border-radius:8px;padding:4px 6px}
 .ppt-go{width:100%;font:inherit;font-weight:800;font-size:15px;background:#1b1b1b;color:#fff;border:0;border-radius:14px;padding:14px;cursor:pointer}
 @media (max-width:520px){ .ppt-z{flex-direction:column} .ppt-z input{width:100%} }
 .ppf-o{white-space:nowrap;line-height:1.2}
@@ -16620,10 +16633,12 @@ async function ppAjouterTicket(){
   const n=document.getElementById('ppNum'), c=document.getElementById('ppColle'), j=document.getElementById('ppJour');
   const num=(n&&n.value||'').trim(), txt=(c&&c.value||PP_COLLE||'').trim();
   if(!num){ if(txt) ppColler(); else n&&n.focus(); return; }
-  const pers=txt ? txt.split(/\s*(?:,|;|\n|\s+et\s+)\s*/i).map(function(x){ return {nom:x.trim().slice(0,60), pa:false}; })
+  const v1=document.getElementById('ppPers1'), v2=document.getElementById('ppPers2');
+  const vn=[v1,v2].map(function(e){ return {nom:(e&&e.value||'').trim().slice(0,60), pa:false}; }).filter(function(x){ return x.nom; });
+  const pers=vn.length ? vn : txt ? txt.split(/\s*(?:,|;|\n|\s+et\s+)\s*/i).map(function(x){ return {nom:x.trim().slice(0,60), pa:false}; })
     .filter(function(x){ return x.nom; }).slice(0,4) : [];
   const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers, '', {});
-  if(ok){ if(n) n.value=''; if(c) c.value=''; PP_COLLE=''; }
+  if(ok){ [n,c,v1,v2].forEach(function(e){ if(e) e.value=''; }); PP_COLLE=''; }
 }
 async function ppAjouter(){
   const n=document.getElementById('ppNum'), j=document.getElementById('ppJour');
@@ -16786,28 +16801,33 @@ function vPunaises(){
      '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '</div>';
-  /* ═══ NOUVEAU PASSAGE — LE TICKET (piste A, Mag, 09/10/2026) ═══ « Je veux pouvoir rentrer
-     les chambres à la main ; arrête d'écrire colle le mail, mets trois petits points ; c'est
-     surtout la chambre. » Le N° en premier et en grand ; « … » sert à coller un mail OU à écrire
-     des noms ; les choix en pastilles ; UN bouton. Pas de phrase d'explication. */
-  const pd=PP_PROTO_CHOIX==='tout';
-  h+='<div class="ppt">'+
-    '<div class="ppt-t"><span class="ppt-rond">'+icon('punaise')+'</span><b>Nouveau passage</b></div>'+
-    '<div class="ppt-z">'+
-      '<input id="ppNum" type="text" placeholder="N°" autocomplete="off" maxlength="10">'+
-      '<textarea id="ppColle" rows="2" placeholder="…" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
-    '</div>'+
-    '<div class="ppt-o">'+
+  /* ═══ NOUVEAU PASSAGE — LA CHAMBRE VIERGE (piste C, Mag, 09/10/2026 : « j'aime bien l'idée du
+     C ») ═══ Le formulaire a la forme EXACTE de la carte qu'il va créer, en pointillés : ce qu'on
+     remplit = ce qu'on obtient. En haut « … » (coller un mail, ou écrire) ; le N° en grand ; les
+     deux vignettes des personnes. UN bouton. Pas de phrase d'explication. */
+  const pd=PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#f8763f'};
+  const Ev=pd?[PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ET_PERS,PP_ETAPES[3]]:PP_ETAPES;
+  h+='<div class="ppv0" style="--c:'+qv.c+'"><span class="ppv0-b"></span>'+
+    '<div class="ppv0-m"><span class="ppf-ic">'+icon('mail')+'</span>'+
+      '<textarea id="ppColle" rows="1" placeholder="…" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea></div>'+
+    '<div class="ppf-top">'+
+      '<input id="ppNum" class="ppv0-n" type="text" placeholder="N°" autocomplete="off" maxlength="10">'+
       '<button class="ppf-o'+(PP_RENTO_CHOIX?' on':'')+'" style="--c:#6fc7d9" onclick="PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
-      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="PP_RENTO_CHOIX=false;render()">Mohamed</button>'+
-      '<label class="ppf-o on ppt-in"><span class="ppf-ic">'+icon('calendrier')+'</span><input id="ppJour" type="date" value="'+(PP_JOUR||ppJeudi())+'" onchange="PP_JOUR=this.value"></label>'+
-      '<label class="ppf-o on ppt-in"><span class="ppf-ic">'+ppPic('cle')+'</span>'+
-        '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'">→'+
-        '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"></label>'+
-      '<button class="ppf-o'+(pd?' on ppf-pp':'')+'" onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
-        '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pd?'Protocole de la personne':'+ protocole de la personne')+'</button>'+
+      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="PP_RENTO_CHOIX=false;render()">Mohamed</button></div>'+
+    '<div class="ppf-h"><span class="ppf-ic">'+ppPic('cle')+'</span><span>Fermée</span>'+
+      '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'"><span>→</span>'+
+      '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"><span>·</span>'+
+      '<input id="ppJour" type="date" value="'+(PP_JOUR||ppJeudi())+'" onchange="PP_JOUR=this.value"></div>'+
+    '<div class="ppf-frise ppv0-f">'+Ev.map(function(st){
+      const court={prevenu:'Prévenu', sacs:'Sacs', descendu:'Descendu', personne:'Personne', rendu:'Rendus'}[st.k]||st.l;
+      return '<span class="ppf-s"><span class="ppf-r">'+ppPic(st.k)+'</span><b>'+court+'</b></span>'; }).join('')+'</div>'+
+    '<div class="ppf-opts"><button class="ppf-o'+(pd?' on ppf-pp':'')+'" onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
+      '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pd?'Protocole de la personne':'+ protocole de la personne')+'</button></div>'+
+    '<div class="ppv-g">'+
+      '<div class="ppv vide"><span class="ppv-r">'+icon('user')+'</span><input id="ppPers1" type="text" maxlength="60" placeholder="+ Nom" autocomplete="off"></div>'+
+      '<div class="ppv vide"><span class="ppv-r">'+icon('user')+'</span><input id="ppPers2" type="text" maxlength="60" placeholder="+ Nom" autocomplete="off"></div>'+
     '</div>'+
-    '<button class="ppt-go" onclick="ppAjouterTicket()">Ajouter</button>'+
+    '<button class="ppt-go" onclick="ppAjouterTicket()">Ajouter cette chambre</button>'+
   '</div>';
   if(PP_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>Le protocole n’a pas pu être lu</b>'+
