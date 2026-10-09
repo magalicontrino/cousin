@@ -16932,24 +16932,25 @@ function ppImprimer(quoi){
     const pers=function(a){
       const P=a?ppPersonnes(a).filter(function(x){ return x.nom; }):[];
       while(P.length<2) P.push({nom:'', pa:false});
-      const avecPp = !a || ppProto(a).k==='tout';
+      /* (Mag, 09/10/2026 : « pas autonome prend beaucoup trop de place ») : une case seule, expliquée
+         une fois en tête de colonne. Le protocole de la personne est une ÉTAPE, plus une case par nom. */
       return P.map(function(x){
-        return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
-          '<span class="pa">'+bx(x.pa)+'pas autonome</span>'+
-          (avecPp?'<span class="pa ppp">'+bx(x.pp)+'protocole personne</span>':'')+'</div>';
+        return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+bx(x.pa)+'</div>';
       }).join('');
     };
     const etapes=function(a){
-      const E = a ? ppEtapesDe(a) : PP_ETAPES;
+      /* « Personne » écrit dans les étapes = il faut le faire. Une ligne vierge l'a, à cocher ou non. */
+      const E = a ? ppEtapesDe(a) : [PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ET_PERS,PP_ETAPES[3]];
       return '<div class="ets">'+E.map(function(e){
         const ok=a&&ppFait(a,e.k);
-        return '<span class="et">'+bx(ok)+'<span class="pic">'+ppPic(e.k==='vapeur'?'descendu':e.k)+'</span><b>'+e.l+'</b>'+(ok?'<em>'+esc((e.k==='sacs'&&ppSacsNom(a))||a[e.k+'_par']||'')+(e.k==='sacs'?ppSacsAvec(a):'')+'</em>':'<em class="sig">par : ……………</em>')+'</span>';
+        return '<span class="et">'+bx(ok)+'<span class="pic">'+ppPic(e.k==='vapeur'?'descendu':e.k)+'</span><b>'+(e.k==='personne'?'Personne':e.l)+'</b>'+(ok?'<em>'+esc((e.k==='sacs'&&ppSacsNom(a))||a[e.k+'_par']||'')+(e.k==='sacs'?ppSacsAvec(a):'')+'</em>':'<em class="sig">par : ……………</em>')+'</span>';
       }).join('')+'</div>';
     };
     const proto=function(a){
-      if(!a) return '<div class="pchoix"><span class="pc">'+bx(false)+'Rentokil  '+bx(false)+'Mohamed</span><span class="psous">Fermée de ……… à ………</span><span class="pc porte">'+bx(false)+'Porte fermée à clé<br>rouverte par : ………</span><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
+      if(!a) return '<div class="pchoix"><span class="l1">'+bx(false)+'Rentokil &nbsp; '+bx(false)+'Mohamed</span>'+
+        '<span class="l1">Fermée ……… → ………</span><span class="pc porte">'+bx(false)+'Fermée à clé · rouverte par : ………</span></div>';
       return '<span class="pqui" style="border-color:'+ppQui(a).c+'">'+ppQui(a).l+'</span><span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+
-        '<span class="pc porte">'+bx(!!a.porte_le)+'Porte fermée à clé'+(a.porte_le?' ('+esc(a.porte_par||'')+')':'')+'<br>rouverte par : ………</span>'+(ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
+        '<span class="pc porte">'+bx(!!a.porte_le)+'Fermée à clé'+(a.porte_le?' ('+esc(a.porte_par||'')+')':'')+' · rouverte par : ………</span>';
     };
     const ligne=function(a){
       const c = a ? ppQui(a).c : '#ffffff';
@@ -16961,7 +16962,7 @@ function ppImprimer(quoi){
         '<td class="no">'+((a&&Array.isArray(a.journal)&&a.journal.length)?'<p class="jn">'+a.journal.map(function(x){ return esc(x.txt); }).join(' · ')+'</p>':'')+
           '<div></div><div></div><div></div></td></tr>';
     };
-    const tete='<thead><tr><th>Ch.</th><th>Protocole</th><th>Personnes</th><th>'+(pasPrev?'':'Étapes')+'</th>'+
+    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes <span class="thpa">☐ = pas autonome</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
       '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
     /* Rentokil ensemble, Mohamed à part — sur la MÊME feuille (Mag, 09/10/2026). */
@@ -16993,6 +16994,8 @@ function ppImprimer(quoi){
       'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
       '.pc.porte{display:block;font-size:8.5pt;margin:1mm 0 1.5mm;line-height:1.5}.pc.porte .bx{width:4mm;height:4mm;line-height:3.5mm}'+
+      '.pchoix .l1{display:block;white-space:nowrap;font-size:9.5pt;margin-bottom:1.5mm}.pchoix .bx{width:4mm;height:4mm;line-height:3.5mm;margin-right:1mm}'+
+      '.thpa{font-weight:400;color:#555;margin-left:2mm}'+
       '.pqui{display:inline-block;font-weight:700;font-size:10pt;border:2.5px solid #000;border-radius:5mm;padding:.5mm 2.5mm;margin-bottom:1.5mm}'+
       '.et em.sig{color:#999;font-size:8pt}'+
       '.et .pic{display:inline-block;width:5mm;height:5mm;vertical-align:middle;margin-right:1.2mm}.et .pic svg{width:100%;height:100%}'+
