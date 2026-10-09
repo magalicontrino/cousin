@@ -16321,7 +16321,8 @@ async function ppListeEquipe(){
 }
 function ppQuiChanger(id){
   const a=ppLigne(id); if(!a) return;
-  ppMaj(a, {rentokil:!ppRento(a)}, 'passe : '+(ppRento(a)?'Mohamed':'Rentokil'));
+  const vers=ppRento(a)?'Mohamed':'Rentokil';
+  ppConfirme(a, 'Passage : '+vers+' ?', 'Confirmer', function(){ ppMaj(a, {rentokil:!ppRento(a)}, 'passe : '+vers); });
 }
 const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
 const PP_ET_PERS  ={k:'personne', l:'Protocole de la personne', c:'P'};
@@ -16452,19 +16453,30 @@ function ppPersDuDom(a){
   }
   return P;
 }
+/* ═══ TOUT CHANGEMENT SUR UNE CARTE SE CONFIRME (Mag, 09/10/2026 : « sinon on risque de le faire
+   sans le faire exprès, ça peut être dramatique pour le travail ») ═══ La carte se redessine
+   d'abord avec l'ANCIENNE valeur (rien n'a changé tant qu'on n'a pas dit oui), puis la fenêtre
+   montre le changement ; « Confirmer » l'enregistre, « Annuler » ne touche à rien. */
+function ppConfirme(a, texte, ok, fn){
+  const y=window.scrollY; render(); window.scrollTo(0,y);
+  cousinConfirme('Chambre '+a.numero, texte, fn, {ok:ok||'Confirmer'});
+}
 function ppPersNom(id, i, v){
   const a=ppLigne(id); if(!a) return;
   const P=ppPersDuDom(a); v=String(v||'').trim().slice(0,60);
   while(P.length<=i) P.push({nom:'', pa:false});
   const avant=(ppPersonnes(a)[i]||{}).nom||'';
   if(avant===v) return;
-  P[i].nom=v; ppMaj(a, {personnes:P});
+  P[i].nom=v;
+  ppConfirme(a, avant ? (v ? '« '+avant+' » → « '+v+' »' : 'Retirer « '+avant+' » ?') : 'Ajouter « '+v+' » ?', 'Confirmer',
+    function(){ ppMaj(a, {personnes:P}); });
 }
 function ppPersPa(id, i){
   const a=ppLigne(id); if(!a) return;
   const P=ppPersDuDom(a); while(P.length<=i) P.push({nom:'', pa:false});
   P[i].pa=!P[i].pa;
-  ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome':' : autonome'));
+  ppConfirme(a, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome ?':' : autonome ?'), 'Confirmer',
+    function(){ ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome':' : autonome')); });
 }
 function ppPersPp(id, i){
   const a=ppLigne(id); if(!a) return;
@@ -16485,7 +16497,8 @@ function ppPersAjouter(id){
 function ppHeureChanger(id, k, v){
   const a=ppLigne(id); if(!a || !v || a[k]===v) return;
   const m={}; m[k]=v;
-  ppMaj(a, m, (k==='produit_de'?'fermée à partir de ':'rouverte à ')+ppHFr(v));
+  ppConfirme(a, (k==='produit_de'?'Fermée à partir de ':'Rouverte à ')+ppHFr(v)+' ?', 'Confirmer',
+    function(){ ppMaj(a, m, (k==='produit_de'?'fermée à partir de ':'rouverte à ')+ppHFr(v)); });
 }
 /* ═══ PORTE FERMÉE À CLÉ (Mag, 09/10/2026) ═══ « Quand il n'y a personne dans la chambre pour
    les prévenir, on ferme la porte : on ne peut les prévenir que le soir. Celui qui l'ouvre doit
@@ -16503,8 +16516,8 @@ function ppPorte(id){
 }
 function ppChangerProto(id, k){
   const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
-  const p=PP_PROTOS.find(function(x){ return x.k===k; });
-  ppMaj(a, {protocole:k});
+  ppConfirme(a, k==='tout' ? 'Protocole personne : oui ?' : 'Retirer le protocole personne ?', 'Confirmer',
+    function(){ ppMaj(a, {protocole:k}); });
 }
 /* ═══ LES PERSONNES EN VIGNETTES (Mag, 09/10/2026 : « c'est pas évident qu'on doit rentrer
    des gens, ça fait vieux Windows des années 80 — deux vignettes ») ═══ Deux cartes côte à côte,
