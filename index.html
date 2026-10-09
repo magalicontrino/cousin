@@ -455,6 +455,22 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppf-s em{display:block;font-style:normal;font-size:10px;color:#777;min-height:12px}
 .ppf-s.rouge em{color:#c8412e;font-weight:700}
 .ppf-opts{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;align-items:center}
+/* Nouveau passage — le ticket (piste A) */
+.ppt{background:#fdfdfc;border:2px solid #1b1b1b;border-radius:20px;box-shadow:0 5px 0 #1b1b1b;padding:16px;margin:6px 0 22px}
+.ppt-t{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ppt-t b{font-size:19px;font-weight:800}
+.ppt-rond{width:44px;height:44px;border-radius:50%;background:#6fc7d9;display:flex;align-items:center;justify-content:center;flex:none}
+.ppt-rond svg{width:25px;height:25px}
+.ppt-z{display:flex;gap:10px;align-items:stretch}
+.ppt-z input{width:110px;flex:none;font:inherit;font-size:30px;font-weight:800;text-align:center;color:var(--noir);background:#f4f3f0;
+  border:2px dashed #c9c6bf;border-radius:14px;padding:6px}
+.ppt-z textarea{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--noir);background:#f4f3f0;border:2px dashed #d8d4cd;border-radius:14px;padding:12px;resize:vertical;min-height:64px}
+.ppt-z input:focus,.ppt-z textarea:focus{outline:none;border-style:solid;border-color:#6fc7d9;background:#fff}
+.ppt-o{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.ppt-in{cursor:default;color:#1b1b1b;--c:#d8d4cd}
+.ppt-in input{font:inherit;font-size:12.5px;font-weight:700;border:0;background:none;color:inherit;padding:0;max-width:110px}
+.ppt-go{width:100%;font:inherit;font-weight:800;font-size:15px;background:#1b1b1b;color:#fff;border:0;border-radius:14px;padding:14px;cursor:pointer}
+@media (max-width:520px){ .ppt-z{flex-direction:column} .ppt-z input{width:100%} }
 .ppf-o{white-space:nowrap;line-height:1.2}
 .ppf-n{font:inherit;font-size:30px;font-weight:800;line-height:1;background:none;border:0;padding:0;cursor:pointer;color:inherit}
 .ppv-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:2px 0 8px}
@@ -16258,7 +16274,7 @@ function ppQuiChanger(id){
 }
 const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
 const PP_ET_PERS  ={k:'personne', l:'Protocole de la personne', c:'P'};
-var PP_PROTO_CHOIX='produit', PP_DE='12:00', PP_A='17:00';
+var PP_PROTO_CHOIX='produit', PP_DE='12:00', PP_A='17:00', PP_JOUR='';
 function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(function(p){ return p.k===k; })||PP_PROTOS[1]; }
 function ppEtapesDe(a){
   const k=ppProto(a).k;
@@ -16596,6 +16612,18 @@ async function ppInserer(jour, nums, pers, note, opt){
   toast(lignes.length>1 ? lignes.length+' chambres ajoutées' : 'Chambre ajoutée');
   return true;
 }
+/* UN bouton : un N° → la chambre, et ce qui est écrit dans « … » devient les noms
+   (séparés par une virgule, « et » ou un retour à la ligne) ; pas de N° → on lit le texte
+   (un mail, ou juste un nom). */
+async function ppAjouterTicket(){
+  const n=document.getElementById('ppNum'), c=document.getElementById('ppColle'), j=document.getElementById('ppJour');
+  const num=(n&&n.value||'').trim(), txt=(c&&c.value||PP_COLLE||'').trim();
+  if(!num){ if(txt) ppColler(); else n&&n.focus(); return; }
+  const pers=txt ? txt.split(/\s*(?:,|;|\n|\s+et\s+)\s*/i).map(function(x){ return {nom:x.trim().slice(0,60), pa:false}; })
+    .filter(function(x){ return x.nom; }).slice(0,4) : [];
+  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers, '', {});
+  if(ok){ if(n) n.value=''; if(c) c.value=''; PP_COLLE=''; }
+}
 async function ppAjouter(){
   const n=document.getElementById('ppNum'), j=document.getElementById('ppJour');
   const p1=document.getElementById('ppPers1'), p2=document.getElementById('ppPers2');
@@ -16757,31 +16785,28 @@ function vPunaises(){
      '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '</div>';
-  h+='<div class="tbadd">'+
-    /* ⚠ PAS DE CHOIX ENTRE TROIS PROTOCOLES (Mag, 09/10/2026 : « on ne va pas mettre ce
-       genre de choix ; s'il faut faire les protocoles de la personne, il faut que ce soit
-       spécifié — cliquer sur un bouton ») : UN bouton, éteint par défaut. */
-    '<div class="ppc-pt ppc-pt-f"><span>Qui passe</span>'+
+  /* ═══ NOUVEAU PASSAGE — LE TICKET (piste A, Mag, 09/10/2026) ═══ « Je veux pouvoir rentrer
+     les chambres à la main ; arrête d'écrire colle le mail, mets trois petits points ; c'est
+     surtout la chambre. » Le N° en premier et en grand ; « … » sert à coller un mail OU à écrire
+     des noms ; les choix en pastilles ; UN bouton. Pas de phrase d'explication. */
+  const pd=PP_PROTO_CHOIX==='tout';
+  h+='<div class="ppt">'+
+    '<div class="ppt-t"><span class="ppt-rond">'+icon('punaise')+'</span><b>Nouveau passage</b></div>'+
+    '<div class="ppt-z">'+
+      '<input id="ppNum" type="text" placeholder="N°" autocomplete="off" maxlength="10">'+
+      '<textarea id="ppColle" rows="2" placeholder="…" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
+    '</div>'+
+    '<div class="ppt-o">'+
       '<button class="ppf-o'+(PP_RENTO_CHOIX?' on':'')+'" style="--c:#6fc7d9" onclick="PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
-      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="PP_RENTO_CHOIX=false;render()">Mohamed</button></div>'+
-    '<div class="ppc-pt ppc-pt-f"><button class="chip ppc-ppb'+(PP_PROTO_CHOIX==='tout'?' on':'')+'" '+
-      'aria-pressed="'+(PP_PROTO_CHOIX==='tout'?'true':'false')+'" '+
-      'onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
-      (PP_PROTO_CHOIX==='tout'?'✓ ':'')+'Protocole de la personne</button></div>'+
-    '<textarea id="ppColle" rows="3" placeholder="…" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
-    '<div class="chadd" style="margin:0"><button class="chaddbtn" style="flex:1" onclick="ppColler()">Lire le mail et ajouter les chambres</button></div>'+
-    '<div class="tbduo">'+
-      '<input id="ppNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
-      '<input id="ppJour" type="date" value="'+ppJeudi()+'">'+
+      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="PP_RENTO_CHOIX=false;render()">Mohamed</button>'+
+      '<label class="ppf-o on ppt-in"><span class="ppf-ic">'+icon('calendrier')+'</span><input id="ppJour" type="date" value="'+(PP_JOUR||ppJeudi())+'" onchange="PP_JOUR=this.value"></label>'+
+      '<label class="ppf-o on ppt-in"><span class="ppf-ic">'+ppPic('cle')+'</span>'+
+        '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'">→'+
+        '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"></label>'+
+      '<button class="ppf-o'+(pd?' on ppf-pp':'')+'" onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
+        '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pd?'Protocole de la personne':'+ protocole de la personne')+'</button>'+
     '</div>'+
-    '<div class="tbduo pp-heures"><span>Chambre fermée de</span>'+
-      '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'"><span>à</span>'+
-      '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"></div>'+
-    '<div class="ppv-g">'+
-      '<div class="ppv vide"><span class="ppv-r">'+icon('user')+'</span><input id="ppPers1" type="text" maxlength="60" placeholder="Nom" autocomplete="off"></div>'+
-      '<div class="ppv vide"><span class="ppv-r">'+icon('user')+'</span><input id="ppPers2" type="text" maxlength="60" placeholder="Nom" autocomplete="off"></div>'+
-    '</div>'+
-    '<div class="chadd" style="margin:0"><button class="chaddbtn clair" style="flex:1" onclick="ppAjouter()">Ajouter une chambre</button></div>'+
+    '<button class="ppt-go" onclick="ppAjouterTicket()">Ajouter</button>'+
   '</div>';
   if(PP_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>Le protocole n’a pas pu être lu</b>'+
