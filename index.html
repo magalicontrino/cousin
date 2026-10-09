@@ -518,6 +518,15 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvbarre-acc{margin-top:-4px}
 .rdvbarre i img{width:22px;height:22px}
 .rdvbarre .rouge{margin-left:6px;background:#e63329;color:#fff}
+/* La barre Punaises (09/10/2026) : sous la grille des boutons du jour, rouge quand il faut agir. */
+.ppbarre{margin-top:18px;flex-wrap:wrap;row-gap:6px}
+.ppbarre i{background:#f0efed}
+.ppbarre .ppb-2{margin-left:6px}
+.ppbarre .gris{background:#f0efed;color:#6b6963}
+.ppbarre.alerte{border-color:#e63329;box-shadow:0 4px 0 #e63329;background:#fbe3df}
+.ppbarre.alerte i{background:#e63329;color:#fff}
+.ppbarre.alerte .rouge{margin-left:auto}
+.ppbarre.alerte:active{box-shadow:0 2px 0 #e63329}
 .rdvbarre .clair{margin-left:6px;background:#fdfdfc;color:#1b1b1b;border:1.5px solid #1b1b1b}
 .rdvbarre-l .rdvj-r{font-style:normal}
 .socqui-l{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
@@ -16263,6 +16272,26 @@ function ppBoule(){
   return ['punaise','Punaises', sous, '#f0efed', "go('#/punaises')", false, al?'#e63329':'#2b8ea3', !!al];
 }
 
+/* ═══ LA BARRE PUNAISES DE L'ACCUEIL (Mag, 09/10/2026) ═══
+   « Séparé des quatre boutons. Il y en a tout le temps et c'est très important qu'on le
+   voie. Quand il y a une notification, il faut le faire — surtout Rentokil : les chambres
+   arrivent en masse. » Le dessin des barres Rendez-vous / Accompagnements (un seul dessin),
+   posée SOUS la grille. Toujours là ; ROUGE en entier dès qu'une chambre n'est pas prévenue. */
+function ppBarre(){
+  rafraichirPunaises();
+  const L=ppActives().filter(function(a){ const e=ppEtat(a); return e!=='fini' && e!=='abandon'; });
+  const al=L.filter(function(a){ return ppEtat(a)==='alerte'; }).length;
+  const j=ppJours(L)[0];
+  const aRendre=L.filter(function(a){ return a.descendu_le && !a.rendu_le; }).length;
+  let p='';
+  if(al) p+='<b class="rouge">'+al+' pas prévenu'+(al>1?'s':'')+'</b>';
+  if(L.length) p+='<b'+(al?' class="ppb-2"':'')+'>'+esc(ppJourFr(j).split(' ').slice(0,2).join(' '))+' · '+L.length+' chambre'+(L.length>1?'s':'')+'</b>';
+  if(aRendre && !al) p+='<b class="ppb-2">'+aRendre+' à rendre</b>';
+  if(!L.length) p+='<b class="gris">'+(PP_PANNE?'pas lu':(PP_CHARGE?'rien en cours':'…'))+'</b>';
+  return '<button class="rdvbarre ppbarre'+(al?' alerte':'')+'" onclick="go(\'#/punaises\')">'+
+    '<i>'+icon('punaise')+'</i><span>Protocole punaises</span>'+p+'</button>';
+}
+
 /* ── écrire ─────────────────────────────────────────────────────────────── */
 async function ppMaj(a, maj, note){
   if(!sb){ toast('Pas de connexion'); return false; }
@@ -20844,10 +20873,9 @@ function vHome(){
      avait déjà ouvert la page (la liste n'était lue que là). Elle lit maintenant la base
      depuis l'accueil, reste là toute la semaine, grise quand rien n'est en cours, rouge
      dès qu'une chambre n'est pas prévenue. */
-  if(typeof ppBoule==='function'){
-    rafraichirPunaises();
-    boules.push(ppBoule() || ['punaise','Punaises','Jeudi · rien en cours','#f0efed',"go('#/punaises')",true,'#1b1b1b']);
-  }
+  /* ⚠ LES PUNAISES NE SONT PLUS UNE BOULE (Mag, 09/10/2026 : « séparé des quatre boutons ;
+     il y en a tout le temps et c'est très important qu'on le voie ») : une barre à part,
+     sous la grille — `ppBarre()`, plus bas. */
   /* ═══ L'ACCUEIL, PISTE B (Mag, 20/08/2026) ═══
      Elle a regardé les quatre écrans du canvas et répondu « B ». Ce que ça change,
      dans l'ordre de lecture :
@@ -20893,6 +20921,7 @@ function vHome(){
        grise passait dessous, seule, pour trois mots. Dans une grille commune, elles
        se rangent côte à côte. Sur téléphone, `.ajd` ne fait rien du tout. */
     h+='<div class="ajd">';
+    /* (les punaises : voir ppBarre, juste après la grille) */
     h+='<div class="grosses">'+boules.map(function(b){
       const poub=(b[0]==='poubelle');
       const dz=endormie(b);
@@ -20922,6 +20951,7 @@ function vHome(){
     }).join('')+'</div>';
     h+='</div>';
   }
+  if(typeof ppBarre==='function') h+=ppBarre();
 
   /* ═══ LE RESTE ═══
      Chacune dit CE QU'IL Y A DERRIÈRE, pas ce qu'elle est. « 2 à faire » et
