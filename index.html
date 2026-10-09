@@ -16394,16 +16394,30 @@ function ppPersonnes(a){
   if(!P.length && a.initiales) P.push({nom:a.initiales, pa:false});
   return P;
 }
+/* ⚠ LE NOM EFFACÉ (Mag, 09/10/2026 : « j'avais mis le nom, j'ai cliqué sur pas autonome, le nom
+   s'est effacé ») : le nom ne s'enregistre qu'en quittant la case, et l'appui sur « Pas autonome »
+   repartait de l'ANCIENNE liste — sans le nom — et l'écrasait. On relit donc toujours ce qui est
+   ÉCRIT dans les vignettes avant d'enregistrer. */
+function ppPersDuDom(a){
+  const P=ppPersonnes(a);
+  for(let i=0;i<4;i++){
+    const e=document.getElementById('ppP'+a.id+'_'+i); if(!e) continue;
+    while(P.length<=i) P.push({nom:'', pa:false});
+    P[i].nom=String(e.value||'').trim().slice(0,60);
+  }
+  return P;
+}
 function ppPersNom(id, i, v){
   const a=ppLigne(id); if(!a) return;
-  const P=ppPersonnes(a); v=String(v||'').trim().slice(0,60);
+  const P=ppPersDuDom(a); v=String(v||'').trim().slice(0,60);
   while(P.length<=i) P.push({nom:'', pa:false});
-  if((P[i].nom||'')===v) return;
+  const avant=(ppPersonnes(a)[i]||{}).nom||'';
+  if(avant===v) return;
   P[i].nom=v; ppMaj(a, {personnes:P});
 }
 function ppPersPa(id, i){
   const a=ppLigne(id); if(!a) return;
-  const P=ppPersonnes(a); while(P.length<=i) P.push({nom:'', pa:false});
+  const P=ppPersDuDom(a); while(P.length<=i) P.push({nom:'', pa:false});
   P[i].pa=!P[i].pa;
   ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome':' : autonome'));
 }
@@ -16461,7 +16475,7 @@ function ppVignette(id, i, x){
 function ppPersHTML(a){
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
   return '<div class="ppv-g">'+P.map(function(x,i){ return ppVignette(a.id, i, x); }).join('')+
-    (P.length<4?'<button class="ppv ppv-plus" onclick="ppPersAjouter(\''+a.id+'\')">+ une personne</button>':'')+
+
   '</div>';
 }
 /* Les chambres qui comptent encore : le jeudi qui vient ou celui qui vient de passer
