@@ -16751,18 +16751,37 @@ function rdvJourTitre(j){
   if(j===ppAjoute(a,1)) return 'Demain · '+ppJourFr(j);
   return ppJourFr(j);
 }
+/* ═══ L'ÉCRAN MONTRE DE MAINTENANT À LUNDI PROCHAIN (09/10/2026) ═══ Les deux dates du
+   haut servent À L'ÉCRAN ET À L'IMPRESSION : on les change pour voir plus loin. Ce qui est
+   au-delà ne disparaît pas en silence — un bouton dit combien il en reste plus tard. */
+function rdvLundiProchain(a){
+  const d=new Date(a+'T12:00:00'), j=d.getDay();
+  return ppAjoute(a, ((8-j)%7)||7);
+}
+function rdvDates(){
+  const a=agIso(new Date());
+  let du=RDV_IMPR_DU||a, au=RDV_IMPR_AU||rdvLundiProchain(a);
+  if(au<du){ const x=du; du=au; au=x; }
+  return {du:du, au:au};
+}
+function rdvDatesChange(){
+  const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
+  RDV_IMPR_DU=v('rdvDu'); RDV_IMPR_AU=v('rdvAu'); render();
+}
 function vRdv(){
   const a=agIso(new Date());
-  const avenir=RDV.filter(function(r){ return r.jour>=a; });
+  const D=rdvDates();
+  const avenir=RDV.filter(function(r){ return r.jour>=a && r.jour>=D.du && r.jour<=D.au; });
+  const plusTard=RDV.filter(function(r){ return r.jour>D.au; });
   const passes=RDV.filter(function(r){ return r.jour<a; }).reverse();
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Rendez-vous</h1></div>';
   h+='<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
      /* Imprimer du … au … (09/10/2026 : « il faut pouvoir imprimer la liste des
         rendez-vous, de date à date »). Par défaut : aujourd'hui seul = la feuille du jour. */
-     '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(RDV_IMPR_DU||a)+'" aria-label="Du">'+
+     '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" aria-label="Du" onchange="rdvDatesChange()">'+
      '<span class="rdvau">au</span>'+
-     '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(RDV_IMPR_AU||a)+'" aria-label="Au">'+
+     '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
      '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
   if(!RDV_FORM) h+=carteAPrendre();
   if(RDV_FORM) h+=rdvFormHTML();
@@ -16771,13 +16790,18 @@ function vRdv(){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>L’agenda n’a pas pu être lu</b>'+
       '<p>Ce n’est pas qu’il est vide : la base n’a pas répondu.</p><p class="insc">'+esc(RDV_PANNE)+'</p></div>';
   } else if(!avenir.length){
-    h+= RDV_CHARGE ? '<div class="empty"><b>Aucun rendez-vous à venir.</b></div>' : '<div class="empty"><b>Chargement…</b></div>';
+    h+= RDV_CHARGE ? '<div class="empty"><b>Aucun rendez-vous sur ces dates.</b></div>' : '<div class="empty"><b>Chargement…</b></div>';
   }
   const jours=[]; avenir.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
   jours.forEach(function(j){
     h+='<div class="ghead">'+esc(rdvJourTitre(j))+'</div>'+
       avenir.filter(function(r){ return r.jour===j; }).map(function(r){ return rdvCarte(r,false); }).join('');
   });
+  if(plusTard.length){
+    const fin=plusTard.reduce(function(m,r){ return r.jour>m?r.jour:m; }, D.au);
+    h+='<div class="chips"><button class="chip" style="--c:'+chipCouleur(0)+'" onclick="RDV_IMPR_AU=\''+fin+'\';render()">'+
+      'Plus tard · '+plusTard.length+'</button></div>';
+  }
   if(passes.length){
     h+='<div class="bkp'+(RDV_PASSES?' on':'')+'" style="margin-top:18px"><button class="bkp-tete" onclick="RDV_PASSES=!RDV_PASSES;render()">'+
       '<b>Passés · '+RDV_GARDE+' jours</b><span>'+passes.length+' · '+(RDV_PASSES?'fermer':'ouvrir')+' ›</span></button>'+
@@ -16816,6 +16840,7 @@ function rdvFenetre(titre, corps, css, paysage){
      jours = un bloc par jour, la sorte écrite sur la ligne). */
 function rdvImprimer(du, au, seulId){
   const a=agIso(new Date());
+  if(!du && !au && !seulId){ const D=rdvDates(); du=D.du; au=D.au; }
   du=du||a; au=au||du; if(au<du){ const x=du; du=au; au=x; }
   const L=RDV.filter(function(r){
     return seulId ? String(r.id)===String(seulId) : (r.jour>=du && r.jour<=au);
@@ -16865,7 +16890,7 @@ function rdvImprimer(du, au, seulId){
 function rdvImprimerDates(){
   const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
   RDV_IMPR_DU=v('rdvDu')||RDV_IMPR_DU; RDV_IMPR_AU=v('rdvAu')||RDV_IMPR_AU;
-  rdvImprimer(RDV_IMPR_DU, RDV_IMPR_AU);
+  const D=rdvDates(); rdvImprimer(D.du, D.au);
 }
 
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
