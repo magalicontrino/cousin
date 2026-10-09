@@ -408,6 +408,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .pp-heures span{font-size:13px;color:#555}
 .pp-heures input{font:inherit;font-size:14px;font-weight:600;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px}
 .pp-heures-c{margin:0 0 10px}
+.pp-porte{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;width:100%;margin:0 0 10px;font:inherit;font-size:13px;text-align:left;
+  background:#fdfdfc;border:1.5px dashed #b28b7a;border-radius:10px;padding:8px 11px;cursor:pointer;color:#555}
+.pp-porte.on{border:2px solid #e63329;color:#1b1b1b;background:#fdfdfc}
+.pp-porte.on b{color:#c8412e}
+.pp-porte i{margin-left:auto;font-style:normal;font-size:12px;text-decoration:underline}
 .ppc{border-left:7px solid var(--pc,var(--trait))}
 .ppc-rk.on{background:#1b1b1b;color:#fff;border-color:#1b1b1b}
 .ppc-ppb.on{background:#ff8cc6;border-color:#ff8cc6;color:#1b1b1b}
@@ -16282,6 +16287,20 @@ function ppHeureChanger(id, k, v){
   const m={}; m[k]=v;
   ppMaj(a, m, (k==='produit_de'?'fermée à partir de ':'rouverte à ')+ppHFr(v));
 }
+/* ═══ PORTE FERMÉE À CLÉ (Mag, 09/10/2026) ═══ « Quand il n'y a personne dans la chambre pour
+   les prévenir, on ferme la porte : on ne peut les prévenir que le soir. Celui qui l'ouvre doit
+   signer. » Fermer = signé (`porte_le`, `porte_par`) ; rouvrir = signé au journal. */
+function ppPorte(id){
+  const a=ppLigne(id); if(!a) return;
+  const qui=nomAffiche()+' · '+ppHeure(new Date().toISOString());
+  if(a.porte_le){
+    cousinConfirme('Chambre '+a.numero, 'Rouvrir la porte ?\n\nFermée par '+(a.porte_par||'?')+' '+ppQuand(a.porte_le)+
+      '.\nTu signes : '+qui, function(){ ppMaj(a, {porte_le:null, porte_par:null}, 'porte rouverte'); }, {ok:'Je rouvre et je signe'});
+  } else {
+    cousinConfirme('Chambre '+a.numero, 'Fermer la porte à clé ?\n\nLa personne devra passer par l’équipe pour rentrer : on la prévient à ce moment-là.\nTu signes : '+qui,
+      function(){ ppMaj(a, {porte_le:new Date().toISOString(), porte_par:nomAffiche()}, 'porte fermée à clé'); }, {ok:'Je ferme et je signe'});
+  }
+}
 function ppChangerProto(id, k){
   const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
   const p=PP_PROTOS.find(function(x){ return x.k===k; });
@@ -16415,7 +16434,8 @@ function ppEtape(id, k){
   if(k==='prevenu'){
     ppChoix('Chambre '+a.numero+' · prévenu ?', 'Signé : '+qui, [
       {t:'Oui, prévenu', fn:function(){ poser(); }},
-      {t:'Pas vu, je laisse un mot', clair:true, fn:function(){ ppNoter(id, 'Pas vu à '+ppHeure(new Date().toISOString())); }}
+      {t:'Pas vu, je laisse un mot', clair:true, fn:function(){ ppNoter(id, 'Pas vu à '+ppHeure(new Date().toISOString())); }},
+      {t:'Pas là : je ferme la porte à clé', clair:true, fn:function(){ ppPorte(id); }}
     ]);
   } else if(k==='sacs'){
     ppChoix('Chambre '+a.numero+' · sacs faits ?', 'Toujours avec la personne.\nSigné : '+qui, [
@@ -16563,6 +16583,9 @@ function ppCarte(a){
     '<div class="pp-heures pp-heures-c"><span>Fermée de</span>'+
       '<input type="time" value="'+esc(ppDe(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_de\',this.value)"><span>à</span>'+
       '<input type="time" value="'+esc(ppAh(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_a\',this.value)"></div>'+
+    (a.porte_le
+      ? '<button class="pp-porte on" onclick="ppPorte(\''+a.id+'\')"><b>Porte fermée à clé</b> · '+esc(a.porte_par||'')+' '+ppQuand(a.porte_le)+'<i>Rouvrir (signer)</i></button>'
+      : '<button class="pp-porte" onclick="ppPorte(\''+a.id+'\')">Personne là ? Fermer la porte à clé</button>')+
     ppPersHTML(a);
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à midi : pas de protocole, on ne touche pas à ses affaires.</p>';
@@ -16572,7 +16595,7 @@ function ppCarte(a){
       let sous='';
       if(ok) sous=esc(a[s.k+'_par']||'')+' '+ppQuand(a[s.k+'_le'])+(s.k==='sacs'&&a.sacs_qui==='aide-soignant'?' · avec l’aide-soignant·e':'');
       else if(rouge) sous='à faire';
-      else if(s.k==='rendu') sous='vendredi matin';
+      else if(s.k==='rendu') sous='après 24 h';
       return '<button class="ppc-p'+(ok?' ok':'')+(rouge?' rouge':'')+'" onclick="ppEtape(\''+a.id+'\',\''+s.k+'\')">'+
         '<span class="ppc-r">'+(ok?'✓':s.c)+'</span><b>'+s.l+'</b><em>'+sous+'</em></button>';
     }).join('')+'</div>';
@@ -16630,7 +16653,7 @@ function vPunaises(){
       return (rang[ppEtat(a)]-rang[ppEtat(b)]) || String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true});
     });
     h+='<div class="ghead">'+esc(ppJourFr(j))+' <span style="color:var(--enc2)">'+L.length+'</span></div>'+
-       '<p class="pp-sous">Sacs préparés une heure avant, toujours avec la personne · sacs rendus le lendemain matin</p>';
+       '<p class="pp-sous">Sacs préparés une heure avant, toujours avec la personne · sacs rendus après 24 h</p>';
     /* ⚠ PAS DE « RENTOKIL / AUTRE PASSAGE » (Mag, 09/10/2026 : « c'est nous qui gérons, on s'en
        fout, il y a des protocoles, c'est tout ») : une seule liste. Le mot vient du mail collé,
        en petit commentaire sous la chambre. */
@@ -16668,10 +16691,11 @@ function ppImprimer(quoi){
           '<p class="pied">Une question ? Adressez-vous à l’accueil. · Questions? Ask at the front desk.</p></section>';
       return '<section class="pg aff"><p class="num">'+esc(a.numero)+'</p>'+
         '<h1>Punaises · Bed bugs</h1><p class="date">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</p>'+
-        c(pic('colis.svg'),'Avant 11 h : toutes vos affaires dans les sacs.','Before 11 am: put all your belongings in the bags.')+
+        /* Les heures du passage de CETTE chambre ; les sacs reviennent après 24 h (Mag, 09/10/2026). */
+        c(pic('colis.svg'),'Avant '+ppHFr(ppAvantSacs(a))+' : toutes vos affaires dans les sacs.','Before '+ppHEn(ppAvantSacs(a))+': put all your belongings in the bags.')+
         c(pic('hebergement.svg'),'Enlevez vos draps.','Remove your bed sheets.')+
-        c(pic('interdit.svg'),'Ne pas entrer de 12 h à 17 h.','Do not enter from 12 pm to 5 pm.')+
-        c(flocon,'Vos sacs vous sont rendus vendredi matin.','Your bags will be returned on Friday morning.')+
+        c(pic('interdit.svg'),'Ne pas entrer de '+ppHFr(ppDe(a))+' à '+ppHFr(ppAh(a))+'.','Do not enter from '+ppHEn(ppDe(a))+' to '+ppHEn(ppAh(a))+'.')+
+        c(flocon,'Vos sacs vous sont rendus après 24 heures.','Your bags will be returned after 24 hours.')+
         '<p class="pied">Une question ? Adressez-vous à l’accueil. · Questions? Ask at the front desk.</p></section>';
     }).join('');
     css='.aff .num{font-size:110pt;font-weight:700;line-height:1}'+
@@ -16709,8 +16733,9 @@ function ppImprimer(quoi){
       }).join('')+'</div>';
     };
     const proto=function(a){
-      if(!a) return '<div class="pchoix"><span class="psous">Fermée de ……… à ………</span><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
-      return '<span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+(ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
+      if(!a) return '<div class="pchoix"><span class="psous">Fermée de ……… à ………</span><span class="pc porte">'+bx(false)+'Porte fermée à clé<br>rouverte par : ………</span><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
+      return '<span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+
+        '<span class="pc porte">'+bx(!!a.porte_le)+'Porte fermée à clé'+(a.porte_le?' ('+esc(a.porte_par||'')+')':'')+'<br>rouverte par : ………</span>'+(ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
     };
     const ligne=function(a){
       const c = (a && ppProto(a).k==='tout') ? '#ff8cc6' : '#ffffff';
@@ -16732,7 +16757,7 @@ function ppImprimer(quoi){
     corps='<section class="pg">'+
       '<div class="tt"><h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
         '</div>'+
-      '<p class="rel">Sacs préparés une heure avant le passage, <b>toujours avec la personne</b> · sacs rendus le lendemain matin. '+
+      '<p class="rel">Sacs préparés une heure avant le passage, <b>toujours avec la personne</b> · sacs rendus après 24 h. '+
         '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. <b>Pas prévenu à l’heure du passage = abandonné : on ne touche pas à ses affaires.</b></p>'+
       (pasPrev && !lignes.length ? '<p class="rel"><b>Tout le monde est prévenu.</b></p>' : '')+
       blocs+
@@ -16747,6 +16772,7 @@ function ppImprimer(quoi){
       'td{border-bottom:1px solid #000;padding:2.5mm 2mm;vertical-align:top;font-size:11pt}'+
       'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
+      '.pc.porte{display:block;font-size:8.5pt;margin:1mm 0 1.5mm;line-height:1.5}.pc.porte .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       '.pheure{display:block;font-size:11pt;font-weight:700;margin-bottom:1.5mm}.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
       '.pchoix .pc{display:block;font-size:9pt;margin-bottom:1mm}.pchoix .pc .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       'td.in{width:92mm}.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
