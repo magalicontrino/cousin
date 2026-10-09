@@ -16524,7 +16524,7 @@ function rdvPrisEnCharge(r){
     const qui=r[t[0]+'_par'];
     /* « On doit voir qui a descendu les réveils » (09/10/2026) : le nom vient en premier. */
     l.push(qui
-      ? '<p class="rdvc-a">'+t[1]+' — pris par '+esc(qui)+(r[t[0]+'_note']?' : '+esc(r[t[0]+'_note']):'')+'</p>'
+      ? '<p class="rdvc-a">'+t[1]+' — passé à la nuit par '+esc(qui)+(r[t[0]+'_note']?' : '+esc(r[t[0]+'_note']):'')+'</p>'
       : '<p class="rdvc-a rouge">'+t[1]+' : personne encore</p>');
   });
   return l.join('');
@@ -16533,7 +16533,7 @@ function rdvPrisEnCharge(r){
    infirmière aussi peut prévenir »), et le réveil — visibles par TOUT LE MONDE dès que le
    rendez-vous est écrit (« dès qu'on le sait, on le met »). On les prend avec « Je m'en
    occupe » : PAS un simple appui (« que ce ne soit pas une erreur ») — une fenêtre où il
-   FAUT écrire ce qu'on fait, puis la tâche descend dans SA liste perso. */
+   FAUT écrire ce qu'on fait, puis la tâche part dans la passation de nuit (voir `rdvPrendre`). */
 function rdvTaches(){
   const a=agIso(new Date()), t=[];
   (RDV||[]).forEach(function(r){
@@ -16611,7 +16611,7 @@ function rdvPrendre(id, k, deja){
   cousinPop({
     titre:'Je prends en charge — '+quoi,
     texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:'')+
-      (k==='reveil'?' — ex. : je passe le réveil à l’équipe de nuit ce soir.':' — ex. : je préviens monsieur cet après-midi.'),
+      (k==='reveil'?' — part dans la passation de nuit, en réveil.':' — part dans la passation de nuit, en info.'),
     champ:deja||'', max:300, multi:true, ok:'Je prends en charge', sansAudio:true,
     quandOui:async function(v){
       v=(v||'').trim();
@@ -16624,16 +16624,35 @@ function rdvPrendre(id, k, deja){
       if(res.error){ toast('Pas enregistré : '+res.error.message); return; }
       if(!res.data || !res.data.length){ toast('Quelqu’un s’en occupe déjà'); await loadRdv(); render(); return; }
       Object.assign(r, res.data[0]);
-      /* La tâche descend dans MA liste perso — datée du jour du rendez-vous pour un
-         réveil, sans date pour prévenir (c'est à faire dès maintenant). */
-      const ligne={id:'r'+Date.now(), texte:(quoi+' — '+r.nom+' ('+rdvType(r.genre).l.toLowerCase()+', '+rdvQuandCourt(r)+
-        (r.lieu?', '+r.lieu:'')+') : '+v).slice(0,4000)};
-      if(r.chambre) ligne.chambre=String(r.chambre).slice(0,12);
-      /* Le réveil garde son heure et son jour : « Passation » le pose tel quel dans la
-         passation de nuit, en RÉVEIL (voir `rappelPasser`). */
-      if(k==='reveil'){ ligne.quand=r.jour; ligne.reveilH=r.reveil_heure||''; ligne.reveilJ=r.jour; }
-      MESRAPPELS.push(ligne); rappelsSauver();
-      render(); toast('C’est dans ta liste perso ✓');
+      /* ═══ ÇA PART DIRECTEMENT DANS LA PASSATION DE NUIT, EN DEUX LIGNES (09/10/2026 :
+         « si ce n'est pas une personne autonome, on sait qu'on doit la prévenir le soir —
+         ça doit être dans les passations, info : prévenir le rendez-vous de monsieur, et
+         ça doit être aussi dans le réveil. Ça doit se séparer en deux ») ═══
+         · Réveil → une ligne RÉVEIL, avec son heure, sa chambre, le jour du rendez-vous ;
+         · Pas autonome → une ligne INFO « Prévenir … ».
+         Signée par qui l'a descendue : c'est ce que l'agenda affiche (« pris par … »).
+         ⚠ Si la passation est refusée, on rend la tâche (sinon elle serait perdue des deux côtés). */
+      const ty=rdvType(r.genre).l.toLowerCase();
+      const quand=(r.jour===agIso(new Date())?'aujourd’hui':(r.jour===ppAjoute(agIso(new Date()),1)?'demain':ppJourFr(r.jour)))+
+        (r.heure?' à '+rdvHeureFr(r.heure):'');
+      const l={pour:PASS_EQUIPE, par:nomAffiche(), chambre:r.chambre||null, a_jeun:false};
+      if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
+      if(k==='reveil'){
+        l.genre='reveil'; l.heure=r.reveil_heure||null; l.jour=r.jour;
+        l.texte=('Réveil — '+r.nom+' : rendez-vous '+ty+' '+quand+(r.lieu?', '+r.lieu:'')+'. '+v).slice(0,4000);
+      } else {
+        l.genre='passation'; l.jour=agIso(new Date());
+        l.texte=('Prévenir '+r.nom+' de son rendez-vous '+ty+' '+quand+(r.lieu?', '+r.lieu:'')+'. '+v).slice(0,4000);
+      }
+      const ins=await sb.from('passations').insert(l).select();
+      if(ins.error || !ins.data || !ins.data.length){
+        const rend={}; rend[k+'_par']=null; rend[k+'_note']=null; rend[k+'_le']=null;
+        await sb.from('rendez_vous').update(rend).eq('id',r.id);
+        Object.assign(r, rend); render();
+        toast('Pas passé à la nuit — la base a refusé. Réessaie.'); return;
+      }
+      ins.data[0]._pose=Date.now(); PASSATIONS.unshift(ins.data[0]);
+      render(); toast('Passé à l’équipe de nuit ✓');
     }
   });
 }
