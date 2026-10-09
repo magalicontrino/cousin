@@ -404,6 +404,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppc-j i{font-style:normal;color:#777;font-size:11px}
 .ppc-ps{display:flex;flex-direction:column;gap:6px;margin:0 0 11px}
 .ppc-pt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.ppc{border-left:7px solid var(--pc,var(--trait))}
+.ppc-rk.on{background:#1b1b1b;color:#fff;border-color:#1b1b1b}
+.ppc-ppb.on{background:#ff8cc6;border-color:#ff8cc6;color:#1b1b1b}
+.pp-band{background:#1b1b1b;color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;border-radius:8px;padding:7px 12px;margin:4px 0 10px}
+.pp-band.autre{background:#d8d4cd;color:#1b1b1b}
 .ppc-pt-f span{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#555;margin-right:4px}
 .ppc-pt-f em{flex:1 1 100%;font-style:normal;font-size:12.5px;color:#555}
 .ppc-pr{display:flex;gap:8px;align-items:center}
@@ -16120,8 +16126,8 @@ function vTourBacs(){
 var PUNAISES=[], PP_PANNE='', PP_CHARGE=false, PP_COLLE='';
 const PP_ETAPES=[
   {k:'prevenu',  l:'Prévenu',     c:'A'},
-  {k:'sacs',     l:'Sacs faits',  c:'B'},
-  {k:'descendu', l:'Descendu',    c:'C'},
+  {k:'sacs',     l:'Sacs préparés', c:'B'},
+  {k:'descendu', l:'Descendu en protocole', c:'C'},
   {k:'rendu',    l:'Sacs rendus', c:'D'}
 ];
 /* ═══ TROIS SORTES DE PROTOCOLE (Mag, 09/10/2026) ═══
@@ -16129,10 +16135,14 @@ const PP_ETAPES=[
    on doit faire les sacs, et on ne doit pas spécialement faire les gens. Et un autre où il
    faut tout faire. » Chaque chambre porte sa sorte (`protocole`) et n'a QUE ses étapes. */
 const PP_PROTOS=[
-  {k:'vapeur',  l:'Vapeur',          s:'La chambre seule, à la vapeur'},
-  {k:'produit', l:'Produit + sacs',  s:'Produit, sacs ; pas la personne'},
-  {k:'tout',    l:'Tout',            s:'Produit, sacs et la personne'}
+  {k:'vapeur',  l:'Vapeur',          s:'La chambre seule, à la vapeur', c:'#6fc7d9'},
+  {k:'produit', l:'Produit + sacs',  s:'Produit, sacs ; pas la personne', c:'#f5c542'},
+  {k:'tout',    l:'Tout',            s:'Produit, sacs ET protocole de la personne', c:'#ff8cc6'}
 ];
+/* Rentokil ou un autre passage (Mag, 09/10/2026 : « séparer les Rentokil des non-Rentokil,
+   en premier ») — `rentokil` en base, vrai par défaut. */
+var PP_RENTO_CHOIX=true;
+function ppRento(a){ return a.rentokil!==false; }
 const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
 const PP_ET_PERS  ={k:'personne', l:'Personne faite', c:'P'};
 var PP_PROTO_CHOIX='produit';
@@ -16140,7 +16150,6 @@ function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(
 function ppEtapesDe(a){
   const k=ppProto(a).k;
   if(k==='vapeur') return [PP_ETAPES[0], PP_ET_VAPEUR];
-  if(k==='tout') return [PP_ETAPES[0], PP_ETAPES[1], PP_ETAPES[2], PP_ET_PERS, PP_ETAPES[3]];
   return PP_ETAPES;
 }
 async function loadPunaises(){
@@ -16235,6 +16244,16 @@ function ppPersPa(id, i){
   P[i].pa=!P[i].pa;
   ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome':' : autonome'));
 }
+function ppPersPp(id, i){
+  const a=ppLigne(id); if(!a) return;
+  const P=ppPersonnes(a); while(P.length<=i) P.push({nom:'', pa:false});
+  P[i].pp=!P[i].pp;
+  ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pp?' : protocole de la personne fait':' : protocole de la personne décoché'));
+}
+function ppRentoChanger(id){
+  const a=ppLigne(id); if(!a) return;
+  ppMaj(a, {rentokil:!ppRento(a)}, ppRento(a)?'passe en « autre passage »':'passe en « Rentokil »');
+}
 function ppPersAjouter(id){
   const a=ppLigne(id); if(!a) return;
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
@@ -16253,7 +16272,9 @@ function ppPersHTML(a){
       '<input id="ppP'+a.id+'_'+i+'" type="text" maxlength="60" placeholder="Personne '+(i+1)+'" value="'+esc(x.nom||'')+'" '+
         'autocomplete="off" onchange="ppPersNom(\''+a.id+'\','+i+',this.value)">'+
       '<button class="chip'+(x.pa?' on':'')+'" aria-pressed="'+(x.pa?'true':'false')+'" '+
-        'onclick="ppPersPa(\''+a.id+'\','+i+')">Pas autonome</button></div>';
+        'onclick="ppPersPa(\''+a.id+'\','+i+')">Pas autonome</button>'+
+      (ppProto(a).k==='tout'?'<button class="chip ppc-ppb'+(x.pp?' on':'')+'" aria-pressed="'+(x.pp?'true':'false')+'" '+
+        'onclick="ppPersPp(\''+a.id+'\','+i+')">'+(x.pp?'✓ ':'')+'Protocole personne</button>':'')+'</div>';
   }).join('')+
   (P.length<4?'<button class="ppc-plus" onclick="ppPersAjouter(\''+a.id+'\')">+ une personne</button>':'')+
   '</div>';
@@ -16401,7 +16422,7 @@ async function ppInserer(jour, nums, pers){
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, cree_par:nomAffiche()};
+    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, rentokil:PP_RENTO_CHOIX, cree_par:nomAffiche()};
   });
   if(!lignes.length){ toast('Déjà dans la liste'); return false; }
   const {error}=await sb.from('protocole_punaises').insert(lignes);
@@ -16443,11 +16464,12 @@ function ppColler(){
   const c=document.getElementById('ppColle'); const t=(c&&c.value)||PP_COLLE;
   if(!t.trim()){ c&&c.focus(); return; }
   const r=ppLireMail(t);
+  if(/rentokil/i.test(t)) PP_RENTO_CHOIX=true;
   if(!r.nums.length){ toast('Aucun numéro de chambre trouvé dans ce texte'); return; }
   cousinConfirme('Rentokil · '+ppJourFr(r.jour),
     (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
     r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+
-    '\nProtocole : '+PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).l+
+    '\n'+(PP_RENTO_CHOIX?'Rentokil':'Autre passage')+' · protocole : '+PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).l+
     '\n\nVérifie avant d’ajouter.',
     async function(){
       const ok=await ppInserer(r.jour, r.nums, []);
@@ -16461,11 +16483,12 @@ function ppCarte(a){
   const E=ppEtapesDe(a), pr=ppProto(a);
   const fait=E.filter(function(s){ return ppFait(a,s.k); }).length;
   const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / '+E.length;
-  let h='<div class="ppc '+e+'">'+
+  let h='<div class="ppc '+e+'" style="--pc:'+ppProto(a).c+'">'+
     '<div class="ppc-h"><span class="ppc-n">'+esc(a.numero)+'</span>'+
       '<span class="ppc-e">'+etat+'</span></div>'+
-    '<div class="ppc-pt">'+PP_PROTOS.map(function(p){
-      return '<button class="chip'+(p.k===pr.k?' on':'')+'" aria-pressed="'+(p.k===pr.k?'true':'false')+'" '+
+    '<div class="ppc-pt"><button class="chip ppc-rk'+(ppRento(a)?' on':'')+'" onclick="ppRentoChanger(\''+a.id+'\')">'+
+      (ppRento(a)?'Rentokil':'Autre passage')+'</button>'+PP_PROTOS.map(function(p){
+      return '<button class="chip'+(p.k===pr.k?' on':'')+'" style="--c:'+p.c+'" aria-pressed="'+(p.k===pr.k?'true':'false')+'" '+
         'onclick="ppChangerProto(\''+a.id+'\',\''+p.k+'\')">'+esc(p.l)+'</button>'; }).join('')+'</div>'+
     ppPersHTML(a);
   if(e==='abandon'){
@@ -16500,8 +16523,11 @@ function vPunaises(){
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'entree\')"><span class="ic">'+icon('imprimer')+'</span>La liste pour l’entrée</button></div>';
   h+='<div class="tbadd">'+
+    '<div class="ppc-pt ppc-pt-f"><span>Passage</span>'+
+      '<button class="chip'+(PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
+      '<button class="chip'+(!PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=false;render()">Autre passage</button></div>'+
     '<div class="ppc-pt ppc-pt-f"><span>Protocole</span>'+PP_PROTOS.map(function(p){
-      return '<button class="chip'+(p.k===PP_PROTO_CHOIX?' on':'')+'" aria-pressed="'+(p.k===PP_PROTO_CHOIX?'true':'false')+'" '+
+      return '<button class="chip'+(p.k===PP_PROTO_CHOIX?' on':'')+'" style="--c:'+p.c+'" aria-pressed="'+(p.k===PP_PROTO_CHOIX?'true':'false')+'" '+
         'title="'+esc(p.s)+'" onclick="PP_PROTO_CHOIX=\''+p.k+'\';render()">'+esc(p.l)+'</button>'; }).join('')+
       '<em>'+esc(PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).s)+'</em></div>'+
     '<textarea id="ppColle" rows="3" placeholder="Coller le mail de passage (Rentokil ou autre)" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
@@ -16528,8 +16554,10 @@ function vPunaises(){
       return (rang[ppEtat(a)]-rang[ppEtat(b)]) || String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true});
     });
     h+='<div class="ghead">'+esc(ppJourFr(j))+' <span style="color:var(--enc2)">'+L.length+'</span></div>'+
-       '<p class="pp-sous">Produit 12 h → 17 h · chambres rouvertes à 17 h · sacs rendus le lendemain matin</p>'+
-       L.map(ppCarte).join('');
+       '<p class="pp-sous">Produit 12 h → 17 h · chambres rouvertes à 17 h · sacs rendus le lendemain matin</p>';
+    const rk=L.filter(ppRento), au=L.filter(function(a){ return !ppRento(a); });
+    if(rk.length) h+='<div class="pp-band">Rentokil · '+rk.length+'</div>'+rk.map(ppCarte).join('');
+    if(au.length) h+='<div class="pp-band autre">Autres passages · '+au.length+'</div>'+au.map(ppCarte).join('');
   });
   h+=wikiBloc('punaises');
   return h;
@@ -16549,7 +16577,7 @@ function ppImprimer(quoi){
   const pic=function(f){ return '<img src="'+new URL('picto/'+f, location.href).href+'" alt="">'; };
   const flocon='<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round">'+
     '<path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5"/></svg>';
-  let corps='', titre='', css='';
+  let corps='', titre='', css='', paysage=false;
   if(quoi==='portes'){
     if(!L.length){ toast('Aucune chambre pour '+ppJourFr(jour)); return; }
     titre='Affiches des portes';
@@ -16578,61 +16606,83 @@ function ppImprimer(quoi){
     const pasPrev = (quoi==='entree');
     const lignes = pasPrev ? L.filter(function(a){ return ppEtat(a)==='alerte'; }) : L;
     titre = pasPrev ? 'À prévenir en arrivant' : 'Protocole punaises';
-    const case_=function(a,k,l){
-      const ok=a&&ppFait(a,k);
-      return '<td class="cx"><span class="bx">'+(ok?'✓':'')+'</span>'+l+(ok?'<em>'+esc(a[k+'_par']||'')+'</em>':'')+'</td>';
-    };
-    /* Les personnes : un nom par ligne, et la case « pas autonome » cochée ou à cocher
-       au stylo. Une chambre vide garde DEUX lignes à remplir (deux personnes par chambre). */
-    /* Les étapes SELON LE PROTOCOLE de la chambre (09/10/2026). Une ligne vide propose les
-       trois sortes à cocher au stylo, puis toutes les étapes possibles. */
-    const boite=function(ok,l,par){ return '<span class="et"><span class="bx">'+(ok?'✓':'')+'</span>'+l+(par?'<em>'+esc(par)+'</em>':'')+'</span>'; };
-    const etapesPapier=function(a){
-      if(!a) return '<td class="ets"><div class="pt">'+PP_PROTOS.map(function(p){ return boite(false,p.l); }).join('')+'</div>'+
-        '<div>'+boite(false,'Prévenu')+boite(false,'Vapeur')+boite(false,'Sacs')+boite(false,'Descendu')+boite(false,'Personne')+boite(false,'Sacs rendus')+'</div></td>';
-      return '<td class="ets"><div class="pt"><b>'+esc(ppProto(a).l)+'</b> — '+esc(ppProto(a).s)+'</div><div>'+
-        ppEtapesDe(a).map(function(e){ const ok=ppFait(a,e.k); return boite(ok, e.l, ok?(a[e.k+'_par']||''):''); }).join('')+'</div></td>';
-    };
+    paysage = true;
+    const bx=function(ok){ return '<span class="bx">'+(ok?'✓':'')+'</span>'; };
+    /* ═══ LA FEUILLE À L'HORIZONTALE (Mag, 09/10/2026) ═══
+       « Une feuille horizontale, on pourrait mettre les commentaires plus facilement — à
+       18 h on n'était pas là, demander à l'équipe de nuit. » + « beaucoup plus coloré,
+       plus évident » + « séparer les Rentokil des non-Rentokil, en premier » + « il manque
+       complètement le protocole de la personne ». Un bandeau par groupe, la couleur du
+       protocole sur le flanc de chaque chambre, et une grande colonne de commentaires. */
     const pers=function(a){
       const P=a?ppPersonnes(a).filter(function(x){ return x.nom; }):[];
       while(P.length<2) P.push({nom:'', pa:false});
+      const avecPp = !a || ppProto(a).k==='tout';
       return P.map(function(x){
         return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
-          '<span class="pa"><span class="bx">'+(x.pa?'✓':'')+'</span>pas autonome</span></div>';
+          '<span class="pa">'+bx(x.pa)+'pas autonome</span>'+
+          (avecPp?'<span class="pa ppp">'+bx(x.pp)+'protocole personne</span>':'')+'</div>';
       }).join('');
     };
-    const ligne=function(a){
-      return '<tr><td class="ch">'+(a?esc(a.numero):'')+'</td><td class="in">'+pers(a)+'</td>'+
-        (pasPrev ? case_(a,'prevenu','Prévenu') : etapesPapier(a))+
-        '<td class="no"></td></tr>';
+    const etapes=function(a){
+      const E = a ? ppEtapesDe(a) : PP_ETAPES;
+      return '<div class="ets">'+E.map(function(e){
+        const ok=a&&ppFait(a,e.k);
+        return '<span class="et">'+bx(ok)+'<b>'+e.l+'</b>'+(ok?'<em>'+esc(a[e.k+'_par']||'')+'</em>':'')+'</span>';
+      }).join('')+'</div>';
     };
+    const proto=function(a){
+      if(!a) return '<div class="pchoix">'+PP_PROTOS.map(function(p){
+        return '<span class="pc" style="--c:'+p.c+'">'+bx(false)+p.l+'</span>'; }).join('')+
+        '<span class="pc">'+bx(false)+'Rentokil</span><span class="pc">'+bx(false)+'Autre</span></div>';
+      const p=ppProto(a);
+      return '<span class="ptag" style="background:'+p.c+'">'+esc(p.l)+'</span><span class="psous">'+esc(p.s)+'</span>';
+    };
+    const ligne=function(a){
+      const c = a ? ppProto(a).c : '#d8d4cd';
+      return '<tr style="--c:'+c+'"><td class="ch"><span>'+(a?esc(a.numero):'')+'</span></td>'+
+        '<td class="pr">'+proto(a)+'</td>'+
+        '<td class="in">'+pers(a)+'</td>'+
+        (pasPrev ? '<td class="ets1">'+bx(a&&a.prevenu_le)+'<b>Prévenu</b></td>' : '<td>'+etapes(a)+'</td>')+
+        '<td class="no"><div></div><div></div><div></div></td></tr>';
+    };
+    const tete='<thead><tr><th>Ch.</th><th>Protocole</th><th>Personnes</th><th>'+(pasPrev?'':'Étapes')+'</th>'+
+      '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
+    const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
+    const rk=lignes.filter(ppRento), au=lignes.filter(function(a){ return !ppRento(a); });
+    let blocs='';
+    if(rk.length) blocs+=bloc('Rentokil · '+rk.length+' chambre'+(rk.length>1?'s':''), 'rk', rk.map(ligne).join(''));
+    if(au.length) blocs+=bloc('Autres passages · '+au.length+' chambre'+(au.length>1?'s':''), 'au', au.map(ligne).join(''));
     const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
-    let rows=lignes.map(ligne).join('');
-    for(let i=0;i<vides;i++) rows+=ligne(null);
+    let vrows=''; for(let i=0;i<vides;i++) vrows+=ligne(null);
+    blocs+=bloc('À ajouter au stylo', 'vide', vrows);
     corps='<section class="pg">'+
-      '<h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
-      '<p class="s">Produit 12 h → 17 h · chambres rouvertes à 17 h · sacs faits avant 11 h, <b>toujours avec la personne</b> · sacs rendus le lendemain matin</p>'+
-      '<p class="rel"><b>Pas prévenu ?</b> Soir → aux présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. '+
-        '<b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
-      (pasPrev && !lignes.length ? '<p class="s"><b>Tout le monde est prévenu.</b></p>' : '')+
-      '<table><thead><tr><th>Ch.</th><th>Personnes</th>'+(pasPrev?'<th></th>':'<th>Protocole et étapes</th>')+
-      '<th>Note (repasser la nuit, le matin…)</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-      '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+
-        ' · cocher au stylo, puis dans COUSIN si possible</p></section>';
-    css='h1{font-size:20pt;margin-bottom:3mm}.s{font-size:12pt;margin-bottom:2mm}.rel{font-size:12pt;margin:3mm 0 6mm;padding:3mm 4mm;border:2px solid #000}'+
-      'table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10pt;padding:2mm;border-bottom:2px solid #000}'+
-      'td{border-bottom:1px solid #000;padding:3mm 2mm;vertical-align:top;font-size:12pt}'+
-      'td.ch{font-size:22pt;font-weight:700;width:18mm}td.in{width:80mm}'+
-      '.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
-      '.pn .nm{flex:1;min-width:52mm;min-height:7mm;border-bottom:1px dotted #000;font-size:13pt;font-weight:700}'+
-      '.pn .pa{font-size:8.5pt;white-space:nowrap}.pn .pa .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
-      'td.cx{width:17mm;font-size:9pt;line-height:1.3}td.cx em{display:block;font-style:normal;font-size:9pt;color:#444}'+
-      '.bx{display:inline-block;width:6mm;height:6mm;border:2px solid #000;vertical-align:middle;margin-right:2mm;text-align:center;font-weight:700;line-height:5.5mm}'+
-      'td.no{height:22mm;min-width:30mm;border-left:1px solid #000}'+
-      'td.ets{font-size:9.5pt}td.ets .pt{margin-bottom:2mm;font-size:10pt}'+
-      'td.ets .et{display:inline-block;margin:0 3mm 1.5mm 0;white-space:nowrap}td.ets .et em{font-style:normal;font-size:8pt;color:#444;margin-left:1mm}'+
-      'td.ets .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
-      '.pied{font-size:10pt;color:#444;margin-top:5mm}';
+      '<div class="tt"><h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
+        '<div class="leg">'+PP_PROTOS.map(function(p){ return '<span><i style="background:'+p.c+'"></i><b>'+p.l+'</b> '+esc(p.s)+'</span>'; }).join('')+'</div></div>'+
+      '<p class="rel"><b>Produit 12 h → 17 h</b> · chambres rouvertes à 17 h · sacs préparés avant 11 h, <b>toujours avec la personne</b> · sacs rendus le lendemain matin. '+
+        '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. <b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
+      (pasPrev && !lignes.length ? '<p class="rel"><b>Tout le monde est prévenu.</b></p>' : '')+
+      blocs+
+      '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+'</p></section>';
+    css='.tt{display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;flex-wrap:wrap;margin-bottom:3mm}'+
+      'h1{font-size:19pt}.leg{display:flex;gap:4mm;flex-wrap:wrap;font-size:9pt}.leg i{display:inline-block;width:4mm;height:4mm;border-radius:1mm;vertical-align:-0.6mm;margin-right:1.2mm;border:1px solid #000}'+
+      '.rel{font-size:10.5pt;margin:0 0 4mm;padding:2.5mm 4mm;border:2px solid #000;border-radius:2mm;background:#fdf6e0}'+
+      '.band{font-size:11pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2mm 4mm;border-radius:2mm 2mm 0 0;margin-top:4mm}'+
+      '.band.rk{background:#1b1b1b;color:#fff}.band.au{background:#b28b7a;color:#fff}.band.vide{background:#e8e7e4;color:#1b1b1b}'+
+      'table{width:100%;border-collapse:collapse;break-inside:auto}tr{break-inside:avoid}'+
+      'th{text-align:left;font-size:8.5pt;padding:1.5mm 2mm;border-bottom:2px solid #000;font-weight:600;color:#333}'+
+      'td{border-bottom:1px solid #000;padding:2.5mm 2mm;vertical-align:top;font-size:11pt}'+
+      'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
+      'td.pr{width:34mm}.ptag{display:inline-block;font-weight:700;font-size:10.5pt;padding:1mm 2.5mm;border-radius:6mm;border:1px solid #000}'+
+      '.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
+      '.pchoix .pc{display:block;font-size:9pt;margin-bottom:1mm}.pchoix .pc .bx{width:4mm;height:4mm;line-height:3.5mm}'+
+      'td.in{width:92mm}.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
+      '.pn .nm{flex:1;min-width:40mm;min-height:7mm;border-bottom:1px dotted #000;font-size:12.5pt;font-weight:700}'+
+      '.pn .pa{font-size:8.5pt;white-space:nowrap}.pn .ppp{font-weight:700}.pn .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
+      '.ets{display:flex;flex-direction:column;gap:1.8mm}.et{font-size:10pt;white-space:nowrap}.et b{font-weight:600}.et em{font-style:normal;font-size:8pt;color:#444;margin-left:1.5mm}'+
+      '.bx{display:inline-block;width:5.5mm;height:5.5mm;border:2px solid #000;vertical-align:middle;margin-right:2mm;text-align:center;font-weight:700;line-height:5mm;background:#fff}'+
+      'td.no{min-width:62mm;border-left:1px solid #000}td.no div{height:7mm;border-bottom:1px dotted #777}'+
+      '.pied{font-size:9pt;color:#444;margin-top:4mm}';
   }
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
@@ -16649,7 +16699,8 @@ function ppImprimer(quoi){
     css+
     '@media print{.bar{display:none}body{background:#fff}'+
       '.pg{width:100%;min-height:0;margin:0;padding:0;box-shadow:none;break-after:page;page-break-after:always}'+
-      '.pg:last-child{break-after:auto;page-break-after:auto}@page{size:A4 portrait;margin:14mm}}'+
+      '.pg:last-child{break-after:auto;page-break-after:auto}@page{size:A4 '+(paysage?'landscape;margin:10mm':'portrait;margin:14mm')+'}}'+
+    (paysage?'.pg{width:297mm;min-height:210mm;padding:12mm 12mm}@media(max-width:310mm){ .pg{width:auto;min-height:0;margin:12px;padding:8mm} }':'')+
     '</style></head><body>'+
     '<div class="bar"><b>'+esc(titre)+' — aperçu</b><button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+

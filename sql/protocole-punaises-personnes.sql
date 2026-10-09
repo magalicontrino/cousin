@@ -12,3 +12,6 @@ alter table public.protocole_punaises add column if not exists vapeur_le timesta
 alter table public.protocole_punaises add column if not exists vapeur_par text;
 alter table public.protocole_punaises add column if not exists personne_le timestamptz;
 alter table public.protocole_punaises add column if not exists personne_par text;
+
+-- Rentokil ou un autre passage (Mag, 09/10/2026 : « séparer les Rentokil des non-Rentokil, en premier »)
+alter table public.protocole_punaises add column if not exists rentokil boolean not null default true;
