@@ -16237,9 +16237,20 @@ function ppNumero(id){
     ppMaj(a, {numero:v}, 'numéro : '+v);
   }, 10);
 }
+function ppSacsNom(a){ const q=String(a.sacs_qui||''); return q.indexOf('aide-soignant:')===0 ? q.slice(14) : ''; }
 function ppSacsAvec(a){
-  const q=String(a.sacs_qui||''); if(q.indexOf('aide-soignant')!==0) return '';
-  const nom=q.split(':')[1]; return ' · avec '+(nom?esc(nom):'l’aide-soignant·e');
+  const q=String(a.sacs_qui||''); if(q.indexOf('aide-soignant')!==0 || ppSacsNom(a)) return '';
+  return ' · avec l’aide-soignant·e';
+}
+/* Les prénoms de l'équipe proposés sous le champ de la fenêtre (une liste qui se déroule). */
+async function ppListeEquipe(){
+  if(!RDV_EQUIPE.length && sb){ try{ const r=await sb.rpc('equipe_prenoms'); if(!r.error&&r.data) RDV_EQUIPE=r.data; }catch(e){} }
+  let dl=document.getElementById('ppEquipeDl');
+  if(!dl){ dl=document.createElement('datalist'); dl.id='ppEquipeDl'; document.body.appendChild(dl); }
+  dl.innerHTML=RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('');
+  const c=document.getElementById('popChamp'); if(!c) return;
+  c.setAttribute('list','ppEquipeDl');
+  (function chk(){ if(!c.offsetParent) c.removeAttribute('list'); else setTimeout(chk,500); })();
 }
 function ppQuiChanger(id){
   const a=ppLigne(id); if(!a) return;
@@ -16540,10 +16551,14 @@ function ppEtape(id, k){
       /* AVEC QUI (Mag, 09/10/2026 : « oui ») : le prénom de l'aide-soignant·e qui a aidé, quand ce
          n'est pas elle qui coche. Facultatif : vide = « avec l'aide-soignant·e ». */
       {t:'Avec l’aide-soignant·e', clair:true, fn:function(){
-        cousinDemande('Avec qui ?', 'Le prénom de l’aide-soignant·e qui a aidé (facultatif).', '', function(v){
+        /* ⚠ LE NOM DE CELUI QUI S'EN EST OCCUPÉ, PAS « MAG AVEC … » (Mag, 09/10/2026 : « choisir
+           ceux qui s'en occupent — pas obligatoire, sinon ça nous empêche »). On le CHOISIT dans
+           la liste de l'équipe (on peut aussi l'écrire), et vide = rien n'est bloqué. */
+        cousinDemande('Qui s’en est occupé ?', 'Choisis dans la liste, ou laisse vide.', '', function(v){
           v=String(v||'').trim().slice(0,40);
-          poser({sacs_qui:'aide-soignant'+(v?':'+v:'')}, v?'sacs préparés avec '+v:'');
+          poser({sacs_qui:'aide-soignant'+(v?':'+v:'')}, v?'sacs préparés par '+v:'');
         }, 40);
+        ppListeEquipe();
       }}
     ]);
   } else {
@@ -16706,7 +16721,7 @@ function ppCarte(a){
     h+='<div class="ppf-frise">'+E.map(function(st){
       const ok=ppFait(a,st.k), rouge=(st.k==='prevenu' && e==='alerte');
       let sous='';
-      if(ok) sous=esc(a[st.k+'_par']||'')+' '+ppQuand(a[st.k+'_le'])+(st.k==='sacs'?ppSacsAvec(a):'');
+      if(ok) sous=esc((st.k==='sacs'&&ppSacsNom(a))||a[st.k+'_par']||'')+' '+ppQuand(a[st.k+'_le'])+(st.k==='sacs'?ppSacsAvec(a):'');
       else if(rouge) sous='à faire';
       else if(st.k==='rendu') sous='après 24 h';
       const court={prevenu:'Prévenu', sacs:'Sacs préparés', descendu:'Descendu', personne:'Personne', rendu:'Sacs rendus', vapeur:'Vapeur'}[st.k]||st.l;
@@ -16874,7 +16889,7 @@ function ppImprimer(quoi){
       const E = a ? ppEtapesDe(a) : PP_ETAPES;
       return '<div class="ets">'+E.map(function(e){
         const ok=a&&ppFait(a,e.k);
-        return '<span class="et">'+bx(ok)+'<span class="pic">'+ppPic(e.k==='vapeur'?'descendu':e.k)+'</span><b>'+e.l+'</b>'+(ok?'<em>'+esc(a[e.k+'_par']||'')+(e.k==='sacs'?ppSacsAvec(a):'')+'</em>':'')+'</span>';
+        return '<span class="et">'+bx(ok)+'<span class="pic">'+ppPic(e.k==='vapeur'?'descendu':e.k)+'</span><b>'+e.l+'</b>'+(ok?'<em>'+esc((e.k==='sacs'&&ppSacsNom(a))||a[e.k+'_par']||'')+(e.k==='sacs'?ppSacsAvec(a):'')+'</em>':'<em class="sig">par : ……………</em>')+'</span>';
       }).join('')+'</div>';
     };
     const proto=function(a){
@@ -16925,6 +16940,7 @@ function ppImprimer(quoi){
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
       '.pc.porte{display:block;font-size:8.5pt;margin:1mm 0 1.5mm;line-height:1.5}.pc.porte .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       '.pqui{display:inline-block;font-weight:700;font-size:10pt;border:2.5px solid #000;border-radius:5mm;padding:.5mm 2.5mm;margin-bottom:1.5mm}'+
+      '.et em.sig{color:#999;font-size:8pt}'+
       '.et .pic{display:inline-block;width:5mm;height:5mm;vertical-align:middle;margin-right:1.2mm}.et .pic svg{width:100%;height:100%}'+
       '.pheure{display:block;font-size:11pt;font-weight:700;margin-bottom:1.5mm}.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
       '.pchoix .pc{display:block;font-size:9pt;margin-bottom:1mm}.pchoix .pc .bx{width:4mm;height:4mm;line-height:3.5mm}'+
