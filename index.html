@@ -16843,7 +16843,7 @@ function ppCarte(a){
       return '<button class="ppf-s'+(ok?' ok':'')+(rouge?' rouge':'')+(st.k==='personne'&&!ok?' perso':'')+'" onclick="ppEtape(\''+a.id+'\',\''+st.k+'\')" title="'+esc(st.l)+'">'+
         '<span class="ppf-r">'+ppPic(st.k==='vapeur'?'descendu':st.k)+(ok?'<i>✓</i>':'')+'</span><b>'+court+'</b><em>'+sous+'</em></button>';
     }).join('')+'</div>';
-    if(e==='alerte'){ const r=ppRelais(a.jour, a); if(r) h+='<p class="ppc-rel">À faire maintenant : <b>'+esc(r)+'</b></p>'; }
+    /* (Mag, 09/10/2026 : « ils sauront bien que si ce n'est pas coché, il faut le faire ») : plus de « À faire maintenant ». */
   }
   h+='<div class="ppf-opts">'+
     '<button class="ppf-o'+(pr.k==='tout'?' on ppf-pp':'')+'" onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+
@@ -17013,8 +17013,7 @@ function ppImprimer(quoi){
       return P.map(function(x){
         /* Pas autonome = le picto EN ROUGE ; liste vierge = le picto en gris, à entourer au stylo. */
         return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
-          (a ? (x.pa?'<span class="papic on">'+ppPic('pa')+'</span>':'<span class="papic"></span>')
-             : '<span class="papic vide">'+ppPic('pa')+'</span>')+'</div>';
+          '<span class="pabx">'+(a&&x.pa?ppPic('pa'):'')+'</span></div>';
       }).join('');
     };
     const etapes=function(a){
@@ -17027,9 +17026,9 @@ function ppImprimer(quoi){
     };
     const proto=function(a){
       if(!a) return '<div class="pchoix"><span class="l1">'+bx(false)+'Rentokil &nbsp; '+bx(false)+'Mohamed</span>'+
-        '<span class="l1">Fermée ……… → ………</span><span class="pc porte">'+bx(false)+'Fermée à clé · rouverte par : ………</span></div>';
+        '<span class="l1">Fermée ……… → ………</span><span class="pc porte">'+bx(false)+'<span class="pic">'+ppPic('cle')+'</span>Fermée à clé</span></div>';
       return '<span class="pqui" style="border-color:'+ppQui(a).c+'">'+ppQui(a).l+'</span><span class="psous">'+esc(ppJourFr(a.jour))+'</span><span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+
-        '<span class="pc porte">'+bx(!!a.porte_le)+'Fermée à clé'+(a.porte_le?' ('+esc(a.porte_par||'')+')':'')+' · rouverte par : ………</span>';
+        '<span class="pc porte">'+bx(!!a.porte_le)+'<span class="pic">'+ppPic('cle')+'</span>Fermée à clé</span>';
     };
     const ligne=function(a){
       const c = a ? ppQui(a).c : '#ffffff';
@@ -17041,8 +17040,8 @@ function ppImprimer(quoi){
         '<td class="no">'+((a&&ppNotes(a).length)?'<p class="jn">'+ppNotes(a).map(function(x){ return esc(x.txt); }).join(' · ')+'</p>':'')+
           '<div></div><div></div><div></div></td></tr>';
     };
-    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes <span class="thpa">'+ppPic('pa').replace('<svg','<svg class="thpic"')+' = pas autonome'+(vierge?' (l’entourer)':'')+'</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
-      '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
+    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes<span class="thpa"><span class="thpic">'+ppPic('pa')+'</span>pas autonome</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
+      '<th>Commentaires</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
     /* Rentokil ensemble, Mohamed à part — sur la MÊME feuille (Mag, 09/10/2026). */
     let blocs='';
@@ -17071,11 +17070,11 @@ function ppImprimer(quoi){
       'td{border-bottom:1px solid #000;padding:2.5mm 2mm;vertical-align:top;font-size:11pt}'+
       'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
-      '.pc.porte{display:block;font-size:8.5pt;margin:1mm 0 1.5mm;line-height:1.5}.pc.porte .bx{width:4mm;height:4mm;line-height:3.5mm}'+
+      '.pc.porte{display:flex;align-items:center;gap:1.5mm;font-size:11pt;font-weight:700;margin:2mm 0 1.5mm;white-space:nowrap}.pc.porte .bx{width:5.5mm;height:5.5mm;line-height:5mm;margin:0}.pc.porte .pic{width:5.5mm;height:5.5mm;display:inline-block}.pc.porte .pic svg{width:100%;height:100%}'+
       '.pchoix .l1{display:block;white-space:nowrap;font-size:9.5pt;margin-bottom:1.5mm}.pchoix .bx{width:4mm;height:4mm;line-height:3.5mm;margin-right:1mm}'+
       '.thpa{font-weight:400;color:#555;margin-left:2mm}.thpic{width:4.5mm;height:4.5mm;vertical-align:-1mm;color:#e63329}'+
-      '.papic{display:inline-block;width:7mm;height:7mm;flex:none}.papic svg{width:100%;height:100%}'+
-      '.papic.on{color:#e63329}.papic.vide{color:#bbb}'+
+      '.pabx{display:inline-flex;align-items:center;justify-content:center;width:7mm;height:7mm;border:2px solid #000;flex:none;color:#e63329;background:#fff}.pabx svg{width:5.5mm;height:5.5mm}'+
+      '.thpa{float:right;display:inline-flex;flex-direction:column;align-items:center;font-weight:400;font-size:7.5pt;color:#555;line-height:1.1}.thpic{display:inline-block;width:6mm;height:6mm;color:#e63329}.thpic svg{width:100%;height:100%}'+
       '.pqui{display:inline-block;font-weight:700;font-size:10pt;border:2.5px solid #000;border-radius:5mm;padding:.5mm 2.5mm;margin-bottom:1.5mm}'+
       '.et em.sig{color:#999;font-size:8pt}'+
       '.et .pic{display:inline-block;width:5mm;height:5mm;vertical-align:middle;margin-right:1.2mm}.et .pic svg{width:100%;height:100%}'+
