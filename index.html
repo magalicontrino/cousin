@@ -16265,7 +16265,7 @@ function ppRento(a){ return a.rentokil!==false; }
 /* ═══ QUI PASSE, EN COULEUR (Mag, 09/10/2026 : « c'est Rentokil ou Mohamed ; quand c'est
    Rentokil tu mets une couleur, quand c'est Mohamed une autre ») ═══ `rentokil` en base :
    vrai = Rentokil (turquoise), faux = Mohamed (orange). */
-function ppQui(a){ return ppRento(a) ? {l:'Rentokil', c:'#6fc7d9', f:'#2b8ea3'} : {l:'Mohamed', c:'#f8763f', f:'#c2551f'}; }
+function ppQui(a){ return ppRento(a) ? {l:'Rentokil', c:'#6fc7d9', f:'#2b8ea3'} : {l:'Mohamed', c:'#6fb08e', f:'#3f7f5c'}; }
 /* ═══ LES PICTOS DU PROTOCOLE — LES MÊMES QUE L'AFFICHE (Mag, 09/10/2026 : « mets des logos
    aussi ; que les logos de la feuille soient compris directement parce qu'ils sont déjà dans
    l'application ») ═══ Des traits, jamais d'aplat. Un seul endroit : l'écran, la feuille et
@@ -16688,8 +16688,18 @@ async function ppAjouterTicket(){
   const vn=[v1,v2].map(function(e){ return {nom:(e&&e.value||'').trim().slice(0,60), pa:false}; }).filter(function(x){ return x.nom; });
   const pers=vn.length ? vn : txt ? txt.split(/\s*(?:,|;|\n|\s+et\s+)\s*/i).map(function(x){ return {nom:x.trim().slice(0,60), pa:false}; })
     .filter(function(x){ return x.nom; }).slice(0,4) : [];
-  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers, '', {});
-  if(ok){ [n,c,v1,v2].forEach(function(e){ if(e) e.value=''; }); PP_COLLE=''; PP_F={num:'',p1:'',p2:''}; }
+  /* ⚠ LE FORMULAIRE SE VIDE, ET ON LE DIT (Mag, 09/10/2026 : « ça s'est mis en bas, mais ça restait
+     dans la case du haut : je ne sais pas si c'est mis ») : on vide AVANT le redessin (sinon il
+     remettait les valeurs gardées), puis une fenêtre confirme ce qui a été enregistré. */
+  const garde={F:PP_F, C:PP_COLLE}, jour=(j&&j.value)||ppJeudi();
+  PP_F={num:'',p1:'',p2:''}; PP_COLLE='';
+  const ok=await ppInserer(jour, [num], pers, '', {});
+  if(!ok){ PP_F=garde.F; PP_COLLE=garde.C; render(); return; }
+  cousinPop({titre:'Chambre '+num+' enregistrée',
+    texte:(PP_RENTO_CHOIX?'Rentokil':'Mohamed')+' · '+ppJourFr(jour)+'\nFermée '+ppHFr(PP_DE)+' → '+ppHFr(PP_A)+
+      (PP_PROTO_CHOIX==='tout'?'\nProtocole personne : oui':'')+
+      (pers.length?'\n'+pers.map(function(x){ return x.nom; }).join(', '):''),
+    ok:'OK', quandOui:function(){}});
 }
 async function ppAjouter(){
   const n=document.getElementById('ppNum'), j=document.getElementById('ppJour');
@@ -16862,7 +16872,7 @@ function vPunaises(){
      C ») ═══ Le formulaire a la forme EXACTE de la carte qu'il va créer, en pointillés : ce qu'on
      remplit = ce qu'on obtient. En haut « … » (coller un mail, ou écrire) ; le N° en grand ; les
      deux vignettes des personnes. UN bouton. Pas de phrase d'explication. */
-  const pd=PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#f8763f'};
+  const pd=PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#6fb08e'};
   const Ev=pd?[PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ET_PERS,PP_ETAPES[3]]:PP_ETAPES;
   h+='<div class="ppv0" style="--c:'+qv.c+'"><span class="ppv0-b"></span>'+
     /* Rien d'autre que « … » et un curseur qui clignote (Mag, 09/10/2026 : « on sait qu'on veut écrire
@@ -16873,7 +16883,7 @@ function vPunaises(){
       '<input id="ppNum" class="ppv0-n" type="text" inputmode="numeric" placeholder="N°" autocomplete="off" maxlength="3" '+
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,3)" value="'+esc(PP_F.num)+'">'+
       '<button class="ppf-o'+(PP_RENTO_CHOIX?' on':'')+'" style="--c:#6fc7d9" onclick="ppFGarde();PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
-      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#f8763f" onclick="ppFGarde();PP_RENTO_CHOIX=false;render()">Mohamed</button></div>'+
+      '<button class="ppf-o'+(!PP_RENTO_CHOIX?' on':'')+'" style="--c:#6fb08e" onclick="ppFGarde();PP_RENTO_CHOIX=false;render()">Mohamed</button></div>'+
     '<div class="ppf-h"><span class="ppf-ic">'+ppPic('cle')+'</span><span>Fermée</span>'+
       '<input type="time" value="'+PP_DE+'" onchange="PP_DE=this.value||\'12:00\'"><span>→</span>'+
       '<input type="time" value="'+PP_A+'" onchange="PP_A=this.value||\'17:00\'"><span>·</span>'+
@@ -17043,7 +17053,7 @@ function ppImprimer(quoi){
       'h1{font-size:19pt}.leg{display:flex;gap:4mm;flex-wrap:wrap;font-size:9pt}.leg i{display:inline-block;width:4mm;height:4mm;border-radius:1mm;vertical-align:-0.6mm;margin-right:1.2mm;border:1px solid #000}'+
       '.rel{font-size:10.5pt;margin:0 0 4mm;padding:2.5mm 4mm;border:2px solid #000;border-radius:2mm}'+
       '.band{font-size:11pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2mm 4mm;border-radius:2mm 2mm 0 0;margin-top:4mm}'+
-      '.band.rk{border-color:#6fc7d9;color:#1f7385}.band.mo{border-color:#f8763f;color:#c2551f}'+
+      '.band.rk{border-color:#6fc7d9;color:#1f7385}.band.mo{border-color:#6fb08e;color:#3f7f5c}'+
       '.aprev{display:block;font-style:normal;font-size:8pt;font-weight:700;color:#c8412e;border:1.5px solid #e63329;border-radius:2mm;padding:.3mm 1mm;margin-top:1mm;text-align:center}'+
       '.band{border:2px solid #000;border-bottom:0}.band.au{border-color:#b28b7a;color:#7a5a4c}.band.vide{border-color:#999;color:#555}'+
       'table{width:100%;border-collapse:collapse;break-inside:auto}tr{break-inside:avoid}'+
