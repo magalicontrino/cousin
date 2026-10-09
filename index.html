@@ -16450,7 +16450,7 @@ function ppImprimer(quoi){
    ⏸ Les MAILS de rappel (jeudi 7 h récap, la veille 18 h, le matin 7 h) attendent le
      compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
    ═══════════════════════════════════════════════════════════════════════════ */
-var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='', RDV_VUE='', RDV_SEM=0, RDV_ACC_TROUVER=false;
+var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='', RDV_VUE='', RDV_SEM=0, RDV_ACC_TROUVER=false, RDV_ACC_DU='', RDV_ACC_AU='';
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 /* 15 jours d'historique (09/10/2026 : « on doit pouvoir retourner en arrière de 15 jours »). */
 const RDV_GARDE=15;
@@ -16514,11 +16514,13 @@ function rdvBarre(){
    Même dessin que la barre Rendez-vous ; elle dit combien d'accompagnements cette semaine,
    et en rouge combien n'ont encore personne. Un appui ouvre « Accompagnements de la semaine ». */
 function rdvBarreAcc(){
-  const n=RDV_CHARGE?rdvAccSemaineDe(0):[];
+  RDV_ACC_DU=''; RDV_ACC_AU='';
+  const n=RDV_CHARGE?rdvAccSemaine():[];
+  const lundi=new Date(agIso(new Date())+'T12:00:00').getDay()===1;
   const manque=n.filter(function(r){ return !r.accomp_nom; }).length;
-  return '<button class="rdvbarre rdvbarre-acc" onclick="RDV_VUE=\'acc\';RDV_SEM=0;RDV_ACC_TROUVER=false;go(\'#/rdv\')">'+
+  return '<button class="rdvbarre rdvbarre-acc" onclick="RDV_VUE=\'acc\';RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';RDV_ACC_TROUVER=false;go(\'#/rdv\')">'+
     '<i><img src="picto/accompagnement.svg" alt=""></i><span>Accompagnements</span>'+
-    (RDV_CHARGE?'<b>'+n.length+' cette semaine</b>'+(manque?'<b class="rouge">'+manque+' à trouver</b>':''):'')+
+    (RDV_CHARGE?'<b>'+n.length+(lundi?' cette semaine':' semaine prochaine')+'</b>'+(manque?'<b class="rouge">'+manque+' à trouver</b>':''):'')+
   '</button>';
 }
 let _rdvVu=0, _rdvSignature='';
@@ -16962,27 +16964,46 @@ function rdvLundi(decal){
   const d=new Date(agIso(new Date())+'T12:00:00'), j=(d.getDay()+6)%7;
   return ppAjoute(agIso(d), -j+7*(decal||0));
 }
-function rdvAccSemaine(){ return rdvAccSemaineDe(RDV_SEM); }
-function rdvAccSemaineDe(sem){
-  const du=rdvLundi(sem), au=ppAjoute(du,6);
-  return RDV.filter(function(r){ return r.accompagne && r.jour>=du && r.jour<=au; })
+/* ⚠ PAR DÉFAUT, LA SEMAINE QUI ARRIVE (09/10/2026 : « d'office la semaine qui arrive, du
+   lundi au dimanche, mais qu'on puisse changer les dates manuellement, comme quand on note
+   les rendez-vous — j'aime pas trop ce système de calendrier ») : le lundi qui vient (ou
+   aujourd'hui si on est lundi) → le dimanche ; deux dates à changer à la main. */
+function rdvAccDefaut(){
+  const a=agIso(new Date()), j=new Date(a+'T12:00:00').getDay();
+  const du = j===1 ? a : rdvLundiProchain(a);
+  return {du:du, au:ppAjoute(du,6)};
+}
+function rdvAccDates(){
+  const d=rdvAccDefaut();
+  let du=RDV_ACC_DU||d.du, au=RDV_ACC_AU||d.au;
+  if(au<du){ const x=du; du=au; au=x; }
+  return {du:du, au:au};
+}
+function rdvAccSemaine(){
+  const D=rdvAccDates();
+  return RDV.filter(function(r){ return r.accompagne && r.jour>=D.du && r.jour<=D.au; })
     .sort(function(x,y){ return (String(x.jour)+String(x.heure||'')).localeCompare(String(y.jour)+String(y.heure||'')); });
 }
+function rdvAccDatesChange(){
+  const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
+  RDV_ACC_DU=v('rdvAccDu'); RDV_ACC_AU=v('rdvAccAu'); render();
+}
 function vRdvAcc(){
-  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+  const D=rdvAccDates(), du=D.du, au=D.au;
   const tous=rdvAccSemaine(), manque=tous.filter(function(r){ return !r.accomp_nom; });
   const L=RDV_ACC_TROUVER?manque:tous;
   let h='<div class="subtop"><button class="cbtn" onclick="RDV_VUE=\'\';render()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Accompagnements de la semaine</h1></div>';
   h+='<p class="rdvacc-res">Réservé aux coordinateurs</p>';
-  h+='<div class="rdvacc-sem"><button class="fbtn" onclick="RDV_SEM--;render()" aria-label="Semaine d’avant">‹</button>'+
-    '<b>Du '+esc(ppJourFr(du))+' au '+esc(ppJourFr(au))+'</b>'+
-    '<button class="fbtn" onclick="RDV_SEM++;render()" aria-label="Semaine d’après">›</button>'+
+  h+='<div class="rdvacc-sem">'+
+    '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
+    '<span class="rdvau">au</span>'+
+    '<input type="date" id="rdvAccAu" class="rdvdate" value="'+esc(au)+'" aria-label="Au" onchange="rdvAccDatesChange()">'+
     '<button class="fbtn" onclick="rdvImprimerAcc()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
   h+='<div class="chips">'+
     '<button class="chip'+(!RDV_ACC_TROUVER?' on':'')+'" style="--c:'+chipCouleur(0)+'" onclick="RDV_ACC_TROUVER=false;render()">Tous · '+tous.length+'</button>'+
     '<button class="chip'+(RDV_ACC_TROUVER?' on':'')+'" style="--c:#e63329" onclick="RDV_ACC_TROUVER=true;render()">À trouver · '+manque.length+'</button></div>';
-  if(!L.length) h+='<div class="empty"><b>'+(RDV_ACC_TROUVER?'Tout le monde a son accompagnant.':'Aucun accompagnement cette semaine.')+'</b></div>';
+  if(!L.length) h+='<div class="empty"><b>'+(RDV_ACC_TROUVER?'Tout le monde a son accompagnant.':'Aucun accompagnement sur ces dates.')+'</b></div>';
   let jour='';
   L.forEach(function(r){
     if(r.jour!==jour){ jour=r.jour; h+='<div class="ghead">'+esc(rdvJourTitre(r.jour))+'</div>'; }
@@ -17030,7 +17051,7 @@ function rdvAccChanger(id, el){
   el.value=r.accomp_nom||'';
 }
 function rdvImprimerAcc(){
-  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+  const D=rdvAccDates(), du=D.du, au=D.au;
   const L=RDV_ACC_TROUVER?rdvAccSemaine().filter(function(r){ return !r.accomp_nom; }):rdvAccSemaine();
   const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
   const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
@@ -17049,8 +17070,8 @@ function rdvImprimerAcc(){
               esc(r.accomp_nom?'Accompagné par '+r.accomp_nom:'Accompagnant à trouver')+'</span></span></div>';
       }).join('')+'</section>';
   });
-  if(!corps) corps='<p class="vide">Aucun accompagnement cette semaine.</p>';
-  feuilleImprimer({onglet:'Accompagnements — semaine du '+ppJourFr(du), entete:'Accompagnements de la semaine — aperçu',
+  if(!corps) corps='<p class="vide">Aucun accompagnement sur ces dates.</p>';
+  feuilleImprimer({onglet:'Accompagnements — du '+ppJourFr(du), entete:'Accompagnements de la semaine — aperçu',
     titre:'Accompagnements', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
 }
 function vRdv(){
@@ -17071,7 +17092,7 @@ function vRdv(){
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
      '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
-     '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_SEM=0;render();window.scrollTo(0,0)">Accompagnements de la semaine</button></div>';
+     '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)">Accompagnements de la semaine</button></div>';
   /* « À prendre en charge » N'EST PLUS ICI (09/10/2026 : « ça risque d'être long, avant
      l'agenda, ce n'est pas avantageux ») : elle vit dans Liste et notes seulement. */
   if(RDV_FORM) h+=rdvFormHTML();
