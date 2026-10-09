@@ -16418,11 +16418,12 @@ function ppRetirer(id){
       await loadPunaises(); render();
     }, {ok:'Retirer', danger:true});
 }
-async function ppInserer(jour, nums, pers){
+async function ppInserer(jour, nums, pers, note){
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, rentokil:PP_RENTO_CHOIX, cree_par:nomAffiche()};
+    return {jour:jour, numero:String(n), personnes:pers||[], protocole:PP_PROTO_CHOIX, cree_par:nomAffiche(),
+      journal: note ? [{le:new Date().toISOString(), par:nomAffiche(), txt:note}] : []};
   });
   if(!lignes.length){ toast('Déjà dans la liste'); return false; }
   const {error}=await sb.from('protocole_punaises').insert(lignes);
@@ -16464,15 +16465,15 @@ function ppColler(){
   const c=document.getElementById('ppColle'); const t=(c&&c.value)||PP_COLLE;
   if(!t.trim()){ c&&c.focus(); return; }
   const r=ppLireMail(t);
-  if(/rentokil/i.test(t)) PP_RENTO_CHOIX=true;
+  const note=/rentokil/i.test(t) ? 'Mail : Rentokil' : 'Mail collé';
   if(!r.nums.length){ toast('Aucun numéro de chambre trouvé dans ce texte'); return; }
   cousinConfirme('Rentokil · '+ppJourFr(r.jour),
     (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
     r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+
-    '\n'+(PP_RENTO_CHOIX?'Rentokil':'Autre passage')+(PP_PROTO_CHOIX==='tout'?' · avec le protocole de la personne':'')+
+    (PP_PROTO_CHOIX==='tout'?'\nAvec le protocole de la personne':'')+
     '\n\nVérifie avant d’ajouter.',
     async function(){
-      const ok=await ppInserer(r.jour, r.nums, []);
+      const ok=await ppInserer(r.jour, r.nums, [], note);
       if(ok){ PP_COLLE=''; const e=document.getElementById('ppColle'); if(e) e.value=''; }
     }, {ok:'Ajouter '+(r.nums.length>1?'les '+r.nums.length+' chambres':'la chambre')});
 }
@@ -16486,8 +16487,7 @@ function ppCarte(a){
   let h='<div class="ppc '+e+'"'+(ppProto(a).k==='tout'?' style="--pc:#ff8cc6"':'')+'>'+
     '<div class="ppc-h"><span class="ppc-n">'+esc(a.numero)+'</span>'+
       '<span class="ppc-e">'+etat+'</span></div>'+
-    '<div class="ppc-pt"><button class="chip ppc-rk'+(ppRento(a)?' on':'')+'" onclick="ppRentoChanger(\''+a.id+'\')">'+
-      (ppRento(a)?'Rentokil':'Autre passage')+'</button>'+
+    '<div class="ppc-pt">'+
       '<button class="chip ppc-ppb'+(pr.k==='tout'?' on':'')+'" aria-pressed="'+(pr.k==='tout'?'true':'false')+'" '+
         'onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+(pr.k==='tout'?'✓ ':'')+'Protocole de la personne</button>'+'</div>'+
     ppPersHTML(a);
@@ -16523,9 +16523,6 @@ function vPunaises(){
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'entree\')"><span class="ic">'+icon('imprimer')+'</span>La liste pour l’entrée</button></div>';
   h+='<div class="tbadd">'+
-    '<div class="ppc-pt ppc-pt-f"><span>Passage</span>'+
-      '<button class="chip'+(PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
-      '<button class="chip'+(!PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=false;render()">Autre passage</button></div>'+
     /* ⚠ PAS DE CHOIX ENTRE TROIS PROTOCOLES (Mag, 09/10/2026 : « on ne va pas mettre ce
        genre de choix ; s'il faut faire les protocoles de la personne, il faut que ce soit
        spécifié — cliquer sur un bouton ») : UN bouton, éteint par défaut. */
@@ -16558,9 +16555,10 @@ function vPunaises(){
     });
     h+='<div class="ghead">'+esc(ppJourFr(j))+' <span style="color:var(--enc2)">'+L.length+'</span></div>'+
        '<p class="pp-sous">Produit 12 h → 17 h · chambres rouvertes à 17 h · sacs rendus le lendemain matin</p>';
-    const rk=L.filter(ppRento), au=L.filter(function(a){ return !ppRento(a); });
-    if(rk.length) h+='<div class="pp-band">Rentokil · '+rk.length+'</div>'+rk.map(ppCarte).join('');
-    if(au.length) h+='<div class="pp-band autre">Autres passages · '+au.length+'</div>'+au.map(ppCarte).join('');
+    /* ⚠ PAS DE « RENTOKIL / AUTRE PASSAGE » (Mag, 09/10/2026 : « c'est nous qui gérons, on s'en
+       fout, il y a des protocoles, c'est tout ») : une seule liste. Le mot vient du mail collé,
+       en petit commentaire sous la chambre. */
+    h+=L.map(ppCarte).join('');
   });
   h+=wikiBloc('punaises');
   return h;
@@ -16635,10 +16633,8 @@ function ppImprimer(quoi){
       }).join('')+'</div>';
     };
     const proto=function(a){
-      if(!a) return '<div class="pchoix"><span class="pc">'+bx(false)+'Rentokil</span><span class="pc">'+bx(false)+'Autre passage</span>'+
-        '<span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
-      return (ppRento(a)?'<span class="psous">Rentokil</span>':'<span class="psous">Autre passage</span>')+
-        (ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
+      if(!a) return '<div class="pchoix"><span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
+      return (ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
     };
     const ligne=function(a){
       const c = (a && ppProto(a).k==='tout') ? '#ff8cc6' : '#ffffff';
@@ -16646,15 +16642,14 @@ function ppImprimer(quoi){
         '<td class="pr">'+proto(a)+'</td>'+
         '<td class="in">'+pers(a)+'</td>'+
         (pasPrev ? '<td class="ets1">'+bx(a&&a.prevenu_le)+'<b>Prévenu</b></td>' : '<td>'+etapes(a)+'</td>')+
-        '<td class="no"><div></div><div></div><div></div></td></tr>';
+        '<td class="no">'+((a&&Array.isArray(a.journal)&&a.journal.length)?'<p class="jn">'+a.journal.map(function(x){ return esc(x.txt); }).join(' · ')+'</p>':'')+
+          '<div></div><div></div><div></div></td></tr>';
     };
     const tete='<thead><tr><th>Ch.</th><th>Protocole</th><th>Personnes</th><th>'+(pasPrev?'':'Étapes')+'</th>'+
       '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
-    const rk=lignes.filter(ppRento), au=lignes.filter(function(a){ return !ppRento(a); });
     let blocs='';
-    if(rk.length) blocs+=bloc('Rentokil · '+rk.length+' chambre'+(rk.length>1?'s':''), 'rk', rk.map(ligne).join(''));
-    if(au.length) blocs+=bloc('Autres passages · '+au.length+' chambre'+(au.length>1?'s':''), 'au', au.map(ligne).join(''));
+    if(lignes.length) blocs+=bloc(lignes.length+' chambre'+(lignes.length>1?'s':''), 'rk', lignes.map(ligne).join(''));
     const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
     let vrows=''; for(let i=0;i<vides;i++) vrows+=ligne(null);
     blocs+=bloc('À ajouter au stylo', 'vide', vrows);
@@ -16683,7 +16678,7 @@ function ppImprimer(quoi){
       '.pn .pa{font-size:8.5pt;white-space:nowrap}.pn .ppp{font-weight:700}.pn .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
       '.ets{display:flex;flex-direction:column;gap:1.8mm}.et{font-size:10pt;white-space:nowrap}.et b{font-weight:600}.et em{font-style:normal;font-size:8pt;color:#444;margin-left:1.5mm}'+
       '.bx{display:inline-block;width:5.5mm;height:5.5mm;border:2px solid #000;vertical-align:middle;margin-right:2mm;text-align:center;font-weight:700;line-height:5mm;background:#fff}'+
-      'td.no{min-width:62mm;border-left:1px solid #000}td.no div{height:7mm;border-bottom:1px dotted #777}'+
+      'td.no .jn{font-size:8.5pt;color:#333;margin-bottom:1mm}td.no{min-width:62mm;border-left:1px solid #000}td.no div{height:7mm;border-bottom:1px dotted #777}'+
       '.pied{font-size:9pt;color:#444;margin-top:4mm}';
   }
   const w=window.open('','_blank');
