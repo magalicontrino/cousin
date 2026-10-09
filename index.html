@@ -433,6 +433,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppf-bande{position:absolute;left:-2px;top:-2px;bottom:-2px;width:12px;border-radius:16px 0 0 16px;background:var(--c)}
 .ppf.alerte{border-color:#e63329;box-shadow:0 0 0 2px #fbe3df}
 .ppf.fini{opacity:.75}
+.pp-finis{margin:18px 0 10px;border-top:1px dashed var(--trait);padding-top:10px}
+.pp-finis summary{cursor:pointer;font-size:13px;font-weight:700;color:#6b6963;list-style:none}
+.pp-finis summary span{font-weight:400;margin-left:4px}
+.pp-fini{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:8px 4px;border-bottom:1px solid var(--ligne);color:#6b6963;font-size:13px}
+.pp-fini b{font-size:17px;color:#1b1b1b}
+.pp-fini em{font-style:normal;margin-left:auto;font-size:12px}
 .ppf.abandon{background:#ecebe8}
 .ppf-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .ppf-n{font-size:30px;font-weight:800;line-height:1}
@@ -16886,13 +16892,23 @@ function vPunaises(){
   /* ═══ TOUT ENSEMBLE, PAR ÉTAGE (Mag, 09/10/2026 : « tout doit être en même temps ; mets-les par
      étage ») ═══ Plus de titre par jour : la date est sur la carte. L'étage = le premier chiffre. */
   const etage=function(a){ const m=/^(\d)\d\d$/.exec(String(a.numero)); return m?parseInt(m[1],10):-1; };
-  const et=[]; act.forEach(function(a){ const e=etage(a); if(et.indexOf(e)<0) et.push(e); }); et.sort(function(x,y){ return x-y; });
+  /* ═══ TERMINÉ = EN BAS, EN DISCRET (Mag, 09/10/2026) ═══ Une chambre dont les sacs sont rendus
+     quitte son étage et descend dans un tiroir « Terminés », fermé. */
+  const enCours=act.filter(function(a){ return ppEtat(a)!=='fini'; }), finis=act.filter(function(a){ return ppEtat(a)==='fini'; });
+  const et=[]; enCours.forEach(function(a){ const e=etage(a); if(et.indexOf(e)<0) et.push(e); }); et.sort(function(x,y){ return x-y; });
   et.forEach(function(e){
-    const L=act.filter(function(a){ return etage(a)===e; }).sort(function(a,b){
+    const L=enCours.filter(function(a){ return etage(a)===e; }).sort(function(a,b){
       return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}) || (a.jour<b.jour?-1:1); });
     h+='<div class="ghead">'+(e<0?'Chambre à préciser':e===0?'Rez-de-chaussée':e===1?'1er étage':e+'e étage')+
        ' <span style="color:var(--enc2)">'+L.length+'</span></div>'+L.map(ppCarte).join('');
   });
+  if(finis.length){
+    h+='<details class="pp-finis"><summary>✓ Terminés <span>'+finis.length+'</span></summary>'+
+      finis.sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); }).map(function(a){
+        return '<div class="pp-fini"><b>'+esc(a.numero)+'</b><span>'+esc(ppQui(a).l)+' · '+esc(ppJourFr(a.jour))+'</span>'+
+          '<em>sacs rendus · '+esc(a.rendu_par||'')+' '+ppQuand(a.rendu_le)+'</em></div>';
+      }).join('')+'</details>';
+  }
   h+=wikiBloc('punaises');
   return h;
 }
