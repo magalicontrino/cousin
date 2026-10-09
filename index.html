@@ -16530,7 +16530,6 @@ function rdvTaches(){
 function carteAPrendre(){
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
   const t=rdvTaches(); if(!t.length) return '';
-  const peut=rdvPeutEcrire();
   return '<div class="pcarte pcarte-lire rdvtaches"><div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
       '<b>À prendre en charge</b><span>'+t.length+'</span></div></div>'+
     t.map(function(x){
@@ -16542,16 +16541,24 @@ function carteAPrendre(){
         '<span class="entarr-cal">'+arrCalHTML(r.jour)+'</span><div class="rdvt-x">'+
         '<b>'+esc(quoi)+' — '+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
         '<span>'+esc(ty.l)+(r.heure?' · rendez-vous à '+esc(rdvHeureFr(r.heure)):'')+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
-        (peut?'<button class="binrep-b" onclick="rdvPrendre(\''+r.id+'\',\''+x.k+'\')">Je m’en occupe</button>':'')+
+        (rdvPeutPrendre(x.k)?'<button class="binrep-b" onclick="rdvPrendre(\''+r.id+'\',\''+x.k+'\')">Je m’en occupe</button>':'')+
       '</div></div>';
     }).join('')+
   '</div>';
+}
+/* « Prévenir » : tous ceux qui écrivent l'agenda. Le RÉVEIL : les PFO (09/10/2026 : « c'est
+   les PFO qui doivent faire ça ») — ils le passent ensuite à la nuit depuis leur liste. */
+function rdvPeutPrendre(k){
+  if(!rdvPeutEcrire()) return false;
+  if(k!=='reveil') return true;
+  return !!(PROFILE && PROFILE.pfo) || (typeof vueAdmin==='function' && vueAdmin());
 }
 function rdvQuandCourt(r){
   return (r.jour===agIso(new Date())?'aujourd’hui':ppJourFr(r.jour))+(r.heure?' '+rdvHeureFr(r.heure):'');
 }
 function rdvPrendre(id, k, deja){
   const r=rdvLigne(id); if(!r) return;
+  if(!rdvPeutPrendre(k)){ toast('Les réveils sont pris par les PFO'); return; }
   const quoi = k==='reveil' ? 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):'') : 'Prévenir';
   cousinPop({
     titre:'Je m’en occupe — '+quoi, texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''),
@@ -16572,7 +16579,9 @@ function rdvPrendre(id, k, deja){
       const ligne={id:'r'+Date.now(), texte:(quoi+' — '+r.nom+' ('+rdvType(r.genre).l.toLowerCase()+', '+rdvQuandCourt(r)+
         (r.lieu?', '+r.lieu:'')+') : '+v).slice(0,4000)};
       if(r.chambre) ligne.chambre=String(r.chambre).slice(0,12);
-      if(k==='reveil') ligne.quand=r.jour;
+      /* Le réveil garde son heure et son jour : « Passation » le pose tel quel dans la
+         passation de nuit, en RÉVEIL (voir `rappelPasser`). */
+      if(k==='reveil'){ ligne.quand=r.jour; ligne.reveilH=r.reveil_heure||''; ligne.reveilJ=r.jour; }
       MESRAPPELS.push(ligne); rappelsSauver();
       render(); toast('C’est dans ta liste perso ✓');
     }
@@ -39188,8 +39197,13 @@ async function loadPassations(){
          qui fait remonter tout ce qui a déjà été écrit avant la correction ;
        · à l'écriture, TOUTE passation reçoit un jour (voir `passAjouter`) — pour que
          le problème ne se reforme pas. */
+    /* ⚠ LE SERVICE SOCIAL N'EXPIRE PAS AU BOUT DE DEUX JOURS (09/10/2026 : « tu as retiré
+       les passations sociales, ça m'embête très très fort »). La règle « hier et
+       aujourd'hui » est celle de la NUIT ; elle cachait les lignes sociales du 7/10 dès
+       le 9 — elles étaient en base, invisibles. Une ligne du service social reste donc
+       tant qu'elle n'est pas cochée. */
     const {data,error}=await sb.from('passations').select('*')
-      .or('jour.gte.'+agIso(h)+',jour.is.null')
+      .or('jour.gte.'+agIso(h)+',jour.is.null,and(pour.eq.ts,fait_le.is.null)')
       .order('jour',{ascending:false}).limit(200);
     if(error) throw error;
     /* ⚠ ON NE PERD PAS UNE LIGNE QU'ON VIENT D'ÉCRIRE. Si la relecture arrive avant que
@@ -44686,13 +44700,19 @@ function rappelPasser(id){
   PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=true;
   /* Une note cochée « absence » arrive dans la passation DÉJÀ marquée absence :
      c'est tout l'intérêt du bouton, sinon il faudrait le recocher chaque fois. */
-  PASS_GENRE = estAbsence ? 'absence' : 'passation';
+  /* Un réveil venu de l'agenda (09/10/2026) arrive en RÉVEIL, heure et jour remplis. */
+  const estReveil=!!r.reveilJ;
+  PASS_GENRE = estAbsence ? 'absence' : (estReveil ? 'reveil' : 'passation');
   render();
   setTimeout(function(){
     const e=document.getElementById('passTxt');
     if(!e) return;
     e.value=t; e.focus();
     const cc=document.getElementById('passCh'); if(cc && ch) cc.value=ch;
+    if(estReveil){
+      const hh=document.getElementById('passHeure'); if(hh && r.reveilH) hh.value=String(r.reveilH).slice(0,5);
+      const jj=document.getElementById('passJour'); if(jj) jj.value=r.reveilJ;
+    }
     if(e.scrollIntoView){
       const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
       try{ e.scrollIntoView({behavior:doux?'smooth':'auto', block:'center'}); }catch(err){ e.scrollIntoView(); }
