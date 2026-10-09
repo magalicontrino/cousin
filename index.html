@@ -489,6 +489,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvbarre-l{position:relative;max-width:620px;margin:20px 0 0;flex-wrap:wrap;row-gap:6px}
 .rdvbarre b{white-space:nowrap}
 #view .ml3 .rdvbarre-l{max-width:none}
+.rdvbarre-acc{margin-top:-4px}
+.rdvbarre i img{width:22px;height:22px}
+.rdvbarre .rouge{margin-left:6px;background:#e63329;color:#fff}
 .rdvbarre .clair{margin-left:6px;background:#fdfdfc;color:#1b1b1b;border:1.5px solid #1b1b1b}
 .rdvbarre-l .rdvj-r{font-style:normal}
 .socqui-l{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
@@ -16505,6 +16508,18 @@ function rdvBarre(){
     (n?'<b>'+n+' aujourd’hui</b>':'')+
   '</button>';
 }
+/* ═══ LA BARRE « ACCOMPAGNEMENTS » DE L'ACCUEIL (09/10/2026 : « accompagnement de la semaine,
+   tu pourrais le mettre aussi à l'accueil, un bouton en dessous des rendez-vous ») ═══
+   Même dessin que la barre Rendez-vous ; elle dit combien d'accompagnements cette semaine,
+   et en rouge combien n'ont encore personne. Un appui ouvre « Accompagnements de la semaine ». */
+function rdvBarreAcc(){
+  const n=RDV_CHARGE?rdvAccSemaineDe(0):[];
+  const manque=n.filter(function(r){ return !r.accomp_nom; }).length;
+  return '<button class="rdvbarre rdvbarre-acc" onclick="RDV_VUE=\'acc\';RDV_SEM=0;RDV_ACC_TROUVER=false;go(\'#/rdv\')">'+
+    '<i><img src="picto/accompagnement.svg" alt=""></i><span>Accompagnements</span>'+
+    (RDV_CHARGE?'<b>'+n.length+' cette semaine</b>'+(manque?'<b class="rouge">'+manque+' à trouver</b>':''):'')+
+  '</button>';
+}
 let _rdvVu=0, _rdvSignature='';
 function rafraichirRdv(){
   if(!sb) return;
@@ -16941,8 +16956,9 @@ function rdvLundi(decal){
   const d=new Date(agIso(new Date())+'T12:00:00'), j=(d.getDay()+6)%7;
   return ppAjoute(agIso(d), -j+7*(decal||0));
 }
-function rdvAccSemaine(){
-  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+function rdvAccSemaine(){ return rdvAccSemaineDe(RDV_SEM); }
+function rdvAccSemaineDe(sem){
+  const du=rdvLundi(sem), au=ppAjoute(du,6);
   return RDV.filter(function(r){ return r.accompagne && r.jour>=du && r.jour<=au; })
     .sort(function(x,y){ return (String(x.jour)+String(x.heure||'')).localeCompare(String(y.jour)+String(y.heure||'')); });
 }
@@ -20366,7 +20382,7 @@ function vHome(){
      menu. Un seul grand bouton, avant « À faire aujourd'hui », qui dit ce qui attend :
      les entretiens à voir, puis ce qui reste dans sa liste.
      ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
-  h+=rdvBarre();
+  h+=rdvBarre()+rdvBarreAcc();
   if(!estGroupeD()){
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
