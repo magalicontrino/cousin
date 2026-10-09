@@ -441,7 +441,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvt b{display:block;font-size:15px}
 .rdvt-x>span{display:block;font-size:12.5px;color:#555;margin-top:2px}
 .rdvt .entarr-cal{cursor:default}
-.rdvt .binrep-b{margin:8px 0 0}
+.rdvt .entvus-b{flex:none;align-self:center}
 .rdvdate{font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px;background:#fdfdfc;color:var(--noir)}
 .rdvau{align-self:center;font-size:13px}
 /* Les petits calendriers de Liste et notes (dessin B, 09/10/2026) — même calendrier que les entrants. */
@@ -16560,8 +16560,13 @@ function carteAPrendre(){
         '<span class="entarr-cal">'+arrCalHTML(r.jour)+'</span><div class="rdvt-x">'+
         '<b>'+esc(quoi)+' — '+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
         '<span>'+esc(ty.l)+(r.heure?' · rendez-vous à '+esc(rdvHeureFr(r.heure)):'')+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
-        (rdvPeutPrendre(x.k)?'<button class="binrep-b" onclick="rdvPrendre(\''+r.id+'\',\''+x.k+'\')">Je m’en occupe</button>':'')+
-      '</div></div>';
+      '</div>'+
+        /* ⚠ UNE PETITE FLÈCHE, PAS UN GROS BOUTON (09/10/2026 : « mettre une petite flèche qui
+           te fait descendre vers ta passation ») — la même que pour faire descendre un
+           entrant. Elle ouvre « Je prends en charge », où il faut écrire ce qu'on fait. */
+        (rdvPeutPrendre(x.k)?'<button class="entvus-b" onclick="rdvPrendre(\''+r.id+'\',\''+x.k+'\')" '+
+          'title="Je prends en charge" aria-label="Je prends en charge">'+icon('flechebas')+'</button>':'')+
+      '</div>';
     }).join('')+
   '</div>';
 }
@@ -16603,8 +16608,10 @@ function rdvPrendre(id, k, deja){
   if(!rdvPeutPrendre(k)){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   const quoi = k==='reveil' ? 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):'') : 'Prévenir';
   cousinPop({
-    titre:'Je m’en occupe — '+quoi, texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''),
-    champ:deja||'', max:300, multi:true, ok:'Je m’en occupe', sansAudio:true,
+    titre:'Je prends en charge — '+quoi,
+    texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:'')+
+      (k==='reveil'?' — ex. : je passe le réveil à l’équipe de nuit ce soir.':' — ex. : je préviens monsieur cet après-midi.'),
+    champ:deja||'', max:300, multi:true, ok:'Je prends en charge', sansAudio:true,
     quandOui:async function(v){
       v=(v||'').trim();
       /* Le champ est OBLIGATOIRE : c'est lui qui prouve qu'on ne l'a pas pris par erreur. */
