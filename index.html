@@ -513,6 +513,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppv input:focus{outline:none;border-bottom-color:var(--noir)}
 .ppv-pa{font:inherit;font-size:11.5px;font-weight:600;background:none;border:1.25px solid #d8d4cd;border-radius:999px;padding:3px 10px;color:#6b6963;cursor:pointer}
 .ppv.pa .ppv-pa{border-color:#b28b7a;background:#f3e9e4;color:#1b1b1b}
+.ppv-pa{display:inline-flex;align-items:center;gap:5px}.ppv-pa .ppf-ic{width:16px;height:16px}
+.ppv.pa .ppv-pa .ppf-ic{color:#e63329}
 .ppv-plus{align-items:center;justify-content:center;border-style:dashed;color:#6b6963;font:inherit;font-size:13px;cursor:pointer;min-height:96px}
 .ppf-o{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;font-weight:600;background:#fdfdfc;color:#555;
   border:1.5px dashed #c9c6bf;border-radius:999px;padding:5px 11px;cursor:pointer}
@@ -16277,6 +16279,9 @@ const PP_PIC={
   personne:'<path d="M10 42V12a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/><path d="M18 14h16l-2 6H20z"/><path d="M21 26v3M26 26v3M31 26v3M23 33v3M29 33v3"/>',
   rendu:   '<path d="M12 22c-2 5-3 11-2 16 1 2 3 4 11 4s10-2 11-4c1-5 0-11-2-16"/><path d="M12 22h18"/><path d="M36 10l4 4-4 4"/><path d="M40 14H31a6 6 0 0 0-6 6"/>',
   cle:     '<path d="M8 42V6h22v36"/><path d="M4 42h30"/><rect x="29" y="25" width="15" height="12" rx="2"/><path d="M32 25v-4a4.5 4.5 0 0 1 9 0v4"/><path d="M36.5 30v3"/>',
+  /* « Pas autonome » (Mag, 09/10/2026 : « trouve une icône pour la non-autonomie ») : une silhouette
+     qui s'appuie sur une canne. Des traits, comme les autres. */
+  pa:      '<circle cx="21" cy="8" r="4"/><path d="M21 13v15M21 18l-7 6M21 18l9 4v20M21 28l-5 14M21 28l5 14"/><path d="M30 22c3 0 4 2 4 4"/>',
   lit:     '<path d="M5 36V14M5 28h38v8M43 36v-8"/><rect x="9" y="20" width="9" height="6" rx="2"/><path d="M20 22h17a4 4 0 0 1 4 4v2"/><path d="M28 8l6 6M34 8l-6 6"/>'
 };
 function ppPic(k){ return '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+(PP_PIC[k]||'')+'</svg>'; }
@@ -16499,7 +16504,7 @@ function ppVignette(id, i, x){
     '<input id="ppP'+id+'_'+i+'" type="text" maxlength="60" placeholder="Nom" value="'+esc(x.nom||'')+'" '+
       'autocomplete="off" onchange="ppPersNom(\''+id+'\','+i+',this.value)">'+
     '<button class="ppv-pa" aria-pressed="'+(x.pa?'true':'false')+'" onclick="ppPersPa(\''+id+'\','+i+')">'+
-      (x.pa?'✓ ':'')+'Pas autonome</button></div>';
+      '<span class="ppf-ic">'+ppPic('pa')+'</span>Pas autonome</button></div>';
 }
 function ppPersHTML(a){
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
@@ -17006,7 +17011,10 @@ function ppImprimer(quoi){
       /* (Mag, 09/10/2026 : « pas autonome prend beaucoup trop de place ») : une case seule, expliquée
          une fois en tête de colonne. Le protocole de la personne est une ÉTAPE, plus une case par nom. */
       return P.map(function(x){
-        return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+bx(x.pa)+'</div>';
+        /* Pas autonome = le picto EN ROUGE ; liste vierge = le picto en gris, à entourer au stylo. */
+        return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
+          (a ? (x.pa?'<span class="papic on">'+ppPic('pa')+'</span>':'<span class="papic"></span>')
+             : '<span class="papic vide">'+ppPic('pa')+'</span>')+'</div>';
       }).join('');
     };
     const etapes=function(a){
@@ -17033,7 +17041,7 @@ function ppImprimer(quoi){
         '<td class="no">'+((a&&ppNotes(a).length)?'<p class="jn">'+ppNotes(a).map(function(x){ return esc(x.txt); }).join(' · ')+'</p>':'')+
           '<div></div><div></div><div></div></td></tr>';
     };
-    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes <span class="thpa">☐ = pas autonome</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
+    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes <span class="thpa">'+ppPic('pa').replace('<svg','<svg class="thpic"')+' = pas autonome'+(vierge?' (l’entourer)':'')+'</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
       '<th>Commentaires (pas là à 18 h → demander à la nuit…)</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
     /* Rentokil ensemble, Mohamed à part — sur la MÊME feuille (Mag, 09/10/2026). */
@@ -17065,7 +17073,9 @@ function ppImprimer(quoi){
       'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
       '.pc.porte{display:block;font-size:8.5pt;margin:1mm 0 1.5mm;line-height:1.5}.pc.porte .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       '.pchoix .l1{display:block;white-space:nowrap;font-size:9.5pt;margin-bottom:1.5mm}.pchoix .bx{width:4mm;height:4mm;line-height:3.5mm;margin-right:1mm}'+
-      '.thpa{font-weight:400;color:#555;margin-left:2mm}'+
+      '.thpa{font-weight:400;color:#555;margin-left:2mm}.thpic{width:4.5mm;height:4.5mm;vertical-align:-1mm;color:#e63329}'+
+      '.papic{display:inline-block;width:7mm;height:7mm;flex:none}.papic svg{width:100%;height:100%}'+
+      '.papic.on{color:#e63329}.papic.vide{color:#bbb}'+
       '.pqui{display:inline-block;font-weight:700;font-size:10pt;border:2.5px solid #000;border-radius:5mm;padding:.5mm 2.5mm;margin-bottom:1.5mm}'+
       '.et em.sig{color:#999;font-size:8pt}'+
       '.et .pic{display:inline-block;width:5mm;height:5mm;vertical-align:middle;margin-right:1.2mm}.et .pic svg{width:100%;height:100%}'+
