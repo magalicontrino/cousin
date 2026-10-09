@@ -451,6 +451,17 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvt .entvus-b{flex:none;align-self:center}
 .rdvdate{font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:8px;padding:6px 8px;background:#fdfdfc;color:var(--noir)}
 .rdvau{align-self:center;font-size:13px}
+/* Accompagnements de la semaine (09/10/2026). */
+.rdvacc-res{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#e63329;margin:0 0 10px}
+.rdvacc-sem{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rdvacc-sem b{font-size:14px}
+.rdvacc{display:flex;gap:10px;border:1.5px solid var(--trait);border-left:6px solid var(--c);border-radius:12px;padding:10px;margin-bottom:8px;background:#fdfdfc}
+.rdvacc.manque{border-color:#e63329;border-left-color:var(--c)}
+.rdvacc-x{flex:1;min-width:0}
+.rdvacc-x b{display:block;font-size:15px}
+.rdvacc-x span{display:block;font-size:13px;color:#555;margin-top:2px}
+.rdvacc-in{display:block;width:100%;margin-top:8px;font:inherit;font-size:14px;border:1.25px solid var(--trait);border-radius:8px;padding:8px 10px;background:#f4f3f0;color:var(--noir)}
+.rdvacc.manque .rdvacc-in{border-color:#e63329;background:#fdfdfc}
 /* Les petits calendriers de Liste et notes (dessin B, 09/10/2026) — même calendrier que les entrants. */
 .rdvj-t{display:flex;align-items:center;gap:7px;margin:4px 0 8px}
 .rdvj-t .ic{width:18px;height:18px;display:inline-flex}.rdvj-t .ic svg{width:18px;height:18px}
@@ -16429,7 +16440,7 @@ function ppImprimer(quoi){
    ⏸ Les MAILS de rappel (jeudi 7 h récap, la veille 18 h, le matin 7 h) attendent le
      compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
    ═══════════════════════════════════════════════════════════════════════════ */
-var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='';
+var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='', RDV_VUE='', RDV_SEM=0, RDV_ACC_TROUVER=false;
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 /* 15 jours d'historique (09/10/2026 : « on doit pouvoir retourner en arrière de 15 jours »). */
 const RDV_GARDE=15;
@@ -16483,7 +16494,7 @@ async function loadRdv(){
 function rdvBarre(){
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
   const n=RDV_CHARGE?rdvAujourdhui():0;
-  return '<button class="rdvbarre" onclick="go(\'#/rdv\')"><i>'+icon('calendrier')+'</i>'+
+  return '<button class="rdvbarre" onclick="RDV_VUE=\'\';go(\'#/rdv\')"><i>'+icon('calendrier')+'</i>'+
     '<span>Rendez-vous</span>'+
     (n?'<b>'+n+' aujourd’hui</b>':'')+
   '</button>';
@@ -16610,7 +16621,7 @@ function rdvJoursHTML(){
   return h+'</div>';
 }
 function rdvOuvrirJour(j){
-  RDV_IMPR_DU=j||''; RDV_IMPR_AU=j||''; RDV_FORM=null;
+  RDV_IMPR_DU=j||''; RDV_IMPR_AU=j||''; RDV_FORM=null; RDV_VUE='';
   go('#/rdv');
 }
 function rdvQuandCourt(r){
@@ -16910,7 +16921,100 @@ function rdvDatesChange(){
   const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
   RDV_IMPR_DU=v('rdvDu'); RDV_IMPR_AU=v('rdvAu'); render();
 }
+/* ═══ LES ACCOMPAGNEMENTS DE LA SEMAINE (09/10/2026) ═══
+   Tes mots : « tout le monde doit pouvoir voir et avoir accès à l'accompagnement de la
+   semaine, à côté d'imprimer » ; « trier par les rendez-vous qui ont besoin d'un
+   accompagnement » ; « tout le monde doit pouvoir changer — si les coordis ne sont pas là,
+   on doit s'en sortir — mais il faut un message : réservé aux coordinateurs ».
+   · la semaine du lundi au dimanche, flèches pour changer de semaine ;
+   · seulement les rendez-vous accompagnés ; « À trouver » ne garde que ceux sans personne ;
+   · une case par rendez-vous pour écrire l'accompagnant (prénoms proposés en tapant) ;
+     hors coordination, une fenêtre rappelle « réservé aux coordinateurs » avant d'écrire ;
+   · « Imprimer » sort la feuille de la semaine. */
+function rdvLundi(decal){
+  const d=new Date(agIso(new Date())+'T12:00:00'), j=(d.getDay()+6)%7;
+  return ppAjoute(agIso(d), -j+7*(decal||0));
+}
+function rdvAccSemaine(){
+  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+  return RDV.filter(function(r){ return r.accompagne && r.jour>=du && r.jour<=au; })
+    .sort(function(x,y){ return (String(x.jour)+String(x.heure||'')).localeCompare(String(y.jour)+String(y.heure||'')); });
+}
+function vRdvAcc(){
+  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+  const tous=rdvAccSemaine(), manque=tous.filter(function(r){ return !r.accomp_nom; });
+  const L=RDV_ACC_TROUVER?manque:tous;
+  let h='<div class="subtop"><button class="cbtn" onclick="RDV_VUE=\'\';render()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+    '<h1>Accompagnements de la semaine</h1></div>';
+  h+='<p class="rdvacc-res">Réservé aux coordinateurs</p>';
+  h+='<div class="rdvacc-sem"><button class="fbtn" onclick="RDV_SEM--;render()" aria-label="Semaine d’avant">‹</button>'+
+    '<b>Du '+esc(ppJourFr(du))+' au '+esc(ppJourFr(au))+'</b>'+
+    '<button class="fbtn" onclick="RDV_SEM++;render()" aria-label="Semaine d’après">›</button>'+
+    '<button class="fbtn" onclick="rdvImprimerAcc()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
+  h+='<div class="chips">'+
+    '<button class="chip'+(!RDV_ACC_TROUVER?' on':'')+'" style="--c:'+chipCouleur(0)+'" onclick="RDV_ACC_TROUVER=false;render()">Tous · '+tous.length+'</button>'+
+    '<button class="chip'+(RDV_ACC_TROUVER?' on':'')+'" style="--c:#e63329" onclick="RDV_ACC_TROUVER=true;render()">À trouver · '+manque.length+'</button></div>';
+  if(!L.length) h+='<div class="empty"><b>'+(RDV_ACC_TROUVER?'Tout le monde a son accompagnant.':'Aucun accompagnement cette semaine.')+'</b></div>';
+  let jour='';
+  L.forEach(function(r){
+    if(r.jour!==jour){ jour=r.jour; h+='<div class="ghead">'+esc(rdvJourTitre(r.jour))+'</div>'; }
+    const t=rdvType(r.genre);
+    h+='<div class="rdvacc'+(r.accomp_nom?'':' manque')+'" style="--c:'+t.c+'">'+
+      '<span class="rdvc-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvacc-x">'+
+        '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
+        '<span>'+esc(t.l)+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
+        (r.note?'<span>'+esc(r.note)+'</span>':'')+
+        '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="À trouver — écrire un prénom" '+
+          'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+
+      '</div></div>';
+  });
+  h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
+  return h;
+}
+function rdvAccChanger(id, el){
+  const r=rdvLigne(id); if(!r) return;
+  const n=String(el.value||'').trim();
+  if(n===String(r.accomp_nom||'')) return;
+  const ecrire=async function(){
+    const p=RDV_EQUIPE.find(function(x){ return x.prenom.toLowerCase()===n.toLowerCase(); });
+    const maj={accomp_nom:n?(p?p.prenom:n).slice(0,60):null, accomp_email:p?p.email:null,
+      modifie_par:nomAffiche(), modifie_le:new Date().toISOString()};
+    const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
+    if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); el.value=r.accomp_nom||''; return; }
+    Object.assign(r, maj); render(); toast(n?'Accompagnant : '+maj.accomp_nom+' ✓':'Accompagnant retiré');
+  };
+  /* Tout le monde PEUT (si la coordination est absente), mais c'est dit. */
+  if(peutGerer()) { ecrire(); return; }
+  cousinConfirme('Réservé aux coordinateurs', 'Tu changes l’accompagnant de '+r.nom+' ('+rdvQuandCourt(r)+')'+
+    (n?' : '+n:' : personne')+'. À faire seulement si la coordination n’est pas là.', ecrire, {ok:'Je change'});
+  el.value=r.accomp_nom||'';
+}
+function rdvImprimerAcc(){
+  const du=rdvLundi(RDV_SEM), au=ppAjoute(du,6);
+  const L=RDV_ACC_TROUVER?rdvAccSemaine().filter(function(r){ return !r.accomp_nom; }):rdvAccSemaine();
+  const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
+  const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
+  let corps='';
+  jours.forEach(function(j){
+    const l=L.filter(function(r){ return r.jour===j; });
+    corps+='<section class="ch neutre"><div class="st"><span>'+esc(ppJourFr(j))+'</span><em>'+l.length+'</em></div>'+
+      l.map(function(r){
+        const t=rdvType(r.genre);
+        return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
+          '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
+          (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
+          '<span class="quoi">'+esc(t.l)+'</span>'+
+          '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lieu?'<br>'+esc(r.lieu):'')+
+            '<span class="com" style="'+(r.accomp_nom?'color:#1b1b1b;font-weight:700':'color:#e63329;font-weight:700')+'">'+
+              esc(r.accomp_nom?'Accompagné par '+r.accomp_nom:'Accompagnant à trouver')+'</span></span></div>';
+      }).join('')+'</section>';
+  });
+  if(!corps) corps='<p class="vide">Aucun accompagnement cette semaine.</p>';
+  feuilleImprimer({onglet:'Accompagnements — semaine du '+ppJourFr(du), entete:'Accompagnements de la semaine — aperçu',
+    titre:'Accompagnements', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
+}
 function vRdv(){
+  if(RDV_VUE==='acc') return vRdvAcc();
   const a=agIso(new Date());
   const D=rdvDates();
   /* Les dates du haut peuvent remonter jusqu'à 15 jours : l'écran montre alors aussi ce
@@ -16926,7 +17030,8 @@ function vRdv(){
      '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" min="'+esc(ppAjoute(a,-RDV_GARDE))+'" aria-label="Du" onchange="rdvDatesChange()">'+
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
-     '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
+     '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
+     '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_SEM=0;render();window.scrollTo(0,0)">Accompagnements de la semaine</button></div>';
   /* « À prendre en charge » N'EST PLUS ICI (09/10/2026 : « ça risque d'être long, avant
      l'agenda, ce n'est pas avantageux ») : elle vit dans Liste et notes seulement. */
   if(RDV_FORM) h+=rdvFormHTML();
