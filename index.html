@@ -16263,7 +16263,7 @@ function ppPersAjouter(id){
 function ppChangerProto(id, k){
   const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
   const p=PP_PROTOS.find(function(x){ return x.k===k; });
-  ppMaj(a, {protocole:k}, 'protocole : '+p.l);
+  ppMaj(a, {protocole:k}, k==='tout'?'protocole de la personne : à faire':'protocole de la personne : retiré');
 }
 function ppPersHTML(a){
   const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
@@ -16274,7 +16274,7 @@ function ppPersHTML(a){
       '<button class="chip'+(x.pa?' on':'')+'" aria-pressed="'+(x.pa?'true':'false')+'" '+
         'onclick="ppPersPa(\''+a.id+'\','+i+')">Pas autonome</button>'+
       (ppProto(a).k==='tout'?'<button class="chip ppc-ppb'+(x.pp?' on':'')+'" aria-pressed="'+(x.pp?'true':'false')+'" '+
-        'onclick="ppPersPp(\''+a.id+'\','+i+')">'+(x.pp?'✓ ':'')+'Protocole personne</button>':'')+'</div>';
+        'onclick="ppPersPp(\''+a.id+'\','+i+')">'+(x.pp?'✓ fait':'Protocole fait ?')+'</button>':'')+'</div>';
   }).join('')+
   (P.length<4?'<button class="ppc-plus" onclick="ppPersAjouter(\''+a.id+'\')">+ une personne</button>':'')+
   '</div>';
@@ -16469,7 +16469,7 @@ function ppColler(){
   cousinConfirme('Rentokil · '+ppJourFr(r.jour),
     (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
     r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+
-    '\n'+(PP_RENTO_CHOIX?'Rentokil':'Autre passage')+' · protocole : '+PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).l+
+    '\n'+(PP_RENTO_CHOIX?'Rentokil':'Autre passage')+(PP_PROTO_CHOIX==='tout'?' · avec le protocole de la personne':'')+
     '\n\nVérifie avant d’ajouter.',
     async function(){
       const ok=await ppInserer(r.jour, r.nums, []);
@@ -16483,13 +16483,13 @@ function ppCarte(a){
   const E=ppEtapesDe(a), pr=ppProto(a);
   const fait=E.filter(function(s){ return ppFait(a,s.k); }).length;
   const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / '+E.length;
-  let h='<div class="ppc '+e+'" style="--pc:'+ppProto(a).c+'">'+
+  let h='<div class="ppc '+e+'"'+(ppProto(a).k==='tout'?' style="--pc:#ff8cc6"':'')+'>'+
     '<div class="ppc-h"><span class="ppc-n">'+esc(a.numero)+'</span>'+
       '<span class="ppc-e">'+etat+'</span></div>'+
     '<div class="ppc-pt"><button class="chip ppc-rk'+(ppRento(a)?' on':'')+'" onclick="ppRentoChanger(\''+a.id+'\')">'+
-      (ppRento(a)?'Rentokil':'Autre passage')+'</button>'+PP_PROTOS.map(function(p){
-      return '<button class="chip'+(p.k===pr.k?' on':'')+'" style="--c:'+p.c+'" aria-pressed="'+(p.k===pr.k?'true':'false')+'" '+
-        'onclick="ppChangerProto(\''+a.id+'\',\''+p.k+'\')">'+esc(p.l)+'</button>'; }).join('')+'</div>'+
+      (ppRento(a)?'Rentokil':'Autre passage')+'</button>'+
+      '<button class="chip ppc-ppb'+(pr.k==='tout'?' on':'')+'" aria-pressed="'+(pr.k==='tout'?'true':'false')+'" '+
+        'onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+(pr.k==='tout'?'✓ ':'')+'Protocole de la personne</button>'+'</div>'+
     ppPersHTML(a);
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à midi : pas de protocole, on ne touche pas à ses affaires.</p>';
@@ -16526,10 +16526,13 @@ function vPunaises(){
     '<div class="ppc-pt ppc-pt-f"><span>Passage</span>'+
       '<button class="chip'+(PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=true;render()">Rentokil</button>'+
       '<button class="chip'+(!PP_RENTO_CHOIX?' on':'')+'" onclick="PP_RENTO_CHOIX=false;render()">Autre passage</button></div>'+
-    '<div class="ppc-pt ppc-pt-f"><span>Protocole</span>'+PP_PROTOS.map(function(p){
-      return '<button class="chip'+(p.k===PP_PROTO_CHOIX?' on':'')+'" style="--c:'+p.c+'" aria-pressed="'+(p.k===PP_PROTO_CHOIX?'true':'false')+'" '+
-        'title="'+esc(p.s)+'" onclick="PP_PROTO_CHOIX=\''+p.k+'\';render()">'+esc(p.l)+'</button>'; }).join('')+
-      '<em>'+esc(PP_PROTOS.find(function(p){ return p.k===PP_PROTO_CHOIX; }).s)+'</em></div>'+
+    /* ⚠ PAS DE CHOIX ENTRE TROIS PROTOCOLES (Mag, 09/10/2026 : « on ne va pas mettre ce
+       genre de choix ; s'il faut faire les protocoles de la personne, il faut que ce soit
+       spécifié — cliquer sur un bouton ») : UN bouton, éteint par défaut. */
+    '<div class="ppc-pt ppc-pt-f"><button class="chip ppc-ppb'+(PP_PROTO_CHOIX==='tout'?' on':'')+'" '+
+      'aria-pressed="'+(PP_PROTO_CHOIX==='tout'?'true':'false')+'" '+
+      'onclick="PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
+      (PP_PROTO_CHOIX==='tout'?'✓ ':'')+'Protocole de la personne</button></div>'+
     '<textarea id="ppColle" rows="3" placeholder="Coller le mail de passage (Rentokil ou autre)" oninput="ppColleSaisie(this.value)">'+esc(PP_COLLE)+'</textarea>'+
     '<div class="chadd" style="margin:0"><button class="chaddbtn" style="flex:1" onclick="ppColler()">Lire le mail et ajouter les chambres</button></div>'+
     '<div class="tbduo">'+
@@ -16632,14 +16635,13 @@ function ppImprimer(quoi){
       }).join('')+'</div>';
     };
     const proto=function(a){
-      if(!a) return '<div class="pchoix">'+PP_PROTOS.map(function(p){
-        return '<span class="pc" style="--c:'+p.c+'">'+bx(false)+p.l+'</span>'; }).join('')+
-        '<span class="pc">'+bx(false)+'Rentokil</span><span class="pc">'+bx(false)+'Autre</span></div>';
-      const p=ppProto(a);
-      return '<span class="ptag" style="background:'+p.c+'">'+esc(p.l)+'</span><span class="psous">'+esc(p.s)+'</span>';
+      if(!a) return '<div class="pchoix"><span class="pc">'+bx(false)+'Rentokil</span><span class="pc">'+bx(false)+'Autre passage</span>'+
+        '<span class="pc"><b>'+bx(false)+'Protocole de la personne</b></span></div>';
+      return (ppRento(a)?'<span class="psous">Rentokil</span>':'<span class="psous">Autre passage</span>')+
+        (ppProto(a).k==='tout'?'<span class="ptag">Protocole de la personne</span>':'<span class="psous">Pas de protocole de la personne</span>');
     };
     const ligne=function(a){
-      const c = a ? ppProto(a).c : '#d8d4cd';
+      const c = (a && ppProto(a).k==='tout') ? '#ff8cc6' : '#ffffff';
       return '<tr style="--c:'+c+'"><td class="ch"><span>'+(a?esc(a.numero):'')+'</span></td>'+
         '<td class="pr">'+proto(a)+'</td>'+
         '<td class="in">'+pers(a)+'</td>'+
@@ -16658,7 +16660,7 @@ function ppImprimer(quoi){
     blocs+=bloc('À ajouter au stylo', 'vide', vrows);
     corps='<section class="pg">'+
       '<div class="tt"><h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
-        '<div class="leg">'+PP_PROTOS.map(function(p){ return '<span><i style="background:'+p.c+'"></i><b>'+p.l+'</b> '+esc(p.s)+'</span>'; }).join('')+'</div></div>'+
+        '</div>'+
       '<p class="rel"><b>Produit 12 h → 17 h</b> · chambres rouvertes à 17 h · sacs préparés avant 11 h, <b>toujours avec la personne</b> · sacs rendus le lendemain matin. '+
         '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. <b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
       (pasPrev && !lignes.length ? '<p class="rel"><b>Tout le monde est prévenu.</b></p>' : '')+
@@ -16666,14 +16668,14 @@ function ppImprimer(quoi){
       '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+'</p></section>';
     css='.tt{display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;flex-wrap:wrap;margin-bottom:3mm}'+
       'h1{font-size:19pt}.leg{display:flex;gap:4mm;flex-wrap:wrap;font-size:9pt}.leg i{display:inline-block;width:4mm;height:4mm;border-radius:1mm;vertical-align:-0.6mm;margin-right:1.2mm;border:1px solid #000}'+
-      '.rel{font-size:10.5pt;margin:0 0 4mm;padding:2.5mm 4mm;border:2px solid #000;border-radius:2mm;background:#fdf6e0}'+
+      '.rel{font-size:10.5pt;margin:0 0 4mm;padding:2.5mm 4mm;border:2px solid #000;border-radius:2mm}'+
       '.band{font-size:11pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2mm 4mm;border-radius:2mm 2mm 0 0;margin-top:4mm}'+
-      '.band.rk{background:#1b1b1b;color:#fff}.band.au{background:#b28b7a;color:#fff}.band.vide{background:#e8e7e4;color:#1b1b1b}'+
+      '.band{border:2px solid #000;border-bottom:0}.band.au{border-color:#b28b7a;color:#7a5a4c}.band.vide{border-color:#999;color:#555}'+
       'table{width:100%;border-collapse:collapse;break-inside:auto}tr{break-inside:avoid}'+
       'th{text-align:left;font-size:8.5pt;padding:1.5mm 2mm;border-bottom:2px solid #000;font-weight:600;color:#333}'+
       'td{border-bottom:1px solid #000;padding:2.5mm 2mm;vertical-align:top;font-size:11pt}'+
       'td.ch{width:17mm;border-left:3mm solid var(--c)}td.ch span{font-size:22pt;font-weight:800}'+
-      'td.pr{width:34mm}.ptag{display:inline-block;font-weight:700;font-size:10.5pt;padding:1mm 2.5mm;border-radius:6mm;border:1px solid #000}'+
+      'td.pr{width:40mm}.ptag{display:inline-block;font-weight:700;font-size:10pt;padding:1mm 2.5mm;border-radius:6mm;border:2.5px solid #ff8cc6;margin-top:1.5mm}'+
       '.psous{display:block;font-size:8.5pt;color:#333;margin-top:1.5mm;line-height:1.25}'+
       '.pchoix .pc{display:block;font-size:9pt;margin-bottom:1mm}.pchoix .pc .bx{width:4mm;height:4mm;line-height:3.5mm}'+
       'td.in{width:92mm}.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
