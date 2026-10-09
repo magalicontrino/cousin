@@ -16410,7 +16410,8 @@ function ppImprimer(quoi){
    ═══════════════════════════════════════════════════════════════════════════ */
 var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='';
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
-const RDV_GARDE=14;
+/* 15 jours d'historique (09/10/2026 : « on doit pouvoir retourner en arrière de 15 jours »). */
+const RDV_GARDE=15;
 /* ⚠ LES COULEURS DE TA PALETTE, ET AUCUNE AUTRE (09/10/2026 : « on a des couleurs de
    base à utiliser, et toi, tu inventes des couleurs ») : rouge, turquoise, brun.
    ⚠ PLUS D'« ADMINISTRATIF » (09/10/2026 : « social et administratif, c'est la même
@@ -16507,8 +16508,9 @@ function rdvPrisEnCharge(r){
   [['prevenir','Prévenir'],['reveil','Réveil']].forEach(function(t){
     if(!r[t[0]]) return;
     const qui=r[t[0]+'_par'];
+    /* « On doit voir qui a descendu les réveils » (09/10/2026) : le nom vient en premier. */
     l.push(qui
-      ? '<p class="rdvc-a">'+t[1]+' : '+esc(qui)+(r[t[0]+'_note']?' — '+esc(r[t[0]+'_note']):'')+'</p>'
+      ? '<p class="rdvc-a">'+t[1]+' — pris par '+esc(qui)+(r[t[0]+'_note']?' : '+esc(r[t[0]+'_note']):'')+'</p>'
       : '<p class="rdvc-a rouge">'+t[1]+' : personne encore</p>');
   });
   return l.join('');
@@ -16549,19 +16551,16 @@ function carteAPrendre(){
     }).join('')+
   '</div>';
 }
-/* « Prévenir » : tous ceux qui écrivent l'agenda. Le RÉVEIL : les PFO (09/10/2026 : « c'est
-   les PFO qui doivent faire ça ») — ils le passent ensuite à la nuit depuis leur liste. */
-function rdvPeutPrendre(k){
-  if(!rdvPeutEcrire()) return false;
-  if(k!=='reveil') return true;
-  return !!(PROFILE && PROFILE.pfo) || (typeof vueAdmin==='function' && vueAdmin());
-}
+/* ⚠ TOUT LE MONDE PREND LES RÉVEILS (09/10/2026, après avoir d'abord dit « les PFO » :
+   « si demain je suis absente, c'est celui qui fait la passation à la nuit qui doit les
+   descendre ») — tous ceux qui écrivent l'agenda. L'agenda dit ensuite QUI l'a descendu. */
+function rdvPeutPrendre(k){ return rdvPeutEcrire(); }
 function rdvQuandCourt(r){
   return (r.jour===agIso(new Date())?'aujourd’hui':ppJourFr(r.jour))+(r.heure?' '+rdvHeureFr(r.heure):'');
 }
 function rdvPrendre(id, k, deja){
   const r=rdvLigne(id); if(!r) return;
-  if(!rdvPeutPrendre(k)){ toast('Les réveils sont pris par les PFO'); return; }
+  if(!rdvPeutPrendre(k)){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   const quoi = k==='reveil' ? 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):'') : 'Prévenir';
   cousinPop({
     titre:'Je m’en occupe — '+quoi, texte:r.nom+' · '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''),
@@ -16788,7 +16787,9 @@ function rdvDatesChange(){
 function vRdv(){
   const a=agIso(new Date());
   const D=rdvDates();
-  const avenir=RDV.filter(function(r){ return r.jour>=a && r.jour>=D.du && r.jour<=D.au; });
+  /* Les dates du haut peuvent remonter jusqu'à 15 jours : l'écran montre alors aussi ce
+     qui est passé. */
+  const avenir=RDV.filter(function(r){ return r.jour>=D.du && r.jour<=D.au; });
   const plusTard=RDV.filter(function(r){ return r.jour>D.au; });
   const passes=RDV.filter(function(r){ return r.jour<a; }).reverse();
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
@@ -16796,7 +16797,7 @@ function vRdv(){
   h+='<div class="imprligne" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
      /* Imprimer du … au … (09/10/2026 : « il faut pouvoir imprimer la liste des
         rendez-vous, de date à date »). Par défaut : aujourd'hui seul = la feuille du jour. */
-     '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" aria-label="Du" onchange="rdvDatesChange()">'+
+     '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" min="'+esc(ppAjoute(a,-RDV_GARDE))+'" aria-label="Du" onchange="rdvDatesChange()">'+
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
      '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
@@ -16812,7 +16813,7 @@ function vRdv(){
   const jours=[]; avenir.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
   jours.forEach(function(j){
     h+='<div class="ghead">'+esc(rdvJourTitre(j))+'</div>'+
-      avenir.filter(function(r){ return r.jour===j; }).map(function(r){ return rdvCarte(r,false); }).join('');
+      avenir.filter(function(r){ return r.jour===j; }).map(function(r){ return rdvCarte(r, r.jour<a); }).join('');
   });
   if(plusTard.length){
     const fin=plusTard.reduce(function(m,r){ return r.jour>m?r.jour:m; }, D.au);
@@ -21628,7 +21629,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+carteMaListe()+carteBinome()+carteAPrendre()+carteServiceSocial()+passationsHTML()+
+    return h+carteAVoir()+carteMaListe()+carteBinome()+carteServiceSocial()+carteAPrendre()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -21756,7 +21757,8 @@ function listeCorps(){
      a été retirée le même jour. */
   h+='<div class="ml3-c">'+carteMaListe()+carteBinome()+'</div>';
   /* Le service social AVANT la nuit (Mag, 07/10/2026 : « passation social avant nuit »). */
-  h+='<div class="ml3-c">'+carteAPrendre()+carteServiceSocial()+passationsHTML()+'</div>';
+  /* Le service social AU-DESSUS des réveils de l'agenda (09/10/2026). */
+  h+='<div class="ml3-c">'+carteServiceSocial()+carteAPrendre()+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
