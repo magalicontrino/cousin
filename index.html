@@ -16800,6 +16800,19 @@ function rdvOuvrirCorriges(){
   go('#/rdv');
   setTimeout(function(){ const e=document.querySelector('.rdvc-notif'); if(e && e.scrollIntoView) e.scrollIntoView({block:'center'}); }, 400);
 }
+/* Les mêmes étiquettes SUR LE PAPIER (09/10/2026 : « PMR doit être coloré sur les
+   impressions, c'est important qu'on ne l'oublie pas ») : accompagnant turquoise, PMR et
+   taxi jaune, réveil rose, prévenir / pas autonome brun. */
+function rdvEtiqPapier(r){
+  const e=[];
+  if(r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
+  if(r.pmr) e.push(['PMR','#f5c542']);
+  if(r.taxi) e.push(['Taxi à commander','#f5c542']);
+  if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
+  if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
+  if(r.prevenir) e.push(['Prévenir','#b28b7a']);
+  return e.length ? '<span class="etq">'+e.map(function(x){ return '<span class="acc" style="background:'+x[1]+'">'+esc(x[0])+'</span>'; }).join('')+'</span>' : '';
+}
 function rdvLigne(id){ return RDV.find(function(x){ return String(x.id)===String(id); }); }
 function rdvAujourdhui(){ const a=agIso(new Date()); return RDV.filter(function(r){ return r.jour===a; }).length; }
 function rdvResumeCourt(){
@@ -17140,7 +17153,7 @@ function rdvImprimerAcc(){
           '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lieu?'<br>'+esc(r.lieu):'')+
             '<span class="com" style="'+(r.accomp_nom?'color:#1b1b1b;font-weight:700':'color:#e63329;font-weight:700')+'">'+
               esc(r.accomp_nom?'':'Accompagnant à trouver')+'</span>'+
-            (r.accomp_nom?'<span class="acc">Accompagné par '+esc(r.accomp_nom)+'</span>':'')+'</span></div>';
+            rdvEtiqPapier(r)+'</span></div>';
       }).join('')+'</section>';
   });
   if(!corps) corps='<p class="vide">Aucun accompagnement sur ces dates.</p>';
@@ -17247,10 +17260,9 @@ function rdvImprimer(du, au, seulId){
       '<span class="quoi">'+esc(t.l)+'</span>'+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
-        (r.accompagne && r.accomp_nom
-          ? '<span class="acc">Accompagné par '+esc(r.accomp_nom)+'</span>'
+        (r.accompagne && r.accomp_nom ? ''
           : '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>')+
-        (rdvAPrevoir(r)?'<span class="com" style="color:#1b1b1b;font-weight:700">'+esc(rdvAPrevoir(r))+'</span>':'')+
+        rdvEtiqPapier(r)+
         (r.note?'<span class="com">'+esc(r.note).replace(/\n/g,'<br>')+'</span>':'')+
       '</span></div>';
   };
@@ -18454,6 +18466,7 @@ function feuilleImprimer(o){
     /* Rendez-vous (09/10/2026) : neutre, et ROUGE seulement s'il manque l'accompagnant. */
     '.l.k-rdvneutre{border-left-color:#d8d4cd}.l.k-rdvmanque{border-left-color:#e63329;background:#fdecea}'+
     /* L'accompagnant, sur le papier : une étiquette turquoise qui ne passe pas inaperçue. */
+    '.etq{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.etq .acc{margin-top:0}'+
     '.acc{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;background:#6fc7d9;color:#1b1b1b;'+
       'font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em}'+
     '.alerte{margin:10px 0 4px;padding:8px 12px;border:2px solid #e63329;border-radius:10px;color:#e63329;font-weight:800;font-size:15px}'+
