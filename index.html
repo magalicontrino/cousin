@@ -460,6 +460,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvacc-x{flex:1;min-width:0}
 .rdvacc-x b{display:block;font-size:15px}
 .rdvacc-x span{display:block;font-size:13px;color:#555;margin-top:2px}
+.rdvacc-qui{display:block;font-size:11.5px;color:#6b6963;margin-top:3px;font-family:ui-monospace,monospace;letter-spacing:.03em}
 .rdvacc-in{display:block;width:100%;margin-top:8px;font:inherit;font-size:14px;border:1.25px solid var(--trait);border-radius:8px;padding:8px 10px;background:#f4f3f0;color:var(--noir)}
 .rdvacc.manque .rdvacc-in{border-color:#e63329;background:#fdfdfc}
 /* Les petits calendriers de Liste et notes (dessin B, 09/10/2026) — même calendrier que les entrants. */
@@ -16809,6 +16810,11 @@ async function rdvEnregistrer(){
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
     pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome};
+  /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
+  const avant=F.id ? rdvLigne(F.id) : null;
+  if(String((avant&&avant.accomp_nom)||'')!==String(ligne.accomp_nom||'') && (ligne.accomp_nom || avant)){
+    ligne.accomp_par=nomAffiche(); ligne.accomp_le=new Date().toISOString();
+  }
   /* Deux appuis sur « Enregistrer » = deux rendez-vous : le second attend le premier. */
   if(RDV_ENVOI) return;
   RDV_ENVOI=true;
@@ -16909,7 +16915,7 @@ function rdvCarte(r, passe){
       '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
       '<span class="rdvc-t">'+t.l+'</span>'+
       (r.lieu||r.adresse?'<p>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — '))+'</p>':'')+
-      '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+
+      '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+rdvAccQui(r)+
       (rdvAPrevoir(r)?'<p class="rdvc-a">'+esc(rdvAPrevoir(r))+'</p>':'')+
       rdvPrisEnCharge(r)+
       (r.note?'<p>'+esc(r.note)+'</p>':'')+
@@ -16988,10 +16994,21 @@ function vRdvAcc(){
         (r.note?'<span>'+esc(r.note)+'</span>':'')+
         '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="À trouver — écrire un prénom" '+
           'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+
+        rdvAccQui(r)+
       '</div></div>';
   });
   h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   return h;
+}
+/* ═══ QUI A NOTÉ L'ACCOMPAGNANT (09/10/2026 : « le dernier qui a rajouté un accompagnement,
+   d'avoir qui c'est — si quelqu'un change, on doit voir qui c'est ») ═══ Avant cette
+   colonne, on retombe sur l'auteur du rendez-vous. */
+function rdvAccQui(r){
+  if(!r || !r.accompagne) return '';
+  const qui=r.accomp_par || (r.accomp_nom ? r.cree_par : '');
+  if(!qui) return '';
+  const q=r.accomp_le ? binQuand(r.accomp_le) : '';
+  return '<small class="rdvacc-qui">'+(r.accomp_nom?'Noté par ':'Retiré par ')+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
 }
 function rdvAccChanger(id, el){
   const r=rdvLigne(id); if(!r) return;
@@ -17000,6 +17017,7 @@ function rdvAccChanger(id, el){
   const ecrire=async function(){
     const p=RDV_EQUIPE.find(function(x){ return x.prenom.toLowerCase()===n.toLowerCase(); });
     const maj={accomp_nom:n?(p?p.prenom:n).slice(0,60):null, accomp_email:p?p.email:null,
+      accomp_par:nomAffiche(), accomp_le:new Date().toISOString(),
       modifie_par:nomAffiche(), modifie_le:new Date().toISOString()};
     const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
     if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); el.value=r.accomp_nom||''; return; }

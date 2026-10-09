@@ -111,3 +111,8 @@ alter table public.rendez_vous add column if not exists reveil_le timestamptz;
 -- dire : prévenez-le. » `prevenir` = on nous demande de le prévenir ; `pas_autonome` = la personne
 -- ne gère pas seule. Les deux font partir l'info « Prévenir » à la nuit. Passé le 09/10/2026.
 alter table public.rendez_vous add column if not exists pas_autonome boolean not null default false;
+
+-- ═══ QUI A NOTÉ L'ACCOMPAGNANT (09/10/2026) ═══ « Si quelqu'un change, on doit voir qui c'est. »
+-- Posé à chaque fois que le nom de l'accompagnant change. Passé dans Supabase le 09/10/2026.
+alter table public.rendez_vous add column if not exists accomp_par text;
+alter table public.rendez_vous add column if not exists accomp_le timestamptz;
