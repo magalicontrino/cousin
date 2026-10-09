@@ -16850,6 +16850,7 @@ function vPunaises(){
      /* UNE SEULE LISTE (Mag, 09/10/2026 : « la liste des entrées et la feuille du jeudi, ça devrait
         être la même chose ; imprimer la liste, juste ») : les pas-prévenus y sont marqués. */
      '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
+     '<button class="fbtn" onclick="ppImprimer(\'vierge\')"><span class="ic">'+icon('imprimer')+'</span>Liste vierge</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '</div>';
   /* ═══ NOUVEAU PASSAGE — LA CHAMBRE VIERGE (piste C, Mag, 09/10/2026 : « j'aime bien l'idée du
@@ -16912,20 +16913,19 @@ function vPunaises(){
 /* ── le papier ──────────────────────────────────────────────────────────── */
 /* Le jeudi qu'on imprime : le premier jeudi encore actif, sinon celui qui vient. */
 function ppJourImprime(){ const j=ppJours(ppActives()).filter(function(x){ return x>=ppAjoute(agIso(new Date()),-1); }); return j[0]||ppJeudi(); }
-function ppImprimerDepuisPrint(){
-  if(PP_CHARGE) ppImprimer('feuille');
-  else loadPunaises().then(function(){ ppImprimer('feuille'); });
-}
+/* Print = le tiroir des feuilles VIERGES : c'est la liste vierge qui sort d'ici. */
+function ppImprimerDepuisPrint(){ ppImprimer('vierge'); }
 function ppImprimer(quoi){
   const jour=ppJourImprime();
-  const L=PUNAISES.filter(function(a){ return a.jour===jour; })
+  /* Toutes les chambres en cours (comme à l'écran : « tout ensemble »), dans l'ordre des numéros. */
+  const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini'; })
     .sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
   const pic=function(f){ return '<img src="'+new URL('picto/'+f, location.href).href+'" alt="">'; };
   const flocon='<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round">'+
     '<path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5"/></svg>';
   let corps='', titre='', css='', paysage=false;
   if(quoi==='portes'){
-    if(!L.length){ toast('Aucune chambre pour '+ppJourFr(jour)); return; }
+    if(!L.length){ toast('Aucune chambre en cours'); return; }
     titre='Affiches des portes';
     paysage=true;
     /* ═══ LES AFFICHES — DESSIN B, CHOISI (Mag, 09/10/2026 : « le B est parfait ») ═══
@@ -16942,7 +16942,7 @@ function ppImprimer(quoi){
       const cs=function(col, ic, fr, en){ return '<div class="cs" style="--c:'+col+'"><span style="color:'+col+'">'+ic+'</span><b>'+fr+'</b><i>'+en+'</i></div>'; };
       return '<div class="a5"><div class="tete"><div class="num">'+esc(a.numero)+'</div>'+
         '<div class="tt">Punaises · Bed bugs</div>'+
-        '<div class="d">'+esc(ppJourFr(jour))+' · '+esc(ppJourEn(jour))+'</div></div>'+
+        '<div class="d">'+esc(ppJourFr(a.jour))+' · '+esc(ppJourEn(a.jour))+'</div></div>'+
         '<div class="g">'+
           cs('#6fc7d9', icSac, 'Avant '+ppHFr(ppAvantSacs(a))+'<br>tout dans les sacs', 'Before '+ppHEn(ppAvantSacs(a))+': everything in the bags')+
           cs('#ff8cc6', icLit, 'Enlevez<br>vos draps', 'Remove your sheets')+
@@ -16968,8 +16968,11 @@ function ppImprimer(quoi){
       '.cs i{display:block;font-style:normal;font-size:9pt;color:#333;line-height:1.3}'+
       '.pied{font-size:8.5pt;color:#444;text-align:center;margin-top:4mm}';
   } else {
-    const pasPrev = (quoi==='entree');
-    const lignes = pasPrev ? L.filter(function(a){ return ppEtat(a)==='alerte'; }) : L;
+    /* ⚠ DEUX IMPRESSIONS, JAMAIS MÉLANGÉES (Mag, 09/10/2026 : « soit la liste, soit une liste vierge,
+       pas mélanger les deux ») : « feuille » = les chambres seulement ; « vierge » = des lignes vides. */
+    const pasPrev = (quoi==='entree'), vierge = (quoi==='vierge');
+    const lignes = vierge ? [] : pasPrev ? L.filter(function(a){ return ppEtat(a)==='alerte'; }) : L;
+    if(!vierge && !pasPrev && !lignes.length){ toast('Aucune chambre en cours — imprime la liste vierge'); return; }
     titre = pasPrev ? 'À prévenir en arrivant' : 'Protocole punaises';
     paysage = true;
     const bx=function(ok){ return '<span class="bx">'+(ok?'✓':'')+'</span>'; };
@@ -16999,7 +17002,7 @@ function ppImprimer(quoi){
     const proto=function(a){
       if(!a) return '<div class="pchoix"><span class="l1">'+bx(false)+'Rentokil &nbsp; '+bx(false)+'Mohamed</span>'+
         '<span class="l1">Fermée ……… → ………</span><span class="pc porte">'+bx(false)+'Fermée à clé · rouverte par : ………</span></div>';
-      return '<span class="pqui" style="border-color:'+ppQui(a).c+'">'+ppQui(a).l+'</span><span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+
+      return '<span class="pqui" style="border-color:'+ppQui(a).c+'">'+ppQui(a).l+'</span><span class="psous">'+esc(ppJourFr(a.jour))+'</span><span class="pheure">Fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))+'</span>'+
         '<span class="pc porte">'+bx(!!a.porte_le)+'Fermée à clé'+(a.porte_le?' ('+esc(a.porte_par||'')+')':'')+' · rouverte par : ………</span>';
     };
     const ligne=function(a){
@@ -17020,11 +17023,10 @@ function ppImprimer(quoi){
     const rk=lignes.filter(ppRento), mo=lignes.filter(function(a){ return !ppRento(a); });
     if(rk.length) blocs+=bloc('Rentokil · '+rk.length+' chambre'+(rk.length>1?'s':''), 'rk', rk.map(ligne).join(''));
     if(mo.length) blocs+=bloc('Mohamed · '+mo.length+' chambre'+(mo.length>1?'s':''), 'mo', mo.map(ligne).join(''));
-    const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
-    let vrows=''; for(let i=0;i<vides;i++) vrows+=ligne(null);
-    blocs+=bloc('À ajouter au stylo', 'vide', vrows);
+    if(vierge){ let vrows=''; for(let i=0;i<6;i++) vrows+=ligne(null); blocs+=bloc('Liste vierge', 'vide', vrows); }
     corps='<section class="pg">'+
-      '<div class="tt"><h1>'+esc(titre)+' — '+esc(ppJourFr(jour))+'</h1>'+
+      '<div class="tt"><h1>'+esc(titre)+(vierge?' — le ………………':
+        (lignes.every(function(a){ return a.jour===lignes[0].jour; }) && lignes.length ? ' — '+esc(ppJourFr(lignes[0].jour)) : ''))+'</h1>'+
         '</div>'+
       '<p class="rel">'+
         '<b>Pas prévenu ?</b> Soir → présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin.</p>'+
@@ -19253,7 +19255,7 @@ const PRINT_FEUILLES=[
      l'accueil — elle doit être aussi dans les documents à imprimer »). Les chambres et
      les personnes du jeudi qui vient, déjà écrites ; sans chambre, la feuille vierge. */
   {k:'punaises', nom:'Protocole punaises',
-   sous:'La liste · Rentokil et Mohamed, chambres et personnes',
+   sous:'La liste vierge, à remplir au stylo',
    det:'Les chambres du jeudi, les deux personnes de chaque chambre, « pas autonome », '+
        'et les quatre étapes à cocher : prévenu, sacs faits, descendu, sacs rendus.',
    pages:'1 page · A4', pi:'punaise', act:"ppImprimerDepuisPrint()"},
