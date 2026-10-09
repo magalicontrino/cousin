@@ -436,6 +436,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .pp-al{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:#e63329;color:#fff;border-radius:999px;
   padding:6px 14px 6px 10px;font-size:14px;font-weight:700;white-space:nowrap;box-shadow:0 3px 0 #9e2219}
 .pp-al .ppf-ic{width:19px;height:19px}
+.pp-tout{display:flex;justify-content:center;margin:26px 0 8px}
+.pp-tout button{font:inherit;font-size:13px;font-weight:600;color:#c8412e;background:none;border:1.5px solid #e63329;border-radius:999px;padding:8px 18px;cursor:pointer}
 .pp-finis{margin:18px 0 10px;border-top:1px dashed var(--trait);padding-top:10px}
 .pp-finis summary{cursor:pointer;font-size:13px;font-weight:700;color:#6b6963;list-style:none}
 .pp-finis summary span{font-weight:400;margin-left:4px}
@@ -16937,8 +16939,21 @@ function vPunaises(){
           '<em>sacs rendus · '+esc(a.rendu_par||'')+' '+ppQuand(a.rendu_le)+'</em></div>';
       }).join('')+'</details>';
   }
+  /* EFFACER TOUTE LA LISTE (Mag, 09/10/2026 : « quand tout est fait, effacer toute la liste ») :
+     réservé à l'admin — un appui malheureux viderait le protocole en cours de toute l'équipe. */
+  if(PUNAISES.length && typeof vueAdmin==='function' && vueAdmin())
+    h+='<div class="pp-tout"><button onclick="ppToutEffacer()">Effacer toute la liste</button></div>';
   h+=wikiBloc('punaises');
   return h;
+}
+function ppToutEffacer(){
+  const n=PUNAISES.length; if(!n||!sb) return;
+  cousinConfirme('Effacer toute la liste ?', n+' chambre'+(n>1?'s':'')+'. C’est définitif.', async function(){
+    const ids=PUNAISES.map(function(a){ return a.id; });
+    const {error}=await sb.from('protocole_punaises').delete().in('id',ids);
+    if(error){ toast('Pas effacé : la base a refusé'); return; }
+    await loadPunaises(); render(); toast('Liste effacée');
+  }, {ok:'Tout effacer', danger:true});
 }
 
 /* ── le papier ──────────────────────────────────────────────────────────── */
