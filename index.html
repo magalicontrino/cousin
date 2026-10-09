@@ -16765,8 +16765,12 @@ async function rdvPrEnvoyer(){
    s'écrit en petit) ; seules les choses à faire ont une couleur, toujours la même :
    PMR et taxi en jaune, réveil en rose, prévenir / pas autonome en brun — et le ROUGE ne
    veut plus dire qu'une chose : l'accompagnant est à trouver (cadre rouge). */
-function rdvEtiquettes(r){
+/* ⚠ L'ACCOMPAGNEMENT EN PREMIÈRE ÉTIQUETTE, EN TURQUOISE (09/10/2026 : « que ça ne passe pas
+   à la trappe, qu'on envoie la personne en taxi et qu'on oublie d'attendre la personne qui
+   accompagne, qui serait dans le centre à attendre qu'on l'appelle »). */
+function rdvEtiquettes(r, sansAcc){
   const e=[];
+  if(!sansAcc && r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
   if(r.pmr) e.push(['PMR','#f5c542']);
   if(r.taxi) e.push(['Taxi à commander','#f5c542']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
@@ -16978,8 +16982,9 @@ function rdvCarte(r, passe){
     '<span class="rdvc-h">'+(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvc-x">'+
       '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
       '<p class="rdvc-so">'+esc(t.l+([r.lieu,r.adresse].filter(Boolean).length?' · '+[r.lieu,r.adresse].filter(Boolean).join(' — '):''))+'</p>'+
-      '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>'+rdvAccQui(r)+
-      rdvEtiquettes(r)+
+      /* Accompagné : l'étiquette turquoise le dit ; seul ou à trouver : la ligne. */
+      (r.accompagne && r.accomp_nom ? '' : '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>')+
+      rdvEtiquettes(r)+rdvAccQui(r)+
       rdvPrisEnCharge(r)+
       (r.corrige_txt ? (rdvEstAuteur(r) && !r.corrige_vu
         ? '<div class="rdvc-notif"><b>Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+'</b>'+
@@ -17078,7 +17083,7 @@ function vRdvAcc(){
       '<span class="rdvc-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvacc-x">'+
         '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
         '<span>'+esc(t.l)+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
-        (r.note?'<span>'+esc(r.note)+'</span>':'')+rdvEtiquettes(r)+
+        (r.note?'<span>'+esc(r.note)+'</span>':'')+rdvEtiquettes(r,true)+
         '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
           'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+
         rdvAccQui(r)+
@@ -17134,7 +17139,8 @@ function rdvImprimerAcc(){
           '<span class="quoi">'+esc(t.l)+'</span>'+
           '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lieu?'<br>'+esc(r.lieu):'')+
             '<span class="com" style="'+(r.accomp_nom?'color:#1b1b1b;font-weight:700':'color:#e63329;font-weight:700')+'">'+
-              esc(r.accomp_nom?'Accompagné par '+r.accomp_nom:'Accompagnant à trouver')+'</span></span></div>';
+              esc(r.accomp_nom?'':'Accompagnant à trouver')+'</span>'+
+            (r.accomp_nom?'<span class="acc">Accompagné par '+esc(r.accomp_nom)+'</span>':'')+'</span></div>';
       }).join('')+'</section>';
   });
   if(!corps) corps='<p class="vide">Aucun accompagnement sur ces dates.</p>';
@@ -17241,7 +17247,9 @@ function rdvImprimer(du, au, seulId){
       '<span class="quoi">'+esc(t.l)+'</span>'+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
-        '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>'+
+        (r.accompagne && r.accomp_nom
+          ? '<span class="acc">Accompagné par '+esc(r.accomp_nom)+'</span>'
+          : '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>')+
         (rdvAPrevoir(r)?'<span class="com" style="color:#1b1b1b;font-weight:700">'+esc(rdvAPrevoir(r))+'</span>':'')+
         (r.note?'<span class="com">'+esc(r.note).replace(/\n/g,'<br>')+'</span>':'')+
       '</span></div>';
@@ -18445,6 +18453,9 @@ function feuilleImprimer(o){
     '.l.k-rdvmed{border-left-color:#e63329}.ch:has(.k-rdvmed) .st{background:#e63329}'+
     /* Rendez-vous (09/10/2026) : neutre, et ROUGE seulement s'il manque l'accompagnant. */
     '.l.k-rdvneutre{border-left-color:#d8d4cd}.l.k-rdvmanque{border-left-color:#e63329;background:#fdecea}'+
+    /* L'accompagnant, sur le papier : une étiquette turquoise qui ne passe pas inaperçue. */
+    '.acc{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;background:#6fc7d9;color:#1b1b1b;'+
+      'font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em}'+
     '.alerte{margin:10px 0 4px;padding:8px 12px;border:2px solid #e63329;border-radius:10px;color:#e63329;font-weight:800;font-size:15px}'+
     '.l.k-rdvaut{border-left-color:#b28b7a}.ch:has(.k-rdvaut) .st{background:#b28b7a}'+
     /* Plusieurs jours : un bloc par jour, bandeau gris (les sortes s'y mélangent). */
