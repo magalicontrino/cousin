@@ -402,6 +402,13 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppc-j{margin-top:8px;border-top:1px dashed var(--trait);padding-top:6px}
 .ppc-j p{font-size:13px;margin:0 0 3px}
 .ppc-j i{font-style:normal;color:#777;font-size:11px}
+.ppc-ps{display:flex;flex-direction:column;gap:6px;margin:0 0 11px}
+.ppc-pr{display:flex;gap:8px;align-items:center}
+.ppc-pr input{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:600;color:var(--noir);background:#f4f3f0;
+  border:1.25px solid var(--trait);border-radius:8px;padding:8px 10px}
+.ppc-pr.pa input{border-color:#b28b7a}
+.ppc-pr .chip{flex:none;white-space:nowrap}
+.ppc-plus{align-self:flex-start;background:none;border:0;font:inherit;font-size:12px;color:#555;text-decoration:underline;cursor:pointer;padding:2px}
 .ppc-b{display:flex;gap:12px;justify-content:flex-end;margin-top:6px}
 .ppc-b button{background:none;border:0;font:inherit;font-size:12px;color:#555;text-decoration:underline;cursor:pointer;padding:2px}
 #ppColle,#ppJour{font:inherit;font-size:14px;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);
@@ -16123,7 +16130,8 @@ function rafraichirPunaises(){
   _ppVu=Date.now();
   loadPunaises().then(function(){
     const sig=JSON.stringify(PUNAISES);
-    if(sig!==_ppSignature){ _ppSignature=sig; if(current.view==='punaises') render(); }
+    const tape=document.activeElement && /^ppP/.test(document.activeElement.id||'');
+    if(sig!==_ppSignature){ _ppSignature=sig; if((current.view==='punaises' && !tape) || current.view==='home') render(); }
   });
 }
 /* Un jour « 2026-10-15 » à une heure donnée, à l'heure de l'appareil (Bruxelles). */
@@ -16172,6 +16180,47 @@ function ppQuand(iso){
   }catch(e){ return ''; }
 }
 function ppLigne(id){ return PUNAISES.find(function(x){ return String(x.id)===String(id); }); }
+/* ═══ LES PERSONNES DE LA CHAMBRE (Mag, 09/10/2026) ═══
+   « Noter le nom des chambres et le nom des personnes. Deux personnes par chambre, parfois
+   trois. Et surtout pouvoir cocher si la personne n'est pas autonome. » Le jeudi matin, le
+   PFO (Loïc) doit voir ce qui a été fait la veille. `personnes` = [{nom, pa}] (pa = pas
+   autonome). Une ancienne ligne qui n'a que des initiales les garde comme 1re personne. */
+function ppPersonnes(a){
+  const P=Array.isArray(a.personnes)?a.personnes.slice():[];
+  if(!P.length && a.initiales) P.push({nom:a.initiales, pa:false});
+  return P;
+}
+function ppPersNom(id, i, v){
+  const a=ppLigne(id); if(!a) return;
+  const P=ppPersonnes(a); v=String(v||'').trim().slice(0,60);
+  while(P.length<=i) P.push({nom:'', pa:false});
+  if((P[i].nom||'')===v) return;
+  P[i].nom=v; ppMaj(a, {personnes:P});
+}
+function ppPersPa(id, i){
+  const a=ppLigne(id); if(!a) return;
+  const P=ppPersonnes(a); while(P.length<=i) P.push({nom:'', pa:false});
+  P[i].pa=!P[i].pa;
+  ppMaj(a, {personnes:P}, (P[i].nom||'Personne '+(i+1))+(P[i].pa?' : pas autonome':' : autonome'));
+}
+function ppPersAjouter(id){
+  const a=ppLigne(id); if(!a) return;
+  const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
+  P.push({nom:'', pa:false}); a.personnes=P; render();
+  setTimeout(function(){ const e=document.getElementById('ppP'+id+'_'+(P.length-1)); if(e) e.focus(); }, 30);
+}
+function ppPersHTML(a){
+  const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
+  return '<div class="ppc-ps">'+P.map(function(x,i){
+    return '<div class="ppc-pr'+(x.pa?' pa':'')+'">'+
+      '<input id="ppP'+a.id+'_'+i+'" type="text" maxlength="60" placeholder="Personne '+(i+1)+'" value="'+esc(x.nom||'')+'" '+
+        'autocomplete="off" onchange="ppPersNom(\''+a.id+'\','+i+',this.value)">'+
+      '<button class="chip'+(x.pa?' on':'')+'" aria-pressed="'+(x.pa?'true':'false')+'" '+
+        'onclick="ppPersPa(\''+a.id+'\','+i+')">Pas autonome</button></div>';
+  }).join('')+
+  (P.length<4?'<button class="ppc-plus" onclick="ppPersAjouter(\''+a.id+'\')">+ une personne</button>':'')+
+  '</div>';
+}
 /* Les chambres qui comptent encore : le jeudi qui vient ou celui qui vient de passer
    (le vendredi on rend les sacs), et celles d'un jeudi plus ancien dont les sacs ne sont
    pas rendus — on ne laisse pas des affaires au congélateur. */
@@ -16289,11 +16338,11 @@ function ppRetirer(id){
       await loadPunaises(); render();
     }, {ok:'Retirer', danger:true});
 }
-async function ppInserer(jour, nums, ini){
+async function ppInserer(jour, nums, pers){
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), initiales:ini||null, cree_par:nomAffiche()};
+    return {jour:jour, numero:String(n), personnes:pers||[], cree_par:nomAffiche()};
   });
   if(!lignes.length){ toast('Déjà dans la liste'); return false; }
   const {error}=await sb.from('protocole_punaises').insert(lignes);
@@ -16303,10 +16352,13 @@ async function ppInserer(jour, nums, ini){
   return true;
 }
 async function ppAjouter(){
-  const n=document.getElementById('ppNum'), i=document.getElementById('ppIni'), j=document.getElementById('ppJour');
+  const n=document.getElementById('ppNum'), j=document.getElementById('ppJour');
+  const p1=document.getElementById('ppPers1'), p2=document.getElementById('ppPers2');
   const num=(n&&n.value||'').trim(); if(!num){ n&&n.focus(); return; }
-  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], (i&&i.value||'').trim().slice(0,14));
-  if(ok){ if(n) n.value=''; if(i) i.value=''; }
+  const pers=[p1,p2].map(function(e){ return {nom:(e&&e.value||'').trim().slice(0,60), pa:false}; })
+    .filter(function(x){ return x.nom; });
+  const ok=await ppInserer((j&&j.value)||ppJeudi(), [num], pers);
+  if(ok){ [n,p1,p2].forEach(function(e){ if(e) e.value=''; }); }
 }
 /* ═══ COLLER LE MAIL ═══ Le mail type : « passage rentokil de demain 8 octobre 2026 voici
    les chambres qui vont être traité chambre 509-204-107- 120-209-210 ». On cherche la
@@ -16337,7 +16389,7 @@ function ppColler(){
     (r.dateTrouvee?'':'⚠ Pas de date dans le mail : je prends le jeudi qui vient.\n\n')+
     r.nums.length+' chambre'+(r.nums.length>1?'s':'')+' : '+r.nums.join(' · ')+'\n\nVérifie avant d’ajouter.',
     async function(){
-      const ok=await ppInserer(r.jour, r.nums, null);
+      const ok=await ppInserer(r.jour, r.nums, []);
       if(ok){ PP_COLLE=''; const e=document.getElementById('ppColle'); if(e) e.value=''; }
     }, {ok:'Ajouter '+(r.nums.length>1?'les '+r.nums.length+' chambres':'la chambre')});
 }
@@ -16349,8 +16401,7 @@ function ppCarte(a){
   const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / 4';
   let h='<div class="ppc '+e+'">'+
     '<div class="ppc-h"><span class="ppc-n">'+esc(a.numero)+'</span>'+
-      (a.initiales?'<span class="ppc-i">'+esc(a.initiales)+'</span>':'')+
-      '<span class="ppc-e">'+etat+'</span></div>';
+      '<span class="ppc-e">'+etat+'</span></div>'+ppPersHTML(a);
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à midi : pas de protocole, on ne touche pas à ses affaires.</p>';
   } else {
@@ -16387,8 +16438,11 @@ function vPunaises(){
     '<div class="chadd" style="margin:0"><button class="chaddbtn" style="flex:1" onclick="ppColler()">Lire le mail et ajouter les chambres</button></div>'+
     '<div class="tbduo">'+
       '<input id="ppNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
-      '<input id="ppIni" type="text" maxlength="14" placeholder="Initiales" autocomplete="off">'+
       '<input id="ppJour" type="date" value="'+ppJeudi()+'">'+
+    '</div>'+
+    '<div class="tbduo">'+
+      '<input id="ppPers1" type="text" maxlength="60" placeholder="Personne 1" autocomplete="off">'+
+      '<input id="ppPers2" type="text" maxlength="60" placeholder="Personne 2" autocomplete="off">'+
     '</div>'+
     '<div class="chadd" style="margin:0"><button class="chaddbtn clair" style="flex:1" onclick="ppAjouter()">Ajouter une chambre</button></div>'+
   '</div>';
@@ -16414,6 +16468,10 @@ function vPunaises(){
 /* ── le papier ──────────────────────────────────────────────────────────── */
 /* Le jeudi qu'on imprime : le premier jeudi encore actif, sinon celui qui vient. */
 function ppJourImprime(){ const j=ppJours(ppActives()).filter(function(x){ return x>=ppAjoute(agIso(new Date()),-1); }); return j[0]||ppJeudi(); }
+function ppImprimerDepuisPrint(){
+  if(PP_CHARGE) ppImprimer('feuille');
+  else loadPunaises().then(function(){ ppImprimer('feuille'); });
+}
 function ppImprimer(quoi){
   const jour=ppJourImprime();
   const L=PUNAISES.filter(function(a){ return a.jour===jour; })
@@ -16448,13 +16506,23 @@ function ppImprimer(quoi){
       const ok=a&&ppFait(a,k);
       return '<td class="cx"><span class="bx">'+(ok?'✓':'')+'</span>'+l+(ok?'<em>'+esc(a[k+'_par']||'')+'</em>':'')+'</td>';
     };
+    /* Les personnes : un nom par ligne, et la case « pas autonome » cochée ou à cocher
+       au stylo. Une chambre vide garde DEUX lignes à remplir (deux personnes par chambre). */
+    const pers=function(a){
+      const P=a?ppPersonnes(a).filter(function(x){ return x.nom; }):[];
+      while(P.length<2) P.push({nom:'', pa:false});
+      return P.map(function(x){
+        return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
+          '<span class="pa"><span class="bx">'+(x.pa?'✓':'')+'</span>pas autonome</span></div>';
+      }).join('');
+    };
     const ligne=function(a){
-      return '<tr><td class="ch">'+(a?esc(a.numero):'')+'</td><td class="in">'+(a?esc(a.initiales||''):'')+'</td>'+
+      return '<tr><td class="ch">'+(a?esc(a.numero):'')+'</td><td class="in">'+pers(a)+'</td>'+
         (pasPrev ? case_(a,'prevenu','Prévenu')
                  : case_(a,'prevenu','Prévenu')+case_(a,'sacs','Sacs')+case_(a,'descendu','Descendu')+case_(a,'rendu','Sacs rendus'))+
         '<td class="no"></td></tr>';
     };
-    const vides = pasPrev ? 2 : 3;
+    const vides = pasPrev ? 2 : Math.max(2, 5-lignes.length);
     let rows=lignes.map(ligne).join('');
     for(let i=0;i<vides;i++) rows+=ligne(null);
     corps='<section class="pg">'+
@@ -16463,14 +16531,17 @@ function ppImprimer(quoi){
       '<p class="rel"><b>Pas prévenu ?</b> Soir → aux présences (21 h – 22 h) → nuit vers 23 h → éducateurs le matin. '+
         '<b>À midi, pas prévenu = abandonné : on ne touche pas à ses affaires.</b></p>'+
       (pasPrev && !lignes.length ? '<p class="s"><b>Tout le monde est prévenu.</b></p>' : '')+
-      '<table><thead><tr><th>Ch.</th><th>Init.</th>'+(pasPrev?'<th></th>':'<th></th><th></th><th></th><th></th>')+
+      '<table><thead><tr><th>Ch.</th><th>Personnes</th>'+(pasPrev?'<th></th>':'<th></th><th></th><th></th><th></th>')+
       '<th>Note (repasser la nuit, le matin…)</th></tr></thead><tbody>'+rows+'</tbody></table>'+
       '<p class="pied">Imprimé le '+esc(new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'}))+' à '+ppHeure(new Date().toISOString())+
         ' · cocher au stylo, puis dans COUSIN si possible</p></section>';
     css='h1{font-size:20pt;margin-bottom:3mm}.s{font-size:12pt;margin-bottom:2mm}.rel{font-size:12pt;margin:3mm 0 6mm;padding:3mm 4mm;border:2px solid #000}'+
       'table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10pt;padding:2mm;border-bottom:2px solid #000}'+
       'td{border-bottom:1px solid #000;padding:3mm 2mm;vertical-align:top;font-size:12pt}'+
-      'td.ch{font-size:22pt;font-weight:700;width:20mm}td.in{width:16mm}'+
+      'td.ch{font-size:22pt;font-weight:700;width:20mm}td.in{width:62mm}'+
+      '.pn{display:flex;align-items:flex-end;gap:2mm;margin-bottom:2.5mm}.pn:last-child{margin-bottom:0}'+
+      '.pn .nm{flex:1;min-height:7mm;border-bottom:1px dotted #000;font-size:13pt;font-weight:700}'+
+      '.pn .pa{font-size:8.5pt;white-space:nowrap}.pn .pa .bx{width:4.5mm;height:4.5mm;line-height:4mm;margin-right:1mm}'+
       'td.cx{width:24mm;font-size:10pt;line-height:1.3}td.cx em{display:block;font-style:normal;font-size:9pt;color:#444}'+
       '.bx{display:inline-block;width:6mm;height:6mm;border:2px solid #000;vertical-align:middle;margin-right:2mm;text-align:center;font-weight:700;line-height:5.5mm}'+
       'td.no{height:22mm;border-left:1px solid #000}'+
@@ -18665,6 +18736,14 @@ const PRINT_FEUILLES=[
        'ce à quoi faire attention, le délai — pour le réquisitoire, l’AMU, la carte '+
        'médicale, l’adresse de référence, le RIS et les soins infirmiers.',
    pages:'19 pages · A4', pi:'demarche', act:'ouvrirFeuilleDemarches()'},
+  /* Le protocole punaises (Mag, 09/10/2026 : « une belle feuille à imprimer, à mettre à
+     l'accueil — elle doit être aussi dans les documents à imprimer »). Les chambres et
+     les personnes du jeudi qui vient, déjà écrites ; sans chambre, la feuille vierge. */
+  {k:'punaises', nom:'Protocole punaises',
+   sous:'La feuille du jeudi · chambres et personnes',
+   det:'Les chambres du jeudi, les deux personnes de chaque chambre, « pas autonome », '+
+       'et les quatre étapes à cocher : prévenu, sacs faits, descendu, sacs rendus.',
+   pages:'1 page · A4', pi:'punaise', act:"ppImprimerDepuisPrint()"},
   {k:'congelateur', nom:'Feuille congélateur',
    sous:'Traitement des punaises · −40°, 24 h',
    det:'Deux fiches, une par congélateur. À remplir au stylo : nom / chambre, date de '+
@@ -20579,7 +20658,8 @@ function vHome(){
     !chEnCours(), '#1b1b1b']);   // ← 6e : rien à faire · 7e : couleur de l'anneau
   /* LE PROTOCOLE PUNAISES (08/10/2026) : seulement du mercredi au vendredi, rouge dès
      qu'une chambre n'est pas prévenue. C'est une chose À FAIRE, donc dans cette rangée. */
-  if(typeof ppBoule==='function'){ const pb=ppBoule(); if(pb) boules.push(pb); }
+  /* ⚠ ELLE PASSE EN DERNIER (Mag, 09/10/2026 : « on doit retrouver ça à l'accueil, à la
+     fin, en dernière position ») : voir après le tri, plus bas. */
   /* Poubelles : NOTRE picto (notif-poubelle), comme partout ailleurs dans l'app,
      à la couleur du premier sac — le noir passe en crème pour rester visible
      sur le rond noir (Mag, 06/08/2026). Les couleurs des sacs sont dites en toutes
@@ -20759,6 +20839,15 @@ function vHome(){
     .map(function(b,i){ return {b:b, i:i}; })
     .sort(function(x,y){ return (endormie(x.b)?1:0)-(endormie(y.b)?1:0) || x.i-y.i; })
     .map(function(o){ return o.b; });
+  /* ═══ LES PUNAISES, TOUJOURS LÀ ET TOUJOURS EN DERNIER (Mag, 09/10/2026) ═══
+     Avant, la boule ne venait que du mercredi au vendredi — et seulement si quelqu'un
+     avait déjà ouvert la page (la liste n'était lue que là). Elle lit maintenant la base
+     depuis l'accueil, reste là toute la semaine, grise quand rien n'est en cours, rouge
+     dès qu'une chambre n'est pas prévenue. */
+  if(typeof ppBoule==='function'){
+    rafraichirPunaises();
+    boules.push(ppBoule() || ['punaise','Punaises','Jeudi · rien en cours','#f0efed',"go('#/punaises')",true,'#1b1b1b']);
+  }
   /* ═══ L'ACCUEIL, PISTE B (Mag, 20/08/2026) ═══
      Elle a regardé les quatre écrans du canvas et répondu « B ». Ce que ça change,
      dans l'ordre de lecture :
