@@ -442,6 +442,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvt-x>span{display:block;font-size:12.5px;color:#555;margin-top:2px}
 .rdvt-q{font-size:13px!important;color:#1b1b1b}
 .rdvpr-t{font-size:13.5px;margin:-8px 0 6px;text-align:center;color:#444}
+.rdvpr-e{cursor:default}
+.rdvpr-acc{font-size:12px;color:#555;margin:2px 0 0}
+.rdvpr-acc.rouge{color:#e63329;font-weight:600}
 .rdvpr-m{display:block;width:100%;font:inherit;font-size:14px;border:1.25px solid var(--trait);border-radius:10px;padding:10px 12px;margin:10px 0 14px;background:#fdfdfc;resize:vertical}
 .rdvt .entarr-cal{cursor:default}
 .rdvt .entvus-b{flex:none;align-self:center}
@@ -16613,8 +16616,11 @@ function rdvQuandCourt(r){
   return (r.jour===agIso(new Date())?'aujourd’hui':ppJourFr(r.jour))+(r.heure?' '+rdvHeureFr(r.heure):'');
 }
 /* ═══ LA FENÊTRE « JE PRENDS EN CHARGE » (09/10/2026) ═══
-   · on VOIT ce qui part, en cases DÉJÀ COCHÉES (« réveil, prévenir, ça doit déjà être
-     précoché ») — on peut en décocher une : elle reste alors à prendre ;
+   · on VOIT ce qui part (réveil, prévenir) en ÉTIQUETTES, PAS en cases à décocher : « moi,
+     en tant que preneur en charge, je ne dois pas pouvoir changer ça — c'est dans l'agenda
+     qu'il faut le changer, ça évitera des erreurs » ;
+   · l'accompagnement est rappelé en petit en bas (« la personne sera accompagnée… »), et il
+     part aussi dans la passation ;
    · le mot est FACULTATIF (« si je ne remplis pas, je ne peux pas faire la passation, c'est
      dommage pour aller vite »). */
 let RDV_PR=null;
@@ -16634,18 +16640,19 @@ function rdvPrDessiner(){
   const bg=document.getElementById('rdvPrBg'); if(!bg || !RDV_PR) return;
   const r=rdvLigne(RDV_PR.id); if(!r) return;
   const m=document.getElementById('rdvPrMot'); if(m) RDV_PR.mot=m.value;
-  const chip=function(on, txt, k, c){
-    return '<button class="chip'+(on?' on':'')+'" style="--c:'+c+'" onclick="RDV_PR.'+k+'=!RDV_PR.'+k+';rdvPrDessiner()">'+esc(txt)+'</button>';
+  const chip=function(txt, c){
+    return '<span class="chip on rdvpr-e" style="--c:'+c+'">'+esc(txt)+'</span>';
   };
   const peutR=!!(r.reveil && !r.reveil_par), peutP=!!(rdvAPrevenir(r) && !r.prevenir_par);
-  const aucun=!(RDV_PR.reveil&&peutR) && !(RDV_PR.prevenir&&peutP);
+  const aucun=!peutR && !peutP;
   bg.innerHTML='<div class="popcard entpart socqui" role="dialog" aria-modal="true">'+
     '<b>Je prends en charge — '+esc(r.nom)+'</b>'+
     '<p class="rdvpr-t">'+esc(rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''))+'</p>'+
     '<p class="rdvf-l">Part dans la passation de nuit</p><div class="chips">'+
-      (peutR?chip(RDV_PR.reveil, 'Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''), 'reveil', chipCouleur(3)):'')+
-      (peutP?chip(RDV_PR.prevenir, 'Prévenir'+(r.pas_autonome?' (pas autonome)':''), 'prevenir', chipCouleur(5)):'')+
+      (peutR?chip('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''), chipCouleur(3)):'')+
+      (peutP?chip('Prévenir'+(r.pas_autonome?' (pas autonome)':''), chipCouleur(5)):'')+
     '</div>'+
+    (r.accompagne?'<p class="rdvpr-acc'+(r.accomp_nom?'':' rouge')+'">'+esc(rdvAccTexte(r))+'</p>':'')+
     '<textarea id="rdvPrMot" class="rdvpr-m" rows="2" placeholder="Un mot, si tu veux">'+esc(RDV_PR.mot||'')+'</textarea>'+
     '<button class="socqui-ok"'+(aucun?' disabled':'')+' onclick="rdvPrEnvoyer()">Je prends en charge</button>'+
   '</div>';
@@ -16675,7 +16682,9 @@ async function rdvPrEnvoyer(){
   const ty=rdvType(r.genre).l.toLowerCase();
   const quand=(r.jour===agIso(new Date())?'aujourd’hui':(r.jour===ppAjoute(agIso(new Date()),1)?'demain':ppJourFr(r.jour)))+
     (r.heure?' à '+rdvHeureFr(r.heure):'');
-  const fin=(r.lieu?', '+r.lieu:'')+'.'+(v?' '+v:'');
+  /* L'accompagnement voyage avec la ligne : s'il est déjà noté, la nuit le sait. */
+  const acc=r.accompagne?(r.accomp_nom?' Accompagné par '+r.accomp_nom+'.':' Accompagnant à trouver.'):'';
+  const fin=(r.lieu?', '+r.lieu:'')+'.'+acc+(v?' '+v:'');
   const lignes=ks.map(function(k){
     const l={pour:PASS_EQUIPE, par:nomAffiche(), chambre:r.chambre||null, a_jeun:false};
     if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
