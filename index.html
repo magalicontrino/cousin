@@ -16512,7 +16512,7 @@ function rdvAPrevoir(r){
   if(r.pmr) l.push('PMR');
   if(r.taxi) l.push('Taxi à commander');
   if(r.reveil) l.push('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''));
-  if(r.prevenir) l.push('Prévenir la personne');
+  if(r.prevenir) l.push('Pas autonome');
   return l.join(' · ');
 }
 /* Qui s'occupe de quoi, sous le rendez-vous : « Prévenir : Afaf — je préviens monsieur ».
@@ -16538,7 +16538,8 @@ function rdvTaches(){
   const a=agIso(new Date()), t=[];
   (RDV||[]).forEach(function(r){
     if(r.jour<a) return;
-    if(r.prevenir && !r.prevenir_par) t.push({r:r, k:'prevenir'});
+    /* Prévenir (pas autonome) arrive LA VEILLE, comme le réveil (09/10/2026). */
+    if(r.prevenir && !r.prevenir_par && r.jour<=ppAjoute(a,1)) t.push({r:r, k:'prevenir'});
     /* ⚠ LE RÉVEIL N'ARRIVE QUE LA VEILLE (09/10/2026 : « les réveils de l'agenda, je dois
        les avoir pour le lendemain ») : aujourd'hui et demain seulement. « Prévenir », lui,
        se voit dès qu'il est écrit — plus tôt on prévient, mieux c'est. */
@@ -16777,7 +16778,9 @@ function rdvFormHTML(){
       pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
       pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
       pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+
-      pill(F.prevenir, 'Prévenir la personne', "rdvChoix('prevenir',"+(!F.prevenir)+")", chipCouleur(2))+'</div>'+
+      /* « PAS AUTONOME » (09/10/2026 : « prévenir, ça doit être pour les personnes qui ne sont
+         pas autonomes, automatiquement la veille ») — la colonne reste `prevenir`. */
+      pill(F.prevenir, 'Pas autonome', "rdvChoix('prevenir',"+(!F.prevenir)+")", chipCouleur(2))+'</div>'+
     (F.reveil?'<div class="tbduo" style="margin-top:8px;align-items:center;gap:10px"><span style="font-size:13px">Réveil à</span>'+
       '<input id="rdvReveil" type="time" value="'+esc(F.reveil_heure||'')+'" style="max-width:150px"></div>':'');
   /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
