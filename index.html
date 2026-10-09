@@ -16943,7 +16943,7 @@ function rdvCarte(r, passe){
       (r.note?'<p>'+esc(r.note)+'</p>':'')+
       '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
       '<div class="ppc-b" style="justify-content:flex-start">'+
-        '<button onclick="rdvImprimer(null,null,\''+r.id+'\')">Imprimer</button>'+
+        '<button onclick="rdvAvantImprimer([rdvLigne(\''+r.id+'\')],function(){ rdvImprimer(null,null,\''+r.id+'\'); })">Imprimer</button>'+
         (ecr?'<button onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
       '</div></div></div>';
 }
@@ -17019,7 +17019,7 @@ function vRdvAcc(){
     '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
     '<span class="rdvau">au</span>'+
     '<input type="date" id="rdvAccAu" class="rdvdate" value="'+esc(au)+'" aria-label="Au" onchange="rdvAccDatesChange()">'+
-    '<button class="fbtn" onclick="rdvImprimerAcc()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
+    '<button class="fbtn" onclick="rdvAvantImprimer(rdvAccSemaine(),rdvImprimerAcc)"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
   h+='<div class="chips">'+
     '<button class="chip'+(!RDV_ACC_TROUVER?' on':'')+'" style="--c:'+chipCouleur(0)+'" onclick="RDV_ACC_TROUVER=false;render()">Tous · '+tous.length+'</button>'+
     '<button class="chip'+(RDV_ACC_TROUVER?' on':'')+'" style="--c:#e63329" onclick="RDV_ACC_TROUVER=true;render()">Accompagnant à trouver · '+manque.length+'</button></div>';
@@ -17073,7 +17073,6 @@ function rdvAccChanger(id, el){
 function rdvImprimerAcc(){
   const D=rdvAccDates(), du=D.du, au=D.au;
   const L=RDV_ACC_TROUVER?rdvAccSemaine().filter(function(r){ return !r.accomp_nom; }):rdvAccSemaine();
-  const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
   const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
   let corps='';
   jours.forEach(function(j){
@@ -17081,7 +17080,7 @@ function rdvImprimerAcc(){
     corps+='<section class="ch neutre"><div class="st"><span>'+esc(ppJourFr(j))+'</span><em>'+l.length+'</em></div>'+
       l.map(function(r){
         const t=rdvType(r.genre);
-        return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
+        return '<div class="l '+(r.accomp_nom?'k-rdvneutre':'k-rdvmanque')+'"><span class="bx"></span>'+
           '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
           (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
           '<span class="quoi">'+esc(t.l)+'</span>'+
@@ -17091,6 +17090,8 @@ function rdvImprimerAcc(){
       }).join('')+'</section>';
   });
   if(!corps) corps='<p class="vide">Aucun accompagnement sur ces dates.</p>';
+  const nManque=L.filter(function(r){ return !r.accomp_nom; }).length;
+  if(nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
   feuilleImprimer({onglet:'Accompagnements — du '+ppJourFr(du), entete:'Accompagnements de la semaine — aperçu',
     titre:'Accompagnements', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
 }
@@ -17176,15 +17177,18 @@ function rdvImprimer(du, au, seulId){
   const L=RDV.filter(function(r){
     return seulId ? String(r.id)===String(seulId) : (r.jour>=du && r.jour<=au);
   }).slice().sort(function(x,y){ return (String(x.jour)+String(x.heure||'99')).localeCompare(String(y.jour)+String(y.heure||'99')); });
-  const k={medical:'k-rdvmed', social:'k-inf', autre:'k-rdvaut'};
+  /* ⚠ SUR LE PAPIER AUSSI, LE ROUGE NE DIT QUE « ACCOMPAGNANT À TROUVER » (09/10/2026 :
+     « s'il y a un accompagnement demandé et qu'il n'a pas été mis, quand on imprime, il faut
+     qu'on puisse le voir »). Lignes neutres ; celle qui manque d'accompagnant en rouge, et
+     une ligne d'alerte en tête de feuille. */
   const unJour = seulId || du===au;
   const ligne=function(r){
     const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
-    return '<div class="l '+k[t.k]+'"><span class="bx"></span>'+
+    return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
       /* « 09:30 », comme la passation : « 9 h 30 » se coupait en deux dans la colonne. */
       '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
-      (unJour?'':'<span class="quoi">'+esc(t.l)+'</span>')+
+      '<span class="quoi">'+esc(t.l)+'</span>'+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
         '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>'+
@@ -17193,13 +17197,8 @@ function rdvImprimer(du, au, seulId){
       '</span></div>';
   };
   let corps='';
-  if(unJour){
-    RDV_TYPES.forEach(function(t){
-      const l=L.filter(function(r){ return rdvType(r.genre).k===t.k; });
-      if(l.length) corps+='<section class="ch"><div class="st"><span>'+t.l+'</span><em>'+l.length+'</em></div>'+
-        l.map(ligne).join('')+'</section>';
-    });
-  } else {
+  {
+    /* Un bloc par jour, dans l'ordre des heures (la sorte est écrite sur la ligne). */
     const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
     jours.forEach(function(j){
       const l=L.filter(function(r){ return r.jour===j; });
@@ -17208,6 +17207,8 @@ function rdvImprimer(du, au, seulId){
     });
   }
   if(!corps) corps='<p class="vide">Aucun rendez-vous'+(du===au?' ce jour-là':' sur ces dates')+'.</p>';
+  const nManque=L.filter(function(r){ return r.accompagne && !r.accomp_nom; }).length;
+  if(nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
   const r0=seulId && L[0];
   const sous = r0 ? ppJourFr(r0.jour) : (du===au ? ppJourFr(du) : 'Du '+ppJourFr(du)+' au '+ppJourFr(au));
   feuilleImprimer({
@@ -17221,7 +17222,16 @@ function rdvImprimer(du, au, seulId){
 function rdvImprimerDates(){
   const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
   RDV_IMPR_DU=v('rdvDu')||RDV_IMPR_DU; RDV_IMPR_AU=v('rdvAu')||RDV_IMPR_AU;
-  const D=rdvDates(); rdvImprimer(D.du, D.au);
+  const D=rdvDates();
+  rdvAvantImprimer(RDV.filter(function(r){ return r.jour>=D.du && r.jour<=D.au; }), function(){ rdvImprimer(D.du, D.au); });
+}
+/* ⚠ UN MESSAGE AVANT D'IMPRIMER S'IL MANQUE UN ACCOMPAGNANT (09/10/2026) : on imprime quand
+   même si on veut, mais on sait. */
+function rdvAvantImprimer(liste, imprimer){
+  const m=liste.filter(function(r){ return r.accompagne && !r.accomp_nom; });
+  if(!m.length){ imprimer(); return; }
+  cousinConfirme(m.length+' accompagnant'+(m.length>1?'s':'')+' à trouver',
+    m.map(function(r){ return r.nom+' — '+rdvQuandCourt(r); }).join(' · '), imprimer, {ok:'Imprimer quand même'});
 }
 
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
@@ -18383,6 +18393,9 @@ function feuilleImprimer(o){
     /* Les rendez-vous (09/10/2026) : médical en rouge, « autre » en brun ; le social prend
        le turquoise des infos (`k-inf`). */
     '.l.k-rdvmed{border-left-color:#e63329}.ch:has(.k-rdvmed) .st{background:#e63329}'+
+    /* Rendez-vous (09/10/2026) : neutre, et ROUGE seulement s'il manque l'accompagnant. */
+    '.l.k-rdvneutre{border-left-color:#d8d4cd}.l.k-rdvmanque{border-left-color:#e63329;background:#fdecea}'+
+    '.alerte{margin:10px 0 4px;padding:8px 12px;border:2px solid #e63329;border-radius:10px;color:#e63329;font-weight:800;font-size:15px}'+
     '.l.k-rdvaut{border-left-color:#b28b7a}.ch:has(.k-rdvaut) .st{background:#b28b7a}'+
     /* Plusieurs jours : un bloc par jour, bandeau gris (les sortes s'y mélangent). */
     '.ch.neutre .st{background:#4a4844!important;color:#fff!important}.ch.neutre .st em{color:rgba(255,255,255,.85)!important}'+
