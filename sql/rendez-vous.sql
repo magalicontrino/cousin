@@ -105,3 +105,9 @@ alter table public.rendez_vous add column if not exists prevenir_le timestamptz;
 alter table public.rendez_vous add column if not exists reveil_par text;
 alter table public.rendez_vous add column if not exists reveil_note text;
 alter table public.rendez_vous add column if not exists reveil_le timestamptz;
+
+-- ═══ « PAS AUTONOME » ET « PRÉVENIR » SONT DEUX CASES (09/10/2026) ═══ « Je t'avais dit pas
+-- autonome ; il faut aussi marquer prévenir monsieur — les médecins, les infirmiers peuvent nous
+-- dire : prévenez-le. » `prevenir` = on nous demande de le prévenir ; `pas_autonome` = la personne
+-- ne gère pas seule. Les deux font partir l'info « Prévenir » à la nuit. Passé le 09/10/2026.
+alter table public.rendez_vous add column if not exists pas_autonome boolean not null default false;
