@@ -459,6 +459,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvacc.manque,.rdvc.manque{border-color:#e63329;border-left-color:#e63329}
 .rdvc-so{font-size:13px;color:#555}
 .rdvet{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 2px}
+.rdvet .rdvet-b{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;color:#1b1b1b;border:1.5px solid #1b1b1b;cursor:pointer}
 .rdvet span{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;color:#1b1b1b}
 .rdvacc-x{flex:1;min-width:0}
 .rdvacc-x b{display:block;font-size:15px}
@@ -16562,7 +16563,7 @@ function rdvAccTexte(r){
 function rdvAPrevoir(r){
   const l=[];
   if(r.pmr) l.push('PMR');
-  if(r.taxi) l.push('Taxi à commander');
+  if(r.taxi) l.push(rdvTaxiTexte(r));
   if(r.reveil) l.push('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''));
   if(r.pas_autonome) l.push('Pas autonome');
   if(r.prevenir) l.push('Prévenir');
@@ -16772,12 +16773,17 @@ function rdvEtiquettes(r, sansAcc){
   const e=[];
   if(!sansAcc && r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
   if(r.pmr) e.push(['PMR','#f5c542']);
-  if(r.taxi) e.push(['Taxi à commander','#f5c542']);
+  if(r.taxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
   if(r.prevenir) e.push(['Prévenir','#b28b7a']);
   if(!e.length) return '';
-  return '<div class="rdvet">'+e.map(function(x){ return '<span style="background:'+x[1]+'">'+esc(x[0])+'</span>'; }).join('')+'</div>';
+  /* L'étiquette du taxi est un BOUTON : on y note qu'il est commandé, et pour quelle heure. */
+  return '<div class="rdvet">'+e.map(function(x){
+    if(x[2]==='taxi' && r.id && rdvPeutEcrire())
+      return '<button class="rdvet-b" style="background:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+esc(x[0])+'</button>';
+    return '<span style="background:'+x[1]+'">'+esc(x[0])+'</span>';
+  }).join('')+'</div>';
 }
 /* L'auteur : son compte (cree_uid) ; pour les rendez-vous d'avant cette colonne, son prénom. */
 function rdvEstAuteur(r){
@@ -16803,11 +16809,54 @@ function rdvOuvrirCorriges(){
 /* Les mêmes étiquettes SUR LE PAPIER (09/10/2026 : « PMR doit être coloré sur les
    impressions, c'est important qu'on ne l'oublie pas ») : accompagnant turquoise, PMR et
    taxi jaune, réveil rose, prévenir / pas autonome brun. */
+/* « Taxi à commander » / « Taxi 7 h 15 · commandé par Mag ». */
+function rdvTaxiTexte(r){
+  if(!r.taxi_par) return 'Taxi à commander';
+  return 'Taxi'+(r.taxi_heure?' '+rdvHeureFr(r.taxi_heure):'')+' · commandé par '+String(r.taxi_par).split(/\s+/)[0];
+}
+/* ═══ LE TAXI COMMANDÉ (09/10/2026 : « on peut réserver des taxis à l'avance » ; « il faut
+   mettre l'heure du taxi quand il a été commandé — les transports, c'est toujours une heure
+   avant ») ═══ La fenêtre propose une heure avant le rendez-vous ; on la change si besoin. */
+let RDV_TX=null;
+function rdvTaxi(id){
+  const r=rdvLigne(id); if(!r) return;
+  if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
+  RDV_TX=r.id;
+  let defaut=r.taxi_heure||'';
+  if(!defaut && r.heure){ const p=String(r.heure).split(':'); let h=parseInt(p[0],10)-1; if(h<0) h=0;
+    defaut=String(h).padStart(2,'0')+':'+(p[1]||'00').slice(0,2); }
+  let bg=document.getElementById('rdvTxBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='rdvTxBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  bg.innerHTML='<div class="popcard entpart socqui" role="dialog" aria-modal="true">'+
+    '<b>Taxi commandé</b>'+
+    '<p class="rdvpr-n">'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</p>'+
+    '<p class="rdvpr-t">Rendez-vous '+esc(rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:''))+'</p>'+
+    '<p class="rdvf-l">Heure du taxi</p><input id="rdvTxH" type="time" class="rdvpr-m" value="'+esc(String(defaut).slice(0,5))+'" style="margin:0 0 10px">'+
+    '<textarea id="rdvTxN" class="rdvpr-m" rows="2" placeholder="Un mot, si tu veux (compagnie, n° de réservation…)">'+esc(r.taxi_note||'')+'</textarea>'+
+    '<button class="socqui-ok" onclick="rdvTaxiEnvoyer(true)">Taxi commandé</button>'+
+    (r.taxi_par?'<button class="socqui-tous" style="margin-top:10px" onclick="rdvTaxiEnvoyer(false)">Remettre « à commander »</button>':'')+
+  '</div>';
+  bg.classList.add('on');
+}
+async function rdvTaxiEnvoyer(commande){
+  const r=rdvLigne(RDV_TX); if(!r) return;
+  const h=(document.getElementById('rdvTxH')||{}).value||'', n=((document.getElementById('rdvTxN')||{}).value||'').trim();
+  if(commande && !h){ toast('Il manque l’heure du taxi'); return; }
+  const maj = commande
+    ? {taxi_heure:h, taxi_par:nomAffiche()||'?', taxi_note:n?n.slice(0,300):null, taxi_le:new Date().toISOString()}
+    : {taxi_heure:null, taxi_par:null, taxi_note:null, taxi_le:null};
+  const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
+  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  Object.assign(r, maj);
+  const bg=document.getElementById('rdvTxBg'); if(bg) bg.classList.remove('on');
+  render(); toast(commande?'Taxi noté ✓':'Taxi remis à commander');
+}
 function rdvEtiqPapier(r){
   const e=[];
   if(r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
   if(r.pmr) e.push(['PMR','#f5c542']);
-  if(r.taxi) e.push(['Taxi à commander','#f5c542']);
+  if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
   if(r.prevenir) e.push(['Prévenir','#b28b7a']);

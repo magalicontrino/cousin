@@ -126,3 +126,11 @@ alter table public.rendez_vous add column if not exists corrige_txt text;
 alter table public.rendez_vous add column if not exists corrige_par text;
 alter table public.rendez_vous add column if not exists corrige_le timestamptz;
 alter table public.rendez_vous add column if not exists corrige_vu boolean not null default true;
+
+-- ═══ LE TAXI COMMANDÉ (09/10/2026) ═══ « On peut réserver des taxis à l'avance » ; « il faut mettre
+-- l'heure du taxi quand il a été commandé — les transports, c'est toujours une heure avant ».
+-- taxi_par non vide = commandé. Passé dans Supabase le 09/10/2026.
+alter table public.rendez_vous add column if not exists taxi_heure text;
+alter table public.rendez_vous add column if not exists taxi_par text;
+alter table public.rendez_vous add column if not exists taxi_note text;
+alter table public.rendez_vous add column if not exists taxi_le timestamptz;
