@@ -72,3 +72,10 @@ create policy pass_suppr on public.passations for delete to authenticated
 
 -- ── PASSÉ DANS SUPABASE LE 08/08/2026 ────────────────────────────────────────
 -- « Success. No rows returned ».
+
+-- ═══ QUI A PRIS LA LIGNE, ET SON MOT (09/10/2026) ═══ « Dans tous les communs, si quelqu'un
+-- prend une passation, je veux qu'on voie qui c'est » — par une fenêtre, pour que personne ne
+-- puisse dire « je n'ai pas fait exprès » ; le message est facultatif. Passé le 09/10/2026.
+-- ⚠ PAS ENCORE UTILISÉE : les lignes de passation n'ont plus de case à cocher depuis le
+-- 22/08/2026 (à ta demande). La colonne attend ta décision.
+alter table public.passations add column if not exists fait_note text;
