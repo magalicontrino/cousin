@@ -501,6 +501,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppf-h{display:flex;align-items:center;gap:7px;margin:8px 0 2px;font-size:13px;color:#555;flex-wrap:wrap}
 /* Un gros cadenas, sans le mot « Fermée » (Mag, 10/10/2026) : la chambre est fermée pendant ces heures. */
 .ppf-cad{width:30px;height:30px;flex:none;color:#e63329;display:inline-flex}.ppf-cad svg{width:100%;height:100%}
+.ppf-h input.ppf-rouge{border:2px solid #e63329;color:#c8412e;background:#fdecea}
+.ppf-plus{font-weight:800;font-size:18px;color:#e63329}.ppf-plus.ok{color:#4f9e74}
+.ppf-dou{width:26px;height:26px;color:#e63329;display:inline-flex;position:relative;flex:none}.ppf-dou svg{width:100%;height:100%}.ppf-dou.ok{color:#4f9e74}.ppf-dou b{position:absolute;right:-9px;bottom:-4px;font-size:13px;color:#4f9e74}
 .ppf-h input{font:inherit;font-size:13.5px;font-weight:600;color:var(--noir);background:#f4f3f0;border:1.25px solid var(--trait);border-radius:8px;padding:4px 6px}
 .ppf-ic{width:20px;height:20px;display:inline-flex;flex:none}.ppf-ic svg{width:100%;height:100%}
 .ppf-frise{display:flex;align-items:flex-start;margin:12px 0 6px;position:relative}
@@ -16980,7 +16983,12 @@ function ppCarte(a){
       '<span class="ppf-j">'+esc(ppJourFr(a.jour))+'</span><span class="ppf-e">'+etat+'</span></div>'+
     '<div class="ppf-h"><span class="ppf-cad" title="Chambre fermée">'+ppPic('cadenas')+'</span>'+
       '<input type="time" value="'+esc(ppDe(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_de\',this.value)"><span>→</span>'+
-      '<input type="time" value="'+esc(ppAh(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_a\',this.value)"></div>';
+      '<input type="time"'+(ppProto(a).k==='tout'&&!ppFait(a,'personne')?' class="ppf-rouge"':'')+' value="'+esc(ppAh(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_a\',this.value)">'+
+      /* LA CHAMBRE NE ROUVRE PAS AVANT LE PROTOCOLE DE LA PERSONNE (Mag, 10/10/2026, mélange des pistes A et B) :
+         l'heure de fin en ROUGE + « + douche » à l'extérieur ; protocole fait → l'heure redevient normale,
+         « + douche ✓ » en vert. On ne ferme plus « pour prévenir » (bouton retiré). */
+      (ppProto(a).k==='tout' ? '<span class="ppf-plus'+(ppFait(a,'personne')?' ok':'')+'">+</span><span class="ppf-dou'+(ppFait(a,'personne')?' ok':'')+'" title="Pas avant le protocole de la personne">'+ppPic('personne')+(ppFait(a,'personne')?'<b>✓</b>':'')+'</span>' : '')+
+      '</div>';
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à l’heure du passage : pas de protocole, on ne touche pas à ses affaires.</p>';
   } else {
@@ -16999,9 +17007,6 @@ function ppCarte(a){
   h+='<div class="ppf-opts">'+
     '<button class="ppf-o'+(pr.k==='tout'?' on ppf-pp':'')+'" onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+
       '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pr.k==='tout'?'Protocole personne : oui':'+ protocole personne')+'</button>'+
-    (a.porte_le
-      ? '<button class="ppf-o on porte" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('prevenu')+'</span>Fermée pour prévenir et pour le protocole de la personne · '+esc(a.porte_par||'')+' '+ppQuand(a.porte_le)+' · <u>rouvrir</u></button>'
-      : '<button class="ppf-o prt" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('prevenu')+'</span>Fermer pour prévenir et pour le protocole de la personne</button>')+
   '</div>'+
   ppPersHTML(a);
   const J=ppNotes(a);
@@ -17114,7 +17119,6 @@ function ppEnTexte(noms){
     const bits=[ppQui(a).l, 'fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))];
     if(jours.length>1) bits.unshift(ppJourFr(a.jour));
     if(ppProto(a).k==='tout') bits.push('protocole personne');
-    if(a.porte_le) bits.push('fermée pour prévenir et pour le protocole de la personne');
     if(ppEtat(a)==='alerte') bits.push('PAS PRÉVENU');
     t+='\n• '+a.numero+' — '+bits.join(' · ');
     if(noms){
@@ -17288,7 +17292,7 @@ function ppImprimer(quoi, rendre){
       if(!a){
         let r='<tr><td><div class="ch"></div></td><td><div class="pas">'+
           '<div class="r">de <span class="h"></span></div><div class="r">à <span class="h"></span></div>'+
-          '<div class="r">'+bx+'<span class="cad pv">'+ppPic('prevenu')+'</span><span class="pvt">pour prévenir et protocole personne</span></div></div></td>'+
+          '</div></td>'+
           '<td><div class="nm"><span></span>'+bx+'</div><div class="nm"><span></span>'+bx+'</div></td>';
         /* PERSONNE, liste vierge (Mag, 10/10/2026, choix 1) : une petite case « à faire » au-dessus, cochée par
            celui qui remplit la chambre ; la grande case = fait. Petite case vide = rien à faire. */
@@ -17300,8 +17304,7 @@ function ppImprimer(quoi, rendre){
       let r='<tr><td><div class="ch plein" style="--q:'+ppQui(a).c+'"><b>'+esc(a.numero)+'</b></div>'+
           (ppEtat(a)==='alerte'?'<em class="aprev">À prévenir</em>':'')+'<span class="jr">'+esc(ppJourFr(a.jour))+'</span></td>'+
         '<td><div class="pas">'+
-          '<div class="r">de <b>'+ppHFr(ppDe(a))+'</b></div><div class="r">à <b>'+ppHFr(ppAh(a))+'</b></div>'+
-          '<div class="r">'+ck(!!a.porte_le)+'<span class="cad pv">'+ppPic('prevenu')+'</span><span class="pvt">pour prévenir et protocole personne</span></div></div></td>'+
+          '<div class="r">de <b>'+ppHFr(ppDe(a))+'</b></div><div class="r">à <b>'+ppHFr(ppAh(a))+'</b>'+(ppProto(a).k==='tout'?' <span class="pls">+</span><span class="cad">'+ppPic('personne')+'</span>':'')+'</div></div></td>'+
         '<td>'+P.map(function(x){ return '<div class="nm"><span class="ec">'+esc(x.nom||'')+'</span>'+
           '<i class="bx pa">'+(x.pa?ppPic('pa'):'')+'</i></div>'; }).join('')+'</td>';
       const pers=(ppProto(a).k==='tout');
@@ -17353,7 +17356,7 @@ function ppImprimer(quoi, rendre){
       '.va .dot{display:inline-block;width:2.5mm;height:2.5mm;border-radius:50%;border:2px solid var(--c)}'+
       '.va .h{display:inline-block;width:16mm;border-bottom:1px solid #111;height:3mm}'+
       '.va .cad{width:4mm;height:4mm;color:#e63329;flex:none}.va .cad.pv{color:#f29a2e;width:4.5mm;height:4.5mm}'+
-      '.va .pas .r .pvt{white-space:normal;line-height:1.15;font-size:8.5pt}'+
+      '.va .pas .pls{color:#e63329;font-weight:800;margin:0 .5mm}'+
       '.va .nm{display:flex;align-items:flex-end;gap:2mm;margin:2mm 0 5mm}'+
       '.va .nm span{flex:1;border-bottom:1.5px dotted #111;height:7mm}.va .nm .bx{width:5.5mm;height:5.5mm}'+
       '.va td.e{text-align:center}'+
