@@ -21897,6 +21897,8 @@ function vHome(){
        3 nuits ou plus. Seulement les nuits sont lues, pas les noms. */
     if(voitEntrants() && !ABS_N_ENCOURS && Date.now()-ABS_N_LU>60000) setTimeout(loadAbsCompte,0);
     const nAbs=(ABS_LU ? absCompteATraiter() : ABS_N);
+    /* TOUTES les absences en cours sur l'accueil (Mag, 10/10/2026 : « rajoute les absences »), pas seulement « à traiter ». */
+    const nAbsTous=(ABS_LU && typeof ABSENCES!=='undefined') ? ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le; }).length : ABS_TOUS;
     /* ═══ LES ÉTIQUETTES — DESSIN 2 SUR CINQ (Mag, 22/09/2026) ═══
        « Les informations comme "3 entrants" sont top. Je veux juste qu'on trouve un
        moyen de mettre ces infos à l'accueil, mais de manière jolie et ludique, juste
@@ -21936,7 +21938,7 @@ function vHome(){
        (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s':''),'#/liste/entretiens','hebergement','#A9C8E8'):'')+
        (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
-       (nAbs?ligneCta(nAbs,'absence'+(nAbs>1?'s':'')+' à traiter','#/liste/absences','absence','#f0a8a3'):'')+
+       (nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
        /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
@@ -45560,17 +45562,18 @@ function absLamChoisir(id,v){
 }
 /* Le compte de l'onglet, quand on n'y est pas : seulement les nuits, pas les noms —
    même règle que les entretiens (on ne va pas chercher des noms pour un onglet caché). */
-let ABS_N=0, ABS_N_LU=0, ABS_N_ENCOURS=false;
+let ABS_N=0, ABS_TOUS=0, ABS_N_LU=0, ABS_N_ENCOURS=false;
 async function loadAbsCompte(){
   if(ABS_N_ENCOURS || !voitEntrants()) return;
   ABS_N_ENCOURS=true;
   try{
-    const r=await sb.from('absences').select('nuits');
+    const r=await sb.from('absences').select('nuits,rentre_le,desencode_le');
     if(!r.error){
-      const avant=ABS_N;
+      const avant=ABS_N+'/'+ABS_TOUS;
       ABS_N=(r.data||[]).filter(function(x){ return (x.nuits||[]).length>=3; }).length;
+      ABS_TOUS=(r.data||[]).filter(function(x){ return !x.rentre_le && !x.desencode_le; }).length;
       ABS_N_LU=Date.now(); ABS_N_ENCOURS=false;
-      if(avant!==ABS_N) render();
+      if(avant!==ABS_N+'/'+ABS_TOUS) render();
       return;
     }
   }catch(e){}
