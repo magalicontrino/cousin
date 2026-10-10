@@ -5464,7 +5464,9 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .abstag.apreciser{background:#fff4d6;color:#7a5c0a;border:1.25px dashed #e0a52a}
 .absrappel{margin:6px 0 2px;padding:8px 10px;border-radius:8px;background:#fff4d6;border-left:5px solid #e0a52a;font-size:13px;font-weight:600;color:#5c4407}
 .popcard.abscol{max-width:520px;max-height:86vh;overflow:auto}
-.abscol textarea{width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:10px;padding:10px}
+.abscol textarea{width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:13px;border:1.25px solid var(--trait);border-radius:10px;padding:10px;min-height:150px;max-height:46vh;field-sizing:content;overflow-y:auto;scrollbar-width:none;resize:none}
+.abscol textarea::-webkit-scrollbar{display:none}
+.abscol-lu{font-size:13px;line-height:1.45;color:#444;margin-top:8px}.abscol-lu b{color:#1b1b1b}.abscol-lu b.rouge{color:#c4291f}
 .abscol-g{margin-top:14px}
 .abscol-t{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-bottom:4px;border-bottom:1.5px solid var(--noir)}
 .abscol-t.rouge{color:#c4291f;border-color:#c4291f}
@@ -45429,13 +45431,28 @@ function absCollerOuvrir(){
   ABS_PLAN=null;
   bg.innerHTML='<div class="popcard abscol" role="dialog" aria-modal="true">'+
     '<b>La liste du jour</b>'+
-    '<textarea id="absColTxt" rows="8" placeholder="Colle ici la liste de KAIROS"></textarea>'+
+    /* (Mag, 10/10/2026 : « je ne sais pas voir si tout est bien collé ») : au collage, on retire les lignes vides
+       et les « User Photo » ; la case se déroule sans ascenseur visible ; dessous, QUI a été lu. */
+    '<textarea id="absColTxt" rows="8" placeholder="Colle ici la liste de KAIROS" oninput="absColVu()" onpaste="setTimeout(absColNettoie,0)"></textarea>'+
+    '<div id="absColLu" class="abscol-lu"></div>'+
     '<div class="entpart-b">'+
       '<button class="dembtn clair" onclick="document.getElementById(\'absColBg\').classList.remove(\'on\')">Annuler</button>'+
       '<button class="dembtn" onclick="absCollerComparer()">Comparer</button>'+
     '</div></div>';
   bg.classList.add('on');
   setTimeout(function(){ const t=document.getElementById('absColTxt'); if(t) t.focus(); },50);
+}
+function absColNettoie(){
+  const t=document.getElementById('absColTxt'); if(!t) return;
+  t.value=String(t.value||'').split(/\r?\n/).filter(function(l){ const x=l.replace(/\u00a0/g,' ').trim(); return x && !/^user photo$/i.test(x); }).join('\n');
+  t.scrollTop=0; absColVu();
+}
+function absColVu(){
+  const t=document.getElementById('absColTxt'), d=document.getElementById('absColLu'); if(!t||!d) return;
+  const lus=t.value.trim()?absLireListe(t.value):[];
+  d.innerHTML=lus.length ? '<b>'+lus.length+' personne'+(lus.length>1?'s':'')+' lue'+(lus.length>1?'s':'')+'</b> · '+
+    lus.map(function(p){ return esc([p.nom,p.prenom].filter(Boolean).join(' ')); }).join(' · ')
+    : (t.value.trim()?'<b class="rouge">Aucun nom trouvé dans ce texte</b>':'');
 }
 function absCollerComparer(){
   const t=document.getElementById('absColTxt');
