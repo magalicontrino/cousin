@@ -404,7 +404,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppm{display:flex;gap:10px;margin:0 0 14px -20px}
 .ppm-av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--p);color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;border:3px solid #fdfdfc}
 .ppm-c{flex:1;min-width:0}
-.ppm-h{font-size:13px;margin-bottom:3px}.ppm-h b{font-size:14px}.ppm-h i{font-style:normal;color:#888;margin-left:6px}
+.ppm-h{font-size:13px;margin-bottom:3px;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 6px}.ppm-h i{margin-left:0!important}
+.ppm-act{margin-left:auto;display:inline-flex;gap:10px}.ppm-act button{font:inherit;font-size:12px;color:#777;background:none;border:0;padding:2px 0;text-decoration:underline;cursor:pointer}.ppm-h b{font-size:14px}.ppm-h i{font-style:normal;color:#888;margin-left:6px}
 .ppm-t{font-size:16px;line-height:1.35;background:#fff;border:1.5px solid #e2e0dc;border-radius:4px 14px 14px 14px;padding:8px 12px;overflow-wrap:anywhere;white-space:pre-wrap}
 .ppm-ecr{display:flex;align-items:flex-end;gap:10px;margin-top:10px}
 .ppm-ecr textarea{flex:1;min-width:0;border:2px solid #ddd;border-radius:12px;padding:9px 12px;font:inherit;font-size:16px;line-height:1.35;resize:none;background:#fff;field-sizing:content;max-height:160px}
@@ -16766,6 +16767,28 @@ function ppCouleurNom(n){
   let k=0; String(n||'').split('').forEach(function(c){ k=(k*31+c.charCodeAt(0))%9973; });
   return C[k%C.length];
 }
+function ppMotTrouve(a, le){
+  const J=Array.isArray(a.journal)?a.journal:[];
+  return J.findIndex(function(x){ return x && x.le===le && (x.par||'')===nomAffiche(); });
+}
+function ppMotModifier(id, le){
+  const a=ppLigne(id); if(!a) return;
+  const i=ppMotTrouve(a, le); if(i<0){ toast('Message introuvable — recharge la page'); return; }
+  cousinDemande('Chambre '+a.numero, 'Modifier ton message.', a.journal[i].txt||'', function(t){
+    t=(t||'').trim().slice(0,300);
+    if(!t){ ppMotEffacer(id, le); return; }
+    if(t===a.journal[i].txt) return;
+    const J=a.journal.map(function(x,k){ return k===i ? Object.assign({},x,{txt:t, modif_le:new Date().toISOString()}) : x; });
+    ppMaj(a, {journal:J});
+  }, 300, true);
+}
+function ppMotEffacer(id, le){
+  const a=ppLigne(id); if(!a) return;
+  const i=ppMotTrouve(a, le); if(i<0){ toast('Message introuvable — recharge la page'); return; }
+  cousinConfirme('Chambre '+a.numero, 'Effacer ton message « '+String(a.journal[i].txt||'').slice(0,60)+' » ?', function(){
+    ppMaj(a, {journal:a.journal.filter(function(x,k){ return k!==i; })});
+  }, {ok:'Effacer', danger:true});
+}
 function ppEnvoyerMot(id){
   const a=ppLigne(id); if(!a) return;
   const e=document.getElementById('ppMot'+id);
@@ -16981,7 +17004,10 @@ function ppCarte(a){
   if(J.length) h+='<div class="ppc-j"><div class="ppm-fil">'+J.map(function(x){
     const n=String(x.par||'').trim();
     return '<div class="ppm"><span class="ppm-av" style="--p:'+ppCouleurNom(n)+'">'+esc((n[0]||'?').toUpperCase())+'</span>'+
-      '<div class="ppm-c"><div class="ppm-h"><b>'+esc(n)+'</b><i>'+ppQuand(x.le)+'</i></div>'+
+      '<div class="ppm-c"><div class="ppm-h"><b>'+esc(n)+'</b><i>'+ppQuand(x.le)+(x.modif_le?' · modifié':'')+'</i>'+
+        /* Ses propres messages : on peut les changer ou les effacer (Mag, 10/10/2026). */
+        (n===nomAffiche() ? '<span class="ppm-act"><button onclick="ppMotModifier(\''+a.id+'\',\''+esc(x.le)+'\')">Modifier</button>'+
+          '<button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\')">Effacer</button></span>' : '')+'</div>'+
       '<div class="ppm-t">'+esc(x.txt)+'</div></div></div>'; }).join('')+'</div></div>';
   /* (Mag, 10/10/2026 : « le plus à gauche, c'est bizarre, on a envie d'écrire d'abord et d'appuyer sur OK ») */
   h+='<div class="ppm-ecr"><textarea id="ppMot'+a.id+'" rows="1" maxlength="300" placeholder="Info…" '+
