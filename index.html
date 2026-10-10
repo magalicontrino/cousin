@@ -16397,7 +16397,7 @@ function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(
 function ppEtapesDe(a){
   const k=ppProto(a).k;
   if(k==='vapeur') return [PP_ETAPES[0], PP_ET_VAPEUR];
-  if(k==='tout') return [PP_ETAPES[0], PP_ETAPES[1], PP_ETAPES[2], PP_ET_PERS, PP_ETAPES[3]];
+  if(k==='tout') return [PP_ETAPES[0], PP_ETAPES[1], PP_ETAPES[2], PP_ETAPES[3], PP_ET_PERS];
   return PP_ETAPES;
 }
 async function loadPunaises(){
@@ -16451,7 +16451,8 @@ function ppAvantSacs(a){ const x=ppHM(ppDe(a))||[12,0]; return Math.max(0,x[0]-1
 function ppAbandon(a){ return false; }
 function ppEtat(a){
   const E=ppEtapesDe(a);
-  if(ppFait(a, E[E.length-1].k)) return 'fini';
+  /* Fini = TOUTES les étapes faites (la personne est passée après les sacs rendus le 10/10/2026). */
+  if(E.every(function(e){ return ppFait(a, e.k); })) return 'fini';
   if(ppAbandon(a)) return 'abandon';
   if(!a.prevenu_le) return 'alerte';
   return 'cours';
@@ -17011,7 +17012,7 @@ function vPunaises(){
      remplit = ce qu'on obtient. En haut « … » (coller un mail, ou écrire) ; le N° en grand ; les
      deux vignettes des personnes. UN bouton. Pas de phrase d'explication. */
   const pd=PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#6fb08e'};
-  const Ev=pd?[PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ET_PERS,PP_ETAPES[3]]:PP_ETAPES;
+  const Ev=pd?[PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ETAPES[3],PP_ET_PERS]:PP_ETAPES;
   h+='<div class="ppv0" style="--c:'+qv.c+'"><span class="ppv0-b"></span>'+
     /* Rien d'autre que « … » et un curseur qui clignote (Mag, 09/10/2026 : « on sait qu'on veut écrire
        là ») ; la zone grandit en hauteur avec ce qu'on écrit. */
@@ -17223,43 +17224,77 @@ function ppImprimer(quoi, rendre){
       '.cs b{display:block;font-size:13pt;line-height:1.15;margin:1mm 0 1.5mm}'+
       '.cs i{display:block;font-style:normal;font-size:9pt;color:#333;line-height:1.3}'+
       '.pied{font-size:8.5pt;color:#444;text-align:center;margin-top:4mm}';
-  } else if(quoi==='vierge'){
+  } else if(quoi==='vierge' || quoi==='feuille'){
     /* ═══ LA LISTE VIERGE — DESSIN A « LE TABLEAU AÉRÉ » (Mag, 10/10/2026) ═══
        « C'est souvent celle-là qui sera utilisée » ; l'ancienne était « pas alignée, moche, ratatinée ».
        QUATRE CHAMBRES PAR PAGE, « plus aéré » (sa réponse en choisissant A). Une colonne par étape, picto rond en tête et grande case de LA COULEUR DE L'ÉTAPE, ligne « par »
        dessous ; Rentokil / Mohamed / heures / cadenas sous le numéro. ⚠ PEU D'ENCRE : que des traits.
        Maquette : propositions/punaises-vierge-A.png. */
     titre='Protocole punaises'; paysage=true;
+    /* La personne APRÈS les sacs rendus (Mag, 10/10/2026). */
     const ET=[['prevenu','Prévenu','#f29a2e'],['sacs','Sacs préparés','#2fa6bd'],['descendu','Descendu','#7d6bc0'],
-      ['personne','Personne','#e63329'],['rendu','Sacs rendus','#4f9e74']];
+      ['rendu','Sacs rendus','#4f9e74'],['personne','Personne','#e63329']];
     const bx='<i class="bx"></i>';
     const bug='<svg viewBox="0 0 48 48" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="24" cy="27" rx="10" ry="13"/><circle cx="24" cy="11" r="4.5"/><path d="M24 15v25M14 22l-7-4M14 30H6M15 37l-6 5M34 22l7-4M34 30h8M33 37l6 5M21 7l-3-4M27 7l3-4"/></svg>';
-    let th='<tr><th class="l" style="width:25mm">Chambre</th><th class="l" style="width:36mm">Passage</th>'+
+    let th='<tr><th class="l" style="width:25mm">Chambre</th><th class="l" style="width:30mm">Fermée</th>'+
       '<th class="l" style="width:58mm">Personnes <span class="thpa"><span>'+ppPic('pa')+'</span>pas autonome</span></th>';
     ET.forEach(function(e){ th+='<th style="width:24mm;--c:'+e[2]+'"><div class="ph">'+ppPic(e[0])+'</div>'+e[1]+'</th>'; });
     th+='<th class="l" style="padding-left:3mm">Commentaires</th></tr>';
     /* (Mag, 10/10/2026) : UNE page de 4 chambres, SANS séparer Rentokil / Mohamed (« pas Rentokil ou
-       Mohamed, juste mes quatre ») — on coche qui passe sur chaque chambre.
+       Mohamed, juste mes quatre ») ; puis « fais exactement ce que tu as fait, mais pas Rentokil ou Mohamed
+       en haut » : colonne « Fermée » (de / à / à clé), AUCUNE case Rentokil/Mohamed. Sur la liste remplie,
+       c'est la couleur du cadre de la chambre qui dit qui passe (turquoise / vert).
        ⏰ Le nombre de chambres par page est à revoir avec elle vers le 10/11/2026. */
-    let rows='';
-    for(let i=0;i<4;i++){
-      rows+='<tr><td><div class="ch"></div></td><td><div class="pas">'+
-        '<div class="r">'+bx+'Rentokil</div><div class="r">'+bx+'Mohamed</div>'+
-        '<div class="r">de <span class="h"></span> à <span class="h"></span></div>'+
-        '<div class="r">'+bx+'<span class="cad">'+ppPic('cadenas')+'</span>à clé</div></div></td>'+
-        '<td><div class="nm"><span></span>'+bx+'</div><div class="nm"><span></span>'+bx+'</div></td>';
-      ET.forEach(function(e){ rows+='<td class="e" style="--c:'+e[2]+'">'+bx+'<span class="par">par</span></td>'; });
-      rows+='<td class="c"><div></div><div></div><div></div><div></div></td></tr>';
-    }
-    const page=function(qui, c){
+    /* LA LISTE REMPLIE PREND LE MÊME DESSIN (Mag, 10/10/2026 : « pour l'impression de la liste, fais la
+       même chose ») : 4 chambres par page, les cases cochées et les noms écrits depuis l'app. */
+    const remplie=(quoi==='feuille');
+    const R=remplie ? L : [null,null,null,null];
+    if(remplie && !R.length){ toast('Aucune chambre en cours — imprime la liste vierge'); return; }
+    const ck=function(ok, cls){ return '<i class="bx'+(cls?' '+cls:'')+'">'+(ok?'✓':'')+'</i>'; };
+    const ligne=function(a){
+      if(!a){
+        let r='<tr><td><div class="ch"></div></td><td><div class="pas">'+
+          '<div class="r">de <span class="h"></span></div><div class="r">à <span class="h"></span></div>'+
+          '<div class="r">'+bx+'<span class="cad">'+ppPic('cadenas')+'</span>à clé</div></div></td>'+
+          '<td><div class="nm"><span></span>'+bx+'</div><div class="nm"><span></span>'+bx+'</div></td>';
+        ET.forEach(function(e){ r+='<td class="e" style="--c:'+e[2]+'">'+bx+'<span class="par">par</span></td>'; });
+        return r+'<td class="c"><div></div><div></div><div></div><div></div></td></tr>';
+      }
+      const P=ppPersonnes(a).filter(function(x){ return x.nom; });
+      while(P.length<2) P.push({nom:'', pa:false});
+      let r='<tr><td><div class="ch plein" style="--q:'+ppQui(a).c+'"><b>'+esc(a.numero)+'</b></div>'+
+          (ppEtat(a)==='alerte'?'<em class="aprev">À prévenir</em>':'')+'<span class="jr">'+esc(ppJourFr(a.jour))+'</span></td>'+
+        '<td><div class="pas">'+
+          '<div class="r">de <b>'+ppHFr(ppDe(a))+'</b></div><div class="r">à <b>'+ppHFr(ppAh(a))+'</b></div>'+
+          '<div class="r">'+ck(!!a.porte_le)+'<span class="cad">'+ppPic('cadenas')+'</span>à clé</div></div></td>'+
+        '<td>'+P.map(function(x){ return '<div class="nm"><span class="ec">'+esc(x.nom||'')+'</span>'+
+          '<i class="bx pa">'+(x.pa?ppPic('pa'):'')+'</i></div>'; }).join('')+'</td>';
+      const pers=(ppProto(a).k==='tout');
+      ET.forEach(function(e){
+        if(e[0]==='personne' && !pers){ r+='<td class="e non" style="--c:'+e[2]+'"><span class="nd">pas demandé</span></td>'; return; }
+        const ok=ppFait(a,e[0]);
+        const qui=ok ? ((e[0]==='sacs'&&ppSacsNom(a))||a[e[0]+'_par']||'') : '';
+        r+='<td class="e" style="--c:'+e[2]+'">'+ck(ok)+'<span class="par">'+(ok?'<b>'+esc(qui)+'</b>':'par')+'</span></td>';
+      });
+      const N=ppNotes(a);
+      let c=N.map(function(x){ return '<p class="jn"><b>'+esc(x.par||'')+'</b> '+esc(x.txt)+'</p>'; }).join('');
+      for(let i=N.length;i<4;i++) c+='<div></div>';
+      return r+'<td class="c">'+c+'</td></tr>';
+    };
+    const page=function(rows, jour){
       return '<section class="pg">'+
         '<div class="vh"><span class="bug">'+bug+'</span><h1>Protocole punaises</h1>'+
-          '<div class="date">Jeudi&nbsp;le <span></span></div></div>'+
+          (jour ? '<div class="date"><b>'+esc(jour)+'</b></div>' : '<div class="date">Jeudi&nbsp;le <span></span></div>')+'</div>'+
         '<div class="vrel"><b>Pas prévenu ?</b><span class="s">Soir</span><span class="ar">→</span><span class="s">Présences 21 h – 22 h</span>'+
           '<span class="ar">→</span><span class="s">Nuit vers 23 h</span><span class="ar">→</span><span class="s">Éducateurs le matin</span></div>'+
-        '<table class="va" style="--q:'+c+'">'+th+rows+'</table></section>';
+        '<table class="va">'+th+rows+'</table></section>';
     };
-    corps=page('','#111');
+    corps='';
+    for(let i=0;i<R.length;i+=4){
+      const lot=R.slice(i,i+4);
+      const jour = remplie ? (lot.every(function(a){ return a.jour===lot[0].jour; }) ? ppJourFr(lot[0].jour) : 'Imprimé le '+new Date().toLocaleDateString('fr-BE',{day:'numeric',month:'long'})) : '';
+      corps+=page(lot.map(ligne).join(''), jour);
+    }
     css='body{font-family:Helvetica,Arial,sans-serif}'+
       '.vh{display:flex;align-items:center;gap:5mm;margin-bottom:3.5mm}.vh h1{font-size:20pt;font-weight:800}'+
       '.vh .bug{width:11mm;height:11mm}.vh .qui{font-size:16pt;font-weight:800;border:2.5px solid var(--c);border-radius:8mm;padding:1mm 5mm;color:#111}'+
@@ -17276,10 +17311,10 @@ function ppImprimer(quoi, rendre){
       '.va td{border-top:1.5px solid #cfcfcf;padding:1.6mm 1.5mm;vertical-align:middle;height:34.5mm}'+
       '.va tr:last-child td{border-bottom:1.5px solid #cfcfcf}.va tr{break-inside:avoid}'+
       '.va .bx{display:inline-block;width:3.8mm;height:3.8mm;border:2px solid #111;border-radius:1.2mm;background:#fff;flex:none}'+
-      '.va .ch{width:22mm;height:20mm;border:2.5px solid #111;border-radius:3mm}'+
+      '.va .ch{width:22mm;height:20mm;border:2.5px solid var(--q,#2fa6bd);border-left-width:5px;border-radius:3mm}'+
       '.va .pas{font-size:9.5pt;line-height:2}.va .pas .r{display:flex;align-items:center;gap:1.5mm;white-space:nowrap}'+
       '.va .dot{display:inline-block;width:2.5mm;height:2.5mm;border-radius:50%;border:2px solid var(--c)}'+
-      '.va .h{display:inline-block;width:9mm;border-bottom:1px solid #111;height:3mm}'+
+      '.va .h{display:inline-block;width:16mm;border-bottom:1px solid #111;height:3mm}'+
       '.va .cad{width:4mm;height:4mm;color:#e63329;flex:none}'+
       '.va .nm{display:flex;align-items:flex-end;gap:2mm;margin:2mm 0 5mm}'+
       '.va .nm span{flex:1;border-bottom:1.5px dotted #111;height:7mm}.va .nm .bx{width:5.5mm;height:5.5mm}'+
@@ -17288,7 +17323,17 @@ function ppImprimer(quoi, rendre){
       '.va td.e .par{display:block;margin:3mm auto 0;width:20mm;border-bottom:1px dotted #999;height:5mm;font-size:7pt;color:#aaa;text-align:left}'+
       '.va td.c{border-left:1.5px solid #cfcfcf;padding-left:3mm}.va td.c div{border-bottom:1px dotted #aaa;height:7mm}'+
       '.thpa{display:inline-flex;align-items:center;gap:1mm;float:right;color:#e63329;font-weight:400}'+
-      '.thpa span{width:5mm;height:5mm;display:inline-block}';
+      '.thpa span{width:5mm;height:5mm;display:inline-block}'+
+      '.va .bx{text-align:center;font-weight:800;color:#111;font-style:normal}'+
+      '.va td.e .bx{font-size:20pt;line-height:9mm}.va .pas .bx{font-size:9pt;line-height:3mm}'+
+      '.va .ch.plein{display:flex;align-items:center;justify-content:center}.va .ch.plein b{font-size:26pt;font-weight:800}'+
+      '.va .aprev{display:block;font-style:normal;font-size:8pt;font-weight:700;color:#c8412e;border:1.5px solid #e63329;border-radius:2mm;padding:.3mm 1mm;margin-top:1.5mm;text-align:center;width:22mm}'+
+      '.va .jr{display:block;font-size:7.5pt;color:#555;margin-top:1mm;width:22mm;line-height:1.2}'+
+      '.va .nm .ec{font-size:12.5pt;font-weight:700;padding-left:1mm;height:7mm;line-height:7mm;overflow:hidden;white-space:nowrap}'+
+      '.va .nm .bx.pa{color:#e63329;padding:.3mm}.va .nm .bx.pa svg{width:100%;height:100%}'+
+      '.va td.e .par b{color:#111;font-size:8pt;font-weight:700}'+
+      '.va td.e.non .nd{display:inline-block;font-size:8pt;color:#999}'+
+      '.va td.c .jn{font-size:9pt;line-height:1.3;margin:0 0 1mm;overflow-wrap:anywhere}.va td.c .jn b{font-weight:700}';
   } else {
     /* ⚠ DEUX IMPRESSIONS, JAMAIS MÉLANGÉES (Mag, 09/10/2026 : « soit la liste, soit une liste vierge,
        pas mélanger les deux ») : « feuille » = les chambres seulement ; « vierge » = des lignes vides. */
@@ -17317,7 +17362,7 @@ function ppImprimer(quoi, rendre){
     };
     const etapes=function(a){
       /* « Personne » écrit dans les étapes = il faut le faire. Une ligne vierge l'a, à cocher ou non. */
-      const E = a ? ppEtapesDe(a) : [PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ET_PERS,PP_ETAPES[3]];
+      const E = a ? ppEtapesDe(a) : [PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ETAPES[3],PP_ET_PERS];
       return '<div class="ets">'+E.map(function(e){
         const ok=a&&ppFait(a,e.k);
         return '<span class="et">'+bx(ok)+'<span class="pic">'+ppPic(e.k==='vapeur'?'descendu':e.k)+'</span><b>'+(e.k==='personne'?'Personne':e.l)+'</b>'+(ok?'<em>'+esc((e.k==='sacs'&&ppSacsNom(a))||a[e.k+'_par']||'')+(e.k==='sacs'?ppSacsAvec(a):'')+'</em>':'<em class="sig">par : ……………</em>')+'</span>';
