@@ -461,6 +461,15 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppcf-b button{font:inherit;font-size:15px;font-weight:700;border-radius:14px;padding:13px;cursor:pointer}
 .ppcf-b .non{background:#fdfdfc;border:2px solid #1b1b1b;color:#1b1b1b}
 .ppcf-b .oui{background:#1b1b1b;border:2px solid #1b1b1b;color:#fff}
+.ppcf-part{width:min(420px,94vw)}
+.ppcf-part .ppcf-h{align-items:center}
+.ppp-l{padding:14px 20px;border-bottom:1px solid var(--ligne)}
+.ppp-t b{display:block;font-size:15px}.ppp-t em{display:block;font-style:normal;font-size:12.5px;color:#6b6963;margin-top:1px}
+.ppp-b{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:9px}
+.ppp-b button{display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit;font-size:12px;font-weight:700;background:#fdfdfc;
+  border:1.5px solid #d8d4cd;border-radius:12px;padding:9px 4px;cursor:pointer;color:#1b1b1b}
+.ppp-b .ic{width:20px;height:20px;display:inline-flex}.ppp-b .ic svg{width:100%;height:100%}
+.ppcf-part .ppcf-b{padding-top:14px}
 .pp-finis{margin:18px 0 10px;border-top:1px dashed var(--trait);padding-top:10px}
 .pp-finis summary{cursor:pointer;font-size:13px;font-weight:700;color:#6b6963;list-style:none}
 .pp-finis summary span{font-weight:400;margin-left:4px}
@@ -16954,6 +16963,7 @@ function vPunaises(){
         être la même chose ; imprimer la liste, juste ») : les pas-prévenus y sont marqués. */
      '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'vierge\')"><span class="ic">'+icon('imprimer')+'</span>Liste vierge</button>'+
+     '<button class="fbtn" onclick="ppPartager()"><span class="ic">'+icon('partage')+'</span>Partager</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '</div>';
   /* ═══ NOUVEAU PASSAGE — LA CHAMBRE VIERGE (piste C, Mag, 09/10/2026 : « j'aime bien l'idée du
@@ -17017,6 +17027,57 @@ function vPunaises(){
     h+='<div class="pp-tout"><button onclick="ppToutEffacer()">Effacer toute la liste</button></div>';
   h+=wikiBloc('punaises');
   return h;
+}
+/* ═══ PARTAGER LE PROTOCOLE (Mag, 10/10/2026 : « pourquoi pas les trois ») ═══ Le lien de la
+   page, la liste en texte sans les noms, la liste avec les noms ; chacun par WhatsApp, mail
+   ou copié. Les chambres en cours, dans l'ordre des numéros. */
+function ppEnTexte(noms){
+  const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini'; })
+    .sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
+  const jours=[]; L.forEach(function(a){ if(jours.indexOf(a.jour)<0) jours.push(a.jour); });
+  let t='Protocole punaises'+(jours.length===1?' — '+ppJourFr(jours[0]):'')+'\n';
+  L.forEach(function(a){
+    const bits=[ppQui(a).l, 'fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))];
+    if(jours.length>1) bits.unshift(ppJourFr(a.jour));
+    if(ppProto(a).k==='tout') bits.push('protocole personne');
+    if(a.porte_le) bits.push('fermée à clé');
+    if(ppEtat(a)==='alerte') bits.push('PAS PRÉVENU');
+    t+='\n• '+a.numero+' — '+bits.join(' · ');
+    if(noms){
+      const P=ppPersonnes(a).filter(function(x){ return x.nom; });
+      if(P.length) t+='\n   '+P.map(function(x){ return x.nom+(x.pa?' (pas autonome)':''); }).join(', ');
+    }
+  });
+  return t+'\n\n'+location.origin+location.pathname+'#/punaises';
+}
+function ppPartager(){
+  let bg=document.getElementById('ppPartBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='ppPartBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
+  const lien=location.origin+location.pathname+'#/punaises';
+  const choix=[
+    {t:'Le lien de la page', s:'Pour un collègue qui a COUSIN', txt:'Protocole punaises\n'+lien},
+    {t:'La liste, sans les noms', s:'Chambres, heures, qui passe', txt:ppEnTexte(false)},
+    {t:'La liste, avec les noms', s:'Pour l’équipe', txt:ppEnTexte(true)}
+  ];
+  window._ppPart=choix;
+  bg.innerHTML='<div class="ppcf ppcf-part" role="dialog" aria-modal="true" style="--c:#6fc7d9">'+
+    '<div class="ppcf-h"><span class="ppf-ic" style="width:26px;height:26px">'+icon('partage')+'</span><b style="font-size:20px">Partager</b></div>'+
+    choix.map(function(c,i){
+      return '<div class="ppp-l"><div class="ppp-t"><b>'+esc(c.t)+'</b><em>'+esc(c.s)+'</em></div><div class="ppp-b">'+
+        '<button onclick="ppPartEnvoyer('+i+',\'wa\')"><span class="ic">'+icon('chat')+'</span>WhatsApp</button>'+
+        '<button onclick="ppPartEnvoyer('+i+',\'mail\')"><span class="ic">'+ppPic('prevenu')+'</span>Mail</button>'+
+        '<button onclick="ppPartEnvoyer('+i+',\'copie\')"><span class="ic">'+icon('copy')+'</span>Copier</button></div></div>';
+    }).join('')+
+    '<div class="ppcf-b" style="grid-template-columns:1fr"><button class="non" onclick="document.getElementById(\'ppPartBg\').classList.remove(\'on\')">Fermer</button></div></div>';
+  bg.classList.add('on');
+}
+function ppPartEnvoyer(i, comment){
+  const c=(window._ppPart||[])[i]; if(!c) return;
+  document.getElementById('ppPartBg').classList.remove('on');
+  if(comment==='wa') window.open('https://wa.me/?text='+encodeURIComponent(c.txt),'_blank','noopener');
+  else if(comment==='mail') location.href='mailto:?subject='+encodeURIComponent('Protocole punaises')+'&body='+encodeURIComponent(c.txt);
+  else copyTxt(c.txt, 'Copié');
 }
 function ppToutEffacer(){
   const n=PUNAISES.length; if(!n||!sb) return;
