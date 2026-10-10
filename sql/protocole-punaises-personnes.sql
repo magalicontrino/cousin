@@ -23,3 +23,7 @@ alter table public.protocole_punaises add column if not exists produit_a text no
 -- Porte fermée à clé (Mag, 09/10/2026 : personne dans la chambre pour prévenir → on ferme à clé ; celui qui rouvre signe)
 alter table public.protocole_punaises add column if not exists porte_le timestamptz;
 alter table public.protocole_punaises add column if not exists porte_par text;
+
+-- 10/10/2026 — « il faut toujours une date de dernière mise à jour » (passé dans l'éditeur SQL).
+alter table public.protocole_punaises add column if not exists maj_le timestamptz;
+alter table public.protocole_punaises add column if not exists maj_par text;
