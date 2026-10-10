@@ -44934,6 +44934,16 @@ function absJour(d){ const x=d?new Date(d):new Date();
   return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
 function absDecale(iso,n){ const x=new Date(iso+'T12:00:00'); x.setDate(x.getDate()+n); return absJour(x); }
 function absNuits(a){ return (Array.isArray(a.nuits)?a.nuits:[]).slice().sort(); }
+/* ═══ LES NUITS SE SUIVENT, OU ÇA REPART À 1 (Mag, 10/10/2026 : « ça ne compare pas les dates ; je ne l'ai pas
+   fait hier, ni avant-hier — ça ne peut pas faire 3 nuits ; il faut que ça se remette à la date du jour ») ═══
+   Ajouter la nuit de ce soir : si la dernière nuit comptée est HIER (ou ce soir), on continue la suite ;
+   sinon (la liste n'a pas été collée entre-temps), on repart de ce soir — 1 nuit. */
+function absSuite(a, auj){
+  const N=absNuits(a), der=N[N.length-1];
+  if(N.indexOf(auj)>=0) return N;
+  if(der && der>=absDecale(auj,-1)) return N.concat([auj]).sort();
+  return [auj];
+}
 async function loadAbsences(){
   if(ABS_ENCOURS || !voitEntrants()) return;
   ABS_ENCOURS=true;
@@ -45500,7 +45510,9 @@ function absCollerDessine(){
     (P.encore.length?P.encore.map(function(x,i){
       return '<label class="abscol-l">'+cb('encore',i,x.ok)+'<b>'+esc(x.a.nom)+'</b>'+
         lamBtn(i, x.lam===undefined ? x.a.lam : x.lam, 'encore')+stBtn('encore',i,x)+
-        '<em>'+(x.deja?'ce soir déjà compté':(absNuits(x.a).length+' → '+(absNuits(x.a).length+1)+' nuits'))+'</em></label>';
+        '<em>'+(x.deja?'ce soir déjà compté':(absSuite(x.a,absJour()).length===1 && absNuits(x.a).length
+            ? 'pas collé depuis le '+absNuits(x.a).slice(-1)[0].slice(8,10)+'/'+absNuits(x.a).slice(-1)[0].slice(5,7)+' → 1 nuit'
+            : absNuits(x.a).length+' → '+absSuite(x.a,absJour()).length+' nuit'+(absSuite(x.a,absJour()).length>1?'s':'')))+'</em></label>';
     }).join(''):'<div class="abscol-v">Personne</div>')+'</div>';
   h+='<div class="abscol-g"><div class="abscol-t">Nouveaux · '+P.nouveaux.length+'<span>ajoutés avec la nuit de ce soir</span></div>'+
     (P.nouveaux.length?P.nouveaux.map(function(x,i){
@@ -45534,7 +45546,7 @@ async function absCollerValider(){
   }
   for(const x of P.encore){
     if(!x.ok || x.deja) continue;
-    const L=absNuits(x.a).concat([auj]).sort();
+    const L=absSuite(x.a, auj);
     const r=await sb.from('absences').update({nuits:L}).eq('id',x.a.id).select();
     if(r.error||!r.data||!r.data.length) rate++; else { x.a.nuits=L; fait++; }
   }
