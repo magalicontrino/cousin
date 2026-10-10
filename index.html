@@ -518,6 +518,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppf-s b{display:block;font-weight:600}
 .ppf-s em{display:block;font-style:normal;font-size:10px;color:#777;min-height:12px}
 .ppf-s.rouge em{color:#c8412e;font-weight:700}
+.ppf-s.cur .ppf-r{border-color:#1b1b1b;color:#1b1b1b;transform:translateY(-3px) scale(1.12);box-shadow:0 7px 16px rgba(0,0,0,.24),0 2px 4px rgba(0,0,0,.12)}
+.ppf-s.cur.perso .ppf-r{border-color:#e63329;color:#e63329}
+.ppf-s.cur b{font-weight:800}
 .ppf-opts{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;align-items:center}
 /* Nouveau passage — le ticket (piste A) */
 .ppt{background:#fdfdfc;border:2px solid #1b1b1b;border-radius:20px;box-shadow:0 5px 0 #1b1b1b;padding:16px;margin:6px 0 22px}
@@ -16992,14 +16995,17 @@ function ppCarte(a){
   if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à l’heure du passage : pas de protocole, on ne touche pas à ses affaires.</p>';
   } else {
+    /* L'ÉTAPE OÙ ON EN EST est mise en avant par une OMBRE (Mag, 10/10/2026 : « pas "à faire" en rouge — une
+       ombre derrière, celui où on est, mis en avant »). = la première étape pas encore faite. */
+    const cur=(E.find(function(x){ return !ppFait(a,x.k); })||{}).k;
     h+='<div class="ppf-frise">'+E.map(function(st){
-      const ok=ppFait(a,st.k), rouge=(st.k==='prevenu' && e==='alerte');
+      const ok=ppFait(a,st.k), rouge=false;
       let sous='';
       if(ok) sous=esc((st.k==='sacs'&&ppSacsNom(a))||a[st.k+'_par']||'')+' '+ppQuand(a[st.k+'_le'])+(st.k==='sacs'?ppSacsAvec(a):'');
       else if(rouge) sous='à faire';
       else if(st.k==='rendu') sous='après 24 h';
       const court={prevenu:'Prévenu', sacs:'Sacs préparés', descendu:'Descendu', personne:'Protocole personne', rendu:'Sacs rendus', vapeur:'Vapeur'}[st.k]||st.l;
-      return '<button class="ppf-s'+(ok?' ok':'')+(rouge?' rouge':'')+(st.k==='personne'&&!ok?' perso':'')+'" onclick="ppEtape(\''+a.id+'\',\''+st.k+'\')" title="'+esc(st.l)+'">'+
+      return '<button class="ppf-s'+(ok?' ok':'')+(st.k===cur?' cur':'')+(st.k==='personne'&&!ok?' perso':'')+'" onclick="ppEtape(\''+a.id+'\',\''+st.k+'\')" title="'+esc(st.l)+'">'+
         '<span class="ppf-r">'+ppPic(st.k==='vapeur'?'descendu':st.k)+(ok?'<i>✓</i>':'')+'</span><b>'+court+'</b><em>'+sous+'</em></button>';
     }).join('')+'</div>';
     /* (Mag, 09/10/2026 : « ils sauront bien que si ce n'est pas coché, il faut le faire ») : plus de « À faire maintenant ». */
