@@ -18286,7 +18286,9 @@ function rdvAccQui(r){
   const qui=r.accomp_par || (r.accomp_nom ? r.cree_par : '');
   if(!qui) return '';
   const q=r.accomp_le ? binQuand(r.accomp_le) : '';
-  return '<small class="rdvacc-qui">'+(r.accomp_nom?'Noté par ':'Retiré par ')+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
+  /* Pas de « Retiré par … » (Mag, 10/10/2026 : « pas la peine de mettre le nom des choses retirées »). */
+  if(!r.accomp_nom) return '';
+  return '<small class="rdvacc-qui">Noté par '+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
 }
 function rdvAccChanger(id, el){
   const r=rdvLigne(id); if(!r) return;
@@ -18301,6 +18303,13 @@ function rdvAccChanger(id, el){
     if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); el.value=r.accomp_nom||''; return; }
     Object.assign(r, maj); render(); toast(n?'Accompagnant : '+maj.accomp_nom+' ✓':'Accompagnant retiré');
   };
+  /* RETIRER = TOUJOURS UNE FENÊTRE DE VALIDATION (Mag, 10/10/2026), pour tout le monde. */
+  if(!n){
+    el.value=r.accomp_nom||'';
+    cousinConfirme('Retirer l’accompagnant ?', (r.accomp_nom||'')+' n’accompagnera plus '+r.nom+' ('+rdvQuandCourt(r)+').',
+      function(){ el.value=''; ecrire(); }, {ok:'Retirer', danger:true});
+    return;
+  }
   /* Tout le monde PEUT (si la coordination est absente), mais c'est dit. */
   if(peutGerer()) { ecrire(); return; }
   cousinConfirme('Réservé aux coordinateurs', 'Tu changes l’accompagnant de '+r.nom+' ('+rdvQuandCourt(r)+')'+
