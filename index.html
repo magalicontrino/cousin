@@ -18003,6 +18003,10 @@ function rdvResumeCourt(){
 }
 
 /* ── le formulaire ──────────────────────────────────────────────────────── */
+function rdvFormVide(){
+  RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false};
+}
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
@@ -20809,6 +20813,8 @@ var RENDU_FOND=false;
 function renderFond(){ RENDU_FOND=true; try{ render(); }finally{ RENDU_FOND=false; } }
 function render(){
   try{
+    /* Hors de l'agenda : la prochaine arrivée redéploiera l'encodage (Mag, 10/10/2026). */
+    if(current && current.view!=='rdv') window._rdvArrivee=false;
     const a=document.activeElement;
     if(!RENDU_FORCE && a && (a.id==='notTxt'||a.id==='absNom') && current && current.view==='liste' &&
        _dernierEcranRendu===keyOf(current)){ RENDU_DIFFERE=true; return; }
@@ -21034,7 +21040,11 @@ function renderInterne(){
   else if(current.view==='punaises'){ view.innerHTML=vPunaises(); rafraichirPunaises(); }
   /* ⚠ On relit le formulaire AVANT de redessiner : un rafraîchissement ne doit pas
      effacer ce qui est en train d'être tapé. */
-  else if(current.view==='rdv'){ rdvLireChamps(); view.innerHTML=vRdv(); rafraichirRdv(); }
+  else if(current.view==='rdv'){
+    /* EN ARRIVANT sur l'agenda, l'encodage est DÉPLOYÉ (Mag, 10/10/2026) — une seule fois par arrivée. */
+    if(window._rdvArrivee!==true && !RDV_FORM && RDV_VUE!=='acc' && rdvPeutEcrire()) rdvFormVide();
+    window._rdvArrivee=true;
+    rdvLireChamps(); view.innerHTML=vRdv(); rafraichirRdv(); }
   else if(current.view==='print') view.innerHTML=vPrint();
   else if(current.view==='linge') view.innerHTML=vLinge();
   else if(current.view==='quiz') view.innerHTML=vQuiz();
