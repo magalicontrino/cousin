@@ -44926,7 +44926,7 @@ function copierEntretiens(){
      ce soir s'il n'est pas compté, sinon la nuit d'avant la première. 7 boules au plus ; le chiffre
      donne le vrai total. Une boule se touche pour corriger.
    ═══════════════════════════════════════════════════════════════════════════ */
-let ABS_MAJ=null, ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_PANNE='', ABS_ECRIT=0, ABS_BR_NOM='', ABS_BR_LAM=false;
+let ABS_MAJ=null, ABS_COLLE=null, ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_PANNE='', ABS_ECRIT=0, ABS_BR_NOM='', ABS_BR_LAM=false;
 const ABS_STATUTS=[
   {k:'nonjust', l:'Non justifiée', ic:'question', cl:'q'},
   {k:'just',    l:'Justifiée',     ic:'check',    cl:'c'},
@@ -44953,10 +44953,14 @@ function absTrous(a, auj){
 }
 function absJJMM(d){ return d.slice(8,10)+'/'+d.slice(5,7); }
 /* La liste a-t-elle été collée hier ? (la dernière écriture sur les absences) */
+/* ⚠ Pas « la dernière écriture » (une correction à la main la rafraîchissait) : la date du dernier COLLAGE validé
+   (absences_maj, ligne id 2). Avant le tout premier, on prend la nuit la plus récente connue. */
 function absPasColleHier(){
-  if(!ABS_MAJ || !ABS_MAJ.le) return '';
-  const j=absJour(new Date(ABS_MAJ.le)), auj=absJour();
-  return j<absDecale(auj,-1) ? j : '';
+  let j='';
+  if(ABS_COLLE && ABS_COLLE.le) j=absJour(new Date(ABS_COLLE.le));
+  else ABSENCES.forEach(function(a){ absNuits(a).forEach(function(d){ if(d>j) j=d; }); });
+  if(!j) return '';
+  return j<absDecale(absJour(),-1) ? j : '';
 }
 async function loadAbsences(){
   if(ABS_ENCOURS || !voitEntrants()) return;
@@ -44964,8 +44968,8 @@ async function loadAbsences(){
   try{
     const t0=Date.now(), avant=JSON.stringify(ABSENCES)+ABS_PANNE;
     const r=await sb.from('absences').select('*').order('cree_le',{ascending:true});
-    try{ const m=await sb.from('absences_maj').select('le,par').eq('id',1).limit(1);
-      if(!m.error && m.data && m.data[0]) ABS_MAJ=m.data[0]; }catch(e){}
+    try{ const m=await sb.from('absences_maj').select('id,le,par').in('id',[1,2]);
+      if(!m.error && m.data){ m.data.forEach(function(x){ if(x.id===1) ABS_MAJ=x; else if(x.id===2) ABS_COLLE=x; }); } }catch(e){}
     if(ABS_ECRIT>=t0-5000){ ABS_ENCOURS=false; return; }
     /* « La base n'a pas répondu » n'est jamais « personne d'absent ». */
     if(r.error) ABS_PANNE="La liste des absences n'a pas répondu.";
@@ -45586,6 +45590,9 @@ async function absCollerValider(){
   }
   ABS_PLAN=null;
   if(fait) absNoterMaj();
+  /* La date du dernier COLLAGE (pour « pas collé hier »). */
+  if(!rate){ const c={id:2, le:new Date().toISOString(), par:(nomAffiche()||'')}; ABS_COLLE={le:c.le, par:c.par};
+    sb.from('absences_maj').upsert(c,{onConflict:'id'}).then(function(){}, function(){}); }
   render();
   toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
              : 'Liste du jour appliquée');
