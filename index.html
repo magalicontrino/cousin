@@ -676,6 +676,27 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvacc-x{flex:1;min-width:0}
 .rdvacc-x b{display:block;font-size:15px}
 .rdvacc-x span{display:block;font-size:13px;color:#555;margin-top:2px}
+.rdvk{display:grid;grid-template-columns:62px 1fr;gap:0 16px;background:#fdfdfc;border:1px solid #e4e1dc;border-left:6px solid #f2a33a;border-radius:16px;padding:18px 20px;margin:0 0 14px}
+.rdvk.ok{border-left-color:#4f9e74}
+.rdvk-h{font-size:21px;font-weight:700;line-height:1.15}
+.rdvk-c{min-width:0}
+.rdvk-n{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rdvk-ch{font-size:12px;font-weight:600;border:1.5px solid #ccc;border-radius:999px;padding:1px 9px;color:#444}
+.rdvk-s{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:#555;margin-top:4px}
+.rdvk-s span{display:inline-flex;align-items:center;gap:6px}.rdvk-s i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.rdvk-d{margin-top:12px;background:#f6f4f1;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.rdvk-d small{display:block;font-size:12px;color:#888;margin-top:4px;white-space:normal}
+.rdvk-note{margin-top:8px;font-size:13px;color:#555}
+.rdvk .rdvet{margin-top:10px}
+.rdvk .rdvet span,.rdvk .rdvet button{background:#fff!important;border:1.5px solid var(--ec,#ccc);color:#333}
+.rdvk .rdvacc-in{margin-top:12px;border-radius:10px;padding:10px 12px;background:#fff}
+.rdvk.manque .rdvacc-in{border-color:#e63329}
+.rdvk-f{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px}
+.rdvk-st{font-size:13px;font-weight:700}.rdvk-st.att{color:#a8660d}.rdvk-st.ok{color:#2f7a52}
+.rdvk-a{display:inline-flex;align-items:center;gap:14px}
+.rdvk-mod{font:inherit;font-size:13px;color:#777;background:none;border:0;text-decoration:underline;cursor:pointer;padding:0}
+.rdvk-val{font:inherit;font-size:14px;font-weight:700;background:#1b1b1b;color:#fff;border:0;border-radius:10px;padding:9px 18px;cursor:pointer}
+@media (max-width:520px){ .rdvk{grid-template-columns:1fr;padding:16px} .rdvk-h{margin-bottom:4px} }
 .rdvacc-mod{margin-top:8px;font:inherit;font-size:12px;background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--noir);padding:0}
 .rdvc-corr{font-size:12px!important;color:#6b6963!important}
 .rdvc-notif{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0;padding:8px 10px;border:2px solid #f8763f;border-radius:10px;background:#fdfdfc}
@@ -17888,8 +17909,8 @@ function rdvEtiquettes(r, sansAcc){
   /* L'étiquette du taxi est un BOUTON : on y note qu'il est commandé, et pour quelle heure. */
   return '<div class="rdvet">'+e.map(function(x){
     if(x[2]==='taxi' && r.id && rdvPeutEcrire())
-      return '<button class="rdvet-b" style="background:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+esc(x[0])+'</button>';
-    return '<span style="background:'+x[1]+'">'+esc(x[0])+'</span>';
+      return '<button class="rdvet-b" style="background:'+x[1]+';--ec:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+esc(x[0])+'</button>';
+    return '<span style="background:'+x[1]+';--ec:'+x[1]+'">'+esc(x[0])+'</span>';
   }).join('')+'</div>';
 }
 /* L'auteur : son compte (cree_uid) ; pour les rendez-vous d'avant cette colonne, son prénom. */
@@ -18063,6 +18084,8 @@ async function rdvEnregistrer(){
   if(String((avant&&avant.accomp_nom)||'')!==String(ligne.accomp_nom||'') && (ligne.accomp_nom || avant)){
     ligne.accomp_par=nomAffiche(); ligne.accomp_le=new Date().toISOString();
   }
+  /* Un accompagnement NOUVEAU (ou qui vient de passer à Oui) attend la validation de la coordination. */
+  if(ligne.accompagne && !(avant && avant.accompagne)){ ligne.valide_par=null; ligne.valide_le=null; }
   /* Deux appuis sur « Enregistrer » = deux rendez-vous : le second attend le premier. */
   if(RDV_ENVOI) return;
   RDV_ENVOI=true;
@@ -18263,16 +18286,28 @@ function vRdvAcc(){
   L.forEach(function(r){
     if(r.jour!==jour){ jour=r.jour; h+='<div class="ghead">'+esc(rdvJourTitre(r.jour))+'</div>'; }
     const t=rdvType(r.genre);
-    h+='<div class="rdvacc'+(r.accomp_nom?'':' manque')+'">'+
-      '<span class="rdvc-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvacc-x">'+
-        '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
-        '<span>'+esc(t.l)+(r.lieu?' · '+esc(r.lieu):'')+'</span>'+
-        (r.note?'<span>'+esc(r.note)+'</span>':'')+rdvEtiquettes(r,true)+
+    /* ═══ LA CARTE D'ACCOMPAGNEMENT, AÉRÉE (Mag, 10/10/2026 : « pas agréables, pas aérées — plus joli, plus clair ;
+       qu'on voie la demande ; ils doivent juste valider ») ═══ Heure en grand, nom + pastille chambre, type + lieu,
+       LA DEMANDE (l'argument + qui l'a demandée), étiquettes, accompagnant, puis En attente → Valider / Validé par. */
+    const ok=!!r.valide_le;
+    h+='<div class="rdvk'+(ok?' ok':' att')+(r.accomp_nom?'':' manque')+'">'+
+      '<div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
+      '<div class="rdvk-c">'+
+        '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
+        '<div class="rdvk-s"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(r.lieu?'<span>'+esc(r.lieu)+'</span>':'')+'</div>'+
+        (r.accomp_motif?'<div class="rdvk-d">« '+esc(r.accomp_motif)+' »<small>Demandé par '+esc(String(r.cree_par||'').split(/\s+/)[0])+(r.cree_le?' · '+esc(binQuand(r.cree_le)):'')+'</small></div>':'')+
+        (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
+        rdvEtiquettes(r,true)+
         '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
           'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+
         rdvAccQui(r)+
-        /* Corriger le rendez-vous lui-même (09/10/2026) : le même formulaire, puis retour ici. */
-        (rdvPeutEcrire()?'<button class="rdvacc-mod" onclick="rdvModifier(\''+r.id+'\')">Modifier le rendez-vous</button>':'')+
+        '<div class="rdvk-f">'+
+          (ok ? '<span class="rdvk-st ok">✓ Validé par '+esc(String(r.valide_par||'').split(/\s+/)[0])+'</span>'
+              : '<span class="rdvk-st att">En attente de validation</span>')+
+          '<span class="rdvk-a">'+
+            (rdvPeutEcrire()?'<button class="rdvk-mod" onclick="rdvModifier(\''+r.id+'\')">Modifier</button>':'')+
+            (!ok && peutGerer()?'<button class="rdvk-val" onclick="rdvValider(\''+r.id+'\')">Valider</button>':'')+
+          '</span></div>'+
       '</div></div>';
   });
   h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
@@ -18289,6 +18324,16 @@ function rdvAccQui(r){
   /* Pas de « Retiré par … » (Mag, 10/10/2026 : « pas la peine de mettre le nom des choses retirées »). */
   if(!r.accomp_nom) return '';
   return '<small class="rdvacc-qui">Noté par '+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
+}
+/* VALIDER un accompagnement : la coordination seule ; avec une fenêtre de validation. */
+function rdvValider(id){
+  const r=rdvLigne(id); if(!r || !peutGerer()) return;
+  cousinConfirme('Valider l’accompagnement ?', r.nom+' · '+rdvQuandCourt(r), async function(){
+    const maj={valide_par:nomAffiche(), valide_le:new Date().toISOString()};
+    const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
+    if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    Object.assign(r, maj); render(); toast('Accompagnement validé');
+  }, {ok:'Valider'});
 }
 function rdvAccChanger(id, el){
   const r=rdvLigne(id); if(!r) return;
