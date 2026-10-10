@@ -16586,7 +16586,9 @@ function ppHeureChanger(id, k, v){
   ppConfirme(a, {pic:'cle', question:(k==='produit_de'?'Chambre fermée à partir de ':'Chambre rouverte à ')+ppHFr(v)+' ?', ok:'Oui, '+ppHFr(v)},
     function(){ ppMaj(a, m, (k==='produit_de'?'fermée à partir de ':'rouverte à ')+ppHFr(v)); });
 }
-/* ═══ PORTE FERMÉE À CLÉ (Mag, 09/10/2026) ═══ « Quand il n'y a personne dans la chambre pour
+/* ═══ PORTE FERMÉE POUR PRÉVENIR (Mag, 09/10/2026 ; renommé le 10/10/2026 : « Personne là ? Fermer à
+   clé, ça ne veut rien dire » — fermée, la personne vient nous voir avant d'entrer, et on peut lui dire
+   qu'il y a un protocole). Picto = la BULLE de « Prévenu » : le cadenas, c'est la fermeture du produit. ═══ « Quand il n'y a personne dans la chambre pour
    les prévenir, on ferme la porte : on ne peut les prévenir que le soir. Celui qui l'ouvre doit
    signer. » Fermer = signé (`porte_le`, `porte_par`) ; rouvrir = signé au journal. */
 function ppPorte(id){
@@ -16597,7 +16599,7 @@ function ppPorte(id){
     cousinConfirme('Chambre '+a.numero, qui, function(){ ppMaj(a, {porte_le:null, porte_par:null}, 'porte rouverte'); }, {ok:'Je rouvre la porte'});
   } else {
     cousinConfirme('Chambre '+a.numero, qui,
-      function(){ ppMaj(a, {porte_le:new Date().toISOString(), porte_par:nomAffiche()}, 'porte fermée à clé'); }, {ok:'Je ferme la porte'});
+      function(){ ppMaj(a, {porte_le:new Date().toISOString(), porte_par:nomAffiche()}, 'porte fermée pour prévenir'); }, {ok:'Je ferme pour prévenir'});
   }
 }
 function ppChangerProto(id, k){
@@ -16996,8 +16998,8 @@ function ppCarte(a){
     '<button class="ppf-o'+(pr.k==='tout'?' on ppf-pp':'')+'" onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+
       '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pr.k==='tout'?'Protocole personne : oui':'+ protocole personne')+'</button>'+
     (a.porte_le
-      ? '<button class="ppf-o on porte" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('cle')+'</span>Fermée à clé · '+esc(a.porte_par||'')+' '+ppQuand(a.porte_le)+' · <u>rouvrir</u></button>'
-      : '<button class="ppf-o" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('cle')+'</span>Personne là ? Fermer à clé</button>')+
+      ? '<button class="ppf-o on porte" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('prevenu')+'</span>Fermée pour prévenir · '+esc(a.porte_par||'')+' '+ppQuand(a.porte_le)+' · <u>rouvrir</u></button>'
+      : '<button class="ppf-o" onclick="ppPorte(\''+a.id+'\')"><span class="ppf-ic">'+ppPic('prevenu')+'</span>Fermer pour prévenir</button>')+
   '</div>'+
   ppPersHTML(a);
   const J=ppNotes(a);
@@ -17110,7 +17112,7 @@ function ppEnTexte(noms){
     const bits=[ppQui(a).l, 'fermée '+ppHFr(ppDe(a))+' → '+ppHFr(ppAh(a))];
     if(jours.length>1) bits.unshift(ppJourFr(a.jour));
     if(ppProto(a).k==='tout') bits.push('protocole personne');
-    if(a.porte_le) bits.push('fermée à clé');
+    if(a.porte_le) bits.push('fermée pour prévenir');
     if(ppEtat(a)==='alerte') bits.push('PAS PRÉVENU');
     t+='\n• '+a.numero+' — '+bits.join(' · ');
     if(noms){
@@ -17284,7 +17286,7 @@ function ppImprimer(quoi, rendre){
       if(!a){
         let r='<tr><td><div class="ch"></div></td><td><div class="pas">'+
           '<div class="r">de <span class="h"></span></div><div class="r">à <span class="h"></span></div>'+
-          '<div class="r">'+bx+'<span class="cad">'+ppPic('cadenas')+'</span>à clé</div></div></td>'+
+          '<div class="r">'+bx+'<span class="cad pv">'+ppPic('prevenu')+'</span>pour prévenir</div></div></td>'+
           '<td><div class="nm"><span></span>'+bx+'</div><div class="nm"><span></span>'+bx+'</div></td>';
         /* PERSONNE, liste vierge (Mag, 10/10/2026, choix 1) : une petite case « à faire » au-dessus, cochée par
            celui qui remplit la chambre ; la grande case = fait. Petite case vide = rien à faire. */
@@ -17297,7 +17299,7 @@ function ppImprimer(quoi, rendre){
           (ppEtat(a)==='alerte'?'<em class="aprev">À prévenir</em>':'')+'<span class="jr">'+esc(ppJourFr(a.jour))+'</span></td>'+
         '<td><div class="pas">'+
           '<div class="r">de <b>'+ppHFr(ppDe(a))+'</b></div><div class="r">à <b>'+ppHFr(ppAh(a))+'</b></div>'+
-          '<div class="r">'+ck(!!a.porte_le)+'<span class="cad">'+ppPic('cadenas')+'</span>à clé</div></div></td>'+
+          '<div class="r">'+ck(!!a.porte_le)+'<span class="cad pv">'+ppPic('prevenu')+'</span>pour prévenir</div></div></td>'+
         '<td>'+P.map(function(x){ return '<div class="nm"><span class="ec">'+esc(x.nom||'')+'</span>'+
           '<i class="bx pa">'+(x.pa?ppPic('pa'):'')+'</i></div>'; }).join('')+'</td>';
       const pers=(ppProto(a).k==='tout');
@@ -17348,7 +17350,7 @@ function ppImprimer(quoi, rendre){
       '.va .pas{font-size:9.5pt;line-height:2}.va .pas .r{display:flex;align-items:center;gap:1.5mm;white-space:nowrap}'+
       '.va .dot{display:inline-block;width:2.5mm;height:2.5mm;border-radius:50%;border:2px solid var(--c)}'+
       '.va .h{display:inline-block;width:16mm;border-bottom:1px solid #111;height:3mm}'+
-      '.va .cad{width:4mm;height:4mm;color:#e63329;flex:none}'+
+      '.va .cad{width:4mm;height:4mm;color:#e63329;flex:none}.va .cad.pv{color:#f29a2e;width:4.5mm;height:4.5mm}'+
       '.va .nm{display:flex;align-items:flex-end;gap:2mm;margin:2mm 0 5mm}'+
       '.va .nm span{flex:1;border-bottom:1.5px dotted #111;height:7mm}.va .nm .bx{width:5.5mm;height:5.5mm}'+
       '.va td.e{text-align:center}'+
