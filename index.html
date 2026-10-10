@@ -16793,9 +16793,19 @@ function ppCouleurNom(n){
   let k=0; String(n||'').split('').forEach(function(c){ k=(k*31+c.charCodeAt(0))%9973; });
   return C[k%C.length];
 }
-function ppMotTrouve(a, le){
+/* ═══ QUI PEUT QUOI (Mag, 10/10/2026) ═══
+   • Effacer le message d'un AUTRE : l'admin et les PFO seulement (pas la coordination).
+   • Retirer UNE chambre : « ceux qui vont imprimer et s'occuper de ça » = travailleurs sociaux, PFO,
+     coordination (+ l'admin). Les autres ne voient pas « Retirer ».
+   • Tout effacement passe par une fenêtre de confirmation. */
+function ppModere(){ return !!((typeof vueAdmin==='function' && vueAdmin()) || (PROFILE && PROFILE.pfo)); }
+function ppPeutRetirer(){
+  return ppModere() || (typeof estCoordi==='function' && estCoordi()) ||
+    /travailleu|assistant.*social/i.test(String((PROFILE&&PROFILE.equipe)||''));
+}
+function ppMotTrouve(a, le, tous){
   const J=Array.isArray(a.journal)?a.journal:[];
-  return J.findIndex(function(x){ return x && x.le===le && (x.par||'')===nomAffiche(); });
+  return J.findIndex(function(x){ return x && x.le===le && (tous || (x.par||'')===nomAffiche()); });
 }
 function ppMotModifier(id, le){
   const a=ppLigne(id); if(!a) return;
@@ -16808,10 +16818,12 @@ function ppMotModifier(id, le){
     ppMaj(a, {journal:J});
   }, 300, true);
 }
-function ppMotEffacer(id, le){
+function ppMotEffacer(id, le, autre){
   const a=ppLigne(id); if(!a) return;
-  const i=ppMotTrouve(a, le); if(i<0){ toast('Message introuvable — recharge la page'); return; }
-  cousinConfirme('Chambre '+a.numero, 'Effacer ton message « '+String(a.journal[i].txt||'').slice(0,60)+' » ?', function(){
+  if(autre && !ppModere()) return;
+  const i=ppMotTrouve(a, le, !!autre); if(i<0){ toast('Message introuvable — recharge la page'); return; }
+  const de=(a.journal[i].par||'')===nomAffiche() ? 'ton message' : 'le message de '+(a.journal[i].par||'?');
+  cousinConfirme('Chambre '+a.numero, 'Effacer '+de+' « '+String(a.journal[i].txt||'').slice(0,60)+' » ?', function(){
     ppMaj(a, {journal:a.journal.filter(function(x,k){ return k!==i; })});
   }, {ok:'Effacer', danger:true});
 }
@@ -16829,6 +16841,7 @@ function ppNoter(id, depart){
 }
 function ppRetirer(id){
   const a=ppLigne(id); if(!a||!sb) return;
+  if(!ppPeutRetirer()){ toast('Retirer une chambre : travailleurs sociaux, PFO et coordination'); return; }
   cousinConfirme('Chambre '+a.numero, 'Retirer cette chambre du protocole du '+ppJourFr(a.jour)+' ?',
     async function(){
       const {error}=await sb.from('protocole_punaises').delete().eq('id',a.id);
@@ -17039,13 +17052,14 @@ function ppCarte(a){
       '<div class="ppm-c"><div class="ppm-h"><b>'+esc(n)+'</b><i>'+ppQuand(x.le)+(x.modif_le?' · modifié':'')+'</i>'+
         /* Ses propres messages : on peut les changer ou les effacer (Mag, 10/10/2026). */
         (n===nomAffiche() ? '<span class="ppm-act"><button onclick="ppMotModifier(\''+a.id+'\',\''+esc(x.le)+'\')">Modifier</button>'+
-          '<button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\')">Effacer</button></span>' : '')+'</div>'+
+          '<button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\')">Effacer</button></span>'
+          : ppModere() ? '<span class="ppm-act"><button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\',true)">Effacer</button></span>' : '')+'</div>'+
       '<div class="ppm-t">'+esc(x.txt)+'</div></div></div>'; }).join('')+'</div></div>';
   /* (Mag, 10/10/2026 : « le plus à gauche, c'est bizarre, on a envie d'écrire d'abord et d'appuyer sur OK ») */
   h+='<div class="ppm-ecr"><textarea id="ppMot'+a.id+'" rows="1" maxlength="300" placeholder="Info…" '+
        'oninput="PP_MOTS[\''+a.id+'\']=this.value">'+esc(PP_MOTS[a.id]||'')+'</textarea>'+
      '<button class="ppm-go" onclick="ppEnvoyerMot(\''+a.id+'\')">OK</button></div>';
-  h+='<div class="ppc-b"><button onclick="ppRetirer(\''+a.id+'\')">Retirer</button></div>';
+  if(ppPeutRetirer()) h+='<div class="ppc-b"><button onclick="ppRetirer(\''+a.id+'\')">Retirer</button></div>';
   return h+'</div>';
 }
 function vPunaises(){
