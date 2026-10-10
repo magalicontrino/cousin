@@ -462,6 +462,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .ppcf-b .non{background:#fdfdfc;border:2px solid #1b1b1b;color:#1b1b1b}
 .ppcf-b .oui{background:#1b1b1b;border:2px solid #1b1b1b;color:#fff}
 .ppcf-part{width:min(420px,94vw)}
+.ppp-2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:20px}
+.ppp-2 button{display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit;background:#fdfdfc;border:2px solid #1b1b1b;border-radius:16px;padding:16px 8px;cursor:pointer;color:#1b1b1b}
+.ppp-2 .ic{width:28px;height:28px;display:inline-flex}.ppp-2 .ic svg{width:100%;height:100%}
+.ppp-2 b{font-size:14.5px}.ppp-2 em{font-style:normal;font-size:12px;color:#6b6963}
+.fbtn.pp-part{padding-left:12px;padding-right:12px}.fbtn.pp-part .ic{margin:0}
 .ppcf-part .ppcf-h{align-items:center}
 .ppp-l{padding:14px 20px;border-bottom:1px solid var(--ligne)}
 .ppp-t b{display:block;font-size:15px}.ppp-t em{display:block;font-style:normal;font-size:12.5px;color:#6b6963;margin-top:1px}
@@ -16963,7 +16968,8 @@ function vPunaises(){
         être la même chose ; imprimer la liste, juste ») : les pas-prévenus y sont marqués. */
      '<button class="fbtn" onclick="ppImprimer(\'feuille\')"><span class="ic">'+icon('imprimer')+'</span>Imprimer la liste</button>'+
      '<button class="fbtn" onclick="ppImprimer(\'vierge\')"><span class="ic">'+icon('imprimer')+'</span>Liste vierge</button>'+
-     '<button class="fbtn" onclick="ppPartager()"><span class="ic">'+icon('partage')+'</span>Partager</button>'+
+     /* « Tu mets juste le picto » (Mag, 10/10/2026) */
+     '<button class="fbtn pp-part" onclick="ppPartager()" aria-label="Partager" title="Partager"><span class="ic">'+icon('partage')+'</span></button>'+
      '<button class="fbtn" onclick="ppImprimer(\'portes\')"><span class="ic">'+icon('imprimer')+'</span>Les affiches des portes</button>'+
      '</div>';
   /* ═══ NOUVEAU PASSAGE — LA CHAMBRE VIERGE (piste C, Mag, 09/10/2026 : « j'aime bien l'idée du
@@ -17051,35 +17057,67 @@ function ppEnTexte(noms){
   return t+'\n\n'+location.origin+location.pathname+'#/punaises';
 }
 const PP_SV_MAIL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>';
+const PP_SV_PDF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h7"/></svg>';
 const PP_SV_COPIE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg>';
+/* ═══ PARTAGER (Mag, 10/10/2026) ═══ « Juste copier le lien, les gens le colleront eux-mêmes » ;
+   et la liste avec les noms = la PAGE ou le PDF. Deux boutons, rien d'autre. */
 function ppPartager(){
   let bg=document.getElementById('ppPartBg');
   if(!bg){ bg=document.createElement('div'); bg.id='ppPartBg'; bg.className='popbg'; document.body.appendChild(bg);
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
-  const lien=location.origin+location.pathname+'#/punaises';
-  const choix=[
-    {t:'Le lien de la page', s:'Pour un collègue qui a COUSIN', txt:'Protocole punaises\n'+lien},
-    {t:'La liste, sans les noms', s:'Chambres, heures, qui passe', txt:ppEnTexte(false)},
-    {t:'La liste, avec les noms', s:'Pour l’équipe', txt:ppEnTexte(true)}
-  ];
-  window._ppPart=choix;
   bg.innerHTML='<div class="ppcf ppcf-part" role="dialog" aria-modal="true" style="--c:#6fc7d9">'+
     '<div class="ppcf-h"><span class="ppf-ic" style="width:26px;height:26px">'+icon('partage')+'</span><b style="font-size:20px">Partager</b></div>'+
-    choix.map(function(c,i){
-      return '<div class="ppp-l"><div class="ppp-t"><b>'+esc(c.t)+'</b><em>'+esc(c.s)+'</em></div><div class="ppp-b">'+
-        '<button onclick="ppPartEnvoyer('+i+',\'wa\')"><span class="ic">'+ppPic('prevenu')+'</span>WhatsApp</button>'+
-        '<button onclick="ppPartEnvoyer('+i+',\'mail\')"><span class="ic">'+PP_SV_MAIL+'</span>Mail</button>'+
-        '<button onclick="ppPartEnvoyer('+i+',\'copie\')"><span class="ic">'+PP_SV_COPIE+'</span>Copier</button></div></div>';
-    }).join('')+
+    '<div class="ppp-2">'+
+      '<button onclick="ppPartLien()"><span class="ic">'+PP_SV_COPIE+'</span><b>Copier le lien</b><em>de la page</em></button>'+
+      '<button onclick="ppPartTexte()"><span class="ic">'+PP_SV_COPIE+'</span><b>Copier le texte</b><em>la liste avec les noms</em></button>'+
+      '<button onclick="ppPdf()"><span class="ic">'+PP_SV_PDF+'</span><b>La liste en PDF</b><em>avec les noms</em></button>'+
+    '</div>'+
     '<div class="ppcf-b" style="grid-template-columns:1fr"><button class="non" onclick="document.getElementById(\'ppPartBg\').classList.remove(\'on\')">Fermer</button></div></div>';
   bg.classList.add('on');
 }
-function ppPartEnvoyer(i, comment){
-  const c=(window._ppPart||[])[i]; if(!c) return;
+function ppPartTexte(){
   document.getElementById('ppPartBg').classList.remove('on');
-  if(comment==='wa') window.open('https://wa.me/?text='+encodeURIComponent(c.txt),'_blank','noopener');
-  else if(comment==='mail') location.href='mailto:?subject='+encodeURIComponent('Protocole punaises')+'&body='+encodeURIComponent(c.txt);
-  else copyTxt(c.txt, 'Copié');
+  copyTxt(ppEnTexte(true), 'Texte copié');
+}
+function ppPartLien(){
+  document.getElementById('ppPartBg').classList.remove('on');
+  copyTxt(location.origin+location.pathname+'#/punaises', 'Lien copié');
+}
+/* Le PDF de la liste : la MÊME feuille que « Imprimer la liste », photographiée page par page
+   (html2canvas + jsPDF, chargés seulement à ce moment-là). Sur téléphone il part directement
+   (WhatsApp, mail…) ; sinon il se télécharge. */
+function ppCharger(src){ return new Promise(function(ok,ko){ const sc=document.createElement('script'); sc.src=src; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); }); }
+async function ppPdf(){
+  const bg=document.getElementById('ppPartBg'); if(bg) bg.classList.remove('on');
+  const html=ppImprimer('feuille', true); if(!html) return;
+  toast('Le PDF se prépare…');
+  try{
+    if(!window.html2canvas) await ppCharger('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if(!(window.jspdf&&window.jspdf.jsPDF)) await ppCharger('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const fr=document.createElement('iframe');
+    fr.style.cssText='position:fixed;left:-3000px;top:0;width:1123px;height:800px;border:0;background:#fff';
+    document.body.appendChild(fr);
+    const d=fr.contentDocument; d.open();
+    d.write(html.replace('</style>','.bar{display:none!important}body{background:#fff!important}.pg{width:1123px!important;min-height:0!important;margin:0!important;box-shadow:none!important;padding:34px 40px!important}</style>'));
+    d.close();
+    await new Promise(function(r){ setTimeout(r,500); });
+    const cv=await window.html2canvas(d.body,{scale:2,backgroundColor:'#ffffff',windowWidth:1123});
+    fr.remove();
+    const pdf=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const W=297, H=210, hImg=cv.height*W/cv.width;
+    for(let y=0, n=0; y<hImg; y+=H, n++){
+      if(n) pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,-y,W,hImg);
+    }
+    const blob=pdf.output('blob');
+    const nom='protocole-punaises-'+agIso(new Date())+'.pdf';
+    const f=new File([blob], nom, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){
+      try{ await navigator.share({files:[f], title:'Protocole punaises'}); return; }catch(e){ if(e&&e.name==='AbortError') return; }
+    }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nom; document.body.appendChild(a); a.click(); a.remove();
+    toast('PDF téléchargé');
+  }catch(e){ toast('Le PDF n’a pas pu être fait'); }
 }
 function ppToutEffacer(){
   const n=PUNAISES.length; if(!n||!sb) return;
@@ -17096,7 +17134,7 @@ function ppToutEffacer(){
 function ppJourImprime(){ const j=ppJours(ppActives()).filter(function(x){ return x>=ppAjoute(agIso(new Date()),-1); }); return j[0]||ppJeudi(); }
 /* Print = le tiroir des feuilles VIERGES : c'est la liste vierge qui sort d'ici. */
 function ppImprimerDepuisPrint(){ ppImprimer('vierge'); }
-function ppImprimer(quoi){
+function ppImprimer(quoi, rendre){
   const jour=ppJourImprime();
   /* Toutes les chambres en cours (comme à l'écran : « tout ensemble »), dans l'ordre des numéros. */
   const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini'; })
@@ -17247,9 +17285,7 @@ function ppImprimer(quoi){
       'td.no .jn{font-size:8.5pt;color:#333;margin-bottom:1mm}td.no{min-width:62mm;border-left:1px solid #000}td.no div{height:7mm;border-bottom:1px dotted #777}'+
       '.pied{font-size:9pt;color:#444;margin-top:4mm}';
   }
-  const w=window.open('','_blank');
-  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
+  const page=('<!doctype html><html lang="fr"><head><meta charset="utf-8">'+
     '<title>'+esc(titre)+'</title><style>'+
     '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     'body{font-family:Calibri,"Segoe UI",Helvetica,Arial,sans-serif;background:#e8e7e4;color:#000}'+
@@ -17268,6 +17304,10 @@ function ppImprimer(quoi){
     '<div class="bar"><b>'+esc(titre)+' — aperçu</b><button onclick="window.close()">Fermer</button>'+
       '<button class="ok" onclick="window.print()">Imprimer</button></div>'+
     corps+'</body></html>');
+  if(rendre) return page;
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  w.document.write(page);
   w.document.close();
 }
 
