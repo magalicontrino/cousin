@@ -678,6 +678,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvacc-x span{display:block;font-size:13px;color:#555;margin-top:2px}
 .rdvk{display:grid;grid-template-columns:auto 1fr;gap:0 16px;background:#fdfdfc;border:1px solid #e4e1dc;border-left:6px solid #f2a33a;border-radius:16px;padding:18px 20px;margin:0 0 14px}
 .rdvk.ok{border-left-color:#4f9e74}
+.rdvk.passe{opacity:.7}
+.rdvk-par{font-size:12px;color:#999}
 .rdvk-h{font-size:21px;font-weight:700;line-height:1.15;white-space:nowrap;min-width:62px}
 .rdvk-c{min-width:0}
 .rdvk-n{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -18180,27 +18182,38 @@ function rdvFormHTML(){
 }
 
 /* ── l'agenda ───────────────────────────────────────────────────────────── */
+/* ═══ LA CARTE DE L'AGENDA = LE MÊME DESSIN QUE LES ACCOMPAGNEMENTS (Mag, 10/10/2026 : « exactement pareil, aéré de
+   la même façon ; les demandes d'accompagnement doivent être vues et validées par là aussi ») ═══
+   Liseré : la couleur du type (Médical, Social…) ; pour un accompagnement, orange = en attente, vert = validé. */
 function rdvCarte(r, passe){
-  const t=rdvType(r.genre), ecr=rdvPeutEcrire();
-  const acc=rdvAccTexte(r), rouge=(r.accompagne && !r.accomp_nom);
-  return '<div class="rdvc'+(passe?' passe':'')+(rouge?' manque':'')+'">'+
-    '<span class="rdvc-h">'+(rdvHeureFr(r.heure)||'—')+'</span><div class="rdvc-x">'+
-      '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
-      '<p class="rdvc-so">'+esc(t.l+([r.lieu,r.adresse].filter(Boolean).length?' · '+[r.lieu,r.adresse].filter(Boolean).join(' — '):''))+'</p>'+
-      /* Accompagné : l'étiquette turquoise le dit ; seul ou à trouver : la ligne. */
-      (r.accompagne && r.accomp_nom ? '' : '<p class="rdvc-a'+(rouge?' rouge':'')+'">'+esc(acc)+'</p>')+
-      rdvEtiquettes(r)+rdvAccQui(r)+
+  const t=rdvType(r.genre), ecr=rdvPeutEcrire(), ok=!!r.valide_le;
+  const lis = r.accompagne ? (ok?'#4f9e74':'#f2a33a') : t.c;
+  const lieu=[r.lieu,r.adresse].filter(Boolean).join(' — ');
+  return '<div class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom?' manque':'')+'" style="border-left-color:'+lis+'">'+
+    '<div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
+    '<div class="rdvk-c">'+
+      '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
+      '<div class="rdvk-s"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(lieu?'<span>'+esc(lieu)+'</span>':'')+'</div>'+
+      (r.accompagne && r.accomp_motif?'<div class="rdvk-d">« '+esc(r.accomp_motif)+' »<small>Demandé par '+esc(String(r.cree_par||'').split(/\s+/)[0])+(r.cree_le?' · '+esc(binQuand(r.cree_le)):'')+'</small></div>':'')+
+      (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
+      rdvEtiquettes(r,true)+
+      (r.accompagne ? '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
+          'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+rdvAccQui(r) : '')+
       rdvPrisEnCharge(r)+
       (r.corrige_txt ? (rdvEstAuteur(r) && !r.corrige_vu
         ? '<div class="rdvc-notif"><b>Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+'</b>'+
             '<span>'+esc(r.corrige_txt)+'</span><button onclick="rdvCorrigeVu(\''+r.id+'\')">Vu</button></div>'
         : '<p class="rdvc-corr">Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+' — '+esc(r.corrige_txt)+'</p>') : '')+
-      (r.note?'<p>'+esc(r.note)+'</p>':'')+
-      '<p class="rdvc-s">'+esc(r.cree_par||'')+(r.modifie_par?' · modifié par '+esc(r.modifie_par):'')+'</p>'+
-      '<div class="ppc-b" style="justify-content:flex-start">'+
-        '<button onclick="rdvAvantImprimer([rdvLigne(\''+r.id+'\')],function(){ rdvImprimer(null,null,\''+r.id+'\'); })">Imprimer</button>'+
-        (ecr?'<button onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
-      '</div></div></div>';
+      '<div class="rdvk-f">'+
+        (r.accompagne ? (ok ? '<span class="rdvk-st ok">✓ Validé par '+esc(String(r.valide_par||'').split(/\s+/)[0])+'</span>'
+                            : '<span class="rdvk-st att">En attente de validation</span>')
+                      : '<span class="rdvk-par">'+esc(String(r.cree_par||'').split(/\s+/)[0])+'</span>')+
+        '<span class="rdvk-a">'+
+          '<button class="rdvk-mod" onclick="rdvAvantImprimer([rdvLigne(\''+r.id+'\')],function(){ rdvImprimer(null,null,\''+r.id+'\'); })">Imprimer</button>'+
+          (ecr?'<button class="rdvk-mod" onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button class="rdvk-mod" onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
+          (r.accompagne && !ok && peutGerer()?'<button class="rdvk-val" onclick="rdvValider(\''+r.id+'\')">Valider</button>':'')+
+        '</span></div>'+
+    '</div></div>';
 }
 function rdvJourTitre(j){
   const a=agIso(new Date());
@@ -18433,6 +18446,7 @@ function vRdv(){
       '<b>Passés · '+RDV_GARDE+' jours</b><span>'+passes.length+' · '+(RDV_PASSES?'fermer':'ouvrir')+' ›</span></button>'+
       (RDV_PASSES?passes.map(function(r){ return '<p class="rdv-pj">'+esc(ppJourFr(r.jour))+'</p>'+rdvCarte(r,true); }).join(''):'')+'</div>';
   }
+  h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   h+=wikiBloc('rdv');
   return h;
 }
