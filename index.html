@@ -655,6 +655,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvpr-t{font-size:13.5px;margin:0 0 6px;text-align:center;color:#444}
 .rdvpr-e{cursor:default}
 .rdvpr-acc{font-size:12px;color:#555;margin:2px 0 0}
+.rdvf-motif{display:block;width:100%;text-align:left;font:inherit;font-size:14px;line-height:1.35;background:#fff;border:1.5px solid var(--trait);border-radius:10px;padding:10px 12px;cursor:pointer;white-space:pre-wrap}
+.rdvf-motif.vide{color:#c8412e;border-color:#e63329}
 .rdvpr-acc.rouge{color:#e63329;font-weight:600}
 .rdvpr-m{display:block;width:100%;font:inherit;font-size:14px;border:1.25px solid var(--trait);border-radius:10px;padding:10px 12px;margin:10px 0 14px;background:#fdfdfc;resize:vertical}
 .rdvt .entarr-cal{cursor:default}
@@ -17809,7 +17811,7 @@ function rdvPrDessiner(){
       (peutR?chip('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''), chipCouleur(3)):'')+
       (peutP?chip('Prévenir'+(r.pas_autonome?' (pas autonome)':''), chipCouleur(5)):'')+
     '</div>'+
-    (r.accompagne?'<p class="rdvpr-acc'+(r.accomp_nom?'':' rouge')+'">'+esc(rdvAccTexte(r))+'</p>':'')+
+    (r.accompagne?'<p class="rdvpr-acc'+(r.accomp_nom?'':' rouge')+'">'+esc(rdvAccTexte(r))+'</p>'+(r.accomp_motif?'<p class="rdvpr-acc">'+esc(r.accomp_motif)+'</p>':''):'')+
     '<textarea id="rdvPrMot" class="rdvpr-m" rows="2" placeholder="Un mot, si tu veux">'+esc(RDV_PR.mot||'')+'</textarea>'+
     '<button class="socqui-ok"'+(aucun?' disabled':'')+' onclick="rdvPrEnvoyer()">Je prends la passation</button>'+
   '</div>';
@@ -17981,7 +17983,7 @@ function rdvResumeCourt(){
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -18007,6 +18009,16 @@ function rdvLireChamps(){
     RDV_FORM.accomp_nom=p?p.prenom:n; RDV_FORM.accomp_email=p?p.email:'';
   }
 }
+/* ═══ ACCOMPAGNEMENT = OUI → UN ARGUMENT (Mag, 10/10/2026 : « quand c'est oui, ça ouvre une pop-up ; il faut un
+   commentaire médical ou social, un argument ») ═══ Sans argument, ça reste « Non ». */
+function rdvAccOui(){
+  rdvLireChamps();
+  cousinDemande('Accompagnement', 'Pourquoi ? Un argument médical ou social.', RDV_FORM.accomp_motif||'', function(t){
+    t=(t||'').trim();
+    if(!t){ toast('Il faut un argument médical ou social'); return; }
+    RDV_FORM.accomp_motif=t.slice(0,600); RDV_FORM.accompagne=true; render();
+  }, 600, true);
+}
 function rdvChoix(champ, val){
   rdvLireChamps();
   if(champ==='accomp'){
@@ -18030,7 +18042,8 @@ async function rdvEnregistrer(){
   const ligne={jour:F.jour, heure:F.heure||null, nom:F.nom.trim().slice(0,80), chambre:(F.chambre||'').trim().slice(0,12)||null,
     genre:F.genre, lieu:(F.lieu||'').trim().slice(0,120)||null, adresse:(F.adresse||'').trim().slice(0,200)||null,
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
-    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
+    accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
+    accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
     pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
@@ -18105,7 +18118,7 @@ function rdvFormHTML(){
       '<datalist id="rdvLieux">'+lieux+'</datalist>'+
     '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
     '<p class="rdvf-l">Accompagnement</p><div class="chips">'+
-      pill(F.accompagne, 'Oui', "rdvChoix('accompagne',true)", chipCouleur(2))+
+      pill(F.accompagne, 'Oui', "rdvAccOui()", chipCouleur(2))+
       pill(!F.accompagne, 'Non', "rdvChoix('accompagne',false)", chipCouleur(1))+'</div>';
   /* ═══ QUI ACCOMPAGNE : ÉCRIT À LA MAIN (09/10/2026 : « trop de monde là, et tout le
      monde n'est pas encore sur l'appli — il faudrait qu'on puisse l'écrire à la main ») ═══
@@ -18113,7 +18126,9 @@ function rdvFormHTML(){
      qu'on tape (sans polyvalents ni coordination) ; tout autre nom s'écrit tel quel.
      Vide = à trouver — c'est ce que l'agenda écrit en rouge. */
   if(F.accompagne){
-    h+='<p class="rdvf-l">Qui accompagne</p>'+
+    h+='<p class="rdvf-l">Pourquoi</p><button class="rdvf-motif'+(F.accomp_motif?'':' vide')+'" onclick="rdvAccOui()">'+
+         (F.accomp_motif?esc(F.accomp_motif):'Un argument médical ou social')+'</button>'+
+      '<p class="rdvf-l">Qui accompagne</p>'+
       '<input id="rdvMain" list="rdvEquipe" placeholder="Accompagnant à trouver — ou écrire un prénom" value="'+esc(F.accomp_nom||'')+'" autocomplete="off">'+
       '<datalist id="rdvEquipe">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   }
