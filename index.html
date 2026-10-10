@@ -700,6 +700,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk-mod{font:inherit;font-size:13px;color:#777;background:none;border:0;text-decoration:underline;cursor:pointer;padding:0}
 .rdvk-val{font:inherit;font-size:14px;font-weight:700;background:#1b1b1b;color:#fff;border:0;border-radius:10px;padding:9px 18px;cursor:pointer}
 @media (max-width:520px){ .rdvk{grid-template-columns:1fr;padding:16px} .rdvk-h{margin-bottom:4px} }
+.rdvlp-w{position:relative}
+.rdvlp{display:none;position:absolute;left:0;right:0;top:100%;z-index:30;max-height:300px;overflow:auto;background:#fff;border:1.5px solid var(--trait);border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.12);margin-top:4px}
+.rdvlp.on{display:block}
+.rdvlp button{display:block;width:100%;text-align:left;font:inherit;background:none;border:0;border-bottom:1px solid #eee;padding:10px 14px;cursor:pointer}
+.rdvlp button:hover{background:#f6f4f1}
+.rdvlp b{display:block;font-size:14px}.rdvlp span{display:block;font-size:12px;color:#777;margin-top:2px}
 .rdvacc-mod{margin-top:8px;font:inherit;font-size:12px;background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--noir);padding:0}
 .rdvc-corr{font-size:12px!important;color:#6b6963!important}
 .rdvc-notif{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0;padding:8px 10px;border:2px solid #f8763f;border-radius:10px;background:#fdfdfc}
@@ -18076,9 +18082,50 @@ function rdvChoix(champ, val){
   render();
 }
 /* Le lieu : si le texte tapé est le nom d'une fiche du Réseau, son adresse vient avec. */
+function rdvPlie(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,' '); }
+/* Les lieux = les fiches du Réseau qui ont une ADRESSE (les fiches « mode d'emploi » sans adresse ne sont pas des lieux). */
+function rdvLieuxBase(){
+  return (typeof DATA!=='undefined'?DATA:[]).filter(function(f){ return f && f.nom && f.adr; });
+}
+const RDV_PRES=['Anderlecht','Molenbeek-Saint-Jean','Bruxelles-Ville','Saint-Gilles','Forest'];
+function rdvLieuRang(f, genre){
+  const n=f.nom||'', c=f.commune||'';
+  let r=0;
+  const cpas=/^cpas\b/i.test(n), hop=/h[oô]pital|\bCHU\b|clinique|cliniques|Saint-Pierre|Brugmann|Erasme|Bordet|Iris Sud|Molière|Bracops/i.test(n),
+        mm=/maison m[ée]dicale|entraide|centre m[ée]dical/i.test(n);
+  if(genre==='social'){ if(cpas) r+=100; else if(f.domaine==='social') r+=20; }
+  else if(genre==='medical'){ if(hop||mm) r+=100; else if(f.domaine==='medical') r+=20; }
+  const i=RDV_PRES.indexOf(c); if(i>=0) r+=10-i*2;
+  return r;
+}
+function rdvLieuProp(){
+  const box=document.getElementById('rdvLieuProp'), inp=document.getElementById('rdvLieu'); if(!box||!inp) return;
+  const q=rdvPlie(inp.value).split(/\s+/).filter(Boolean);
+  const g=(RDV_FORM&&RDV_FORM.genre)||'';
+  let L=rdvLieuxBase().filter(function(f){
+    if(!q.length) return rdvLieuRang(f,g)>=100;
+    const t=rdvPlie(f.nom+' '+f.commune+' '+f.adr);
+    return q.every(function(w){ return t.indexOf(w)>=0; });
+  });
+  L.sort(function(a,b){ return rdvLieuRang(b,g)-rdvLieuRang(a,g) || a.nom.localeCompare(b.nom,'fr'); });
+  L=L.slice(0,40);
+  if(!L.length){ box.innerHTML=''; box.classList.remove('on'); return; }
+  box.innerHTML=L.map(function(f,i){
+    return '<button type="button" onmousedown="event.preventDefault()" onclick="rdvLieuChoisir('+i+')"><b>'+esc(f.nom)+'</b><span>'+esc(f.adr)+'</span></button>';
+  }).join('');
+  box._liste=L; box.classList.add('on');
+}
+function rdvLieuChoisir(i){
+  const box=document.getElementById('rdvLieuProp'); const f=box&&box._liste&&box._liste[i]; if(!f) return;
+  const inp=document.getElementById('rdvLieu'), a=document.getElementById('rdvAdresse');
+  if(inp) inp.value=f.nom; if(a) a.value=f.adr;
+  if(RDV_FORM){ RDV_FORM.lieu=f.nom; RDV_FORM.adresse=f.adr; }
+  rdvLieuFerme();
+}
+function rdvLieuFerme(){ const b=document.getElementById('rdvLieuProp'); if(b){ b.classList.remove('on'); b.innerHTML=''; } }
 function rdvLieuSaisi(v){
   const f=(typeof DATA!=='undefined'?DATA:[]).find(function(x){ return x.nom===v; });
-  if(f){ const a=document.getElementById('rdvAdresse'); if(a && !a.value) a.value=[f.adr,f.commune].filter(Boolean).join(', '); }
+  if(f && f.adr){ const a=document.getElementById('rdvAdresse'); if(a && !a.value) a.value=f.adr; }
 }
 async function rdvEnregistrer(){
   rdvLireChamps();
@@ -18155,7 +18202,6 @@ function rdvFormHTML(){
      un petit carré de couleur, et un fond pâle de la même couleur quand c'est choisi.
      Les aplats pleins (rouge, turquoise) sont retirés. */
   const pill=function(on, txt, act, c){ return '<button class="chip'+(on?' on':'')+'" style="--c:'+(c||chipCouleur(0))+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
-  const lieux=(typeof DATA!=='undefined'?DATA:[]).map(function(f){ return '<option value="'+esc(f.nom)+'">'; }).join('');
   let h='<div class="rdvform"><b class="rdvf-t">'+(F.id?'Modifier le rendez-vous':'Encoder un rendez-vous')+'</b>'+
     '<p class="rdvf-l">Pour qui</p>'+
     '<div class="tbduo"><input id="rdvNom" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
@@ -18164,8 +18210,13 @@ function rdvFormHTML(){
       return pill(rdvType(F.genre).k===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
     '<p class="rdvf-l">Quand</p><div class="tbduo"><input id="rdvJour" type="date" value="'+esc(F.jour)+'">'+
       '<input id="rdvHeure" type="time" value="'+esc(F.heure||'')+'"></div>'+
-    '<p class="rdvf-l">Où</p><input id="rdvLieu" list="rdvLieux" placeholder="Chercher dans le Réseau, ou écrire" value="'+esc(F.lieu||'')+'" oninput="rdvLieuSaisi(this.value)" autocomplete="off">'+
-      '<datalist id="rdvLieux">'+lieux+'</datalist>'+
+    /* ═══ OÙ : LES LIEUX DU RÉSEAU PROPOSÉS D'OFFICE (Mag, 10/10/2026 : « pour le social les CPAS — Anderlecht,
+       Molenbeek… ; pour le médical les hôpitaux et les maisons médicales ; l'adresse directement ») ═══
+       Une liste s'ouvre dès qu'on touche la case : d'abord ce qui va avec le type choisi, près de chez nous en tête ;
+       on tape pour filtrer (« cpas », « anderlecht », « saint-pierre »…) ; un appui remplit le lieu ET l'adresse. */
+    '<p class="rdvf-l">Où</p><div class="rdvlp-w"><input id="rdvLieu" placeholder="Chercher dans le Réseau, ou écrire" value="'+esc(F.lieu||'')+'" '+
+      'oninput="rdvLieuSaisi(this.value);rdvLieuProp()" onfocus="rdvLieuProp()" onblur="setTimeout(rdvLieuFerme,150)" autocomplete="off">'+
+      '<div id="rdvLieuProp" class="rdvlp"></div></div>'+
     '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
     '<p class="rdvf-l">Accompagnement</p><div class="chips">'+
       pill(F.accompagne, 'Oui', "rdvAccOui()", chipCouleur(2))+
