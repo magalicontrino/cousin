@@ -16400,7 +16400,7 @@ async function ppListeEquipe(){
 function ppQuiChanger(id){
   const a=ppLigne(id); if(!a) return;
   const vers=ppRento(a)?'Mohamed':'Rentokil';
-  ppConfirme(a, {question:'C’est '+vers+' qui passe ?', ok:'Oui, '+vers}, function(){ ppMaj(a, {rentokil:!ppRento(a)}, 'passe : '+vers); });
+  ppConfirme(a, {question:'C’est '+vers+' qui passe ?', ok:'Oui, '+vers}, function(){ const m={rentokil:!ppRento(a)}; if(vers==='Rentokil') m.protocole='tout'; ppMaj(a, m, 'passe : '+vers); });
 }
 const PP_ET_VAPEUR={k:'vapeur',   l:'Vapeur faite',   c:'B'};
 const PP_ET_PERS  ={k:'personne', l:'Protocole de la personne', c:'P'};
@@ -16413,7 +16413,9 @@ function ppFGarde(){
   PP_F={num:g('ppNum'), p1:g('ppPers1'), p2:g('ppPers2')};
   const c=document.getElementById('ppColle'); if(c) PP_COLLE=c.value;
 }
-function ppProto(a){ const k=(a&&a.protocole)||'produit'; return PP_PROTOS.find(function(p){ return p.k===k; })||PP_PROTOS[1]; }
+/* ⭐ RENTOKIL = TOUJOURS LE PROTOCOLE DE LA PERSONNE (Mag, 10/10/2026 : « si c'est Rentokil, il faudra de toute façon
+   le faire sur la personne ; c'est seulement quand ce n'est pas Rentokil que la question se pose »). */
+function ppProto(a){ const k=(a&&ppRento(a))?'tout':((a&&a.protocole)||'produit'); return PP_PROTOS.find(function(p){ return p.k===k; })||PP_PROTOS[1]; }
 function ppEtapesDe(a){
   const k=ppProto(a).k;
   if(k==='vapeur') return [PP_ETAPES[0], PP_ET_VAPEUR];
@@ -16621,6 +16623,7 @@ function ppPorte(id){
 }
 function ppChangerProto(id, k){
   const a=ppLigne(id); if(!a || ppProto(a).k===k) return;
+  if(ppRento(a) && k!=='tout'){ toast('Rentokil : le protocole de la personne se fait toujours'); return; }
   ppConfirme(a, k==='tout' ? {pic:'personne', rouge:true, question:'Faire le protocole personne ?', ok:'Oui, le faire'}
                           : {pic:'personne', question:'Ne plus faire le protocole personne ?', ok:'Oui, le retirer'},
     function(){ ppMaj(a, {protocole:k}); });
@@ -16837,7 +16840,7 @@ async function ppInserer(jour, nums, pers, note, opt){
   if(!sb){ toast('Pas de connexion'); return false; }
   const deja=PUNAISES.filter(function(a){ return a.jour===jour; }).map(function(a){ return String(a.numero); });
   const lignes=nums.filter(function(n){ return n==='?' || deja.indexOf(String(n))<0; }).map(function(n){
-    return {jour:jour, numero:String(n), personnes:pers||[], protocole:opt.perso?'tout':PP_PROTO_CHOIX, rentokil:(opt.rento===undefined?PP_RENTO_CHOIX:opt.rento), cree_par:nomAffiche(),
+    return {jour:jour, numero:String(n), personnes:pers||[], protocole:(opt.perso||(opt.rento===undefined?PP_RENTO_CHOIX:opt.rento))?'tout':PP_PROTO_CHOIX, rentokil:(opt.rento===undefined?PP_RENTO_CHOIX:opt.rento), cree_par:nomAffiche(),
       produit_de:opt.de||PP_DE, produit_a:opt.a||PP_A,
       journal: [[note,true], [(opt.notes||{})[String(n)],false]].filter(function(x){ return x[0]; }).map(function(x){
         return {le:new Date().toISOString(), par:nomAffiche(), txt:x[0], auto:x[1]}; })};
@@ -17065,7 +17068,7 @@ function vPunaises(){
      C ») ═══ Le formulaire a la forme EXACTE de la carte qu'il va créer, en pointillés : ce qu'on
      remplit = ce qu'on obtient. En haut « … » (coller un mail, ou écrire) ; le N° en grand ; les
      deux vignettes des personnes. UN bouton. Pas de phrase d'explication. */
-  const pd=PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#6fb08e'};
+  const pd=PP_RENTO_CHOIX||PP_PROTO_CHOIX==='tout', qv=PP_RENTO_CHOIX?{c:'#6fc7d9'}:{c:'#6fb08e'};
   const Ev=pd?[PP_ETAPES[0],PP_ETAPES[1],PP_ETAPES[2],PP_ETAPES[3],PP_ET_PERS]:PP_ETAPES;
   h+='<div class="ppv0" style="--c:'+qv.c+'"><span class="ppv0-b"></span>'+
     /* Rien d'autre que « … » et un curseur qui clignote (Mag, 09/10/2026 : « on sait qu'on veut écrire
@@ -17084,7 +17087,7 @@ function vPunaises(){
     '<div class="ppf-frise ppv0-f">'+Ev.map(function(st){
       const court={prevenu:'Prévenu', sacs:'Sacs', descendu:'Protocole', personne:'Protocole personne', rendu:'Rendus'}[st.k]||st.l;
       return '<span class="ppf-s'+(st.k==='personne'?' perso':'')+'"><span class="ppf-r">'+ppPic(st.k)+'</span><b>'+court+'</b></span>'; }).join('')+'</div>'+
-    '<div class="ppf-opts"><button class="ppf-o'+(pd?' on ppf-pp':'')+'" onclick="ppFGarde();PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()">'+
+    '<div class="ppf-opts"><button class="ppf-o'+(pd?' on ppf-pp':'')+'" onclick="'+(PP_RENTO_CHOIX?'':'ppFGarde();PP_PROTO_CHOIX=(PP_PROTO_CHOIX===\'tout\'?\'produit\':\'tout\');render()')+'">'+
       '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pd?'Protocole personne : oui':'+ protocole personne')+'</button></div>'+
     '<div class="ppv-g">'+
       '<div class="ppv vide"><span class="ppv-r">'+icon('user')+'</span><input id="ppPers1" type="text" maxlength="60" placeholder="+ Nom" autocomplete="off" value="'+esc(PP_F.p1)+'"></div>'+
