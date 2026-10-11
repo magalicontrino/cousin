@@ -5102,6 +5102,12 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    phrase — c'est une consigne, pas une catégorie. */
 .pcarte .pl .pjeun-r{display:block;font-style:normal;font-family:'Eastman',system-ui,sans-serif;
   font-size:12.5px;line-height:1.35;color:#2f6b52;margin-top:3px}
+.pmain{width:16px;height:16px;flex:none;vertical-align:-3px;margin-right:5px;transform-origin:70% 90%;animation:pmain 2.4s ease-in-out infinite}
+@keyframes pmain{0%,60%,100%{transform:rotate(0)}68%{transform:rotate(-14deg)}76%{transform:rotate(10deg)}84%{transform:rotate(-8deg)}92%{transform:rotate(4deg)}}
+@media (prefers-reduced-motion:reduce){.pmain{animation:none}}
+.pcarte .pl .pprev{flex:none;color:#7a5ad0;display:inline-flex;align-items:center}.pcarte .pl .pprev .pmain{width:20px;height:20px;margin:0}
+.pgt.pgt-prev{display:flex;align-items:center;color:#5b3fb0}.pgt-prev .pmain{width:18px;height:18px}
+.pgt-impr{margin-left:auto;background:none;border:0;cursor:pointer;width:26px;height:26px;padding:3px;color:#5b3fb0}.pgt-impr svg,.pgt-impr img{width:100%;height:100%}
 .pcarte .pl .ajeun{font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;
   letter-spacing:.11em;text-transform:uppercase;background:#6cb392;color:#0f2b1f;
   border-radius:3px;padding:4px 8px;flex:none}
@@ -17912,7 +17918,7 @@ async function rdvPrEnvoyer(){
       l.genre='reveil'; l.heure=r.reveil_heure||null; l.jour=r.jour;
       l.texte=('Réveil — '+r.nom+' : rendez-vous '+ty+' '+quand+fin).slice(0,4000);
     } else {
-      l.genre='passation'; l.jour=agIso(new Date());
+      l.genre='prevenir'; l.jour=agIso(new Date());
       l.texte=('Prévenir '+r.nom+(r.pas_autonome?' (pas autonome)':'')+' de son rendez-vous '+ty+' '+quand+fin).slice(0,4000);
     }
     return l;
@@ -19948,6 +19954,7 @@ const PRINT_LISTES=[
   {k:'acc', nom:'Accompagnements de la semaine', sous:'Qui accompagne qui', pi:'accomp'},
   {k:'tour', nom:'Tour des chambres', sous:'Les bacs en cours', pi:'list'},
   {k:'passation', nom:'Passation', sous:'Les passations du jour', pi:'partage'},
+  {k:'prevenir', nom:'À prévenir', sous:'Seulement les « à prévenir » de la passation', pi:'partage'},
   {k:'maliste', nom:'Ma liste', sous:'Ta liste à toi', pi:'list'}
 ];
 async function printListe(k){
@@ -19957,6 +19964,7 @@ async function printListe(k){
     else if(k==='acc'){ await loadRdv(); RDV_ACC_DU=''; RDV_ACC_AU=''; RDV_ACC_TROUVER=false; rdvImprimerAcc(); }
     else if(k==='tour'){ await loadTourBacs(); imprimerTour(); }
     else if(k==='passation'){ await loadPassations(); imprimerPassation(); }
+    else if(k==='prevenir'){ await loadPassations(); imprimerPrevenir(); }
     else if(k==='maliste'){ imprimerMaListe(); }
   }catch(e){ toast('Impossible d’ouvrir cette feuille — réessaie depuis sa page'); }
 }
@@ -41498,8 +41506,13 @@ function passRetirer(id){
 const PASS_GENRES=[
   {k:'reveil',   l:'Un réveil', court:'Réveil', s:'quelqu’un à réveiller', c:'#E8308A', heure:true,  chambre:true},
   {k:'absence',  l:'Une absence', court:'Absence', s:'compter les nuits',  c:'#f0a8a3', heure:false, chambre:true},
-  {k:'passation',l:'Une info',  court:'Info',   s:'à transmettre',         c:'#a9c8e8', heure:false, chambre:true}
+  {k:'passation',l:'Une info',  court:'Info',   s:'à transmettre',         c:'#a9c8e8', heure:false, chambre:true},
+  /* ═══ À PRÉVENIR (Mag, 11/10/2026) ═══ « Monsieur a rendez-vous lundi matin, il faut le lui dire » ; « passer au
+     service social pour un entretien ». Un genre à lui, avec LA PETITE MAIN qui fait coucou (piste C). Mélangé dans
+     la passation comme le reste, mais on peut n'imprimer QUE les « à prévenir ». */
+  {k:'prevenir', l:'À prévenir', court:'À prévenir', s:'quelqu’un à prévenir', c:'#9b7fe0', heure:false, chambre:true}
 ];
+const PREV_MAIN='<svg class="pmain" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 26V11a2.5 2.5 0 0 1 5 0v12M23 22V8a2.5 2.5 0 0 1 5 0v14M28 22V10a2.5 2.5 0 0 1 5 0v15M33 24v-6a2.5 2.5 0 0 1 5 0v10c0 8-5 14-12 14-5 0-8-2-11-6l-6-8a2.5 2.5 0 0 1 4-3l3 3"/><path d="M8 10c-2 2-3 4-3 7M12 6c-3 1-5 3-6 5"/></svg>';
 /* Les anciens genres, pour que ce qui est déjà écrit continue de se lire. */
 const PASS_GENRES_ANCIENS=[
   {k:'ajeun', l:'À jeun', court:'À jeun', s:'il ne doit plus manger', c:'#6cb392', heure:true, chambre:true}
@@ -41628,6 +41641,7 @@ function passLigne(p, mienne, role, heure, gauche){
     /* L'étiquette verte : « à jeun » suffit sur une rangée — c'est sur la feuille
        d'écriture que l'heure devait être dite, pas ici où la place manque. */
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
+    (p.genre==='prevenir' ? '<span class="pprev" title="À prévenir">'+PREV_MAIN+'</span>' : '')+
     /* ⚠ PAS DE CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans la
        passation, c'est juste une passation »). Une passation se lit et s'imprime ;
        cocher, c'est le travail de sa propre liste.
@@ -41741,8 +41755,12 @@ function passUnique(liste){
      pas à raconter la nuit qu'elle n'a pas faite ;
    · la ligne de pied « COUSIN · imprimé le… jamais de nom » — la règle est écrite sur
      l'écran du Centre, là où on l'apprend. */
+/* N'imprimer QUE les « à prévenir » (Mag, 11/10/2026 : « tout sera mélangé de base ; on veut juste pouvoir
+   imprimer les à prévenir, pour faire un tri »). */
+var PASS_IMPR_PREV=false;
+function imprimerPrevenir(){ PASS_IMPR_PREV=true; try{ imprimerPassation(); } finally { PASS_IMPR_PREV=false; } }
 function imprimerPassation(pour){
-  const liste=passUnique(passToutes());
+  const liste=passUnique(passToutes()).filter(function(p){ return !PASS_IMPR_PREV || p.genre==='prevenir'; });
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
      sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
@@ -41787,7 +41805,10 @@ function imprimerPassation(pour){
      pour les réveils, n'importe quoi ». Le trait de gauche suffit. */
   const moments=passProgramme(liste);
   const infos=liste.filter(function(p){ return (p.genre||'passation')==='passation'; });
+  const aprev=liste.filter(function(p){ return p.genre==='prevenir'; });
   let corps='';
+  if(aprev.length)
+    corps+='<section class="ch"><div class="st"><span>À prévenir</span><em>'+aprev.length+'</em></div>'+aprev.map(ligneP).join('')+'</section>';
   if(moments.length)
     corps+='<section class="ch"><div class="st"><span>Réveil</span>'+
       /* « c'est la nuit qui coche » retiré (Mag, 04/10/2026 : « ça veut rien dire ») */
@@ -41800,8 +41821,8 @@ function imprimerPassation(pour){
   if(!corps) corps='<p class="vide">Rien à passer pour cette équipe.</p>';
 
   feuilleImprimer({
-    onglet:'Passation — '+qui,
-    entete:'La passation — aperçu',
+    onglet:(PASS_IMPR_PREV?'À prévenir — ':'Passation — ')+qui,
+    entete:PASS_IMPR_PREV?'À prévenir — aperçu':'La passation — aperçu',
     titre:'Passation',
     sous:'Pour '+qui+' · '+jour,
     corps:corps
@@ -42192,7 +42213,8 @@ function passationsHTML(){
        genre, pas un titre séparé. Une Info n'a pas d'heure : elle garde son bloc à
        elle, à la fin, comme avant. */
     const moments=passProgramme(toutes);
-    const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure; });
+    const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure && p.genre!=='prevenir'; });
+    const aprev=toutes.filter(function(p){ return p.genre==='prevenir'; });
     if(moments.length){
       rien=false;
       /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
@@ -42201,6 +42223,12 @@ function passationsHTML(){
          moments.map(function(m){
            return passLigne(m.p, undefined, m.role, m.heure);
          }).join('');
+    }
+    if(aprev.length){
+      rien=false;
+      h+='<div class="pgt pgt-prev">'+PREV_MAIN+'À prévenir'+
+         '<button class="pgt-impr" onclick="imprimerPrevenir()" title="Imprimer seulement les à prévenir">'+icon('imprimer')+'</button></div>'+
+         aprev.map(function(p){ return passLigne(p); }).join('');
     }
     if(infos.length){
       rien=false;
@@ -42302,7 +42330,7 @@ function passFeuilleHTML(){
           return '<button class="chdep-b'+(PASS_GENRE===x.k?' on':'')+'" '+
             'onclick="passGenreChoix(\''+x.k+'\')" '+
             'style="'+(PASS_GENRE===x.k?'border-color:'+x.c:'')+'">'+
-            '<b'+(PASS_GENRE===x.k?' style="color:'+x.c+'"':'')+'>'+esc(x.l)+'</b>'+
+            '<b'+(PASS_GENRE===x.k?' style="color:'+x.c+'"':'')+'>'+(x.k==='prevenir'?PREV_MAIN:'')+esc(x.l)+'</b>'+
             '<em>'+esc(x.s)+'</em></button>';
         }).join('')+
       '</div>'+
