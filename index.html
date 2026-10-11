@@ -21899,8 +21899,7 @@ function vHome(){
        19/09/2026 : « tu pourrais rajouter aussi le nombre de passations ? »). */
     const nPass=(typeof passPourMoi==='function' && typeof passFait==='function')
       ? passPourMoi().filter(function(p){ return !passFait(p); }).length : 0;
-    const nPrev=(typeof passPourMoi==='function' && typeof passFait==='function')
-      ? passPourMoi().filter(function(p){ return p.genre==='prevenir' && !passFait(p); }).length : 0;
+    let nPrev=0; try{ nPrev=prevTous().length; }catch(e){}
     /* ═══ LE DESSIN B, CHOISI SUR TROIS (Mag, 20/09/2026) ═══
        « Je trouve ça beaucoup trop long, je suis un peu perdue. » Les pastilles posées
        loin du titre (dessin D) se lisaient en travers, et les gros pavés avant elles ne
@@ -41753,8 +41752,22 @@ function prevSource(p){
   if(/rendez-vous/i.test(p.texte||'')) return 'Rendez-vous';
   return '';
 }
+/* TOUT CE QUI EST « À PRÉVENIR », AU MÊME ENDROIT (Mag, 11/10/2026 : « où est cette page à prévenir ? ») :
+   les passations « à prévenir » + les rendez-vous cochés « à prévenir » pas encore passés (sauf groupe D). */
+function prevTous(){
+  const L=(typeof passPourMoi==='function'?passUnique(passPourMoi()):[]).filter(function(p){ return p.genre==='prevenir' && !passFait(p); });
+  const auj=agIso(new Date());
+  if(typeof RDV!=='undefined' && !(typeof estGroupeD==='function' && estGroupeD())){
+    RDV.filter(function(r){ return r.jour>=auj && rdvAPrevenir(r) && !r.prevenir_par; }).forEach(function(r){
+      L.push({genre:'prevenir', chambre:r.chambre, rdvId:r.id,
+        texte:r.nom+' — rendez-vous '+rdvType(r.genre).l.toLowerCase()+' '+rdvQuandCourt(r)+(r.lieu?', '+r.lieu:''),
+        source:'Rendez-vous '+rdvType(r.genre).l.toLowerCase()});
+    });
+  }
+  return L;
+}
 function prevListeOuvrir(){
-  const L=passUnique(passPourMoi()).filter(function(p){ return p.genre==='prevenir' && !passFait(p); });
+  const L=prevTous();
   let bg=document.getElementById('prevBg');
   if(!bg){ bg=document.createElement('div'); bg.id='prevBg'; bg.className='popbg';
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
