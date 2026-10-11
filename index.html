@@ -680,6 +680,10 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk{display:grid;grid-template-columns:auto 1fr;gap:0 16px;background:#fdfdfc;border:1px solid #e4e1dc;border-left:6px solid #f2a33a;border-radius:16px;padding:18px 20px;margin:0 0 14px}
 .rdvk.ok{border-left-color:#4f9e74}
 .rdvk.passe{opacity:.7}
+.rdvk-prev{display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;font-weight:600;color:#555;cursor:pointer;border:1.5px dashed #cbbdf2;border-radius:10px;padding:7px 12px}
+.rdvk-prev input{width:18px;height:18px;margin:0;accent-color:#7a5ad0}
+.rdvk-prev .pmain{width:20px;height:20px;margin:0;color:#7a5ad0}
+.rdvk-prev.on{border-style:solid;border-color:#9b7fe0;background:#f5f1fe;color:#4b2fa0}
 .rdvk-par{font-size:12px;color:#999}
 .rdvk-h{font-size:21px;font-weight:700;line-height:1.15;white-space:nowrap;min-width:62px}
 .rdvk-c{min-width:0}
@@ -18316,6 +18320,9 @@ function rdvCarte(r, passe){
       rdvEtiquettes(r,true)+
       (r.accompagne ? '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
           'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+rdvAccQui(r) : '')+
+      /* LA CASE « À PRÉVENIR » SUR LA CARTE (Mag, 11/10/2026) : la petite main, cochée = il faut prévenir la personne. */
+      (ecr ? '<label class="rdvk-prev'+(rdvAPrevenir(r)?' on':'')+'"><input type="checkbox" '+(r.prevenir?'checked ':'')+
+        'onchange="rdvPrevenirBascule(\''+r.id+'\',this.checked)">'+PREV_MAIN+'À prévenir'+(r.pas_autonome&&!r.prevenir?' (pas autonome)':'')+'</label>' : '')+
       rdvPrisEnCharge(r)+
       (r.corrige_txt ? (rdvEstAuteur(r) && !r.corrige_vu
         ? '<div class="rdvc-notif"><b>Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+'</b>'+
@@ -18457,6 +18464,12 @@ function rdvAccQui(r){
   return '<small class="rdvacc-qui">Noté par '+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
 }
 /* VALIDER un accompagnement : la coordination seule ; avec une fenêtre de validation. */
+async function rdvPrevenirBascule(id, on){
+  const r=rdvLigne(id); if(!r) return;
+  const res=await sb.from('rendez_vous').update({prevenir:!!on}).eq('id',r.id).select('id');
+  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); render(); return; }
+  r.prevenir=!!on; render(); toast(on?'À prévenir ✓':'Plus à prévenir');
+}
 function rdvValider(id){
   const r=rdvLigne(id); if(!r || !peutGerer()) return;
   cousinConfirme('Valider l’accompagnement ?', r.nom+' · '+rdvQuandCourt(r), async function(){
