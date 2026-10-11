@@ -19887,8 +19887,8 @@ const PRINT_FEUILLES=[
      les personnes du jeudi qui vient, déjà écrites ; sans chambre, la feuille vierge. */
   {k:'punaises', nom:'Protocole punaises',
    sous:'La liste vierge, à remplir au stylo',
-   det:'Les chambres du jeudi, les deux personnes de chaque chambre, « pas autonome », '+
-       'et les quatre étapes à cocher : prévenu, sacs faits, descendu, sacs rendus.',
+   det:'Quatre chambres : les personnes, « pas autonome », les heures de fermeture, '+
+       'et les étapes à cocher — prévenu, sacs, protocole, sacs rendus, personne.',
    pages:'1 page · A4', pi:'punaise', act:"ppImprimerDepuisPrint()"},
   {k:'congelateur', nom:'Feuille congélateur',
    sous:'Traitement des punaises · −40°, 24 h',
@@ -19928,8 +19928,37 @@ function vPrint(){
           esc(f.pages)+'</small></span>'+
         '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
     }).join('')+'</div>';
+  /* ═══ TOUT CE QUI S'IMPRIME, AU MÊME ENDROIT (Mag, 11/10/2026 : « mets tout ce qui s'imprime dans Print ») ═══
+     Les listes remplies par l'app : on les charge d'abord, puis on ouvre la même feuille que sur leur page. */
+  h+='<div class="ghead" style="margin-top:22px">Les listes du moment</div>';
+  h+='<div class="cards" style="display:flex;flex-direction:column">'+
+    PRINT_LISTES.map(function(f){
+      return '<div class="fcard" role="button" tabindex="0" onclick="printListe(\''+f.k+'\')">'+
+        '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon(f.pi)+'</span></span>'+
+        '<span class="tx"><b>'+esc(f.nom)+'</b><small>'+esc(f.sous)+'</small></span>'+
+        '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
+    }).join('')+'</div>';
   h+=wikiBloc('print');
   return h;
+}
+const PRINT_LISTES=[
+  {k:'punaises', nom:'Protocole punaises', sous:'Les chambres en cours, avec les noms', pi:'punaise'},
+  {k:'portes', nom:'Affiches des portes', sous:'Punaises · une affiche par chambre', pi:'imprimer'},
+  {k:'rdv', nom:'Rendez-vous', sous:'De maintenant à lundi prochain', pi:'clock'},
+  {k:'acc', nom:'Accompagnements de la semaine', sous:'Qui accompagne qui', pi:'accomp'},
+  {k:'tour', nom:'Tour des chambres', sous:'Les bacs en cours', pi:'list'},
+  {k:'passation', nom:'Passation', sous:'Les passations du jour', pi:'partage'},
+  {k:'maliste', nom:'Ma liste', sous:'Ta liste à toi', pi:'list'}
+];
+async function printListe(k){
+  try{
+    if(k==='punaises'||k==='portes'){ await loadPunaises(); ppImprimer(k==='portes'?'portes':'feuille'); }
+    else if(k==='rdv'){ await loadRdv(); rdvImprimerDates(); }
+    else if(k==='acc'){ await loadRdv(); RDV_ACC_DU=''; RDV_ACC_AU=''; RDV_ACC_TROUVER=false; rdvImprimerAcc(); }
+    else if(k==='tour'){ await loadTourBacs(); imprimerTour(); }
+    else if(k==='passation'){ await loadPassations(); imprimerPassation(); }
+    else if(k==='maliste'){ imprimerMaListe(); }
+  }catch(e){ toast('Impossible d’ouvrir cette feuille — réessaie depuis sa page'); }
 }
 
 /* Le plan officiel des fontaines et des toilettes de la Ville de Bruxelles.
@@ -22711,8 +22740,7 @@ k:['Formations COUSIN']},
        les bacs à traiter.
        ⚠ Elle RESTE dans Print : c'est le tiroir des feuilles vierges, sa maison. Une
        feuille qu'on imprime souvent mérite deux chemins. */
-    porteCentre('imprimer','Feuille congélateur','Punaises · −40°, 24 h · à remplir au stylo',
-      "imprimerCongelateur()")+
+    /* (Mag, 11/10/2026 : « plutôt dans Print ») : la feuille congélateur n'est plus ici — elle est dans Print. */
     /* Quand la distribution est là, la ligne le DIT — sinon on lit une date sans
        savoir si c'est dans deux jours ou dans trois semaines (Mag, 08/08/2026). */
     porteCentre('colis',
@@ -23106,8 +23134,7 @@ k:['Formations COUSIN']},
       "go('#/tourbacs')", tbPresse()?'pressee':'')+
     tuileG('punaise','Protocole punaises', esc(ppResumeCourt()),
       "go('#/punaises')", ppAlertes()?'pressee':'')+
-    tuileG('imprimer','Feuille congélateur','Punaises · −40°, 24 h · à remplir au stylo',
-      "imprimerCongelateur()")+
+
     tuileG('colis',
       'Distribution des produits'+(produitsJour()?' — '+produitsJour().quand:''), esc(distTxt),
       "goFiche(/produits/i)", produitsJour()?'pressee':'')+
@@ -30839,6 +30866,11 @@ function vFavoris(){
   let h='<div class="subtop">'+
     '<h1 style="font-size:23px;padding-top:6px">Favoris</h1>'+
     '<span class="count">'+(favs.length||'')+'</span></div>';
+  /* PRINT, DANS LES FAVORIS DE TOUT LE MONDE (Mag, 11/10/2026 : « ça doit être facile à trouver »). Toujours là. */
+  h+='<div class="cards" style="padding-top:6px"><div class="fcard" role="button" tabindex="0" onclick="go(\'#/print\')">'+
+     '<span class="fpi" style="color:#1b1b1b"><span class="ic">'+icon('imprimer')+'</span></span>'+
+     '<span class="tx"><b>Print</b><small>Toutes les feuilles à imprimer</small></span>'+
+     '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div></div>';
   if(!favs.length){
     return h+'<div class="empty"><span class="ic">'+icon('star')+'</span><b>Aucun favori pour l\u2019instant</b>'+
       '<p>Touche l\u2019étoile d\u2019une fiche pour la retrouver ici.</p></div>';
