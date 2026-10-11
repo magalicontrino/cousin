@@ -5106,6 +5106,14 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 @keyframes pmain{0%,60%,100%{transform:rotate(0)}68%{transform:rotate(-14deg)}76%{transform:rotate(10deg)}84%{transform:rotate(-8deg)}92%{transform:rotate(4deg)}}
 @media (prefers-reduced-motion:reduce){.pmain{animation:none}}
 .pcarte .pl .pprev{flex:none;color:#7a5ad0;display:inline-flex;align-items:center}.pcarte .pl .pprev .pmain{width:20px;height:20px;margin:0}
+.prevpop{max-width:560px;max-height:86vh;overflow-y:auto;scrollbar-width:none}
+.prevpop-t{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#5b3fb0}.prevpop-t .pmain{width:24px;height:24px}
+.prevpop-t b{font-size:18px;color:#1b1b1b}.prevpop-t em{font-style:normal;font-weight:700;font-size:13px;background:#efeafd;color:#5b3fb0;border-radius:999px;padding:1px 9px}
+.prevl{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee;font-size:14px}
+.prevl-ch{flex:none;min-width:42px;text-align:center;font-weight:800;border:1.5px solid #cbbdf2;border-radius:8px;padding:3px 6px}.prevl-ch.vide{color:#bbb}
+.prevl-t{flex:1;min-width:0}
+.prevl-s{flex:none;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5b3fb0;background:#f3effd;border-radius:999px;padding:3px 9px}
+.prevl-vide{color:#777;font-size:14px}
 .pgt.pgt-prev{display:flex;align-items:center;color:#5b3fb0}.pgt-prev .pmain{width:18px;height:18px}
 .pgt-impr{margin-left:auto;background:none;border:0;cursor:pointer;width:26px;height:26px;padding:3px;color:#5b3fb0}.pgt-impr svg,.pgt-impr img{width:100%;height:100%}
 .pcarte .pl .ajeun{font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;
@@ -17918,7 +17926,7 @@ async function rdvPrEnvoyer(){
       l.genre='reveil'; l.heure=r.reveil_heure||null; l.jour=r.jour;
       l.texte=('Réveil — '+r.nom+' : rendez-vous '+ty+' '+quand+fin).slice(0,4000);
     } else {
-      l.genre='prevenir'; l.jour=agIso(new Date());
+      l.genre='prevenir'; l.jour=agIso(new Date()); l.source='Rendez-vous '+ty;
       l.texte=('Prévenir '+r.nom+(r.pas_autonome?' (pas autonome)':'')+' de son rendez-vous '+ty+' '+quand+fin).slice(0,4000);
     }
     return l;
@@ -21860,6 +21868,8 @@ function vHome(){
        19/09/2026 : « tu pourrais rajouter aussi le nombre de passations ? »). */
     const nPass=(typeof passPourMoi==='function' && typeof passFait==='function')
       ? passPourMoi().filter(function(p){ return !passFait(p); }).length : 0;
+    const nPrev=(typeof passPourMoi==='function' && typeof passFait==='function')
+      ? passPourMoi().filter(function(p){ return p.genre==='prevenir' && !passFait(p); }).length : 0;
     /* ═══ LE DESSIN B, CHOISI SUR TROIS (Mag, 20/09/2026) ═══
        « Je trouve ça beaucoup trop long, je suis un peu perdue. » Les pastilles posées
        loin du titre (dessin D) se lisaient en travers, et les gros pavés avant elles ne
@@ -21896,7 +21906,7 @@ function vHome(){
       return '<button class="ctal" style="--cc:'+(c||'var(--trait)')+'" '+
         'onclick="event.stopPropagation();'+(action||('go(\''+ou+'\')'))+'">'+
         '<span class="lang"></span>'+
-        (ic?'<span class="ic">'+icon(ic)+'</span>':'')+
+        (ic?'<span class="ic">'+(ic==='main'?PREV_MAIN:icon(ic))+'</span>':'')+
         '<b>'+n+'</b><span>'+mot+'</span><i>›</i></button>';
     };
     /* ═══ LE JOUR DE PAIE (Mag, 20/09/2026) ═══ Trois jours avant, en fuchsia, avec le
@@ -21921,6 +21931,9 @@ function vHome(){
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
        (nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
+       /* LES « À PRÉVENIR », REGROUPÉS (Mag, 11/10/2026) : une ligne à part ; un appui ouvre la liste simplifiée
+          (qui, chambre, la source : rendez-vous, social, médical…). */
+       (nPrev?ligneCta(nPrev,'à prévenir','#/liste','main','#cbbdf2','prevListeOuvrir()'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
        /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
           (`rdvBarre`) — la même info deux fois sur le même écran ferait doublon. */
@@ -41231,6 +41244,8 @@ async function passAjouter(){
      laisserait un « à jeun » invisible collé à une info — une consigne médicale qu'on
      ne pourrait plus ni voir ni retirer. */
   l.a_jeun = (PASS_GENRE==='reveil') ? !!PASS_AJEUN : false;
+  /* LA SOURCE d'un « à prévenir » (Mag, 11/10/2026) : le métier de qui l'écrit (social, médical…). */
+  if(PASS_GENRE==='prevenir' && !PASS_EDIT) l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
   try{
     /* ⚠ MÊME FORMULAIRE POUR CRÉER ET POUR CORRIGER (Mag, 22/08 : « il faut pouvoir
        modifier les passations »). `PASS_EDIT` porte l'identifiant en cours : s'il est
@@ -41693,6 +41708,31 @@ function passUnique(liste){
 /* N'imprimer QUE les « à prévenir » (Mag, 11/10/2026 : « tout sera mélangé de base ; on veut juste pouvoir
    imprimer les à prévenir, pour faire un tri »). */
 var PASS_IMPR_PREV=false;
+/* La liste simplifiée des « à prévenir » : nom (le texte), chambre, la source. */
+function prevSource(p){
+  const s=String(p.source||'').trim();
+  if(s) return s;
+  if(/rendez-vous/i.test(p.texte||'')) return 'Rendez-vous';
+  return '';
+}
+function prevListeOuvrir(){
+  const L=passUnique(passPourMoi()).filter(function(p){ return p.genre==='prevenir' && !passFait(p); });
+  let bg=document.getElementById('prevBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='prevBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  bg.innerHTML='<div class="popcard prevpop" role="dialog" aria-modal="true">'+
+    '<div class="prevpop-t">'+PREV_MAIN+'<b>À prévenir</b><em>'+L.length+'</em>'+
+      '<button class="pgt-impr" onclick="imprimerPrevenir()" title="Imprimer">'+icon('imprimer')+'</button></div>'+
+    (L.length ? L.map(function(p){
+      const src=prevSource(p);
+      return '<div class="prevl">'+(p.chambre?'<span class="prevl-ch">'+esc(p.chambre)+'</span>':'<span class="prevl-ch vide">—</span>')+
+        '<span class="prevl-t">'+esc(String(p.texte||'').split('\n')[0])+'</span>'+
+        (src?'<span class="prevl-s">'+esc(src)+'</span>':'')+'</div>';
+    }).join('') : '<p class="prevl-vide">Personne à prévenir.</p>')+
+    '<div class="entpart-b"><button class="dembtn clair" onclick="document.getElementById(\'prevBg\').classList.remove(\'on\')">Fermer</button>'+
+    '<button class="dembtn" onclick="document.getElementById(\'prevBg\').classList.remove(\'on\');allerPassation()">Voir la passation</button></div></div>';
+  bg.classList.add('on');
+}
 function imprimerPrevenir(){ PASS_IMPR_PREV=true; try{ imprimerPassation(); } finally { PASS_IMPR_PREV=false; } }
 function imprimerPassation(pour){
   const liste=passUnique(passToutes()).filter(function(p){ return !PASS_IMPR_PREV || p.genre==='prevenir'; });
@@ -41710,6 +41750,7 @@ function imprimerPassation(pour){
     const bas=[];
     if(p.par) bas.push('par '+String(p.par).split(/\s+/)[0]);
     if(p.jour && p.jour!==agIso(new Date())) bas.push('pour le '+rappelQuandFr(p.jour));
+    if(p.genre==='prevenir' && prevSource(p)) bas.push(prevSource(p));
     return '<div class="l'+(fait?' fait':'')+' '+(g.heure?'k-rv':'k-inf')+'">'+
       '<span class="bx"></span>'+
       (g.heure?'<span class="hh">'+esc(p.heure||'—')+'</span>':'')+
