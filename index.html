@@ -684,6 +684,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk-prev input{width:18px;height:18px;margin:0;accent-color:#7a5ad0}
 .rdvk-prev .pmain{width:20px;height:20px;margin:0;color:#7a5ad0}
 .rdvk-prev.on{border-style:solid;border-color:#9b7fe0;background:#f5f1fe;color:#4b2fa0}
+.rdvk-jeun{display:inline-block;margin-top:8px;font-size:20px;font-weight:900;letter-spacing:.06em;color:#fff;background:#2f9e5b;border-radius:10px;padding:4px 14px}
 .rdvk-par{font-size:12px;color:#999}
 .rdvk-h{font-size:21px;font-weight:700;line-height:1.15;white-space:nowrap;min-width:62px}
 .rdvk-c{min-width:0}
@@ -17942,7 +17943,7 @@ async function rdvPrEnvoyer(){
     const l={pour:PASS_EQUIPE, par:nomAffiche(), chambre:r.chambre||null, a_jeun:false};
     if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
     if(k==='reveil'){
-      l.genre='reveil'; l.heure=r.reveil_heure||null; l.jour=r.jour;
+      l.genre='reveil'; l.heure=r.reveil_heure||null; l.jour=r.jour; l.a_jeun=!!r.a_jeun;
       l.texte=('Réveil — '+r.nom+' : rendez-vous '+ty+' '+quand+fin).slice(0,4000);
     } else {
       l.genre='prevenir'; l.jour=agIso(new Date()); l.source='Rendez-vous '+ty;
@@ -18056,6 +18057,7 @@ async function rdvTaxiEnvoyer(commande){
 function rdvEtiqPapier(r){
   const e=[];
   if(r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
+  if(r.a_jeun) e.push(['À JEUN','#2f9e5b']);
   if(r.pmr) e.push(['PMR','#f5c542']);
   if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
@@ -18076,12 +18078,12 @@ function rdvResumeCourt(){
 /* ── le formulaire ──────────────────────────────────────────────────────── */
 function rdvFormVide(){
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
 }
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -18185,7 +18187,7 @@ async function rdvEnregistrer(){
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
     accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
     pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
-    prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome};
+    prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome, a_jeun:!!F.a_jeun};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
   const avant=F.id ? rdvLigne(F.id) : null;
   /* ═══ UNE CORRECTION PAR QUELQU'UN D'AUTRE (09/10/2026, piste B) ═══ Le lieu, la date ou
@@ -18286,6 +18288,8 @@ function rdvFormHTML(){
       pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
       pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
       pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+
+      /* À JEUN (Mag, 11/10/2026 : « absolument ; et écrit en gros sur la carte »). */
+      pill(F.a_jeun, 'À jeun', "rdvChoix('a_jeun',"+(!F.a_jeun)+")", '#2f9e5b')+
       /* « PAS AUTONOME » ET « PRÉVENIR » : DEUX CASES (09/10/2026 : « je t'avais dit pas
          autonome ; il faut aussi marquer prévenir monsieur — les médecins, les infirmiers
          peuvent nous dire : prévenez-le »). Les deux font partir l'info « Prévenir » la veille. */
@@ -18314,6 +18318,7 @@ function rdvCarte(r, passe){
     '<div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
     '<div class="rdvk-c">'+
       '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
+      (r.a_jeun?'<div class="rdvk-jeun">À JEUN</div>':'')+
       '<div class="rdvk-s"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(lieu?'<span>'+esc(lieu)+'</span>':'')+'</div>'+
       (r.accompagne && r.accomp_motif?'<div class="rdvk-d">« '+esc(r.accomp_motif)+' »<small>Demandé par '+esc(String(r.cree_par||'').split(/\s+/)[0])+(r.cree_le?' · '+esc(binQuand(r.cree_le)):'')+'</small></div>':'')+
       (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
