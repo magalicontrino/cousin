@@ -699,6 +699,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk .rdvet span,.rdvk .rdvet button{background:#fff!important;border:1.5px solid var(--ec,#ccc);color:#333;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none}
 /* LA CARTE ALLÉGÉE (Mag, 13/10/2026 : « je n'aime pas du tout les polices grasses ») : le cadre qui dit À QUOI sert la validation. */
 .rdvk-tr{font-size:12.5px;color:#6b6963;margin-top:8px}
+/* La fenêtre de confirmation passe AU-DESSUS des autres fenêtres (liste À prévenir…). */
+#popBg{z-index:10000}
 .rdvk{transition:box-shadow .4s}.rdvk.rdvk-nouveau{box-shadow:0 0 0 3px #6fc7d9}
 .rdvk-val-b{margin-top:14px;border:1px solid #e4e1dc;border-radius:12px;padding:10px 12px 12px;background:#f6f4f1}
 .rdvk-val-t{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
@@ -18585,7 +18587,18 @@ function rdvAccQui(r){
   return '<small class="rdvacc-qui">Noté par '+esc(String(qui).split(/\s+/)[0])+(q?' · '+esc(q):'')+'</small>';
 }
 /* VALIDER un accompagnement : la coordination seule ; avec une fenêtre de validation. */
-async function rdvPrevenirBascule(id, on){
+/* ⚠ DÉCOCHER DEMANDE CONFIRMATION (Mag, 13/10/2026 : « sur téléphone, une erreur et on perd un rendez-vous »). */
+function rdvPrevenirBascule(id, on){
+  const r=rdvLigne(id); if(!r) return;
+  if(!on){
+    render();
+    cousinConfirme('On ne prévient plus '+r.nom+' ?', 'Rendez-vous '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:'')+'. Personne ne le préviendra.',
+      function(){ rdvPrevenirEcrire(id, false); }, {ok:'Ne plus prévenir', danger:true});
+    return;
+  }
+  rdvPrevenirEcrire(id, true);
+}
+async function rdvPrevenirEcrire(id, on){
   const r=rdvLigne(id); if(!r) return;
   const res=await sb.from('rendez_vous').update({prevenir:!!on}).eq('id',r.id).select('id');
   if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); render(); return; }
@@ -41932,7 +41945,16 @@ function prevPasserNuit(id){
     render(); prevListeOuvrir(); toast('Passé à la nuit ✓');
   }, {ok:'Passer à la nuit'});
 }
-async function prevCocher(k, id){
+/* Décocher un « prévenu » (on revient sur ce qui était fait) demande confirmation (13/10/2026). */
+function prevCocher(k, id){
+  const x=prevTous(true).find(function(y){ return y.k===k && String(y.id)===String(id); });
+  if(x && x.fait){
+    cousinConfirme('Annuler « prévenu » ?', x.nom+' redevient à prévenir.', function(){ prevCocherEcrire(k, id); }, {ok:'Annuler prévenu', danger:true});
+    return;
+  }
+  prevCocherEcrire(k, id);
+}
+async function prevCocherEcrire(k, id){
   try{
     if(k==='pass'){ await passCocher(id); }
     else{
