@@ -5123,6 +5123,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .prk-pa{font-size:12px;font-weight:700;border:1.5px solid #b28b7a;color:#7a5a4c;border-radius:7px;padding:2px 8px}
 .prk-s{font-size:11px;font-weight:700;color:#b3640f;background:#fef3e6;border-radius:999px;padding:3px 9px}
 .prk-f{font-size:12.5px;color:#4f9e74;font-weight:600;margin-top:5px}
+.prk-nuit{display:inline-block;margin-top:7px;font:inherit;font-size:12.5px;color:#777;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .prk-ck{flex:none;width:34px;height:34px;border:2.5px solid #f29a2e;border-radius:9px;background:#fff;color:#fff;font-size:19px;font-weight:900;cursor:pointer}
 .prk-ck.on{background:#f29a2e}
 .prevl{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee;font-size:14px}
@@ -17806,7 +17807,9 @@ function rdvTaches(){
        prise en charge ; ça se divise en deux quand ça part vers l'info de passation et vers
        le réveil »). Elle arrive LA VEILLE (aujourd'hui et demain) s'il y a un réveil ou si
        la personne n'est pas autonome, et que ce n'est pas encore pris. */
-    const reste=(r.reveil && !r.reveil_par) || (rdvAPrevenir(r) && !r.prevenir_par);
+    /* (Mag, 13/10/2026) : le « à prévenir » ne part plus à la nuit — il reste dans la liste À prévenir de qui
+       l'a encodé ; seule la tâche RÉVEIL se prend ici. */
+    const reste=(r.reveil && !r.reveil_par);
     if(reste) t.push({r:r});
   });
   return t.sort(function(x,y){ return (String(x.r.jour)+String(x.r.heure||'')).localeCompare(String(y.r.jour)+String(y.r.heure||'')); });
@@ -17905,7 +17908,7 @@ function rdvPrDessiner(){
   const chip=function(txt, c){
     return '<span class="chip on rdvpr-e" style="--c:'+c+'">'+esc(txt)+'</span>';
   };
-  const peutR=!!(r.reveil && !r.reveil_par), peutP=!!(rdvAPrevenir(r) && !r.prevenir_par);
+  const peutR=!!(r.reveil && !r.reveil_par), peutP=false;
   const aucun=!peutR && !peutP;
   bg.innerHTML='<div class="popcard entpart socqui" role="dialog" aria-modal="true">'+
     /* « PRISE EN CHARGE DE LA PASSATION » (09/10/2026 : « sinon on pourrait croire que c'est
@@ -17928,7 +17931,7 @@ async function rdvPrEnvoyer(){
   const m=document.getElementById('rdvPrMot'); const v=((m&&m.value)||'').trim();
   const ks=[];
   if(P.reveil && r.reveil && !r.reveil_par) ks.push('reveil');
-  if(P.prevenir && rdvAPrevenir(r) && !r.prevenir_par) ks.push('prevenir');
+  /* « À prévenir » : reste chez toi (liste À prévenir), plus envoyé à la nuit (13/10/2026). */
   if(!ks.length) return;
   const bg=document.getElementById('rdvPrBg'); if(bg) bg.classList.remove('on');
   RDV_PR=null;
@@ -41781,7 +41784,7 @@ function prevTous(avecFaits){
   });
   const auj=agIso(new Date());
   if(typeof RDV!=='undefined' && !(typeof estGroupeD==='function' && estGroupeD())){
-    RDV.filter(function(r){ return r.jour>=auj && rdvAPrevenir(r); }).forEach(function(r){
+    RDV.filter(function(r){ return r.jour>=auj && rdvAPrevenir(r) && r.prevenir_note!=='nuit'; }).forEach(function(r){
       const t=rdvType(r.genre);
       out.push({k:'rdv', id:r.id, chambre:r.chambre||'', nom:r.nom, quoi:'Rendez-vous '+t.l.toLowerCase()+(r.lieu?' · '+r.lieu:''),
         quand:rdvQuandCourt(r), jeun:!!r.a_jeun, pa:!!r.pas_autonome, src:'', par:r.cree_par||'',
@@ -41799,9 +41802,27 @@ function prevCarte(x){
       ((x.quoi||x.quand)?'<div class="prk-q">'+esc([x.quoi,x.quand].filter(Boolean).join(' · '))+'</div>':'')+
       ((x.jeun||x.pa||x.src)?'<div class="prk-t">'+(x.jeun?'<span class="prk-j">À JEUN</span>':'')+(x.pa?'<span class="prk-pa">Pas autonome</span>':'')+
         (x.src?'<span class="prk-s">'+esc(x.src)+'</span>':'')+'</div>':'')+
+      (!x.fait && x.k==='rdv'?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>':'')+
       (x.fait?'<div class="prk-f">✓ prévenu'+(x.faitPar?' par '+esc(String(x.faitPar).split(/\s+/)[0]):'')+(x.faitLe?', '+esc(binQuand(x.faitLe)):'')+'</div>':'')+
     '</div>'+
     '<button class="prk-ck'+(x.fait?' on':'')+'" onclick="prevCocher(\''+x.k+'\',\''+x.id+'\')" aria-label="Prévenu">'+(x.fait?'✓':'')+'</button></div>';
+}
+/* PAS VU CE SOIR → À LA NUIT (Mag, 13/10/2026 : « soit il sera prévenu et effacé de la prévention, soit je le passerai
+   en passation si je ne l'ai pas vu »). Une passation « à prévenir » part à la nuit ; la ligne du rendez-vous s'efface
+   de la liste (c'est la passation qui la remplace). */
+function prevPasserNuit(id){
+  const r=rdvLigne(id); if(!r) return;
+  cousinConfirme('Passer à la nuit ?', 'Prévenir '+r.nom+(r.chambre?' (ch. '+r.chambre+')':'')+' de son rendez-vous '+rdvQuandCourt(r)+'.', async function(){
+    const ty=rdvType(r.genre).l.toLowerCase();
+    const l={pour:PASS_EQUIPE, par:nomAffiche(), chambre:r.chambre||null, a_jeun:!!r.a_jeun, genre:'prevenir', jour:agIso(new Date()),
+      source:'Rendez-vous '+ty, texte:('Prévenir '+r.nom+(r.pas_autonome?' (pas autonome)':'')+' de son rendez-vous '+ty+' '+rdvQuandCourt(r)+(r.lieu?', '+r.lieu:'')+'.').slice(0,4000)};
+    if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
+    const ins=await sb.from('passations').insert(l).select();
+    if(ins.error || !ins.data || !ins.data.length){ toast('Pas passé — la base a refusé'); return; }
+    await sb.from('rendez_vous').update({prevenir_note:'nuit'}).eq('id',r.id);
+    r.prevenir_note='nuit'; ins.data.forEach(function(x){ PASSATIONS.unshift(x); });
+    render(); prevListeOuvrir(); toast('Passé à la nuit ✓');
+  }, {ok:'Passer à la nuit'});
 }
 async function prevCocher(k, id){
   try{
