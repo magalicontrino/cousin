@@ -5123,6 +5123,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .prk-pa{font-size:12px;font-weight:700;border:1.5px solid #b28b7a;color:#7a5a4c;border-radius:7px;padding:2px 8px}
 .prk-s{font-size:11px;font-weight:700;color:#b3640f;background:#fef3e6;border-radius:999px;padding:3px 9px}
 .prk-f{font-size:12.5px;color:#4f9e74;font-weight:600;margin-top:5px}
+.rdvk-pvu{font-size:12px;color:#4f9e74;font-weight:600;margin-top:5px}
 .prk-nuit{display:inline-block;margin-top:7px;font:inherit;font-size:12.5px;color:#777;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .prk-ck{flex:none;width:34px;height:34px;border:2.5px solid #f29a2e;border-radius:9px;background:#fff;color:#fff;font-size:19px;font-weight:900;cursor:pointer}
 .prk-ck.on{background:#f29a2e}
@@ -18342,6 +18343,10 @@ function rdvCarte(r, passe){
       /* LA CASE « À PRÉVENIR » SUR LA CARTE (Mag, 11/10/2026) : la petite main, cochée = il faut prévenir la personne. */
       (ecr ? '<label class="rdvk-prev'+(rdvAPrevenir(r)?' on':'')+'"><input type="checkbox" '+(r.prevenir?'checked ':'')+
         'onchange="rdvPrevenirBascule(\''+r.id+'\',this.checked)">'+PREV_MAIN+'À prévenir'+(r.pas_autonome&&!r.prevenir?' (pas autonome)':'')+'</label>' : '')+
+      /* EN TOUT PETIT, CE QUI A ÉTÉ FAIT (Mag, 13/10/2026 : « coché par Mag, tout petit, pour qu'on voie que c'est pris en
+         considération ») — gardé une semaine. */
+      (rdvAPrevenir(r) && r.prevenir_note==='nuit' ? '<div class="rdvk-pvu">Passé à la nuit</div>'
+        : (rdvAPrevenir(r) && r.prevenir_par ? '<div class="rdvk-pvu">✓ Prévenu par '+esc(String(r.prevenir_par).split(/\s+/)[0])+(r.prevenir_le?' · '+esc(binQuand(r.prevenir_le)):'')+'</div>' : ''))+
       rdvPrisEnCharge(r)+
       (r.corrige_txt ? (rdvEstAuteur(r) && !r.corrige_vu
         ? '<div class="rdvc-notif"><b>Corrigé par '+esc(String(r.corrige_par||'').split(/\s+/)[0])+'</b>'+
@@ -41792,7 +41797,9 @@ function prevTous(avecFaits){
     });
   }
   const n=function(x){ const m=/\d+/.exec(String(x.chambre||'')); return m?parseInt(m[0],10):99999; };
-  return out.filter(function(x){ return avecFaits || !x.fait; })
+  /* Ce qui est fait reste visible UNE SEMAINE (Mag, 13/10/2026), puis disparaît de la liste. */
+  const semaine=Date.now()-7*864e5;
+  return out.filter(function(x){ return !x.fait || (avecFaits && (!x.faitLe || new Date(x.faitLe).getTime()>semaine)); })
     .sort(function(a,b){ return (a.fait?1:0)-(b.fait?1:0) || n(a)-n(b); });
 }
 function prevCarte(x){
