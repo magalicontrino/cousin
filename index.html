@@ -15926,7 +15926,7 @@ function vChambres(){
      `return` : on passe par `h` pour pouvoir lui ajouter le carnet, sans rien
      changer à ce qui est construit au-dessus. */
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
-    '<h1>Départs</h1><span class="etq etq-s">'+encours.length+'</span></div>'+
+    '<h1>Sortants</h1><span class="etq etq-s">'+encours.length+'</span></div>'+
     chTableau(encours)+
     '<div class="chadd">'+
       '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
@@ -17733,7 +17733,8 @@ function accTrioHTML(){
     const A3=ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; }); abs3=A3.length; abs3lam=A3.filter(function(x){ return x.lam; }).length; } }catch(e){}
   /* LE VERT = TOUS LES ACCOMPAGNEMENTS À VENIR (Mag, 13/10/2026 : « des accompagnements globaux ») ; le rouge = ce qui reste à faire. */
   const nAccTous=(RDV||[]).filter(function(r){ return r.jour>=a && r.accompagne && !r.retire_le && !r.refuse_le; }).length;
-  const chipsTout=rapEtiquettes({abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
+  const chipsTout=rapEtiquettes({sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17932,7 +17933,9 @@ function rapEtiquettes(o, accueil){
     /* « à valider » = le picto accompagnement, EN ROUGE (Mag, 13/10/2026 : « on prend les mêmes bases, ça devient rouge ») */
     /* ROUGE INVERSÉ, PICTO BLANC (Mag, 13/10/2026) — « à trouver » et « à valider » se lisent tout de suite. */
     e(o.valider, masque('accompagnement.svg','#fdfdfc'), 'à valider', 'valider', true)+
-    e(o.act, ic('ticket','#6cb392'), o.act>1?'activités':'activité','act');
+    e(o.act, ic('ticket','#6cb392'), o.act>1?'activités':'activité','act')+
+    /* ⭐ LES SORTANTS SE TROUVENT DEPUIS L'ACCUEIL (Mag, 13/10/2026 : « je ne sais toujours pas comment on arrive sur les sortants ») */
+    e(o.sortants, ic('cle','#a9c8e8'), o.sortants>1?'sortants':'sortant', 'departs');
 }
 /* L'HEURE DE LA DERNIÈRE MISE À JOUR (Mag, 13/10/2026) : le dernier message écrit ou corrigé, la dernière activité ou le
    dernier rendez-vous ajouté. */
@@ -24196,7 +24199,7 @@ k:['Formations COUSIN']},
       'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
       "goFiche(/poubelle/i)", '',
       '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>');
-    gcentre+=(estGroupeD()?'':porteCentre('cle','Départs',
+    gcentre+=(estGroupeD()?'':porteCentre('cle','Sortants',
       (chEnCours()?chEnCours()+' en cours':'Sortant, hospitalisé'),
       "go('#/chambres')"))+
     /* LE TOUR DES CHAMBRES, juste sous les Chambres — c'est le même couloir, mais
@@ -24610,7 +24613,7 @@ k:['Formations COUSIN']},
       'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
       "goFiche(/poubelle/i)", '',
       '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>'):'')+
-    (estGroupeD()?'':tuileG('cle','Départs',
+    (estGroupeD()?'':tuileG('cle','Sortants',
       (chEnCours()?chEnCours()+' en cours':'Sortant, hospitalisé'),
       "go('#/chambres')"))+
     tuileG('list','Tour des chambres', esc(tbResumeCourt()),
@@ -25985,7 +25988,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes favoris',liste:'ma liste',chambres:'les départs',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rapport:'le point du jour',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les sortants',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rapport:'le point du jour',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
     linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
@@ -26372,7 +26375,7 @@ const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressourc
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Jeux et quiz', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
-  quartier:'Autour d’ici', chambres:'Départs', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rapport:'Le point du jour', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
+  quartier:'Autour d’ici', chambres:'Sortants', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rapport:'Le point du jour', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
   if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
@@ -44504,7 +44507,7 @@ function departDessiner(){
   const bg=document.getElementById('depBg'); if(!bg||!DEP_F) return;
   const b=function(on, t, js){ return '<button class="chaffb'+(on?' on':'')+'" onclick="departGarder();'+js+';departDessiner()">'+t+'</button>'; };
   bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
-    '<div class="act-pt"><span class="act-pi" style="background:#a9c8e8">'+icon('cle')+'</span>Désencoder · un départ</div>'+
+    '<div class="act-pt"><span class="act-pi" style="background:#a9c8e8">'+icon('cle')+'</span>Désencoder · un sortant</div>'+
     '<div class="chadd"><input id="depNom" class="act-in" placeholder="Nom" value="'+esc(DEP_F.nom)+'">'+
       '<input id="depCh" class="act-in" inputmode="numeric" placeholder="N° ch." value="'+esc(DEP_F.chambre)+'" style="max-width:110px"></div>'+
     '<input id="depDate" class="act-in" type="date" value="'+esc(DEP_F.date)+'">'+
@@ -44522,7 +44525,7 @@ async function departEnregistrer(){
     cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff}).select('id');
   if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
   document.getElementById('depBg').classList.remove('on'); DEP_F=null;
-  _chVu=0; await loadChambres(); render(); toast('Dans les départs ✓ — le point du jour le montre');
+  _chVu=0; await loadChambres(); render(); toast('Dans les sortants ✓ — le point du jour le montre');
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
 /* ═══ UNE SEULE FEUILLE POUR TOUT CORRIGER (Mag, 22/08/2026) ═══
