@@ -733,6 +733,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .pp-histo{margin:26px 0 10px;padding-top:14px;border-top:1px solid rgba(43,42,40,.2);color:#8b8780}.pp-histo-t{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}.pp-histo-l{padding:9px 0;border-bottom:1px solid rgba(43,42,40,.08);display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:1.5}.pp-histo-l b{font-size:14px;font-weight:600;color:#6b6862}.pp-histo-l:last-child{border-bottom:0}
 .chaddaff{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 18px}.chaffb{flex:1;min-width:150px;border:2px solid #2b2a28;border-radius:999px;background:#fdfdfc;color:#2b2a28;font:inherit;font-weight:600;font-size:14px;padding:10px 14px;cursor:pointer}.chaffb.on{background:#2b2a28;color:#fdfdfc}.chaddaff .chaddbtn{flex:none}
 .chaff{font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b6862;padding:6px 0 2px}
+.chgarde{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}.rap-nom{font-weight:600}.rap-motif{font-weight:600}.rap-abs .rap-x{color:#6b6862;font-style:italic}.rap-abs .rap-nom{font-style:normal;color:#2b2a28}.rap-lam{font-style:normal;font-weight:700;font-size:12px;background:#e63329;color:#fdfdfc;border-radius:6px;padding:1px 7px;margin-left:4px}
 .rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
@@ -15638,7 +15639,9 @@ const CH_ET={
   desencode:{k:'desencode', l:'Désencoder',         qui:'PFO',                c:'#6fc7d9', verbe:'à désencoder'},
   libere: {k:'libere', l:'Libérer sur la liste étage', qui:'PFO',             c:'#6fc7d9', verbe:'à libérer'}
 };
+function chGardee(ch){ return ch.motif==='hospitalise' && ch.avec_affaires!==true && ch.avec_affaires!==false; }
 function chEtapesDe(ch){
+  if(chGardee(ch)) return [];
   if(ch.avec_affaires===true)  return [CH_ET.sacs, CH_ET.proto, CH_ET.range, CH_ET.nettoye, CH_ET.desencode, CH_ET.libere];
   if(ch.avec_affaires===false) return [CH_ET.nettoye, CH_ET.desencode, CH_ET.libere];
   return CH_ETAPES;
@@ -15651,7 +15654,12 @@ function chRangeTexte(ch){
 }
 function chMoins1Fini(ch){ if(!ch.range_le || ch.dest!=='moins1') return false; const f=new Date(ch.range_le); f.setDate(f.getDate()+14); return agIso(f)<=agIso(new Date()); }
 function chSortieFr(ch){ if(!ch.sortie_le) return ''; const d=new Date(ch.sortie_le+'T12:00:00'); return ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
-function chambreFinie(ch){return chEtapesDe(ch).filter(e=>!e.opt).every(e=>ch[e.k+'_le'])}
+function chambreFinie(ch){
+  if(ch.revenu_le) return true;                 /* l'hospitalisé est revenu */
+  if(chGardee(ch)) return false;                /* place gardée : reste listé jusqu'au retour ou au désencodage */
+  return chEtapesDe(ch).filter(e=>!e.opt).every(e=>ch[e.k+'_le']);
+}
+function chMotifL(ch){ return ch.motif==='hospitalise'?'Hospitalisé':ch.motif==='sortant'?'Sortant':''; }
 function chEnCours(){return CHAMBRES.filter(c=>!chambreFinie(c)).length}
 async function loadChambres(){
   chambresLoaded=false;
@@ -15690,17 +15698,20 @@ const CH_SANS_OBJET='sans objet';
 async function ajouterChambre(){
   const n=document.getElementById('chNum'), i=document.getElementById('chIni'), dj=document.getElementById('chSortie');
   const num=(n&&n.value||'').trim(); if(!num){n&&n.focus();return}
-  if(CH_AFF===null){ toast('Choisis : affaires restantes, ou aucune affaire restante'); return; }
+  if(!CH_MOTIF){ toast('Choisis : sortant ou hospitalisé'); return; }
+  if(CH_MOTIF==='hospitalise' && CH_DES===null){ toast('Choisis : place gardée ou place désencodée'); return; }
+  const suivi=(CH_MOTIF==='sortant' || CH_DES===true);
+  if(suivi && CH_AFF===null){ toast('Choisis : affaires restantes, ou aucune affaire restante'); return; }
   if(!sb){ toast('Pas de connexion'); return; }
   const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,14)||null,
-               cree_par:nomAffiche(), sortie_le:(dj&&dj.value)||agIso(new Date()), avec_affaires:CH_AFF};
+               cree_par:nomAffiche(), sortie_le:(dj&&dj.value)||agIso(new Date()), avec_affaires:suivi?CH_AFF:null, motif:CH_MOTIF};
   try{
     await sb.from('chambres').insert(ligne);
-    if(n)n.value=''; if(i)i.value=''; CH_AFF=null;
+    if(n)n.value=''; if(i)i.value=''; CH_AFF=null; CH_MOTIF=''; CH_DES=null;
     await loadChambres(); if(current.view==='chambres') render(); toast('Sortant ajouté ✓');
   }catch(e){ toast('Ajout impossible'); }
 }
-var CH_AFF=null;   /* le choix du formulaire : true = affaires restantes, false = aucune */
+var CH_AFF=null, CH_MOTIF='', CH_DES=null;   /* le formulaire : affaires (true/false), motif (sortant/hospitalise), place désencodée (true/false) */
 function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
 /* Cocher ou décocher — toujours avec confirmation, et on note QUI l'a fait. */
 async function cocherEtape(id,k){
@@ -15742,6 +15753,17 @@ async function cocherEtape(id,k){
         await loadChambres(); render();
       }catch(e){ toast('Modification refusée'); }
     }, {ok:fait?'Annuler l’étape':'Confirmer', danger:fait});
+}
+function chRevenu(id){
+  const ch=CHAMBRES.find(c=>String(c.id)===String(id)); if(!ch) return;
+  cousinConfirme('Chambre '+ch.numero, (ch.initiales||'La personne')+' est revenu·e ?', function(){ chPoser(ch, {revenu_le:new Date().toISOString(), revenu_par:nomAffiche()}); }, {ok:'Oui, revenu·e'});
+}
+function chDesencoder(id){
+  const ch=CHAMBRES.find(c=>String(c.id)===String(id)); if(!ch) return;
+  ppChoix('Chambre '+ch.numero+' · place désencodée', 'Il reste des affaires dans la chambre ?', [
+    {t:'Affaires restantes', fn:function(){ chPoser(ch, {avec_affaires:true}); }},
+    {t:'Aucune affaire restante', fn:function(){ chPoser(ch, {avec_affaires:false}); }}
+  ]);
 }
 async function chPoser(ch, maj){
   try{ const r=await sb.from('chambres').update(maj).eq('id',ch.id).select('id'); if(r.error||!r.data||!r.data.length){ toast('Modification refusée'); return; }
@@ -15787,6 +15809,9 @@ function chCard(ch){
       '<span class="ic chchev" style="transform:rotate('+(ouverte?'90deg':'-90deg')+')">'+icon('chevron')+'</span>'+
     '</button>'+
     (ouverte?'<div class="chcorps">'+
+      (ch.motif?'<div class="chaff">'+chMotifL(ch)+(chGardee(ch)?' · place gardée':'')+'</div>':'')+
+      (chGardee(ch)?'<div class="chgarde"><button class="chaffb" onclick="chRevenu(\''+ch.id+'\')">Revenu</button>'+
+        '<button class="chaffb" onclick="chDesencoder(\''+ch.id+'\')">Désencoder la place</button></div>':'')+
       (ch.avec_affaires!==null&&ch.avec_affaires!==undefined?'<div class="chaff">'+(ch.avec_affaires?'Affaires restantes':'Aucune affaire restante')+'</div>':'')+
       ETS.map(e=>{const ok=!!ch[e.k+'_le'], so=chSansObjet(ch,e.k);
         /* Une étape SANS OBJET reste cliquable — on peut s'être trompé et découvrir
@@ -15853,9 +15878,11 @@ function chTableau(encours){
     '<table class="chtab">'+lignes+'</table></div>';
 }
 /* Le choix des affaires redessine la page : on garde d'abord ce qui est écrit. */
-function chAffGarde(v){
+function chAffGarde(v, quoi){
   const g=function(id){ const e=document.getElementById(id); return e?e.value:''; };
-  const a=g('chNum'), b=g('chIni'), c=g('chSortie'); CH_AFF=v; render();
+  const a=g('chNum'), b=g('chIni'), c=g('chSortie');
+  if(quoi==='motif'){ CH_MOTIF=v; if(v==='sortant') CH_DES=null; } else if(quoi==='des') CH_DES=v; else CH_AFF=v;
+  render();
   const s=function(id,x){ const e=document.getElementById(id); if(e && x) e.value=x; }; s('chNum',a); s('chIni',b); s('chSortie',c);
 }
 function vChambres(){
@@ -15883,18 +15910,28 @@ function vChambres(){
      `return` : on passe par `h` pour pouvoir lui ajouter le carnet, sans rien
      changer à ce qui est construit au-dessus. */
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
-    '<h1>Sortants</h1><span class="etq etq-s">'+encours.length+'</span></div>'+
+    '<h1>Départs</h1><span class="etq etq-s">'+encours.length+'</span></div>'+
     chTableau(encours)+
     '<div class="chadd">'+
       '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
-      '<input id="chIni" type="text" maxlength="14" placeholder="Ex. M.D. ou Marie D." autocomplete="off">'+
+      '<input id="chIni" type="text" maxlength="40" placeholder="Nom (ex. Marie D.)" autocomplete="off">'+
       '<input id="chSortie" type="date" value="'+agIso(new Date())+'" title="Date de sortie">'+
     '</div>'+
+    /* ⭐ DEUX QUESTIONS (Mag, 13/10/2026) : pourquoi la personne n'est pas là (sortant / hospitalisé), et la place est-elle
+       désencodée ? Une place gardée (hospitalisé qui revient) n'a pas de suivi ; une place désencodée a le suivi de la chambre. */
     '<div class="chaddaff">'+
+      '<button class="chaffb'+(CH_MOTIF==='sortant'?' on':'')+'" onclick="chAffGarde(\'sortant\',\'motif\')">Sortant</button>'+
+      '<button class="chaffb'+(CH_MOTIF==='hospitalise'?' on':'')+'" onclick="chAffGarde(\'hospitalise\',\'motif\')">Hospitalisé</button>'+
+    '</div>'+
+    (CH_MOTIF==='hospitalise'?'<div class="chaddaff">'+
+      '<button class="chaffb'+(CH_DES===false?' on':'')+'" onclick="chAffGarde(false,\'des\')">Place gardée</button>'+
+      '<button class="chaffb'+(CH_DES===true?' on':'')+'" onclick="chAffGarde(true,\'des\')">Place désencodée</button>'+
+    '</div>':'')+
+    ((CH_MOTIF==='sortant'||CH_DES===true)?'<div class="chaddaff">'+
       '<button class="chaffb'+(CH_AFF===true?' on':'')+'" onclick="chAffGarde(true)">Affaires restantes</button>'+
       '<button class="chaffb'+(CH_AFF===false?' on':'')+'" onclick="chAffGarde(false)">Aucune affaire restante</button>'+
-      '<button class="chaddbtn" onclick="ajouterChambre()">Ajouter</button>'+
-    '</div>'+
+    '</div>':'')+
+    '<div class="chaddaff"><button class="chaddbtn" onclick="ajouterChambre()">Ajouter</button></div>'+
     /* ⚠ LES DEUX BOUTONS « À VIDER / DÉJÀ VIDE » SONT PARTIS (Mag, 22/08/2026 :
        « pour ça, moi, ça sert plus à rien »). Voir CH_ETAPES : « vider » est devenue
        facultative, c'est ce qui rend leur disparition possible. Ne pas les remettre
@@ -17765,17 +17802,23 @@ function rapportHTML(page){
   /* À VALIDER ET PUNAISES AU-DESSUS DES INFOS (Mag, 13/10/2026, dernier ordre) */
   if(ppPrev || ppSacs) h+=sec('punaises','#f3c6da',icon('punaise'),'Punaises', null,   /* pas de date de passage (Mag, 13/10/2026 : « ce n'est pas encore prévu ») */
     '<button class="rap-pp" onclick="go(\'#/punaises\')">'+(ppPrev?'<span class="r">'+ppPrev+' à prévenir</span>':'')+(ppSacs?'<span>'+ppSacs+' sac'+(ppSacs>1?'s':'')+' à faire</span>':'')+'</button>');
-  /* ⭐ LES SORTANTS (Mag, 13/10/2026) : la date de sortie, la chambre, et la prochaine étape. Pas pour le groupe D. */
+  /* ⭐ DÉPARTS · ABSENCES (Mag, 13/10/2026 : « je veux juste voir le nom, la chambre, hospitalisation / sortant / absents »).
+     Pas les étapes (elles sont dans la page Départs). Les ABSENTS : seulement 3 nuits ou plus, LAM bien visible, et en
+     QUESTION (« absent ? ») — « ce n'est pas à prendre pour argent comptant ». Pas pour le groupe D. */
   if(!gD && typeof CHAMBRES!=='undefined'){
     rafraichirChambres();
-    const so=CHAMBRES.filter(function(c){ return (c.avec_affaires===true||c.avec_affaires===false) && !chambreFinie(c); })
+    if(typeof ABSENCES!=='undefined' && !ABS_LU && !ABS_ENCOURS && typeof loadAbsences==='function') setTimeout(loadAbsences,0);
+    const dep=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); })
       .sort(function(x,y){ return String(x.sortie_le||'').localeCompare(String(y.sortie_le||'')); });
-    if(so.length) h+=sec('sortants','#a9c8e8',icon('cle'),'Sortants', so.length, so.map(function(c){
-        const p=chProchaine(c), alerte=chMoins1Fini(c);
-        return '<button class="rap-l" onclick="CH_OUVERTES[\''+c.id+'\']=true;go(\'#/chambres\')"><span class="rap-h">'+esc(chSortieFr(c))+'</span>'+
-          '<span class="rap-x">ch. '+esc(c.numero)+(c.initiales?' · '+esc(c.initiales):'')+
-          '<em class="rap-avec'+(alerte?' r':'')+'">'+(alerte?'au −1 : 14 jours passés':esc(p?(p.verbe||p.l):''))+'</em></span></button>'; }).join('')+
-      '<button class="rap-tv rap-cta" onclick="go(\'#/chambres\')">voir les sortants ›</button>');
+    const abs=(typeof ABSENCES!=='undefined'?ABSENCES:[]).filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; });
+    const n=dep.length+abs.length;
+    if(n) h+=sec('departs','#a9c8e8',icon('cle'),'Départs · absences', n,
+      dep.map(function(c){
+        return '<button class="rap-l" onclick="CH_OUVERTES[\''+c.id+'\']=true;go(\'#/chambres\')"><span class="rap-x"><b class="rap-nom">'+esc(c.initiales||'?')+'</b> · ch. '+esc(c.numero)+
+          ' · <span class="rap-motif">'+esc(chMotifL(c))+'</span>'+(chMoins1Fini(c)?'<em class="rap-avec r">au −1 : 14 jours passés</em>':'')+'</span></button>'; }).join('')+
+      abs.map(function(x){
+        return '<button class="rap-l rap-abs" onclick="go(\'#/liste/absences\')"><span class="rap-x"><b class="rap-nom">'+esc(x.nom||'?')+'</b> · <span class="rap-motif">absent ?</span> · '+absNuits(x).length+' nuits'+
+          (x.lam?' <span class="rap-lam">LAM</span>':'')+'</span></button>'; }).join(''));
   }
   h+=msgSec(RAPPORT_RUB[0]);
   if(!gD) h+=msgSec(RAPPORT_RUB[1]);
@@ -23307,7 +23350,7 @@ function vHome(){
           garde sa largeur, pour que les mots s'alignent en colonne avec « entrants »
           et « sur ta liste ». */
        /* ⭐ LES SORTANTS, TOUJOURS LÀ (Mag, 13/10/2026 : « un CTA dans ma liste perso ») — même à zéro, pour pouvoir en noter un. */
-       (rafraichirChambres(),'')+ligneCta(chEnCours()||'', chEnCours()?'sortant'+(chEnCours()>1?'s':''):'Sortants','#/chambres','cle','#a9c8e8')+
+       (rafraichirChambres(),'')+ligneCta(chEnCours()||'', chEnCours()?'départ'+(chEnCours()>1?'s':''):'Départs','#/chambres','cle','#a9c8e8')+
        '<button class="ctal" style="--cc:#c9bfe3" onclick="event.stopPropagation();accSlideOuvrir()">'+
          '<span class="lang"></span><span class="ic">'+icon('bulb')+'</span>'+
          '<b></b><span>Mémo ROI</span><i>›</i></button>'+
@@ -24047,8 +24090,8 @@ k:['Formations COUSIN']},
       'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
       "goFiche(/poubelle/i)", '',
       '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>');
-    gcentre+=(estGroupeD()?'':porteCentre('cle','Sortants',
-      (chEnCours()?chEnCours()+' en cours':'Noter un sortant'),
+    gcentre+=(estGroupeD()?'':porteCentre('cle','Départs',
+      (chEnCours()?chEnCours()+' en cours':'Sortant, hospitalisé'),
       "go('#/chambres')"))+
     /* LE TOUR DES CHAMBRES, juste sous les Chambres — c'est le même couloir, mais
        l'autre histoire : là-haut la chambre se libère, ici elle est occupée et il y
@@ -24461,8 +24504,8 @@ k:['Formations COUSIN']},
       'Poubelles — '+esc(col.court), esc(sacsTexte(col.sacs)),
       "goFiche(/poubelle/i)", '',
       '<span class="sacsq">'+col.sacs.map(function(s){return '<i style="background:'+POUB_COUL[s.c]+'"></i>'}).join('')+'</span>'):'')+
-    (estGroupeD()?'':tuileG('cle','Sortants',
-      (chEnCours()?chEnCours()+' en cours':'Noter un sortant'),
+    (estGroupeD()?'':tuileG('cle','Départs',
+      (chEnCours()?chEnCours()+' en cours':'Sortant, hospitalisé'),
       "go('#/chambres')"))+
     tuileG('list','Tour des chambres', esc(tbResumeCourt()),
       "go('#/tourbacs')", tbPresse()?'pressee':'')+
@@ -25834,7 +25877,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes favoris',liste:'ma liste',chambres:'les sortants',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rapport:'le point du jour',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les départs',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rapport:'le point du jour',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
     linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
@@ -26221,7 +26264,7 @@ const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressourc
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Jeux et quiz', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
-  quartier:'Autour d’ici', chambres:'Sortants', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rapport:'Le point du jour', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
+  quartier:'Autour d’ici', chambres:'Départs', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rapport:'Le point du jour', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
   if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
