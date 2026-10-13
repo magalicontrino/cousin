@@ -744,6 +744,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
   .pcarte .pl .plact{flex-wrap:wrap;gap:6px}.pcarte .pl .plact .binrep-b{margin:0 auto 0 0}
   .coalerte-t b{font-size:16px}
 }
+.pcarte .pl .plact .ib.passmenu{font-size:20px;font-weight:700;line-height:1;width:40px}
 .rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
@@ -16797,6 +16798,7 @@ function ppEtapesDe(a){
   if(k==='tout') return [PP_ETAPES[0], PP_ETAPES[1], PP_ETAPES[2], PP_ETAPES[3], PP_ET_PERS];
   return PP_ETAPES;
 }
+var PP_TOUT=[];   /* toutes les lignes, retirées comprises : l'historique les lit */
 async function loadPunaises(){
   if(!sb){ PP_CHARGE=true; return; }
   try{
@@ -16804,7 +16806,9 @@ async function loadPunaises(){
     const {data,error}=await sb.from('protocole_punaises').select('*')
       .gte('jour', agIso(d)).order('jour',{ascending:true}).order('numero',{ascending:true}).limit(300);
     if(error) throw error;
-    PUNAISES=data||[]; PP_PANNE='';
+    /* ⭐ UNE CHAMBRE RETIRÉE N'EST PLUS EFFACÉE (Mag, 13/10/2026 : « répare ») : elle porte `retire_le` et sort de l'écran,
+       mais sa trace (qui a préparé, qui a rendu les sacs) reste dans la base. */
+    PP_TOUT=data||[]; PUNAISES=PP_TOUT.filter(function(a){ return !a.retire_le; }); PP_PANNE='';
   }catch(e){ PUNAISES=[]; PP_PANNE=(e&&e.message)||String(e); }
   PP_CHARGE=true;
 }
@@ -17238,7 +17242,7 @@ function ppRetirer(id){
   if(!ppPeutRetirer()){ toast('Retirer une chambre : travailleurs sociaux, PFO et coordination'); return; }
   cousinConfirme('Chambre '+a.numero, 'Retirer cette chambre du protocole du '+ppJourFr(a.jour)+' ?',
     async function(){
-      const {error}=await sb.from('protocole_punaises').delete().eq('id',a.id);
+      const {error}=await sb.from('protocole_punaises').update({retire_le:new Date().toISOString(), retire_par:nomAffiche()}).eq('id',a.id);
       if(error){ toast('Pas retirée : la base a refusé'); return; }
       await loadPunaises(); render();
     }, {ok:'Retirer', danger:true});
@@ -18250,7 +18254,7 @@ function vPunaises(){
      sacs, qui les a rendus, et la date de fin. Pas d'heure, pas de commentaire, pas le nom des résidents. */
   const finLe=function(a){ let t=''; ppEtapesDe(a).forEach(function(e){ const v=a[e.k+'_le']; if(v && String(v)>t) t=String(v); }); return t; };
   const lim30=ppAjoute(agIso(new Date()),-30);
-  const histo=PUNAISES.filter(function(a){ return ppEtat(a)==='fini' && finLe(a) && agIso(new Date(finLe(a)))>=lim30; })
+  const histo=(PP_TOUT.length?PP_TOUT:PUNAISES).filter(function(a){ return ppEtat(a)==='fini' && finLe(a) && agIso(new Date(finLe(a)))>=lim30; })
     .sort(function(a,b){ return finLe(a)<finLe(b)?1:-1; });
   if(histo.length){
     const dt=function(v){ const d=new Date(v); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
@@ -18370,9 +18374,9 @@ async function ppPdf(){
 function ppToutEffacer(){
   const n=PUNAISES.length; if(!n||!sb) return;
   /* (Mag, 10/10/2026 : « juste une corbeille, et la fenêtre dit : attention, vous allez effacer toute la liste ») */
-  cousinConfirme('Attention', 'Vous allez effacer toute la liste : '+n+' chambre'+(n>1?'s':'')+'. C’est définitif.', async function(){
+  cousinConfirme('Attention', 'Vous allez vider la liste : '+n+' chambre'+(n>1?'s':'')+'. L’historique (qui a préparé, qui a rendu les sacs) est gardé.', async function(){
     const ids=PUNAISES.map(function(a){ return a.id; });
-    const {error}=await sb.from('protocole_punaises').delete().in('id',ids);
+    const {error}=await sb.from('protocole_punaises').update({retire_le:new Date().toISOString(), retire_par:nomAffiche()}).in('id',ids);   /* rangé, pas effacé (13/10/2026) */
     if(error){ toast('Pas effacé : la base a refusé'); return; }
     await loadPunaises(); render(); toast('Liste effacée');
   }, {ok:'Tout effacer', danger:true});
@@ -43224,17 +43228,20 @@ function passLigne(p, mienne, role, heure, gauche){
          supprimer ne regardent que ce qu'on a écrit soi-même — mais l'équipe de nuit
          recopie dans son rapport ce que l'équipe de jour a écrit, et c'est là qu'un
          nom ou un nombre de nuits se perd. */
-      '<button class="ib" onclick="passCopier(\''+p.id+'\')" '+
-        'aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
-      (passGerable(p)
-        ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" '+
-            'aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
-          '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" '+
-            'aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'+
-          '<button class="rapPass mini" onclick="passRetirer(\''+p.id+'\')">Annuler la passation</button>'
-        : '')+
+      /* ⭐ UN SEUL BOUTON « … » (Mag, 13/10/2026 : « 5 boutons par passation, c'est l'usine à gaz » → « Répondre et un menu,
+         fais comme tu veux ») : copier, modifier, annuler la passation, supprimer — dans un menu. */
+      '<button class="ib passmenu" onclick="passMenu(\''+p.id+'\','+(passGerable(p)?1:0)+')" aria-label="Plus d’actions" title="Plus d’actions">…</button>'+
     '</span>'+
   '</div>';
+}
+function passMenu(id, gerable){
+  const B=[{t:'Copier le texte', fn:function(){ passCopier(id); }}];
+  if(gerable){
+    B.push({t:'Modifier', fn:function(){ passModifier(id); }});
+    B.push({t:'Annuler la passation (revient dans ma liste)', fn:function(){ passRetirer(id); }});
+    B.push({t:'Supprimer', clair:true, fn:function(){ passSupprimer(id); }});
+  }
+  ppChoix('Cette passation', '', B);
 }
 /* ═══ LA PASSATION SUR PAPIER (Mag, 13/08/2026) ═══
    « Il faut qu'on puisse imprimer la passation pour l'équipe de nuit. Je dois pouvoir
@@ -44439,7 +44446,48 @@ function rappelAjouter(){
   /* Le champ se vide sous les doigts : sans un mot, on ne sait pas si la note est
      partie dans la liste ou si on vient de la perdre. Le message dit lequel des deux. */
   toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
+  /* ⭐ DÉSENCODER OUVRE LA FENÊTRE DES DÉPARTS (Mag, 13/10/2026 : « quand je marque désencoder, une pop-up s'ouvre pour
+     remplir tout ça »). Le nom et la chambre sont repris de la note. */
+  if(ligne.desencodage && !estGroupeD()){ departPop({nom:String(t).split('\n')[0].slice(0,40), chambre:ligne.chambre||''}); return; }
   setTimeout(function(){ const e=document.getElementById('rapTxt'); if(e) e.focus(); },30);
+}
+/* ═══ LA FENÊTRE « DÉPART » (13/10/2026) ═══ Trois questions : sortant ou hospitalisé ; la date ; il reste des affaires ?
+   La place est désencodée (on vient de cocher DÉSENCODER) : le suivi de la chambre démarre dans la page Départs. */
+var DEP_F=null;
+function departPop(o){
+  DEP_F={nom:o.nom||'', chambre:o.chambre||'', date:agIso(new Date()), motif:'', aff:null};
+  let bg=document.getElementById('depBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='depBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
+  departDessiner(); bg.classList.add('on');
+}
+function departGarder(){
+  const g=function(id){ const e=document.getElementById(id); return e?e.value:null; };
+  if(g('depNom')!==null){ DEP_F.nom=g('depNom'); DEP_F.chambre=g('depCh'); DEP_F.date=g('depDate')||DEP_F.date; }
+}
+function departDessiner(){
+  const bg=document.getElementById('depBg'); if(!bg||!DEP_F) return;
+  const b=function(on, t, js){ return '<button class="chaffb'+(on?' on':'')+'" onclick="departGarder();'+js+';departDessiner()">'+t+'</button>'; };
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt"><span class="act-pi" style="background:#a9c8e8">'+icon('cle')+'</span>Désencoder · un départ</div>'+
+    '<div class="chadd"><input id="depNom" class="act-in" placeholder="Nom" value="'+esc(DEP_F.nom)+'">'+
+      '<input id="depCh" class="act-in" inputmode="numeric" placeholder="N° ch." value="'+esc(DEP_F.chambre)+'" style="max-width:110px"></div>'+
+    '<input id="depDate" class="act-in" type="date" value="'+esc(DEP_F.date)+'">'+
+    '<div class="chaddaff">'+b(DEP_F.motif==='sortant','Sortant',"DEP_F.motif='sortant'")+b(DEP_F.motif==='hospitalise','Hospitalisé',"DEP_F.motif='hospitalise'")+'</div>'+
+    '<div class="chaddaff">'+b(DEP_F.aff===true,'Affaires restantes','DEP_F.aff=true')+b(DEP_F.aff===false,'Aucune affaire restante','DEP_F.aff=false')+'</div>'+
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'depBg\').classList.remove(\'on\')">Plus tard</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val" onclick="departEnregistrer()">Enregistrer</button></div></div>';
+}
+async function departEnregistrer(){
+  departGarder();
+  if(!DEP_F.chambre){ toast('Le numéro de chambre'); return; }
+  if(!DEP_F.motif){ toast('Sortant ou hospitalisé ?'); return; }
+  if(DEP_F.aff===null){ toast('Il reste des affaires ?'); return; }
+  const r=await sb.from('chambres').insert({numero:String(DEP_F.chambre).trim().slice(0,10), initiales:String(DEP_F.nom||'').trim().slice(0,40)||null,
+    cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff}).select('id');
+  if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  document.getElementById('depBg').classList.remove('on'); DEP_F=null;
+  _chVu=0; await loadChambres(); render(); toast('Dans les départs ✓ — le point du jour le montre');
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
 /* ═══ UNE SEULE FEUILLE POUR TOUT CORRIGER (Mag, 22/08/2026) ═══
