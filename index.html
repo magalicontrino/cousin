@@ -723,6 +723,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-p{font-size:14px;line-height:1.4;padding:6px 10px;border-left:4px solid #f5c542;background:#f6f4f1;border-radius:0 8px 8px 0;margin-bottom:6px}.admj-p b{font-weight:600}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
 .rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
+.rap-l.passe{opacity:.45}
 .rap-bas{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;border-top:1px solid #ece9e4;padding:10px 0 4px;font-size:12.5px;color:#a09c95}.rap-bas span{flex:1 1 100%}
 .rdvcal-e{border-left-color:#a9c8e8}.rdvcal-e.manque{border-left-color:#e63329}
 .rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
@@ -17452,11 +17453,15 @@ function rapportDonnees(){
   if(!RAPPORT_CHARGE) setTimeout(rafraichirRapport,0);
   const a=agIso(new Date()), d=ppAjoute(a,1);
   const auj=(RDV||[]).filter(function(r){ return r.jour===a; });
-  const rv=(RDV||[]).filter(function(r){ return r.jour===d && r.reveil; }).map(function(r){
-      return {h:String(r.reveil_heure||'').slice(0,5), ch:r.chambre||'', t:r.nom+' — rendez-vous '+(r.heure?'à '+rdvHeureFr(r.heure):'')+(r.lieu?', '+r.lieu:''), j:!!r.a_jeun}; })
-    .concat((typeof PASSATIONS!=='undefined'?PASSATIONS:[]).filter(function(p){ return p.genre==='reveil' && p.jour===d && !p.fait_le; }).map(function(p){
-      return {h:String(p.heure||'').slice(0,5), ch:p.chambre||'', t:String(p.texte||'').split('\n')[0], j:!!p.a_jeun}; }))
-    .sort(function(x,y){ return String(x.h||'99').localeCompare(String(y.h||'99')); });
+  /* LES RÉVEILS D'AUJOURD'HUI ET DE DEMAIN (Mag, 13/10/2026 : « quand l'heure est passée, en bas, en gris ») :
+     d'abord ceux qui viennent (aujourd'hui, puis demain), ceux dont l'heure est passée tout en bas. */
+  const now=new Date(), hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const rv=(RDV||[]).filter(function(r){ return (r.jour===d || r.jour===a) && r.reveil; }).map(function(r){
+      return {jr:r.jour, h:String(r.reveil_heure||'').slice(0,5), ch:r.chambre||'', t:r.nom+' — rendez-vous '+(r.heure?'à '+rdvHeureFr(r.heure):'')+(r.lieu?', '+r.lieu:''), j:!!r.a_jeun}; })
+    .concat((typeof PASSATIONS!=='undefined'?PASSATIONS:[]).filter(function(p){ return p.genre==='reveil' && (p.jour===d || p.jour===a) && !p.fait_le; }).map(function(p){
+      return {jr:p.jour, h:String(p.heure||'').slice(0,5), ch:p.chambre||'', t:String(p.texte||'').split('\n')[0], j:!!p.a_jeun}; }))
+    .map(function(x){ x.demain=(x.jr===d); x.passe=(x.jr===a && !!x.h && x.h<=hm); return x; })
+    .sort(function(x,y){ return (x.passe?1:0)-(y.passe?1:0) || (x.demain?1:0)-(y.demain?1:0) || String(x.h||'99').localeCompare(String(y.h||'99')); });
   return {acc:auj.filter(function(r){ return r.accompagne; }), autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv,
     msg:RAPPORT};
 }
@@ -17465,7 +17470,7 @@ function rapportBarre(){
   const n=D.msg.length;
   return '<button class="rdvbarre rapbarre" onclick="go(\'#/rapport\')"><i>'+icon('note')+'</i><span>Rapport du jour</span>'+
     (D.acc.length?'<b>'+D.acc.length+' accompagnement'+(D.acc.length>1?'s':'')+'</b>':'')+
-    (D.reveils.length?'<b class="clair">'+D.reveils.length+' réveil'+(D.reveils.length>1?'s':'')+' demain</b>':'')+
+    (function(){ const n=D.reveils.filter(function(x){ return !x.passe; }).length; return n?'<b class="clair">'+n+' réveil'+(n>1?'s':'')+' à venir</b>':''; })()+
     (n?'<b class="rap-n">'+n+' message'+(n>1?'s':'')+'</b>':'')+'</button>';
 }
 function rdvOuvrirModif(id){ const r=rdvLigne(id); if(!r) return; RDV_VUE=''; RDV_FORM=Object.assign({}, r); go('#/rdv'); }
@@ -17506,8 +17511,8 @@ function rapportHTML(page){
   };
   h+=msgSec(RAPPORT_RUB[0]);
   h+=listeSec('#6fc7d9','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc, ligneRdv);
-  h+=listeSec('#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils de demain', D.reveils, function(x){
-      return '<div class="rap-l"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; });
+  h+=listeSec('#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils, function(x){
+      return '<div class="rap-l'+(x.passe?' passe':'')+'"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+(x.demain?'<i class="rap-ch">demain</i> ':'')+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; });
   h+=listeSec('#a9c8e8',icon('calendrier'),'Rendez-vous du jour', D.autres, ligneRdv);
   h+=msgSec(RAPPORT_RUB[1]);
   if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
@@ -17570,7 +17575,7 @@ function rapportImprimer(){
     r.accompagne?(r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'):''); };
   c+=st('Accompagnements',D.acc.length)+tab(D.acc.map(r2).join(''));
   c+=st('Rendez-vous du jour',D.autres.length)+tab(D.autres.map(r2).join(''));
-  c+=st('Réveils de demain',D.reveils.length)+tab(D.reveils.map(function(x){ return l(x.h?rdvHeureFr(x.h):'', esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), x.j?'à jeun':''); }).join(''));
+  c+=st('Réveils',D.reveils.length)+tab(D.reveils.map(function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); }).join(''));
   RAPPORT_RUB.forEach(function(rb){
     const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
     if(!L.length) return;
