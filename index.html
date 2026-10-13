@@ -699,6 +699,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk .rdvet span,.rdvk .rdvet button{background:#fff!important;border:1.5px solid var(--ec,#ccc);color:#333;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none}
 /* LA CARTE ALLÉGÉE (Mag, 13/10/2026 : « je n'aime pas du tout les polices grasses ») : le cadre qui dit À QUOI sert la validation. */
 .rdvk-tr{font-size:12.5px;color:#6b6963;margin-top:8px}
+.rdvk{transition:box-shadow .4s}.rdvk.rdvk-nouveau{box-shadow:0 0 0 3px #6fc7d9}
 .rdvk-val-b{margin-top:14px;border:1px solid #e4e1dc;border-radius:12px;padding:10px 12px 12px;background:#f6f4f1}
 .rdvk-val-t{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
 .rdvk-val-t em{font-style:normal;text-transform:none;letter-spacing:0;color:#1b1b1b;font-weight:500;border:1.5px solid #f8763f;border-radius:999px;padding:0 8px}
@@ -18285,7 +18286,17 @@ async function rdvEnregistrer(){
   const r=res.data[0];
   RDV=RDV.filter(function(x){ return x.id!==r.id; }).concat([r])
     .sort(function(a,b){ return (String(a.jour)+String(a.heure||'')).localeCompare(String(b.jour)+String(b.heure||'')); });
-  RDV_FORM=null; render(); toast('Rendez-vous enregistré');
+  /* ═══ ON VA SUR LE RENDEZ-VOUS QU'ON VIENT D'ÉCRIRE (Mag, 13/10/2026 : « j'ai fait un test, je n'ai pas trouvé mon
+     nouveau rendez-vous ») ═══ Il était enregistré, mais hors des dates affichées (« Plus tard », tout en bas) ou dans
+     les passés repliés. Les dates s'élargissent pour l'inclure, puis la carte vient sous les yeux et s'entoure. */
+  const D0=rdvDates(), auj=agIso(new Date());
+  if(r.jour>D0.au) RDV_IMPR_AU=r.jour;
+  if(r.jour<D0.du && r.jour>=ppAjoute(auj,-RDV_GARDE)) RDV_IMPR_DU=r.jour;
+  RDV_VUE='';
+  RDV_FORM=null; render(); toast('Rendez-vous enregistré · '+rdvQuandCourt(r));
+  setTimeout(function(){ const e=document.getElementById('rdvk-'+r.id); if(!e) return;
+    if(e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'center'});
+    e.classList.add('rdvk-nouveau'); setTimeout(function(){ e.classList.remove('rdvk-nouveau'); }, 2600); }, 120);
   await loadRdv(); render();
 }
 function rdvRetirer(id){
@@ -18425,7 +18436,7 @@ function rdvCarte(r, passe){
   const t=rdvType(r.genre), ecr=rdvPeutEcrire(), ok=!!r.valide_le;
   const lis = rdvAValider(r) ? (ok?'#6cb392':'#f8763f') : t.c;
   const lieu=[r.lieu,r.adresse].filter(Boolean).join(' — ');
-  return '<div class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom?' manque':'')+'" style="border-left-color:'+lis+'">'+
+  return '<div id="rdvk-'+esc(String(r.id))+'" class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom?' manque':'')+'" style="border-left-color:'+lis+'">'+
     '<div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
     '<div class="rdvk-c">'+
       '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
