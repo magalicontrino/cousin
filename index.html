@@ -777,6 +777,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .trio.large{background:#fdfdfc;color:#2b2a28;border:2.5px solid #2b2a28;box-shadow:0 5px 0 #2b2a28}.trio.large em{color:#6b6963}
 .trio.large .trio-i{width:40px;height:40px}.trio-rd{width:40px;height:40px;border-radius:50%;background:#2b2a28;display:flex;align-items:center;justify-content:center}.trio-rd svg{width:24px;height:24px;fill:none!important}
 .trio.large.large .trio-i svg{fill:none}
+.trio.rapfus{width:100%;box-sizing:border-box;margin:14px 0 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:12px;row-gap:10px;grid-column:1 / -1;min-height:0}
+.trio.rapfus b{font-size:17px}.trio-chv{font-size:22px;color:#8b8880}
+.trio-cs{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.trio-c{font-size:12.5px;border-radius:10px;padding:5px 9px;background:var(--c);color:#2b2a28}.trio-c b{font-size:14px!important;font-weight:600;margin-right:3px}.trio-c.r{color:#fdfdfc}
+.trio.rapfus em{grid-column:1 / -1;margin:0!important}
+.pourmoi-t{font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6b6963;margin:2px 0 8px 4px}
 .rap-bas{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;border-top:1px solid #ece9e4;padding:10px 0 4px;font-size:12.5px;color:#a09c95}.rap-bas span{flex:1 1 100%}
 .rdvcal-e{border-left-color:#a9c8e8}.rdvcal-e.manque{border-left-color:#e63329}
 .rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
@@ -5304,7 +5310,9 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .ppc-cop{display:inline-flex;align-items:center;gap:5px;margin-right:auto}.ppc-cop svg{width:15px;height:15px}
 .accfin{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 6px}@media (max-width:520px){.accfin{grid-template-columns:1fr}}
 .pgt.pgt-prev{display:flex;align-items:center;color:#2b2a28}.pgt-prev .pmain{width:18px;height:18px}
-.pgt-impr{margin-left:auto;background:none;border:0;cursor:pointer;width:26px;height:26px;padding:3px;color:#b3640f}.pgt-impr svg,.pgt-impr img{width:100%;height:100%}
+.pgt-impr{margin-left:auto;background:none;border:0;cursor:pointer;width:26px;height:26px;padding:3px;color:#1C1C1C}
+/* ⭐ LE PICTO D'IMPRESSION EST TOUJOURS NOIR #1C1C1C, PARTOUT (Mag, 13/10/2026 : « je t'interdis de le mettre en couleur »). */
+.pico[style*="print.svg"],.pico[style*="imprimer"]{background-color:#1C1C1C!important}.pgt-impr svg,.pgt-impr img{width:100%;height:100%}
 .pcarte .pl .ajeun{font-family:ui-monospace,monospace;font-size:8.5px;font-weight:500;
   letter-spacing:.11em;text-transform:uppercase;background:#6cb392;color:#0f2b1f;
   border-radius:3px;padding:4px 8px;flex:none}
@@ -17547,30 +17555,21 @@ function rapportBarre(){
    Le rouge ne dit que « accompagnant à trouver ». */
 /* LE PICTO DU RAPPORT = UN JOURNAL (Mag, 13/10/2026, planche propositions/rapport-picto-design.png). */
 const RAP_JOURNAL='<svg viewBox="0 0 24 24" style="fill:none" stroke="#f5c542" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path style="fill:none" d="M3.5 4.5h13.5v15H5.5a2 2 0 0 1-2-2z"/><path style="fill:none" d="M17 8.5h3.5v9a2 2 0 0 1-2 2"/><path style="fill:none" d="M7 9h6.5M7 13.5h6.5"/></svg>';
+/* ═══ L'ACCUEIL FUSIONNÉ (Mag, 13/10/2026 : « fais-le fusionner », maquette propositions/accueil-fusion.png) ═══
+   UNE SEULE PORTE POUR LE CENTRE : le Rapport du jour, avec tous ses chiffres dedans. Les cartes Rendez-vous et
+   Accompagnements quittent l'accueil (elles sont dans le rapport ; l'agenda reste dans le menu). Le cadre du dessous
+   devient « Pour moi ». Plus de mot en double : « chambres à prévenir » (punaises) / « personnes à prévenir » (moi). */
 function accTrioHTML(){
-  const D=rapportDonnees();
-  const rv=D.reveils.filter(function(x){ return !x.passe; }).length, nm=D.msg.length;
-  const sRap=[D.acc.length?D.acc.length+' accompagnement'+(D.acc.length>1?'s':''):'', rv?rv+' réveil'+(rv>1?'s':'')+' à venir':'', nm?nm+' message'+(nm>1?'s':''):''].filter(Boolean).join(' · ')||'Rien de spécial';
-  const nA=RDV_CHARGE?rdvAujourdhui():0, nc=RDV_CHARGE?rdvCorrigesPourMoi().length:0;
-  const sem=RDV_CHARGE?rdvAccSemaine():[], lundi=new Date(agIso(new Date())+'T12:00:00').getDay()===1;
-  const manque=sem.filter(function(r){ return !r.accomp_nom; }).length;
-  RDV_ACC_DU=''; RDV_ACC_AU='';
-  /* LA NOTIF = UN CHIFFRE SEUL (Mag, 13/10/2026 : « mets juste 1 comme notif ») : un rond en haut à droite,
-     de la couleur de la carte ; rouge seulement pour « accompagnant à trouver ». */
-  const carte=function(cl, c, ic, titre, sous, act, n, rouge){
-    return '<button class="trio '+cl+'" style="--c:'+c+'" onclick="'+act+'"><span class="trio-i">'+ic+'</span><b>'+esc(titre)+'</b>'+(sous?'<em>'+esc(sous)+'</em>':'')+
-      (n?'<span class="trio-n'+(rouge?' rouge':'')+'">'+n+'</span>':'')+'</button>';
-  };
-  const pk=function(f){ return '<span class="pico" style="-webkit-mask-image:url(\'picto/'+f+'\');mask-image:url(\'picto/'+f+'\')"></span>'; };
-  /* Le groupe D : la carte du rapport seule (pas d'agenda pour lui). */
-  if(estGroupeD()) return '<div class="trio-g">'+carte('large','#f5c542', '<span class="trio-rd">'+RAP_JOURNAL+'</span>', 'Rapport du jour', sRap, "go('#/rapport')", 0)+'</div>';
-  return '<div class="trio-g">'+
-    carte('large','#f5c542', '<span class="trio-rd">'+RAP_JOURNAL+'</span>', 'Rapport du jour', sRap, "go('#/rapport')", 0)+
-    carte('', '#6fc7d9', icon('calendrier'), 'Rendez-vous', nc?nc+' corrigé'+(nc>1?'s':''):'',
-      nc?'rdvOuvrirCorriges()':"RDV_VUE='';go('#/rdv')", nA, false)+
-    carte('', '#6cb392', pk('accompagnement.svg'), 'Accompagnements', RDV_CHARGE?sem.length+(lundi?' cette semaine':' semaine prochaine'):'…',
-      "RDV_VUE='acc';RDV_FORM=null;RDV_ACC_DU='';RDV_ACC_AU='';RDV_ACC_TROUVER=false;go('#/rdv')", manque, true)+
-  '</div>';
+  const D=rapportDonnees(), a=agIso(new Date());
+  const rv=D.reveils.filter(function(x){ return !x.passe; }).length, accT=D.acc.filter(function(r){ return !r.accomp_nom; }).length;
+  const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; }).length;
+  const nRdv=RDV_CHARGE?rdvAujourdhui():0;
+  let pp=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); pp=ppAlertes(); } }catch(e){}
+  const c=function(n, mot, col, rouge){ return n?'<span class="trio-c'+(rouge?' r':'')+'" style="--c:'+col+'"><b>'+n+'</b>'+esc(mot)+'</span>':''; };
+  const chips=c(rv, rv>1?'réveils':'réveil','#fd8fd0')+c(D.acc.length, D.acc.length>1?'accompagnements':'accompagnement','#6cb392')+
+    c(accT,'à trouver','#e63329',true)+c(pp,'chambre'+(pp>1?'s':'')+' à prévenir','#f3c6da')+c(nRdv,'rendez-vous','#6fc7d9')+c(aVal,'à valider','#f8763f');
+  return '<button class="trio large rapfus" onclick="go(\'#/rapport\')"><span class="trio-i"><span class="trio-rd">'+RAP_JOURNAL+'</span></span>'+
+    '<b>Rapport du jour</b><span class="trio-chv">›</span>'+(chips?'<span class="trio-cs">'+chips+'</span>':'<em>Rien de spécial</em>')+'</button>';
 }
 function rdvOuvrirModif(id){ const r=rdvLigne(id); if(!r) return; RDV_VUE=''; RDV_FORM=Object.assign({}, r); go('#/rdv'); }
 /* ═══ LE RAPPORT DU JOUR, VERSION 2 (Mag, 13/10/2026, maquette propositions/rapport-perfectionne-2.png) ═══
@@ -23075,18 +23074,18 @@ function vHome(){
        ⚠ ET LA CARTE N'EST PLUS CLIQUABLE EN ENTIER. Elle menait à `#/liste` ; c'était
        le rôle du titre. La page reste atteignable par le bouton dossier de la barre du
        haut, visible depuis n'importe où — donc rien n'est fermé. */
-    h+='<div class="ctacarte sanstitre">'+
+    h+='<div class="ctacarte sanstitre"><div class="pourmoi-t">Pour moi</div>'+
        /* ⚠ DES TITRES COURTS (Mag, 20/09/2026 : « je n'aime pas trop les titres, marque
           juste… ») : « à faire », « arrivés » et « pour toi » sont partis — la carte dit
           déjà que c'est ce qui attend. */
-       (nArr?ligneCta(nArr,'entrant'+(nArr>1?'s':''),'#/liste/entretiens','hebergement','#A9C8E8'):'')+
+       (nArr?ligneCta(nArr,'entretien'+(nArr>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+
        (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
        (nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
-       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
+       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':'')+' pour moi','#/liste','partage','#b8ddc4','allerPassation()'):'')+
        /* LES « À PRÉVENIR », REGROUPÉS (Mag, 11/10/2026) : une ligne à part ; un appui ouvre la liste simplifiée
           (qui, chambre, la source : rendez-vous, social, médical…). */
-       (nPrev?ligneCta(nPrev,'à prévenir','#/liste','main','#f8763f','prevListeOuvrir()'):'')+
+       (nPrev?ligneCta(nPrev,'personne'+(nPrev>1?'s':'')+' à prévenir','#/liste','main','#f8763f','prevListeOuvrir()'):'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
        /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
           (`rdvBarre`) — la même info deux fois sur le même écran ferait doublon. */
@@ -23222,7 +23221,8 @@ function vHome(){
     }).join('')+'</div>';
     h+='</div>';
   }
-  if(typeof ppBarre==='function') h+=ppBarre();
+  /* La barre des punaises : seulement pour le groupe D (les autres l'ont dans le rapport, 13/10/2026). */
+  if(typeof ppBarre==='function' && estGroupeD()) h+=ppBarre();
 
   /* ═══ LE RESTE ═══
      Chacune dit CE QU'IL Y A DERRIÈRE, pas ce qu'elle est. « 2 à faire » et
