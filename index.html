@@ -17573,13 +17573,15 @@ function accTrioHTML(){
   const rv=D.reveils.filter(function(x){ return !x.passe; }).length, accT=D.acc.filter(function(r){ return !r.accomp_nom; }).length;
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; }).length;
   /* Rendez-vous SOCIAUX seulement (pas de médical dans le rapport, Mag 13/10/2026), et sans ceux déjà comptés en accompagnement. */
+  /* Les activités de la semaine ont leur chiffre (Mag, 13/10/2026 : « pourquoi tu n'as pas mis l'activité à venir ? »). */
+  let nAct=0; try{ if(typeof ACT!=='undefined'){ if(!ACT_CHARGE) setTimeout(rafraichirAct,0); nAct=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).length; } }catch(e){}
   const nRdv=RDV_CHARGE?(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !r.accompagne && rdvType(r.genre).k!=='medical'; }).length:0;
   let pp=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); pp=ppAlertes(); } }catch(e){}
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
   const c=function(n, mot, col, rouge, bloc){ return n?'<span class="trio-c'+(rouge?' r':'')+'" style="--c:'+col+'"'+
     (bloc?' onclick="event.stopPropagation();go(\'#/rapport\');setTimeout(function(){rapAller(\''+bloc+'\')},80)"':'')+'><b>'+n+'</b>'+esc(mot)+'</span>':''; };
   const chips=c(rv, rv>1?'réveils':'réveil','#fd8fd0')+c(D.acc.length, D.acc.length>1?'accompagnements':'accompagnement','#6cb392')+
-    c(accT,'à trouver','#e63329',true)+c(pp,'punaise'+(pp>1?'s':''),'#f3c6da',false,'punaises')+c(nRdv,'rendez-vous','#6fc7d9')+c(aVal,'à valider','#f8763f');
+    c(accT,'à trouver','#e63329',true)+c(pp,'punaise'+(pp>1?'s':''),'#f3c6da',false,'punaises')+c(nRdv,'rendez-vous','#6fc7d9')+c(aVal,'à valider','#f8763f')+c(nAct, nAct>1?'activités':'activité','#6cb392',false,'act');
   return '<button class="trio large rapfus" onclick="go(\'#/rapport\')"><span class="trio-i"><span class="trio-rd">'+RAP_JOURNAL+'</span></span>'+
     '<b>Rapport du jour</b><span class="trio-chv">›</span>'+(chips?'<span class="trio-cs">'+chips+'</span>':'<em>Rien de spécial</em>')+'</button>';
 }
@@ -17648,7 +17650,7 @@ function rapportHTML(page){
   /* LES CHIFFRES DU JOUR */
   const chip=function(n, mot, c, id, rouge){ return n?'<button class="rap-chip'+(rouge?' r':'')+'" style="--c:'+c+'" onclick="rapAller(\''+id+'\')"><b>'+n+'</b>'+esc(mot)+'</button>':''; };
   const chips=chip(rvV, rvV>1?'réveils':'réveil','#fd8fd0','reveils')+chip(accT, 'accompagnant'+(accT>1?'s':'')+' à trouver','#e63329','acc',true)+
-    chip(ppPrev,'à prévenir (punaises)','#f3c6da','punaises')+chip(aVal.length,'à valider','#f8763f','valider');
+    chip(ppPrev,'à prévenir (punaises)','#f3c6da','punaises')+chip(aVal.length,'à valider','#f8763f','valider')+chip(actS.length, actS.length>1?'activités':'activité','#6cb392','act');
   if(chips) h+='<div class="rap-chips">'+chips+'</div>';
 
   h+= D.reveils.length ? sec('reveils','#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils.length, D.reveils.map(function(x){
