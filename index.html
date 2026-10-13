@@ -714,7 +714,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
 .rapPass.rapAct{border-color:#6cb392}
-.admj{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:16px;padding:12px 16px 8px;margin:16px 0}
+.admj{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:16px;padding:12px 16px 8px;margin:0}
+#admjBg .admj-t{padding-right:40px}
+.admj-b{display:flex;align-items:center;gap:10px;width:100%;margin:16px 0;padding:13px 16px;background:#fdfdfc;border:1px solid #e4e1dc;border-radius:14px;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.admj-b b{flex:1;font-size:16px;font-weight:600}.admj-b .chv{font-size:20px;color:#8b8880}
 .admj-t{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.admj-t b{font-size:17px;font-weight:600;flex:1}.admj-t span{font-size:12.5px;color:#6b6963}.admj-fl{font:inherit;font-size:20px;line-height:1;background:none;border:0;color:#2b2a28;padding:2px 8px;cursor:pointer}.admj-fl:disabled{color:#d8d4cd;cursor:default}
 .admj-chiffres{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}.admj-chiffres span{border:1.5px solid #e4e1dc;border-radius:999px;padding:3px 11px;font-size:13px}.admj-chiffres b{font-weight:600}.admj-chiffres .r{border-color:#e63329}
 .admj-s{border-top:1px solid #ece9e4;padding:10px 0 6px}.admj-st{font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b6963;margin-bottom:6px}
@@ -26245,10 +26247,27 @@ function admjCharger(){
   if(ADMJ.cle===cle) return;
   ADMJ.cle=cle; ADMJ.data=null; ADMJ.err='';
   sb.from('journal').select('*').gte('le', B.deb.toISOString()).lt('le', B.fin.toISOString()).order('le',{ascending:false}).limit(5000)
-    .then(function(r){ if(r.error){ ADMJ.err=r.error.message; ADMJ.data=[]; } else ADMJ.data=r.data||[]; if(current.view==='admin') render(); },
-          function(e){ ADMJ.err=String(e); ADMJ.data=[]; if(current.view==='admin') render(); });
+    .then(function(r){ if(r.error){ ADMJ.err=r.error.message; ADMJ.data=[]; } else ADMJ.data=r.data||[]; admjMaj(); },
+          function(e){ ADMJ.err=String(e); ADMJ.data=[]; admjMaj(); });
 }
-function admjSem(d){ ADMJ.sem+=d; if(ADMJ.sem>0) ADMJ.sem=0; render(); }
+function admjSem(d){ ADMJ.sem+=d; if(ADMJ.sem>0) ADMJ.sem=0; admjMaj(); }
+/* LE RAPPORT ADMIN S'OUVRE EN FENÊTRE (Mag, 13/10/2026 : « ouvre une pop-up ») : en haut d'Admin, un bouton seul. */
+function admjBouton(){
+  admjCharger();
+  const n=ADMJ.data?ADMJ.data.filter(function(x){ return x.action==='retrait'; }).length:0;
+  return '<button class="admj-b" onclick="admjOuvrir()"><b>Mon rapport admin</b>'+(n?'<span class="trio-n rouge" style="position:static">'+n+'</span>':'')+'<span class="chv">›</span></button>';
+}
+function admjOuvrir(){
+  let bg=document.getElementById('admjBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='admjBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  bg.classList.add('on'); admjMaj();
+}
+function admjMaj(){
+  const bg=document.getElementById('admjBg');
+  if(bg && bg.classList.contains('on')) bg.innerHTML='<div class="rdvdet"><button class="rdvdet-x" onclick="document.getElementById(\'admjBg\').classList.remove(\'on\')" aria-label="Fermer">×</button>'+rapportAdminHTML()+'</div>';
+  else if(current.view==='admin') render();
+}
 function rapportAdminHTML(){
   admjCharger();
   const B=admjBornes(), finAff=new Date(B.fin); finAff.setDate(finAff.getDate()-1);
@@ -26299,7 +26318,7 @@ function vAdmin(){
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
   if(!adminLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
   /* MON RAPPORT ADMIN, TOUT EN HAUT (Mag, 13/10/2026). */
-  if(PROFILE && PROFILE.admin) h+=rapportAdminHTML();
+  if(PROFILE && PROFILE.admin) h+=admjBouton();
 
   const dem=ADMIN.requests||[], mem=ADMIN.members||[];
   const actifs=mem.filter(m=>m.actif!==false).length;
