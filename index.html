@@ -17563,7 +17563,8 @@ function accTrioHTML(){
   const D=rapportDonnees(), a=agIso(new Date());
   const rv=D.reveils.filter(function(x){ return !x.passe; }).length, accT=D.acc.filter(function(r){ return !r.accomp_nom; }).length;
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; }).length;
-  const nRdv=RDV_CHARGE?rdvAujourdhui():0;
+  /* Rendez-vous SOCIAUX seulement (pas de médical dans le rapport, Mag 13/10/2026), et sans ceux déjà comptés en accompagnement. */
+  const nRdv=RDV_CHARGE?(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !r.accompagne && rdvType(r.genre).k!=='medical'; }).length:0;
   let pp=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); pp=ppAlertes(); } }catch(e){}
   const c=function(n, mot, col, rouge){ return n?'<span class="trio-c'+(rouge?' r':'')+'" style="--c:'+col+'"><b>'+n+'</b>'+esc(mot)+'</span>':''; };
   const chips=c(rv, rv>1?'réveils':'réveil','#fd8fd0')+c(D.acc.length, D.acc.length>1?'accompagnements':'accompagnement','#6cb392')+
@@ -17655,7 +17656,9 @@ function rapportHTML(page){
         '<b>'+esc(titre)+'</b><span class="rap-rvn" style="background:'+c+'">'+L.length+'</span><span class="chv">'+(ouv?'⌃':'⌄')+'</span></button>'+
         (ouv?'<div class="rap-dep" style="--c:'+c+'">'+L.map(ligneRdv).join('')+'<button class="rap-tv" onclick="RDV_VUE=\'\';go(\'#/rdv\')">tout voir dans l’agenda ›</button></div>':'')+'</div>';
     };
-    const rr=rv('med','#e63329','Rendez-vous médicaux','Médical',med)+rv('soc','#6fc7d9','Rendez-vous sociaux','Social',soc);
+    /* ⭐ PAS DE RENDEZ-VOUS MÉDICAUX DANS LE RAPPORT (Mag, 13/10/2026 : « c'est du travail interne-interne ») —
+       ils restent dans l'agenda. Seuls les sociaux sont ici. */
+    const rr=rv('soc','#6fc7d9','Rendez-vous sociaux','Social',soc);
     if(rr) h+=rr; else vides.push('rendez-vous');
   }
   if(actS.length){
@@ -17739,7 +17742,6 @@ function rapportImprimer(){
     const pv=ppAlertes(), sc=act.filter(function(x){ return ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }) && !x.sacs_le; }).length;
     if(pv||sc) c+=st('Punaises', null)+tab(l('', [pv?pv+' à prévenir':'', sc?sc+' sac'+(sc>1?'s':'')+' à faire':''].filter(Boolean).join(' · '), ''));
   }
-  c+=bloc('Rendez-vous médicaux', med, r2);
   c+=bloc('Rendez-vous sociaux', soc, r2);
   c+=bloc('Activités de la semaine', actS, function(x){ return l(x.heure?rdvHeureFr(x.heure):'', esc(ppJourFr(x.jour))+' — <b>'+esc(x.titre)+'</b>', esc(x.lieu||'')); });
   c+=bloc(RAPPORT_RUB[1][1], msg(RAPPORT_RUB[1]), lm);
