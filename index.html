@@ -735,6 +735,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .chaff{font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b6862;padding:6px 0 2px}
 .chgarde{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}.rap-nom{font-weight:600}.rap-motif{font-weight:600}.rap-abs .rap-x{color:#6b6862;font-style:italic}.rap-abs .rap-nom{font-style:normal;color:#2b2a28}.rap-lam{font-style:normal;font-weight:700;font-size:12px;background:#e63329;color:#fdfdfc;border-radius:6px;padding:1px 7px;margin-left:4px}
 #rap-valider{background:#e63329;color:#fdfdfc;border-radius:14px;padding:14px 14px 12px;border-top:0;margin:8px 0}#rap-valider .rap-tg,#rap-valider .rap-l,#rap-valider .rap-chv{color:#fdfdfc}#rap-valider .rap-dot{color:#e63329}#rap-valider .etq-s{background:#fdfdfc;color:#e63329}#rap-valider .rap-acc{border-color:#fdfdfc;color:#fdfdfc}#rap-valider .rap-l{padding-left:37px}
+.etq.etq-rouge{background:#e63329}
 .rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
@@ -17701,8 +17702,9 @@ function accTrioHTML(){
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
   const nInfo=(D.msg||[]).filter(function(m){ return m.rubrique==='info'; }).length;
   const nEnt=(D.msg||[]).filter(function(m){ return m.rubrique==='entree'; }).length;
-  /* « à valider » quitte les étiquettes de l'accueil (Mag, 13/10/2026) : la coordination a sa bande rouge. */
-  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:accT, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);
+  /* « à valider » : seulement les ACCOMPAGNEMENTS à valider, en rouge (Mag, 13/10/2026). */
+  const nValA=estGroupeD()?0:(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le && r.accompagne; }).length;
+  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:accT, punaise:pp, rdv:nRdv, valider:nValA, act:nAct}, true);
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17879,19 +17881,20 @@ const RAP_ATTENTION='<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z" fill="#f8
 function rapEtiquettes(o, accueil){
   const masque=function(f,c){ return '<i class="etq-m" style="--c:'+c+';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></i>'; };
   const ic=function(k,c){ return '<i class="etq-i" style="color:'+c+'">'+icon(k)+'</i>'; };
-  const e=function(n, pic, mot, bloc){
+  const e=function(n, pic, mot, bloc, rouge){
     if(!n) return '';
     const clic=accueil ? 'event.stopPropagation();go(\'#/rapport\');setTimeout(function(){rapAller(\''+bloc+'\')},80)' : 'rapAller(\''+bloc+'\')';
-    return '<span class="etq" role="button" onclick="'+clic+'">'+(pic||'')+'<b>'+n+'</b>'+(mot?'<span>'+esc(mot)+'</span>':'')+'</span>';
+    return '<span class="etq'+(rouge?' etq-rouge':'')+'" role="button" onclick="'+clic+'">'+(pic||'')+'<b>'+n+'</b>'+(mot?'<span>'+esc(mot)+'</span>':'')+'</span>';
   };
   return e(o.ent,'', 'sans PFM','entree')+e(o.info,'', o.info>1?'infos':'info','info')+
     e(o.reveil, masque('alarme.svg','#fd8fd0'), '', 'reveils')+
     e(o.acc, masque('accompagnement.svg','#6cb392'), o.acc>1?'accompagnements':'accompagnement','acc')+
-    e(o.accT, masque('accompagnement.svg','#e63329'), 'à trouver','acc')+
+    e(o.accT, masque('accompagnement.svg','#fdfdfc'), 'à trouver','acc', true)+
     e(o.punaise, ic('punaise','#f3c6da'), '', 'punaises')+
     e(o.rdv, ic('calendrier','#6fc7d9'), 'rendez-vous','soc')+
     /* « à valider » = le picto accompagnement, EN ROUGE (Mag, 13/10/2026 : « on prend les mêmes bases, ça devient rouge ») */
-    e(o.valider, masque('accompagnement.svg','#e63329'), 'à valider', 'valider')+
+    /* ROUGE INVERSÉ, PICTO BLANC (Mag, 13/10/2026) — « à trouver » et « à valider » se lisent tout de suite. */
+    e(o.valider, masque('accompagnement.svg','#fdfdfc'), 'à valider', 'valider', true)+
     e(o.act, ic('ticket','#6cb392'), o.act>1?'activités':'activité','act');
 }
 /* L'HEURE DE LA DERNIÈRE MISE À JOUR (Mag, 13/10/2026) : le dernier message écrit ou corrigé, la dernière activité ou le
