@@ -713,6 +713,21 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvl-o{font-size:13.5px;color:#6b6963;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rdvl-a{justify-self:end;font-size:13px;border:1.5px solid #6fc7d9;border-radius:999px;padding:1px 9px;white-space:nowrap}.rdvl-a.rouge{border-color:#e63329;color:#e63329}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
+.rap{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:18px;padding:14px 16px 8px;margin:14px 0}
+.rap-top{display:flex;align-items:center;gap:10px;margin-bottom:4px}.rap-top b{font-size:20px;font-weight:600;flex:1}.rap-top span{font-size:13px;color:#6b6963}
+.rap-s{border-top:1px solid #ece9e4;padding:10px 0 6px}
+.rap-sh{display:flex;align-items:center;gap:9px;margin-bottom:4px}.rap-sh b{font-size:13.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;flex:1}
+.rap-dot{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;color:#2b2a28}.rap-dot img,.rap-dot svg,.rap-dot .pico{width:17px;height:17px}.rap-ic{font-size:14px;font-weight:600}
+.rap-n2{font-size:12px;color:#6b6963}
+.rap-add{font:inherit;font-size:12.5px;background:none;border:1.5px dashed #c9c5be;border-radius:999px;padding:1px 10px;color:#6b6963;cursor:pointer}
+.rap-l{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;font:inherit;color:#2b2a28;padding:6px 0 6px 37px;cursor:default}
+button.rap-l{cursor:pointer}
+.rap-h{flex:none;min-width:52px;font-weight:500;font-size:14.5px;white-space:nowrap}.rap-x{flex:1;min-width:0;font-size:14.5px;line-height:1.35}.rap-x i{font-style:normal;font-size:12px;color:#6b6963}.rap-x em{display:block;font-style:normal;font-size:12px;color:#8b8880}
+.rap-x .rap-ch{border:1.5px solid #d8d4cd;border-radius:999px;padding:0 7px}
+.rap-acc{flex:none;font-size:12.5px;border:1.5px solid #6fc7d9;border-radius:999px;padding:0 9px;white-space:nowrap}.rap-acc.r{border-color:#e63329;color:#e63329}.rap-acc.j{border-color:#6cb392}
+.rap-ret{flex:none;width:28px;height:28px;border:1.5px solid #d8d4cd;border-radius:50%;background:#fdfdfc;font-size:16px;line-height:1;color:#6b6963;cursor:pointer}
+.rap-v{padding:2px 0 6px 37px;font-size:13px;color:#a09c95}
+.rdvbarre.rapbarre{border-color:#2b2a28}.rapbarre b.rap-n{background:#f8763f;color:#fdfdfc;border-color:#f8763f}
 .prc{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:18px 0}
 .prc-c{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:22px;min-height:150px;padding:16px;border:0;border-radius:20px;background:var(--c);color:#2b2a28;text-align:left;cursor:pointer;font:inherit}
 .prc-p{width:64px;height:64px;border-radius:50%;background:#fdfdfc;display:flex;align-items:center;justify-content:center}
@@ -17382,6 +17397,124 @@ function aidesImprimer(){
     '<div class="st"><span>Les plus fragiles — passage du matin</span><em>'+f.length+'</em></div><table class="ai"><tr><th>Ch.</th><th>Nom</th><th>Va bien</th><th>À signaler</th></tr>'+f.map(function(x){ return ligne(x, box+box); }).join('')+'</table>';
   feuilleImprimer({onglet:'Aides-soignantes — '+ppJourFr(agIso(new Date())), entete:'Aides-soignantes — aperçu', titre:'Aides-soignantes', sous:ppJourFr(agIso(new Date())), corps:corps});
 }
+/* ═══ LE RAPPORT DU JOUR (Mag, 13/10/2026 : maquette « super », puis corrigée) ═══
+   Pour toutes les équipes, PAS pour le groupe D. Tout en haut de l'accueil (une barre — l'accueil ne défile pas) et
+   tout en haut du Centre (le rapport entier). Ce qui vient de l'agenda : les ACCOMPAGNEMENTS du jour, les AUTRES
+   RENDEZ-VOUS du jour (un appui ouvre le rendez-vous pour le changer), les RÉVEILS DE DEMAIN. Ce qu'on écrit à la main,
+   signé : info importante (« les sanctions, c'est dans Kairos »), entrée sans condition, technique, à toutes les équipes.
+   Un message reste 3 jours, ou jusqu'à ce qu'on le retire. */
+var RAPPORT=[], RAPPORT_CHARGE=false, RAPPORT_PANNE='', _rapportVu=0;
+const RAPPORT_RUB=[['info','Info importante','#f8763f','!'],['entree','Entrée sans condition','#6cb392','✓'],
+  ['technique','Technique','#f5c542','⚙'],['equipes','À toutes les équipes','#fd8fd0','✉']];
+async function loadRapport(){
+  if(!sb){ RAPPORT_CHARGE=true; return; }
+  try{
+    const r=await sb.from('rapport_messages').select('*').gte('jusqu_au', agIso(new Date())).order('cree_le',{ascending:false}).limit(200);
+    if(r.error) throw r.error;
+    RAPPORT=r.data||[]; RAPPORT_PANNE='';
+  }catch(e){ RAPPORT_PANNE=(e&&e.message)||String(e); }
+  RAPPORT_CHARGE=true;
+}
+function rafraichirRapport(){
+  if(!sb || Date.now()-_rapportVu<30000) return;
+  _rapportVu=Date.now();
+  loadRapport().then(function(){ if(current.view==='rapport' || current.view==='centre') render(); });
+}
+function rapportDonnees(){
+  if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
+  if(!RAPPORT_CHARGE) setTimeout(rafraichirRapport,0);
+  const a=agIso(new Date()), d=ppAjoute(a,1);
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a; });
+  const rv=(RDV||[]).filter(function(r){ return r.jour===d && r.reveil; }).map(function(r){
+      return {h:String(r.reveil_heure||'').slice(0,5), ch:r.chambre||'', t:r.nom+' — rendez-vous '+(r.heure?'à '+rdvHeureFr(r.heure):'')+(r.lieu?', '+r.lieu:''), j:!!r.a_jeun}; })
+    .concat((typeof PASSATIONS!=='undefined'?PASSATIONS:[]).filter(function(p){ return p.genre==='reveil' && p.jour===d && !p.fait_le; }).map(function(p){
+      return {h:String(p.heure||'').slice(0,5), ch:p.chambre||'', t:String(p.texte||'').split('\n')[0], j:!!p.a_jeun}; }))
+    .sort(function(x,y){ return String(x.h||'99').localeCompare(String(y.h||'99')); });
+  return {acc:auj.filter(function(r){ return r.accompagne; }), autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv,
+    msg:RAPPORT};
+}
+function rapportBarre(){
+  const D=rapportDonnees();
+  const n=D.msg.length;
+  return '<button class="rdvbarre rapbarre" onclick="go(\'#/rapport\')"><i>'+icon('fichier')+'</i><span>Rapport du jour</span>'+
+    (D.acc.length?'<b>'+D.acc.length+' accompagnement'+(D.acc.length>1?'s':'')+'</b>':'')+
+    (D.reveils.length?'<b class="clair">'+D.reveils.length+' réveil'+(D.reveils.length>1?'s':'')+' demain</b>':'')+
+    (n?'<b class="rap-n">'+n+' message'+(n>1?'s':'')+'</b>':'')+'</button>';
+}
+function rdvOuvrirModif(id){ const r=rdvLigne(id); if(!r) return; RDV_VUE=''; RDV_FORM=Object.assign({}, r); go('#/rdv'); }
+function rapportHTML(page){
+  const D=rapportDonnees(), a=agIso(new Date());
+  const sec=function(c, ic, titre, n, corps, plus){
+    return '<div class="rap-s"><div class="rap-sh"><span class="rap-dot" style="background:'+c+'">'+ic+'</span><b>'+esc(titre)+'</b>'+
+      (n!==null?'<span class="rap-n2">'+n+'</span>':'')+(plus||'')+'</div>'+corps+'</div>';
+  };
+  const ligneRdv=function(r){
+    const avec=r.accompagne?(r.accomp_nom?'<span class="rap-acc">'+esc(r.accomp_nom)+'</span>':'<span class="rap-acc r">à trouver</span>'):'';
+    return '<button class="rap-l" onclick="rdvOuvrirModif(\''+r.id+'\')"><span class="rap-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
+      '<span class="rap-x">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+(r.lieu?'<em>'+esc(r.lieu)+'</em>':'')+'</span>'+avec+'</button>';
+  };
+  let h='<div class="rap'+(page?' page':'')+'"><div class="rap-top"><b>Rapport du jour</b><span>'+esc(ppJourFr(a))+'</span>'+
+    '<button class="fbtn" onclick="rapportImprimer()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button></div>';
+  h+=sec('#6fc7d9','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc.length, D.acc.length?D.acc.map(ligneRdv).join(''):'<div class="rap-v">Aucun aujourd’hui</div>');
+  h+=sec('#a9c8e8',icon('calendrier'),'Rendez-vous du jour', D.autres.length, D.autres.length?D.autres.map(ligneRdv).join(''):'<div class="rap-v">Aucun autre aujourd’hui</div>');
+  h+=sec('#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils de demain', D.reveils.length, D.reveils.length?D.reveils.map(function(x){
+      return '<div class="rap-l"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; }).join(''):'<div class="rap-v">Aucun</div>');
+  RAPPORT_RUB.forEach(function(rb){
+    const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
+    h+=sec(rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
+      L.map(function(m){
+        const peut=(PROFILE && m.par_uid && m.par_uid===PROFILE.uid) || peutGerer();
+        return '<div class="rap-l"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
+          '<em>'+esc(String(m.par||'').split(/\s+/)[0])+' · '+esc(binQuand(m.cree_le))+'</em></span>'+
+          (peut?'<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button>':'')+'</div>'; }).join(''),
+      '<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ ajouter</button>');
+  });
+  if(RAPPORT_PANNE) h+='<div class="rap-v" style="color:#e63329">Les messages n’ont pas pu être lus : la base n’a pas répondu.</div>';
+  return h+'</div>';
+}
+function vRapport(){
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Rapport du jour</h1></div>';
+  if(estGroupeD()) return h+'<div class="empty" style="margin-top:30px"><b>Réservé à l’équipe.</b></div>';
+  return h+rapportHTML(true);
+}
+function rapportAjouter(rub){
+  const rb=RAPPORT_RUB.find(function(x){ return x[0]===rub; });
+  cousinDemande(rb[1], 'Signé de ton nom · reste 3 jours dans le rapport.', '', async function(v){
+    v=String(v||'').trim(); if(!v) return;
+    const m=/^(?:ch\.?|chambre)\s*(\d{2,4})\b[\s:—-]*/i.exec(v);
+    const ligne={rubrique:rub, texte:(m?v.slice(m[0].length):v).slice(0,600)||v.slice(0,600), chambre:m?m[1]:null, par:nomAffiche()||'?',
+      par_uid:(PROFILE&&PROFILE.uid)||null, jusqu_au:ppAjoute(agIso(new Date()),2)};
+    const r=await sb.from('rapport_messages').insert(ligne).select('*');
+    if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    RAPPORT.unshift(r.data[0]); render(); toast('Dans le rapport ✓');
+  }, 600, true);
+}
+function rapportRetirer(id){
+  const m=RAPPORT.find(function(x){ return x.id===id; }); if(!m) return;
+  cousinConfirme('Retirer ce message du rapport ?', m.texte, async function(){
+    const r=await sb.from('rapport_messages').delete().eq('id',id).select('id');
+    if(r.error || !r.data || !r.data.length){ toast('Pas retiré : la base a refusé'); return; }
+    RAPPORT=RAPPORT.filter(function(x){ return x.id!==id; }); render();
+  }, {ok:'Retirer', danger:true});
+}
+function rapportImprimer(){
+  const D=rapportDonnees(), a=agIso(new Date());
+  const st=function(t,n){ return '<div class="st"><span>'+esc(t)+'</span>'+(n!==null?'<em>'+n+'</em>':'')+'</div>'; };
+  const l=function(hh, t, d){ return '<tr><td class="h">'+esc(hh||'')+'</td><td>'+t+'</td><td class="d">'+(d||'')+'</td></tr>'; };
+  let c='<style>.rp{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 12px}.rp td{border-bottom:1px solid #e4e1dc;padding:6px 4px;vertical-align:top}.rp .h{width:18mm;font-weight:700;white-space:nowrap}.rp .d{width:40mm;text-align:right}</style>';
+  const tab=function(rows){ return '<table class="rp">'+(rows||'<tr><td colspan="3" style="color:#999">—</td></tr>')+'</table>'; };
+  const r2=function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+(r.lieu?' — '+esc(r.lieu):''),
+    r.accompagne?(r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'):''); };
+  c+=st('Accompagnements',D.acc.length)+tab(D.acc.map(r2).join(''));
+  c+=st('Rendez-vous du jour',D.autres.length)+tab(D.autres.map(r2).join(''));
+  c+=st('Réveils de demain',D.reveils.length)+tab(D.reveils.map(function(x){ return l(x.h?rdvHeureFr(x.h):'', esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), x.j?'à jeun':''); }).join(''));
+  RAPPORT_RUB.forEach(function(rb){
+    const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
+    if(!L.length) return;
+    c+=st(rb[1],L.length)+tab(L.map(function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(String(m.par||'').split(/\s+/)[0])); }).join(''));
+  });
+  feuilleImprimer({onglet:'Rapport du jour — '+ppJourFr(a), entete:'Rapport du jour — aperçu', titre:'Rapport du jour', sous:ppJourFr(a), corps:c});
+}
 function vAides(){
   aidesGarde();
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Aides-soignantes</h1></div>';
@@ -21175,6 +21308,7 @@ function parseRoute(){
   if(seg[0]==='tourbacs') return {view:'tourbacs'};
   if(seg[0]==='punaises') return {view:'punaises'};
   if(seg[0]==='aides') return {view:'aides'};
+  if(seg[0]==='rapport') return {view:'rapport'};
   if(seg[0]==='rdv') return {view:'rdv'};
   if(seg[0]==='print') return {view:'print'};
   if(seg[0]==='linge') return {view:'linge'};
@@ -21713,6 +21847,7 @@ function renderInterne(){
   else if(current.view==='tourbacs'){ view.innerHTML=vTourBacs(); rafraichirTourBacs(); }
   else if(current.view==='punaises'){ view.innerHTML=vPunaises(); rafraichirPunaises(); }
   else if(current.view==='aides'){ view.innerHTML=vAides(); rafraichirAides(); }
+  else if(current.view==='rapport'){ view.innerHTML=vRapport(); rafraichirRapport(); }
   /* ⚠ On relit le formulaire AVANT de redessiner : un rafraîchissement ne doit pas
      effacer ce qui est en train d'être tapé. */
   else if(current.view==='rdv' && estGroupeD()){ view.innerHTML='<div class="empty" style="margin-top:40px"><b>L’agenda est réservé à l’équipe.</b></div>'; }
@@ -22469,7 +22604,8 @@ function vHome(){
      les entretiens à voir, puis ce qui reste dans sa liste.
      ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
   /* ⚠ PAS D'AGENDA NI D'ACCOMPAGNEMENTS POUR LE GROUPE D (Mag, 11/10/2026). */
-  if(!estGroupeD()) h+=rdvBarre()+rdvBarreAcc();
+  /* LE RAPPORT DU JOUR, TOUT EN HAUT (Mag, 13/10/2026) — pas pour le groupe D. */
+  if(!estGroupeD()) h+=rapportBarre()+rdvBarre()+rdvBarreAcc();
   if(!estGroupeD()){
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
@@ -23172,6 +23308,8 @@ k:['Formations COUSIN']},
      une sous-page. Revenir en arrière depuis une page de premier niveau, ça ne veut
      rien dire — on en sort par la barre, comme on y est entré. */
   let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', 'aucun');
+  /* LE RAPPORT DU JOUR, TOUT EN HAUT DU CENTRE (Mag, 13/10/2026) — pas pour le groupe D. */
+  if(!estGroupeD()) h+=rapportHTML(false);
 
   /* LA RÈGLE DU GROUPE D, corrigée le 07/08/2026 par Mag : la section « Les outils
      de l'équipe » NE DISPARAÎT PAS. Elle reste, avec son titre, et on n'en retire
@@ -25078,7 +25216,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rapport:'le rapport du jour',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
     linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
@@ -25465,7 +25603,7 @@ const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressourc
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Jeux et quiz', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
-  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
+  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rapport:'Rapport du jour', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
   if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
