@@ -17683,6 +17683,7 @@ function ppImprimer(quoi, rendre){
      compte d'envoi. Ils ne porteront jamais de nom ni de chambre.
    ═══════════════════════════════════════════════════════════════════════════ */
 var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='', RDV_VUE='', RDV_SEM=0, RDV_ACC_TROUVER=false, RDV_ACC_DU='', RDV_ACC_AU='';
+var RDV_RETIRES=[], RDV_RETIRES_OUV=false;
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 /* 15 jours d'historique (09/10/2026 : « on doit pouvoir retourner en arrière de 15 jours »). */
 const RDV_GARDE=15;
@@ -17706,7 +17707,12 @@ async function loadRdv(){
     const {data,error}=await sb.from('rendez_vous').select('*')
       .gte('jour', lim).order('jour',{ascending:true}).order('heure',{ascending:true}).limit(400);
     if(error) throw error;
-    RDV=data||[]; RDV_PANNE='';
+    /* ═══ LA CORBEILLE (Mag, 13/10/2026 : « je dois absolument avoir un backup ; s'il y a un problème, je dois pouvoir
+       tout récupérer ») ═══ « Retirer » ne supprime plus : le rendez-vous part dans les Retirés, et « Remettre » le rend.
+       Il disparaît pour de bon avec les passés, 15 jours après sa date. */
+    RDV=(data||[]).filter(function(r){ return !r.retire_le; });
+    RDV_RETIRES=(data||[]).filter(function(r){ return !!r.retire_le; });
+    RDV_PANNE='';
     /* Le backup de 2 semaines : ce qui a passé 14 jours part (seuls ceux qui écrivent le
        peuvent ; pour les autres la base refuse, sans conséquence). */
     if(rdvPeutEcrire()) sb.from('rendez_vous').delete().lt('jour', lim).then(function(){}, function(){});
@@ -18296,7 +18302,10 @@ async function rdvEnregistrer(){
   if(r.jour>D0.au) RDV_IMPR_AU=r.jour;
   if(r.jour<D0.du && r.jour>=ppAjoute(auj,-RDV_GARDE)) RDV_IMPR_DU=r.jour;
   RDV_VUE='';
-  RDV_FORM=null; render(); toast('Rendez-vous enregistré · '+rdvQuandCourt(r));
+  RDV_FORM=null; render();
+  /* UNE FENÊTRE, PAS UN TOAST (Mag, 13/10/2026 : « quand on enregistre, il faut vraiment une pop-up pour confirmer ») :
+     on lit le nom, le jour et l'heure de ce qui vient d'être enregistré. */
+  cousinInfo('Rendez-vous enregistré', r.nom+(r.chambre?' · ch. '+r.chambre:'')+' — '+ppJourFr(r.jour)+(r.heure?' à '+rdvHeureFr(r.heure):' · sans heure'));
   setTimeout(function(){ const e=document.getElementById('rdvk-'+r.id); if(!e) return;
     if(e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'center'});
     e.classList.add('rdvk-nouveau'); setTimeout(function(){ e.classList.remove('rdvk-nouveau'); }, 2600); }, 120);
@@ -18306,10 +18315,15 @@ function rdvRetirer(id){
   const r=rdvLigne(id); if(!r) return;
   cousinConfirme('Retirer ce rendez-vous ?', r.nom+' · '+ppJourFr(r.jour)+(r.heure?' · '+rdvHeureFr(r.heure):''),
     async function(){
-      const {data,error}=await sb.from('rendez_vous').delete().eq('id',r.id).select('id');
+      const {data,error}=await sb.from('rendez_vous').update({retire_le:new Date().toISOString(), retire_par:nomAffiche()||'?'}).eq('id',r.id).select('id');
       if(error || !data || !data.length){ toast('Pas retiré : la base a refusé'); return; }
-      await loadRdv(); render();
+      await loadRdv(); render(); toast('Rendez-vous dans les Retirés — il peut être remis');
     }, {ok:'Retirer', danger:true});
+}
+async function rdvRemettre(id){
+  const {data,error}=await sb.from('rendez_vous').update({retire_le:null, retire_par:null}).eq('id',id).select('id');
+  if(error || !data || !data.length){ toast('Pas remis : la base a refusé'); return; }
+  await loadRdv(); render(); toast('Rendez-vous remis ✓');
 }
 function rdvFormHTML(){
   const F=RDV_FORM;
@@ -18720,6 +18734,18 @@ function vRdv(){
     h+='<div class="bkp'+(RDV_PASSES?' on':'')+'" style="margin-top:18px"><button class="bkp-tete" onclick="RDV_PASSES=!RDV_PASSES;render()">'+
       '<b>Passés · '+RDV_GARDE+' jours</b><span>'+passes.length+' · '+(RDV_PASSES?'fermer':'ouvrir')+' ›</span></button>'+
       (RDV_PASSES?passes.map(function(r){ return '<p class="rdv-pj">'+esc(ppJourFr(r.jour))+'</p>'+rdvCarte(r,true); }).join(''):'')+'</div>';
+  }
+  if(RDV_RETIRES.length){
+    h+='<div class="bkp'+(RDV_RETIRES_OUV?' on':'')+'" style="margin-top:12px"><button class="bkp-tete" onclick="RDV_RETIRES_OUV=!RDV_RETIRES_OUV;render()">'+
+      '<b>Retirés</b><span>'+RDV_RETIRES.length+' · '+(RDV_RETIRES_OUV?'fermer':'ouvrir')+' ›</span></button>'+
+      (RDV_RETIRES_OUV?RDV_RETIRES.map(function(r){
+        return '<div class="rdvk passe"><div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div><div class="rdvk-c">'+
+          '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
+          '<div class="rdvk-s"><span>'+esc(ppJourFr(r.jour))+'</span>'+(r.lieu?'<span>'+esc(r.lieu)+'</span>':'')+'</div>'+
+          '<div class="rdvk-tr">Retiré par '+esc(String(r.retire_par||'').split(/\s+/)[0])+' · '+esc(binQuand(r.retire_le))+'</div>'+
+          (rdvPeutEcrire()?'<div class="rdvk-f"><span></span><button class="rdvk-val" onclick="rdvRemettre(\''+r.id+'\')">Remettre</button></div>':'')+
+        '</div></div>';
+      }).join(''):'')+'</div>';
   }
   h+='<datalist id="rdvEquipeAcc">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
   h+=wikiBloc('rdv');
@@ -24156,6 +24182,7 @@ function popFermer(){
      allumé, sans que rien ne le dise. */
   if(NOT_ECOUTE && NOT_LIBRE && NOT_LIBRE.indexOf('popChamp')===0) notCouper();
   document.getElementById('popBg').classList.remove('on');
+  { const a=document.querySelector('#popBg .ann'); if(a) a.style.display=''; }
   ['popChamp2','popChamp3','popChampM'].forEach(function(id){
     const e=document.getElementById(id); if(e){ e.style.display='none'; e.value=''; }
   });
@@ -24377,6 +24404,11 @@ function popAutre(){
 function popEtqToggle(k, btn){
   if(_popEtqSel[k]){ delete _popEtqSel[k]; } else { _popEtqSel[k]=1; }
   if(btn) btn.classList.toggle('on', !!_popEtqSel[k]);
+}
+/* Une fenêtre qui INFORME : un seul bouton « OK » (le « Annuler » est caché, il reviendra à la fermeture). */
+function cousinInfo(titre,texte){
+  cousinConfirme(titre,texte,function(){},{ok:'OK'});
+  const a=document.querySelector('#popBg .ann'); if(a) a.style.display='none';
 }
 function cousinConfirme(titre,texte,quandOui,opt){
   cousinPop({titre:titre,texte:texte,ok:(opt&&opt.ok)||'Confirmer',danger:!!(opt&&opt.danger),quandOui:quandOui});
@@ -25329,12 +25361,42 @@ function vChantier(){
   return h+'<div style="height:26px"></div>';
 }
 
+/* ═══ LA SAUVEGARDE COMPLÈTE (Mag, 13/10/2026 : « je dois absolument avoir un backup ; s'il y a un problème, je dois
+   pouvoir tout récupérer ») ═══ Un fichier sur l'ordinateur, avec TOUTES les tables que l'app lit : rendez-vous,
+   passations, entrants, punaises, chambres, listes… Une table qui refuse est notée dans le fichier, pas oubliée.
+   C'est avec ce fichier qu'on remet les choses en place si la base perd quelque chose. */
+const SAUV_TABLES=['rendez_vous','passations','passation_reponses','entrants','entrants_corbeille','absences','absences_maj',
+  'protocole_punaises','chambres','tour_bacs','aides_personnes','aides_jour','checklists','checklist_faites','reglages_perso','notes_backup',
+  'favoris','binome_lignes','binome_reponses','binome_membres','numeros_internes','wiki_fiches','wiki_versions','wiki_centre',
+  'chantier','suggestions','propositions','conseils','avis','activites','feed','feed_reactions','jeux_semaine','profiles',
+  'allowed_emails','access_requests'];
+async function sauvegardeTelecharger(){
+  toast('Sauvegarde en cours…');
+  const out={fait_le:new Date().toISOString(), par:nomAffiche()||'', tables:{}};
+  let n=0, refus=[];
+  for(const t of SAUV_TABLES){
+    const toutes=[]; let err='';
+    for(let de=0; de<50000; de+=1000){
+      const {data,error}=await sb.from(t).select('*').range(de, de+999);
+      if(error){ err=error.message; break; }
+      toutes.push.apply(toutes, data||[]);
+      if(!data || data.length<1000) break;
+    }
+    if(err){ out.tables[t]={erreur:err}; refus.push(t); } else { out.tables[t]=toutes; n+=toutes.length; }
+  }
+  const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='cousin-sauvegarde-'+agIso(new Date())+'.json'; document.body.appendChild(a); a.click(); a.remove();
+  cousinInfo('Sauvegarde téléchargée', n+' lignes dans le fichier'+(refus.length?' · pas lues : '+refus.join(', '):'')+'.');
+}
 function vAdmin(){
   let h=heroBandeau('Admin','','#f8763f','cog',true);
   if(!vueGestion())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
   if(!adminLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+  if(PROFILE && PROFILE.admin) h+='<div class="chadd" style="margin-top:14px"><button class="chaddbtn" style="flex:1" onclick="sauvegardeTelecharger()">'+
+    '<span class="ic">'+icon('disquette')+'</span> Télécharger une sauvegarde de tout</button></div>';
 
   const dem=ADMIN.requests||[], mem=ADMIN.members||[];
   const actifs=mem.filter(m=>m.actif!==false).length;
