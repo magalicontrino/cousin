@@ -734,6 +734,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .chaddaff{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 18px}.chaffb{flex:1;min-width:150px;border:2px solid #2b2a28;border-radius:999px;background:#fdfdfc;color:#2b2a28;font:inherit;font-weight:600;font-size:14px;padding:10px 14px;cursor:pointer}.chaffb.on{background:#2b2a28;color:#fdfdfc}.chaddaff .chaddbtn{flex:none}
 .chaff{font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b6862;padding:6px 0 2px}
 .chgarde{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}.rap-nom{font-weight:600}.rap-motif{font-weight:600}.rap-abs .rap-x{color:#6b6862;font-style:italic}.rap-abs .rap-nom{font-style:normal;color:#2b2a28}.rap-lam{font-style:normal;font-weight:700;font-size:12px;background:#e63329;color:#fdfdfc;border-radius:6px;padding:1px 7px;margin-left:4px}
+#rap-valider{background:#e63329;color:#fdfdfc;border-radius:14px;padding:14px 14px 12px;border-top:0;margin:8px 0}#rap-valider .rap-tg,#rap-valider .rap-l,#rap-valider .rap-chv{color:#fdfdfc}#rap-valider .rap-dot{color:#e63329}#rap-valider .etq-s{background:#fdfdfc;color:#e63329}#rap-valider .rap-acc{border-color:#fdfdfc;color:#fdfdfc}#rap-valider .rap-l{padding-left:37px}
 .rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
@@ -17700,7 +17701,8 @@ function accTrioHTML(){
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
   const nInfo=(D.msg||[]).filter(function(m){ return m.rubrique==='info'; }).length;
   const nEnt=(D.msg||[]).filter(function(m){ return m.rubrique==='entree'; }).length;
-  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:accT, punaise:pp, rdv:nRdv, valider:aVal, act:nAct}, true);
+  /* « à valider » quitte les étiquettes de l'accueil (Mag, 13/10/2026) : la coordination a sa bande rouge. */
+  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:accT, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17807,10 +17809,11 @@ function rapportHTML(page){
       '<button class="rap-tv rap-cta" onclick="rapVersPassation()">voir la passation ›</button>') : (vides.push('réveils'),'');
   h+= D.acc.length ? sec('acc','#6cb392','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc.length, D.acc.map(ligneRdv).join('')+
       '<button class="rap-tv rap-cta" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">voir les accompagnements ›</button>') : (vides.push('accompagnements'),'');
-  if(!gD && aVal.length) h+=sec('valider','#a9c8e8',   /* bleu clair : l'orange est déjà à l'info importante (Mag, 13/10/2026) */
-    '<span class="rap-ic">✓</span>','À valider', aVal.length,   /* un seul picto : le rond (Mag, 13/10/2026) */
+  /* ⭐ À VALIDER = LES ACCOMPAGNEMENTS SEULS, EN ROUGE INVERSÉ (Mag, 13/10/2026 : « pourquoi 3 taxis ? », « plus en rouge ») */
+  if(!gD && nAccV) h+=sec('valider','#fdfdfc',
+    '<span class="rap-ic">✓</span>','À valider', nAccV,   /* un seul picto : le rond (Mag, 13/10/2026) */
     '<button class="rap-l" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')"><span class="rap-x">'+
-      [nAccV?nAccV+' accompagnement'+(nAccV>1?'s':''):'', nTaxiV?nTaxiV+' taxi'+(nTaxiV>1?'s':''):''].filter(Boolean).map(function(t){ return '<span class="rap-ligne">'+t+'</span>'; }).join('')+'</span><span class="rap-acc">ouvrir ›</span></button>', '');   /* « trop fouillis » (13/10) : plus d'étiquette Coordination */
+      '<span class="rap-ligne">'+nAccV+' accompagnement'+(nAccV>1?'s':'')+'</span></span><span class="rap-acc">ouvrir ›</span></button>', '');   /* « trop fouillis » (13/10) : plus d'étiquette Coordination */
   /* À VALIDER ET PUNAISES AU-DESSUS DES INFOS (Mag, 13/10/2026, dernier ordre) */
   if(ppPrev || ppSacs) h+=sec('punaises','#f3c6da',icon('punaise'),'Punaises', null,   /* pas de date de passage (Mag, 13/10/2026 : « ce n'est pas encore prévu ») */
     '<button class="rap-pp" onclick="go(\'#/punaises\')">'+(ppPrev?'<span class="r">'+ppPrev+' à prévenir</span>':'')+(ppSacs?'<span>'+ppSacs+' sac'+(ppSacs>1?'s':'')+' à faire</span>':'')+'</button>');
