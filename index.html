@@ -724,7 +724,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-bar{display:grid;grid-template-columns:140px 1fr 34px;align-items:center;gap:8px;font-size:13px;padding:3px 0}.admj-bar i{display:block;height:10px;border-radius:6px;background:#6fc7d9}.admj-bar b{font-weight:600;text-align:right}
 .admj-p{font-size:14px;line-height:1.4;padding:6px 10px;border-left:4px solid #f5c542;background:#f6f4f1;border-radius:0 8px 8px 0;margin-bottom:6px}.admj-p b{font-weight:600}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
-.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}.rap-m{position:relative;padding-top:9px;padding-bottom:9px}.rap-m+.rap-m{border-top:1px solid rgba(43,42,40,.15)}.rap-m::before{content:'/';position:absolute;left:18px;top:8px;font-size:17px;font-weight:700;color:var(--c)}@media(min-width:700px){.rap-l .rap-x{max-width:68ch;padding-right:28px}}.rap-new{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#e63329;margin-right:4px}.rpic{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-right:4px;vertical-align:-2px;font-style:normal;color:#1C1C1C}.rpic img,.rpic svg{width:15px;height:15px}.rpic .rpk{font-weight:700;font-size:13px}.rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
+.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}.rap-m{position:relative;padding-top:9px;padding-bottom:9px}.rap-m+.rap-m{border-top:1px solid rgba(43,42,40,.15)}.rap-m::before{content:'/';position:absolute;left:18px;top:8px;font-size:17px;font-weight:700;color:var(--c)}@media(min-width:700px){.rap-l .rap-x{max-width:68ch;padding-right:28px}}.rap-new{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#e63329;margin-right:4px}.rpic{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-right:4px;vertical-align:-2px;font-style:normal;color:#1C1C1C}.rpic img,.rpic svg{width:15px;height:15px}.rpic .rpk{font-weight:700;font-size:13px}.rap-cr{display:block;font-size:12.5px;font-style:italic;margin-top:4px}.rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
 .rap-s:not(.ouv) .rap-sh{margin-bottom:0}
@@ -17651,7 +17651,9 @@ function rapportHTML(page){
   const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))); });
   const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
-  const actS=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
+  /* ⭐ UNE ACTIVITÉ PASSÉE RESTE 7 JOURS DANS LE RAPPORT, avec son compte rendu ; ensuite elle n'est plus que dans la page
+     Activités (Mag, 13/10/2026). Le chiffre en haut ne compte que celles À VENIR. */
+  const actS=ACT.filter(function(x){ return x.jour>=ppAjoute(a,-7) && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
   const rvV=D.reveils.filter(function(x){ return !x.passe; }).length, accT=D.acc.filter(function(r){ return !r.accomp_nom; }).length;
 
   let h='<div class="rap'+(page?' page':'')+'"><div class="rap-top"><b>Rapport du jour</b><span>'+esc(ppJourFr(a))+'</span>'+
@@ -17661,7 +17663,7 @@ function rapportHTML(page){
   const nInfo=D.msg.filter(function(m){ return m.rubrique==='info'; }).length;
   const nEnt=D.msg.filter(function(m){ return m.rubrique==='entree'; }).length;
   const chips=chip(nInfo, nInfo>1?'infos':'info','#f8763f','info')+chip(nEnt, 'sans PFM','#6cb392','entree')+chip(rvV, rvV>1?'réveils':'réveil','#fd8fd0','reveils')+chip(accT, 'accompagnant'+(accT>1?'s':'')+' à trouver','#e63329','acc',true)+
-    chip(ppPrev,'à prévenir (punaises)','#f3c6da','punaises')+chip(aVal.length,'à valider','#f8763f','valider')+chip(actS.length, actS.length>1?'activités':'activité','#6cb392','act');
+    chip(ppPrev,'à prévenir (punaises)','#f3c6da','punaises')+chip(aVal.length,'à valider','#f8763f','valider')+chip(actS.filter(function(x){ return x.jour>=a; }).length, actS.filter(function(x){ return x.jour>=a; }).length>1?'activités':'activité','#6cb392','act');
   if(chips) h+='<div class="rap-chips">'+chips+'</div>';
 
   h+= D.reveils.length ? sec('reveils','#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils.length, D.reveils.map(function(x){
@@ -17695,7 +17697,7 @@ function rapportHTML(page){
     const JS=['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
     h+=sec('act','#6cb392',icon('ticket'),'Activités de la semaine', null, '<div class="rap-fl">'+actS.map(function(x,i){
       const d=new Date(x.jour+'T12:00:00');
-      return '<button class="rap-fc" style="--c:'+ACT_COUL[i%ACT_COUL.length]+'" onclick="actEditer('+x.id+')"><i>'+(x.jour===a?'AUJ.':JS[d.getDay()]+' '+d.getDate())+(x.heure?' · '+esc(rdvHeureFr(x.heure)):'')+'</i><b>'+esc(x.titre)+'</b>'+(x.lieu?'<span>'+esc(x.lieu)+'</span>':'')+'</button>'; }).join('')+'</div>',
+      return '<button class="rap-fc" style="--c:'+ACT_COUL[i%ACT_COUL.length]+'" onclick="actEditer('+x.id+')"><i>'+(x.jour===a?'AUJ.':JS[d.getDay()]+' '+d.getDate())+(x.heure?' · '+esc(rdvHeureFr(x.heure)):'')+'</i><b>'+esc(x.titre)+'</b>'+(x.lieu?'<span>'+esc(x.lieu)+'</span>':'')+(x.cr?'<em class="rap-cr">« '+esc(x.cr)+' »</em>':'')+'</button>'; }).join('')+'</div>',
       '<button class="rap-add" onclick="actOuvrir({})">+ ajouter</button>');
   } else { vides.push('activités'); plus.push('<button class="rap-add" onclick="actOuvrir({})">+ Activité</button>'); }
   if(!gD) h+=msgSec(RAPPORT_RUB[1]);
@@ -17769,7 +17771,7 @@ function rapportImprimer(){
   const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))); });
   const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; });
-  const actS=(typeof ACT!=='undefined'?ACT:[]).filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
+  const actS=(typeof ACT!=='undefined'?ACT:[]).filter(function(x){ return x.jour>=ppAjoute(a,-7) && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
   let c='<style>.rp{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 12px}.rp td{border-bottom:1px solid #e4e1dc;padding:6px 4px;vertical-align:top}.rp .h{width:18mm;font-weight:700;white-space:nowrap}.rp .d{width:40mm;text-align:right}</style>';
   c+=bloc('Réveils', D.reveils, function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); });
   c+=bloc('Accompagnements', D.acc, r2);
@@ -17795,7 +17797,7 @@ var ACT=[], ACT_CHARGE=false, _actVu=0, ACT_SEM=0, ACT_EDIT=null;
 async function loadAct(){
   if(!sb){ ACT_CHARGE=true; return; }
   try{
-    const r=await sb.from('activites_centre').select('*').gte('jour', ppAjoute(agIso(new Date()),-60)).order('jour').order('heure').limit(500);
+    const r=await sb.from('activites_centre').select('*').gte('jour', ppAjoute(agIso(new Date()),-730)).order('jour').order('heure').limit(3000);   /* 2 ans d'historique (Mag, 13/10/2026) */
     if(r.error) throw r.error; ACT=r.data||[];
   }catch(e){}
   ACT_CHARGE=true;
@@ -17824,7 +17826,7 @@ function actOuvrir(o){
   bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
     '<div class="act-pt"><span class="act-pi">'+icon('ticket')+'</span>'+(o.id?'L’activité':'C’est une activité')+'</div>'+
     '<input id="actTitre" class="act-in" placeholder="Quoi ? (foot, atelier dessin…)" value="'+esc(o.titre||'')+'" maxlength="140">'+
-    '<div class="act-f"><input id="actJour" type="date" class="act-in" value="'+esc(o.jour||agIso(new Date()))+'">'+
+    '<div class="act-f"><input id="actJour" type="date" class="act-in" min="'+ppAjoute(agIso(new Date()),-730)+'" max="'+ppAjoute(agIso(new Date()),730)+'" value="'+esc(o.jour||agIso(new Date()))+'">'+
       '<select id="actHeure" class="act-in">'+actHeures(String(o.heure||'').slice(0,5))+'</select></div>'+
     '<div class="chips act-ou"><button class="chip" style="--c:#6cb392" onclick="document.getElementById(\'actLieu\').value=\'Au centre\'">Au centre</button>'+
       '<button class="chip" style="--c:#6fc7d9" onclick="document.getElementById(\'actLieu\').value=\'À l’extérieur\'">À l’extérieur</button></div>'+
