@@ -726,6 +726,8 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
 .rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
 .rap-l.passe{opacity:.45}
+.rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
+.rap-s:not(.ouv) .rap-sh{margin-bottom:0}
 .rap-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
 .rap-chip{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;min-width:64px;border:0;border-radius:12px;padding:6px 10px;background:var(--c);color:#2b2a28;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}.rap-chip b{font-size:16px;font-weight:600}.rap-chip.r{color:#fdfdfc}
 .rap-qui{font-size:11px;border:1.5px solid var(--c);border-radius:999px;padding:0 8px;color:#2b2a28;font-weight:500;letter-spacing:0;text-transform:none}
@@ -17577,9 +17579,14 @@ function rdvOuvrirModif(id){ const r=rdvLigne(id); if(!r) return; RDV_VUE=''; RD
 var RAP_OUV={};
 function rapportHTML(page){
   const D=rapportDonnees(), a=agIso(new Date()), gD=estGroupeD();
+  /* DES MENUS DÉROULANTS (Mag, 13/10/2026 : « s'il y a plusieurs réveils, ce sera trop long ») : on voit le titre et le
+     chiffre, un appui ouvre. L'info importante reste ouverte d'office. À l'impression, tout est ouvert. */
   const sec=function(id, c, ic, titre, n, corps, plus, qui){
-    return '<div class="rap-s" id="rap-'+id+'"><div class="rap-sh"><span class="rap-dot" style="background:'+c+'">'+ic+'</span><b>'+esc(titre)+'</b>'+
-      (qui?'<span class="rap-qui" style="--c:'+c+'">'+esc(qui)+'</span>':'')+(n!==null&&n!==undefined?'<span class="rap-n2">'+n+'</span>':'')+(plus||'')+'</div>'+corps+'</div>';
+    const ouv = RAP_OUV[id]!==undefined ? !!RAP_OUV[id] : (id==='info');
+    return '<div class="rap-s'+(ouv?' ouv':'')+'" id="rap-'+id+'"><div class="rap-sh"><button class="rap-tg" onclick="RAP_OUV[\''+id+'\']='+(!ouv)+';render()">'+
+      '<span class="rap-dot" style="background:'+c+'">'+ic+'</span><b>'+esc(titre)+'</b>'+
+      (qui?'<span class="rap-qui" style="--c:'+c+'">'+esc(qui)+'</span>':'')+(n!==null&&n!==undefined?'<span class="rap-n2">'+n+'</span>':'')+
+      '<span class="rap-chv">'+(ouv?'⌃':'⌄')+'</span></button>'+(plus||'')+'</div>'+(ouv?corps:'')+'</div>';
   };
   const ligneRdv=function(r){
     const avec=r.accompagne?(r.accomp_nom?'<span class="rap-acc">'+esc(r.accomp_nom)+'</span>':'<span class="rap-acc r">à trouver</span>'):'';
@@ -17654,7 +17661,7 @@ function rapportHTML(page){
   if(RAPPORT_PANNE) h+='<div class="rap-v" style="color:#e63329">Les messages n’ont pas pu être lus : la base n’a pas répondu.</div>';
   return h+'</div>';
 }
-function rapAller(id){ const e=document.getElementById('rap-'+id); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); }
+function rapAller(id){ RAP_OUV[id]=true; render(); setTimeout(function(){ const e=document.getElementById('rap-'+id); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); },60); }
 function vRapport(){
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Rapport du jour</h1></div>';
   /* ⭐ PAS POUR LES POLYVALENTS (Mag, 13/10/2026 : « ils n'ont pas accès à ce rapport, tout court »). */
@@ -17698,22 +17705,35 @@ function rapportRetirer(id){
     RAPPORT=RAPPORT.filter(function(x){ return x.id!==id; }); render();
   }, {ok:'Retirer', danger:true});
 }
+/* L'IMPRESSION (Mag, 13/10/2026) : TOUT OUVERT, dans l'ordre de l'écran ; un bloc VIDE n'est pas imprimé. */
 function rapportImprimer(){
   const D=rapportDonnees(), a=agIso(new Date());
   const st=function(t,n){ return '<div class="st"><span>'+esc(t)+'</span>'+(n!==null?'<em>'+n+'</em>':'')+'</div>'; };
   const l=function(hh, t, d){ return '<tr><td class="h">'+esc(hh||'')+'</td><td>'+t+'</td><td class="d">'+(d||'')+'</td></tr>'; };
-  let c='<style>.rp{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 12px}.rp td{border-bottom:1px solid #e4e1dc;padding:6px 4px;vertical-align:top}.rp .h{width:18mm;font-weight:700;white-space:nowrap}.rp .d{width:40mm;text-align:right}</style>';
-  const tab=function(rows){ return '<table class="rp">'+(rows||'<tr><td colspan="3" style="color:#999">—</td></tr>')+'</table>'; };
+  const tab=function(rows){ return '<table class="rp">'+rows+'</table>'; };
+  const bloc=function(t, L, ligne){ return L.length ? st(t, L.length)+tab(L.map(ligne).join('')) : ''; };
   const r2=function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+(r.lieu?' — '+esc(r.lieu):''),
     r.accompagne?(r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'):''); };
-  c+=st('Accompagnements',D.acc.length)+tab(D.acc.map(r2).join(''));
-  c+=st('Rendez-vous du jour',D.autres.length)+tab(D.autres.map(r2).join(''));
-  c+=st('Réveils',D.reveils.length)+tab(D.reveils.map(function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); }).join(''));
-  RAPPORT_RUB.forEach(function(rb){
-    const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
-    if(!L.length) return;
-    c+=st(rb[1],L.length)+tab(L.map(function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(String(m.par||'').split(/\s+/)[0])); }).join(''));
-  });
+  const msg=function(rb){ return D.msg.filter(function(m){ return m.rubrique===rb[0]; }); };
+  const lm=function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(String(m.par||'').split(/\s+/)[0])); };
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le; });
+  const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
+  const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; });
+  const actS=(typeof ACT!=='undefined'?ACT:[]).filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
+  let c='<style>.rp{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 12px}.rp td{border-bottom:1px solid #e4e1dc;padding:6px 4px;vertical-align:top}.rp .h{width:18mm;font-weight:700;white-space:nowrap}.rp .d{width:40mm;text-align:right}</style>';
+  c+=bloc('Réveils', D.reveils, function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); });
+  c+=bloc('Accompagnements', D.acc, r2);
+  c+=bloc('À valider — coordination', aVal, function(r){ return l(rdvHeureFr(r.heure), esc(r.nom)+' — '+esc(ppJourFr(r.jour)), [r.accompagne?'accompagnement':'', r.taxi?'taxi':''].filter(Boolean).join(' · ')); });
+  c+=bloc(RAPPORT_RUB[0][1], msg(RAPPORT_RUB[0]), lm);
+  if(typeof PUNAISES!=='undefined'){
+    const act=ppActives().filter(function(x){ const e=ppEtat(x); return e!=='fini' && e!=='abandon'; });
+    const pv=ppAlertes(), sc=act.filter(function(x){ return ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }) && !x.sacs_le; }).length;
+    if(pv||sc) c+=st('Punaises', null)+tab(l('', [pv?pv+' à prévenir':'', sc?sc+' sac'+(sc>1?'s':'')+' à faire':''].filter(Boolean).join(' · '), ''));
+  }
+  c+=bloc('Rendez-vous médicaux', med, r2);
+  c+=bloc('Rendez-vous sociaux', soc, r2);
+  c+=bloc('Activités de la semaine', actS, function(x){ return l(x.heure?rdvHeureFr(x.heure):'', esc(ppJourFr(x.jour))+' — <b>'+esc(x.titre)+'</b>', esc(x.lieu||'')); });
+  c+=bloc(RAPPORT_RUB[1][1], msg(RAPPORT_RUB[1]), lm);
   feuilleImprimer({onglet:'Rapport du jour — '+ppJourFr(a), entete:'Rapport du jour — aperçu', titre:'Rapport du jour', sous:ppJourFr(a), corps:c});
 }
 /* ═══ LES ACTIVITÉS DU CENTRE (Mag, 13/10/2026 : « pour les éducs — mais pas qu'eux — écrire dans leur note, cliquer
