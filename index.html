@@ -724,7 +724,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-bar{display:grid;grid-template-columns:140px 1fr 34px;align-items:center;gap:8px;font-size:13px;padding:3px 0}.admj-bar i{display:block;height:10px;border-radius:6px;background:#6fc7d9}.admj-bar b{font-weight:600;text-align:right}
 .admj-p{font-size:14px;line-height:1.4;padding:6px 10px;border-left:4px solid #f5c542;background:#f6f4f1;border-radius:0 8px 8px 0;margin-bottom:6px}.admj-p b{font-weight:600}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
-.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}.rap-m{position:relative;padding-top:9px;padding-bottom:9px}.rap-m+.rap-m{border-top:1px solid rgba(43,42,40,.15)}.rap-m::before{content:'/';position:absolute;left:18px;top:8px;font-size:17px;font-weight:700;color:var(--c)}@media(min-width:700px){.rap-l .rap-x{max-width:68ch;padding-right:28px}}.rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
+.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}.rap-m{position:relative;padding-top:9px;padding-bottom:9px}.rap-m+.rap-m{border-top:1px solid rgba(43,42,40,.15)}.rap-m::before{content:'/';position:absolute;left:18px;top:8px;font-size:17px;font-weight:700;color:var(--c)}@media(min-width:700px){.rap-l .rap-x{max-width:68ch;padding-right:28px}}.rap-new{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#e63329;margin-right:4px}.rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
 .rap-s:not(.ouv) .rap-sh{margin-bottom:0}
@@ -17537,7 +17537,10 @@ function rapportDonnees(){
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
   if(!RAPPORT_CHARGE) setTimeout(rafraichirRapport,0);
   const a=agIso(new Date()), d=ppAjoute(a,1);
-  const auj=(RDV||[]).filter(function(r){ return r.jour===a; });
+  /* ⭐ CE QUI EST PASSÉ S'EFFACE (Mag, 13/10/2026 : « que ça s'efface quand l'heure est passée, sauf les activités ») :
+     un rendez-vous ou un accompagnement dont l'heure est passée, un réveil dont l'heure est passée, sortent du rapport. */
+  const hmP=String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0');
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !(r.heure && String(r.heure).slice(0,5)<=hmP); });
   /* LES RÉVEILS D'AUJOURD'HUI ET DE DEMAIN (Mag, 13/10/2026 : « quand l'heure est passée, en bas, en gris ») :
      d'abord ceux qui viennent (aujourd'hui, puis demain), ceux dont l'heure est passée tout en bas. */
   const now=new Date(), hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
@@ -17547,7 +17550,7 @@ function rapportDonnees(){
       return {jr:p.jour, h:String(p.heure||'').slice(0,5), ch:p.chambre||'', t:String(p.texte||'').split('\n')[0], j:!!p.a_jeun}; }))
     .map(function(x){ x.demain=(x.jr===d); x.passe=(x.jr===a && !!x.h && x.h<=hm); return x; })
     .sort(function(x,y){ return (x.passe?1:0)-(y.passe?1:0) || (x.demain?1:0)-(y.demain?1:0) || String(x.h||'99').localeCompare(String(y.h||'99')); });
-  return {acc:auj.filter(function(r){ return r.accompagne; }), autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv,
+  return {acc:auj.filter(function(r){ return r.accompagne; }), autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv.filter(function(x){ return !x.passe; }),
     msg:RAPPORT};
 }
 function rapportBarre(){
@@ -17575,7 +17578,7 @@ function accTrioHTML(){
   /* Rendez-vous SOCIAUX seulement (pas de médical dans le rapport, Mag 13/10/2026), et sans ceux déjà comptés en accompagnement. */
   /* Les activités de la semaine ont leur chiffre (Mag, 13/10/2026 : « pourquoi tu n'as pas mis l'activité à venir ? »). */
   let nAct=0; try{ if(typeof ACT!=='undefined'){ if(!ACT_CHARGE) setTimeout(rafraichirAct,0); nAct=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).length; } }catch(e){}
-  const nRdv=RDV_CHARGE?(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !r.accompagne && rdvType(r.genre).k!=='medical'; }).length:0;
+  const nRdv=RDV_CHARGE?(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))) && !r.accompagne && rdvType(r.genre).k!=='medical'; }).length:0;
   let pp=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); pp=ppAlertes(); } }catch(e){}
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
   const c=function(n, mot, col, rouge, bloc){ return n?'<span class="trio-c'+(rouge?' r':'')+'" style="--c:'+col+'"'+
@@ -17626,7 +17629,9 @@ function rapportHTML(page){
     return sec(rb[0], rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
       L.map(function(m){
         /* Une info = une ligne, une flèche à la couleur du bloc, un trait fin entre deux (Mag, 13/10/2026 : « que ce soit propre »). */
-        return '<div class="rap-l rap-m" style="--c:'+rb[2]+'"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
+        /* « NOUVEAU » pendant 24 h (Mag, 13/10/2026 : « s'il y a une information rajoutée, je veux que ce soit mis »). */
+        const neuf=m.cree_le && (Date.now()-new Date(m.cree_le).getTime())<864e5;
+        return '<div class="rap-l rap-m" style="--c:'+rb[2]+'"><span class="rap-x">'+(neuf?'<b class="rap-new">nouveau</b> ':'')+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
           rapSig(m.par)+'</span>'+
           '<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button></div>'; }).join(''),
       '<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ ajouter</button>');
@@ -17642,7 +17647,7 @@ function rapportHTML(page){
     ppSacs=act.filter(function(x){ return ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }) && !x.sacs_le; }).length;
     ppJour=(act.map(function(x){ return x.jour; }).filter(function(j){ return j>=a; }).sort()[0])||'';
   }
-  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le; });
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))); });
   const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
   const actS=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
@@ -17753,7 +17758,7 @@ function rapportImprimer(){
     r.accompagne?(r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'):''); };
   const msg=function(rb){ return D.msg.filter(function(m){ return m.rubrique===rb[0]; }); };
   const lm=function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(rapSig(m.par,true))); };
-  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le; });
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))); });
   const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; });
   const actS=(typeof ACT!=='undefined'?ACT:[]).filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
