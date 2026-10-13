@@ -17726,6 +17726,7 @@ async function loadRdv(){
     RDV=(data||[]).filter(function(r){ return !r.retire_le; });
     RDV_RETIRES=(data||[]).filter(function(r){ return !!r.retire_le; });
     RDV_PANNE='';
+    rdvBackupGarder(data||[]);
     /* Le backup de 2 semaines : ce qui a passé 14 jours part (seuls ceux qui écrivent le
        peuvent ; pour les autres la base refuse, sans conséquence). */
     if(rdvPeutEcrire()) sb.from('rendez_vous').delete().lt('jour', lim).then(function(){}, function(){});
@@ -18316,6 +18317,7 @@ async function rdvEnregistrer(){
      lesquelles on croyait devoir réécrire, et ce qu'on retapait se perdait ensuite.
      On pose la ligne que la base vient de rendre, on ferme, PUIS on relit. */
   const r=res.data[0];
+  rdvBackupGarder([r]);
   RDV=RDV.filter(function(x){ return x.id!==r.id; }).concat([r])
     .sort(function(a,b){ return (String(a.jour)+String(a.heure||'')).localeCompare(String(b.jour)+String(b.heure||'')); });
   /* ═══ ON VA SUR LE RENDEZ-VOUS QU'ON VIENT D'ÉCRIRE (Mag, 13/10/2026 : « j'ai fait un test, je n'ai pas trouvé mon
@@ -18512,8 +18514,23 @@ function rdvCarte(r, passe){
         '<span class="rdvk-a">'+
           '<button class="rdvk-mod" onclick="rdvAvantImprimer([rdvLigne(\''+r.id+'\')],function(){ rdvImprimer(null,null,\''+r.id+'\'); })">Imprimer</button>'+
           (ecr?'<button class="rdvk-mod" onclick="rdvModifier(\''+r.id+'\')">Modifier</button><button class="rdvk-mod" onclick="rdvRetirer(\''+r.id+'\')">Retirer</button>':'')+
+          '<button class="rdvk-mod" onclick="rdvVersMaListe(\''+r.id+'\')">Dans ma liste</button>'+
         '</span></div>'+
     '</div></div>';
+}
+/* ═══ « DANS MA LISTE » (Mag, 13/10/2026 : « parfois ce sont des notes pour soi ; un appui, ça se met dans ta note perso,
+   personne n'est obligé de le voir ; Imene doit pouvoir le mettre dans sa liste ET me l'envoyer ») ═══ Le rendez-vous
+   devient une ligne de Ma liste perso (privée). De là, elle s'envoie comme toute ligne (passation, service social). */
+function rdvVersMaListe(id){
+  const r=rdvLigne(id); if(!r) return;
+  if((MESRAPPELS||[]).some(function(x){ return String(x.rdv)===String(r.id); })){ toast('Déjà dans ta liste'); return; }
+  const ty=rdvType(r.genre).l.toLowerCase();
+  const t='Rendez-vous '+ty+' — '+r.nom+' : '+ppJourFr(r.jour)+(r.heure?' à '+rdvHeureFr(r.heure):'')+(r.lieu?', '+r.lieu:'')+'.'+
+    (r.accompagne?(r.accomp_nom?' Accompagné par '+r.accomp_nom+'.':' Accompagnant à trouver.'):'');
+  const ligne={id:'r'+Date.now(), texte:t.slice(0,4000), rdv:r.id};
+  if(r.chambre) ligne.chambre=String(r.chambre).slice(0,12);
+  MESRAPPELS.push(ligne); rappelsSauver(); render();
+  cousinInfo('Dans ta liste', r.nom+' — '+ppJourFr(r.jour)+'. Personne d’autre ne la voit ; tu peux l’envoyer depuis Ma liste.');
 }
 function rdvJourTitre(j){
   const a=agIso(new Date());
@@ -18743,27 +18760,51 @@ function rdvImprimerSimple(du, au){
   feuilleImprimer({onglet:'Rendez-vous — semaine du '+ppJourFr(du), entete:'Rendez-vous de la semaine — aperçu',
     titre:'Rendez-vous de la semaine', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
 }
-/* ═══ LA SAUVEGARDE DES RENDEZ-VOUS (Mag, 13/10/2026 : « pas dans Admin ; dans les rendez-vous ; de tout ce qui suit,
-   jusqu'à la fin des rendez-vous ; on simplifie ») ═══ Un fichier qui s'ouvre dans Excel : une ligne par rendez-vous,
-   d'aujourd'hui au dernier encodé. Si l'app ou la base perd quelque chose, tout est dedans. */
-function rdvSauvegarde(){
-  const a=agIso(new Date());
-  const L=RDV.filter(function(r){ return r.jour>=a; });
-  if(!L.length){ toast('Aucun rendez-vous à venir'); return; }
-  const col=['Date','Heure','Nom','Chambre','Sorte','Lieu','Adresse','Accompagnement','Qui accompagne','Validation','Taxi','PMR',
-    'Réveil','À prévenir','Pas autonome','À jeun','Précision','Encodé par'];
-  const c=function(v){ v=String(v==null?'':v).replace(/"/g,'""'); return /[;"\n]/.test(v)?'"'+v+'"':v; };
-  const lignes=[col.join(';')].concat(L.map(function(r){
-    return [ppJourFr(r.jour), rdvHeureFr(r.heure)||'', r.nom, r.chambre||'', rdvType(r.genre).l, r.lieu||'', r.adresse||'',
-      r.accompagne?'Oui':'Non', r.accompagne?(r.accomp_nom||'à trouver'):'',
-      r.valide_le?'validé par '+String(r.valide_par||'').split(/\s+/)[0]:(r.refuse_le?'refusé par '+String(r.refuse_par||'').split(/\s+/)[0]+' : '+(r.refuse_motif||''):(rdvAValider(r)?'en attente':'')),
-      r.taxi?rdvTaxiTexte(r):'', r.pmr?'Oui':'', r.reveil?(rdvHeureFr(r.reveil_heure)||'Oui'):'', rdvAPrevenir(r)?'Oui':'',
-      r.pas_autonome?'Oui':'', r.a_jeun?'Oui':'', r.note||'', String(r.cree_par||'').split(/\s+/)[0]].map(c).join(';');
-  }));
-  const blob=new Blob(['﻿'+lignes.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const el=document.createElement('a'); el.href=URL.createObjectURL(blob);
-  el.download='rendez-vous-sauvegarde-'+a+'.csv'; document.body.appendChild(el); el.click(); el.remove();
-  cousinInfo('Sauvegarde téléchargée', L.length+' rendez-vous, du '+ppJourFr(L[0].jour)+' au '+ppJourFr(L[L.length-1].jour)+'. Le fichier s’ouvre dans Excel.');
+/* ═══ LE BACKUP DES RENDEZ-VOUS (Mag, 13/10/2026 : « à chaque fois qu'on rentre un rendez-vous, il faut le rajouter dans
+   un backup ; si Supabase saute, il faut qu'on puisse récupérer les rendez-vous, dans tous les détails ; pouvoir
+   IMPRIMER le backup ; c'est extrêmement important ») ═══
+   Chaque appareil garde SA copie (localStorage) de tous les rendez-vous vus : à chaque lecture de l'agenda et à chaque
+   enregistrement. Le bouton « Backup » imprime CETTE COPIE — pas la base : il marche quand la base ne répond plus.
+   On garde tout ce qui vient + 30 jours en arrière. Un rendez-vous retiré reste dans le backup, marqué « retiré ». */
+const RDV_BK_CLE='cousin_rdv_backup';
+function rdvBackupLire(){ try{ const o=JSON.parse(localStorage.getItem(RDV_BK_CLE)||'{}'); return (o && o.rdv)?o:{rdv:{}, maj:''}; }catch(e){ return {rdv:{}, maj:''}; } }
+function rdvBackupGarder(liste){
+  try{
+    const o=rdvBackupLire(), lim=ppAjoute(agIso(new Date()), -30);
+    (liste||[]).forEach(function(r){ if(r && r.id!=null) o.rdv[String(r.id)]=r; });
+    Object.keys(o.rdv).forEach(function(k){ if(String(o.rdv[k].jour||'')<lim) delete o.rdv[k]; });
+    o.maj=new Date().toISOString();
+    localStorage.setItem(RDV_BK_CLE, JSON.stringify(o));
+  }catch(e){}
+}
+function rdvBackupImprimer(){
+  const o=rdvBackupLire(), a=agIso(new Date());
+  const L=Object.keys(o.rdv).map(function(k){ return o.rdv[k]; }).filter(function(r){ return String(r.jour)>=a; })
+    .sort(function(x,y){ return (String(x.jour)+String(x.heure||'')).localeCompare(String(y.jour)+String(y.heure||'')); });
+  if(!L.length){ cousinInfo('Backup vide', 'Cet appareil n’a encore gardé aucun rendez-vous à venir. Ouvre l’agenda une fois connecté·e.'); return; }
+  const lig=function(k,v){ return v?'<tr><td class="k">'+esc(k)+'</td><td>'+esc(v)+'</td></tr>':''; };
+  const qui=function(x){ return String(x||'').split(/\s+/)[0]; };
+  let corps='<style>.bk{border:1px solid #ebe7e0;border-radius:10px;padding:8px 12px;margin:8px 0;page-break-inside:avoid}'+
+    '.bk h3{font-size:15px;margin:0 0 4px}.bk h3 span{font-weight:400;color:#6b6963;font-size:13px}.bk.ret{opacity:.55}'+
+    '.bk table{border-collapse:collapse;width:100%;font-size:12px}.bk td{padding:2px 6px 2px 0;vertical-align:top}.bk td.k{width:36mm;color:#6b6963}</style>';
+  let jour='';
+  L.forEach(function(r){
+    if(r.jour!==jour){ jour=r.jour; corps+='<div class="st"><span>'+esc(ppJourFr(r.jour))+'</span></div>'; }
+    corps+='<div class="bk'+(r.retire_le?' ret':'')+'"><h3>'+esc(rdvHeureFr(r.heure)||'—')+' · '+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+
+      ' <span>'+esc(rdvType(r.genre).l)+(r.retire_le?' · RETIRÉ par '+esc(qui(r.retire_par)):'')+'</span></h3><table>'+
+      lig('Lieu', [r.lieu,r.adresse].filter(Boolean).join(' — '))+
+      lig('Accompagnement', r.accompagne?(r.accomp_nom||'accompagnant à trouver')+(r.accomp_motif?' — « '+r.accomp_motif+' »':''):'Non')+
+      lig('Validation', r.valide_le?'validé par '+qui(r.valide_par)+(r.valide_mot?' — « '+r.valide_mot+' »':''):(r.refuse_le?'refusé par '+qui(r.refuse_par)+' — « '+(r.refuse_motif||'')+' »':(rdvAValider(r)?'en attente':'')))+
+      lig('Taxi', r.taxi?rdvTaxiTexte(r):'')+
+      lig('Réveil', r.reveil?(rdvHeureFr(r.reveil_heure)||'oui'):'')+
+      lig('À prévoir', [r.pmr?'PMR':'', r.a_jeun?'À JEUN':'', r.pas_autonome?'Pas autonome':'', rdvAPrevenir(r)?'À prévenir':''].filter(Boolean).join(' · '))+
+      lig('Précision', r.note||'')+
+      lig('Corrections', String(r.corrige_txt||'').replace(/\n/g,' / '))+
+      lig('Encodé', qui(r.cree_par)+(r.cree_le?' · '+binQuand(r.cree_le):'')+(r.modifie_le?' — modifié par '+qui(r.modifie_par)+' · '+binQuand(r.modifie_le):''))+
+    '</table></div>';
+  });
+  feuilleImprimer({onglet:'Backup des rendez-vous', entete:'Backup des rendez-vous — aperçu', titre:'Backup des rendez-vous',
+    sous:L.length+' rendez-vous à venir · copie de cet appareil, mise à jour '+(o.maj?binQuand(o.maj):'—'), corps:corps});
 }
 function rdvImprimerAcc(){
   const D=rdvAccDates(), du=D.du, au=D.au;
@@ -18813,7 +18854,7 @@ function vRdv(){
      /* LE LOGO SEUL (Mag, 13/10/2026 : « on sait que c'est un logo d'impression ») ; « Planning » = la feuille simplifiée. */
      '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
      '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()" title="Planning de la semaine"><span class="ic">'+icon('imprimer')+'</span>Planning</button>'+
-     '<button class="fbtn" onclick="rdvSauvegarde()" title="Sauvegarder tous les rendez-vous à venir"><span class="ic">'+icon('disquette')+'</span>Sauvegarde</button>'+
+     '<button class="fbtn" onclick="rdvBackupImprimer()" title="Imprimer le backup de tous les rendez-vous à venir"><span class="ic">'+icon('disquette')+'</span>Backup</button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
      '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)">'+
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span>Accompagnement</button></div>';
