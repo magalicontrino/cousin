@@ -714,6 +714,14 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
 .rapPass.rapAct{border-color:#6cb392}
+.admj{background:#fdfdfc;border:2px solid #f8763f;border-radius:18px;padding:14px 16px 10px;margin:16px 0}
+.admj-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.admj-t b{font-size:20px;font-weight:600;flex:1}.admj-t span{font-size:13px;color:#6b6963}
+.admj-chiffres{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}.admj-chiffres span{border:1.5px solid #e4e1dc;border-radius:999px;padding:3px 11px;font-size:13px}.admj-chiffres b{font-weight:600}.admj-chiffres .r{border-color:#e63329}
+.admj-s{border-top:1px solid #ece9e4;padding:10px 0 6px}.admj-st{font-size:12.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6b6963;margin-bottom:6px}
+.admj-l{display:flex;gap:10px;align-items:baseline;padding:4px 0;font-size:14px}.admj-q{flex:none;min-width:70px;font-weight:600}.admj-x{flex:1;min-width:0}.admj-x em{display:block;font-style:normal;font-size:12px;color:#8b8880}.admj-d{flex:none;font-size:12px;color:#8b8880}
+.admj-bar{display:grid;grid-template-columns:140px 1fr 34px;align-items:center;gap:8px;font-size:13px;padding:3px 0}.admj-bar i{display:block;height:10px;border-radius:6px;background:#6fc7d9}.admj-bar b{font-weight:600;text-align:right}
+.admj-p{font-size:14px;line-height:1.4;padding:6px 10px;border-left:4px solid #f5c542;background:#f6f4f1;border-radius:0 8px 8px 0;margin-bottom:6px}.admj-p b{font-weight:600}
+.admj-v{font-size:13px;color:#a09c95;padding:4px 0}
 .rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
 .rdvcal-e{border-left-color:#a9c8e8}.rdvcal-e.manque{border-left-color:#e63329}
 .rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
@@ -17339,6 +17347,7 @@ async function aidesAjouter(){
   const res=await sb.from('aides_personnes').insert({liste:F.liste, chambre:String(F.chambre||'').trim()||null, nom:String(F.nom).trim(),
     soins:F.liste==='soins'?F.soins:[], cree_par:nomAffiche()||'?'}).select('*');
   if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  journal('ajout', F.liste==='soins'?'soins du jour':'plus fragiles', String(F.nom).trim());
   AIDES.push(res.data[0]); AIDES_FORM=null; render(); toast('Ajouté·e ✓');
 }
 function aidesRetirer(id){
@@ -17347,6 +17356,7 @@ function aidesRetirer(id){
     const maj={retire_le:new Date().toISOString(), retire_par:nomAffiche()||'?'};
     const res=await sb.from('aides_personnes').update(maj).eq('id',id).select('id');
     if(res.error || !res.data || !res.data.length){ toast('Pas retiré : la base a refusé'); return; }
+    journal('retrait', x.liste==='soins'?'soins du jour':'plus fragiles', x.nom);
     Object.assign(x, maj); render();
   }, {ok:'Retirer', danger:true});
 }
@@ -17480,7 +17490,8 @@ function rapportHTML(page){
     const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
     h+=sec(rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
       L.map(function(m){
-        const peut=(PROFILE && m.par_uid && m.par_uid===PROFILE.uid) || peutGerer();
+        /* TOUT LE MONDE PEUT RETIRER (Mag, 13/10/2026) — avec « tu es sûr ? », et l'admin voit qui (journal). */
+        const peut=!estGroupeD();
         /* LA SIGNATURE EN PETIT, EN CLAIR, AU BOUT DE LA PHRASE — ou rien (Mag, 13/10/2026 : « on n'a pas besoin de voir
            tout le temps qui écrit ; pas l'heure ; on peut mettre anonyme »). */
         return '<div class="rap-l"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
@@ -17521,13 +17532,15 @@ async function rapportEnvoyer(signe){
   const r=await sb.from('rapport_messages').insert(ligne).select('*');
   if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
   document.getElementById('rapBg').classList.remove('on');
+  journal('ajout','rapport du jour', ligne.texte.slice(0,120));
   RAPPORT.unshift(r.data[0]); render(); toast('Dans le rapport ✓');
 }
 function rapportRetirer(id){
   const m=RAPPORT.find(function(x){ return x.id===id; }); if(!m) return;
-  cousinConfirme('Retirer ce message du rapport ?', m.texte, async function(){
+  cousinConfirme('Tu es sûr de vouloir retirer cette information ?', m.texte, async function(){
     const r=await sb.from('rapport_messages').delete().eq('id',id).select('id');
     if(r.error || !r.data || !r.data.length){ toast('Pas retiré : la base a refusé'); return; }
+    journal('retrait','rapport du jour', m.texte.slice(0,120)+(m.par?' (écrit par '+String(m.par).split(/\s+/)[0]+')':''));
     RAPPORT=RAPPORT.filter(function(x){ return x.id!==id; }); render();
   }, {ok:'Retirer', danger:true});
 }
@@ -17582,6 +17595,7 @@ function actHeures(v){
 }
 function actOuvrir(o){
   ACT_EDIT=o;
+  journal('ouvert','formulaire activité', o.id?'modification':'nouveau');
   let bg=document.getElementById('actBg');
   if(!bg){ bg=document.createElement('div'); bg.id='actBg'; bg.className='popbg'; document.body.appendChild(bg); }
   bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
@@ -17597,7 +17611,7 @@ function actOuvrir(o){
   bg.classList.add('on');
   setTimeout(function(){ const e=document.getElementById(o.titre?'actJour':'actTitre'); if(e) e.focus(); },40);
 }
-function actFermer(){ const bg=document.getElementById('actBg'); if(bg) bg.classList.remove('on'); ACT_EDIT=null; }
+function actFermer(){ const bg=document.getElementById('actBg'); if(bg) bg.classList.remove('on'); if(ACT_EDIT && !ACT_EDIT._ok) journal('abandon','formulaire activité', ACT_EDIT.id?'modification':'nouveau'); ACT_EDIT=null; }
 function actDepuisListe(){
   const i=document.getElementById('rapTxt'); const t=((i&&i.value)||'').trim();
   actOuvrir({titre:t.slice(0,140), depuisListe:!!t});
@@ -17620,16 +17634,18 @@ async function actEnregistrer(){
   }
   if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
   ACT=ACT.filter(function(x){ return x.id!==r.data[0].id; }).concat(r.data);
+  o._ok=true; journal(o.id?'modif':'ajout','activité', titre+' · '+jour);
   if(o.depuisListe){ const i=document.getElementById('rapTxt'); if(i) i.value=''; RAP_BROUILLON=''; }
   actFermer(); render();
   cousinInfo(o.id?'Activité enregistrée':'Au calendrier', titre+' — '+ppJourFr(jour)+(ligne.heure?' à '+rdvHeureFr(ligne.heure):''));
 }
 function actRetirer(){
   const o=ACT_EDIT; if(!o || !o.id) return;
-  actFermer();
+  o._ok=true; actFermer();
   cousinConfirme('Retirer cette activité ?', o.titre+' — '+ppJourFr(o.jour), async function(){
     const r=await sb.from('activites_centre').delete().eq('id',o.id).select('id');
     if(r.error || !r.data || !r.data.length){ toast('Pas retirée : la base a refusé'); return; }
+    journal('retrait','activité', o.titre+' · '+o.jour);
     ACT=ACT.filter(function(x){ return x.id!==o.id; }); render();
   }, {ok:'Retirer', danger:true});
 }
@@ -18637,6 +18653,7 @@ function rdvFormVide(){
 }
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
+  journal('ouvert','formulaire rendez-vous','nouveau');
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
             accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
@@ -18647,7 +18664,7 @@ function rdvModifier(id){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM=Object.assign({}, r); render();
 }
-function rdvAnnuler(){ RDV_FORM=null; render(); }
+function rdvAnnuler(){ if(RDV_FORM) journal('abandon','formulaire rendez-vous', RDV_FORM.id?'modification':'nouveau'); RDV_FORM=null; render(); }
 /* ═══ DEUX VUES QUI SE BASCULENT (Mag, 13/10/2026 : « une vue liste, et un petit œil : la vue hyper simplifiée, sans
    les détails ») ═══ La vue simple : une ligne par rendez-vous — l'heure, le nom, la chambre, où, avec qui. Toucher la
    ligne ouvre le rendez-vous en fenêtre. Le choix est gardé sur l'appareil. */
@@ -18855,6 +18872,7 @@ async function rdvEnregistrer(){
      On pose la ligne que la base vient de rendre, on ferme, PUIS on relit. */
   const r=res.data[0];
   rdvBackupGarder([r]);
+  journal(F.id?'modif':'ajout','rendez-vous', r.nom+' · '+r.jour);
   RDV=RDV.filter(function(x){ return x.id!==r.id; }).concat([r])
     .sort(function(a,b){ return (String(a.jour)+String(a.heure||'')).localeCompare(String(b.jour)+String(b.heure||'')); });
   /* ═══ ON VA SUR LE RENDEZ-VOUS QU'ON VIENT D'ÉCRIRE (Mag, 13/10/2026 : « j'ai fait un test, je n'ai pas trouvé mon
@@ -18879,6 +18897,7 @@ function rdvRetirer(id){
     async function(){
       const {data,error}=await sb.from('rendez_vous').update({retire_le:new Date().toISOString(), retire_par:nomAffiche()||'?'}).eq('id',r.id).select('id');
       if(error || !data || !data.length){ toast('Pas retiré : la base a refusé'); return; }
+      journal('retrait','rendez-vous', r.nom+' · '+r.jour);
       await loadRdv(); render(); toast('Rendez-vous dans les Retirés — il peut être remis');
     }, {ok:'Retirer', danger:true});
 }
@@ -19217,6 +19236,7 @@ function rdvValider(id){
     const maj={valide_par:nomAffiche(), valide_le:new Date().toISOString(), valide_mot:v||null, refuse_le:null, refuse_par:null, refuse_motif:null};
     const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
     if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    journal('validation','rendez-vous', r.nom+' · '+r.jour);
     Object.assign(r, maj); render(); toast('Validé ✓');
   }, 300, true);
   const ok=document.getElementById('popOk'); if(ok) ok.textContent='Valider';
@@ -19234,6 +19254,7 @@ function rdvRefuser(id){
       corrige_vu:rdvEstAuteur(r) ? (!!r.corrige_vu || !r.corrige_txt) : false};
     const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
     if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    journal('refus','rendez-vous', r.nom+' · '+r.jour+' — '+v);
     Object.assign(r, maj); render(); toast('Refusé — la raison est sur le rendez-vous');
   }, 200, true);
 }
@@ -21793,7 +21814,25 @@ var RENDU_DIFFERE=false, RENDU_FORCE=false;
 /* Un redessin venu d'une relecture en arrière-plan, pas d'un clic (voir la page Liste). */
 var RENDU_FOND=false;
 function renderFond(){ RENDU_FOND=true; try{ render(); }finally{ RENDU_FOND=false; } }
+/* ═══ LE JOURNAL (Mag, 13/10/2026 : « je veux savoir qui a retiré, ce qui a été utilisé, à quel moment c'est
+   abandonné — un rapport pour améliorer l'application ») ═══ Une ligne par geste qui compte ; les pages ouvertes
+   (une fois par page et par demi-heure). Silencieux : un journal qui échoue ne doit JAMAIS gêner le travail.
+   Seule l'admin lit (policy `j_lit`). ⚠ L'équipe doit être informée que l'app note ces gestes. */
+var _jVues={};
+function journal(action, objet, detail){
+  try{
+    if(!sb || !PROFILE || !PROFILE.uid) return;
+    sb.from('journal').insert({qui:nomAffiche()||'', qui_uid:PROFILE.uid, action:action, objet:objet||null, detail:detail?String(detail).slice(0,300):null})
+      .then(function(){}, function(){});
+  }catch(e){}
+}
+function journalVue(v){
+  if(!v) return; const k=String(v), t=Date.now();
+  if(_jVues[k] && t-_jVues[k]<30*60000) return;
+  _jVues[k]=t; journal('vue', k);
+}
 function render(){
+  try{ if(typeof current!=='undefined' && current) journalVue(current.view); }catch(e){}
   try{
     /* Hors de l'agenda : la prochaine arrivée redéploiera l'encodage (Mag, 10/10/2026). */
     if(current && current.view!=='rdv') window._rdvArrivee=false;
@@ -26112,12 +26151,80 @@ function vChantier(){
   return h+'<div style="height:26px"></div>';
 }
 
+/* ═══ MON RAPPORT ADMIN (Mag, 13/10/2026 : « tous les jeudis, ce qui a été retiré et par qui ; ce que chacun a fait
+   cette semaine ; ce qui a été utilisé ; à quel moment c'est abandonné — un truc hyper intelligent pour voir comment
+   améliorer l'application ; tout en haut dans Admin ») ═══ Lu dans `journal`. La semaine va du JEUDI au mercredi ;
+   ‹ › pour les semaines d'avant. En bas, des PISTES calculées : pages que personne n'ouvre, formulaires abandonnés,
+   retraits faits par d'autres que l'auteur. */
+var ADMJ={sem:0, data:null, cle:'', err:'', ouvert:true};
+const ADMJ_PAGES={home:'Accueil', liste:'Liste et notes', rdv:'Rendez-vous', rapport:'Rapport du jour', centre:'Le centre', punaises:'Protocole punaises',
+  aides:'Aides-soignantes', ticket:'Activités', print:'Print', chambres:'Chambres', tourbacs:'Tour des chambres', reseau:'Réseau', fiche:'Fiches',
+  domaine:'Rubriques du réseau', recherche:'Recherche', urgences:'Urgences', reglement:'Règlement', mobilisation:'Mobilisation', favoris:'Favoris', admin:'Admin', chantier:'Chantier', profil:'Profil', linge:'Le linge', quartier:'Autour d’ici'};
+function admjBornes(){
+  const a=new Date(agIso(new Date())+'T00:00:00'), recul=(a.getDay()-4+7)%7;
+  const deb=new Date(a); deb.setDate(a.getDate()-recul+7*ADMJ.sem);
+  const fin=new Date(deb); fin.setDate(deb.getDate()+7);
+  return {deb:deb, fin:fin};
+}
+function admjCharger(){
+  const B=admjBornes(), cle=B.deb.toISOString();
+  if(ADMJ.cle===cle) return;
+  ADMJ.cle=cle; ADMJ.data=null; ADMJ.err='';
+  sb.from('journal').select('*').gte('le', B.deb.toISOString()).lt('le', B.fin.toISOString()).order('le',{ascending:false}).limit(5000)
+    .then(function(r){ if(r.error){ ADMJ.err=r.error.message; ADMJ.data=[]; } else ADMJ.data=r.data||[]; if(current.view==='admin') render(); },
+          function(e){ ADMJ.err=String(e); ADMJ.data=[]; if(current.view==='admin') render(); });
+}
+function admjSem(d){ ADMJ.sem+=d; if(ADMJ.sem>0) ADMJ.sem=0; render(); }
+function rapportAdminHTML(){
+  admjCharger();
+  const B=admjBornes(), finAff=new Date(B.fin); finAff.setDate(finAff.getDate()-1);
+  const jf=function(d){ return ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1); };
+  let h='<div class="admj"><div class="admj-t"><b>Mon rapport admin</b>'+
+    '<button class="fbtn" onclick="admjSem(-1)" aria-label="Semaine d’avant">‹</button><span>du '+jf(B.deb)+' au '+jf(finAff)+'</span>'+
+    (ADMJ.sem<0?'<button class="fbtn" onclick="admjSem(1)" aria-label="Semaine d’après">›</button>':'')+'</div>';
+  if(!ADMJ.data) return h+'<div class="admj-v">Chargement…</div></div>';
+  if(ADMJ.err) return h+'<div class="admj-v" style="color:#e63329">Le journal n’a pas pu être lu : '+esc(ADMJ.err)+'</div></div>';
+  const L=ADMJ.data, prenom=function(x){ return String(x||'?').split(/\s+/)[0]; };
+  if(!L.length) return h+'<div class="admj-v">Rien de noté cette semaine (le journal existe depuis le 13/10/2026).</div></div>';
+  const vues=L.filter(function(x){ return x.action==='vue'; }), gestes=L.filter(function(x){ return x.action!=='vue'; });
+  const pers={}; L.forEach(function(x){ const k=prenom(x.qui); (pers[k]=pers[k]||{vues:{},n:{}}); if(x.action==='vue') pers[k].vues[x.objet]=(pers[k].vues[x.objet]||0)+1; else pers[k].n[x.action]=(pers[k].n[x.action]||0)+1; });
+  const nP=Object.keys(pers).length, retraits=L.filter(function(x){ return x.action==='retrait'; });
+  h+='<div class="admj-chiffres"><span><b>'+nP+'</b> personnes</span><span><b>'+vues.length+'</b> pages ouvertes</span><span><b>'+gestes.filter(function(x){ return x.action==='ajout'; }).length+'</b> ajouts</span><span class="r"><b>'+retraits.length+'</b> retraits</span></div>';
+  /* 1. Ce qui a été retiré */
+  h+='<div class="admj-s"><div class="admj-st">Retiré cette semaine</div>'+(retraits.length?retraits.map(function(x){
+      return '<div class="admj-l"><span class="admj-q">'+esc(prenom(x.qui))+'</span><span class="admj-x"><b>'+esc(x.objet||'')+'</b> — '+esc(x.detail||'')+'</span><span class="admj-d">'+esc(binQuand(x.le))+'</span></div>'; }).join(''):'<div class="admj-v">Rien</div>')+'</div>';
+  /* 2. Ce que chacun a fait */
+  const libA={ajout:'ajouts', modif:'modifications', retrait:'retraits', validation:'validations', refus:'refus', ouvert:'formulaires ouverts', abandon:'abandons'};
+  h+='<div class="admj-s"><div class="admj-st">Ce que chacun a fait</div>'+Object.keys(pers).sort().map(function(k){
+      const P=pers[k], n=Object.keys(P.n).map(function(a){ return P.n[a]+' '+(libA[a]||a); }).join(' · ');
+      const top=Object.keys(P.vues).sort(function(a,b){ return P.vues[b]-P.vues[a]; }).slice(0,4).map(function(v){ return (ADMJ_PAGES[v]||v); }).join(', ');
+      return '<div class="admj-l"><span class="admj-q">'+esc(k)+'</span><span class="admj-x">'+(n?esc(n):'a regardé seulement')+(top?'<em>surtout : '+esc(top)+'</em>':'')+'</span></div>'; }).join('')+'</div>';
+  /* 3. Les pages */
+  const pv={}; vues.forEach(function(x){ pv[x.objet]=(pv[x.objet]||0)+1; });
+  const tri=Object.keys(pv).sort(function(a,b){ return pv[b]-pv[a]; }), max=tri.length?pv[tri[0]]:1;
+  h+='<div class="admj-s"><div class="admj-st">Ce qui est utilisé</div>'+tri.slice(0,12).map(function(v){
+      return '<div class="admj-bar"><span>'+esc(ADMJ_PAGES[v]||v)+'</span><i style="width:'+Math.max(4,Math.round(100*pv[v]/max))+'%"></i><b>'+pv[v]+'</b></div>'; }).join('')+'</div>';
+  /* 4. Les pistes */
+  const pistes=[];
+  const jamais=Object.keys(ADMJ_PAGES).filter(function(v){ return !pv[v] && v!=='admin' && v!=='chantier' && v!=='fiche'; });
+  if(jamais.length) pistes.push('Personne n’a ouvert : <b>'+jamais.map(function(v){ return esc(ADMJ_PAGES[v]); }).join(', ')+'</b>. À mettre en avant, à expliquer en réunion, ou à retirer ?');
+  const forms={}; gestes.forEach(function(x){ if(x.action==='ouvert'||x.action==='abandon'){ const f=x.objet; (forms[f]=forms[f]||{o:0,a:0}); forms[f][x.action==='ouvert'?'o':'a']++; } });
+  Object.keys(forms).forEach(function(f){ const F=forms[f]; if(F.o>=3 && F.a/F.o>=0.3) pistes.push('Le <b>'+esc(f)+'</b> est abandonné '+F.a+' fois sur '+F.o+' : trop long, ou pas clair ?'); });
+  const parAutres=retraits.filter(function(x){ return /\(écrit[e]? par /.test(x.detail||''); });
+  if(parAutres.length) pistes.push('<b>'+parAutres.length+'</b> retrait'+(parAutres.length>1?'s':'')+' d’une chose écrite par quelqu’un d’autre : à regarder.');
+  const muets=Object.keys(pers).filter(function(k){ return !Object.keys(pers[k].n).length; });
+  if(muets.length) pistes.push('Ont seulement regardé, sans rien écrire : <b>'+muets.map(esc).join(', ')+'</b>.');
+  h+='<div class="admj-s"><div class="admj-st">Pistes pour améliorer</div>'+(pistes.length?pistes.map(function(t){ return '<div class="admj-p">'+t+'</div>'; }).join(''):'<div class="admj-v">Rien de particulier cette semaine</div>')+'</div>';
+  return h+'</div>';
+}
 function vAdmin(){
   let h=heroBandeau('Admin','','#f8763f','cog',true);
   if(!vueGestion())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
   if(!adminLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
+  /* MON RAPPORT ADMIN, TOUT EN HAUT (Mag, 13/10/2026). */
+  if(PROFILE && PROFILE.admin) h+=rapportAdminHTML();
 
   const dem=ADMIN.requests||[], mem=ADMIN.members||[];
   const actifs=mem.filter(m=>m.actif!==false).length;
@@ -42305,12 +42412,12 @@ async function passSupprimer(id){
   /* ⚠ PAS DE PHRASE D'EXPLICATION (Mag, 22/08/2026 : « retire, elle ne reviendra pas
      dans ta liste, elle est effacée »). Le bouton rouge dit « Supprimer » : ce qu'il
      fait n'a pas besoin d'être raconté au-dessus. */
-  if(!passMienne(p)){
+  if(!passMienne(p) && !peutGerer()){
     cousinConfirme('Retirer de ton écran ?', p.texte+(p.par?'\n\nElle reste chez '+String(p.par).split(/\s+/)[0]+'.':''),
       function(){ passMasquer(p); }, {ok:'Retirer', danger:true});
     return;
   }
-  cousinConfirme('Supprimer cette passation ?', p.texte,
+  cousinConfirme(passMienne(p)?'Supprimer cette passation ?':'Supprimer pour tout le monde ?', p.texte+(passMienne(p)?'':'\n\nÉcrite par '+String(p.par||'?').split(/\s+/)[0]+'.'),
     async function(){
       if(!sb){ toast('Pas de connexion'); return; }
       /* ⚠ UN REFUS DE LA BASE NE FAISAIT AUCUN BRUIT (04/10/2026) : sans le droit, la
@@ -42319,6 +42426,7 @@ async function passSupprimer(id){
         if(error) throw error;
         if(!data || !data.length){ toast('Pas supprimée : seule la personne qui l’a écrite peut la supprimer.'); return; }
         if(String(PASS_EDIT)===String(p.id)){ PASS_EDIT=null; PASS_FEUILLE=false; }
+        journal('retrait','passation', String(p.texte||'').slice(0,120)+(passMienne(p)?'':' (écrite par '+String(p.par||'?').split(/\s+/)[0]+')'));
         await loadPassations(); render();
       }catch(e){ toast('Suppression refusée'); }
     }, {ok:'Supprimer', danger:true});
