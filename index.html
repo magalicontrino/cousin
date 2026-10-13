@@ -701,6 +701,9 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk-tr{font-size:12.5px;color:#6b6963;margin-top:8px}
 /* La fenêtre de confirmation passe AU-DESSUS des autres fenêtres (liste À prévenir…). */
 #popBg{z-index:10000}
+.rdvmodal{position:fixed;inset:0;z-index:9000;background:rgba(43,42,40,.5);overflow-y:auto;padding:28px 12px 60px;-webkit-overflow-scrolling:touch}
+.rdvmodal-c{max-width:640px;margin:0 auto;background:#fdfdfc;border-radius:18px;padding:4px 6px}
+.rdvk-clic{cursor:pointer}
 .rdvk{transition:box-shadow .4s}.rdvk.rdvk-nouveau{box-shadow:0 0 0 3px #6fc7d9}
 .rdvk-val-b{margin-top:14px;border:1px solid #e4e1dc;border-radius:12px;padding:10px 12px 12px;background:#f6f4f1}
 .rdvk-val-t{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
@@ -18129,9 +18132,16 @@ function rdvNouveau(){
 function rdvModifier(id){
   const r=rdvLigne(id); if(!r) return;
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
-  RDV_FORM=Object.assign({}, r); render(); window.scrollTo(0,0);
+  RDV_FORM=Object.assign({}, r); render();
 }
 function rdvAnnuler(){ RDV_FORM=null; render(); }
+/* ═══ MODIFIER = UNE FENÊTRE PAR-DESSUS (Mag, 13/10/2026 : « quand on clique, une pop-up doit s'ouvrir pour changer ;
+   là ça remonte tout en haut et il ne se passe rien. Changer un rendez-vous, on ne fait que ça : c'est le point le
+   plus sensible de l'application ») ═══ Le même formulaire, dans une fenêtre, là où on est — dans l'agenda comme dans
+   les Accompagnements. On ferme avec Annuler ou Enregistrer ; un clic à côté ne ferme pas (rien ne se perd). */
+function rdvModalHTML(){
+  return '<div class="rdvmodal" role="dialog" aria-modal="true"><div class="rdvmodal-c">'+rdvFormHTML()+'</div></div>';
+}
 /* On lit les champs AVANT chaque redessin : un choix (type, accompagnement) redessine le
    formulaire, et ce qui était tapé ne doit pas disparaître. */
 function rdvLireChamps(){
@@ -18454,11 +18464,11 @@ function rdvCarte(r, passe){
   const lis = rdvAValider(r) ? (ok?'#6cb392':'#f8763f') : t.c;
   const lieu=[r.lieu,r.adresse].filter(Boolean).join(' — ');
   return '<div id="rdvk-'+esc(String(r.id))+'" class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom?' manque':'')+'" style="border-left-color:'+lis+'">'+
-    '<div class="rdvk-h">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
+    '<div class="rdvk-h'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
     '<div class="rdvk-c">'+
-      '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
+      '<div class="rdvk-n'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
       (r.a_jeun?'<div class="rdvk-jeun">À JEUN</div>':'')+
-      '<div class="rdvk-s"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(lieu?'<span>'+esc(lieu)+'</span>':'')+'</div>'+
+      '<div class="rdvk-s'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(lieu?'<span>'+esc(lieu)+'</span>':'')+'</div>'+
       (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
       /* « Prévenir » n'est plus en étiquette quand la case est là (Mag, 13/10/2026 : c'était écrit deux fois). */
       rdvEtiquettes(r,true,{sansPrev:ecr, sansTaxi:true})+
@@ -18554,7 +18564,7 @@ function vRdvAcc(){
   h+='<p class="rdvacc-res">À valider par les coordinateurs uniquement</p>';
   /* Le formulaire n'apparaît ici QUE si on a appuyé sur « Modifier » dans cette page (Mag, 10/10/2026 : « ça n'a
      rien à faire là, il faudrait voir que les accompagnements ») — on arrive toujours formulaire fermé. */
-  if(RDV_FORM) h+=rdvFormHTML();
+  if(RDV_FORM && RDV_FORM.id) h+=rdvModalHTML();
   h+='<div class="rdvacc-sem">'+
     '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
     '<span class="rdvau">au</span>'+
@@ -18714,7 +18724,8 @@ function vRdv(){
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span>Accompagnement</button></div>';
   /* « À prendre en charge » N'EST PLUS ICI (09/10/2026 : « ça risque d'être long, avant
      l'agenda, ce n'est pas avantageux ») : elle vit dans Liste et notes seulement. */
-  if(RDV_FORM) h+=rdvFormHTML();
+  if(RDV_FORM && RDV_FORM.id) h+=rdvModalHTML();
+  if(RDV_FORM && !RDV_FORM.id) h+=rdvFormHTML();
   else if(rdvPeutEcrire()) h+='<div class="chadd"><button class="chaddbtn" style="flex:1" onclick="rdvNouveau()">+ Encoder un rendez-vous</button></div>';
   if(RDV_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>L’agenda n’a pas pu être lu</b>'+
