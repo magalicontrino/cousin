@@ -713,6 +713,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvl-o{font-size:13.5px;color:#6b6963;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rdvl-a{justify-self:end;font-size:13px;border:1.5px solid #6fc7d9;border-radius:999px;padding:1px 9px;white-space:nowrap}.rdvl-a.rouge{border-color:#e63329;color:#e63329}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
+.prc{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:18px 0}
+.prc-c{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:22px;min-height:150px;padding:16px;border:0;border-radius:20px;background:var(--c);color:#2b2a28;text-align:left;cursor:pointer;font:inherit}
+.prc-p{width:64px;height:64px;border-radius:50%;background:#fdfdfc;display:flex;align-items:center;justify-content:center}
+.prc-p svg,.prc-p img,.prc-p .pico{width:38px;height:38px}
+.prc-c b{font-size:18px;font-weight:600;line-height:1.2}
 .aid-c{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:16px;padding:14px 16px 10px;margin:12px 0}
 .aid-t{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}.aid-t b{font-size:19px;font-weight:600}.aid-t span{font-size:13px;color:#6b6963}
 .aid-r{display:flex;align-items:center;gap:12px;border-top:1px solid #ece9e4;padding:10px 0}.aid-r.fait .aid-x>b,.aid-r.fait .aid-ch{opacity:.55}.aid-r.ret{opacity:.75}
@@ -20489,22 +20494,28 @@ const PRINT_FEUILLES=[
    pages:'A4', pi:'fleur', act:'imprimerParcs()'}
 ];
 
+/* ═══ LA PAGE PRINT EN CARTES (Mag, 13/10/2026 : « immonde, aucune couleur ; on s'en fout de ce que c'est —
+   juste le nom et le picto, de belles cartes, que ça donne envie d'aller voir ») ═══
+   ⚠ Aucune phrase d'explication, aucun nombre de pages : le nom et le dessin suffisent. Couleurs de la charte. */
+const PRINT_CARTES={
+  punaises:   {nom:'Protocole punaises', c:'#f3c6da'},
+  congelateur:{nom:'Congélateur',        c:'#a9c8e8'},
+  eau:        {nom:'Points d’eau',       c:'#6fc7d9'},
+  parcs:      {nom:'Parcs',              c:'#6cb392'}
+};
+function printPicto(k, f){
+  if(k==='congelateur') return '<svg viewBox="0 0 24 24" fill="none" stroke="#2b2a28" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/><path d="M9.5 3.5L12 6l2.5-2.5M9.5 20.5L12 18l2.5 2.5M3.6 10.2l3.4-.9-.9-3.4M20.4 13.8l-3.4.9.9 3.4M6.1 17.6l.9-3.4-3.4-.9M17.9 6.4l-.9 3.4 3.4.9"/></svg>';
+  if(k==='eau') return '<img src="picto/fontaine.svg" alt="">';
+  if(k==='parcs') return '<img src="picto/fleur.svg" alt="">';
+  return icon(f.pi);
+}
 function vPrint(){
   let h=heroBandeau('Print','','#A9C8E8','imprimer',true);
-  h+='<div class="fsrc" style="text-align:left;padding:14px 2px 0">'+
-     'Les feuilles vierges qu’on réimprime souvent, toujours les mêmes. '+
-     'On les sort, on les remplit à la main.</div>';
-  h+='<div class="cards" style="display:flex;flex-direction:column">'+
-    PRINT_FEUILLES.map(function(f){
-      return '<div class="fcard" role="button" tabindex="0" onclick="'+f.act+'">'+
-        '<span class="fpi" style="color:#2b2a28"><span class="ic">'+icon(f.pi)+'</span></span>'+
-        '<span class="tx"><b>'+esc(f.nom)+'</b><small>'+esc(f.sous)+'</small>'+
-          '<em style="display:block;margin-top:5px;font-style:normal;color:#5f5e5a;'+
-          'font-size:12.5px;line-height:1.35">'+esc(f.det)+'</em>'+
-          '<small style="display:block;margin-top:5px;font-family:ui-monospace,monospace;'+
-          'font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8984">'+
-          esc(f.pages)+'</small></span>'+
-        '<span style="font-size:20px;font-weight:600;color:rgba(27,27,27,.4)">›</span></div>';
+  h+='<div class="prc">'+PRINT_FEUILLES.map(function(f){
+      const c=PRINT_CARTES[f.k]||{nom:f.nom, c:'#f3c6da'};
+      return '<button class="prc-c" style="--c:'+c.c+'" onclick="'+f.act+'">'+
+        '<span class="prc-p">'+printPicto(f.k, f)+'</span><b>'+esc(c.nom)+'</b></button>';
     }).join('')+'</div>';
   h+=wikiBloc('print');
   return h;
