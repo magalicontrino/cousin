@@ -713,6 +713,21 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvl-o{font-size:13.5px;color:#6b6963;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rdvl-a{justify-self:end;font-size:13px;border:1.5px solid #6fc7d9;border-radius:999px;padding:1px 9px;white-space:nowrap}.rdvl-a.rouge{border-color:#e63329;color:#e63329}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
+.rapPass.rapAct{border-color:#6cb392}
+.rdvcal-e{border-left-color:#a9c8e8}.rdvcal-e.manque{border-left-color:#e63329}
+.rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
+.rdvdet-x{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:1.5px solid #d8d4cd;background:#fdfdfc;font-size:20px;line-height:1;cursor:pointer;color:#2b2a28}
+.act-pop{max-width:460px}.act-pt{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;margin-bottom:10px}.act-pi{width:34px;height:34px;border-radius:50%;background:#6cb392;display:inline-flex;align-items:center;justify-content:center}.act-pi svg,.act-pi .pico{width:20px;height:20px}
+.act-in{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid #c9c5be;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fdfdfc;color:#2b2a28}
+.act-f{display:flex;gap:8px}.act-f .act-in{flex:1}.act-b{display:flex;gap:8px;align-items:center;margin-top:6px}
+.actcal{margin:14px 0}.actcal-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}.actcal-t b{font-size:16px;font-weight:600}
+.rdvadd.act-add{width:auto;margin:0 0 0 auto;padding:9px 16px;font-size:15px;background:#6cb392}
+.actcal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.actcal-d{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:12px;padding:6px;min-height:110px}.actcal-d.auj{border:2px solid #2b2a28}
+.actcal-dh{display:flex;justify-content:space-between;font-size:12px;color:#6b6963;border-bottom:1px solid #ece9e4;padding-bottom:4px;margin-bottom:5px}.actcal-dh b{color:#2b2a28;font-weight:600}
+.actcal-e{display:block;width:100%;text-align:left;font:inherit;font-size:12.5px;line-height:1.3;color:#2b2a28;border:0;border-left:4px solid #6cb392;background:#f6f4f1;border-radius:0 8px 8px 0;padding:5px 6px;margin-bottom:5px;cursor:pointer}
+.actcal-e b{font-weight:600}.actcal-e i{display:block;font-style:normal;font-size:11px;color:#6b6963}.actcal-e.fait{opacity:.75}
+@media (max-width:620px){ .actcal-g{grid-template-columns:1fr} .actcal-d{min-height:0} }
 .rap{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:18px;padding:14px 16px 8px;margin:14px 0}
 .rap-top{display:flex;align-items:center;gap:10px;margin-bottom:4px}.rap-top b{font-size:20px;font-weight:600;flex:1}.rap-top span{font-size:13px;color:#6b6963}
 .rap-s{border-top:1px solid #ece9e4;padding:10px 0 6px}
@@ -17459,6 +17474,7 @@ function rapportHTML(page){
   h+=sec('#a9c8e8',icon('calendrier'),'Rendez-vous du jour', D.autres.length, D.autres.length?D.autres.map(ligneRdv).join(''):'<div class="rap-v">Aucun autre aujourd’hui</div>');
   h+=sec('#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils de demain', D.reveils.length, D.reveils.length?D.reveils.map(function(x){
       return '<div class="rap-l"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; }).join(''):'<div class="rap-v">Aucun</div>');
+  h+=actRapportHTML(sec);
   RAPPORT_RUB.forEach(function(rb){
     const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
     h+=sec(rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
@@ -17514,6 +17530,118 @@ function rapportImprimer(){
     c+=st(rb[1],L.length)+tab(L.map(function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(String(m.par||'').split(/\s+/)[0])); }).join(''));
   });
   feuilleImprimer({onglet:'Rapport du jour — '+ppJourFr(a), entete:'Rapport du jour — aperçu', titre:'Rapport du jour', sous:ppJourFr(a), corps:c});
+}
+/* ═══ LES ACTIVITÉS DU CENTRE (Mag, 13/10/2026 : « pour les éducs — mais pas qu'eux — écrire dans leur note, cliquer
+   sur Activité, mettre la date ; ça se met dans le rapport ; après, un commentaire : “22 personnes, c'était génial” ;
+   et un petit calendrier des activités faites et prévues ») ═══
+   ⚠ PAS UN PROGRAMME À REMPLIR (l'agenda avait été écarté le 30/07 pour la pression sur les éducs) : on pose ce qu'on
+   fait, quand on veut. Visible : le rapport du jour (celle du jour, « à venir » en petit), la page Activités (calendrier
+   de la semaine), la fin de l'accueil. */
+var ACT=[], ACT_CHARGE=false, _actVu=0, ACT_SEM=0, ACT_EDIT=null;
+async function loadAct(){
+  if(!sb){ ACT_CHARGE=true; return; }
+  try{
+    const r=await sb.from('activites_centre').select('*').gte('jour', ppAjoute(agIso(new Date()),-60)).order('jour').order('heure').limit(500);
+    if(r.error) throw r.error; ACT=r.data||[];
+  }catch(e){}
+  ACT_CHARGE=true;
+}
+function rafraichirAct(){
+  if(!sb || Date.now()-_actVu<30000) return;
+  _actVu=Date.now();
+  loadAct().then(function(){ if(current.view==='ticket' || current.view==='rapport' || current.view==='centre') render(); });
+}
+function actDuJour(j){ return ACT.filter(function(x){ return x.jour===j; }).sort(function(a,b){ return String(a.heure||'').localeCompare(String(b.heure||'')); }); }
+function actResume(){
+  if(!ACT_CHARGE){ setTimeout(rafraichirAct,0); return 'Ce qui se fait au centre'; }
+  const a=agIso(new Date()), n=actDuJour(a).length, v=ACT.filter(function(x){ return x.jour>a && x.jour<=ppAjoute(a,7); }).length;
+  return (n?n+' aujourd’hui':'Rien aujourd’hui')+(v?' · '+v+' à venir':'');
+}
+function actHeures(v){
+  const o=['']; for(let m=7*60; m<=23*60; m+=15) o.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));
+  if(v && o.indexOf(v)<0) o.push(v);
+  return o.map(function(x){ return '<option value="'+x+'"'+(x===(v||'')?' selected':'')+'>'+(x?esc(rdvHeureFr(x)):'heure')+'</option>'; }).join('');
+}
+function actOuvrir(o){
+  ACT_EDIT=o;
+  let bg=document.getElementById('actBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='actBg'; bg.className='popbg'; document.body.appendChild(bg); }
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt"><span class="act-pi">'+icon('ticket')+'</span>'+(o.id?'L’activité':'C’est une activité')+'</div>'+
+    '<input id="actTitre" class="act-in" placeholder="Quoi ? (foot, atelier dessin…)" value="'+esc(o.titre||'')+'" maxlength="140">'+
+    '<div class="act-f"><input id="actJour" type="date" class="act-in" value="'+esc(o.jour||agIso(new Date()))+'">'+
+      '<select id="actHeure" class="act-in">'+actHeures(String(o.heure||'').slice(0,5))+'</select></div>'+
+    '<input id="actLieu" class="act-in" placeholder="Où ? (salle commune, parc…)" value="'+esc(o.lieu||'')+'" maxlength="140">'+
+    (o.id?'<textarea id="actCr" class="act-in" rows="3" placeholder="Comment ça s’est passé ? (combien de personnes…)">'+esc(o.cr||'')+'</textarea>':'')+
+    '<div class="act-b">'+(o.id?'<button class="rdvk-ref" onclick="actRetirer()">Retirer</button>':'')+
+      '<span style="flex:1"></span><button class="rdvk-ref" onclick="actFermer()">Annuler</button>'+
+      '<button class="rdvk-val" onclick="actEnregistrer()">'+(o.id?'Enregistrer':'Mettre au calendrier')+'</button></div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const e=document.getElementById(o.titre?'actJour':'actTitre'); if(e) e.focus(); },40);
+}
+function actFermer(){ const bg=document.getElementById('actBg'); if(bg) bg.classList.remove('on'); ACT_EDIT=null; }
+function actDepuisListe(){
+  const i=document.getElementById('rapTxt'); const t=((i&&i.value)||'').trim();
+  actOuvrir({titre:t.slice(0,140), depuisListe:!!t});
+}
+async function actEnregistrer(){
+  const o=ACT_EDIT; if(!o) return;
+  const g=function(id){ const e=document.getElementById(id); return e?String(e.value||'').trim():''; };
+  const titre=g('actTitre'), jour=g('actJour');
+  if(!titre){ toast('Il manque le quoi'); return; }
+  if(!jour){ toast('Il manque la date'); return; }
+  const ligne={titre:titre, jour:jour, heure:g('actHeure')||null, lieu:g('actLieu')||null};
+  let r;
+  if(o.id){
+    const cr=g('actCr');
+    if(cr!==String(o.cr||'')){ ligne.cr=cr||null; ligne.cr_par=cr?(nomAffiche()||'?'):null; ligne.cr_le=cr?new Date().toISOString():null; }
+    r=await sb.from('activites_centre').update(ligne).eq('id',o.id).select('*');
+  } else {
+    ligne.par=nomAffiche()||'?'; ligne.par_uid=(PROFILE&&PROFILE.uid)||null;
+    r=await sb.from('activites_centre').insert(ligne).select('*');
+  }
+  if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  ACT=ACT.filter(function(x){ return x.id!==r.data[0].id; }).concat(r.data);
+  if(o.depuisListe){ const i=document.getElementById('rapTxt'); if(i) i.value=''; RAP_BROUILLON=''; }
+  actFermer(); render();
+  cousinInfo(o.id?'Activité enregistrée':'Au calendrier', titre+' — '+ppJourFr(jour)+(ligne.heure?' à '+rdvHeureFr(ligne.heure):''));
+}
+function actRetirer(){
+  const o=ACT_EDIT; if(!o || !o.id) return;
+  actFermer();
+  cousinConfirme('Retirer cette activité ?', o.titre+' — '+ppJourFr(o.jour), async function(){
+    const r=await sb.from('activites_centre').delete().eq('id',o.id).select('id');
+    if(r.error || !r.data || !r.data.length){ toast('Pas retirée : la base a refusé'); return; }
+    ACT=ACT.filter(function(x){ return x.id!==o.id; }); render();
+  }, {ok:'Retirer', danger:true});
+}
+function actEditer(id){ const x=ACT.find(function(y){ return y.id===id; }); if(x) actOuvrir(Object.assign({}, x)); }
+function actRapportHTML(sec){
+  if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
+  const a=agIso(new Date()), L=actDuJour(a);
+  const v=ACT.filter(function(x){ return x.jour>a && x.jour<=ppAjoute(a,7); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
+  const corps=(L.length?L.map(function(x){
+      return '<div class="rap-l"><span class="rap-h">'+esc(x.heure?rdvHeureFr(x.heure):'—')+'</span><span class="rap-x">'+esc(x.titre)+(x.lieu?' <i>'+esc(x.lieu)+'</i>':'')+
+        '<em>'+esc(String(x.par||'').split(/\s+/)[0])+(x.cr?' · « '+esc(x.cr)+' »':'')+'</em></span>'+
+        (x.cr?'':'<button class="rap-add" onclick="actEditer('+x.id+')">+ comment ça s’est passé ?</button>')+'</div>'; }).join('')
+      :'<div class="rap-v">Rien aujourd’hui</div>')+
+    (v.length?'<div class="rap-v">À venir : '+v.map(function(x){ return esc(['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][new Date(x.jour+'T12:00:00').getDay()]+' '+x.titre); }).join(' · ')+'</div>':'');
+  return sec('#6cb392', icon('ticket'), 'Activités', L.length, corps, '<button class="rap-add" onclick="actOuvrir({})">+ ajouter</button>');
+}
+function actCalendrierHTML(){
+  if(!ACT_CHARGE || Date.now()-_actVu>30000) setTimeout(rafraichirAct,0);
+  const a=agIso(new Date()), d=new Date(a+'T12:00:00'), lundi=ppAjoute(a, -((d.getDay()+6)%7) + 7*ACT_SEM);
+  const J=['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
+  let h='<div class="actcal"><div class="actcal-t"><button class="fbtn" onclick="ACT_SEM--;render()" aria-label="Semaine d’avant">‹</button>'+
+    '<b>Semaine du '+esc(ppJourFr(lundi))+'</b><button class="fbtn" onclick="ACT_SEM++;render()" aria-label="Semaine d’après">›</button>'+
+    '<button class="rdvadd act-add" onclick="actOuvrir({})"><b>+</b> Activité</button></div><div class="actcal-g">';
+  for(let i=0;i<7;i++){
+    const j=ppAjoute(lundi,i), L=actDuJour(j);
+    h+='<div class="actcal-d'+(j===a?' auj':'')+'"><div class="actcal-dh"><span>'+J[i]+'</span><b>'+Number(j.slice(8,10))+'</b></div>'+
+      L.map(function(x){ return '<button class="actcal-e'+(j<a?' fait':'')+'" onclick="actEditer('+x.id+')">'+(x.heure?'<b>'+esc(rdvHeureFr(x.heure))+'</b> ':'')+esc(x.titre)+
+        (x.cr?'<i>✓ '+esc(x.cr)+'</i>':(x.lieu?'<i>'+esc(x.lieu)+'</i>':''))+'</button>'; }).join('')+'</div>';
+  }
+  return h+'</div></div>';
 }
 function vAides(){
   aidesGarde();
@@ -17802,7 +17930,7 @@ function ppImprimer(quoi, rendre){
     const bx='<i class="bx"></i>';
     const bug='<svg viewBox="0 0 48 48" fill="none" stroke="#2b2a28" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="24" cy="27" rx="10" ry="13"/><circle cx="24" cy="11" r="4.5"/><path d="M24 15v25M14 22l-7-4M14 30H6M15 37l-6 5M34 22l7-4M34 30h8M33 37l6 5M21 7l-3-4M27 7l3-4"/></svg>';
     let th='<tr><th class="l" style="width:25mm">Chambre</th><th class="l" style="width:30mm">Fermée</th>'+
-      '<th class="l" style="width:58mm">Personnes <span class="thpa"><span>'+ppPic('pa')+'</span>pas autonome</span></th>';
+      '<th class="l" style="width:58mm">Personnes</th>';   /* (13/10/2026) pas d'« autonome » sur le papier */
     ET.forEach(function(e){ th+='<th style="width:24mm;--c:'+e[2]+'"><div class="ph">'+ppPic(e[0])+'</div>'+e[1]+'</th>'; });
     th+='<th class="l" style="padding-left:3mm">Commentaires</th></tr>';
     /* (Mag, 10/10/2026) : UNE page de 4 chambres, SANS séparer Rentokil / Mohamed (« pas Rentokil ou
@@ -17834,7 +17962,7 @@ function ppImprimer(quoi, rendre){
         '<td><div class="pas">'+
           '<div class="r">de <b>'+ppHFr(ppDe(a))+'</b></div><div class="r">à <b>'+ppHFr(ppAh(a))+'</b>'+(ppProto(a).k==='tout'?' <span class="pls">+</span><span class="cad">'+ppPic('personne')+'</span>':'')+'</div></div></td>'+
         '<td>'+P.map(function(x){ return '<div class="nm"><span class="ec">'+esc(x.nom||'')+'</span>'+
-          '<i class="bx pa">'+(x.pa?ppPic('pa'):'')+'</i></div>'; }).join('')+'</td>';
+          '</div>'; }).join('')+'</td>';
       const pers=(ppProto(a).k==='tout');
       ET.forEach(function(e){
         /* Liste imprimée depuis l'app (Mag, 10/10/2026) : on SAIT si c'est à faire, donc pas de case « à faire ».
@@ -17929,7 +18057,7 @@ function ppImprimer(quoi, rendre){
       return P.map(function(x){
         /* Pas autonome = le picto EN ROUGE ; liste vierge = le picto en gris, à entourer au stylo. */
         return '<div class="pn"><span class="nm">'+esc(x.nom||'')+'</span>'+
-          '<span class="pabx">'+(a&&x.pa?ppPic('pa'):'')+'</span></div>';
+          '</div>';   /* (13/10/2026) pas d'« autonome » sur le papier */
       }).join('');
     };
     const etapes=function(a){
@@ -17956,7 +18084,7 @@ function ppImprimer(quoi, rendre){
         '<td class="no">'+((a&&ppNotes(a).length)?ppNotes(a).map(function(x){ return '<p class="jn"><b>'+esc(x.par||'')+'</b> <i>'+ppQuand(x.le)+'</i> — '+esc(x.txt)+'</p>'; }).join(''):'')+
           '<div></div><div></div><div></div></td></tr>';
     };
-    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes<span class="thpa"><span class="thpic">'+ppPic('pa')+'</span>pas autonome</span></th><th>'+(pasPrev?'':'Étapes')+'</th>'+
+    const tete='<thead><tr><th>Ch.</th><th>Passage</th><th>Personnes</th><th>'+(pasPrev?'':'Étapes')+'</th>'+
       '<th>Commentaires</th></tr></thead>';
     const bloc=function(t, cls, rows){ return '<div class="band '+cls+'">'+t+'</div><table>'+tete+'<tbody>'+rows+'</tbody></table>'; };
     /* Rentokil ensemble, Mohamed à part — sur la MÊME feuille (Mag, 09/10/2026). */
@@ -18497,6 +18625,7 @@ function rdvNouveau(){
 }
 function rdvModifier(id){
   const r=rdvLigne(id); if(!r) return;
+  { const d=document.getElementById('rdvDetBg'); if(d) d.classList.remove('on'); }
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   RDV_FORM=Object.assign({}, r); render();
 }
@@ -18507,6 +18636,31 @@ function rdvAnnuler(){ RDV_FORM=null; render(); }
 var RDV_MODE='liste';
 try{ RDV_MODE=localStorage.getItem('cousin_rdv_mode')||'liste'; }catch(e){}
 function rdvMode(m){ RDV_MODE=m; try{ localStorage.setItem('cousin_rdv_mode', m); }catch(e){} render(); }
+/* ═══ LA VUE CALENDRIER (Mag, 13/10/2026 : « c'est parfait ; minimisé, juste le titre ; quand on appuie dessus, les
+   informations importantes ») ═══ Une colonne par jour, la semaine (‹ ›) ; un appui ouvre la carte entière en fenêtre. */
+var RDV_CAL_SEM=0;
+function rdvCalendrierHTML(){
+  const a=agIso(new Date()), d=new Date(a+'T12:00:00'), lundi=ppAjoute(a, -((d.getDay()+6)%7) + 7*RDV_CAL_SEM);
+  const J=['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
+  let h='<div class="actcal"><div class="actcal-t"><button class="fbtn" onclick="RDV_CAL_SEM--;render()" aria-label="Semaine d’avant">‹</button>'+
+    '<b>Semaine du '+esc(ppJourFr(lundi))+'</b><button class="fbtn" onclick="RDV_CAL_SEM++;render()" aria-label="Semaine d’après">›</button></div><div class="actcal-g">';
+  for(let i=0;i<7;i++){
+    const j=ppAjoute(lundi,i), L=RDV.filter(function(r){ return r.jour===j; });
+    h+='<div class="actcal-d'+(j===a?' auj':'')+'"><div class="actcal-dh"><span>'+J[i]+'</span><b>'+Number(j.slice(8,10))+'</b></div>'+
+      L.map(function(r){ const manque=r.accompagne && !r.accomp_nom && !r.refuse_le;
+        return '<button class="actcal-e rdvcal-e'+(manque?' manque':'')+'" onclick="rdvDetail(\''+r.id+'\')">'+(r.heure?'<b>'+esc(rdvHeureFr(r.heure))+'</b> ':'')+esc(r.nom)+'</button>'; }).join('')+'</div>';
+  }
+  return h+'</div></div>';
+}
+function rdvDetail(id){
+  const r=rdvLigne(id); if(!r) return;
+  let bg=document.getElementById('rdvDetBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='rdvDetBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  bg.innerHTML='<div class="rdvdet"><button class="rdvdet-x" onclick="document.getElementById(\'rdvDetBg\').classList.remove(\'on\')" aria-label="Fermer">×</button>'+
+    rdvCarte(r)+'</div>';
+  bg.classList.add('on');
+}
 function rdvLigneSimple(r){
   const avec = r.accompagne ? (r.accomp_nom ? '<span class="rdvl-a">'+esc(r.accomp_nom)+'</span>' : '<span class="rdvl-a rouge">à trouver</span>') : '<span></span>';
   return '<button class="rdvl" onclick="rdvModifier(\''+r.id+'\')">'+
@@ -19228,6 +19382,7 @@ function vRdv(){
         disquette = le backup (tous les rendez-vous à venir, A4 horizontal, même sans la base). */
      '<button class="fbtn'+(RDV_MODE!=='oeil'?' rdvon':'')+'" onclick="rdvMode(\'liste\')" aria-label="Liste détaillée" title="Liste détaillée"><span class="ic">'+icon('list')+'</span></button>'+
      '<button class="fbtn'+(RDV_MODE==='oeil'?' rdvon':'')+'" onclick="rdvMode(\'oeil\')" aria-label="Vue simple" title="Vue simple"><span class="ic">'+icon('oeil')+'</span></button>'+
+     '<button class="fbtn'+(RDV_MODE==='cal'?' rdvon':'')+'" onclick="rdvMode(\'cal\')" aria-label="Calendrier" title="Calendrier de la semaine"><span class="ic">'+icon('calendrier')+'</span></button>'+
      '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
      '<button class="fbtn" onclick="rdvImprimerSimple()" aria-label="Backup" title="Backup : tous les rendez-vous à venir, imprimables même sans la base"><span class="ic">'+icon('disquette')+'</span></button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
@@ -19245,6 +19400,7 @@ function vRdv(){
     h+= RDV_CHARGE ? '<div class="empty"><b>Aucun rendez-vous sur ces dates.</b></div>' : '<div class="empty"><b>Chargement…</b></div>';
   }
   const jours=[]; avenir.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
+  if(RDV_MODE==='cal'){ h+=rdvCalendrierHTML(); jours.length=0; }
   jours.forEach(function(j){
     const du=avenir.filter(function(r){ return r.jour===j; });
     h+='<div class="ghead">'+esc(rdvJourTitre(j))+'</div>'+
@@ -22870,6 +23026,9 @@ function vHome(){
      récréation au milieu d'un outil de travail, on laisse une porte pour les curieux. */
   /* PRINT ET FAVORIS, EN DERNIER, POUR TOUS (Mag, 11/10/2026). */
   h+='<div class="accfin">'+
+    /* LES ACTIVITÉS, À LA FIN DE L'ACCUEIL (Mag, 13/10/2026). */
+    '<button class="famz" onclick="go(\'#/ticket\')"><span class="rd" style="background:'+pastel('#6cb392')+'"><span class="ic">'+icon('ticket')+'</span></span>'+
+      '<span class="tx"><b>Activités</b><em>'+esc(actResume())+'</em></span><span class="chv">›</span></button>'+
     '<button class="famz" onclick="go(\'#/print\')"><span class="rd" style="background:'+pastel('#A9C8E8')+'"><span class="ic">'+icon('imprimer')+'</span></span>'+
       '<span class="tx"><b>Print</b><em>Les feuilles à imprimer</em></span><span class="chv">›</span></button>'+
     '<button class="famz" onclick="go(\'#/favoris\')"><span class="rd" style="background:'+pastel('#f5d98a')+'"><span class="ic">'+icon('star')+'</span></span>'+
@@ -23309,7 +23468,7 @@ k:['Formations COUSIN']},
      rien dire — on en sort par la barre, comme on y est entré. */
   let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', 'aucun');
   /* LE RAPPORT DU JOUR, TOUT EN HAUT DU CENTRE (Mag, 13/10/2026) — pas pour le groupe D. */
-  if(!estGroupeD()) h+=rapportHTML(false);
+  if(!estGroupeD()) h+=rapportBarre();   /* un bouton, pas le rapport en grand (Mag, 13/10/2026) */
 
   /* LA RÈGLE DU GROUPE D, corrigée le 07/08/2026 par Mag : la section « Les outils
      de l'équipe » NE DISPARAÎT PAS. Elle reste, avec son titre, et on n'en retire
@@ -38270,6 +38429,7 @@ function vTicket(){
      Refaite à nouveau le 12/08/2026 — voir le grand commentaire au-dessus. */
   const prochains=agendaProchains(31);
   let h=heroBandeau('Activités','','#6cb392','ticket',true);
+  h+=actCalendrierHTML();
 
   /* LE CALENDRIER DU MOIS, rapatrié le 08/08/2026 : « ces prochains jours » ne
      répond pas à « qu'est-ce qu'il y a le 17 ? ». La grille, si. */
@@ -41804,6 +41964,8 @@ function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid);
 function passGerable(p){
   if(p && p._rdv) return false;   /* un réveil d'agenda se corrige dans l'agenda */
   if(passMienne(p)) return true;
+  /* La coordination et l'admin peuvent tout faire (Mag, 13/10/2026) — la base le permet aussi (`peut_supprimer_passations`). */
+  if(peutGerer()) return true;
   if(!p || !PROFILE) return false;
   return passPourEstAMoi(p.pour);
 }
@@ -47183,6 +47345,7 @@ function rappelsHTML(enCarte){
         'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
         '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
         '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
+        '<button class="rapPass rapAct" onclick="actDepuisListe()">Activité</button>'+
         '</div>'+
         /* ═══ LES ENCODÉS COCHABLES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
            Des cases libellées sous le champ, chacune cochable : une absence, un
