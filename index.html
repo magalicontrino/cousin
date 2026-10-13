@@ -17702,9 +17702,14 @@ function accTrioHTML(){
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
   const nInfo=(D.msg||[]).filter(function(m){ return m.rubrique==='info'; }).length;
   const nEnt=(D.msg||[]).filter(function(m){ return m.rubrique==='entree'; }).length;
-  /* « à valider » : seulement les ACCOMPAGNEMENTS à valider, en rouge (Mag, 13/10/2026). */
+  /* ⭐ L'ÉTIQUETTE ROUGE = LE TOTAL DE CE QU'IL FAUT FAIRE SUR LES ACCOMPAGNEMENTS (Mag, 13/10/2026 : « juste le chiffre,
+     le total ; ça doit juste amener à être cliqué ») : accompagnant à trouver + à valider, chaque rendez-vous compté une fois. */
+  const idsA={};
+  D.acc.forEach(function(r){ if(!r.accomp_nom) idsA[r.id]=1; });
+  (RDV||[]).forEach(function(r){ if(r.jour>=a && r.accompagne && rdvAValider(r) && !r.valide_le && !r.refuse_le && !r.retire_le) idsA[r.id]=1; });
+  const nTotA=estGroupeD()?0:Object.keys(idsA).length;
   const nValA=estGroupeD()?0:(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le && r.accompagne; }).length;
-  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:accT, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17887,7 +17892,7 @@ function rapEtiquettes(o, accueil){
   return e(o.ent,'', 'sans PFM','entree')+e(o.info,'', o.info>1?'infos':'info','info')+
     e(o.reveil, masque('alarme.svg','#fd8fd0'), '', 'reveils')+
     e(o.acc, masque('accompagnement.svg','#6cb392'), o.acc>1?'accompagnements':'accompagnement','acc')+
-    e(o.accT, masque('accompagnement.svg','#fdfdfc'), 'à trouver','acc', true)+
+    e(o.accT, masque('accompagnement.svg','#fdfdfc'), '', accueil?'valider-b':'acc', true)+
     e(o.punaise, ic('punaise','#f3c6da'), '', 'punaises')+
     e(o.rdv, ic('calendrier','#6fc7d9'), 'rendez-vous','soc')+
     /* « à valider » = le picto accompagnement, EN ROUGE (Mag, 13/10/2026 : « on prend les mêmes bases, ça devient rouge ») */
@@ -17905,7 +17910,7 @@ function rapMaj(){
   const d=new Date(t), h=d.getHours()+' h '+String(d.getMinutes()).padStart(2,'0');
   return ' · mis à jour '+(agIso(d)===agIso(new Date())?'à '+h:'le '+d.getDate()+'/'+(d.getMonth()+1)+' à '+h);
 }
-function rapAller(id){ RAP_OUV[id]=true; render(); setTimeout(function(){ const e=document.getElementById('rap-'+id); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); },60); }
+function rapAller(id){ RAP_OUV[id]=true; render(); setTimeout(function(){ const e=document.getElementById('rap-'+id)||(id==='valider-b'?document.getElementById('rap-acc'):null); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); },60); }
 function vRapport(){
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Le point du jour</h1></div>';
   /* ⭐ PAS POUR LES POLYVALENTS (Mag, 13/10/2026 : « ils n'ont pas accès à ce rapport, tout court »). */
