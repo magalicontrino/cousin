@@ -713,6 +713,21 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvl-o{font-size:13.5px;color:#6b6963;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rdvl-a{justify-self:end;font-size:13px;border:1.5px solid #6fc7d9;border-radius:999px;padding:1px 9px;white-space:nowrap}.rdvl-a.rouge{border-color:#e63329;color:#e63329}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
+.aid-c{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:16px;padding:14px 16px 10px;margin:12px 0}
+.aid-t{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}.aid-t b{font-size:19px;font-weight:600}.aid-t span{font-size:13px;color:#6b6963}
+.aid-r{display:flex;align-items:center;gap:12px;border-top:1px solid #ece9e4;padding:10px 0}.aid-r.fait .aid-x>b,.aid-r.fait .aid-ch{opacity:.55}.aid-r.ret{opacity:.75}
+.aid-ch{flex:none;min-width:46px;text-align:center;font-weight:600;font-size:16px;border:2px solid #6fc7d9;border-radius:10px;padding:3px 6px}
+.aid-x{flex:1;min-width:0}.aid-x>b{font-weight:600;font-size:15px;margin-right:6px}.aid-x em{display:block;font-style:normal;font-size:12.5px;color:#6b6963;margin-top:2px}
+.aid-et{display:inline-block;font-size:12px;border:1.5px solid #f3c6da;border-radius:999px;padding:0 8px;margin-right:4px}
+.aid-note{font-size:13px;background:#f6f4f1;border-radius:8px;padding:5px 9px;margin-top:5px}.aid-note small{display:block;font-size:11.5px;color:#8b8880}
+.aid-pied{font-size:11.5px;color:#8b8880;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}.aid-pied button{font:inherit;font-size:12px;background:none;border:0;padding:0;color:#6b6963;text-decoration:underline;cursor:pointer}
+.aid-ck{flex:none;width:34px;height:34px;border:2.5px solid #6fc7d9;border-radius:9px;background:#fdfdfc;font-size:18px;font-weight:600;color:#2b2a28;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}.aid-ck.on{background:#6fc7d9}
+.aid-bt{flex:none;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.aid-bt button{font:inherit;font-size:13px;background:#fdfdfc;border:1.5px solid #d8d4cd;border-radius:999px;padding:4px 11px;color:#2b2a28;cursor:pointer}
+.aid-bt .ok{border-color:#6cb392}.aid-bt .ok.on{background:#6cb392}.aid-bt .si{border-color:#f8763f}.aid-bt .si.on{background:#f8763f;color:#fdfdfc}
+.aid-add{display:block;width:100%;margin:8px 0 4px;padding:10px 12px;font:inherit;font-size:14px;color:#6b6963;background:none;border:1.5px dashed #c9c5be;border-radius:10px;text-align:left;cursor:pointer}
+.aid-form{border:1.5px solid #6fc7d9;border-radius:12px;padding:10px;margin:8px 0}.aid-fl{display:flex;gap:8px}.aid-fl input{font:inherit;font-size:15px;border:1px solid #c9c5be;border-radius:10px;padding:9px 10px}.aid-fl #aidCh{width:70px}.aid-fl #aidNom{flex:1;min-width:0}
+.aid-form .chips{margin:8px 0 0}.aid-fb{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.aid-vide{font-size:13.5px;color:#a09c95;padding:6px 0}
 .railn{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:999px;background:#e63329;color:#fdfdfc;font:600 11px 'Eastman',-apple-system,sans-serif;font-style:normal}
 .poplst{display:flex;flex-direction:column;gap:2px;margin-top:4px}
 .poplst div{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #e4e1dc}
@@ -17197,6 +17212,193 @@ function ppCarte(a){
      (ppPeutRetirer()?'<button onclick="ppRetirer(\''+a.id+'\')">Retirer</button>':'')+'</div>';
   return h+'</div>';
 }
+/* ═══ LES AIDES-SOIGNANTES (Mag, 13/10/2026 : maquette validée, « on testera, je vais leur demander ») ═══
+   Deux listes : LES SOINS DU JOUR (douche, toilette — une case « fait », qui et quand) et LES PLUS FRAGILES (UN passage
+   le matin : « Va bien » ou « À signaler » ; ce qui est à signaler part dans la passation, avec le mot).
+   ⭐ « Quand quelqu'un ajoute ou retire une personne, il faut le NOM : retirer une personne fragile, c'est grave. » —
+   chaque ligne dit qui l'a ajoutée ; retirer demande confirmation, signe, et la personne reste visible dans « Retirés ».
+   Écrire : les aides-soignant·es (et la coordination / l'admin). Lire : tout le monde sauf le groupe D.
+   Les infirmier·es (et tous ceux qui lisent) peuvent poser une PETITE NOTE signée sur une personne. */
+var AIDES=[], AIDES_JOUR=[], AIDES_CHARGE=false, AIDES_PANNE='', AIDES_FORM=null, AIDES_RETIRES_OUV=false, _aidesVu=0;
+const AIDES_SOINS=[['douche','Douche'],['toilette','Toilette']];
+function aidesPeutLire(){ return !(typeof estGroupeD==='function' && estGroupeD()); }
+function aidesPeutEcrire(){
+  if(!PROFILE) return false;
+  return (typeof vueAdmin==='function' && vueAdmin()) || peutGerer() || /aide.?soignant/i.test(String(PROFILE.equipe||''));
+}
+async function loadAides(){
+  if(!sb){ AIDES_CHARGE=true; return; }
+  try{
+    const p=await sb.from('aides_personnes').select('*').order('chambre',{ascending:true}).limit(500);
+    if(p.error) throw p.error;
+    const j=await sb.from('aides_jour').select('*').eq('jour', agIso(new Date())).limit(1000);
+    if(j.error) throw j.error;
+    AIDES=p.data||[]; AIDES_JOUR=j.data||[]; AIDES_PANNE='';
+  }catch(e){ AIDES_PANNE=(e&&e.message)||String(e); }
+  AIDES_CHARGE=true;
+}
+function rafraichirAides(){
+  if(!sb || Date.now()-_aidesVu<20000) return;
+  _aidesVu=Date.now();
+  loadAides().then(function(){
+    const tape=document.activeElement && /^aid/.test(document.activeElement.id||'');
+    if(current.view==='aides' && !tape) render();
+  });
+}
+function aidesActives(liste){ return AIDES.filter(function(x){ return x.liste===liste && !x.retire_le; }); }
+function aidesFait(pid, quoi){ return AIDES_JOUR.find(function(x){ return String(x.personne_id)===String(pid) && x.quoi===quoi; }); }
+function aidesResume(){
+  if(!AIDES_CHARGE){ setTimeout(rafraichirAides,0); return 'Soins du jour, les plus fragiles'; }
+  const s=aidesActives('soins'), f=aidesActives('fragiles');
+  const sf=s.filter(function(x){ return aidesFait(x.id,'soin'); }).length, ff=f.filter(function(x){ return aidesFait(x.id,'matin'); }).length;
+  return 'Soins '+sf+' / '+s.length+' · fragiles vus '+ff+' / '+f.length;
+}
+const aidesQui=function(x){ return String(x||'').split(/\s+/)[0]; };
+const aidesHeure=function(t){ try{ const d=new Date(t); return d.getHours()+' h '+String(d.getMinutes()).padStart(2,'0'); }catch(e){ return ''; } };
+function aidesLigne(x){
+  const ecr=aidesPeutEcrire(), soin=x.liste==='soins';
+  const f=aidesFait(x.id, soin?'soin':'matin');
+  let droite='';
+  if(soin){
+    droite=ecr ? '<button class="aid-ck'+(f?' on':'')+'" onclick="aidesCocher('+x.id+')" aria-label="Fait">'+(f?'✓':'')+'</button>'
+               : (f?'<span class="aid-ck on">✓</span>':'<span class="aid-ck"></span>');
+  } else {
+    droite='<span class="aid-bt">'+
+      (ecr || (f&&f.etat==='va_bien') ? '<button class="ok'+(f&&f.etat==='va_bien'?' on':'')+'"'+(ecr?' onclick="aidesMatin('+x.id+',\'va_bien\')"':' disabled')+'>'+(f&&f.etat==='va_bien'?'✓ ':'')+'Va bien</button>' : '')+
+      (ecr || (f&&f.etat==='signaler') ? '<button class="si'+(f&&f.etat==='signaler'?' on':'')+'"'+(ecr?' onclick="aidesMatin('+x.id+',\'signaler\')"':' disabled')+'>À signaler</button>' : '')+
+    '</span>';
+  }
+  const etat = f ? (soin ? 'fait par '+esc(aidesQui(f.par))+' · '+aidesHeure(f.le)
+                         : (f.etat==='va_bien'?'vu par ':'signalé par ')+esc(aidesQui(f.par))+' · '+aidesHeure(f.le))
+                 : (soin ? '' : 'pas encore vu·e');
+  const soins=(x.soins||[]).map(function(k){ const s=AIDES_SOINS.find(function(y){ return y[0]===k; }); return '<span class="aid-et">'+esc(s?s[1]:k)+'</span>'; }).join('');
+  return '<div class="aid-r'+(f&&soin?' fait':'')+'">'+
+    '<span class="aid-ch">'+esc(x.chambre||'—')+'</span>'+
+    '<div class="aid-x"><b>'+esc(x.nom)+'</b>'+soins+
+      (etat?'<em>'+etat+'</em>':'')+
+      (f && f.mot?'<div class="aid-note">« '+esc(f.mot)+' »</div>':'')+
+      (x.note?'<div class="aid-note">'+esc(x.note)+'<small>'+esc(aidesQui(x.note_par))+(x.note_le?' · '+esc(binQuand(x.note_le)):'')+'</small></div>':'')+
+      '<div class="aid-pied">ajouté·e par '+esc(aidesQui(x.cree_par))+' · '+esc(binQuand(x.cree_le))+
+        '<button onclick="aidesNote('+x.id+')">Note</button>'+
+        (ecr?'<button onclick="aidesRetirer('+x.id+')">Retirer</button>':'')+'</div>'+
+    '</div>'+droite+'</div>';
+}
+function aidesFormHTML(liste){
+  const F=AIDES_FORM;
+  if(!F || F.liste!==liste) return aidesPeutEcrire() ? '<button class="aid-add" onclick="aidesOuvrir(\''+liste+'\')">+ Ajouter quelqu’un '+(liste==='soins'?'aux soins':'aux plus fragiles')+'</button>' : '';
+  return '<div class="aid-form">'+
+    '<div class="aid-fl"><input id="aidCh" placeholder="Ch." value="'+esc(F.chambre||'')+'" maxlength="12"><input id="aidNom" placeholder="Nom" value="'+esc(F.nom||'')+'" maxlength="80"></div>'+
+    (liste==='soins'?'<div class="chips">'+AIDES_SOINS.map(function(s){ const on=(F.soins||[]).indexOf(s[0])>=0;
+      return '<button class="chip'+(on?' on':'')+'" style="--c:#f3c6da" onclick="aidesSoinBascule(\''+s[0]+'\')">'+s[1]+'</button>'; }).join('')+'</div>':'')+
+    '<div class="aid-fb"><button class="rdvk-ref" onclick="AIDES_FORM=null;render()">Annuler</button><button class="rdvk-val" onclick="aidesAjouter()">Ajouter</button></div></div>';
+}
+function aidesGarde(){ if(!AIDES_FORM) return; const g=function(id){ const e=document.getElementById(id); return e?e.value:undefined; };
+  const c=g('aidCh'), n=g('aidNom'); if(c!==undefined) AIDES_FORM.chambre=c; if(n!==undefined) AIDES_FORM.nom=n; }
+function aidesOuvrir(liste){ AIDES_FORM={liste:liste, chambre:'', nom:'', soins:[]}; render(); setTimeout(function(){ const e=document.getElementById('aidCh'); if(e) e.focus(); },40); }
+function aidesSoinBascule(k){ aidesGarde(); const s=AIDES_FORM.soins; const i=s.indexOf(k); if(i<0) s.push(k); else s.splice(i,1); render(); }
+async function aidesAjouter(){
+  aidesGarde(); const F=AIDES_FORM; if(!F) return;
+  if(!String(F.nom||'').trim()){ toast('Il manque le nom'); return; }
+  if(F.liste==='soins' && !F.soins.length){ toast('Coche douche ou toilette'); return; }
+  const res=await sb.from('aides_personnes').insert({liste:F.liste, chambre:String(F.chambre||'').trim()||null, nom:String(F.nom).trim(),
+    soins:F.liste==='soins'?F.soins:[], cree_par:nomAffiche()||'?'}).select('*');
+  if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  AIDES.push(res.data[0]); AIDES_FORM=null; render(); toast('Ajouté·e ✓');
+}
+function aidesRetirer(id){
+  const x=AIDES.find(function(y){ return y.id===id; }); if(!x) return;
+  cousinConfirme('Retirer '+x.nom+' '+(x.liste==='soins'?'des soins':'des plus fragiles')+' ?', 'Ton nom sera écrit. La personne reste visible dans « Retirés ».', async function(){
+    const maj={retire_le:new Date().toISOString(), retire_par:nomAffiche()||'?'};
+    const res=await sb.from('aides_personnes').update(maj).eq('id',id).select('id');
+    if(res.error || !res.data || !res.data.length){ toast('Pas retiré : la base a refusé'); return; }
+    Object.assign(x, maj); render();
+  }, {ok:'Retirer', danger:true});
+}
+async function aidesRemettre(id){
+  const res=await sb.from('aides_personnes').update({retire_le:null, retire_par:null}).eq('id',id).select('id');
+  if(res.error || !res.data || !res.data.length){ toast('Pas remis : la base a refusé'); return; }
+  await loadAides(); render(); toast('Remis·e ✓');
+}
+async function aidesCocher(pid){
+  const f=aidesFait(pid,'soin'), a=agIso(new Date());
+  const res = f ? await sb.from('aides_jour').delete().eq('id',f.id).select('id')
+                : await sb.from('aides_jour').insert({personne_id:pid, jour:a, quoi:'soin', etat:'fait', par:nomAffiche()||'?'}).select('*');
+  if(res.error){ toast('Pas enregistré : la base a refusé'); return; }
+  if(f) AIDES_JOUR=AIDES_JOUR.filter(function(x){ return x.id!==f.id; }); else AIDES_JOUR.push(res.data[0]);
+  render();
+}
+function aidesMatin(pid, etat){
+  const x=AIDES.find(function(y){ return y.id===pid; }); if(!x) return;
+  const f=aidesFait(pid,'matin'), a=agIso(new Date());
+  const ecrire=async function(mot){
+    if(f && f.etat===etat && !mot){ const r=await sb.from('aides_jour').delete().eq('id',f.id).select('id'); if(r.error){ toast('Pas enregistré'); return; }
+      AIDES_JOUR=AIDES_JOUR.filter(function(y){ return y.id!==f.id; }); render(); return; }
+    const ligne={personne_id:pid, jour:a, quoi:'matin', etat:etat, mot:mot||null, par:nomAffiche()||'?', le:new Date().toISOString()};
+    const r=await sb.from('aides_jour').upsert(ligne,{onConflict:'personne_id,jour,quoi'}).select('*');
+    if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    AIDES_JOUR=AIDES_JOUR.filter(function(y){ return !(String(y.personne_id)===String(pid) && y.quoi==='matin'); }).concat(r.data);
+    /* « À SIGNALER » PART DANS LA PASSATION, avec le mot (la maquette validée). */
+    if(etat==='signaler'){
+      const l={pour:PASS_EQUIPE, par:nomAffiche(), chambre:x.chambre||null, genre:'passation', jour:a, a_jeun:false, source:'Aides-soignantes',
+        texte:('À signaler — '+x.nom+' : '+mot).slice(0,4000)};
+      if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
+      const ins=await sb.from('passations').insert(l).select();
+      if(ins.error || !ins.data || !ins.data.length) toast('Noté, mais pas passé dans la passation — à faire à la main');
+      else { ins.data.forEach(function(y){ PASSATIONS.unshift(y); }); toast('Signalé · passé dans la passation ✓'); }
+    }
+    render();
+  };
+  if(etat==='signaler' && !(f && f.etat==='signaler')){
+    cousinDemande('Qu’est-ce qui est à signaler ?', x.nom+(x.chambre?' · ch. '+x.chambre:'')+'. Ça part dans la passation.', '', function(v){
+      v=String(v||'').trim(); if(!v){ toast('Écris ce qui est à signaler'); return; } ecrire(v.slice(0,300)); }, 300, true);
+    return;
+  }
+  ecrire('');
+}
+function aidesNote(id){
+  const x=AIDES.find(function(y){ return y.id===id; }); if(!x) return;
+  cousinDemande('Une petite note', x.nom+' — signée de ton nom. Vide = retirer la note.', x.note||'', async function(v){
+    v=String(v||'').trim().slice(0,400);
+    const maj={note:v||null, note_par:v?(nomAffiche()||'?'):null, note_le:v?new Date().toISOString():null};
+    const r=await sb.from('aides_personnes').update(maj).eq('id',id).select('id');
+    if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    Object.assign(x, maj); render();
+  }, 400, true);
+}
+function aidesImprimer(){
+  const s=aidesActives('soins'), f=aidesActives('fragiles');
+  const ligne=function(x, cases){ return '<tr><td class="c">'+esc(x.chambre||'')+'</td><td><b>'+esc(x.nom)+'</b>'+
+    ((x.soins||[]).length?' — '+esc((x.soins||[]).map(function(k){ return k==='douche'?'Douche':'Toilette'; }).join(', ')):'')+
+    (x.note?'<br><span class="n">'+esc(x.note)+'</span>':'')+'</td>'+cases+'</tr>'; };
+  const box='<td class="b"><span></span></td>';
+  const corps='<style>.ai{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 14px}.ai th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6b6963;border-bottom:1.5px solid #2b2a28;padding:4px}'+
+    '.ai td{border-bottom:1px solid #e4e1dc;padding:7px 4px;vertical-align:middle}.ai .c{width:14mm;font-weight:700}.ai .b{width:22mm;text-align:center}.ai .b span{display:inline-block;width:6mm;height:6mm;border:2px solid #2b2a28;border-radius:1.5mm}.ai .n{font-size:11px;color:#6b6963}</style>'+
+    '<div class="st"><span>Soins du jour</span><em>'+s.length+'</em></div><table class="ai"><tr><th>Ch.</th><th>Nom</th><th>Fait</th></tr>'+s.map(function(x){ return ligne(x, box); }).join('')+'</table>'+
+    '<div class="st"><span>Les plus fragiles — passage du matin</span><em>'+f.length+'</em></div><table class="ai"><tr><th>Ch.</th><th>Nom</th><th>Va bien</th><th>À signaler</th></tr>'+f.map(function(x){ return ligne(x, box+box); }).join('')+'</table>';
+  feuilleImprimer({onglet:'Aides-soignantes — '+ppJourFr(agIso(new Date())), entete:'Aides-soignantes — aperçu', titre:'Aides-soignantes', sous:ppJourFr(agIso(new Date())), corps:corps});
+}
+function vAides(){
+  aidesGarde();
+  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Aides-soignantes</h1></div>';
+  if(!aidesPeutLire()) return h+'<div class="empty" style="margin-top:30px"><b>Réservé à l’équipe.</b></div>';
+  h+='<div class="imprligne" style="display:flex;gap:8px;justify-content:flex-end"><button class="fbtn" onclick="aidesImprimer()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button></div>';
+  if(AIDES_PANNE) return h+'<div class="cal-e" style="border-left-color:var(--rouge)"><b>La liste n’a pas pu être lue</b><p>Ce n’est pas qu’elle est vide : la base n’a pas répondu.</p><p class="insc">'+esc(AIDES_PANNE)+'</p></div>';
+  if(!AIDES_CHARGE) return h+'<div class="empty"><b>Chargement…</b></div>';
+  const s=aidesActives('soins'), f=aidesActives('fragiles');
+  const sf=s.filter(function(x){ return aidesFait(x.id,'soin'); }).length, ff=f.filter(function(x){ return aidesFait(x.id,'matin'); }).length;
+  h+='<div class="aid-c"><div class="aid-t"><b>Soins du jour</b><span>'+esc(ppJourFr(agIso(new Date())))+' · '+sf+' / '+s.length+' faits</span></div>'+
+    (s.length?s.map(aidesLigne).join(''):'<div class="aid-vide">Personne pour l’instant</div>')+aidesFormHTML('soins')+'</div>';
+  h+='<div class="aid-c"><div class="aid-t"><b>Les plus fragiles</b><span>passage du matin · '+ff+' / '+f.length+' vu·es</span></div>'+
+    (f.length?f.map(aidesLigne).join(''):'<div class="aid-vide">Personne pour l’instant</div>')+aidesFormHTML('fragiles')+'</div>';
+  const ret=AIDES.filter(function(x){ return x.retire_le; }).sort(function(a,b){ return String(b.retire_le).localeCompare(String(a.retire_le)); });
+  if(ret.length){
+    h+='<div class="bkp'+(AIDES_RETIRES_OUV?' on':'')+'" style="margin-top:12px"><button class="bkp-tete" onclick="AIDES_RETIRES_OUV=!AIDES_RETIRES_OUV;render()"><b>Retirés</b><span>'+ret.length+' · '+(AIDES_RETIRES_OUV?'fermer':'ouvrir')+' ›</span></button>'+
+      (AIDES_RETIRES_OUV?ret.map(function(x){ return '<div class="aid-r ret"><span class="aid-ch">'+esc(x.chambre||'—')+'</span><div class="aid-x"><b>'+esc(x.nom)+'</b>'+
+        '<em>'+(x.liste==='soins'?'Soins':'Plus fragiles')+' · ajouté·e par '+esc(aidesQui(x.cree_par))+' '+esc(binQuand(x.cree_le))+' · retiré·e par '+esc(aidesQui(x.retire_par))+' '+esc(binQuand(x.retire_le))+'</em></div>'+
+        (aidesPeutEcrire()?'<button class="rdvk-ref" onclick="aidesRemettre('+x.id+')">Remettre</button>':'')+'</div>'; }).join(''):'')+'</div>';
+  }
+  return h;
+}
 function vPunaises(){
   const act=ppActives(), jours=ppJours(act), al=ppAlertes();
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
@@ -20961,6 +21163,7 @@ function parseRoute(){
   if(seg[0]==='chambres') return {view:'chambres'};
   if(seg[0]==='tourbacs') return {view:'tourbacs'};
   if(seg[0]==='punaises') return {view:'punaises'};
+  if(seg[0]==='aides') return {view:'aides'};
   if(seg[0]==='rdv') return {view:'rdv'};
   if(seg[0]==='print') return {view:'print'};
   if(seg[0]==='linge') return {view:'linge'};
@@ -21498,6 +21701,7 @@ function renderInterne(){
   else if(current.view==='chambres'){ view.innerHTML=vChambres(); rafraichirChambres(); }
   else if(current.view==='tourbacs'){ view.innerHTML=vTourBacs(); rafraichirTourBacs(); }
   else if(current.view==='punaises'){ view.innerHTML=vPunaises(); rafraichirPunaises(); }
+  else if(current.view==='aides'){ view.innerHTML=vAides(); rafraichirAides(); }
   /* ⚠ On relit le formulaire AVANT de redessiner : un rafraîchissement ne doit pas
      effacer ce qui est en train d'être tapé. */
   else if(current.view==='rdv' && estGroupeD()){ view.innerHTML='<div class="empty" style="margin-top:40px"><b>L’agenda est réservé à l’équipe.</b></div>'; }
@@ -23088,6 +23292,8 @@ k:['Formations COUSIN']},
     /* LE PROTOCOLE PUNAISES DU JEUDI (08/10/2026), à côté du tour : le même couloir. */
     porteCentre('punaise','Protocole punaises', esc(ppResumeCourt()),
       "go('#/punaises')", ppAlertes()?'pressee':'')+
+    /* LES AIDES-SOIGNANTES (Mag, 13/10/2026) — pas pour le groupe D. */
+    (aidesPeutLire()?porteCentre('douche','Aides-soignantes', esc(aidesResume()), "go('#/aides')"):'')+
     /* Les polyvalents (groupe D) ne voient pas « Les outils de l'équipe » : l'agenda des
        rendez-vous leur arrive ici, en lecture (08/10/2026). */
     /* ⚠ RETIRÉ (Mag, 11/10/2026 : « le groupe D ne doit pas avoir les rendez-vous ni les accompagnements »). */
@@ -23495,6 +23701,7 @@ k:['Formations COUSIN']},
       "go('#/tourbacs')", tbPresse()?'pressee':'')+
     tuileG('punaise','Protocole punaises', esc(ppResumeCourt()),
       "go('#/punaises')", ppAlertes()?'pressee':'')+
+    (aidesPeutLire()?tuileG('douche','Aides-soignantes', esc(aidesResume()), "go('#/aides')"):'')+
     /* PRINT AUSSI ICI (Mag, 11/10/2026 : « Print doit être là aussi »). */
     tuileG('imprimer','Print','Toutes les feuilles à imprimer', "go('#/print')")+
 
@@ -24860,7 +25067,7 @@ function ecranActuel(){
   if(current.view==='fiche'){ const p=BYSID[current.sid]; return p?'la fiche « '+p.nom+' »':'une fiche'; }
   if(current.view==='domaine'){ const d=DOM[current.key]; return d?'la liste « '+(d.nom||current.key)+' »':'une liste'; }
   const noms={home:"l'accueil",reseau:'le réseau',centre:'le centre',urgences:'les urgences',
-    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
+    favoris:'tes favoris',liste:'ma liste',chambres:'les chambres',tourbacs:'le tour des chambres',punaises:'le protocole punaises',aides:'les aides-soignantes',rdv:'les rendez-vous',fil:'le fil',quiz:'le quiz',
     neuf:'quoi de neuf',ticket:'les activités',femmes:'les activités réservées aux femmes',
     linge:'le linge',profil:'le profil',admin:"l'admin"};
   return noms[current.view]||'';
@@ -25247,7 +25454,7 @@ const ECRAN_NOMS={ home:'Accueil', reseau:'Le réseau', ressources:'Les ressourc
   eau:'Fontaines et toilettes', profil:'Mon profil', admin:'Admin', ranger:'Wiki à ranger', chantier:'Le chantier', fil:'Le fil', quiz:'Le quiz',
   jeux:'Jeux et quiz', neuf:'Sorties & activités', duneuf:'Quoi de neuf', ticket:'Activités',
   femmes:'Réservé aux femmes',
-  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
+  quartier:'Autour d’ici', chambres:'Chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rdv:'Rendez-vous', linge:'Le linge', centre:'Le centre',
   urgences:'Urgences', fiche:'Une fiche', domaine:'Une liste' };
 function nomEcran(k){
   if(ECRAN_NOMS[k]) return ECRAN_NOMS[k];
@@ -39467,7 +39674,7 @@ function wikiNomPage(p){
    La règle : un `wikiBloc('x')` quelque part ⇒ une ligne `x:'…'` ici, dans le
    même commit. C'est la même famille que les portes du Centre rangées par nom. */
 const WIKI_PAGES={
-  linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', rdv:'Rendez-vous',
+  linge:'Le linge', chambres:'Les chambres', tourbacs:'Le tour des chambres', punaises:'Protocole punaises', aides:'Aides-soignantes', rdv:'Rendez-vous',
   print:'Les feuilles à imprimer', quartier:'Autour d’ici', reglement:'Le règlement',
   eau:'Les fontaines', wc:'Les toilettes', centre:'Le Centre',
   benevolat:'Ressources bénévoles', schemas:'Schémas',
@@ -39824,7 +40031,7 @@ function renderTabs(){
            /* ⚠ « liste » ne rallume plus Centre : depuis qu'elle a sa propre ligne dans
               le rail, deux boutons s'allumaient en même temps sur #/liste — l'erreur
               exacte qu'on avait corrigée le 06/08. Une ligne à soi, une lumière à soi. */
-            ['#/centre','Centre','cible','#A9C8E8',(v==='centre'||isTool||v==='quartier'||v==='ticket'||v==='chambres'||v==='tourbacs'||v==='punaises'||v==='rdv'||v==='linge'||v==='femmes')],
+            ['#/centre','Centre','cible','#A9C8E8',(v==='centre'||isTool||v==='quartier'||v==='ticket'||v==='chambres'||v==='tourbacs'||v==='punaises'||v==='aides'||v==='rdv'||v==='linge'||v==='femmes')],
            ['#/urgences','Urgences','siren','#e63329',v==='urgences']];
   /* Les 4 secondaires ne s'affichent que sur grand écran (rail de gauche) : sur
      téléphone elles vivent déjà dans la barre du haut. Handoff « Bureau », 06/08/2026. */
