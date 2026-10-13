@@ -17840,9 +17840,11 @@ function rapportHTML(page){
       dep.map(function(c){
         return '<button class="rap-l" onclick="CH_OUVERTES[\''+c.id+'\']=true;go(\'#/chambres\')"><span class="rap-x"><b class="rap-nom">'+esc(c.initiales||'?')+'</b> · ch. '+esc(c.numero)+
           ' · <span class="rap-motif">'+esc(chMotifL(c))+'</span>'+(chMoins1Fini(c)?'<em class="rap-avec r">au −1 : 14 jours passés</em>':'')+'</span></button>'; }).join('')+
+      '<button class="rap-tv rap-cta" onclick="go(\'#/chambres\')">voir les sortants · ajouter ›</button>'+
       abs.map(function(x){
         return '<button class="rap-l rap-abs" onclick="go(\'#/liste/absences\')"><span class="rap-x"><b class="rap-nom">'+esc(x.nom||'?')+'</b> · <span class="rap-motif">absent ?</span> · '+absNuits(x).length+' nuits'+
           (x.lam?' <span class="rap-lam">LAM</span>':'')+'</span></button>'; }).join(''));
+    if(!n) plus.push('<button class="rap-add" onclick="go(\'#/chambres\')">+ Sortant</button>');
   }
   h+=msgSec(RAPPORT_RUB[0]);
   if(!gD) h+=msgSec(RAPPORT_RUB[1]);
@@ -23352,11 +23354,13 @@ function vHome(){
        (nArr?ligneCta(nArr,'entretien'+(nArr>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+
        (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
-       (nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
+       /* ⚠ LES ABSENCES QUITTENT LA LISTE PERSO (Mag, 13/10/2026 : « ce n'est pas personnel, tout le monde doit voir les
+          absences ») : elles sont dans le point du jour (absents +3 nuits) et dans l'onglet Absences. */
+       (false&&nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
        (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':'')+' pour moi','#/liste','partage','#b8ddc4','allerPassation()'):'')+
        /* LES « À PRÉVENIR », REGROUPÉS (Mag, 11/10/2026) : une ligne à part ; un appui ouvre la liste simplifiée
           (qui, chambre, la source : rendez-vous, social, médical…). */
-       (nPrev?ligneCta(nPrev,'à prendre en charge','#/liste','main','#f8763f','prevListeOuvrir()')   /* « personnes à prévenir » : elle n'aime pas du tout (13/10/2026) */:'')+
+       (nPrev?ligneCta(nPrev,'à prévenir','#/liste','main','#f8763f','prevListeOuvrir()')   /* ni « personnes à prévenir » ni « à prendre en charge » (13/10/2026) */:'')+
        (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
        /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
           (`rdvBarre`) — la même info deux fois sur le même écran ferait doublon. */
@@ -23378,7 +23382,8 @@ function vHome(){
           garde sa largeur, pour que les mots s'alignent en colonne avec « entrants »
           et « sur ta liste ». */
        /* ⭐ LES SORTANTS, TOUJOURS LÀ (Mag, 13/10/2026 : « un CTA dans ma liste perso ») — même à zéro, pour pouvoir en noter un. */
-       (rafraichirChambres(),'')+ligneCta(chEnCours()||'', chEnCours()?'départ'+(chEnCours()>1?'s':''):'Départs','#/chambres','cle','#a9c8e8')+
+       /* LES DÉPARTS QUITTENT LA LISTE PERSO (13/10/2026 : « ce n'est pas personnel ») : ils sont dans le point du jour,
+          avec « + ajouter ». */
        '<button class="ctal" style="--cc:#c9bfe3" onclick="event.stopPropagation();accSlideOuvrir()">'+
          '<span class="lang"></span><span class="ic">'+icon('bulb')+'</span>'+
          '<b></b><span>Mémo ROI</span><i>›</i></button>'+
