@@ -704,11 +704,21 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvmodal{position:fixed;inset:0;z-index:9000;background:rgba(43,42,40,.5);overflow-y:auto;padding:28px 12px 60px;-webkit-overflow-scrolling:touch}
 .rdvmodal-c{max-width:640px;margin:0 auto;background:#fdfdfc;border-radius:18px;padding:4px 6px}
 .rdvk-clic{cursor:pointer}
+.poplst{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.poplst div{display:grid;grid-template-columns:118px 1fr;gap:10px;padding:7px 0;border-top:1px solid #e4e1dc;font-size:15px}
+.poplst span{color:#6b6963}.poplst b{font-weight:600}
 .rdvk{transition:box-shadow .4s}.rdvk.rdvk-nouveau{box-shadow:0 0 0 3px #6fc7d9}
 .rdvk-val-b{margin-top:14px;border:1px solid #e4e1dc;border-radius:12px;padding:10px 12px 12px;background:#f6f4f1}
 .rdvk-val-t{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
 .rdvk-val-t em{font-style:normal;text-transform:none;letter-spacing:0;color:#2b2a28;font-weight:500;border:1.5px solid #f8763f;border-radius:999px;padding:0 8px}
 .rdvk-val-t em.ok{border-color:#6cb392}
+.rdvk-val-t em.non{border-color:#b28b7a}
+.rdvet .eti{display:inline-flex;width:15px;height:15px;margin-right:5px;vertical-align:-3px}.rdvet .eti svg,.rdvet .eti img{width:100%;height:100%}
+.rdvk-val-ti{display:inline-flex;align-items:center;gap:7px}.rdvk-val-ti img{width:20px;height:20px}
+.rdvk-lab{display:block;font-size:11.5px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin:10px 0 0}
+.rdvk-note .rdvk-lab{display:inline;margin:0 4px 0 0}
+.rdvk-val-f{gap:10px}
+.rdvk-ref{font:inherit;font-size:14px;font-weight:600;background:#fdfdfc;color:#2b2a28;border:1.5px solid #b28b7a;border-radius:10px;padding:8px 16px;cursor:pointer}
 .rdvk-val-b .rdvk-d{margin-top:0;background:#fdfdfc}
 .rdvk-val-b .rdvacc-in{margin-top:8px}
 .rdvk-val-b .rdvet{margin-top:8px}
@@ -18016,18 +18026,21 @@ async function rdvPrEnvoyer(){
 function rdvEtiquettes(r, sansAcc, opt){
   opt=opt||{};
   const e=[];
-  if(!sansAcc && r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9']);
-  if(r.pmr) e.push(['PMR','#f5c542']);
-  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi']);
-  if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
-  if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
-  if(r.prevenir && !opt.sansPrev) e.push(['Prévenir','#b28b7a']);
+  /* DES PICTOS LE PLUS POSSIBLE (Mag, 13/10/2026 : « c'est plus facile ; un réveil, tu mets un réveil, avec l'heure à
+     côté ») : le 4e élément est le dessin posé devant le mot. */
+  const IMG=function(f){ return '<img src="picto/'+f+'" alt="">'; };
+  if(!sansAcc && r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9','',IMG('accompagnement.svg')]);
+  if(r.pmr) e.push(['PMR','#f5c542','',icon('handicap')]);
+  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi', icon('bus')]);
+  if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
+  if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
+  if(r.prevenir && !opt.sansPrev) e.push(['Prévenir','#b28b7a','',PREV_MAIN]);
   if(!e.length) return '';
   /* L'étiquette du taxi est un BOUTON : on y note qu'il est commandé, et pour quelle heure. */
   return '<div class="rdvet">'+e.map(function(x){
     if(x[2]==='taxi' && r.id && rdvPeutEcrire())
-      return '<button class="rdvet-b" style="background:'+x[1]+';--ec:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+esc(x[0])+'</button>';
-    return '<span style="background:'+x[1]+';--ec:'+x[1]+'">'+esc(x[0])+'</span>';
+      return '<button class="rdvet-b" style="background:'+x[1]+';--ec:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</button>';
+    return '<span style="background:'+x[1]+';--ec:'+x[1]+'">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</span>';
   }).join('')+'</div>';
 }
 /* L'auteur : son compte (cree_uid) ; pour les rendez-vous d'avant cette colonne, son prénom. */
@@ -18281,7 +18294,7 @@ async function rdvEnregistrer(){
     ligne.accomp_par=nomAffiche(); ligne.accomp_le=new Date().toISOString();
   }
   /* Un accompagnement NOUVEAU (ou qui vient de passer à Oui) attend la validation de la coordination. */
-  if((ligne.accompagne && !(avant && avant.accompagne)) || (ligne.taxi && !(avant && avant.taxi))){ ligne.valide_par=null; ligne.valide_le=null; }
+  if((ligne.accompagne && !(avant && avant.accompagne)) || (ligne.taxi && !(avant && avant.taxi))){ ligne.valide_par=null; ligne.valide_le=null; ligne.refuse_le=null; ligne.refuse_par=null; ligne.refuse_motif=null; }
   /* Deux appuis sur « Enregistrer » = deux rendez-vous : le second attend le premier. */
   if(RDV_ENVOI) return;
   RDV_ENVOI=true;
@@ -18412,13 +18425,22 @@ function rdvValBloc(r){
   if(!rdvAValider(r)) return '';
   const ok=!!r.valide_le, ti=[];
   if(r.accompagne) ti.push('Accompagnement'); if(r.taxi) ti.push('Taxi');
-  return '<div class="rdvk-val-b"><div class="rdvk-val-t"><span>'+ti.join(' · ')+'</span>'+
-      (ok?'<em class="ok">✓ validé par '+esc(String(r.valide_par||'').split(/\s+/)[0])+'</em>':'<em>en attente de validation</em>')+'</div>'+
+  return '<div class="rdvk-val-b"><div class="rdvk-val-t"><span class="rdvk-val-ti">'+(r.accompagne?'<img src="picto/accompagnement.svg" alt="">':'')+ti.join(' · ')+'</span>'+
+      (ok?'<em class="ok">✓ validé par '+esc(String(r.valide_par||'').split(/\s+/)[0])+'</em>'
+        : r.refuse_le?'<em class="non">refusé par '+esc(String(r.refuse_par||'').split(/\s+/)[0])+'</em>'
+        :'<em>en attente de validation</em>')+'</div>'+
+    (r.refuse_le && r.refuse_motif?'<div class="rdvk-d">« '+esc(r.refuse_motif)+' »<small>Refusé par '+esc(String(r.refuse_par||'').split(/\s+/)[0])+' · '+esc(binQuand(r.refuse_le))+'</small></div>':'')+
     (r.accompagne && r.accomp_motif?'<div class="rdvk-d">« '+esc(r.accomp_motif)+' »<small>Demandé par '+esc(String(r.cree_par||'').split(/\s+/)[0])+(r.cree_le?' · '+esc(binQuand(r.cree_le)):'')+'</small></div>':'')+
-    (r.accompagne ? '<input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
+    /* LE TITRE DE LA CASE (Mag, 13/10/2026 : elle y avait écrit une note — la case n'avait pas de nom). */
+    (r.accompagne ? '<div class="rdvk-lab">Qui accompagne</div><input class="rdvacc-in" list="rdvEquipeAcc" value="'+esc(r.accomp_nom||'')+'" placeholder="Accompagnant à trouver — écrire un prénom" '+
         'autocomplete="off" onchange="rdvAccChanger(\''+r.id+'\',this)">'+rdvAccQui(r) : '')+
+    (ok && r.valide_mot?'<div class="rdvk-d">« '+esc(r.valide_mot)+' »<small>Validé par '+esc(String(r.valide_par||'').split(/\s+/)[0])+(r.valide_le?' · '+esc(binQuand(r.valide_le)):'')+'</small></div>':'')+
     (r.taxi ? rdvEtiquettes({id:r.id, taxi:true, taxi_par:r.taxi_par, taxi_heure:r.taxi_heure}) : '')+
-    (!ok && peutGerer()?'<div class="rdvk-val-f"><button class="rdvk-val" onclick="rdvValider(\''+r.id+'\')">Valider</button></div>':'')+
+    /* REFUSER À CÔTÉ DE VALIDER (Mag, 13/10/2026 : « et si je refuse ? ») — toujours avec la raison, qui s'écrit sur le
+       rendez-vous et prévient la personne qui l'a demandé. */
+    (peutGerer() && (!ok || !r.refuse_le) ? '<div class="rdvk-val-f">'+
+      (!r.refuse_le?'<button class="rdvk-ref" onclick="rdvRefuser(\''+r.id+'\')">Refuser</button>':'')+
+      (!ok?'<button class="rdvk-val" onclick="rdvValider(\''+r.id+'\')">Valider</button>':'')+'</div>' : '')+
   '</div>';
 }
 /* ═══ CE QUI A ÉTÉ CORRIGÉ (Mag, 13/10/2026 : « tout le monde peut le corriger, il faut juste qu'on marque ce qui a été
@@ -18461,15 +18483,15 @@ function rdvCorrHTML(r){
 }
 function rdvCarte(r, passe){
   const t=rdvType(r.genre), ecr=rdvPeutEcrire(), ok=!!r.valide_le;
-  const lis = rdvAValider(r) ? (ok?'#6cb392':'#f8763f') : t.c;
+  const lis = rdvAValider(r) ? (ok?'#6cb392':(r.refuse_le?'#b28b7a':'#f8763f')) : t.c;
   const lieu=[r.lieu,r.adresse].filter(Boolean).join(' — ');
-  return '<div id="rdvk-'+esc(String(r.id))+'" class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom?' manque':'')+'" style="border-left-color:'+lis+'">'+
+  return '<div id="rdvk-'+esc(String(r.id))+'" class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom && !r.refuse_le?' manque':'')+'" style="border-left-color:'+lis+'">'+
     '<div class="rdvk-h'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
     '<div class="rdvk-c">'+
       '<div class="rdvk-n'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
       (r.a_jeun?'<div class="rdvk-jeun">À JEUN</div>':'')+
       '<div class="rdvk-s'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(lieu?'<span>'+esc(lieu)+'</span>':'')+'</div>'+
-      (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
+      (r.note?'<div class="rdvk-note"><span class="rdvk-lab">Précision</span> '+esc(r.note)+'</div>':'')+
       /* « Prévenir » n'est plus en étiquette quand la case est là (Mag, 13/10/2026 : c'était écrit deux fois). */
       rdvEtiquettes(r,true,{sansPrev:ecr, sansTaxi:true})+
       /* (Mag, 13/10/2026 : « retire mon nom ») : plus de « Réveil descendu à la nuit par … » sur la carte. */
@@ -18569,8 +18591,8 @@ function vRdvAcc(){
     '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
     '<span class="rdvau">au</span>'+
     '<input type="date" id="rdvAccAu" class="rdvdate" value="'+esc(au)+'" aria-label="Au" onchange="rdvAccDatesChange()">'+
-    '<button class="fbtn" onclick="rdvAvantImprimer(rdvAccSemaine(),rdvImprimerAcc)"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
-    '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()"><span class="ic">'+icon('imprimer')+'</span>Semaine simplifiée</button></div>';
+    '<button class="fbtn" onclick="rdvAvantImprimer(rdvAccSemaine(),rdvImprimerAcc)"><span class="ic">'+icon('imprimer')+'</span></button>'+
+    '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()"><span class="ic">'+icon('imprimer')+'</span>Planning</button></div>';
   h+='<div class="chips">'+
     '<button class="chip'+(!RDV_ACC_TROUVER?' on':'')+'" style="--c:'+chipCouleur(0)+'" onclick="RDV_ACC_TROUVER=false;render()">Tous · '+tous.length+'</button>'+
     '<button class="chip'+(RDV_ACC_TROUVER?' on':'')+'" style="--c:#e63329" onclick="RDV_ACC_TROUVER=true;render()">Accompagnant à trouver · '+manque.length+'</button></div>';
@@ -18588,7 +18610,7 @@ function vRdvAcc(){
       '<div class="rdvk-c">'+
         '<div class="rdvk-n">'+esc(r.nom)+(r.chambre?'<span class="rdvk-ch">ch. '+esc(r.chambre)+'</span>':'')+'</div>'+
         '<div class="rdvk-s"><span><i style="background:'+t.c+'"></i>'+esc(t.l)+'</span>'+(r.lieu?'<span>'+esc(r.lieu)+'</span>':'')+'</div>'+
-        (r.note?'<div class="rdvk-note">'+esc(r.note)+'</div>':'')+
+        (r.note?'<div class="rdvk-note"><span class="rdvk-lab">Précision</span> '+esc(r.note)+'</div>':'')+
         rdvEtiquettes(r,true,{sansTaxi:true})+
         rdvValBloc(r)+
         rdvCorrHTML(r)+
@@ -18631,14 +18653,35 @@ async function rdvPrevenirEcrire(id, on){
   if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); render(); return; }
   r.prevenir=!!on; render(); toast(on?'À prévenir ✓':'Plus à prévenir');
 }
+/* VALIDER, avec UN MOT FACULTATIF (Mag, 13/10/2026 : « j'ai mis une note pour la validation ») : le mot s'écrit sous
+   « validé par », dans le cadre. */
 function rdvValider(id){
   const r=rdvLigne(id); if(!r || !peutGerer()) return;
-  cousinConfirme('Valider '+(r.accompagne&&r.taxi?'l’accompagnement et le taxi':(r.taxi?'le taxi':'l’accompagnement'))+' ?', r.nom+' · '+rdvQuandCourt(r), async function(){
-    const maj={valide_par:nomAffiche(), valide_le:new Date().toISOString()};
+  const quoi=(r.accompagne&&r.taxi?'l’accompagnement et le taxi':(r.taxi?'le taxi':'l’accompagnement'));
+  cousinDemande('Valider '+quoi+' ?', r.nom+' · '+rdvQuandCourt(r)+'. Un mot si tu veux (facultatif).', '', async function(v){
+    v=String(v||'').trim().slice(0,300);
+    const maj={valide_par:nomAffiche(), valide_le:new Date().toISOString(), valide_mot:v||null, refuse_le:null, refuse_par:null, refuse_motif:null};
     const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
     if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
     Object.assign(r, maj); render(); toast('Validé ✓');
-  }, {ok:'Valider'});
+  }, 300, true);
+  const ok=document.getElementById('popOk'); if(ok) ok.textContent='Valider';
+}
+function rdvRefuser(id){
+  const r=rdvLigne(id); if(!r || !peutGerer()) return;
+  cousinDemande('Pourquoi refuser ?', r.nom+' · '+rdvQuandCourt(r)+'. La raison s’écrira sur le rendez-vous.', '', async function(v){
+    v=String(v||'').trim();
+    if(!v){ toast('Écris pourquoi — sinon rien ne change'); setTimeout(function(){ rdvRefuser(id); }, 250); return; }
+    v=v.replace(/[«»⟨⟩\n]/g,' ').slice(0,200);
+    const qui=String(nomAffiche()||'?').split(/\s+/)[0];
+    const quoi=(r.accompagne&&r.taxi?'Accompagnement et taxi':(r.taxi?'Taxi':'Accompagnement'));
+    const maj={refuse_le:new Date().toISOString(), refuse_par:nomAffiche()||'?', refuse_motif:v, valide_le:null, valide_par:null,
+      corrige_txt:rdvCorrAjouter(r, [quoi+' : demandé → refusé ⟨'+qui+'⟩ « '+v+' »']), corrige_par:nomAffiche(), corrige_le:new Date().toISOString(),
+      corrige_vu:rdvEstAuteur(r) ? (!!r.corrige_vu || !r.corrige_txt) : false};
+    const res=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('id');
+    if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    Object.assign(r, maj); render(); toast('Refusé — la raison est sur le rendez-vous');
+  }, 200, true);
 }
 function rdvAccChanger(id, el){
   const r=rdvLigne(id); if(!r) return;
@@ -18745,8 +18788,9 @@ function vRdv(){
      '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" min="'+esc(ppAjoute(a,-RDV_GARDE))+'" aria-label="Du" onchange="rdvDatesChange()">'+
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
-     '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
-     '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()"><span class="ic">'+icon('imprimer')+'</span>Semaine simplifiée</button>'+
+     /* LE LOGO SEUL (Mag, 13/10/2026 : « on sait que c'est un logo d'impression ») ; « Planning » = la feuille simplifiée. */
+     '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
+     '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()" title="Planning de la semaine"><span class="ic">'+icon('imprimer')+'</span>Planning</button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
      '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)">'+
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span>Accompagnement</button></div>';
@@ -18879,10 +18923,19 @@ function rdvImprimerDates(){
 /* ⚠ UN MESSAGE AVANT D'IMPRIMER S'IL MANQUE UN ACCOMPAGNANT (09/10/2026) : on imprime quand
    même si on veut, mais on sait. */
 function rdvAvantImprimer(liste, imprimer){
-  const m=liste.filter(function(r){ return r.accompagne && !r.accomp_nom; });
+  const m=liste.filter(function(r){ return r.accompagne && !r.accomp_nom && !r.refuse_le; });
   if(!m.length){ imprimer(); return; }
   cousinConfirme(m.length+' accompagnant'+(m.length>1?'s':'')+' à trouver',
-    m.map(function(r){ return r.nom+' — '+rdvQuandCourt(r); }).join(' · '), imprimer, {ok:'Imprimer quand même'});
+    '', imprimer, {ok:'Imprimer quand même'});
+  /* UNE LIGNE PAR PERSONNE (Mag, 13/10/2026 : « ce n'est pas mis en page, c'est horrible ») : le jour et l'heure en
+     colonne, puis le nom — dans l'ordre des rendez-vous. */
+  const t=document.getElementById('popTexte');
+  if(t) t.innerHTML='<div class="poplst">'+m.slice().sort(function(a,b){ return (String(a.jour)+String(a.heure||'')).localeCompare(String(b.jour)+String(b.heure||'')); })
+    .map(function(r){
+      const d=new Date(r.jour+'T12:00:00');
+      const j=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+      return '<div><span>'+esc(j)+(r.heure?' · '+esc(rdvHeureFr(r.heure)):'')+'</span><b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b></div>';
+    }).join('')+'</div>';
 }
 
 /* ---------- favoris (sur cet appareil — la synchronisation viendra avec la connexion) ---------- */
