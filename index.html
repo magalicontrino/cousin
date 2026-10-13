@@ -18569,7 +18569,8 @@ function vRdvAcc(){
     '<input type="date" id="rdvAccDu" class="rdvdate" value="'+esc(du)+'" aria-label="Du" onchange="rdvAccDatesChange()">'+
     '<span class="rdvau">au</span>'+
     '<input type="date" id="rdvAccAu" class="rdvdate" value="'+esc(au)+'" aria-label="Au" onchange="rdvAccDatesChange()">'+
-    '<button class="fbtn" onclick="rdvAvantImprimer(rdvAccSemaine(),rdvImprimerAcc)"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button></div>';
+    '<button class="fbtn" onclick="rdvAvantImprimer(rdvAccSemaine(),rdvImprimerAcc)"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
+    '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()"><span class="ic">'+icon('imprimer')+'</span>Semaine simplifiée</button></div>';
   h+='<div class="chips">'+
     '<button class="chip'+(!RDV_ACC_TROUVER?' on':'')+'" style="--c:'+chipCouleur(0)+'" onclick="RDV_ACC_TROUVER=false;render()">Tous · '+tous.length+'</button>'+
     '<button class="chip'+(RDV_ACC_TROUVER?' on':'')+'" style="--c:#e63329" onclick="RDV_ACC_TROUVER=true;render()">Accompagnant à trouver · '+manque.length+'</button></div>';
@@ -18673,6 +18674,32 @@ function rdvAccChanger(id, el){
     (n?' : '+n:' : personne')+'. À faire seulement si la coordination n’est pas là.', function(){ setTimeout(avecRaison, 250); }, {ok:'Je change'});
   el.value=r.accomp_nom||'';
 }
+/* ═══ LA FEUILLE SIMPLIFIÉE DE LA SEMAINE (Mag, 13/10/2026 : « un print des rendez-vous simplifiés de la semaine avec
+   les accompagnements ; l'heure, l'endroit, avec qui, autonome ou pas ; vraiment simplifié ») ═══ TOUS les rendez-vous
+   (accompagnés ou non), une ligne chacun, un tableau par jour. Le rouge ne dit que « accompagnant à trouver ». */
+function rdvImprimerSimple(du, au){
+  const L=RDV.filter(function(r){ return r.jour>=du && r.jour<=au; });
+  const jours=[]; L.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
+  let corps='<style>.sim{width:100%;border-collapse:collapse;margin:4px 0 2px;font-size:12.5px}'+
+    '.sim td{border-top:1px solid #ebe7e0;padding:6px 6px;vertical-align:top}'+
+    '.sim .h{width:15mm;font-weight:700;font-size:14px}.sim .c{width:13mm;font-weight:700}.sim .n{width:42mm;font-weight:700}'+
+    '.sim .q{width:38mm}.sim .r{color:#e63329;font-weight:700}.sim .pa{display:inline-block;border:1.5px solid #b28b7a;border-radius:2mm;padding:0 1.5mm;font-size:10.5px;margin-top:1mm}'+
+    '.sim .j{display:inline-block;border:1.5px solid #6cb392;border-radius:2mm;padding:0 1.5mm;font-size:10.5px;margin-top:1mm;font-weight:700}</style>';
+  jours.forEach(function(j){
+    const l=L.filter(function(r){ return r.jour===j; });
+    corps+='<section class="ch neutre"><div class="st"><span>'+esc(ppJourFr(j))+'</span><em>'+l.length+'</em></div><table class="sim">'+
+      l.map(function(r){
+        const avec = r.accompagne ? (r.accomp_nom ? esc(r.accomp_nom) : '<span class="r">Accompagnant à trouver</span>') : 'Seul';
+        return '<tr><td class="h">'+esc(rdvHeureFr(r.heure)||'—')+'</td><td class="c">'+(r.chambre?esc(r.chambre):'')+'</td>'+
+          '<td class="n">'+esc(r.nom)+'</td><td>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')||'—')+'</td>'+
+          '<td class="q">'+avec+(r.taxi?' · taxi':'')+
+            (r.pas_autonome?'<br><span class="pa">Pas autonome</span>':'')+(r.a_jeun?' <span class="j">À JEUN</span>':'')+'</td></tr>';
+      }).join('')+'</table></section>';
+  });
+  if(!corps || !jours.length) corps='<p class="vide">Aucun rendez-vous sur ces dates.</p>';
+  feuilleImprimer({onglet:'Rendez-vous — semaine du '+ppJourFr(du), entete:'Rendez-vous de la semaine — aperçu',
+    titre:'Rendez-vous de la semaine', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
+}
 function rdvImprimerAcc(){
   const D=rdvAccDates(), du=D.du, au=D.au;
   const L=RDV_ACC_TROUVER?rdvAccSemaine().filter(function(r){ return !r.accomp_nom; }):rdvAccSemaine();
@@ -18719,6 +18746,7 @@ function vRdv(){
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
      '<button class="fbtn" onclick="rdvImprimerDates()"><span class="ic">'+icon('imprimer')+'</span>Imprimer</button>'+
+     '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()"><span class="ic">'+icon('imprimer')+'</span>Semaine simplifiée</button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
      '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)">'+
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span>Accompagnement</button></div>';
