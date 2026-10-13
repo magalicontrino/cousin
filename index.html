@@ -18743,6 +18743,28 @@ function rdvImprimerSimple(du, au){
   feuilleImprimer({onglet:'Rendez-vous — semaine du '+ppJourFr(du), entete:'Rendez-vous de la semaine — aperçu',
     titre:'Rendez-vous de la semaine', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
 }
+/* ═══ LA SAUVEGARDE DES RENDEZ-VOUS (Mag, 13/10/2026 : « pas dans Admin ; dans les rendez-vous ; de tout ce qui suit,
+   jusqu'à la fin des rendez-vous ; on simplifie ») ═══ Un fichier qui s'ouvre dans Excel : une ligne par rendez-vous,
+   d'aujourd'hui au dernier encodé. Si l'app ou la base perd quelque chose, tout est dedans. */
+function rdvSauvegarde(){
+  const a=agIso(new Date());
+  const L=RDV.filter(function(r){ return r.jour>=a; });
+  if(!L.length){ toast('Aucun rendez-vous à venir'); return; }
+  const col=['Date','Heure','Nom','Chambre','Sorte','Lieu','Adresse','Accompagnement','Qui accompagne','Validation','Taxi','PMR',
+    'Réveil','À prévenir','Pas autonome','À jeun','Précision','Encodé par'];
+  const c=function(v){ v=String(v==null?'':v).replace(/"/g,'""'); return /[;"\n]/.test(v)?'"'+v+'"':v; };
+  const lignes=[col.join(';')].concat(L.map(function(r){
+    return [ppJourFr(r.jour), rdvHeureFr(r.heure)||'', r.nom, r.chambre||'', rdvType(r.genre).l, r.lieu||'', r.adresse||'',
+      r.accompagne?'Oui':'Non', r.accompagne?(r.accomp_nom||'à trouver'):'',
+      r.valide_le?'validé par '+String(r.valide_par||'').split(/\s+/)[0]:(r.refuse_le?'refusé par '+String(r.refuse_par||'').split(/\s+/)[0]+' : '+(r.refuse_motif||''):(rdvAValider(r)?'en attente':'')),
+      r.taxi?rdvTaxiTexte(r):'', r.pmr?'Oui':'', r.reveil?(rdvHeureFr(r.reveil_heure)||'Oui'):'', rdvAPrevenir(r)?'Oui':'',
+      r.pas_autonome?'Oui':'', r.a_jeun?'Oui':'', r.note||'', String(r.cree_par||'').split(/\s+/)[0]].map(c).join(';');
+  }));
+  const blob=new Blob(['﻿'+lignes.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const el=document.createElement('a'); el.href=URL.createObjectURL(blob);
+  el.download='rendez-vous-sauvegarde-'+a+'.csv'; document.body.appendChild(el); el.click(); el.remove();
+  cousinInfo('Sauvegarde téléchargée', L.length+' rendez-vous, du '+ppJourFr(L[0].jour)+' au '+ppJourFr(L[L.length-1].jour)+'. Le fichier s’ouvre dans Excel.');
+}
 function rdvImprimerAcc(){
   const D=rdvAccDates(), du=D.du, au=D.au;
   const L=RDV_ACC_TROUVER?rdvAccSemaine().filter(function(r){ return !r.accomp_nom; }):rdvAccSemaine();
@@ -18791,6 +18813,7 @@ function vRdv(){
      /* LE LOGO SEUL (Mag, 13/10/2026 : « on sait que c'est un logo d'impression ») ; « Planning » = la feuille simplifiée. */
      '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
      '<button class="fbtn" onclick="(function(){ const D=rdvAccDates(); rdvImprimerSimple(D.du, D.au); })()" title="Planning de la semaine"><span class="ic">'+icon('imprimer')+'</span>Planning</button>'+
+     '<button class="fbtn" onclick="rdvSauvegarde()" title="Sauvegarder tous les rendez-vous à venir"><span class="ic">'+icon('disquette')+'</span>Sauvegarde</button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
      '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)">'+
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span>Accompagnement</button></div>';
@@ -25455,42 +25478,12 @@ function vChantier(){
   return h+'<div style="height:26px"></div>';
 }
 
-/* ═══ LA SAUVEGARDE COMPLÈTE (Mag, 13/10/2026 : « je dois absolument avoir un backup ; s'il y a un problème, je dois
-   pouvoir tout récupérer ») ═══ Un fichier sur l'ordinateur, avec TOUTES les tables que l'app lit : rendez-vous,
-   passations, entrants, punaises, chambres, listes… Une table qui refuse est notée dans le fichier, pas oubliée.
-   C'est avec ce fichier qu'on remet les choses en place si la base perd quelque chose. */
-const SAUV_TABLES=['rendez_vous','passations','passation_reponses','entrants','entrants_corbeille','absences','absences_maj',
-  'protocole_punaises','chambres','tour_bacs','aides_personnes','aides_jour','checklists','checklist_faites','reglages_perso','notes_backup',
-  'favoris','binome_lignes','binome_reponses','binome_membres','numeros_internes','wiki_fiches','wiki_versions','wiki_centre',
-  'chantier','suggestions','propositions','conseils','avis','activites','feed','feed_reactions','jeux_semaine','profiles',
-  'allowed_emails','access_requests'];
-async function sauvegardeTelecharger(){
-  toast('Sauvegarde en cours…');
-  const out={fait_le:new Date().toISOString(), par:nomAffiche()||'', tables:{}};
-  let n=0, refus=[];
-  for(const t of SAUV_TABLES){
-    const toutes=[]; let err='';
-    for(let de=0; de<50000; de+=1000){
-      const {data,error}=await sb.from(t).select('*').range(de, de+999);
-      if(error){ err=error.message; break; }
-      toutes.push.apply(toutes, data||[]);
-      if(!data || data.length<1000) break;
-    }
-    if(err){ out.tables[t]={erreur:err}; refus.push(t); } else { out.tables[t]=toutes; n+=toutes.length; }
-  }
-  const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='cousin-sauvegarde-'+agIso(new Date())+'.json'; document.body.appendChild(a); a.click(); a.remove();
-  cousinInfo('Sauvegarde téléchargée', n+' lignes dans le fichier'+(refus.length?' · pas lues : '+refus.join(', '):'')+'.');
-}
 function vAdmin(){
   let h=heroBandeau('Admin','','#f8763f','cog',true);
   if(!vueGestion())
     return h+'<div class="fsavoir" style="margin-top:16px"><b><span class="ic">'+icon('bulb')+'</span>Réservé</b>'+
       '<p>Cette page est réservée à l’administration.</p></div><div style="height:26px"></div>';
   if(!adminLoaded) return h+'<div class="empty" style="margin-top:16px"><b>Chargement…</b></div>';
-  if(PROFILE && PROFILE.admin) h+='<div class="chadd" style="margin-top:14px"><button class="chaddbtn" style="flex:1" onclick="sauvegardeTelecharger()">'+
-    '<span class="ic">'+icon('disquette')+'</span> Télécharger une sauvegarde de tout</button></div>';
 
   const dem=ADMIN.requests||[], mem=ADMIN.members||[];
   const actifs=mem.filter(m=>m.actif!==false).length;
