@@ -726,6 +726,17 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
 .rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
 .rap-l.passe{opacity:.45}
+.rap-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
+.rap-chip{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;min-width:64px;border:0;border-radius:12px;padding:6px 10px;background:var(--c);color:#2b2a28;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}.rap-chip b{font-size:16px;font-weight:600}.rap-chip.r{color:#fdfdfc}
+.rap-qui{font-size:11px;border:1.5px solid var(--c);border-radius:999px;padding:0 8px;color:#2b2a28;font-weight:500;letter-spacing:0;text-transform:none}
+.rap-pp{display:flex;gap:6px;flex-wrap:wrap;background:none;border:0;padding:4px 0 4px 37px;font:inherit;cursor:pointer}.rap-pp span{font-size:13px;font-weight:600;background:#f3c6da;border-radius:10px;padding:5px 10px;color:#2b2a28}.rap-pp span.r{background:#e63329;color:#fdfdfc}
+.rap-rv{padding:4px 0}.rap-rvh{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;padding:6px 0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}
+.rap-rvh b{flex:1;font-size:13.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}.rap-rvn{min-width:26px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#2b2a28}
+.rap-rvh .chv{color:#8b8880;width:16px;text-align:center}
+.rap-dep{margin:0 0 6px 37px;border-left:3px solid var(--c);padding-left:6px}.rap-dep .rap-l{padding-left:4px}.rap-tv{font:inherit;font-size:12.5px;background:none;border:0;text-decoration:underline;color:#2b2a28;padding:4px;cursor:pointer}
+.rap-fl{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px 37px;scroll-snap-type:x mandatory}
+.rap-fc{flex:0 0 150px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:0;border-radius:14px;padding:8px 10px;background:var(--c);color:#2b2a28;font:inherit;text-align:left;cursor:pointer}
+.rap-fc i{font-style:normal;font-size:11px;font-weight:600}.rap-fc b{font-size:14px;font-weight:600;line-height:1.2}.rap-fc span{font-size:12px}
 .fly-t{font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6b6963;margin:16px 0 8px}
 .fly{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 0 8px;-webkit-overflow-scrolling:touch}
 .fly-c{flex:0 0 200px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:170px;padding:14px;border:0;border-radius:20px;background:var(--c);color:#2b2a28;text-align:left;font:inherit;cursor:pointer}
@@ -17544,6 +17555,8 @@ function accTrioHTML(){
       (n?'<span class="trio-n'+(rouge?' rouge':'')+'">'+n+'</span>':'')+'</button>';
   };
   const pk=function(f){ return '<span class="pico" style="-webkit-mask-image:url(\'picto/'+f+'\');mask-image:url(\'picto/'+f+'\')"></span>'; };
+  /* Le groupe D : la carte du rapport seule (pas d'agenda pour lui). */
+  if(estGroupeD()) return '<div class="trio-g">'+carte('large','#f5c542', icon('note'), 'Rapport du jour', sRap, "go('#/rapport')", 0)+'</div>';
   return '<div class="trio-g">'+
     carte('large','#f5c542', icon('note'), 'Rapport du jour', sRap, "go('#/rapport')", 0)+
     carte('', '#6fc7d9', icon('calendrier'), 'Rendez-vous', nc?nc+' corrigé'+(nc>1?'s':''):'',
@@ -17553,58 +17566,97 @@ function accTrioHTML(){
   '</div>';
 }
 function rdvOuvrirModif(id){ const r=rdvLigne(id); if(!r) return; RDV_VUE=''; RDV_FORM=Object.assign({}, r); go('#/rdv'); }
+/* ═══ LE RAPPORT DU JOUR, VERSION 2 (Mag, 13/10/2026, maquette propositions/rapport-perfectionne-2.png) ═══
+   · en haut, les CHIFFRES du jour (un appui descend au bloc) ;
+   · PAS de noms de fonction, sauf « Médical » / « Social » (rendez-vous) et « Coordination » (à valider) ;
+   · ordre : réveils · accompagnements · à valider · info importante · punaises · rendez-vous · activités de la semaine ·
+     entrée sans condition ; le vide en une ligne grise en bas ;
+   · les RENDEZ-VOUS en un chiffre (« Rendez-vous médicaux 4 ») : un appui déplie la liste rapide, « tout voir » ouvre l'agenda ;
+   · ⭐ LES POLYVALENTS (groupe D) N'Y ONT PAS ACCÈS (Mag, 13/10/2026, elle s'est corrigée). */
+var RAP_OUV={};
 function rapportHTML(page){
-  const D=rapportDonnees(), a=agIso(new Date());
-  const sec=function(c, ic, titre, n, corps, plus){
-    return '<div class="rap-s"><div class="rap-sh"><span class="rap-dot" style="background:'+c+'">'+ic+'</span><b>'+esc(titre)+'</b>'+
-      (n!==null?'<span class="rap-n2">'+n+'</span>':'')+(plus||'')+'</div>'+corps+'</div>';
+  const D=rapportDonnees(), a=agIso(new Date()), gD=estGroupeD();
+  const sec=function(id, c, ic, titre, n, corps, plus, qui){
+    return '<div class="rap-s" id="rap-'+id+'"><div class="rap-sh"><span class="rap-dot" style="background:'+c+'">'+ic+'</span><b>'+esc(titre)+'</b>'+
+      (qui?'<span class="rap-qui" style="--c:'+c+'">'+esc(qui)+'</span>':'')+(n!==null&&n!==undefined?'<span class="rap-n2">'+n+'</span>':'')+(plus||'')+'</div>'+corps+'</div>';
   };
   const ligneRdv=function(r){
     const avec=r.accompagne?(r.accomp_nom?'<span class="rap-acc">'+esc(r.accomp_nom)+'</span>':'<span class="rap-acc r">à trouver</span>'):'';
     return '<button class="rap-l" onclick="rdvOuvrirModif(\''+r.id+'\')"><span class="rap-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
       '<span class="rap-x">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+(r.lieu?'<em>'+esc(r.lieu)+'</em>':'')+'</span>'+avec+'</button>';
   };
-  let h='<div class="rap'+(page?' page':'')+'"><div class="rap-top"><b>Rapport du jour</b><span>'+esc(ppJourFr(a))+'</span>'+
-    '<button class="fbtn" onclick="rapportImprimer()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button></div>';
-  /* ═══ D'ABORD CE QUI COMPTE, LE VIDE EN PETIT EN BAS (Mag, 13/10/2026 : « il y a des choses prioritaires, des choses
-     à mettre plus discret après ») ═══ Ordre : réveils · info importante · accompagnements · rendez-vous du
-     jour · entrée sans condition · activités. Une rubrique VIDE ne prend pas de place : son nom part dans la ligne
-     discrète du bas, et ses « + » aussi. */
   const vides=[], plus=[];
   const msgSec=function(rb){
     const L=D.msg.filter(function(m){ return m.rubrique===rb[0]; });
     if(!L.length){ vides.push(rb[1].toLowerCase()); plus.push('<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ '+esc(rb[1])+'</button>'); return ''; }
-    return sec(rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
+    return sec(rb[0], rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
       L.map(function(m){
-        /* TOUT LE MONDE PEUT RETIRER (Mag, 13/10/2026) — avec « tu es sûr ? », et l'admin voit qui (journal). */
-        const peut=!estGroupeD();
-        /* LA SIGNATURE EN PETIT, EN CLAIR, AU BOUT DE LA PHRASE — ou rien. */
         return '<div class="rap-l"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
           (m.par?'<span class="rap-sig"> — '+esc(String(m.par).split(/\s+/)[0])+'</span>':'')+'</span>'+
-          (peut?'<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button>':'')+'</div>'; }).join(''),
+          '<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button></div>'; }).join(''),
       '<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ ajouter</button>');
   };
-  const listeSec=function(c, ic, titre, L, ligne){
-    if(!L.length){ vides.push(titre.toLowerCase()); return ''; }
-    return sec(c, ic, titre, L.length, L.map(ligne).join(''));
-  };
-  /* LES RÉVEILS EN PREMIER (Mag, 13/10/2026). */
-  h+=listeSec('#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils, function(x){
-      return '<div class="rap-l'+(x.passe?' passe':'')+'"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+(x.demain?'<i class="rap-ch">demain</i> ':'')+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; });
-  h+=listeSec('#6fc7d9','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc, ligneRdv);   /* 2e (Mag, 13/10/2026) */
-  h+=msgSec(RAPPORT_RUB[0]);
-  h+=listeSec('#a9c8e8',icon('calendrier'),'Rendez-vous du jour', D.autres, ligneRdv);
-  h+=msgSec(RAPPORT_RUB[1]);
+  /* Les données de plus : à valider, punaises, rendez-vous par sorte, activités de la semaine. */
+  const aVal=gD?[]:(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; });
+  const nAccV=aVal.filter(function(r){ return r.accompagne; }).length, nTaxiV=aVal.filter(function(r){ return r.taxi; }).length;
+  let ppPrev=0, ppSacs=0, ppJour='';
+  if(typeof PUNAISES!=='undefined'){
+    if(!PP_CHARGE) setTimeout(rafraichirPunaises,0);
+    const act=ppActives().filter(function(x){ const e=ppEtat(x); return e!=='fini' && e!=='abandon'; });
+    ppPrev=ppAlertes();
+    ppSacs=act.filter(function(x){ return ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }) && !x.sacs_le; }).length;
+    ppJour=(act.map(function(x){ return x.jour; }).filter(function(j){ return j>=a; }).sort()[0])||'';
+  }
+  const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le; });
+  const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
-  const aA=agIso(new Date());
-  if(actDuJour(aA).length || ACT.some(function(x){ return x.jour>aA && x.jour<=ppAjoute(aA,7); })) h+=actRapportHTML(sec);
-  else { vides.push('activités'); plus.push('<button class="rap-add" onclick="actOuvrir({})">+ Activité</button>'); }
+  const actS=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
+  const rvV=D.reveils.filter(function(x){ return !x.passe; }).length, accT=D.acc.filter(function(r){ return !r.accomp_nom; }).length;
+
+  let h='<div class="rap'+(page?' page':'')+'"><div class="rap-top"><b>Rapport du jour</b><span>'+esc(ppJourFr(a))+'</span>'+
+    '<button class="fbtn" onclick="rapportImprimer()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button></div>';
+  /* LES CHIFFRES DU JOUR */
+  const chip=function(n, mot, c, id, rouge){ return n?'<button class="rap-chip'+(rouge?' r':'')+'" style="--c:'+c+'" onclick="rapAller(\''+id+'\')"><b>'+n+'</b>'+esc(mot)+'</button>':''; };
+  const chips=chip(rvV, rvV>1?'réveils':'réveil','#fd8fd0','reveils')+chip(accT, 'accompagnant'+(accT>1?'s':'')+' à trouver','#e63329','acc',true)+
+    chip(ppPrev,'à prévenir (punaises)','#f3c6da','punaises')+chip(aVal.length,'à valider','#f8763f','valider');
+  if(chips) h+='<div class="rap-chips">'+chips+'</div>';
+
+  h+= D.reveils.length ? sec('reveils','#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils.length, D.reveils.map(function(x){
+      return '<div class="rap-l'+(x.passe?' passe':'')+'"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+(x.demain?'<i class="rap-ch">demain</i> ':'')+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; }).join('')) : (vides.push('réveils'),'');
+  h+= D.acc.length ? sec('acc','#6cb392','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc.length, D.acc.map(ligneRdv).join('')) : (vides.push('accompagnements'),'');
+  if(!gD && aVal.length) h+=sec('valider','#f8763f','<span class="rap-ic">✓</span>','À valider', null,
+    '<button class="rap-l" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')"><span class="rap-x">'+
+      [nAccV?nAccV+' accompagnement'+(nAccV>1?'s':''):'', nTaxiV?nTaxiV+' taxi'+(nTaxiV>1?'s':''):''].filter(Boolean).join(' · ')+'</span><span class="rap-acc" style="border-color:#f8763f">ouvrir ›</span></button>', '', 'Coordination');
+  h+=msgSec(RAPPORT_RUB[0]);
+  if(ppPrev || ppSacs) h+=sec('punaises','#f3c6da',icon('punaise'),'Punaises'+(ppJour?' · '+ppJourFr(ppJour).replace(/\s+\d{4}$/,''):''), null,
+    '<button class="rap-pp" onclick="go(\'#/punaises\')">'+(ppPrev?'<span class="r">'+ppPrev+' à prévenir</span>':'')+(ppSacs?'<span>'+ppSacs+' sac'+(ppSacs>1?'s':'')+' à faire</span>':'')+'</button>');
+  if(!gD){
+    const rv=function(id, c, titre, qui, L){
+      if(!L.length) return '';
+      const ouv=!!RAP_OUV[id];
+      return '<div class="rap-s rap-rv" id="rap-'+id+'"><button class="rap-rvh" onclick="RAP_OUV.'+id+'=!RAP_OUV.'+id+';render()"><span class="rap-dot" style="background:'+c+'">'+icon('calendrier')+'</span>'+
+        '<b>'+esc(titre)+'</b><span class="rap-rvn" style="background:'+c+'">'+L.length+'</span><span class="chv">'+(ouv?'⌃':'⌄')+'</span></button>'+
+        (ouv?'<div class="rap-dep" style="--c:'+c+'">'+L.map(ligneRdv).join('')+'<button class="rap-tv" onclick="RDV_VUE=\'\';go(\'#/rdv\')">tout voir dans l’agenda ›</button></div>':'')+'</div>';
+    };
+    const rr=rv('med','#e63329','Rendez-vous médicaux','Médical',med)+rv('soc','#6fc7d9','Rendez-vous sociaux','Social',soc);
+    if(rr) h+=rr; else vides.push('rendez-vous');
+  }
+  if(actS.length){
+    const JS=['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
+    h+=sec('act','#6cb392',icon('ticket'),'Activités de la semaine', null, '<div class="rap-fl">'+actS.map(function(x,i){
+      const d=new Date(x.jour+'T12:00:00');
+      return '<button class="rap-fc" style="--c:'+ACT_COUL[i%ACT_COUL.length]+'" onclick="actEditer('+x.id+')"><i>'+(x.jour===a?'AUJ.':JS[d.getDay()]+' '+d.getDate())+(x.heure?' · '+esc(rdvHeureFr(x.heure)):'')+'</i><b>'+esc(x.titre)+'</b>'+(x.lieu?'<span>'+esc(x.lieu)+'</span>':'')+'</button>'; }).join('')+'</div>',
+      '<button class="rap-add" onclick="actOuvrir({})">+ ajouter</button>');
+  } else { vides.push('activités'); plus.push('<button class="rap-add" onclick="actOuvrir({})">+ Activité</button>'); }
+  if(!gD) h+=msgSec(RAPPORT_RUB[1]);
   if(vides.length || plus.length) h+='<div class="rap-bas">'+(vides.length?'<span>Rien : '+esc(vides.join(' · '))+'</span>':'')+plus.join('')+'</div>';
   if(RAPPORT_PANNE) h+='<div class="rap-v" style="color:#e63329">Les messages n’ont pas pu être lus : la base n’a pas répondu.</div>';
   return h+'</div>';
 }
+function rapAller(id){ const e=document.getElementById('rap-'+id); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); }
 function vRapport(){
   let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Rapport du jour</h1></div>';
+  /* ⭐ PAS POUR LES POLYVALENTS (Mag, 13/10/2026 : « ils n'ont pas accès à ce rapport, tout court »). */
   if(estGroupeD()) return h+'<div class="empty" style="margin-top:30px"><b>Réservé à l’équipe.</b></div>';
   return h+rapportHTML(true);
 }
@@ -22926,7 +22978,7 @@ function vHome(){
      ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
   /* ⚠ PAS D'AGENDA NI D'ACCOMPAGNEMENTS POUR LE GROUPE D (Mag, 11/10/2026). */
   /* LE RAPPORT DU JOUR, TOUT EN HAUT (Mag, 13/10/2026) — pas pour le groupe D. */
-  if(!estGroupeD()) h+=accTrioHTML();
+  if(!estGroupeD()) h+=accTrioHTML();   /* ni rapport, ni agenda pour le groupe D */
   if(!estGroupeD()){
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
@@ -23633,7 +23685,7 @@ k:['Formations COUSIN']},
      rien dire — on en sort par la barre, comme on y est entré. */
   let h=heroBandeau('Le centre', dateTxt, '#A9C8E8', 'centre', 'aucun');
   /* LE RAPPORT DU JOUR, TOUT EN HAUT DU CENTRE (Mag, 13/10/2026) — pas pour le groupe D. */
-  if(!estGroupeD()) h+=rapportBarre();   /* un bouton, pas le rapport en grand (Mag, 13/10/2026) */
+  if(!estGroupeD()) h+=rapportBarre();   /* un bouton ; PAS pour le groupe D */
 
   /* LA RÈGLE DU GROUPE D, corrigée le 07/08/2026 par Mag : la section « Les outils
      de l'équipe » NE DISPARAÎT PAS. Elle reste, avec son titre, et on n'en retire
