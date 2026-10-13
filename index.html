@@ -17715,7 +17715,7 @@ function accTrioHTML(){
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; }).length;
   /* Rendez-vous SOCIAUX seulement (pas de médical dans le rapport, Mag 13/10/2026), et sans ceux déjà comptés en accompagnement. */
   /* Les activités de la semaine ont leur chiffre (Mag, 13/10/2026 : « pourquoi tu n'as pas mis l'activité à venir ? »). */
-  let nAct=0; try{ if(typeof ACT!=='undefined'){ if(!ACT_CHARGE) setTimeout(rafraichirAct,0); nAct=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).length; } }catch(e){}
+  let nAct=0; try{ if(typeof ACT!=='undefined'){ setTimeout(rafraichirAct,0);   /* relu toutes les 30 s au plus : une 1re lecture faite avant la connexion revenait vide */ nAct=ACT.filter(function(x){ return x.jour>=a && x.jour<=ppAjoute(a,6); }).length; } }catch(e){}
   const nRdv=RDV_CHARGE?(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !(r.heure && String(r.heure).slice(0,5)<=(String(new Date().getHours()).padStart(2,'0')+':'+String(new Date().getMinutes()).padStart(2,'0'))) && !r.accompagne && rdvType(r.genre).k!=='medical'; }).length:0;
   let pp=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); pp=ppAlertes(); } }catch(e){}
   /* Une pastille peut mener droit à SON bloc du rapport (Mag, 13/10/2026 : « marquer 13 punaises, et qu'on rentre dedans »). */
@@ -18073,7 +18073,9 @@ async function loadAct(){
 function rafraichirAct(){
   if(!sb || Date.now()-_actVu<30000) return;
   _actVu=Date.now();
-  loadAct().then(function(){ if(current.view==='ticket' || current.view==='rapport' || current.view==='centre') render(); });
+  /* ⚠ L'ACCUEIL AUSSI (13/10/2026 : l'étiquette « activités » avait disparu) — et seulement si les données ont changé. */
+  const avant=JSON.stringify(ACT);
+  loadAct().then(function(){ if(JSON.stringify(ACT)!==avant && ['ticket','rapport','centre','home'].indexOf(current.view)>=0) render(); });
 }
 function actDuJour(j){ return ACT.filter(function(x){ return x.jour===j; }).sort(function(a,b){ return String(a.heure||'').localeCompare(String(b.heure||'')); }); }
 function actResume(){
