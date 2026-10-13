@@ -18933,6 +18933,17 @@ function rdvPrendre(id){
     Object.assign(r, res.data[0]); render(); toast('C’est dans ta liste ✓');
   }, {ok:'Je m’en occupe'});
 }
+/* ⭐ REMETTRE À L'ÉQUIPE (Mag, 13/10/2026 : « je pars à 5 heures parce que je suis malade : si je me le suis approprié et
+   que je ne peux pas le remettre, c'est problématique ») : la ligne quitte ma liste et revient dans « Agenda · À prévenir »
+   pour toute l'équipe de jour et du soir. */
+function rdvRemettre(id){
+  const r=rdvLigne(id); if(!r) return;
+  cousinConfirme('Remettre à l’équipe ?', 'Prévenir '+r.nom+' — '+rdvQuandCourt(r)+'. Ça quitte ta liste et revient dans « À prévenir » pour toute l’équipe.', async function(){
+    const res=await sb.from('rendez_vous').update({prevenir_note:null}).eq('id',r.id).select('*');
+    if(res.error || !res.data || !res.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+    Object.assign(r, res.data[0]); render(); toast('Remis à l’équipe ✓');
+  }, {ok:'Remettre à l’équipe'});
+}
 function rdvPrDessiner(){
   const bg=document.getElementById('rdvPrBg'); if(!bg || !RDV_PR) return;
   const r=rdvLigne(RDV_PR.id); if(!r) return;
@@ -43372,7 +43383,8 @@ function prevCarte(x){
         (x.src?'<span class="prk-s">'+esc(x.src)+'</span>':'')+'</div>':'')+
       /* Pas pris : « Je m'en occupe ». Pris par moi : « Pas vu ? Passer à la nuit ». Pris par un·e autre : son nom. */
       (!x.fait && x.k==='rdv' && !x.pris?'<button class="prk-nuit" onclick="rdvPrendre(\''+x.id+'\')">Je m’en occupe</button>':'')+
-      (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>':'')+
+      (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>'+
+        '<button class="prk-nuit" onclick="rdvRemettre(\''+x.id+'\')">Remettre à l’équipe</button>':'')+
       (!x.fait && x.k==='rdv' && x.pris && !x.aMoi?'<div class="prk-f">'+esc(x.pris)+' s’en occupe</div>':'')+
       (x.fait?'<div class="prk-f">✓ prévenu'+(x.faitPar?' par '+esc(String(x.faitPar).split(/\s+/)[0]):'')+(x.faitLe?', '+esc(binQuand(x.faitLe)):'')+'</div>':'')+
     '</div>'+
