@@ -701,8 +701,17 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvk-tr{font-size:12.5px;color:#6b6963;margin-top:8px}
 /* La fenêtre de confirmation passe AU-DESSUS des autres fenêtres (liste À prévenir…). */
 #popBg{z-index:10000}
-.rdvmodal{position:fixed;inset:0;z-index:9000;background:rgba(43,42,40,.5);overflow-y:auto;padding:28px 12px 60px;-webkit-overflow-scrolling:touch}
-.rdvmodal-c{max-width:640px;margin:0 auto;background:#fdfdfc;border-radius:18px;padding:4px 6px}
+/* Le formulaire en PLEIN ÉCRAN (Mag, 13/10/2026). */
+.rdvmodal{position:fixed;inset:0;z-index:9000;background:#fdfdfc;overflow-y:auto;padding:0 0 60px;-webkit-overflow-scrolling:touch}
+.rdvmodal-c{max-width:760px;margin:0 auto;padding:12px 14px}
+.rdvadd{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:14px 0 6px;padding:16px;border:0;border-radius:16px;background:#6fc7d9;color:#2b2a28;font:600 18px 'Eastman',-apple-system,sans-serif;cursor:pointer}
+.rdvadd b{font-size:26px;line-height:1;font-weight:500}
+.fbtn.rdvon{border-color:#2b2a28;background:#2b2a28;color:#fdfdfc}.fbtn.rdvon .ic{color:#fdfdfc}
+.rdvl-b{background:#fdfdfc;border:1px solid #e4e1dc;border-radius:14px;overflow:hidden;margin:0 0 12px}
+.rdvl{display:grid;grid-template-columns:62px minmax(0,1.1fr) minmax(0,1fr) 100px;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-top:1px solid #ece9e4;padding:11px 14px;font:inherit;color:#2b2a28;cursor:pointer}
+.rdvl:first-child{border-top:0}.rdvl-h{font-weight:500;font-size:15px;white-space:nowrap}.rdvl-n{font-weight:600;font-size:15px}.rdvl-n i{font-style:normal;font-weight:500;font-size:12px;color:#6b6963;margin-left:4px}
+.rdvl-o{font-size:13.5px;color:#6b6963;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rdvl-a{justify-self:end;font-size:13px;border:1.5px solid #6fc7d9;border-radius:999px;padding:1px 9px;white-space:nowrap}.rdvl-a.rouge{border-color:#e63329;color:#e63329}
+@media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
 .railn{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:999px;background:#e63329;color:#fdfdfc;font:600 11px 'Eastman',-apple-system,sans-serif;font-style:normal}
 .poplst{display:flex;flex-direction:column;gap:2px;margin-top:4px}
@@ -18152,6 +18161,19 @@ function rdvModifier(id){
   RDV_FORM=Object.assign({}, r); render();
 }
 function rdvAnnuler(){ RDV_FORM=null; render(); }
+/* ═══ DEUX VUES QUI SE BASCULENT (Mag, 13/10/2026 : « une vue liste, et un petit œil : la vue hyper simplifiée, sans
+   les détails ») ═══ La vue simple : une ligne par rendez-vous — l'heure, le nom, la chambre, où, avec qui. Toucher la
+   ligne ouvre le rendez-vous en fenêtre. Le choix est gardé sur l'appareil. */
+var RDV_MODE='liste';
+try{ RDV_MODE=localStorage.getItem('cousin_rdv_mode')||'liste'; }catch(e){}
+function rdvMode(m){ RDV_MODE=m; try{ localStorage.setItem('cousin_rdv_mode', m); }catch(e){} render(); }
+function rdvLigneSimple(r){
+  const avec = r.accompagne ? (r.accomp_nom ? '<span class="rdvl-a">'+esc(r.accomp_nom)+'</span>' : '<span class="rdvl-a rouge">à trouver</span>') : '<span></span>';
+  return '<button class="rdvl" onclick="rdvModifier(\''+r.id+'\')">'+
+    '<span class="rdvl-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
+    '<span class="rdvl-n">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+'</span>'+
+    '<span class="rdvl-o">'+esc(r.lieu||'')+'</span>'+avec+'</button>';
+}
 /* ═══ MODIFIER = UNE FENÊTRE PAR-DESSUS (Mag, 13/10/2026 : « quand on clique, une pop-up doit s'ouvrir pour changer ;
    là ça remonte tout en haut et il ne se passe rien. Changer un rendez-vous, on ne fait que ça : c'est le point le
    plus sensible de l'application ») ═══ Le même formulaire, dans une fenêtre, là où on est — dans l'agenda comme dans
@@ -18861,17 +18883,21 @@ function vRdv(){
      '<input type="date" id="rdvDu" class="rdvdate" value="'+esc(D.du)+'" min="'+esc(ppAjoute(a,-RDV_GARDE))+'" aria-label="Du" onchange="rdvDatesChange()">'+
      '<span class="rdvau">au</span>'+
      '<input type="date" id="rdvAu" class="rdvdate" value="'+esc(D.au)+'" aria-label="Au" onchange="rdvDatesChange()">'+
-     /* LE LOGO SEUL (Mag, 13/10/2026 : « on sait que c'est un logo d'impression ») ; « Planning » = la feuille simplifiée. */
+     /* ═══ LA RANGÉE DE PICTOS (Mag, 13/10/2026 : « la liste, l'œil, le print, la petite disquette, l'accompagnement ») ═══
+        Liste = les cartes avec tous les détails ; œil = la vue hyper simplifiée ; print = la feuille du … au … ;
+        disquette = le backup (tous les rendez-vous à venir, A4 horizontal, même sans la base). */
+     '<button class="fbtn'+(RDV_MODE!=='oeil'?' rdvon':'')+'" onclick="rdvMode(\'liste\')" aria-label="Liste détaillée" title="Liste détaillée"><span class="ic">'+icon('list')+'</span></button>'+
+     '<button class="fbtn'+(RDV_MODE==='oeil'?' rdvon':'')+'" onclick="rdvMode(\'oeil\')" aria-label="Vue simple" title="Vue simple"><span class="ic">'+icon('oeil')+'</span></button>'+
      '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
-     '<button class="fbtn" onclick="rdvImprimerSimple()" title="Planning : tous les rendez-vous à venir — le backup, imprimable même sans la base"><span class="ic">'+icon('imprimer')+'</span>Planning</button>'+
+     '<button class="fbtn" onclick="rdvImprimerSimple()" aria-label="Backup" title="Backup : tous les rendez-vous à venir, imprimables même sans la base"><span class="ic">'+icon('disquette')+'</span></button>'+
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
      '<button class="fbtn" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';render();window.scrollTo(0,0)" aria-label="Accompagnements" title="Accompagnements de la semaine">'+
        '<span class="ic"><img src="picto/accompagnement.svg" alt="" style="width:100%;height:100%"></span></button></div>';
   /* « À prendre en charge » N'EST PLUS ICI (09/10/2026 : « ça risque d'être long, avant
      l'agenda, ce n'est pas avantageux ») : elle vit dans Liste et notes seulement. */
-  if(RDV_FORM && RDV_FORM.id) h+=rdvModalHTML();
-  if(RDV_FORM && !RDV_FORM.id) h+=rdvFormHTML();
-  else if(rdvPeutEcrire()) h+='<div class="chadd"><button class="chaddbtn" style="flex:1" onclick="rdvNouveau()">+ Encoder un rendez-vous</button></div>';
+  /* AJOUTER, TRÈS VISIBLE, EN HAUT — et le formulaire en plein écran (Mag, 13/10/2026). */
+  if(rdvPeutEcrire()) h+='<button class="rdvadd" onclick="rdvNouveau()"><b>+</b> Ajouter un rendez-vous</button>';
+  if(RDV_FORM) h+=rdvModalHTML();
   if(RDV_PANNE){
     h+='<div class="cal-e" style="border-left-color:var(--rouge)"><b>L’agenda n’a pas pu être lu</b>'+
       '<p>Ce n’est pas qu’il est vide : la base n’a pas répondu.</p><p class="insc">'+esc(RDV_PANNE)+'</p></div>';
@@ -18880,8 +18906,10 @@ function vRdv(){
   }
   const jours=[]; avenir.forEach(function(r){ if(jours.indexOf(r.jour)<0) jours.push(r.jour); });
   jours.forEach(function(j){
+    const du=avenir.filter(function(r){ return r.jour===j; });
     h+='<div class="ghead">'+esc(rdvJourTitre(j))+'</div>'+
-      avenir.filter(function(r){ return r.jour===j; }).map(function(r){ return rdvCarte(r, r.jour<a); }).join('');
+      (RDV_MODE==='oeil' ? '<div class="rdvl-b">'+du.map(rdvLigneSimple).join('')+'</div>'
+                         : du.map(function(r){ return rdvCarte(r, r.jour<a); }).join(''));
   });
   if(plusTard.length){
     const fin=plusTard.reduce(function(m,r){ return r.jour>m?r.jour:m; }, D.au);
@@ -21474,9 +21502,8 @@ function renderInterne(){
      effacer ce qui est en train d'être tapé. */
   else if(current.view==='rdv' && estGroupeD()){ view.innerHTML='<div class="empty" style="margin-top:40px"><b>L’agenda est réservé à l’équipe.</b></div>'; }
   else if(current.view==='rdv'){
-    /* EN ARRIVANT sur l'agenda, l'encodage est DÉPLOYÉ (Mag, 10/10/2026) — une seule fois par arrivée. */
-    if(window._rdvArrivee!==true && !RDV_FORM && RDV_VUE!=='acc' && rdvPeutEcrire()) rdvFormVide();
-    window._rdvArrivee=true;
+    /* (Mag, 13/10/2026) : on arrive sur LA LISTE des rendez-vous ; le formulaire ne s'ouvre plus tout seul —
+       « Ajouter un rendez-vous » l'ouvre en plein écran. */
     rdvLireChamps(); view.innerHTML=vRdv(); rafraichirRdv(); }
   else if(current.view==='print') view.innerHTML=vPrint();
   else if(current.view==='linge') view.innerHTML=vLinge();
