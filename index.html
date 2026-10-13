@@ -44488,14 +44488,14 @@ function rappelAjouter(){
   toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
   /* ⭐ DÉSENCODER OUVRE LA FENÊTRE DES DÉPARTS (Mag, 13/10/2026 : « quand je marque désencoder, une pop-up s'ouvre pour
      remplir tout ça »). Le nom et la chambre sont repris de la note. */
-  if(ligne.desencodage && !estGroupeD()){ departPop({nom:String(t).split('\n')[0].slice(0,40), chambre:ligne.chambre||''}); return; }
+  if(ligne.desencodage && !estGroupeD()){ departPop({nom:String(t).split('\n')[0].slice(0,40), chambre:ligne.chambre||'', rid:ligne.id}); return; }
   setTimeout(function(){ const e=document.getElementById('rapTxt'); if(e) e.focus(); },30);
 }
 /* ═══ LA FENÊTRE « DÉPART » (13/10/2026) ═══ Trois questions : sortant ou hospitalisé ; la date ; il reste des affaires ?
    La place est désencodée (on vient de cocher DÉSENCODER) : le suivi de la chambre démarre dans la page Départs. */
 var DEP_F=null;
 function departPop(o){
-  DEP_F={nom:o.nom||'', chambre:o.chambre||'', date:agIso(new Date()), motif:'', aff:null};
+  DEP_F={nom:o.nom||'', chambre:o.chambre||'', date:agIso(new Date()), motif:'', aff:null, rid:o.rid||null};
   let bg=document.getElementById('depBg');
   if(!bg){ bg=document.createElement('div'); bg.id='depBg'; bg.className='popbg'; document.body.appendChild(bg);
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
@@ -44526,6 +44526,8 @@ async function departEnregistrer(){
   const r=await sb.from('chambres').insert({numero:String(DEP_F.chambre).trim().slice(0,10), initiales:String(DEP_F.nom||'').trim().slice(0,40)||null,
     cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff}).select('id');
   if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  /* La note garde le lien vers son sortant : on ne le recrée pas en la modifiant. */
+  if(DEP_F.rid){ const n=MESRAPPELS.find(function(x){ return x.id===DEP_F.rid; }); if(n){ n.sortantId=r.data[0].id; rappelsSauver(); } }
   document.getElementById('depBg').classList.remove('on'); DEP_F=null;
   _chVu=0; await loadChambres(); render(); toast('Dans les sortants ✓ — le point du jour le montre');
 }
@@ -44579,8 +44581,12 @@ function rappelModifier(id){
       if(ch) r.chambre=ch.slice(0,12); else delete r.chambre;
       /* Les cases reflètent les marques cochées : cochée = posée, décochée = retirée. */
       if(etq&&etq.absence) r.absence=true; else delete r.absence;
+      const desAvant=!!r.desencodage;
       if(etq&&etq.desencodage) r.desencodage=true; else delete r.desencodage;
       if(etq&&etq.encoder) r.encoder=true; else delete r.encoder;
+      /* ⭐ DÉSENCODER COCHÉ EN MODIFIANT ouvre aussi la fenêtre des sortants (Mag, 13/10/2026 : « quand tu veux modifier, ça ne
+         va pas ») — sauf si cette note a déjà son sortant. */
+      if(r.desencodage && (!desAvant || !r.sortantId) && !estGroupeD()) setTimeout(function(){ departPop({nom:String(r.texte).split('\n')[0].slice(0,40), chambre:r.chambre||'', rid:r.id}); },80);
       if(etq&&etq.entretien) r.entretien=true; else delete r.entretien;
       if(etq&&etq.miparcours) r.miparcours=true; else delete r.miparcours;
       if(etq&&etq.info) r.info=true; else delete r.info;
