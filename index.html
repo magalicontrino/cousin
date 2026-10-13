@@ -17709,7 +17709,10 @@ function accTrioHTML(){
   (RDV||[]).forEach(function(r){ if(r.jour>=a && r.accompagne && rdvAValider(r) && !r.valide_le && !r.refuse_le && !r.retire_le) idsA[r.id]=1; });
   const nTotA=estGroupeD()?0:Object.keys(idsA).length;
   const nValA=estGroupeD()?0:(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le && r.accompagne; }).length;
-  const chipsTout=rapEtiquettes({ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  let abs3=0, abs3lam=0;
+  try{ if(!estGroupeD() && typeof ABSENCES!=='undefined'){ if(!ABS_LU && !ABS_ENCOURS) setTimeout(loadAbsences,0);
+    const A3=ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; }); abs3=A3.length; abs3lam=A3.filter(function(x){ return x.lam; }).length; } }catch(e){}
+  const chipsTout=rapEtiquettes({abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:D.acc.length, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17889,7 +17892,8 @@ function rapEtiquettes(o, accueil){
     const clic=accueil ? 'event.stopPropagation();go(\'#/rapport\');setTimeout(function(){rapAller(\''+bloc+'\')},80)' : 'rapAller(\''+bloc+'\')';
     return '<span class="etq'+(rouge?' etq-rouge':'')+'" role="button" onclick="'+clic+'">'+(pic||'')+'<b>'+n+'</b>'+(mot?'<span>'+esc(mot)+'</span>':'')+'</span>';
   };
-  return e(o.ent,'', 'sans PFM','entree')+e(o.info,'', o.info>1?'infos':'info','info')+
+  /* LES ABSENTS +3 NUITS (Mag, 13/10/2026), en tête ; rouge s'il y a un LAM. */
+  return e(o.abs3,'', 'absent'+(o.abs3>1?'s':'')+' +3 nuits','abslam', !!o.abs3lam)+e(o.ent,'', 'sans PFM','entree')+e(o.info,'', o.info>1?'infos':'info','info')+
     e(o.reveil, masque('alarme.svg','#fd8fd0'), '', 'reveils')+
     /* UNE SEULE ÉTIQUETTE ACCOMPAGNEMENTS (Mag, 13/10/2026 : « mets-les en un ») : rouge avec le total à faire (à trouver +
        à valider) s'il y a quelque chose à faire, sinon les accompagnements du jour. */
