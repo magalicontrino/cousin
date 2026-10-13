@@ -714,6 +714,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 @media (max-width:520px){ .rdvl{grid-template-columns:52px 1fr 90px} .rdvl-o{grid-column:2 / 4;grid-row:2} }
 .rdvk-clic{cursor:pointer}
 .rapPass.rapAct{border-color:#6cb392}
+.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
 .rdvcal-e{border-left-color:#a9c8e8}.rdvcal-e.manque{border-left-color:#e63329}
 .rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
 .rdvdet-x{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:1.5px solid #d8d4cd;background:#fdfdfc;font-size:20px;line-height:1;cursor:pointer;color:#2b2a28}
@@ -17480,8 +17481,10 @@ function rapportHTML(page){
     h+=sec(rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
       L.map(function(m){
         const peut=(PROFILE && m.par_uid && m.par_uid===PROFILE.uid) || peutGerer();
+        /* LA SIGNATURE EN PETIT, EN CLAIR, AU BOUT DE LA PHRASE — ou rien (Mag, 13/10/2026 : « on n'a pas besoin de voir
+           tout le temps qui écrit ; pas l'heure ; on peut mettre anonyme »). */
         return '<div class="rap-l"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
-          '<em>'+esc(String(m.par||'').split(/\s+/)[0])+' · '+esc(binQuand(m.cree_le))+'</em></span>'+
+          (m.par?'<span class="rap-sig"> — '+esc(String(m.par).split(/\s+/)[0])+'</span>':'')+'</span>'+
           (peut?'<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button>':'')+'</div>'; }).join(''),
       '<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ ajouter</button>');
   });
@@ -17493,17 +17496,32 @@ function vRapport(){
   if(estGroupeD()) return h+'<div class="empty" style="margin-top:30px"><b>Réservé à l’équipe.</b></div>';
   return h+rapportHTML(true);
 }
+var RAP_RUB=null;
 function rapportAjouter(rub){
+  RAP_RUB=rub;
   const rb=RAPPORT_RUB.find(function(x){ return x[0]===rub; });
-  cousinDemande(rb[1], 'Signé de ton nom · reste 3 jours dans le rapport.', '', async function(v){
-    v=String(v||'').trim(); if(!v) return;
-    const m=/^(?:ch\.?|chambre)\s*(\d{2,4})\b[\s:—-]*/i.exec(v);
-    const ligne={rubrique:rub, texte:(m?v.slice(m[0].length):v).slice(0,600)||v.slice(0,600), chambre:m?m[1]:null, par:nomAffiche()||'?',
-      par_uid:(PROFILE&&PROFILE.uid)||null, jusqu_au:ppAjoute(agIso(new Date()),2)};
-    const r=await sb.from('rapport_messages').insert(ligne).select('*');
-    if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
-    RAPPORT.unshift(r.data[0]); render(); toast('Dans le rapport ✓');
-  }, 600, true);
+  let bg=document.getElementById('rapBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='rapBg'; bg.className='popbg'; document.body.appendChild(bg); }
+  const qui=String(nomAffiche()||'?').split(/\s+/)[0];
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt"><span class="act-pi" style="background:'+rb[2]+'">'+rb[3]+'</span>'+esc(rb[1])+'</div>'+
+    '<textarea id="rapTexte" class="act-in" rows="3" maxlength="600" placeholder="Le message (ch. 221 … pour la chambre)"></textarea>'+
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'rapBg\').classList.remove(\'on\')">Annuler</button><span style="flex:1"></span>'+
+      '<button class="rdvk-ref" onclick="rapportEnvoyer(false)">Anonyme</button>'+
+      '<button class="rdvk-val" onclick="rapportEnvoyer(true)">Signer « '+esc(qui)+' »</button></div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const e=document.getElementById('rapTexte'); if(e) e.focus(); },40);
+}
+async function rapportEnvoyer(signe){
+  const e=document.getElementById('rapTexte'); let v=String((e&&e.value)||'').trim();
+  if(!v){ toast('Écris le message'); return; }
+  const m=/^(?:ch\.?|chambre)\s*(\d{2,4})\b[\s:—-]*/i.exec(v);
+  const ligne={rubrique:RAP_RUB, texte:((m?v.slice(m[0].length):v)||v).slice(0,600), chambre:m?m[1]:null, par:signe?(nomAffiche()||'?'):null,
+    par_uid:(PROFILE&&PROFILE.uid)||null, jusqu_au:ppAjoute(agIso(new Date()),2)};
+  const r=await sb.from('rapport_messages').insert(ligne).select('*');
+  if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  document.getElementById('rapBg').classList.remove('on');
+  RAPPORT.unshift(r.data[0]); render(); toast('Dans le rapport ✓');
 }
 function rapportRetirer(id){
   const m=RAPPORT.find(function(x){ return x.id===id; }); if(!m) return;
@@ -17622,7 +17640,7 @@ function actRapportHTML(sec){
   const v=ACT.filter(function(x){ return x.jour>a && x.jour<=ppAjoute(a,7); }).sort(function(x,y){ return (x.jour+(x.heure||'')).localeCompare(y.jour+(y.heure||'')); });
   const corps=(L.length?L.map(function(x){
       return '<div class="rap-l"><span class="rap-h">'+esc(x.heure?rdvHeureFr(x.heure):'—')+'</span><span class="rap-x">'+esc(x.titre)+(x.lieu?' <i>'+esc(x.lieu)+'</i>':'')+
-        '<em>'+esc(String(x.par||'').split(/\s+/)[0])+(x.cr?' · « '+esc(x.cr)+' »':'')+'</em></span>'+
+        (x.cr?'<em>« '+esc(x.cr)+' »</em>':'')+'</span>'+
         (x.cr?'':'<button class="rap-add" onclick="actEditer('+x.id+')">+ comment ça s’est passé ?</button>')+'</div>'; }).join('')
       :'<div class="rap-v">Rien aujourd’hui</div>')+
     (v.length?'<div class="rap-v">À venir : '+v.map(function(x){ return esc(['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][new Date(x.jour+'T12:00:00').getDay()]+' '+x.titre); }).join(' · ')+'</div>':'');
