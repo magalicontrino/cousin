@@ -17817,18 +17817,20 @@ function rdvPrisEnCharge(r){
    FAUT écrire ce qu'on fait, puis la tâche part dans la passation de nuit (voir `rdvPrendre`). */
 /* L'info « Prévenir » part si on nous l'a demandé OU si la personne n'est pas autonome. */
 function rdvAPrevenir(r){ return !!(r && (r.prevenir || r.pas_autonome)); }
+/* ═══ QUI PRÉVIENT (Mag, 13/10/2026) ═══ « Le réveil se met automatiquement ; qui prend en charge le fait de prévenir,
+   ÇA c'est important. » Le réveil ne se « prend » plus : il va tout seul dans la passation de nuit (`rdvReveilsNuit`).
+   « À prendre en charge » ne montre donc plus que les À PRÉVENIR que personne n'a pris, sur 7 jours.
+   Qui s'en occupe est noté dans `prevenir_note` : « pris:<uid>|<prénom> » (« nuit » = passé à la nuit). */
+function rdvPrevPris(r){
+  const n=String((r&&r.prevenir_note)||''); if(n.indexOf('pris:')!==0) return null;
+  const x=n.slice(5).split('|'); return {uid:x[0]||'', nom:x[1]||''};
+}
+function rdvPrevAMoi(r){ const q=rdvPrevPris(r); return !!(q && PROFILE && q.uid===PROFILE.uid); }
 function rdvTaches(){
   const a=agIso(new Date()), t=[];
   (RDV||[]).forEach(function(r){
-    if(r.jour<a || r.jour>ppAjoute(a,1)) return;
-    /* ⚠ UNE SEULE TÂCHE PAR RENDEZ-VOUS (09/10/2026 : « ce n'est pas deux choses dans la
-       prise en charge ; ça se divise en deux quand ça part vers l'info de passation et vers
-       le réveil »). Elle arrive LA VEILLE (aujourd'hui et demain) s'il y a un réveil ou si
-       la personne n'est pas autonome, et que ce n'est pas encore pris. */
-    /* (Mag, 13/10/2026) : le « à prévenir » ne part plus à la nuit — il reste dans la liste À prévenir de qui
-       l'a encodé ; seule la tâche RÉVEIL se prend ici. */
-    const reste=(r.reveil && !r.reveil_par);
-    if(reste) t.push({r:r});
+    if(r.jour<a || r.jour>ppAjoute(a,7)) return;
+    if(rdvAPrevenir(r) && !r.prevenir_par && !r.prevenir_note) t.push({r:r});
   });
   return t.sort(function(x,y){ return (String(x.r.jour)+String(x.r.heure||'')).localeCompare(String(y.r.jour)+String(y.r.heure||'')); });
 }
@@ -17845,8 +17847,7 @@ function carteAPrendre(){
       '<b>À prendre en charge</b><span>'+t.length+'</span></div></div>'+
     t.map(function(x){
       const r=x.r, ty=rdvType(r.genre);
-      const quoi=[]; if(r.reveil) quoi.push('Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''));
-      if(r.prevenir) quoi.push('Prévenir'); if(r.pas_autonome) quoi.push('Pas autonome');
+      const quoi=['Prévenir']; if(r.pas_autonome) quoi.push('Pas autonome');
       /* ⚠ LA DATE EN GROS (09/10/2026 : « je ne vois aucune date, il faut une date pour
          savoir pourquoi c'est remonté en haut ») : le petit calendrier des entrants. */
       return '<div class="rdvt">'+
@@ -17859,7 +17860,7 @@ function carteAPrendre(){
            te fait descendre vers ta passation ») — la même que pour faire descendre un
            entrant. Elle ouvre « Je prends en charge ». */
         (rdvPeutPrendre()?'<button class="entvus-b" onclick="rdvPrendre(\''+r.id+'\')" '+
-          'title="Prendre la passation" aria-label="Prendre la passation">'+icon('flechebas')+'</button>':'')+
+          'title="Je m’en occupe" aria-label="Je m’en occupe">'+icon('flechebas')+'</button>':'')+
       '</div>';
     }).join('')+
   '</div>';
@@ -17910,14 +17911,14 @@ let RDV_PR=null;
 function rdvPrendre(id){
   const r=rdvLigne(id); if(!r) return;
   if(!rdvPeutPrendre()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
-  RDV_PR={id:r.id, reveil:!!(r.reveil && !r.reveil_par), prevenir:!!(rdvAPrevenir(r) && !r.prevenir_par), mot:''};
-  let bg=document.getElementById('rdvPrBg');
-  if(!bg){
-    bg=document.createElement('div'); bg.id='rdvPrBg'; bg.className='popbg';
-    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); };
-    document.body.appendChild(bg);
-  }
-  rdvPrDessiner(); bg.classList.add('on');
+  cousinConfirme('Tu t’occupes de prévenir '+r.nom+' ?', 'Rendez-vous '+rdvQuandCourt(r)+(r.lieu?' · '+r.lieu:'')+
+    '. Ça arrive dans ta liste ; les autres voient que tu t’en occupes.', async function(){
+    const q='pris:'+((PROFILE&&PROFILE.uid)||'')+'|'+String(nomAffiche()||'?').split(/\s+/)[0];
+    const res=await sb.from('rendez_vous').update({prevenir_note:q}).eq('id',r.id).is('prevenir_note',null).select('*');
+    if(res.error){ toast('Pas enregistré : '+res.error.message); return; }
+    if(!res.data || !res.data.length){ toast('Quelqu’un s’en occupe déjà'); await loadRdv(); render(); return; }
+    Object.assign(r, res.data[0]); render(); toast('C’est dans ta liste ✓');
+  }, {ok:'Je m’en occupe'});
 }
 function rdvPrDessiner(){
   const bg=document.getElementById('rdvPrBg'); if(!bg || !RDV_PR) return;
@@ -18454,6 +18455,7 @@ function rdvCarte(r, passe){
       /* EN TOUT PETIT, CE QUI A ÉTÉ FAIT (Mag, 13/10/2026 : « coché par Mag, tout petit, pour qu'on voie que c'est pris en
          considération ») — gardé une semaine. */
       (rdvAPrevenir(r) && r.prevenir_note==='nuit' ? '<div class="rdvk-pvu">Passé à la nuit</div>'
+        : rdvAPrevenir(r) && !r.prevenir_par && rdvPrevPris(r) ? '<div class="rdvk-pvu">'+esc(rdvPrevPris(r).nom)+' s’en occupe</div>'
         : (rdvAPrevenir(r) && r.prevenir_par ? '<div class="rdvk-pvu">✓ Prévenu par '+esc(String(r.prevenir_par).split(/\s+/)[0])+(r.prevenir_le?' · '+esc(binQuand(r.prevenir_le)):'')+'</div>' : ''))+
       rdvValBloc(r)+
       rdvCorrHTML(r)+
@@ -41191,6 +41193,7 @@ function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid);
    autres. La toute première règle (« ce que l'équipe d'avant nous a passé n'est pas à
    nous ») est tombée : elle empêchait de se débarrasser d'une erreur. */
 function passGerable(p){
+  if(p && p._rdv) return false;   /* un réveil d'agenda se corrige dans l'agenda */
   if(passMienne(p)) return true;
   if(!p || !PROFILE) return false;
   return passPourEstAMoi(p.pour);
@@ -41534,7 +41537,7 @@ async function passSupprimer(id){
 /* Copier une ligne de passation — le texte, et ce qui le rend utilisable ailleurs :
    l'heure d'un réveil, la chambre, le commentaire. Pas les étiquettes de l'app. */
 function passCopier(id){
-  const p=(PASSATIONS||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  const p=(PASSATIONS||[]).concat(rdvReveilsNuit()).filter(function(x){ return String(x.id)===String(id); })[0];
   if(!p){ toast('Ligne introuvable'); return; }
   const t=[];
   if(p.heure) t.push(p.heure);
@@ -41832,9 +41835,30 @@ function passLigne(p, mienne, role, heure, gauche){
    sa carte à elle — voir `passSociales` et `carteServiceSocial`. */
 function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL; }); }
 function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL; }); }
+/* ═══ LE RÉVEIL SE MET TOUT SEUL (Mag, 13/10/2026 : « il faudrait directement qu'il soit dans les passations de nuit,
+   les réveils, il n'y a même pas à discuter ; il n'y a plus de question de qui prend en charge le réveil ») ═══
+   Un rendez-vous avec réveil apparaît dans la passation de nuit LA NUIT D'AVANT (et le matin même jusqu'à midi),
+   pour tout le monde sauf le groupe D. Il est LU dans l'agenda, pas recopié : modifier ou retirer le rendez-vous
+   change la passation. Il se copie et s'imprime comme les autres lignes ; il se corrige dans l'agenda.
+   Les réveils déjà « descendus » à la main avant ce jour (`reveil_par`) restent leur propre ligne. */
+function rdvReveilsNuit(){
+  if(typeof RDV==='undefined' || (typeof estGroupeD==='function' && estGroupeD())) return [];
+  if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
+  const now=new Date(), a=agIso(now), d=ppAjoute(a,1);
+  return (RDV||[]).filter(function(r){
+    return r.reveil && !r.reveil_par && (r.jour===d || (r.jour===a && now.getHours()<12));
+  }).map(function(r){
+    const ty=rdvType(r.genre).l.toLowerCase();
+    const quand=(r.jour===a?'aujourd’hui':'demain')+(r.heure?' à '+rdvHeureFr(r.heure):'');
+    const acc=r.accompagne?(r.accomp_nom?' Accompagné par '+r.accomp_nom+'.':' Accompagnant à trouver.'):'';
+    return {id:'rdv-'+r.id, _rdv:r.id, genre:'reveil', heure:String(r.reveil_heure||'').slice(0,5)||null, chambre:r.chambre||null,
+      a_jeun:!!r.a_jeun, jour:r.jour, pour:PASS_EQUIPE, par:r.cree_par||'', cree_le:r.cree_le||'',
+      texte:'Réveil — '+r.nom+' : rendez-vous '+ty+' '+quand+(r.lieu?', '+r.lieu:'')+'.'+acc};
+  });
+}
 function passToutesBrut(){
   const vues={};
-  return passTri(passPourMoi().concat(passEcrites()).filter(function(p){
+  return passTri(passPourMoi().concat(passEcrites()).concat(rdvReveilsNuit()).filter(function(p){
     if(vues[p.id]) return false; vues[p.id]=1;
     return (typeof PASS_MASQUEES==="undefined"||PASS_MASQUEES.indexOf(String(p.id))<0);
   }));
@@ -41907,7 +41931,8 @@ function prevTous(avecFaits){
       const t=rdvType(r.genre);
       out.push({k:'rdv', id:r.id, chambre:r.chambre||'', nom:r.nom, quoi:'Rendez-vous '+t.l.toLowerCase()+(r.lieu?' · '+r.lieu:''),
         quand:rdvQuandCourt(r), jeun:!!r.a_jeun, pa:!!r.pas_autonome, src:'', par:r.cree_par||'',
-        fait:!!r.prevenir_par, faitPar:r.prevenir_par||'', faitLe:r.prevenir_le||''});
+        fait:!!r.prevenir_par, faitPar:r.prevenir_par||'', faitLe:r.prevenir_le||'',
+        pris:(rdvPrevPris(r)||{}).nom||'', aMoi:rdvPrevAMoi(r)});
     });
   }
   const n=function(x){ const m=/\d+/.exec(String(x.chambre||'')); return m?parseInt(m[0],10):99999; };
@@ -41916,6 +41941,16 @@ function prevTous(avecFaits){
   return out.filter(function(x){ return !x.fait || (avecFaits && (!x.faitLe || new Date(x.faitLe).getTime()>semaine)); })
     .sort(function(a,b){ return (a.fait?1:0)-(b.fait?1:0) || n(a)-n(b); });
 }
+/* ═══ « JE PRÉVIENS » DANS MA LISTE PERSO (Mag, 13/10/2026 : « ça pourrait rajouter directement quelque chose dans mes
+   notes », plutôt que de copier-coller) ═══ Les rendez-vous dont je me suis occupé·e, pas encore faits : la case
+   « prévenu », ou « Pas vu ? Passer à la nuit ». Le même dessin que la liste À prévenir. */
+function rdvJePreviensHTML(){
+  if(typeof RDV==='undefined') return '';
+  const L=prevTous(false).filter(function(x){ return x.k==='rdv' && x.aMoi; });
+  if(!L.length) return '';
+  return '<div class="pgt pgt-prev">'+PREV_MAIN+'Je préviens</div>'+L.map(prevCarte).join('');
+}
+function prevSiOuvert(){ const bg=document.getElementById('prevBg'); if(bg && bg.classList.contains('on')) prevListeOuvrir(); }
 function prevCarte(x){
   return '<div class="prk'+(x.fait?' fait':'')+'">'+
     '<span class="prk-ch">'+(x.chambre?esc(x.chambre):'—')+'</span>'+
@@ -41923,10 +41958,14 @@ function prevCarte(x){
       ((x.quoi||x.quand)?'<div class="prk-q">'+esc([x.quoi,x.quand].filter(Boolean).join(' · '))+'</div>':'')+
       ((x.jeun||x.pa||x.src)?'<div class="prk-t">'+(x.jeun?'<span class="prk-j">À JEUN</span>':'')+(x.pa?'<span class="prk-pa">Pas autonome</span>':'')+
         (x.src?'<span class="prk-s">'+esc(x.src)+'</span>':'')+'</div>':'')+
-      (!x.fait && x.k==='rdv'?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>':'')+
+      /* Pas pris : « Je m'en occupe ». Pris par moi : « Pas vu ? Passer à la nuit ». Pris par un·e autre : son nom. */
+      (!x.fait && x.k==='rdv' && !x.pris?'<button class="prk-nuit" onclick="rdvPrendre(\''+x.id+'\')">Je m’en occupe</button>':'')+
+      (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>':'')+
+      (!x.fait && x.k==='rdv' && x.pris && !x.aMoi?'<div class="prk-f">'+esc(x.pris)+' s’en occupe</div>':'')+
       (x.fait?'<div class="prk-f">✓ prévenu'+(x.faitPar?' par '+esc(String(x.faitPar).split(/\s+/)[0]):'')+(x.faitLe?', '+esc(binQuand(x.faitLe)):'')+'</div>':'')+
     '</div>'+
-    '<button class="prk-ck'+(x.fait?' on':'')+'" onclick="prevCocher(\''+x.k+'\',\''+x.id+'\')" aria-label="Prévenu">'+(x.fait?'✓':'')+'</button></div>';
+    (x.k==='rdv' && x.pris && !x.aMoi && !x.fait ? '' :
+    '<button class="prk-ck'+(x.fait?' on':'')+'" onclick="prevCocher(\''+x.k+'\',\''+x.id+'\')" aria-label="Prévenu">'+(x.fait?'✓':'')+'</button>')+'</div>';
 }
 /* PAS VU CE SOIR → À LA NUIT (Mag, 13/10/2026 : « soit il sera prévenu et effacé de la prévention, soit je le passerai
    en passation si je ne l'ai pas vu »). Une passation « à prévenir » part à la nuit ; la ligne du rendez-vous s'efface
@@ -41942,7 +41981,7 @@ function prevPasserNuit(id){
     if(ins.error || !ins.data || !ins.data.length){ toast('Pas passé — la base a refusé'); return; }
     await sb.from('rendez_vous').update({prevenir_note:'nuit'}).eq('id',r.id);
     r.prevenir_note='nuit'; ins.data.forEach(function(x){ PASSATIONS.unshift(x); });
-    render(); prevListeOuvrir(); toast('Passé à la nuit ✓');
+    render(); prevSiOuvert(); toast('Passé à la nuit ✓');
   }, {ok:'Passer à la nuit'});
 }
 /* Décocher un « prévenu » (on revient sur ce qui était fait) demande confirmation (13/10/2026). */
@@ -41965,7 +42004,7 @@ async function prevCocherEcrire(k, id){
       Object.assign(r, maj);
     }
   }catch(e){ toast('Pas enregistré'); }
-  render(); prevListeOuvrir();
+  render(); prevSiOuvert();
 }
 function prevListeOuvrir(){
   const L=prevTous(true), reste=L.filter(function(x){ return !x.fait; }).length;
@@ -46247,7 +46286,7 @@ function carteMaListe(){
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
       '<em class="ch" onclick="rapPlier()" aria-hidden="true">›</em>'+
     '</div>'+
-    (plie ? '' : rappelsHTML(true)+bkpHTML())+
+    (plie ? '' : rdvJePreviensHTML()+rappelsHTML(true)+bkpHTML())+
     '</div>';
 }
 /* ⚠ ON EFFACE SA LISTE, PAS SES PASSATIONS. Ce qui est parti à l'équipe de nuit ne
