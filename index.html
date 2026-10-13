@@ -730,6 +730,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rap-sh .etq-s,.rap-tg .etq-s,.rap-rvh .etq-s{order:-1}.rap-chv,.rap-rvh .chv,.rap-qui,.rap-sh>.rap-add{margin-left:auto}.rap-qui~.rap-chv,.rap-qui~.rap-add{margin-left:0}.rap-boxn{margin-right:auto}.rap-tg{flex:1}.rap-ligne{display:block;line-height:1.5}.rap-avec{display:block;font-style:normal;font-size:12.5px;color:#2b2a28}.rap-avec b{font-weight:600}.rap-avec.r{color:#e63329;font-weight:600}.rap-s .rap-fl{margin-top:12px}#horairesbtn[hidden]{display:none!important}.coalerte{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;margin:14px 0 0;padding:14px 18px;border:0;border-radius:18px;background:#e63329;color:#fdfdfc;font:inherit;text-align:left;cursor:pointer;grid-column:1 / -1}
 .coalerte-i{width:34px;height:34px;flex:none;border-radius:50%;background:#fdfdfc;display:flex;align-items:center;justify-content:center}.coalerte-i svg,.coalerte-i img{width:22px;height:22px}
 .coalerte-t{flex:1;display:flex;flex-direction:column;gap:3px}.coalerte-t b{font-size:18px;font-weight:700}.coalerte-t em{font-style:normal;font-size:14px}.coalerte i{font-style:normal;font-size:24px}
+.pp-histo{margin:26px 0 10px;padding-top:14px;border-top:1px solid rgba(43,42,40,.2);color:#8b8780}.pp-histo-t{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}.pp-histo-l{padding:9px 0;border-bottom:1px solid rgba(43,42,40,.08);display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:1.5}.pp-histo-l b{font-size:14px;font-weight:600;color:#6b6862}.pp-histo-l:last-child{border-bottom:0}
 .rap-cta{display:block;margin:2px 0 6px 33px}.rap-sig.co{color:#2b2a28;font-weight:500}.rap-signe{display:flex;align-items:center;gap:7px;font-size:15px;margin-right:12px;cursor:pointer}.rap-signe input{width:20px;height:20px;accent-color:#2b2a28}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
@@ -16688,7 +16689,7 @@ function ppEtapesDe(a){
 async function loadPunaises(){
   if(!sb){ PP_CHARGE=true; return; }
   try{
-    const d=new Date(); d.setDate(d.getDate()-21);
+    const d=new Date(); d.setDate(d.getDate()-45);   /* 45 jours : l'historique en garde 30 après la fin (13/10/2026) */
     const {data,error}=await sb.from('protocole_punaises').select('*')
       .gte('jour', agIso(d)).order('jour',{ascending:true}).order('numero',{ascending:true}).limit(300);
     if(error) throw error;
@@ -18066,12 +18067,22 @@ function vPunaises(){
      l'ordre ») : une seule liste, dans l'ordre des numéros de chambre. */
   h+=enCours.slice().sort(function(a,b){
     return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}) || (a.jour<b.jour?-1:1); }).map(ppCarte).join('');
-  if(finis.length){
-    h+='<details class="pp-finis"><summary>✓ Protocole terminé <span>'+finis.length+'</span></summary>'+
-      finis.sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); }).map(function(a){
-        return '<div class="pp-fini"><b>'+esc(a.numero)+'</b><span>'+esc(ppQui(a).l)+' · '+esc(ppJourFr(a.jour))+'</span>'+
-          '<em>sacs rendus · '+esc(a.rendu_par||'')+' '+ppQuand(a.rendu_le)+'</em></div>';
-      }).join('')+'</details>';
+  /* ═══ L'HISTORIQUE, 30 JOURS, EN GRIS EN BAS (Mag, 13/10/2026) ═══
+     « Quand on ne retrouve plus les affaires, on a besoin de savoir qui a fait quoi. » SEULEMENT : qui a préparé les
+     sacs, qui les a rendus, et la date de fin. Pas d'heure, pas de commentaire, pas le nom des résidents. */
+  const finLe=function(a){ let t=''; ppEtapesDe(a).forEach(function(e){ const v=a[e.k+'_le']; if(v && String(v)>t) t=String(v); }); return t; };
+  const lim30=ppAjoute(agIso(new Date()),-30);
+  const histo=PUNAISES.filter(function(a){ return ppEtat(a)==='fini' && finLe(a) && agIso(new Date(finLe(a)))>=lim30; })
+    .sort(function(a,b){ return finLe(a)<finLe(b)?1:-1; });
+  if(histo.length){
+    const dt=function(v){ const d=new Date(v); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
+    h+='<div class="pp-histo"><div class="pp-histo-t">Historique · 30 derniers jours</div>'+histo.map(function(a){
+      const aide=ppSacsNom(a);
+      const L=[];
+      if(a.sacs_le) L.push('Sacs préparés · '+esc(a.sacs_par||'?')+(aide?' · '+esc(aide):''));
+      if(a.rendu_le) L.push('Sacs rendus · '+esc(a.rendu_par||'?'));
+      return '<div class="pp-histo-l"><b>Chambre '+esc(a.numero)+' · terminé le '+dt(finLe(a))+'</b>'+L.map(function(x){ return '<span>'+x+'</span>'; }).join('')+'</div>';
+    }).join('')+'</div>';
   }
   /* EFFACER TOUTE LA LISTE (Mag, 09/10/2026 : « quand tout est fait, effacer toute la liste ») :
      réservé à l'admin et aux PFO — un appui malheureux viderait le protocole de toute l'équipe. */
