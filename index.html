@@ -724,7 +724,7 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .admj-bar{display:grid;grid-template-columns:140px 1fr 34px;align-items:center;gap:8px;font-size:13px;padding:3px 0}.admj-bar i{display:block;height:10px;border-radius:6px;background:#6fc7d9}.admj-bar b{font-weight:600;text-align:right}
 .admj-p{font-size:14px;line-height:1.4;padding:6px 10px;border-left:4px solid #f5c542;background:#f6f4f1;border-radius:0 8px 8px 0;margin-bottom:6px}.admj-p b{font-weight:600}
 .admj-v{font-size:13px;color:#a09c95;padding:4px 0}
-.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}
+.rap-sig{font-size:12px;color:#a09c95;white-space:nowrap}.rap-sig.co{color:#2b2a28;font-weight:700}
 .rap-l.passe{opacity:.45}
 .rap-tg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:#2b2a28;cursor:pointer;text-align:left}.rap-tg b{flex:1}.rap-chv{color:#8b8880;width:16px;text-align:center}
 .rap-s:not(.ouv) .rap-sh{margin-bottom:0}
@@ -17509,7 +17509,16 @@ function aidesImprimer(){
    Un message reste 3 jours, ou jusqu'à ce qu'on le retire. */
 var RAPPORT=[], RAPPORT_CHARGE=false, RAPPORT_PANNE='', _rapportVu=0;
 /* (Mag, 13/10/2026) « Technique » et « À toutes les équipes » RETIRÉES du rapport. */
-const RAPPORT_RUB=[['info','Info importante','#f8763f','!'],['entree','Entrée sans condition','#6cb392','✓']];
+const RAPPORT_RUB=[['info','Info importante','#f8763f','!'],['entree','Entrée sans passer par le PMS','#6cb392','✓']];
+/* ⭐ LA SIGNATURE DE LA COORDINATION SE VOIT (Mag, 13/10/2026 : « quand c'est Marc, le gestionnaire du centre, ou Laura,
+   c'est important de le marquer ») : un message écrit par la coordination est toujours signé, en clair, avec « coordination ».
+   Pour les autres, la signature reste petite et facultative. */
+function rapSig(par, texte){
+  if(!par) return '';
+  const co=/·\s*coordination$/i.test(par), p=String(par).split(/\s+/)[0];
+  if(texte) return co ? p+', coordination' : p;
+  return co ? '<span class="rap-sig co"> — '+esc(p)+', coordination</span>' : '<span class="rap-sig"> — '+esc(p)+'</span>';
+}
 async function loadRapport(){
   if(!sb){ RAPPORT_CHARGE=true; return; }
   try{
@@ -17612,7 +17621,7 @@ function rapportHTML(page){
     return sec(rb[0], rb[2],'<span class="rap-ic">'+rb[3]+'</span>',rb[1], null,
       L.map(function(m){
         return '<div class="rap-l"><span class="rap-x">'+(m.chambre?'<i class="rap-ch">ch. '+esc(m.chambre)+'</i> ':'')+esc(m.texte)+
-          (m.par?'<span class="rap-sig"> — '+esc(String(m.par).split(/\s+/)[0])+'</span>':'')+'</span>'+
+          rapSig(m.par)+'</span>'+
           '<button class="rap-ret" onclick="rapportRetirer('+m.id+')" aria-label="Retirer">×</button></div>'; }).join(''),
       '<button class="rap-add" onclick="rapportAjouter(\''+rb[0]+'\')">+ ajouter</button>');
   };
@@ -17695,7 +17704,7 @@ function rapportAjouter(rub){
     '<div class="act-pt"><span class="act-pi" style="background:'+rb[2]+'">'+rb[3]+'</span>'+esc(rb[1])+'</div>'+
     '<textarea id="rapTexte" class="act-in" rows="3" maxlength="600" placeholder="Le message (ch. 221 … pour la chambre)"></textarea>'+
     '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'rapBg\').classList.remove(\'on\')">Annuler</button><span style="flex:1"></span>'+
-      '<button class="rdvk-ref" onclick="rapportEnvoyer(false)">Anonyme</button>'+
+      (estCoordi()?'':'<button class="rdvk-ref" onclick="rapportEnvoyer(false)">Anonyme</button>')+
       '<button class="rdvk-val" onclick="rapportEnvoyer(true)">Signer « '+esc(qui)+' »</button></div></div>';
   bg.classList.add('on');
   setTimeout(function(){ const e=document.getElementById('rapTexte'); if(e) e.focus(); },40);
@@ -17704,7 +17713,7 @@ async function rapportEnvoyer(signe){
   const e=document.getElementById('rapTexte'); let v=String((e&&e.value)||'').trim();
   if(!v){ toast('Écris le message'); return; }
   const m=/^(?:ch\.?|chambre)\s*(\d{2,4})\b[\s:—-]*/i.exec(v);
-  const ligne={rubrique:RAP_RUB, texte:((m?v.slice(m[0].length):v)||v).slice(0,600), chambre:m?m[1]:null, par:signe?(nomAffiche()||'?'):null,
+  const ligne={rubrique:RAP_RUB, texte:((m?v.slice(m[0].length):v)||v).slice(0,600), chambre:m?m[1]:null, par:(signe||estCoordi())?(nomAffiche()||'?')+(estCoordi()?' · coordination':''):null,
     par_uid:(PROFILE&&PROFILE.uid)||null, jusqu_au:ppAjoute(agIso(new Date()),2)};
   const r=await sb.from('rapport_messages').insert(ligne).select('*');
   if(r.error || !r.data || !r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
@@ -17731,7 +17740,7 @@ function rapportImprimer(){
   const r2=function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+(r.lieu?' — '+esc(r.lieu):''),
     r.accompagne?(r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'):''); };
   const msg=function(rb){ return D.msg.filter(function(m){ return m.rubrique===rb[0]; }); };
-  const lm=function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(String(m.par||'').split(/\s+/)[0])); };
+  const lm=function(m){ return l('', (m.chambre?'ch. '+esc(m.chambre)+' — ':'')+esc(m.texte), esc(rapSig(m.par,true))); };
   const auj=(RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le; });
   const med=auj.filter(function(r){ return rdvType(r.genre).k==='medical'; }), soc=auj.filter(function(r){ return rdvType(r.genre).k!=='medical'; });
   const aVal=(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le; });
