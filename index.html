@@ -704,9 +704,12 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvmodal{position:fixed;inset:0;z-index:9000;background:rgba(43,42,40,.5);overflow-y:auto;padding:28px 12px 60px;-webkit-overflow-scrolling:touch}
 .rdvmodal-c{max-width:640px;margin:0 auto;background:#fdfdfc;border-radius:18px;padding:4px 6px}
 .rdvk-clic{cursor:pointer}
+.railn{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:999px;background:#e63329;color:#fdfdfc;font:600 11px 'Eastman',-apple-system,sans-serif;font-style:normal}
 .poplst{display:flex;flex-direction:column;gap:2px;margin-top:4px}
-.poplst div{display:grid;grid-template-columns:118px 1fr;gap:10px;padding:7px 0;border-top:1px solid #e4e1dc;font-size:15px}
-.poplst span{color:#6b6963}.poplst b{font-weight:600}
+.poplst div{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #e4e1dc}
+.poplst .pq{flex:none;white-space:nowrap;font:500 13.5px 'Eastman',-apple-system,sans-serif;letter-spacing:0;text-transform:none;color:#2b2a28;border:1.5px solid #6fc7d9;border-radius:999px;padding:3px 11px}
+.poplst .pn{flex:1;min-width:0;font:400 16px 'Eastman',-apple-system,sans-serif;letter-spacing:0;text-transform:none;color:#2b2a28}
+.poplst .pc{display:inline-block;margin-left:6px;font:500 12px 'Eastman',-apple-system,sans-serif;text-transform:none;letter-spacing:0;color:#6b6963;border:1.5px solid #d8d4cd;border-radius:999px;padding:0 8px}
 .rdvk{transition:box-shadow .4s}.rdvk.rdvk-nouveau{box-shadow:0 0 0 3px #6fc7d9}
 .rdvk-val-b{margin-top:14px;border:1px solid #e4e1dc;border-radius:12px;padding:10px 12px 12px;background:#f6f4f1}
 .rdvk-val-t{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:#6b6963;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
@@ -18998,7 +19001,7 @@ function rdvAvantImprimer(liste, imprimer){
     .map(function(r){
       const d=new Date(r.jour+'T12:00:00');
       const j=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
-      return '<div><span>'+esc(j)+(r.heure?' · '+esc(rdvHeureFr(r.heure)):'')+'</span><b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b></div>';
+      return '<div><span class="pq">'+esc(j)+(r.heure?' · '+esc(rdvHeureFr(r.heure)):'')+'</span><span class="pn">'+esc(r.nom)+(r.chambre?'<span class="pc">ch. '+esc(r.chambre)+'</span>':'')+'</span></div>';
     }).join('')+'</div>';
 }
 
@@ -24904,6 +24907,28 @@ const EQUIPES=["Travailleur social","Médecin","Infirmier","Aide-soignant",
                "Éducateur","Psychologue","Polyvalent","Coordination",
                "Agent entretien","Travaux / Maintenance","Logistique","Responsable punaise",
                "Article 60","Admin"];
+/* Ce qui attend l'administratrice : demandes d'accès, chantier pas fait, suggestions pas traitées, lieux à relire.
+   Relu toutes les 2 minutes au plus ; le rail se redessine quand le nombre change. */
+var ADM_NOTIF=ADM_NOTIF||{n:0, vu:0, d:{}};
+function admNotifCharger(){
+  if(!ADM_NOTIF) ADM_NOTIF={n:0, vu:0, d:{}};   /* le rail peut se dessiner avant cette ligne du fichier */
+  if(typeof sb==='undefined' || !sb || !vueAdmin() || Date.now()-ADM_NOTIF.vu<120000) return;
+  ADM_NOTIF.vu=Date.now();
+  const compte=function(q){ return q.then(function(r){ return (r && !r.error && typeof r.count==='number') ? r.count : 0; }, function(){ return 0; }); };
+  Promise.all([
+    compte(sb.from('access_requests').select('id',{count:'exact',head:true}).eq('statut','en_attente')),
+    compte(sb.from('chantier').select('id',{count:'exact',head:true}).eq('fait',false)),
+    compte(sb.from('suggestions').select('id',{count:'exact',head:true}).eq('traite',false))
+  ]).then(function(v){
+    const cons=(typeof conseilsEnAttente==='function')?(conseilsEnAttente()||[]).length:0;
+    const n=v[0]+v[1]+v[2]+cons;
+    ADM_NOTIF.d={demandes:v[0], chantier:v[1], suggestions:v[2], lieux:cons};
+    if(n!==ADM_NOTIF.n){ ADM_NOTIF.n=n; render(); }
+    const ad=document.getElementById('menuAdmin');
+    if(ad){ let e=ad.querySelector('.railn'); if(!e && n){ e=document.createElement('em'); e.className='railn'; ad.appendChild(e); }
+      if(e){ e.textContent=n||''; e.style.display=n?'':'none'; } ad.style.color=n?'#e63329':''; }
+  });
+}
 let ADMIN={members:[],requests:[]}, adminLoaded=false, ADM_OUVERT=null, ADM_SECTION=null;
 let ADM_METIER=null;   // le métier déplié dans « L'équipe »
 function admGroupe(met){ ADM_METIER=(ADM_METIER===met)?null:met; ADM_OUVERT=null; render(); }
@@ -39835,7 +39860,10 @@ function renderTabs(){
            ['#/punaises','Protocole punaises','punaise'],
            ['#/mobilisation','Mobilisation','petition','#ff8cc6',1],
            ['#/profil','Profil','user']])
-          .concat(vueAdmin()?[['#/admin','Admin','cog']]:[])
+          /* ═══ LA PASTILLE D'ADMIN (Mag, 13/10/2026 : « quand il y a des trucs à voir dans admin, je dois le savoir —
+             quelqu'un veut entrer, un chantier — en ROUGE, avec une notification ») ═══ Le mot passe en rouge et un
+             rond rouge dit combien. Voir `admNotifCharger`. */
+          .concat(vueAdmin()?(admNotifCharger(), [['#/admin','Admin','cog', ADM_NOTIF.n?'#e63329':'', ADM_NOTIF.n?1:0, ADM_NOTIF.n]]):[])
           /* « Voir comme » vit dans le rail noir, discrètement, plutôt que de flotter
              sur l'écran (Mag, 06/08/2026). Sur téléphone il n'y a pas de rail : c'est
              la petite boule qui prend le relais. */
@@ -39879,7 +39907,7 @@ function renderTabs(){
       (x[3]?' style="--c:'+x[3]+'"':'')+' onclick="'+
       (x[0]==='@idee'?'ouvrirIdee()':x[0]==='@apercu'?'apercuOuvrir()':x[0]==='@horaires'?'horairesOuvrir()':'go(\''+x[0]+'\')')+'"><span class="ic"'+
       (x[3]?' style="color:'+x[3]+'"':'')+'>'+icon(x[2])+'</span>'+
-      '<span class="lbl"'+(x[4]&&x[3]?' style="color:'+x[3]+'"':'')+'>'+x[1]+'</span></button>').join('')+'</div>';
+      '<span class="lbl"'+(x[4]&&x[3]?' style="color:'+x[3]+'"':'')+'>'+x[1]+'</span>'+(x[5]?'<em class="railn">'+x[5]+'</em>':'')+'</button>').join('')+'</div>';
   const bar=document.getElementById('tabbar');
   if(bar && bar.__html!==railHTML){ bar.__html=railHTML; bar.innerHTML=railHTML; }
 }
