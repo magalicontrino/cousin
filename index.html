@@ -18467,18 +18467,35 @@ function ppImprimerMenu(){
     {t:'La liste', fn:function(){ ppImprimer('feuille'); }},
     {t:'Une liste vierge', fn:function(){ ppImprimer('vierge'); }},
     {t:'Les affiches des portes', fn:function(){ ppImprimer('portes'); }},
-    /* ⭐ UNE SEULE AFFICHE (Mag, 14/10/2026 : « s'il n'y a plus qu'une personne à prévenir, et qu'on veut coller sur sa
-       porte ») : on choisit la chambre, les pas-prévenues d'abord. */
-    {t:'Une affiche', fn:function(){ setTimeout(ppUneAffiche, 60); }}
+    /* ⭐ LES AFFICHES À PRÉVENIR (Mag, 14/10/2026) : une fenêtre à cocher, les pas-prévenues PRÉ-COCHÉES ; on peut en
+       ajouter une déjà prévenue (« il ne va jamais retenir »). Deux affiches par feuille, comme toujours. */
+    {t:'Affiches à prévenir', fn:function(){ setTimeout(ppAffichesChoix, 60); }}
   ]);
 }
-function ppUneAffiche(){
+var PP_AFF_SEL=null;
+function ppAffichesChoix(){
   const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini' && a.numero && a.numero!=='?'; })
-    .sort(function(a,b){ const x=ppEtat(a)==='alerte'?0:1, y=ppEtat(b)==='alerte'?0:1;
-      return x!==y ? x-y : String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
+    .sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
   if(!L.length){ toast('Aucune chambre en cours'); return; }
-  ppChoix('Une affiche', '', L.map(function(a){
-    return {t:'Chambre '+a.numero+(ppEtat(a)==='alerte'?' · pas prévenu':''), fn:function(){ ppImprimer('portes', false, a.id); }}; }));
+  if(!PP_AFF_SEL){ PP_AFF_SEL={}; L.forEach(function(a){ if(ppEtat(a)==='alerte') PP_AFF_SEL[a.id]=true; }); }
+  let bg=document.getElementById('ppAffBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='ppAffBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg){ bg.classList.remove('on'); PP_AFF_SEL=null; } }; }
+  const n=L.filter(function(a){ return PP_AFF_SEL[a.id]; }).length;
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt">Affiches à prévenir</div>'+
+    L.map(function(a){
+      return '<div class="depl'+(PP_AFF_SEL[a.id]?' on':'')+'" onclick="PP_AFF_SEL[\''+a.id+'\']=!PP_AFF_SEL[\''+a.id+'\'];ppAffichesChoix()">'+
+        '<span class="bx">✓</span>Chambre '+esc(a.numero)+(ppEtat(a)==='alerte'?' <span style="font-weight:400;color:#e63329">· pas prévenu</span>':'')+'</div>'; }).join('')+
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'ppAffBg\').classList.remove(\'on\');PP_AFF_SEL=null">Annuler</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val"'+(n?'':' disabled style="opacity:.4"')+' onclick="ppAffichesImprimer()">Imprimer · '+n+'</button></div></div>';
+  bg.classList.add('on');
+}
+function ppAffichesImprimer(){
+  const ids=Object.keys(PP_AFF_SEL||{}).filter(function(k){ return PP_AFF_SEL[k]; });
+  if(!ids.length) return;
+  document.getElementById('ppAffBg').classList.remove('on'); PP_AFF_SEL=null;
+  ppImprimer('portes', false, ids);
 }
 function ppPartager(){
   let bg=document.getElementById('ppPartBg');
@@ -18558,7 +18575,7 @@ function ppImprimerDepuisPrint(){ ppImprimer('vierge'); }
 function ppImprimer(quoi, rendre, seule){
   const jour=ppJourImprime();
   /* Toutes les chambres en cours (comme à l'écran : « tout ensemble »), dans l'ordre des numéros — ou UNE seule. */
-  const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini' && (!seule || String(a.id)===String(seule)); })
+  const L=ppActives().filter(function(a){ return ppEtat(a)!=='fini' && (!seule || [].concat(seule).map(String).indexOf(String(a.id))>=0); })
     .sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
   const pic=function(f){ return '<img src="'+new URL('picto/'+f, location.href).href+'" alt="">'; };
   const flocon='<svg viewBox="0 0 24 24" fill="none" stroke="#2b2a28" stroke-width="2.2" stroke-linecap="round">'+
