@@ -818,6 +818,11 @@ h1,h2,h3{font-weight:700;line-height:1.2}
 .rdvdet{position:relative;width:min(640px,94vw);max-height:90vh;overflow-y:auto}.rdvdet .rdvk{margin:0}
 .rdvdet-x{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:1.5px solid #d8d4cd;background:#fdfdfc;font-size:20px;line-height:1;cursor:pointer;color:#2b2a28}
 .act-pop{max-width:460px}.act-pt{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;margin-bottom:10px}.act-pi{width:34px;height:34px;border-radius:50%;background:#6cb392;display:inline-flex;align-items:center;justify-content:center}.act-pi svg,.act-pi .pico{width:20px;height:20px}
+.depl{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;font-weight:600;cursor:pointer;user-select:none}
+.depl .bx{width:20px;height:20px;border:1.75px solid #9b9892;border-radius:5px;flex:none;display:inline-flex;align-items:center;justify-content:center;color:transparent;font-size:13px}
+.depl .bx.rd{border-radius:50%}.depl.on .bx{background:#2b2a28;border-color:#2b2a28;color:#fdfdfc}
+.dep-sous{margin:0 0 6px 30px;border-left:2px solid #c9c5be;padding-left:12px}
+.dep-sous.eteint,.dep-sous .eteint{opacity:.5;pointer-events:none}
 .act-in{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid #c9c5be;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fdfdfc;color:#2b2a28}
 .act-f{display:flex;gap:8px}.act-f .act-in{flex:1}.act-b{display:flex;gap:8px;align-items:center;margin-top:6px}
 .actcal{margin:14px 0}.actcal-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}.actcal-t b{font-size:16px;font-weight:600}
@@ -15817,6 +15822,12 @@ async function cocherEtape(id,k){
   if(!fait && ch.avec_affaires!==null && ch.avec_affaires!==undefined){
     const i=E.indexOf(et); if(i>0 && !ch[E[i-1].k+'_le']){ toast('D’abord : '+E[i-1].l); return; }
   }
+  /* La destination a été choisie en désencodant (−1 ou Transport) : on la confirme, on ne la redemande pas. */
+  if(!fait && k==='range' && ch.dest && !ch.range_le){
+    cousinConfirme('Chambre '+ch.numero, (ch.dest==='lieu'?'Affaires amenées'+(ch.lieu?' à '+ch.lieu:'')+' ?':'Affaires au −1 · 14 jours ?')+'\n\nTon nom et l’heure seront notés.',
+      function(){ chPoser(ch, {range_le:new Date().toISOString(), range_par:nomAffiche()}); });
+    return;
+  }
   if(!fait && k==='range'){
     ppChoix('Chambre '+ch.numero+' · les affaires vont où ?', '', [
       {t:'Au −1 · 14 jours', fn:function(){ chPoser(ch, {range_le:new Date().toISOString(), range_par:nomAffiche(), dest:'moins1', lieu:null}); }},
@@ -15897,7 +15908,7 @@ function chCard(ch){
       (ch.motif?'<div class="chaff">'+chMotifL(ch)+(chGardee(ch)?' · place gardée':'')+'</div>':'')+
       (chGardee(ch)?'<div class="chgarde"><button class="chaffb" onclick="chRevenu(\''+ch.id+'\')">Revenu</button>'+
         '<button class="chaffb" onclick="chDesencoder(\''+ch.id+'\')">Désencoder la place</button></div>':'')+
-      (ch.avec_affaires!==null&&ch.avec_affaires!==undefined?'<div class="chaff">'+(ch.avec_affaires?'Affaires restantes':'Aucune affaire restante')+'</div>':'')+
+      (ch.avec_affaires!==null&&ch.avec_affaires!==undefined?'<div class="chaff">'+(ch.avec_affaires?'À vider'+(ch.dest==='moins1'?' · −1':ch.dest==='lieu'?' · Transport'+(ch.lieu?' — '+esc(ch.lieu):''):''):'Aucune affaire restante')+'</div>':'')+
       ETS.map(e=>{const ok=!!ch[e.k+'_le'], so=chSansObjet(ch,e.k);
         /* Une étape SANS OBJET reste cliquable — on peut s'être trompé et découvrir
            qu'il y avait bien des affaires — mais elle ne se pare pas de la couleur
@@ -18023,6 +18034,16 @@ function reveilsCarteD(){
       return '<div class="revd"><b>'+esc(x.h?rdvHeureFr(x.h):'—')+'</b><span>'+(x.ch?'<i>ch. '+esc(x.ch)+'</i> ':'')+esc(String(x.t||'').replace(/\s+—\s+rendez-vous.*$/,'').replace(/^Réveil\s+—\s+/,'').split(':')[0].trim())+
         (x.demain?' <em>demain</em>':'')+(x.j?' <em class="r">à jeun</em>':'')+'</span></div>'; }).join('')
       : '<div class="revd vide">Aucun réveil</div>')+'</div>';
+}
+/* ⭐ « CHAMBRES À VIDER » POUR LES POLYVALENTS (Mag, 14/10/2026). Seulement ce qui a été DÉSENCODÉ ET ENVOYÉ, avec des
+   affaires, tant que les affaires ne sont pas parties. Le numéro et où vont les affaires — PAS le nom. */
+function chambresAViderCarteD(){
+  try{ rafraichirChambres(); }catch(e){}
+  const L=(typeof CHAMBRES!=='undefined'?CHAMBRES:[]).filter(function(c){ return c.avec_affaires===true && !c.range_le && !chambreFinie(c); });
+  if(!L.length) return '';
+  return '<div class="ctacarte sanstitre"><div class="pourmoi-t">'+icon('cle')+' Chambres à vider</div>'+
+    L.map(function(c){
+      return '<div class="revd"><b style="white-space:nowrap">ch. '+esc(c.numero)+'</b><span>'+(c.dest==='lieu'?'Transport'+(c.lieu?' — '+esc(c.lieu):''):c.dest==='moins1'?'−1':'')+'</span></div>'; }).join('')+'</div>';
 }
 function IMGPIC(f){ return '<img src="picto/'+f+'" alt="" style="width:16px;height:16px;vertical-align:-2px">'; }
 function rapAller(id){ RAP_OUV[id]=true; render(); setTimeout(function(){ const e=document.getElementById('rap-'+id)||(id==='valider-b'?document.getElementById('rap-acc'):null); if(e && e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'start'}); },60); }
@@ -23540,7 +23561,7 @@ function vHome(){
   /* ⭐ LES RÉVEILS POUR LES POLYVALENTS (Mag, 13/10/2026 : « les polyvalents doivent voir les réveils ») : ils n'ont ni
      passation ni point du jour ni agenda. Une carte sur LEUR accueil : aujourd'hui et demain matin, par heure, à jeun
      visible. Les mêmes réveils que le point du jour (passation + agenda). */
-  if(estGroupeD()) h+=reveilsCarteD();
+  if(estGroupeD()) h+=reveilsCarteD()+chambresAViderCarteD();
   /* ⚠ PAS DE CARTE « LES HORAIRES » SUR L'ACCUEIL DU GROUPE D (Mag, 13/10/2026 : « pas besoin, ils sont déjà à gauche,
      ou en haut sur le téléphone »). Posée puis retirée le même jour — ne pas la remettre. */
   /* ⚠ PAS DE FRISE SUR L'ACCUEIL DU GROUPE D (Mag, 22/09/2026 : « non »). Je l'avais
@@ -44576,7 +44597,10 @@ function rappelAjouter(){
    La place est désencodée (on vient de cocher DÉSENCODER) : le suivi de la chambre démarre dans la page Départs. */
 var DEP_F=null;
 function departPop(o){
-  DEP_F={nom:o.nom||'', chambre:o.chambre||'', date:agIso(new Date()), motif:'', aff:null, rid:o.rid||null};
+  DEP_F={nom:o.nom||'', chambre:o.chambre||'', date:agIso(new Date()), motif:'', aff:false, suite:'', com:'', rid:o.rid||null};
+  /* « Garder pour moi » a rangé les choix sur la note : on les retrouve en rouvrant. */
+  const n0=o.rid?MESRAPPELS.find(function(x){ return x.id===o.rid; }):null;
+  if(n0 && n0.dep){ ['date','aff','suite','com'].forEach(function(k){ if(n0.dep[k]!==undefined) DEP_F[k]=n0.dep[k]; }); }
   let bg=document.getElementById('depBg');
   if(!bg){ bg=document.createElement('div'); bg.id='depBg'; bg.className='popbg'; document.body.appendChild(bg);
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
@@ -44585,6 +44609,7 @@ function departPop(o){
 function departGarder(){
   const g=function(id){ const e=document.getElementById(id); return e?e.value:null; };
   if(g('depNom')!==null){ DEP_F.nom=g('depNom'); DEP_F.chambre=g('depCh'); DEP_F.date=g('depDate')||DEP_F.date; }
+  if(g('depCom')!==null) DEP_F.com=g('depCom');
 }
 function departDessiner(){
   const bg=document.getElementById('depBg'); if(!bg||!DEP_F) return;
@@ -44597,23 +44622,55 @@ function departDessiner(){
     /* ⭐ PLUS DE « SORTANT / HOSPITALISÉ » ICI (Mag, 14/10/2026 : « si on désencode, c'est qu'il est sortant »). On arrive
        par DÉSENCODER : la place est rendue, c'est un sortant. L'hospitalisé qui garde sa place est une ABSENCE. La seule
        question qui reste : la chambre, vide ou à vider. */
-    '<div class="chaddaff">'+b(DEP_F.aff===false,'Chambre vide','DEP_F.aff=false')+b(DEP_F.aff===true,'Affaires à vider','DEP_F.aff=true')+'</div>'+
+    /* ⭐ EN DEUX TEMPS (Mag, 14/10/2026) : « À vider » coché ou non (non = chambre vide) ; puis −1 ou Transport ;
+       Transport ouvre un commentaire (où porter les affaires). Aucune explication à l'écran. */
+    /* ⭐ LA FAÇON A, « EN ESCALIER » (choisie le 14/10/2026 entre trois, propositions/desencoder-3-facons.html) : TOUT se
+       voit dès l'ouverture — « On n'a pas une vue d'ensemble avant de cliquer ». Le dessous reste grisé tant que
+       « À vider » n'est pas coché ; le commentaire, tant que Transport n'est pas choisi. */
+    '<div class="depl'+(DEP_F.aff?' on':'')+'" onclick="departGarder();DEP_F.aff=!DEP_F.aff;departDessiner()"><span class="bx">✓</span>À vider</div>'+
+    '<div class="dep-sous'+(DEP_F.aff?'':' eteint')+'">'+
+      '<div class="depl'+(DEP_F.suite==='moins1'?' on':'')+'" onclick="departGarder();DEP_F.suite=\'moins1\';departDessiner()"><span class="bx rd"></span>−1</div>'+
+      '<div class="depl'+(DEP_F.suite==='transport'?' on':'')+'" onclick="departGarder();DEP_F.suite=\'transport\';departDessiner()"><span class="bx rd"></span>Transport</div>'+
+      '<textarea id="depCom" class="act-in'+(DEP_F.aff&&DEP_F.suite==='transport'?'':' eteint')+'" rows="2" maxlength="80" placeholder="Commentaire">'+esc(DEP_F.com)+'</textarea>'+
+    '</div>'+
     /* « Plus tard » ne disait pas ce qu'il faisait : il ferme sans rien créer. « Enregistrer » répétait le titre en flou. */
-    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'depBg\').classList.remove(\'on\')">Fermer</button><span style="flex:1"></span>'+
-      '<button class="rdvk-val" onclick="departEnregistrer()">Désencoder</button></div></div>';
+    /* ⭐ DEUX MOMENTS (Mag, 14/10/2026 : « tant que je n'ai pas désencodé, il ne faut pas le faire, il peut encore y avoir
+       un changement d'avis dans l'équipe »). GARDER POUR MOI : les choix restent sur la note, personne d'autre ne voit
+       rien. DÉSENCODÉ · ENVOYER : la chambre part dans les Sortants ET chez les polyvalents (« Chambres à vider »). */
+    /* Les deux gardent la note dans Ma liste. « Liste perso » (Mag, 14/10/2026, au lieu de « Garder pour moi »). */
+    '<div class="act-b"><button class="rdvk-ref" onclick="departGarderPourMoi()">Liste perso</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val" onclick="departEnregistrer()">Envoyer</button></div></div>';
+}
+function departGarderPourMoi(){
+  departGarder();
+  const n=DEP_F&&DEP_F.rid?MESRAPPELS.find(function(x){ return x.id===DEP_F.rid; }):null;
+  if(n){ n.dep={date:DEP_F.date, aff:DEP_F.aff, suite:DEP_F.suite, com:DEP_F.com}; rappelsSauver(); }
+  document.getElementById('depBg').classList.remove('on'); DEP_F=null;
+  toast(n?'Dans ta liste perso':'Pas envoyé');
+}
+/* ⭐ ENVOYER DEPUIS MA LISTE, EN UN APPUI (Mag, 14/10/2026 : « dans la liste perso, c'est là qu'on doit pouvoir
+   l'envoyer »). Les choix gardés sur la note partent tels quels ; sans choix gardés ou sans chambre, la fenêtre s'ouvre. */
+function departEnvoyerNote(id){
+  const n=MESRAPPELS.find(function(x){ return x.id===id; }); if(!n) return;
+  departPop({nom:String(n.texte||'').split('\n')[0].slice(0,40), chambre:n.chambre||'', rid:n.id});
+  if(n.dep && n.chambre && (!DEP_F.aff || DEP_F.suite)) departEnregistrer();
 }
 async function departEnregistrer(){
   departGarder();
   if(!DEP_F.chambre){ toast('Le numéro de chambre'); return; }
   DEP_F.motif='sortant';
-  if(DEP_F.aff===null){ toast('Chambre vide ou affaires à vider ?'); return; }
+  if(DEP_F.aff && !DEP_F.suite){ toast('−1 ou Transport ?'); return; }
   const r=await sb.from('chambres').insert({numero:String(DEP_F.chambre).trim().slice(0,10), initiales:String(DEP_F.nom||'').trim().slice(0,40)||null,
-    cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff}).select('id');
+    cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff,
+    /* −1 ou Transport : choisi dès le départ, rangé dans les colonnes de l'étape « affaires au −1 ou amenées ». */
+    dest:DEP_F.aff?(DEP_F.suite==='transport'?'lieu':'moins1'):null,
+    lieu:(DEP_F.aff&&DEP_F.suite==='transport')?(String(DEP_F.com||'').trim().slice(0,80)||null):null}).select('id');
   if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
   /* La note garde le lien vers son sortant : on ne le recrée pas en la modifiant. */
-  if(DEP_F.rid){ const n=MESRAPPELS.find(function(x){ return x.id===DEP_F.rid; }); if(n){ n.sortantId=r.data[0].id; rappelsSauver(); } }
+  if(DEP_F.rid){ const n=MESRAPPELS.find(function(x){ return x.id===DEP_F.rid; }); if(n){ n.sortantId=r.data[0].id; delete n.dep; rappelsSauver(); } }
+  const DEP_F_AFF=DEP_F.aff;
   document.getElementById('depBg').classList.remove('on'); DEP_F=null;
-  _chVu=0; await loadChambres(); render(); toast('Dans les sortants ✓ — le point du jour le montre');
+  _chVu=0; await loadChambres(); render(); toast(DEP_F_AFF?'Envoyé · chambre à vider ✓':'Dans les sortants ✓');
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
 /* ═══ UNE SEULE FEUILLE POUR TOUT CORRIGER (Mag, 22/08/2026) ═══
@@ -48297,6 +48354,9 @@ function rappelsHTML(enCarte){
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
           '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Passation</button>'+
+          /* Une note DÉSENCODER pas encore envoyée : « Vider la chambre » (Mag, 14/10/2026), « Envoyer » si rien à vider. */
+          ((r.desencodage && !r.sortantId && !estGroupeD())
+            ? '<button class="rapPass mini binvers" onclick="departEnvoyerNote(\''+r.id+'\')">'+((r.dep&&r.dep.aff===false)?'Envoyer':'Vider la chambre')+'</button>' : '')+
           /* ═══ VERS LA LISTE À DEUX (Mag, 07/10/2026 : « je dois juste passer de mes
              notes ») ═══ Comme la passation : on écrit ICI, et un bouton l'envoie. */
           /* Ce bouton-là est pour le service social seulement : les autres passent par
