@@ -44509,20 +44509,23 @@ function departDessiner(){
   const bg=document.getElementById('depBg'); if(!bg||!DEP_F) return;
   const b=function(on, t, js){ return '<button class="chaffb'+(on?' on':'')+'" onclick="departGarder();'+js+';departDessiner()">'+t+'</button>'; };
   bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
-    '<div class="act-pt"><span class="act-pi" style="background:#a9c8e8">'+icon('cle')+'</span>Désencoder · un sortant</div>'+
+    '<div class="act-pt"><span class="act-pi" style="background:#a9c8e8">'+icon('cle')+'</span>Désencoder</div>'+
     '<div class="chadd"><input id="depNom" class="act-in" placeholder="Nom" value="'+esc(DEP_F.nom)+'">'+
       '<input id="depCh" class="act-in" inputmode="numeric" placeholder="N° ch." value="'+esc(DEP_F.chambre)+'" style="max-width:110px"></div>'+
-    '<input id="depDate" class="act-in" type="date" value="'+esc(DEP_F.date)+'">'+
-    '<div class="chaddaff">'+b(DEP_F.motif==='sortant','Sortant',"DEP_F.motif='sortant'")+b(DEP_F.motif==='hospitalise','Hospitalisé',"DEP_F.motif='hospitalise'")+'</div>'+
-    '<div class="chaddaff">'+b(DEP_F.aff===true,'Affaires restantes','DEP_F.aff=true')+b(DEP_F.aff===false,'Aucune affaire restante','DEP_F.aff=false')+'</div>'+
-    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'depBg\').classList.remove(\'on\')">Plus tard</button><span style="flex:1"></span>'+
-      '<button class="rdvk-val" onclick="departEnregistrer()">Enregistrer</button></div></div>';
+    '<input id="depDate" class="act-in" type="date" value="'+esc(DEP_F.date)+'" aria-label="Date de sortie">'+
+    /* ⭐ PLUS DE « SORTANT / HOSPITALISÉ » ICI (Mag, 14/10/2026 : « si on désencode, c'est qu'il est sortant »). On arrive
+       par DÉSENCODER : la place est rendue, c'est un sortant. L'hospitalisé qui garde sa place est une ABSENCE. La seule
+       question qui reste : la chambre, vide ou à vider. */
+    '<div class="chaddaff">'+b(DEP_F.aff===false,'Chambre vide','DEP_F.aff=false')+b(DEP_F.aff===true,'Affaires à vider','DEP_F.aff=true')+'</div>'+
+    /* « Plus tard » ne disait pas ce qu'il faisait : il ferme sans rien créer. « Enregistrer » répétait le titre en flou. */
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'depBg\').classList.remove(\'on\')">Fermer</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val" onclick="departEnregistrer()">Désencoder</button></div></div>';
 }
 async function departEnregistrer(){
   departGarder();
   if(!DEP_F.chambre){ toast('Le numéro de chambre'); return; }
-  if(!DEP_F.motif){ toast('Sortant ou hospitalisé ?'); return; }
-  if(DEP_F.aff===null){ toast('Il reste des affaires ?'); return; }
+  DEP_F.motif='sortant';
+  if(DEP_F.aff===null){ toast('Chambre vide ou affaires à vider ?'); return; }
   const r=await sb.from('chambres').insert({numero:String(DEP_F.chambre).trim().slice(0,10), initiales:String(DEP_F.nom||'').trim().slice(0,40)||null,
     cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff}).select('id');
   if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
