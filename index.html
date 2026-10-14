@@ -25033,7 +25033,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+passationsHTML()+carteServiceSocial()+
+    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+carteServiceSocial()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -25164,7 +25164,8 @@ function listeCorps(){
      3. La passation · 4. Service social · 5. la check-list · 6. Rendez-vous, en bas. */
   /* LES RENDEZ-VOUS RESTENT EN HAUT (Mag, 13/10/2026 : « c'est très important »). */
   h+='<div class="ml3-c">'+rdvJoursHTML()+carteMaListe()+carteBinome()+'</div>';
-  h+='<div class="ml3-c">'+carteAPrendre()+passationsHTML()+carteServiceSocial()+'</div>';
+  /* ⭐ LA PASSATION DE NUIT APRÈS LE SERVICE SOCIAL (Mag, 14/10/2026). */
+  h+='<div class="ml3-c">'+carteAPrendre()+carteServiceSocial()+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
@@ -43658,12 +43659,14 @@ function imprimerPrevenir(){
   feuilleImprimer({onglet:'À prévenir — '+jour, entete:'À prévenir — aperçu', titre:'À prévenir', sous:jour, corps:corps});
 }
 function imprimerPassation(pour){
-  const liste=passUnique(passToutes()).filter(function(p){ return !PASS_IMPR_PREV || p.genre==='prevenir'; });
+  const social=pour==='social';
+  const liste=social ? passUnique(passSociales())
+    : passUnique(passToutes()).filter(function(p){ return !PASS_IMPR_PREV || p.genre==='prevenir'; });
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
      sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
   const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
-  const qui=eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR);
+  const qui=social ? 'le service social' : (eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR));
 
   /* Une ligne : la case vide, l'heure alignée, le genre en petit, et le trait de
      couleur à gauche. Le mot du genre reste écrit : sur une photocopie en noir et
@@ -43694,6 +43697,9 @@ function imprimerPassation(pour){
            se déplie pas : il n'y a rien à couper dessus. */
         (p.commentaire?'<span class="com">'+esc(p.commentaire).replace(/\n/g,'<br>')+'</span>':'')+
         (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
+        /* Le service social : les réponses sous la ligne, comme à l'écran. */
+        (social ? PASS_REPONSES.filter(function(x){ return x.passation_id===p.id; }).map(function(x){
+          return '<span class="com">↳ '+esc(String(x.par||'').split(/\s+/)[0])+' : '+esc(x.texte||'').replace(/\n/g,'<br>')+'</span>'; }).join('') : '')+
       '</span></div>';
   };
 
@@ -43721,10 +43727,11 @@ function imprimerPassation(pour){
       '<em>'+infos.length+'</em></div>'+infos.map(ligneP).join('')+'</section>';
   if(!corps) corps='<p class="vide">Rien à passer pour cette équipe.</p>';
 
+  if(social) corps=liste.length ? '<section class="ch">'+liste.map(ligneP).join('')+'</section>' : '<p class="vide">Rien au service social.</p>';
   feuilleImprimer({
-    onglet:(PASS_IMPR_PREV?'À prévenir — ':'Passation — ')+qui,
-    entete:PASS_IMPR_PREV?'À prévenir — aperçu':'La passation — aperçu',
-    titre:'Passation',
+    onglet:social?'Service social':(PASS_IMPR_PREV?'À prévenir — ':'Passation — ')+qui,
+    entete:social?'Service social — aperçu':(PASS_IMPR_PREV?'À prévenir — aperçu':'La passation — aperçu'),
+    titre:social?'Service social':'Passation',
     sous:'Pour '+qui+' · '+jour,
     corps:corps
   });
@@ -43874,14 +43881,19 @@ function carteServiceSocial(){
   if(der>BIN_VU) setTimeout(function(){
     if(current && current.view==='liste') binMarquerVu(der);
   }, 3000);
-  return '<div class="pcarte pcarte-lire pcarte-social">'+
-    '<div class="ptitre ptitre-lire"><div class="ptitre-pli">'+
+  /* ⭐ LES MÊMES BOUTONS QUE LA PASSATION (Mag, 14/10/2026) : imprimer, partager, et le chevron qui replie. */
+  const plie=!SOC_OUVERTE;
+  return '<div class="pcarte pcarte-lire pcarte-social'+(plie?' plie':'')+'">'+
+    '<div class="ptitre ptitre-lire"><button class="ptitre-pli" onclick="socPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
       '<b>Service social</b>'+
-    '</div>'+
+    '</button>'+
+      '<button class="ptitre-i" onclick="imprimerPassation(\'social\')" aria-label="Imprimer le service social" '+
+        'title="Imprimer le service social">'+icon('imprimer')+'</button>'+
       '<button class="ptitre-i" onclick="passPartager(\'social\')" aria-label="Partager la passation" '+
         'title="Partager la passation">'+icon('partage')+'</button>'+
+      '<em class="ch" onclick="socPlier()" aria-hidden="true">›</em>'+
     '</div>'+
-    l.map(function(p){
+    (plie?'':l.map(function(p){
       const reps=PASS_REPONSES.filter(function(x){ return x.passation_id===p.id; });
       return '<div class="socl">'+
         (binNeuf(p)?'<span class="socneuf">nouveau</span>':'')+
@@ -43901,9 +43913,11 @@ function carteServiceSocial(){
             '<div class="binrep-t">'+passRiche(x.texte)+'</div></div>';
         }).join('')+
       '</div>';
-    }).join('')+
+    }).join(''))+
   '</div>';
 }
+var SOC_OUVERTE=true;
+function socPlier(){ SOC_OUVERTE=!SOC_OUVERTE; render(); }
 function socRepondre(id){
   const p=PASSATIONS.find(function(x){ return x.id===id; }); if(!p) return;
   cousinPop({
