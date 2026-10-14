@@ -17425,9 +17425,15 @@ function ppLireMail(txt){
   if(p1){ de=hh(p1[1],p1[2]); a=hh(p1[3],p1[4]); reste=reste.replace(p1[0],' '); }
   const p2=new RegExp('(?:a partir de|des|accessible a)\\s*'+H).exec(reste);
   if(p2){ a=hh(p2[1],p2[2]); reste=reste.replace(p2[0],' '); }
+  /* « les chambres devront être libérées POUR 10 heures » = la fermeture commence à 10 h. */
+  const p3=new RegExp('(?:liberee?s?|vidan?ge?e?s?|pretes?)\\s+(?:pour|a|avant)\\s*'+H).exec(reste);
+  if(p3 && !de){ de=hh(p3[1],p3[2]); reste=reste.replace(p3[0],' '); }
   reste=reste.replace(new RegExp(H,'g'),' ');
   const perso=/douche|vetement|complet/.test(sans);
   const fin=/termine/.test(sans);
+  /* ⭐ LES HEURES PAR DÉFAUT : 10 h → 18 h (Mag, 14/10/2026). Le mail les change s'il en donne ; un mail de FIN n'en a pas. */
+  const defaut=!fin && (!de || !a);
+  if(!fin){ if(!de) de='10:00'; if(!a) a='18:00'; }
   const rento = /rentokil/.test(sans);   /* rien dans le mail = rien (Mag, 13/10/2026) */
   /* Une phrase qui parle d'UNE chambre (« pour la chambre 301, la résidente ne veut pas qu'on
      touche à ses affaires… ») va en commentaire sous CETTE chambre, mot pour mot. */
@@ -17438,7 +17444,7 @@ function ppLireMail(txt){
   const nums=[]; (reste.match(/\b\d{3}\b/g)||[]).forEach(function(x){ if(ppChambreOk(x) && nums.indexOf(x)<0) nums.push(x); });
   /* Un mail d'UNE seule chambre ne fait pas de note : la phrase est la consigne elle-même. */
   if(nums.length<2) Object.keys(notes).forEach(function(k){ delete notes[k]; });
-  return {jour:jour||agIso(new Date()), dateTrouvee:!!jour, nums:nums, de:de, a:a, perso:perso, fin:fin, notes:notes, rento:rento};
+  return {jour:jour||agIso(new Date()), dateTrouvee:!!jour, nums:nums, de:de, a:a, defaut:defaut, perso:perso, fin:fin, notes:notes, rento:rento};
 }
 function ppColleSaisie(v){ PP_COLLE=v||''; }
 function ppColler(){
@@ -17463,7 +17469,7 @@ function ppColler(){
     .sort(function(x,y){ return x.jour<y.jour?1:-1; })[0]; };
   const maj=r.nums.filter(existe), neuves=r.nums.filter(function(n){ return !existe(n); });
   const quoi=[];
-  if(r.de||r.a) quoi.push('Chambre fermée'+(r.de?' de '+ppHFr(r.de):'')+(r.a?(r.de?' à ':' jusqu’à ')+ppHFr(r.a):''));
+  if(r.de||r.a) quoi.push('Chambre fermée'+(r.de?' de '+ppHFr(r.de):'')+(r.a?(r.de?' à ':' jusqu’à ')+ppHFr(r.a):'')+(r.defaut?' (heures habituelles)':''));
   if(r.perso) quoi.push('Protocole de la personne (douche, vêtements)');
   if(r.rento) quoi.unshift('Passage : Rentokil');
   /* « TERMINÉ » NE SE PERD PLUS (Mag, 13/10/2026 : « on s'en fout, si on a toutes les infos ») : même pour une chambre
