@@ -45262,7 +45262,7 @@ function arriveesHTML(){
     '<div class="entarr-t">Entretiens et entrants de la semaine'+(L.length?' · '+L.length:'')+'</div>'+
     '<div class="entarr-add">'+
       '<input id="arrNom" type="text" placeholder="Nom" autocomplete="off" maxlength="80" value="'+esc(ARR_BR_NOM)+'" '+
-        'oninput="ARR_BR_NOM=this.value" onkeydown="if(event.key===\'Enter\'){event.preventDefault();(ARR_BR_MI?arriveeMiParcours:arriveeAjouter)();}">'+
+        'oninput="ARR_BR_NOM=this.value" onpaste="arrNomColle(event)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();(ARR_BR_MI?arriveeMiParcours:arriveeAjouter)();}">'+
       '<input id="arrJour" type="date" value="'+esc(arrJourDefaut())+'" '+
         'title="Jour d’arrivée" oninput="ARR_BR_JOUR=this.value">'+
       /* LAM en fuchsia, Médical en bleu (Mag, 20/09/2026 : « mets le médical en bleu »). */
@@ -45316,6 +45316,7 @@ function arriveesHTML(){
 let ARR_AJOUT_ENCOURS=false;   /* deux appuis rapides = deux relectures vides = deux lignes */
 async function arriveeAjouter(){
   const n=(ARR_BR_NOM||'').trim(); if(!n){ toast('Écris un nom.'); return; }
+  if(arrNomRessembleListe(n)){ ARR_BR_NOM=''; const i=document.getElementById('arrNom'); if(i) i.value=''; arrCollerOuvrir(n); return; }
   if(ARR_AJOUT_ENCOURS) return;
   ARR_AJOUT_ENCOURS=true;
   let d=null; try{ d=await entrantDejaLa(n); } finally { ARR_AJOUT_ENCOURS=false; }
@@ -45419,7 +45420,7 @@ function arrLireListe(txt){
   });
   return out;
 }
-function arrCollerOuvrir(){
+function arrCollerOuvrir(texte){
   let bg=document.getElementById('arrColBg');
   if(!bg){
     bg=document.createElement('div'); bg.id='arrColBg'; bg.className='popbg';
@@ -45435,7 +45436,19 @@ function arrCollerOuvrir(){
       '<button class="dembtn" onclick="arrCollerLire()">Lire</button>'+
     '</div></div>';
   bg.classList.add('on');
+  /* Un texte arrivé par la case « Nom » : on le pose et on le lit tout de suite. */
+  if(typeof texte==='string' && texte.trim()){
+    const t=document.getElementById('arrColTxt'); if(t) t.value=texte; arrCollerLire(); return;
+  }
   setTimeout(function(){ const t=document.getElementById('arrColTxt'); if(t) t.focus(); },50);
+}
+/* ⭐ LA CASE « NOM » NE PREND QU'UNE LIGNE (Mag, 15/10/2026 : Gourdin collée là n'arrivait pas) : une liste collée
+   dedans, ou un nom qui porte une date ou LAM / Med, part dans la fenêtre « Coller les entrants », qui sait la lire. */
+function arrNomRessembleListe(t){ return /\n/.test(t) || /\d{1,2}\/\d{1,2}|(^|[\s(,;-])(LAM|m[ée]d(ical)?)\b/i.test(t); }
+function arrNomColle(ev){
+  const t=((ev.clipboardData||window.clipboardData)||{getData:function(){return '';}}).getData('text')||'';
+  if(!arrNomRessembleListe(t)) return;
+  ev.preventDefault(); ARR_BR_NOM=''; arrCollerOuvrir(t);
 }
 async function arrCollerLire(){
   const t=document.getElementById('arrColTxt');
