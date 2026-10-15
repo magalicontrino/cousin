@@ -25,7 +25,7 @@ Hôpital généraliste de proximité, 300 lits.
 Urgences de l'hôpital Bracops (Anderlecht). Réseau IRIS Sud.
 
 - **Où :** Anderlecht
-- **Téléphone :** 02 556 12 90
+- **Téléphone :** 02 556 13 80
 - **Site :** his-izz.be
 - **Pour qui :** Tout public
 
@@ -228,7 +228,7 @@ MAG, 08/08/2026 : « si on en a appelé un pour savoir si quelqu'un est aux urge
 RÉSEAU IRIS — les hôpitaux publics. TROIS des numéros qu'on appelle en font partie :
 • Saint-Pierre — 02 535 40 55
 • Brugmann — 02 477 20 01
-• Bracops, Anderlecht — 02 556 12 90 (Iris Sud, avec Molière-Longchamp, Etterbeek-Ixelles et Paul Brien)
+• Bracops, Anderlecht — 02 556 13 80 (Iris Sud, avec Molière-Longchamp, Etterbeek-Ixelles et Paul Brien)
 RÉSEAU HUB — l'universitaire de l'ULB :
 • Erasme, Anderlecht — 02 555 34 05 (avec Bordet et l'hôpital des enfants)
 RÉSEAU CHIREC — le privé :
