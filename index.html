@@ -23606,7 +23606,11 @@ function vHome(){
        /* ⚠ DES TITRES COURTS (Mag, 20/09/2026 : « je n'aime pas trop les titres, marque
           juste… ») : « à faire », « arrivés » et « pour toi » sont partis — la carte dit
           déjà que c'est ce qui attend. */
-       (nArr?ligneCta(nArr,'entretien'+(nArr>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+
+       /* ⭐ LES ENTRANTS PAS ENCORE ARRIVÉS NE SONT PAS DES ENTRETIENS (Mag, 15/10/2026 : « je n'ai pas encore trois
+          entretiens d'arrivée ») : deux comptes, deux mots. */
+       (function(){ const v=Math.min(ENT_N_ARR_VENIR||0, nArr), ici=nArr-v;
+         return (ici?ligneCta(ici,'entretien'+(ici>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+
+                (v?ligneCta(v,'entrant'+(v>1?'s':'')+' à venir','#/liste/entretiens','hebergement','#A9C8E8'):''); })()+
        (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
        (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
        /* ⚠ LES ABSENCES QUITTENT LA LISTE PERSO (Mag, 13/10/2026 : « ce n'est pas personnel, tout le monde doit voir les
@@ -45013,7 +45017,7 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
-let ENT_N_ARR=0, ENT_N_SOC=0, ENT_N_MED=0;
+let ENT_N_ARR=0, ENT_N_SOC=0, ENT_N_MED=0, ENT_N_ARR_VENIR=0;
 /* ═══ LA LISTE SE MET À JOUR TOUTE SEULE (Mag, 19/09/2026 : « si ma collègue met un
    nouvel entrant, moi je dois rafraîchir ma page, mais je veux que ce soit
    automatique ») ═══
@@ -45047,13 +45051,13 @@ let ENT_N_AVOIR=0, ENT_N_LU=0, ENT_N_ENCOURS=false;
 async function loadEntrantsCompte(){
   if(ENT_N_ENCOURS || !voitEntrants()) return;
   ENT_N_ENCOURS=true;
-  const avant=[ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED].join('/');
+  const avant=[ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED,ENT_N_ARR_VENIR].join('/');
   try{
     /* ⚠ DEUX COMPTES, PAS UN (Mag, 20/09/2026 : « sur l'accueil, tu oublies les entrants
        et les entretiens à faire ») : l'accueil ne charge pas la liste entière, il ne
        connaissait donc que zéro. On compte ici les DEUX — les arrivées annoncées et les
        entretiens qui restent à faire. */
-    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,encode_le,etage_le,mi_parcours,pour_entretien');
+    const r=await sb.from('entrants').select('acc_social_le,acc_medical_le,roi_le,encode_le,etage_le,mi_parcours,pour_entretien,arrive_le');
     if(!r.error){
       const d=r.data||[];
       /* ⚠ LE MÊME FILTRE QUE L'ONGLET, ET C'EST TOUTE LA CORRECTION (Mag, 22/09/2026 :
@@ -45068,6 +45072,8 @@ async function loadEntrantsCompte(){
          l'accueil : c'est un autre besoin, pas la même pastille.) */
       ENT_N_AVOIR=d.filter(function(e){ return !entretienFait(e,'acc'); }).length;
       ENT_N_ARR=d.filter(function(e){ return e.pour_entretien===false; }).length;
+      /* Ceux dont le jour n'est pas encore arrivé (Mag, 15/10/2026 : « je n'ai pas encore trois entretiens d'arrivée ») */
+      ENT_N_ARR_VENIR=d.filter(function(e){ return e.pour_entretien===false && e.arrive_le && e.arrive_le>agIso(new Date()); }).length;
       /* ⚠ LE SOCIAL ET LE MÉDICAL SE COMPTENT À PART (Mag, 20/09/2026 : « parfois il y a
          des socios qui sont faits et pas encore des médicaux, ou l'inverse ») : un seul
          chiffre cachait le travail qui reste à l'un des deux. */
@@ -45079,7 +45085,7 @@ async function loadEntrantsCompte(){
   ENT_N_LU=Date.now(); ENT_N_ENCOURS=false;
   /* On ne redessine que si le nombre a changé : sinon on réécrirait la page pendant
      qu'elle tape (le piège du 20/08, « ça tremble »). */
-  if([ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED].join('/')!==avant && typeof render==='function') render();
+  if([ENT_N_AVOIR,ENT_N_ARR,ENT_N_SOC,ENT_N_MED,ENT_N_ARR_VENIR].join('/')!==avant && typeof render==='function') render();
 }
 function monGroupe(){
   if(typeof APERCU_GRP!=='undefined' && APERCU_GRP) return APERCU_GRP;
