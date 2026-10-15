@@ -42120,6 +42120,7 @@ async function rapEnvoyerFusion(){
     if(w.error) throw w.error;
     const t=String(Date.now());
     try{ localStorage.setItem('lux_reg_base_ma_liste', t); localStorage.setItem('lux_reg_maj_ma_liste', t); }catch(e){}
+    if(RAP_CONFIRME){ confirmePop(true, RAP_CONFIRME.titre, RAP_CONFIRME.sous); RAP_CONFIRME=null; }
     /* Ce qui a changé ailleurs arrive ici — sans écraser ce qu'on a tapé pendant l'envoi. */
     rappelsTimbrer();
     const ici=rapFusion(MESRAPPELS, fus, sup);
@@ -42129,7 +42130,8 @@ async function rapEnvoyerFusion(){
       rapVuPoser(); render();
     }
   }catch(e){
-    if(typeof toast==='function') toast('⚠ PAS ENREGISTRÉ dans la base — '+((e&&e.message)||'pas de réseau ?'));
+    if(RAP_CONFIRME){ confirmePop(false,'Pas enregistré dans la base', 'Ta ligne reste sur ce téléphone — '+((e&&e.message)||'pas de réseau ?')); RAP_CONFIRME=null; }
+    else if(typeof toast==='function') toast('⚠ PAS ENREGISTRÉ dans la base — '+((e&&e.message)||'pas de réseau ?'));
     panneNoter('reglage ma_liste', (e&&e.message)||String(e));
   }
 }
@@ -43135,9 +43137,11 @@ async function passAjouter(){
     PASS_AJEUN=false; PASS_FEUILLE=false; PASS_GARDE=null;
     /* On revient à la nuit : sinon la note suivante partirait au service social
        sans qu'on y pense. */
+    const etaitEdit=!!PASS_EDIT, vers=passPourNom(l.pour), rev=l.genre==='reveil';
     if(!PASS_EDIT) PASS_POUR=PASS_EQUIPE;
-    await loadPassations(); render(); toast('Passée ✓');
-  }catch(e){ toast('Impossible : '+((e&&e.message)||e)); }
+    await loadPassations(); render();
+    confirmePop(true, etaitEdit?'Passation corrigée':(rev?'Réveil envoyé':'Passation envoyée'), 'à '+vers+(l.chambre?' · ch. '+l.chambre:''));
+  }catch(e){ confirmePop(false,'Passation PAS envoyée', ((e&&e.message)||String(e))+' — ton texte est resté dans la feuille'); }
 }
 async function passCocher(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
@@ -44107,11 +44111,11 @@ async function socEnvoyerRappel(rid, q){
            par:nomAffiche(), chambre:r.chambre||null, jour:todayStr(), pour_qui:q};
   if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
   const {data,error}=await sb.from('passations').insert(l).select();
-  if(error){ toast('Pas envoyée : '+error.message); return; }
+  if(error){ confirmePop(false,'PAS envoyée au service social', error.message); return; }
   if(data && data[0]){ data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]); }
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
   rappelsSauver(); render();
-  toast(q ? 'Envoyée à '+socDeVers({pour_qui:q, par:nomAffiche()}).split('→ ')[1]+' ✓' : 'Envoyée au service social ✓');
+  confirmePop(true, 'Envoyée', q ? 'à '+socDeVers({pour_qui:q, par:nomAffiche()}).split('→ ')[1] : 'au service social');
 }
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
@@ -44655,6 +44659,25 @@ function rapViderCocher(){
     }
   });
 }
+/* ═══ LA CONFIRMATION (Mag, 15/10/2026 : « je ne sais jamais si c'est parti ou si c'est un bug » — elle a choisi la
+   fenêtre au milieu) ═══ ⚠ ELLE N'APPARAÎT QUE QUAND LA BASE A RÉPONDU : un ✓ affiché avant serait un mensonge.
+   Bien reçu : grosse coche verte, elle part seule après 2 s. Panne : elle RESTE, en rouge, jusqu'à ce qu'on la ferme. */
+var RAP_CONFIRME=null;
+function confirmePop(ok, titre, sous){
+  let bg=document.getElementById('confBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='confBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(){ bg.classList.remove('on'); }; }
+  bg.innerHTML='<div class="popcard" role="alertdialog" aria-live="assertive" style="max-width:320px;text-align:center;padding:26px 22px">'+
+    '<div style="width:64px;height:64px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;'+
+      'background:'+(ok?'#6cb392':'#e63329')+';color:#fdfdfc;font-size:34px;font-weight:700;line-height:1">'+(ok?'✓':'!')+'</div>'+
+    '<b style="display:block;font-size:19px;margin-bottom:6px">'+esc(titre)+'</b>'+
+    (sous?'<span style="display:block;font-size:14px;color:#6b6862">'+esc(sous)+'</span>':'')+
+    (ok?'':'<button class="rdvk-val" style="margin-top:16px" onclick="document.getElementById(\'confBg\').classList.remove(\'on\')">OK</button>')+
+  '</div>';
+  bg.classList.add('on');
+  clearTimeout(confirmePop._h);
+  if(ok) confirmePop._h=setTimeout(function(){ bg.classList.remove('on'); }, 2000);
+}
 function rappelAjouter(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
@@ -44681,10 +44704,14 @@ function rappelAjouter(){
   if(RAP_TAGS.note) ligne.noteTag=true;
   if(RAP_TAGS.vider) ligne.vider=true;
   MESRAPPELS.push(ligne);
-  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false}; rappelsSauver(); i.value=''; if(c) c.value=''; render();
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
+  /* La confirmation attend la base (voir rapEnvoyerFusion) ; Désencoder ouvre sa propre fenêtre, pas de confirmation par-dessus. */
+  RAP_CONFIRME = ligne.desencodage ? null : {titre:'Dans ta liste', sous:ligne.chambre?'Chambre '+ligne.chambre:''};
+  if(RAP_CONFIRME && (!sb||!PROFILE||!PROFILE.uid)){ confirmePop(false,'Pas enregistré dans la base','Seulement sur ce téléphone — reconnecte-toi'); RAP_CONFIRME=null; }
+  rappelsSauver(); i.value=''; if(c) c.value=''; render();
   /* Le champ se vide sous les doigts : sans un mot, on ne sait pas si la note est
      partie dans la liste ou si on vient de la perdre. Le message dit lequel des deux. */
-  toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
+  if(ligne.desencodage) toast(ligne.chambre ? ('Ajouté à ta liste · ch. '+ligne.chambre) : 'Ajouté à ta liste');
   /* ⭐ DÉSENCODER OUVRE LA FENÊTRE DES DÉPARTS (Mag, 13/10/2026 : « quand je marque désencoder, une pop-up s'ouvre pour
      remplir tout ça »). Le nom et la chambre sont repris de la note. */
   if(ligne.desencodage && !estGroupeD()){ departPop({nom:String(t).split('\n')[0].slice(0,40), chambre:ligne.chambre||'', rid:ligne.id}); return; }
