@@ -6182,6 +6182,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    long que l'ancien « Notes » : sans marge, le mot touchait les bords du bouton noir.
    Le picto et le texte se resserrent un peu pour laisser la place. */
 .mlong-btn{padding-left:8px;padding-right:8px}
+/* Quatre onglets (Sortants, 15/10/2026) : sur téléphone, le mot seul. */
+@media(max-width:560px){ .mlong.n4{gap:4px} .mlong.n4 .mlong-btn .ic{display:none} .mlong.n4 .mlong-btn{font-size:12px;padding-left:4px;padding-right:4px} .mlong.n4 .mlong-btn:first-child{flex:1} }
 @media(max-width:430px){ .mlong{gap:5px;margin-left:10px;margin-right:10px}
   .mlong-btn{font-size:12.5px;gap:4px;padding-left:7px;padding-right:7px}
   .mlong-btn .ic{width:15px;height:15px} .mlong-btn:first-child{flex:1.15} }
@@ -15986,7 +15988,7 @@ function chAffGarde(v, quoi){
   render();
   const s=function(id,x){ const e=document.getElementById(id); if(e && x) e.value=x; }; s('chNum',a); s('chIni',b); s('chSortie',c);
 }
-function vChambres(){
+function vChambres(dansListe){
   /* ⭐ PAS POUR LES POLYVALENTS (Mag, 13/10/2026 : « les polyvalents n'ont pas à voir ça »). */
   if(estGroupeD()) return '<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button><h1>Sortants</h1></div><div class="empty" style="margin-top:30px"><b>Réservé à l’équipe.</b></div>';
   const encours=CHAMBRES.filter(function(c){ return !chambreFinie(c); });
@@ -16010,8 +16012,9 @@ function vChambres(){
   /* ⚠ LE WIKI VIENT APRÈS LA LISTE. Cette page assemblait tout dans un seul
      `return` : on passe par `h` pour pouvoir lui ajouter le carnet, sans rien
      changer à ce qui est construit au-dessus. */
-  let h='<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
-    '<h1>Sortants</h1><span class="etq etq-s">'+encours.length+'</span></div>'+
+  /* Dans l'onglet Sortants de Liste et notes (15/10/2026) : pas de barre de retour, l'onglet dit déjà où on est. */
+  let h=(dansListe?'<div style="height:10px"></div>':'<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
+    '<h1>Sortants</h1><span class="etq etq-s">'+encours.length+'</span></div>')+
     chTableau(encours)+
     '<div class="chadd">'+
       '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
@@ -24860,7 +24863,7 @@ function nCentreFiches(){ return fichesDe('coord').length; }
    panne de départ. Même règle que les fontaines et les toilettes (10/09/2026). */
 function mlOnglet(){
   const o=(current&&current.onglet)||'';
-  return (o==='notes'||o==='entretiens'||o==='absences')?o:'liste';
+  return (o==='notes'||o==='entretiens'||o==='absences'||o==='sortants')?o:'liste';
 }
 /* ═══ CHANGER D'ONGLET NE RAMÈNE PLUS EN HAUT (Mag, 02/10/2026 : « quand je change
    d'onglet, à chaque fois, ça revient au début. Je dois chaque fois rechercher ») ═══
@@ -24917,7 +24920,7 @@ function vListe(){
   /* Liste et Notes s'ouvre depuis le bouton dossier de la barre du haut, visible
      partout : c'est une destination, pas une sous-page. */
   return heroBandeau('Liste et Notes', dateTxt, '#A9C8E8','folder', 'aucun')+
-    '<div class="mlong">'+
+    '<div class="mlong'+(voitEntrants()?' n4':'')+'">'+
     '<button class="mlong-btn'+(onglet==='entretiens'?' on':'')+(nAttente?' rose':'')+'" '+
       'onclick="mlVue(\'entretiens\')"><span class="ic">'+icon('accomp')+'</span>Entretiens'+
       (nAttente?'<i class="mlong-n">'+nAttente+'</i>':'')+'</button>'+
@@ -24932,12 +24935,18 @@ function vListe(){
     (voitEntrants()
       ? '<button class="mlong-btn'+(onglet==='absences'?' on':'')+'" '+
           'onclick="mlVue(\'absences\')"><span class="ic">'+icon('absence')+'</span>Absences'+
-          (nAbs?'<i class="mlong-n rouge" title="3 nuits ou plus">'+nAbs+'</i>':'')+'</button>'
+          (nAbs?'<i class="mlong-n rouge" title="3 nuits ou plus">'+nAbs+'</i>':'')+'</button>'+
+        /* ⭐ UN 4ᵉ ONGLET : LES SORTANTS (Mag, 15/10/2026 : « rajoute les sortants, mets un 4ème bouton ») — la même page
+           que #/chambres, sans sa barre de retour. Pas pour les polyvalents (voitEntrants = pas le groupe D). */
+        (function(){ let n=0; try{ rafraichirChambres(); n=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; }catch(e){}
+          return '<button class="mlong-btn'+(onglet==='sortants'?' on':'')+'" onclick="mlVue(\'sortants\')"><span class="ic">'+icon('cle')+'</span>Sortants'+
+            (n?'<i class="mlong-n" title="En cours">'+n+'</i>':'')+'</button>'; })()
       : '<button class="mlong-btn'+(onglet==='notes'?' on':'')+'" '+
           'onclick="mlVue(\'notes\')"><span class="ic">'+icon('note')+'</span>Notes</button>')+
     '</div>'+
     (onglet==='entretiens' ? entretiensCorps() :
      onglet==='absences' ? absencesCorps() :
+     onglet==='sortants' ? vChambres(true) :
       '<div id="ml-liste"'+(onglet!=='liste'?' style="display:none"':'')+'>'+listeCorps()+
         (voitEntrants() && ((NOTES&&NOTES.length)||(typeof notSecoursLire==='function'&&notSecoursLire().length))
           ? '<div style="text-align:center;margin:18px 0 6px"><button class="notgb" onclick="mlVue(\'notes\')">Mes anciennes notes'+
