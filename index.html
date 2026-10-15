@@ -45356,15 +45356,18 @@ function arrLireListe(txt){
      · dès qu'une ligne porte (LAM) ou (Médical), seules ces lignes-là (ou celles à
        tiret) sont des personnes ; une ligne collée juste dessous est une INFO sur la
        personne (« Transfert PC »), ajoutée après une virgule — elle s'affiche en clair. */
-  const TAG=/\(\s*(LAM|m[ée]d[a-zé]*)\s*\)/i;
+  /* (LAM) / (Med) entre parenthèses — ou « - LAM » en fin de ligne (Mag, 15/10/2026 : « Mme Gourdin Cindy (26/08/1981) - LAM »). */
+  const TAG=/\(\s*(LAM|m[ée]d[a-zé]*)\s*\)|[-–]\s*(LAM|m[ée]d[a-zé]*)\s*$/i;
   const avecTag=lignes.some(function(l){ return TAG.test(l); });
   const DATE=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
   let dernier=null;
   lignes.forEach(function(l){
     const t=l.replace(/ /g,' ').trim(); if(!t){ dernier=null; return; }
+    if(!/[A-Za-zÀ-ÿ0-9]/.test(t)) return;   /* une ligne de « ____ » ne dit rien */
+    if(/^(bonjour|bonsoir|hello|merci|bonne (journ|soir|fin)|cordialement|bien à (vous|toi)|belle journ)/i.test(t)){ dernier=null; return; }
     const tiret=/^[-•*–]/.test(t);
     const m=DATE.exec(t);
-    const reste=m ? t.replace(DATE,'').replace(/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/ig,'')
+    const reste=m ? t.replace(DATE,'').replace(/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)\b\.?/ig,'')
       .replace(/[\s:,.;\-–]/g,'') : 'x';
     if(m && !tiret && !reste){
       let an=m[3] ? (m[3].length===2 ? 2000+(+m[3]) : +m[3]) : auj.getFullYear();
@@ -45378,18 +45381,21 @@ function arrLireListe(txt){
       if(dernier) dernier.nom=(dernier.nom+', '+t).slice(0,160);
       return;
     }
-    let nm=t.replace(/^[-•*–]\s*/,'');
+    /* LAM / MÉD se lit sur TOUTE la ligne (15/10/2026 : « CIRLAN Ion (21/11/57), de HSP (LAM) » sortait en MÉD —
+       on lisait la première parenthèse, qui était la date de naissance). */
+    const tg=TAG.exec(t);
+    let nm=t.replace(/^[-•*–]\s*/,'').replace(/[-–]\s*(LAM|m[ée]d[a-zé]*)\s*$/i,'');
     const ne=DATE.exec(nm);
     if(ne) nm=nm.replace(DATE,' ');
-    const p=/\(([^)]*)\)/.exec(nm);
-    let nom=nm.replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').replace(/[\s,]+$/,'').trim();
+    let nom=nm.replace(/\([^)]*\)/g,'').replace(/^\s*(mme|mlle|madame|monsieur|mr|m\.)\s+/i,'')
+      .replace(/\s+/g,' ').replace(/\s+,/g,',').replace(/[\s,\-–]+$/,'').trim();
     if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) return;
     /* Un nom de cette liste porte toujours le NOM DE FAMILLE EN MAJUSCULES. Une phrase
        (« Bonjour, », « voici les entrants… », « Merci beaucoup ! ») n'en a pas : elle est
        ignorée, même dans un message sans tirets. */
-    if(!/(^|[\s,])[A-ZÀ-Þ][A-ZÀ-Þ'’-]+(?=$|[\s,])/.test(nom.replace(/,.*$/,''))) return;
+    if(!tg && !/(^|[\s,])[A-ZÀ-Þ][A-ZÀ-Þ'’-]+(?=$|[\s,])/.test(nom.replace(/,.*$/,''))) return;
     if(ne) nom+=', '+ne[0];
-    const type=p ? p[1] : '';
+    const type=tg ? (tg[1]||tg[2]) : '';
     const lam=/\bLAM\b/i.test(type) ? true : (/m[ée]d/i.test(type) ? false : null);
     dernier={nom:nom.slice(0,160), jour:jour, lam:lam};
     out.push(dernier);
