@@ -6349,7 +6349,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   padding:4px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .socneuf{display:inline-block;margin:6px 0 2px;font:700 9px ui-monospace,monospace;letter-spacing:.1em;
   text-transform:uppercase;color:#fff;background:#e63329;border-radius:6px;padding:2px 5px}
-.binrep-h .socneuf{margin:0}
+.binrep-h .socneuf{margin:0;color:#fff;font-size:9px}   /* lisible : blanc sur rouge (15/10/2026, « c'est moche ») */
 .socl+.socl{border-top:1px solid #e4e0d8;margin-top:6px;padding-top:4px}
 .pcarte-social .ptitre{background:#dff0e7;margin:-14px -14px 10px;padding:12px 14px;border-radius:10px 10px 0 0}
 /* Le bouton du coin droit du titre : il doit se voir comme un bouton — sinon on le lit
@@ -41639,7 +41639,7 @@ const ECRANS_PARTAGES={
   rdv:       ['rdv'],
   passation: ['passations'],
   fil:       ['feed'],
-  liste:     ['listes','binome'],
+  liste:     ['listes','binome','passations'],   /* + passations et leurs réponses (16/10/2026) */
   /* ⚠ L'ACCUEIL EST VOLONTAIREMENT ABSENT (Mag, 10/08/2026 : « la carte tremble et
      le clic ne fonctionne plus »). Il y était pour rafraîchir ses deux compteurs —
      mais chaque rechargement termine par un render(), et un render() sur l'accueil
@@ -41654,6 +41654,18 @@ const ECRANS_PARTAGES={
   admin:     ['admin','chantier'],
   chantier:  ['chantier']
 };
+/* ⭐ LES RÉPONSES ARRIVENT SANS RECHARGER (Mag, 16/10/2026 : « j'ai dû recharger la page pour voir la note d'Afaf »).
+   Toutes les 45 s, si l'app est au premier plan, on relit ce que l'écran partage avec les collègues. ⚠ PAS PENDANT
+   QU'ON ÉCRIT (une case ou une fenêtre ouverte) : redessiner sous les doigts, c'est le piège du 20/08 (« ça tremble »). */
+setInterval(function(){
+  try{
+    if(document.visibilityState!=='visible') return;
+    const a=document.activeElement;
+    if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    if(document.querySelector('.popbg.on')) return;
+    rafraichirPartage(false);
+  }catch(e){}
+}, 45000);
 function rafraichirPartage(force){
   if(!sb || !PROFILE) return;
   if(!force && Date.now()-_dernierRafraichi < 20000) return;
