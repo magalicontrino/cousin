@@ -21122,12 +21122,12 @@ function rappelsPasMarques(l){
 /* ═══ CHOISIR CE QU'ON IMPRIME (Mag, 16/10/2026 : « une pop où on choisit ce qu'on veut imprimer, parce que là, ce
    n'est pas évident ») ═══ Une seule feuille avec ce qui est coché. Les feuilles du service social et des « à prévenir »
    sont fabriquées par leurs propres fonctions : on les CAPTURE (sans ouvrir de fenêtre) et on les met à la suite. */
-var IMPR_SEL={liste:true, nuit:true, social:false, prevenir:false};
+var IMPR_SEL={liste:false, social:true, nuit:true, prevenir:true};   /* cochés d'office : les trois passations (Mag, 16/10/2026) */
 function imprimerChoix(){
   let bg=document.getElementById('imprBg');
   if(!bg){ bg=document.createElement('div'); bg.id='imprBg'; bg.className='popbg'; document.body.appendChild(bg);
     bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
-  const L=[['liste','Ma liste perso'],['nuit','La passation de nuit'],['social','Le service social'],['prevenir','Les « à prévenir »']];
+  const L=[['liste','Ma liste perso'],['social','Le service social'],['nuit','La passation de nuit'],['prevenir','à prévenir']];
   const n=L.filter(function(x){ return IMPR_SEL[x[0]]; }).length;
   bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
     '<div class="act-pt"><span class="act-pi" style="background:#e6e4df">'+icon('imprimer')+'</span>Imprimer</div>'+
@@ -21300,6 +21300,7 @@ function imprimerMaListe(sel){
      et c'est celle qui compte à 5 h du matin. Un réveil noyé dans les infos se rate.
      ⚠ ET C'EST CELUI QUI REÇOIT QUI COCHE : les cases sont vides, comme partout
      ailleurs sur cette feuille. */
+  const avantNuit=corps.length;
   if(sel.nuit && typeof PASSATIONS!=='undefined' && PASSATIONS.length){
     const dujour=PASSATIONS.filter(function(l){
       return !l.jour || String(l.jour)>=todayStr();
@@ -21343,9 +21344,12 @@ function imprimerMaListe(sel){
     }
   }
 
+  /* L'ORDRE DE LA FEUILLE = L'ORDRE DE LA FENÊTRE : ma liste · service social · passation de nuit · à prévenir. */
+  const partNuit=corps.slice(avantNuit); corps=corps.slice(0,avantNuit);
   /* Le service social et les « à prévenir », capturés à leur propre fonction (voir imprimerChoix). */
   if(sel.social){ const o=imprCapturer(function(){ imprimerPassation('social'); });
     if(o && o.corps) corps+='<section class="ch"><div class="st"><span>Service social</span></div></section>'+o.corps; }
+  corps+=partNuit;
   if(sel.prevenir){ const o=imprCapturer(function(){ imprimerPrevenir(); });
     if(o && o.corps) corps+='<section class="ch"><div class="st"><span>À prévenir</span></div></section>'+o.corps; }
   if(!corps) corps='<p class="vide">Rien à imprimer.</p>';
