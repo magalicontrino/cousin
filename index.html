@@ -7025,7 +7025,7 @@ body.no-tabs #tabbar{display:none}
    l'écran par les deux côtés. Elle tient maintenant sur deux lignes s'il le faut. */
 #toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 12px);transform:translate(-50%,16px);
   background:var(--noir);color:#f4f3f1;font-size:14px;font-weight:500;border-radius:0;
-  padding:10px 20px;opacity:0;pointer-events:none;transition:all .22s ease;z-index:9995;
+  padding:10px 20px;opacity:0;pointer-events:none;transition:all .22s ease;z-index:10050;   /* AU-DESSUS des fenêtres (.popbg = 9999) : sinon chaque message d'une fenêtre était caché derrière elle (16/10/2026) */
   max-width:min(92vw,420px);text-align:center;line-height:1.35}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -44839,20 +44839,20 @@ function departEnvoyerNote(id){
 }
 async function departEnregistrer(){
   departGarder();
-  if(!DEP_F.chambre){ toast('Le numéro de chambre'); return; }
+  if(!DEP_F.chambre){ toast('Il manque le numéro de chambre'); const e=document.getElementById('depCh'); if(e) e.focus(); return; }
   DEP_F.motif='sortant';
-  if(DEP_F.aff && !DEP_F.suite){ toast('−1 ou Transport ?'); return; }
+  if(DEP_F.aff && !DEP_F.suite){ toast('Choisis −1 ou Transport'); return; }
   const r=await sb.from('chambres').insert({numero:String(DEP_F.chambre).trim().slice(0,10), initiales:String(DEP_F.nom||'').trim().slice(0,40)||null,
     cree_par:nomAffiche(), sortie_le:DEP_F.date, motif:DEP_F.motif, avec_affaires:DEP_F.aff,
     /* −1 ou Transport : choisi dès le départ, rangé dans les colonnes de l'étape « affaires au −1 ou amenées ». */
     dest:DEP_F.aff?(DEP_F.suite==='transport'?'lieu':'moins1'):null,
     lieu:(DEP_F.aff&&DEP_F.suite==='transport')?(String(DEP_F.com||'').trim().slice(0,80)||null):null}).select('id');
-  if(r.error||!r.data||!r.data.length){ toast('Pas enregistré : la base a refusé'); return; }
+  if(r.error||!r.data||!r.data.length){ confirmePop(false,'PAS envoyé', (r.error&&r.error.message)||'la base n’a pas répondu'); return; }
   /* La note garde le lien vers son sortant : on ne le recrée pas en la modifiant. */
   if(DEP_F.rid){ const n=MESRAPPELS.find(function(x){ return x.id===DEP_F.rid; }); if(n){ n.sortantId=r.data[0].id; delete n.dep; rappelsSauver(); } }
   const DEP_F_AFF=DEP_F.aff;
   document.getElementById('depBg').classList.remove('on'); DEP_F=null;
-  _chVu=0; await loadChambres(); render(); toast(DEP_F_AFF?'Envoyé · chambre à vider ✓':'Dans les sortants ✓');
+  _chVu=0; await loadChambres(); render(); confirmePop(true, 'Envoyé', DEP_F_AFF?'Chambre à vider':'Dans les sortants');
 }
 /* Corriger le texte d'une ligne de sa liste, sans la perdre ni perdre son jour. */
 /* ═══ UNE SEULE FEUILLE POUR TOUT CORRIGER (Mag, 22/08/2026) ═══
