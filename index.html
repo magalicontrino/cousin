@@ -15803,13 +15803,18 @@ async function ajouterChambre(){
   const suivi=(CH_MOTIF==='sortant' || CH_DES===true);
   if(suivi && CH_AFF===null){ toast('Choisis : affaires restantes, ou aucune affaire restante'); return; }
   if(!sb){ toast('Pas de connexion'); return; }
-  const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,14)||null,
+  const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,40)||null,
                cree_par:nomAffiche(), sortie_le:(dj&&dj.value)||agIso(new Date()), avec_affaires:suivi?CH_AFF:null, motif:CH_MOTIF};
+  /* ⚠ RÉPARÉ LE 16/10/2026 (« je n'arrive pas à rentrer cette info ») : deux défauts. ① La réponse de la base n'était pas
+     lue — `insert` ne lève pas d'exception, une panne passait pour un succès. ② Depuis l'onglet Sortants de Liste et
+     notes (vue « liste »), on ne redessinait pas : la chambre partait dans la base mais rien ne bougeait à l'écran. */
   try{
-    await sb.from('chambres').insert(ligne);
+    const r=await sb.from('chambres').insert(ligne).select('id');
+    if(r.error || !r.data || !r.data.length){ confirmePop(false,'Sortant PAS ajouté', (r.error&&r.error.message)||'la base n’a pas répondu'); return; }
     if(n)n.value=''; if(i)i.value=''; CH_AFF=null; CH_MOTIF=''; CH_DES=null;
-    await loadChambres(); if(current.view==='chambres') render(); toast('Sortant ajouté ✓');
-  }catch(e){ toast('Ajout impossible'); }
+    _chVu=0; await loadChambres(); render();
+    confirmePop(true,'Sortant ajouté','Chambre '+num+(ligne.initiales?' · '+ligne.initiales:''));
+  }catch(e){ confirmePop(false,'Sortant PAS ajouté', (e&&e.message)||String(e)); }
 }
 var CH_AFF=null, CH_MOTIF='', CH_DES=null;   /* le formulaire : affaires (true/false), motif (sortant/hospitalise), place désencodée (true/false) */
 function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
@@ -16413,7 +16418,7 @@ async function tbAjouter(){
   const num=(n&&n.value||'').trim(); if(!num){ n&&n.focus(); return; }
   if(!sb){ toast('Pas de connexion'); return; }
   const auj=new Date(); auj.setHours(12,0,0,0);
-  const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,14)||null,
+  const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,40)||null,
                bacs:TB_BACS, note:(no&&no.value||'').trim()||null,
                cree_par:nomAffiche()};
   if(TB_PREV){ ligne.prevenu_le=agIso(auj); ligne.prevenu_par=nomAffiche(); }
