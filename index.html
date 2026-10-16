@@ -17836,7 +17836,7 @@ function accTrioHTML(){
   /* LE VERT = TOUS LES ACCOMPAGNEMENTS À VENIR (Mag, 13/10/2026 : « des accompagnements globaux ») ; le rouge = ce qui reste à faire. */
   const nAccTous=(RDV||[]).filter(function(r){ return r.jour>=a && r.accompagne && !r.retire_le && !r.refuse_le; }).length;
   let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
-  const chipsTout=rapEtiquettes({sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  const chipsTout=rapEtiquettes({prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -17972,6 +17972,17 @@ function rapportHTML(page){
           (x.lam?' <span class="rap-lam">LAM</span>':'')+'</span></button>'; }).join(''));
     if(!n) plus.push('<button class="rap-add" onclick="go(\'#/chambres\')">+ Sortant</button>');
   }
+  /* ⭐ LES ENTRANTS PRÉVUS (Mag, 16/10/2026) : ceux qui ne sont pas encore descendus en entretien, par jour d'arrivée. */
+  if(voitEntrants()){
+    if(!ENTRANTS.length && !ENTRANTS_ENCOURS && Date.now()-ENTRANTS_LU>60000) setTimeout(loadEntrants,0);
+    const EP=ENTRANTS.filter(function(x){ return x.pour_entretien===false; })
+      .sort(function(x,y){ return String(x.arrive_le||'').localeCompare(String(y.arrive_le||'')); });
+    if(EP.length) h+=sec('entrants','#A9C8E8',icon('hebergement'),'Entrants prévus', EP.length,
+      EP.map(function(x){
+        return '<button class="rap-l" onclick="go(\'#/liste/entretiens\')"><span class="rap-h">'+esc(arrJourTxt(x.arrive_le)||'—')+'</span>'+
+          '<span class="rap-x"><b class="rap-nom">'+esc(String(x.nom||'?').split(',')[0])+'</b>'+(x.lam?' <span class="rap-lam">LAM</span>':' · MÉD')+'</span></button>'; }).join('')+
+      '<button class="rap-tv rap-cta" onclick="go(\'#/liste/entretiens\')">voir les entrants ›</button>');
+  }
   h+=msgSec(RAPPORT_RUB[0]);
   if(!gD) h+=msgSec(RAPPORT_RUB[1]);
   if(!gD){
@@ -18023,6 +18034,8 @@ function rapEtiquettes(o, accueil){
   };
   /* LES ABSENTS +3 NUITS (Mag, 13/10/2026), en tête ; rouge s'il y a un LAM. */
   return e(o.abs3,'', 'absent'+(o.abs3>1?'s':'')+' +3 nuits','abslam', !!o.abs3lam)+e(o.ent,'', 'sans PFM','entree')+e(o.info, masque('eclair.svg','#f8763f'), o.info>1?'infos':'info','info')+   /* l'éclair pour les infos (Mag, 13/10/2026, B) */
+    /* ⭐ LES ENTRANTS PRÉVUS (Mag, 16/10/2026 : « tu dois aussi mettre les entrants prévus ») */
+    e(o.prevus, ic('hebergement','#A9C8E8'), o.prevus>1?'entrants prévus':'entrant prévu', 'entrants')+
     e(o.reveil, masque('alarme.svg','#f5c542'),   /* la cloche en JAUNE (Mag, 14/10/2026) */
        o.reveil>1?'réveils':'réveil', 'reveils')+   /* le mot revient à côté de la cloche (13/10/2026) */
     /* UNE SEULE ÉTIQUETTE ACCOMPAGNEMENTS (Mag, 13/10/2026 : « mets-les en un ») : rouge avec le total à faire (à trouver +
