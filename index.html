@@ -21119,7 +21119,31 @@ function rappelsPasMarques(l){
    ⚠ LA CHECK-LIST N'EST SUR AUCUNE FEUILLE. Deux raisons, deux jours : elle changeait
    de contenu selon la liste affichée au moment du clic (07/09), et on ne l'emporte
    pas — on la coche à l'écran (11/09). */
-function imprimerMaListe(){
+/* ═══ CHOISIR CE QU'ON IMPRIME (Mag, 16/10/2026 : « une pop où on choisit ce qu'on veut imprimer, parce que là, ce
+   n'est pas évident ») ═══ Une seule feuille avec ce qui est coché. Les feuilles du service social et des « à prévenir »
+   sont fabriquées par leurs propres fonctions : on les CAPTURE (sans ouvrir de fenêtre) et on les met à la suite. */
+var IMPR_SEL={liste:true, nuit:true, social:false, prevenir:false};
+function imprimerChoix(){
+  let bg=document.getElementById('imprBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='imprBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
+  const L=[['liste','Ma liste perso'],['nuit','La passation de nuit'],['social','Le service social'],['prevenir','Les « à prévenir »']];
+  const n=L.filter(function(x){ return IMPR_SEL[x[0]]; }).length;
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt"><span class="act-pi" style="background:#e6e4df">'+icon('imprimer')+'</span>Imprimer</div>'+
+    L.map(function(x){ return '<div class="depl'+(IMPR_SEL[x[0]]?' on':'')+'" onclick="IMPR_SEL.'+x[0]+'=!IMPR_SEL.'+x[0]+';imprimerChoix()"><span class="bx">✓</span>'+x[1]+'</div>'; }).join('')+
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'imprBg\').classList.remove(\'on\')">Annuler</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val"'+(n?'':' disabled style="opacity:.4"')+' onclick="document.getElementById(\'imprBg\').classList.remove(\'on\');imprimerMaListe(IMPR_SEL)">Imprimer</button></div></div>';
+  bg.classList.add('on');
+}
+function imprCapturer(fn){
+  let o=null; const f=feuilleImprimer;
+  feuilleImprimer=function(x){ o=x; };
+  try{ fn(); }catch(e){ panneNoter('impression', e); } finally{ feuilleImprimer=f; }
+  return o;
+}
+function imprimerMaListe(sel){
+  sel=sel||{liste:true, nuit:true};
   const d=new Date();
   const jour=JOURS_L[d.getDay()].charAt(0).toUpperCase()+JOURS_L[d.getDay()].slice(1)+
              ' '+d.getDate()+' '+MOIS_L[d.getMonth()];
@@ -21241,7 +21265,7 @@ function imprimerMaListe(){
   /* ⚠ L'ORDRE DE PRIORITÉ DU 10/09 EST TENU, il est seulement REGROUPÉ : la réunion,
      puis ce qui s'encode et ce qui manque, puis les chambres, puis ce dont on parle,
      puis le temps (en retard · le jour · plus tard · faits). */
-  corps+= bloc('À dire en réunion', reunions, 'reunion', 'reu')
+  if(sel.liste) corps+= bloc('À dire en réunion', reunions, 'reunion', 'reu')
     + blocFusion('À encoder · Désencoder · Absences', [
         ['à encoder',  aEncoderP, 'enc'],
         ['désencoder', desencP,   'des'],
@@ -21276,7 +21300,7 @@ function imprimerMaListe(){
      et c'est celle qui compte à 5 h du matin. Un réveil noyé dans les infos se rate.
      ⚠ ET C'EST CELUI QUI REÇOIT QUI COCHE : les cases sont vides, comme partout
      ailleurs sur cette feuille. */
-  if(typeof PASSATIONS!=='undefined' && PASSATIONS.length){
+  if(sel.nuit && typeof PASSATIONS!=='undefined' && PASSATIONS.length){
     const dujour=PASSATIONS.filter(function(l){
       return !l.jour || String(l.jour)>=todayStr();
     });
@@ -21319,7 +21343,12 @@ function imprimerMaListe(){
     }
   }
 
-  if(!corps) corps='<p class="vide">Rien à imprimer : ni note, ni passation.</p>';
+  /* Le service social et les « à prévenir », capturés à leur propre fonction (voir imprimerChoix). */
+  if(sel.social){ const o=imprCapturer(function(){ imprimerPassation('social'); });
+    if(o && o.corps) corps+='<section class="ch"><div class="st"><span>Service social</span></div></section>'+o.corps; }
+  if(sel.prevenir){ const o=imprCapturer(function(){ imprimerPrevenir(); });
+    if(o && o.corps) corps+='<section class="ch"><div class="st"><span>À prévenir</span></div></section>'+o.corps; }
+  if(!corps) corps='<p class="vide">Rien à imprimer.</p>';
 
   feuilleImprimer({
     onglet:'Ma liste — '+jour,
@@ -48195,7 +48224,7 @@ function carteMaListe(){
          ce qu'on garde et ce qu'on transmet, sur le même papier. Le bouton de la
          passation, lui, ne sort qu'elle — c'est celle qu'on tend à l'équipe qui
          arrive. */
-      '<button class="ptitre-i" onclick="imprimerMaListe()" '+
+      '<button class="ptitre-i" onclick="imprimerChoix()" '+
         'aria-label="Imprimer ma liste et la passation" '+
         'title="Imprimer ma liste et la passation">'+icon('imprimer')+'</button>'+
       /* ⚠ LE CHEVRON TOUT À DROITE (Mag, 24/08/2026) : en dernier, après impri/effacer. */
