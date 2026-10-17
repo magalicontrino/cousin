@@ -6350,6 +6350,14 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .binrep-x{margin-left:auto;border:0;background:none;color:#77736b;cursor:pointer;font-size:12px}
 .binrep-t{font-size:14px;line-height:1.4;margin-top:2px}
 .pcarte .pl .plact .binrep-b{margin:0 auto 0 0;min-height:32px}
+/* La coche PFO, juste à droite de Répondre ; cochée = l'étiquette rose « ✓ PFO » (Mag, 17/10/2026). */
+.pcarte .pl .plact .binrep-b:has(+ .socpfo){margin-right:0}
+.socpfo{display:inline-flex;align-items:center;gap:6px;margin:0 auto 0 6px;min-height:32px;padding:4px 10px;
+  border:1.25px solid var(--trait);background:#fdfdfc;border-radius:8px;font:inherit;font-size:12px;font-weight:700;
+  letter-spacing:.06em;cursor:pointer;color:var(--noir)}
+.socpfo .bx{width:14px;height:14px;border:1.25px solid currentColor;border-radius:3px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:11px;line-height:1}
+.socpfo.on{background:#f5a8cd;border-color:#f5a8cd}
 .binrep-b{margin:4px 0 6px 34px;border:1.25px solid var(--noir);background:#fdfdfc;border-radius:8px;
   padding:4px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .socneuf{display:inline-block;margin:6px 0 2px;font:700 9px ui-monospace,monospace;letter-spacing:.1em;
@@ -25368,7 +25376,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+carteListePfo()+carteServiceSocial()+passationsHTML()+
+    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+carteServiceSocial()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -25500,7 +25508,7 @@ function listeCorps(){
   /* LES RENDEZ-VOUS RESTENT EN HAUT (Mag, 13/10/2026 : « c'est très important »). */
   h+='<div class="ml3-c">'+rdvJoursHTML()+carteMaListe()+carteBinome()+'</div>';
   /* ⭐ LA PASSATION DE NUIT APRÈS LE SERVICE SOCIAL (Mag, 14/10/2026). */
-  h+='<div class="ml3-c">'+carteAPrendre()+carteListePfo()+carteServiceSocial()+passationsHTML()+'</div>';
+  h+='<div class="ml3-c">'+carteAPrendre()+carteServiceSocial()+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
@@ -43184,6 +43192,7 @@ async function loadPassations(){
       return p && p.id && p._pose && p._pose>ilYAPeu && !recu.some(function(x){ return x.id===p.id; });
     });
     PASSATIONS=fraiches.concat(recu); PASS_PANNE='';
+    if(PASSATIONS.some(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; })) await pfoRanger();
     /* Les réponses sous les passations du service social (07/10/2026). Une panne ici
        n'efface pas la passation : on garde ce qu'on avait. */
     try{
@@ -43347,7 +43356,6 @@ function passRoles(){ return [PASS_SOCIAL, PASS_EQUIPE]; }
    `LISTE_LABELS`, qui nomme des check-lists. */
 function passPourNom(k, dansUnePhrase){
   if((k||PASS_POUR)===PASS_SOCIAL) return dansUnePhrase ? 'le service social' : 'Service social';
-  if((k||PASS_POUR)==='pfo') return dansUnePhrase ? 'le PFO jour' : 'PFO jour';
   if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
   /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
      est bonne en titre, mauvaise au milieu d'une phrase. */
@@ -43752,7 +43760,6 @@ function passLigne(p, mienne, role, heure, gauche){
   /* Le bloc « Service social » porte déjà son titre : on ne le répète pas. */
   /* Service social : « Mag → Afaf » (08/10/2026) — de qui ET pour qui, sur la même ligne. */
   if(p.pour===PASS_SOCIAL) bas.push(esc(socDeVers(p)));
-  else if(p.pour==='pfo'){ if(qui) bas.push('de '+esc(qui)); }
   else if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(passPourNom(p.pour, true))); }
   else if(qui) bas.push('de '+esc(qui));
   /* ⚠ LE JOUR SEULEMENT S'IL N'EST PAS AUJOURD'HUI : un réveil noté le samedi pour le
@@ -43862,7 +43869,7 @@ function passMenu(id, gerable){
    dans l'équipe de nuit »). `passToutes` nourrit la carte de la nuit, SA feuille
    imprimée et SON mail : une note pour le service social n'a rien à y faire. Elle a
    sa carte à elle — voir `passSociales` et `carteServiceSocial`. */
-function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL && p.pour!==PASS_PFO; }); }
+function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL && p.pour!==PASS_PFO; }); }  /* `pfo` : l'ancienne carte, rangée au chargement */
 function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL; }); }
 /* ═══ LE RÉVEIL SE MET TOUT SEUL (Mag, 13/10/2026 : « il faudrait directement qu'il soit dans les passations de nuit,
    les réveils, il n'y a même pas à discuter ; il n'y a plus de question de qui prend en charge le réveil ») ═══
@@ -44290,7 +44297,9 @@ function passWhatsApp(quoi){
    plus qu'UNE : Afaf est au service social. On y envoie depuis Ma liste perso, tout le
    service social la lit, et chacun répond sous la ligne. */
 function carteServiceSocial(){
-  const l=passUnique(passSociales());
+  /* Les lignes PFO en haut (Mag, 17/10/2026) ; l'ordre reste le même à l'intérieur de chaque groupe. */
+  const l0=passUnique(passSociales());
+  const l=l0.filter(passEstPfo).concat(l0.filter(function(p){ return !passEstPfo(p); }));
   if(!l.length) return '';
   const der=l.concat(PASS_REPONSES).filter(binDeLautre)
     .reduce(function(m,x){ return String(x.cree_le||'')>m ? String(x.cree_le) : m; }, '');
@@ -44316,7 +44325,9 @@ function carteServiceSocial(){
            « à la même hauteur que les autres boutons, mais à gauche, juste au-dessus de
            la ligne »). Les réponses viennent dessous. */
         passLigne(p, undefined, undefined, undefined,
-          '<button class="binrep-b" onclick="socRepondre('+p.id+')">Répondre</button>')+
+          '<button class="binrep-b" onclick="socRepondre('+p.id+')">Répondre</button>'+
+          '<button class="socpfo'+(passEstPfo(p)?' on':'')+'" aria-pressed="'+(passEstPfo(p)?'true':'false')+'" '+
+            'onclick="pfoBasculer('+p.id+')"><span class="bx">'+(passEstPfo(p)?'✓':'')+'</span>PFO</button>')+
         reps.map(function(x){
           return '<div class="binrep">'+
             '<div class="binrep-h"><b>'+esc(String(x.par||'').split(/\s+/)[0])+'</b>'+
@@ -44490,68 +44501,57 @@ async function socEnvoyerRappel(rid, q){
   rappelsSauver(); render();
   confirmePop(true, 'Envoyée', q ? 'à '+socDeVers({pour_qui:q, par:nomAffiche()}).split('→ ')[1] : 'au service social');
 }
-/* ═══ LA LISTE PFO (Mag, 17/10/2026 : « à la place de NOTE mets PFO, et fais une liste visible par l'équipe
-   mais pour le PFO ») ═══ Ses choix : la ligne PART de Ma liste perso ; une carte à part sur l'écran Liste ;
-   toute l'équipe la lit, seuls les PFO (et l'auteur) la cochent « Fait ». Une passation `pour='pfo'` :
-   pas de nouvelle table, la base laisse déjà tout le monde lire. Elle reste tant qu'elle n'est pas faite. */
+/* ═══ PFO = UNE MARQUE DANS LE SERVICE SOCIAL (Mag, 17/10/2026 : « pour simplifier, ce serait plutôt vers le social,
+   et dans social on pourrait cliquer sur une coche, un truc PFO juste coché. Ça se mettrait en haut, avec marqué PFO
+   sur chaque note. Il n'y a pas de fait ou pas fait : quand c'est fait, on enlève — la corbeille ») ═══
+   Plus de carte à part ni de bouton « Fait ». La marque est `fait_note='pfo'` (colonne qui ne servait pas) et PAS
+   le genre : corriger une ligne réécrit son genre, la marque aurait sauté en silence.
+   Les lignes envoyées le jour même dans l'ancienne carte (`pour='pfo'`) sont rangées dans le social au chargement. */
 const PASS_PFO='pfo';
-const PFO_JOUR_NOMS='Loïc / Adam';
-function passPfo(){
-  return passUnique((PASSATIONS||[]).filter(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; }))
-    .sort(function(a,b){ return String(b.cree_le||'').localeCompare(String(a.cree_le||'')); });
+function passEstPfo(p){ return !!(p && p.fait_note==='pfo'); }
+async function pfoBasculer(id){
+  const p=(PASSATIONS||[]).find(function(x){ return x.id===id; }); if(!p) return;
+  const v=passEstPfo(p)?null:'pfo';
+  const {error}=await sb.from('passations').update({fait_note:v}).eq('id',id);
+  if(error){ confirmePop(false,'Pas enregistré',error.message); return; }
+  p.fait_note=v; render();
 }
-function pfoPeutCocher(p){ return !!(PROFILE && (PROFILE.pfo || PROFILE.admin || passMienne(p))); }
-var PFO_OUVERTE=true;
-function pfoPlier(){ PFO_OUVERTE=!PFO_OUVERTE; render(); }
-function carteListePfo(){
-  const l=passPfo();
-  if(!l.length) return '';
-  const plie=!PFO_OUVERTE;
-  return '<div class="pcarte pcarte-lire'+(plie?' plie':'')+'">'+
-    '<div class="ptitre ptitre-lire"><button class="ptitre-pli" onclick="pfoPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
-      /* « C'est même PFO jour. L'équipe de nuit, ça reste l'équipe de nuit, et peux noter Loïc / Adam » (Mag, 17/10/2026). */
-      '<b>PFO jour</b><span>'+esc(PFO_JOUR_NOMS)+' · '+l.length+'</span>'+
-    '</button>'+
-      '<em class="ch" onclick="pfoPlier()" aria-hidden="true">›</em>'+
-    '</div>'+
-    (plie?'':l.map(function(p){
-      return '<div class="socl">'+passLigne(p, undefined, undefined, undefined,
-        pfoPeutCocher(p)?'<button class="binrep-b" onclick="pfoFait('+p.id+')">Fait</button>':'')+'</div>';
-    }).join(''))+
-  '</div>';
+async function pfoRanger(){
+  /* Celles déjà cochées « Fait » dans l'ancienne carte restent où elles sont : elles étaient finies. */
+  const vieux=(PASSATIONS||[]).filter(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; });
+  for(const p of vieux){
+    const {error}=await sb.from('passations').update({pour:PASS_SOCIAL, fait_note:'pfo', pour_qui:null}).eq('id',p.id);
+    if(!error){ p.pour=PASS_SOCIAL; p.fait_note='pfo'; p.pour_qui=null; }
+  }
+}
+function pfoLigne(t, ch){
+  const l={texte:String(t||'').slice(0,4000), pour:PASS_SOCIAL, genre:'passation', fait_note:'pfo', par:nomAffiche(),
+           chambre:ch||null, jour:todayStr(), pour_qui:null};
+  if(PROFILE && PROFILE.uid) l.uid=PROFILE.uid;
+  return l;
 }
 async function pfoDepuisChamp(){
   const i=document.getElementById('rapTxt'), c=document.getElementById('rapCh');
   const t=((i&&i.value)||'').trim(); if(!t){ if(i) i.focus(); return; }
-  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée au PFO','Pas de connexion — ta ligne reste écrite'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — ta ligne reste écrite'); return; }
   const ch=((c&&c.value)||'').trim();
-  const l={texte:t.slice(0,4000), pour:PASS_PFO, genre:'passation', par:nomAffiche(),
-           chambre:ch?ch.slice(0,12):null, jour:todayStr(), uid:PROFILE.uid};
-  const {data,error}=await sb.from('passations').insert(l).select();
+  const {data,error}=await sb.from('passations').insert(pfoLigne(t, ch?ch.slice(0,12):null)).select();
   /* ⚠ Le champ ne se vide QUE si la base a dit oui : sinon le texte reste là, rien n'est perdu. */
-  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée au PFO',(error&&error.message)||'la base n’a pas répondu'); return; }
+  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée',(error&&error.message)||'la base n’a pas répondu'); return; }
   data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
   RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
   if(i) i.value=''; if(c) c.value='';
-  render(); confirmePop(true,'Envoyée','au PFO jour');
+  render(); confirmePop(true,'Envoyée','au service social · PFO');
 }
-/* Une ligne de Ma liste part dans la liste PFO — retirée de Ma liste SEULEMENT quand la base a dit oui. */
+/* Une ligne de Ma liste part au service social, marquée PFO — retirée de Ma liste SEULEMENT quand la base a dit oui. */
 async function pfoEnvoyerRappel(rid){
   const r=MESRAPPELS.find(function(x){ return x.id===rid; }); if(!r) return;
-  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée au PFO','Pas de connexion — la ligne reste dans ta liste'); return; }
-  const l={texte:String(r.texte||'').slice(0,4000), pour:PASS_PFO, genre:'passation', par:nomAffiche(),
-           chambre:r.chambre||null, jour:todayStr(), uid:PROFILE.uid};
-  const {data,error}=await sb.from('passations').insert(l).select();
-  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée au PFO',(error&&error.message)||'la base n’a pas répondu'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — la ligne reste dans ta liste'); return; }
+  const {data,error}=await sb.from('passations').insert(pfoLigne(r.texte, r.chambre)).select();
+  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée',(error&&error.message)||'la base n’a pas répondu'); return; }
   data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
-  rappelsSauver(); render(); confirmePop(true,'Envoyée','au PFO jour');
-}
-async function pfoFait(id){
-  const p=(PASSATIONS||[]).find(function(x){ return x.id===id; }); if(!p) return;
-  const {error}=await sb.from('passations').update({fait_le:new Date().toISOString(), fait_par:nomAffiche()}).eq('id',id);
-  if(error){ confirmePop(false,'Pas cochée',error.message); return; }
-  p.fait_le=new Date().toISOString(); p.fait_par=nomAffiche(); render();
+  rappelsSauver(); render(); confirmePop(true,'Envoyée','au service social · PFO');
 }
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
