@@ -37424,14 +37424,35 @@ function accBrouillonsLire(){
             .sort(function(a,b){ return (b.maj||b.id)-(a.maj||a.id); });
   }catch(e){ return []; }
 }
-function accBrouillonsEcrire(l){
+function accBrouillonsEcrire(l, depuisBase){
+  let garde=[];
   try{
-    if(!l.length) localStorage.removeItem(ACC_BROUILLON);
     /* ACC_MAX PAR VOLET (04/10/2026) : dix sociaux et dix médicaux, chacun sa page. */
-    else localStorage.setItem(ACC_BROUILLON, JSON.stringify(
-      l.filter(function(b){ return (b.volet||'')!=='med'; }).slice(0,ACC_MAX)
-       .concat(l.filter(function(b){ return (b.volet||'')==='med'; }).slice(0,ACC_MAX))));
+    garde=l.filter(function(b){ return (b.volet||'')!=='med'; }).slice(0,ACC_MAX)
+       .concat(l.filter(function(b){ return (b.volet||'')==='med'; }).slice(0,ACC_MAX));
+    if(!garde.length) localStorage.removeItem(ACC_BROUILLON);
+    else localStorage.setItem(ACC_BROUILLON, JSON.stringify(garde));
   }catch(e){ /* mémoire pleine ou navigation privée : on n'en fait pas une panne */ }
+  /* ⭐ LES ENTRETIENS SUIVENT LE COMPTE, D'UN ORDINATEUR À L'AUTRE (Mag, 17/10/2026 : « je travaille sur un Mac et sur
+     un PC, je voudrais que ça soit partout »). ⚠ ÇA CHANGE SA RÈGLE DU 26/08 (« rien dans la base ») — c'est elle qui l'a
+     décidé, après avoir perdu un entretien. Rangé dans `reglages_perso` : SEULE la personne connectée le lit (comme Ma
+     liste), jamais l'équipe. Toujours effacé au bout de 18 h, ou par Jeter / Effacer. Le dernier qui a écrit fait foi. */
+  if(!depuisBase){
+    const t=Date.now();
+    try{ localStorage.setItem('lux_acc_maj', String(t)); }catch(e){}
+    if(typeof reglagePousser==='function') reglagePousser('acc_brouillons', {maj:t, l:garde});
+  }
+}
+/* À la connexion (chargerReglages) : la version la plus récente gagne, de la base ou de cet ordinateur. */
+function accBrouillonsDepuisBase(v){
+  if(!v || typeof v!=='object' || !Array.isArray(v.l)) return;
+  let ici=0; try{ ici=Number(localStorage.getItem('lux_acc_maj')||0); }catch(e){}
+  if(Number(v.maj||0) > ici){
+    accBrouillonsEcrire(v.l.filter(function(b){ return b && b.acc && (Date.now()-(b.maj||b.id))<=ACC_PEREMPTION; }), true);
+    try{ localStorage.setItem('lux_acc_maj', String(v.maj)); }catch(e){}
+  } else if(ici > Number(v.maj||0)){
+    accBrouillonsEcrire(accBrouillonsLire());   /* cet ordinateur est plus récent : il remonte */
+  }
 }
 function accVide(){ return !Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); }); }
 function accBrouillonSauver(){
@@ -42303,6 +42324,7 @@ async function chargerReglages(){
     BIN_VU=lignes.binome_vu;
     try{ localStorage.setItem('lux_binome_vu', BIN_VU); }catch(e){}
   }
+  try{ accBrouillonsDepuisBase(lignes.acc_brouillons); if(current&&current.view==='accueilpersonne'&&typeof accBrouillonRelire==='function') accBrouillonRelire(); }catch(e){}
   if(Array.isArray(lignes.pass_masquees)){
     lignes.pass_masquees.forEach(function(id){ id=String(id); if(PASS_MASQUEES.indexOf(id)<0) PASS_MASQUEES.push(id); });
     try{ localStorage.setItem('lux_pass_masquees', JSON.stringify(PASS_MASQUEES)); }catch(e){}
