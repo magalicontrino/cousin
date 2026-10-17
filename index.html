@@ -19498,14 +19498,43 @@ function resRessemble(nom){
   }).slice(0,4);
 }
 /* Un nom choisi dans la liste remplit la chambre (si vide) et le type LAM / Médical. */
+function rdvNomRemplir(x){
+  rdvLireChamps();
+  RDV_FORM.nom=resNomComplet(x);
+  /* ⚠ ON ÉCRIT AUSSI DANS LA CASE : render() relit les cases avant de redessiner, et effacerait la chambre posée. */
+  if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
+  { const a=document.getElementById('rdvNom'), c=document.getElementById('rdvChambre'); if(a) a.value=RDV_FORM.nom; if(c) c.value=RDV_FORM.chambre||''; }
+  RDV_FORM.genre = x.type==='LAM' ? 'lam' : (RDV_FORM.genre==='lam' ? 'medical' : RDV_FORM.genre);
+  RDV_FORM._nomVu=RDV_FORM.nom; RDV_FORM._nomNouveau=false;
+  render();
+}
+/* ⭐ LE NOM SE VALIDE DÈS QU'IL EST TAPÉ (Mag, 17/10/2026 : « déjà à ce stade je dois pouvoir approuver si un nom est
+   dans la base ou si on veut en mettre un nouveau ») : en quittant la case Nom — pas seulement à l'enregistrement.
+   Un nom de la liste passe tel quel ; un nom qui RESSEMBLE demande « c'est lui ? » ; un nom inconnu demande s'il faut
+   l'ajouter. `apres` = ce qu'on fait une fois le nom réglé (l'enregistrement, quand c'est lui qui a demandé). */
+function rdvNomVerifier(apres){
+  const F=RDV_FORM; if(!F) return true;
+  const nom=String(F.nom||'').trim();
+  if(!nom || F.id || !RESIDENTS.length || F._nomVu===nom) return true;
+  const x=resTrouver(nom); if(x){ rdvNomRemplir(x); return true; }
+  const suite=function(){ if(apres) setTimeout(apres,50); };
+  const nouveau=function(){ RDV_FORM._nomVu=nom; RDV_FORM._nomNouveau=true; suite(); };
+  const corriger=function(){ const i=document.getElementById('rdvNom'); if(i){ i.focus(); i.select(); } };
+  const proches=resRessemble(nom);
+  if(proches.length){
+    ppChoix('« '+nom+' » ressemble à…', 'C’est la même personne ?',
+      proches.map(function(y){ return {t:resNomComplet(y)+(y.ch?' · ch. '+y.ch:'')+(y.type?' · '+y.type:''), fn:function(){ rdvNomRemplir(y); suite(); }}; })
+      .concat([{t:'Non — nouveau nom : '+nom, clair:true, fn:nouveau}, {t:'Corriger le nom', clair:true, fn:corriger}]));
+  } else {
+    ppChoix('« '+nom+' » n’est pas dans la liste des hébergés', '',
+      [{t:'C’est un nouvel hébergé — l’ajouter', fn:nouveau}, {t:'Corriger le nom', clair:true, fn:corriger}]);
+  }
+  return false;
+}
 function rdvNomChoisi(){
   const i=document.getElementById('rdvNom'); if(!i || !RDV_FORM) return;
-  const x=resTrouver(i.value); if(!x) return;
-  rdvLireChamps();
-  /* ⚠ ON ÉCRIT AUSSI DANS LA CASE : render() relit les cases avant de redessiner, et effacerait la chambre posée. */
-  if(!String(RDV_FORM.chambre||'').trim()){ RDV_FORM.chambre=x.ch||''; const c=document.getElementById('rdvChambre'); if(c) c.value=RDV_FORM.chambre; }
-  RDV_FORM.genre = x.type==='LAM' ? 'lam' : (RDV_FORM.genre==='lam' ? 'medical' : RDV_FORM.genre);
-  render();
+  RDV_FORM.nom=i.value;
+  rdvNomVerifier(null);
 }
 async function resAjouter(nomTape, chambre, type){
   const t=String(nomTape||'').trim(); if(!t) return;
@@ -19627,26 +19656,10 @@ async function rdvEnregistrer(){
     if(!F.nom.trim()) manque.push('le nom'); if(!F.jour) manque.push('le jour'); if(!F.heure) manque.push('l’heure');
     if(!String(F.chambre||'').trim()) manque.push('la chambre'); if(!String(F.lieu||'').trim()) manque.push('le lieu');
     if(manque.length){ confirmePop(false, 'Pas enregistré', 'Il manque '+manque.join(', ').replace(/, ([^,]*)$/,' et $1')+'.'); return; } }
-  /* ⭐ UN NOUVEAU NOM (Mag, 17/10/2026 : « on doit pouvoir rentrer un nouveau nom ; s'il est déjà rentré ou ressemble fort,
-     tu dois le dire avant de confirmer ») : un nom de la liste passe tel quel ; un nom qui RESSEMBLE à un hébergé demande
-     « c'est lui ? » ; un nom vraiment nouveau s'ajoute à la liste. Seulement à la création, pas en corrigeant. */
-  if(!F.id && !F._nomVu && RESIDENTS.length && !resTrouver(F.nom)){
-    const proches=resRessemble(F.nom);
-    if(proches.length){
-      ppChoix('« '+F.nom.trim()+' » ressemble à…', 'C’est la même personne ?',
-        proches.map(function(x){ return {t:resNomComplet(x)+(x.ch?' · ch. '+x.ch:'')+(x.type?' · '+x.type:''), fn:function(){
-          RDV_FORM.nom=resNomComplet(x); if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
-          { const a=document.getElementById('rdvNom'), c=document.getElementById('rdvChambre'); if(a) a.value=RDV_FORM.nom; if(c) c.value=RDV_FORM.chambre||''; }
-          if(x.type==='LAM') RDV_FORM.genre='lam'; RDV_FORM._nomVu=true; render(); setTimeout(rdvEnregistrer,50); }}; })
-        .concat([{t:'Non — nouveau nom : '+F.nom.trim(), clair:true, fn:function(){ RDV_FORM._nomVu=true; RDV_FORM._nomNouveau=true; setTimeout(rdvEnregistrer,50); }}]));
-      return;
-    }
-    /* Un nom qui n'est PAS dans la liste et ne ressemble à personne : on le demande, on ne l'ajoute pas en silence. */
-    ppChoix('« '+F.nom.trim()+' » n’est pas dans la liste des hébergés', '',
-      [{t:'C’est un nouvel hébergé — l’ajouter', fn:function(){ RDV_FORM._nomVu=true; RDV_FORM._nomNouveau=true; setTimeout(rdvEnregistrer,50); }},
-       {t:'Corriger le nom', clair:true, fn:function(){ const i=document.getElementById('rdvNom'); if(i){ i.focus(); i.select(); } }}]);
-    return;
-  }
+  /* Le nom pas encore réglé (case quittée en appuyant direct sur Enregistrer) : on demande d'abord, puis on reprend.
+     Si la fenêtre du nom est déjà ouverte, on attend la réponse. */
+  { const bg=document.getElementById('ppBg'); if(bg && bg.classList.contains('on')) return; }
+  if(!rdvNomVerifier(rdvEnregistrer)) return;
   if(F._nomNouveau && !F.id){ resAjouter(F.nom, F.chambre, F.genre==='lam'?'LAM':(F.genre==='medical'?'Médical':'')); F._nomNouveau=false; }
   /* Un réveil sans heure n'en est pas un (même règle que la passation, 22/08/2026). */
   if(F.reveil && !F.reveil_heure){ toast('Il manque l’heure du réveil'); const e=document.getElementById('rdvReveil'); if(e) e.focus(); return; }
