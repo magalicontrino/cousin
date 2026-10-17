@@ -19747,7 +19747,11 @@ function rdvFormHTML(){
    Tout ce que la coordination valide est dans UN cadre titré : l'accompagnant (avec la demande), le taxi (jaune « à
    commander », vert « commandé »), l'état, et « Valider ». Le transport se valide comme l'accompagnement — une seule
    validation pour le rendez-vous, pas deux (« pas d'usine à gaz »). */
-function rdvAValider(r){ return !!(r && (r.accompagne || r.taxi)); }
+/* ⏸ L'ACCORD DES ACCOMPAGNEMENTS EST RETIRÉ « pour l'instant » (Mag, 17/10/2026) : plus de « en attente de validation »,
+   de Valider / Refuser, de « à valider par les coordinateurs », d'avertissement « accompagnant à trouver » avant
+   d'imprimer, ni de « pourquoi » quand on change l'accompagnant. Rien n'est effacé : ACCORD_ACC=true remet tout. */
+const ACCORD_ACC=false;
+function rdvAValider(r){ return ACCORD_ACC && !!(r && (r.accompagne || r.taxi)); }
 function rdvValBloc(r){
   if(!rdvAValider(r)) return '';
   const ok=!!r.valide_le, ti=[];
@@ -19931,7 +19935,7 @@ function vRdvAcc(){
   let h='<div class="subtop"><button class="cbtn" onclick="RDV_VUE=\'\';render()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Accompagnements de la semaine</h1></div>';
   /* (Mag, 11/10/2026 : « retire le PFO, ils vont criser » — à valider par les coordis, uniquement.) */
-  h+='<p class="rdvacc-res">À valider par les coordinateurs uniquement</p>';
+  if(ACCORD_ACC) h+='<p class="rdvacc-res">À valider par les coordinateurs uniquement</p>';
   /* Le formulaire n'apparaît ici QUE si on a appuyé sur « Modifier » dans cette page (Mag, 10/10/2026 : « ça n'a
      rien à faire là, il faudrait voir que les accompagnements ») — on arrive toujours formulaire fermé. */
   if(RDV_FORM && RDV_FORM.id) h+=rdvModalHTML();
@@ -20057,10 +20061,11 @@ function rdvAccChanger(id, el){
   if(!n){
     el.value=r.accomp_nom||'';
     cousinConfirme('Retirer l’accompagnant ?', (r.accomp_nom||'')+' n’accompagnera plus '+r.nom+' ('+rdvQuandCourt(r)+').',
-      function(){ setTimeout(function(){ rdvDemanderPourquoi(ancien, '', function(v){ el.value=''; ecrire(v); }); }, 250); }, {ok:'Retirer', danger:true});
+      function(){ if(!ACCORD_ACC){ el.value=''; ecrire(); return; } setTimeout(function(){ rdvDemanderPourquoi(ancien, '', function(v){ el.value=''; ecrire(v); }); }, 250); }, {ok:'Retirer', danger:true});
     return;
   }
   /* Tout le monde PEUT (si la coordination est absente), mais c'est dit. */
+  if(!ACCORD_ACC){ ecrire(); return; }
   const avecRaison=function(){ if(!ancien){ ecrire(); return; } el.value=ancien; rdvDemanderPourquoi(ancien, n, function(v){ el.value=n; ecrire(v); }); };
   if(peutGerer()) { avecRaison(); return; }
   cousinConfirme('À valider par les coordinateurs uniquement', 'Tu changes l’accompagnant de '+r.nom+' ('+rdvQuandCourt(r)+')'+
@@ -20174,7 +20179,7 @@ function rdvImprimerAcc(){
   });
   if(!corps) corps='<p class="vide">Aucun accompagnement sur ces dates.</p>';
   const nManque=L.filter(function(r){ return !r.accomp_nom; }).length;
-  if(nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
+  if(ACCORD_ACC && nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
   feuilleImprimer({onglet:'Accompagnements — du '+ppJourFr(du), entete:'Accompagnements de la semaine — aperçu',
     titre:'Accompagnements', sous:'Du '+ppJourFr(du)+' au '+ppJourFr(au), corps:corps});
 }
@@ -20335,7 +20340,7 @@ function rdvImprimer(du, au, seulId){
   }
   if(!corps) corps='<p class="vide">Aucun rendez-vous'+(du===au?' ce jour-là':' sur ces dates')+'.</p>';
   const nManque=L.filter(function(r){ return r.accompagne && !r.accomp_nom; }).length;
-  if(nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
+  if(ACCORD_ACC && nManque) corps='<p class="alerte">⚠ '+nManque+' accompagnant'+(nManque>1?'s':'')+' à trouver</p>'+corps;
   const r0=seulId && L[0];
   const sous = r0 ? ppJourFr(r0.jour) : (du===au ? ppJourFr(du) : 'Du '+ppJourFr(du)+' au '+ppJourFr(au));
   feuilleImprimer({
@@ -20358,6 +20363,7 @@ function rdvImprimerDates(){
 /* ⚠ UN MESSAGE AVANT D'IMPRIMER S'IL MANQUE UN ACCOMPAGNANT (09/10/2026) : on imprime quand
    même si on veut, mais on sait. */
 function rdvAvantImprimer(liste, imprimer){
+  if(!ACCORD_ACC){ imprimer(); return; }
   const m=liste.filter(function(r){ return r.accompagne && !r.accomp_nom && !r.refuse_le; });
   if(!m.length){ imprimer(); return; }
   cousinConfirme(m.length+' accompagnant'+(m.length>1?'s':'')+' à trouver',
