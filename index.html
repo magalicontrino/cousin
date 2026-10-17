@@ -45554,6 +45554,22 @@ let ARR_PLAN=null;
 function arrLireListe(txt){
   const out=[]; let jour=null;
   const auj=new Date();
+  /* ⭐ UN REPORT (Mag, 17/10/2026, mail collé : « L'entrée de Monsieur IVANOVA prévue le lundi 19/10 au LAM est reportée
+     au mardi 20/10 à 10h ») : la NOUVELLE date est celle qui suit « reporté(e) au ». Le nom = le mot en MAJUSCULES après
+     Monsieur / Madame. La fenêtre le montre alors dans « Déjà dans la liste », jour : 19 → 20. */
+  { const t=String(txt||'').replace(/\u00a0/g,' ');
+    const rep=/report[ée]e?s?\s+(?:au|à|a)\s+(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/i.exec(t);
+    if(rep){
+      const qui=/(?:monsieur|madame|mme|mr|m\.)\s+([A-ZÀ-Þ][A-ZÀ-Þ'’-]+(?:\s+[A-ZÀ-Þ][A-ZÀ-Þa-zà-ÿ'’-]+)*)/.exec(t)
+             || /\b([A-ZÀ-Þ]{3,}(?:\s+[A-ZÀ-Þ]{3,})*)\b/.exec(t.replace(/\b(LAM|MED|MÉD|PC|CPAS|HSP)\b/g,''));
+      if(qui){
+        let an=rep[3]?(rep[3].length===2?2000+(+rep[3]):+rep[3]):auj.getFullYear();
+        if(!rep[3] && (+rep[2]) < auj.getMonth()+1-6) an++;
+        const lam=/\bLAM\b/.test(t)?true:(/\bm[ée]d/i.test(t)?false:null);
+        return [{nom:qui[1].trim(), jour:an+'-'+String(+rep[2]).padStart(2,'0')+'-'+String(+rep[1]).padStart(2,'0'), lam:lam}];
+      }
+    }
+  }
   const lignes=String(txt||'').split(/\r?\n/);
   /* ⚠ LE MAIL ENTIER SE COLLE (« Bonjour, voici les entrants… », « Merci beaucoup ! ») :
      dès qu'une ligne commence par un tiret, SEULES les lignes à tiret sont des noms.
