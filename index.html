@@ -37486,14 +37486,22 @@ function accBrouillonsEcrire(l, depuisBase){
 }
 /* À la connexion (chargerReglages) : la version la plus récente gagne, de la base ou de cet ordinateur. */
 function accBrouillonsDepuisBase(v){
+  /* ⚠⚠ ON ADDITIONNE, ON NE REMPLACE JAMAIS (17/10/2026, « tu as de nouveau changé l'entretien, je veux celui de
+     Cindy ») : la première version prenait la liste du compte À LA PLACE de celle de l'appareil dès qu'elle était plus
+     récente — l'entretien gardé sur cet appareil disparaissait. Maintenant : l'union des deux, et pour un même entretien
+     la version la plus récente. Un entretien jeté ailleurs peut revenir : c'est le prix, il vaut mieux qu'une perte. */
   if(!v || typeof v!=='object' || !Array.isArray(v.l)) return;
-  let ici=0; try{ ici=Number(localStorage.getItem('lux_acc_maj')||0); }catch(e){}
-  if(Number(v.maj||0) > ici){
-    accBrouillonsEcrire(v.l.filter(function(b){ return b && b.acc && (Date.now()-(b.maj||b.id))<=ACC_PEREMPTION; }), true);
-    try{ localStorage.setItem('lux_acc_maj', String(v.maj)); }catch(e){}
-  } else if(ici > Number(v.maj||0)){
-    accBrouillonsEcrire(accBrouillonsLire());   /* cet ordinateur est plus récent : il remonte */
-  }
+  const ici=accBrouillonsLire(), parId={};
+  ici.concat(v.l).forEach(function(b){
+    if(!b || !b.acc || (Date.now()-(b.maj||b.id))>ACC_PEREMPTION) return;
+    const k=String(b.id), d=parId[k];
+    if(!d || (b.maj||b.id)>(d.maj||d.id)) parId[k]=b;
+  });
+  const tous=Object.keys(parId).map(function(k){ return parId[k]; }).sort(function(a,b){ return (b.maj||b.id)-(a.maj||a.id); });
+  const avant=JSON.stringify(ici.map(function(b){ return [b.id,b.maj]; })), apres=JSON.stringify(tous.map(function(b){ return [b.id,b.maj]; }));
+  const compte=JSON.stringify(v.l.map(function(b){ return [b.id,b.maj]; }));
+  if(apres!==avant) accBrouillonsEcrire(tous, true);
+  if(apres!==compte) accBrouillonsEcrire(tous);   /* le compte reçoit ce que l'appareil avait en plus */
 }
 function accVide(){ return !Object.keys(ACC).some(function(k){ return String(ACC[k]||'').trim(); }); }
 function accBrouillonSauver(){
