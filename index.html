@@ -19501,7 +19501,8 @@ function rdvNomChoisi(){
   const i=document.getElementById('rdvNom'); if(!i || !RDV_FORM) return;
   const x=resTrouver(i.value); if(!x) return;
   rdvLireChamps();
-  if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
+  /* ⚠ ON ÉCRIT AUSSI DANS LA CASE : render() relit les cases avant de redessiner, et effacerait la chambre posée. */
+  if(!String(RDV_FORM.chambre||'').trim()){ RDV_FORM.chambre=x.ch||''; const c=document.getElementById('rdvChambre'); if(c) c.value=RDV_FORM.chambre; }
   RDV_FORM.genre = x.type==='LAM' ? 'lam' : (RDV_FORM.genre==='lam' ? 'medical' : RDV_FORM.genre);
   render();
 }
@@ -19630,6 +19631,7 @@ async function rdvEnregistrer(){
       ppChoix('« '+F.nom.trim()+' » ressemble à…', 'C’est la même personne ?',
         proches.map(function(x){ return {t:resNomComplet(x)+(x.ch?' · ch. '+x.ch:'')+(x.type?' · '+x.type:''), fn:function(){
           RDV_FORM.nom=resNomComplet(x); if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
+          { const a=document.getElementById('rdvNom'), c=document.getElementById('rdvChambre'); if(a) a.value=RDV_FORM.nom; if(c) c.value=RDV_FORM.chambre||''; }
           if(x.type==='LAM') RDV_FORM.genre='lam'; RDV_FORM._nomVu=true; render(); setTimeout(rdvEnregistrer,50); }}; })
         .concat([{t:'Non — nouveau nom : '+F.nom.trim(), clair:true, fn:function(){ RDV_FORM._nomVu=true; RDV_FORM._nomNouveau=true; setTimeout(rdvEnregistrer,50); }}]));
       return;
