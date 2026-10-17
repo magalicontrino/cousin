@@ -19290,6 +19290,7 @@ function rdvEtiquettes(r, sansAcc, opt){
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
   if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi', icon('bus')]);
   if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus')]);
+  if(r.lam===true) e.unshift(['LAM','#e8308a','','']); else if(r.lam===false) e.unshift(['Médical','#A9C8E8','','']);
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
   if(r.prevenir && !opt.sansPrev) e.push(['Prévenir','#b28b7a','',PREV_MAIN]);
@@ -19375,6 +19376,7 @@ function rdvEtiqPapier(r){
   if(r.pmr) e.push(['PMR','#f5c542']);
   if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
   if(r.transport) e.push(['Transport classique','#6fc7d9']);
+  if(r.lam===true) e.unshift(['LAM','#e8308a']); else if(r.lam===false) e.unshift(['Médical','#A9C8E8']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
   if(r.prevenir) e.push(['Prévenir','#b28b7a']);
@@ -19393,13 +19395,13 @@ function rdvResumeCourt(){
 /* ── le formulaire ──────────────────────────────────────────────────────── */
 function rdvFormVide(){
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', lam:null, pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
 }
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   journal('ouvert','formulaire rendez-vous','nouveau');
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', lam:null, pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -19444,7 +19446,7 @@ function rdvLigneSimple(r){
   const avec = r.accompagne ? (r.accomp_nom ? '<span class="rdvl-a">'+esc(r.accomp_nom)+'</span>' : '<span class="rdvl-a rouge">à trouver</span>') : '<span></span>';
   return '<button class="rdvl" onclick="rdvModifier(\''+r.id+'\')">'+
     '<span class="rdvl-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
-    '<span class="rdvl-n">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+'</span>'+
+    '<span class="rdvl-n">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+(r.lam===true?' <i style="color:#e8308a;font-weight:700">LAM</i>':r.lam===false?' <i>MÉD</i>':'')+'</span>'+
     '<span class="rdvl-o">'+esc(r.lieu||'')+'</span>'+avec+'</button>';
 }
 /* ═══ MODIFIER = UNE FENÊTRE PAR-DESSUS (Mag, 13/10/2026 : « quand on clique, une pop-up doit s'ouvrir pour changer ;
@@ -19570,6 +19572,7 @@ async function rdvEnregistrer(){
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
     accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
+    lam:(F.lam===true?true:(F.lam===false?false:null)),
     pmr:!!F.pmr, taxi:!!F.taxi, transport:!!F.transport, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome, a_jeun:!!F.a_jeun};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
@@ -19675,6 +19678,10 @@ function rdvFormHTML(){
     '<datalist id="rdvNomsHist">'+rdvNomsHistorique().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'+
     '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
+    /* ⭐ LAM OU MÉDICAL (Mag, 17/10/2026) : où la personne est hébergée — comme pour les entrants. Un 2ᵉ appui retire le choix. */
+    '<div class="chips" style="margin-top:8px">'+
+      pill(F.lam===true, 'LAM', "rdvChoix('lam',"+(F.lam===true?'null':'true')+")", '#e8308a')+
+      pill(F.lam===false, 'Médical', "rdvChoix('lam',"+(F.lam===false?'null':'false')+")", '#A9C8E8')+'</div>'+
     '<p class="rdvf-l">Quoi</p><div class="chips">'+RDV_TYPES.map(function(t){
       return pill(rdvType(F.genre).k===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
     '<p class="rdvf-l">Quand</p><div class="tbduo"><input id="rdvJour" type="date" value="'+esc(F.jour)+'">'+
@@ -20082,7 +20089,7 @@ function rdvImprimerSimple(du, au){
     const e=function(t,c){ return '<span class="e" style="--c:'+c+'">'+esc(t)+'</span>'; };
     const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+(r.taxi?e(rdvTaxiTexte(r),'#f5c542'):'')+(r.transport?e('Transport classique','#6fc7d9'):'')+(r.pmr?e('PMR','#f5c542'):'')+
       (r.a_jeun?e('À JEUN','#6cb392'):'')+(r.pas_autonome?e('Pas autonome','#b28b7a'):'');
-    corps+='<tr><td class="h">'+esc(rdvHeureFr(r.heure)||'—')+'</td><td><b>'+esc(r.nom)+'</b></td><td>'+esc(r.chambre||'')+'</td>'+
+    corps+='<tr><td class="h">'+esc(rdvHeureFr(r.heure)||'—')+'</td><td><b>'+esc(r.nom)+'</b>'+(r.lam===true?' <span class="e" style="--c:#e8308a">LAM</span>':r.lam===false?' <span class="e" style="--c:#A9C8E8">MÉD</span>':'')+'</td><td>'+esc(r.chambre||'')+'</td>'+
       '<td>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')||'—')+'</td><td>'+avec+'</td><td>'+prev+'</td><td>'+esc(r.note||'')+'</td></tr>';
   });
   corps+='</table>';
@@ -20294,7 +20301,7 @@ function rdvImprimer(du, au, seulId){
     return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
       '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
-      '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lieu?' — '+esc(r.lieu):'')+
+      '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lam===true?' · LAM':r.lam===false?' · MÉD':'')+(r.lieu?' — '+esc(r.lieu):'')+
         (r.accompagne?'<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+(sans?'accompagnant à trouver':'avec '+esc(r.accomp_nom))+'</span>':'')+
       '</span></div>';
   };
@@ -23764,8 +23771,12 @@ function vHome(){
        /* ⭐ LES RENDEZ-VOUS, TOUJOURS LÀ (Mag, 15/10/2026 : « mets aussi un CTA RDV à l'accueil ») : ils ont quitté le point
           du jour ; ici on y entre. Le chiffre = ceux d'aujourd'hui ; à zéro, la ligne reste, sans chiffre (comme le mémo). */
        (AGENDA_MASQUE?'':(function(){ const a=agIso(new Date());
-         const n=(typeof RDV!=='undefined'&&RDV||[]).filter(function(r){ return r.jour===a && !r.retire_le && !r.refuse_le; }).length;
-         return ligneCta(n||'', n?'rendez-vous aujourd’hui':'rendez-vous','#/rdv','calendrier','#6fc7d9',"RDV_VUE='';RDV_FORM=null;go('#/rdv')"); })())+
+         /* ⭐ AUJOURD'HUI ET DEMAIN (Mag, 17/10/2026 : « mets les rdv à l'accueil ») */
+         if(typeof RDV!=='undefined' && (!RDV_CHARGE || Date.now()-_rdvVu>60000)) setTimeout(rafraichirRdv,0);
+         const vrai=function(r){ return !r.retire_le && !r.refuse_le; }, dm=ppAjoute(a,1);
+         const n=(typeof RDV!=='undefined'&&RDV||[]).filter(function(r){ return r.jour===a && vrai(r); }).length;
+         const nd=(typeof RDV!=='undefined'&&RDV||[]).filter(function(r){ return r.jour===dm && vrai(r); }).length;
+         return ligneCta(n||'', (n?'rendez-vous aujourd’hui':'rendez-vous')+(nd?' · '+nd+' demain':''),'#/rdv','calendrier','#6fc7d9',"RDV_VUE='';RDV_FORM=null;go('#/rdv')"); })())+
        '<button class="ctal" style="--cc:#c9bfe3" onclick="event.stopPropagation();accSlideOuvrir()">'+
          '<span class="lang"></span><span class="ic">'+icon('bulb')+'</span>'+
          '<b></b><span>Mémo ROI</span><i>›</i></button>'+
