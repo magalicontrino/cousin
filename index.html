@@ -20446,8 +20446,17 @@ function rdvImprimerChoix(garder){
   bg.classList.add('on');
 }
 function rdvImprGarde(r){
-  const S=RDV_IMPR_SEL; const t=rdvType(r.genre).k;
-  return !!(S[t] || (S.acc && r.accompagne) || (S.pmr && r.pmr) || (S.reveil && r.reveil) || (t==='autre' && S.medical && S.social && S.psy && S.lam));
+  /* ⚠ PLUS D'ADDITION (17/10/2026, « tu le fais exprès de ne pas trier ? ») : décocher LAM laissait passer les LAM qui
+     avaient un réveil ou un accompagnement, puisque ces cases-là restaient cochées. Maintenant :
+     · les TYPES filtrent : un type décoché ne sort jamais ;
+     · Accompagnements / PMR / Réveil ne restreignent QUE si on en a décoché au moins un : alors seuls sortent les
+       rendez-vous qui ont une des choses encore cochées. Tout coché = aucune restriction. */
+  const S=RDV_IMPR_SEL, t=rdvType(r.genre).k;
+  const typeOk = t==='autre' ? (S.lam&&S.medical&&S.social&&S.psy) : !!S[t];
+  if(!typeOk) return false;
+  const ex=['acc','pmr','reveil'], tousEx=ex.every(function(k){ return S[k]; }), aucunEx=ex.every(function(k){ return !S[k]; });
+  if(tousEx || aucunEx) return true;
+  return !!((S.acc && r.accompagne) || (S.pmr && r.pmr) || (S.reveil && r.reveil));
 }
 function rdvImprimerDates(){
   /* ⭐ LA FEUILLE = CE QUE L'ÉCRAN MONTRE (Mag, 17/10/2026 : « œil, mauvais print » — l'écran montrait tout jusqu'au 30,
