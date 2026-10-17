@@ -19275,6 +19275,7 @@ function rdvEtiquettes(r, sansAcc, opt){
   if(!sansAcc && r.accompagne && r.accomp_nom) e.push(['Accompagné par '+r.accomp_nom,'#6fc7d9','',IMG('accompagnement.svg')]);
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
   if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi', icon('bus')]);
+  if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus')]);
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
   if(r.prevenir && !opt.sansPrev) e.push(['Prévenir','#b28b7a','',PREV_MAIN]);
@@ -19359,6 +19360,7 @@ function rdvEtiqPapier(r){
   if(r.a_jeun) e.push(['À JEUN','#6cb392']);
   if(r.pmr) e.push(['PMR','#f5c542']);
   if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
+  if(r.transport) e.push(['Transport classique','#6fc7d9']);
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
   if(r.prevenir) e.push(['Prévenir','#b28b7a']);
@@ -19377,13 +19379,13 @@ function rdvResumeCourt(){
 /* ── le formulaire ──────────────────────────────────────────────────────── */
 function rdvFormVide(){
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
 }
 function rdvNouveau(){
   if(!rdvPeutEcrire()){ toast('Les polyvalents lisent l’agenda, sans le modifier'); return; }
   journal('ouvert','formulaire rendez-vous','nouveau');
   RDV_FORM={id:null, jour:agIso(new Date()), heure:'', nom:'', chambre:'', genre:'medical', lieu:'', adresse:'',
-            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
+            accompagne:false, accomp_email:'', accomp_nom:'', accomp_motif:'', note:'', pmr:false, taxi:false, transport:false, reveil:false, reveil_heure:'', prevenir:false, pas_autonome:false, a_jeun:false};
   render(); setTimeout(function(){ const e=document.getElementById('rdvNom'); if(e) e.focus(); },50);
 }
 function rdvModifier(id){
@@ -19440,6 +19442,14 @@ function rdvModalHTML(){
 }
 /* On lit les champs AVANT chaque redessin : un choix (type, accompagnement) redessine le
    formulaire, et ce qui était tapé ne doit pas disparaître. */
+function rdvNomsHistorique(){
+  const vus={}, out=[];
+  const ajoute=function(n){ n=String(n||'').split(',')[0].replace(/\s+/g,' ').trim(); if(!n || /^test\b/i.test(n)) return;
+    const k=n.toLowerCase(); if(vus[k]) return; vus[k]=1; out.push(n); };
+  (typeof RDV!=='undefined'?RDV:[]).concat(typeof RDV_RETIRES!=='undefined'?RDV_RETIRES:[]).forEach(function(r){ ajoute(r.nom); });
+  (typeof ENTRANTS!=='undefined'?ENTRANTS:[]).forEach(function(e){ ajoute(e.nom); });
+  return out.sort(function(a,b){ return a.localeCompare(b,'fr'); });
+}
 function rdvLireChamps(){
   if(!RDV_FORM) return;
   const v=function(id){ const e=document.getElementById(id); return e?e.value:undefined; };
@@ -19459,6 +19469,9 @@ function rdvLireChamps(){
    commentaire médical ou social, un argument ») ═══ Sans argument, ça reste « Non ». */
 function rdvAccOui(){
   rdvLireChamps();
+  /* ⭐ PLUS DE FENÊTRE « POURQUOI ? » (Mag, 17/10/2026 : « sur le rdv, juste pouvoir mettre un seul commentaire, pas 2 ») :
+     « Oui » suffit ; ce qu'il y a à dire va dans le Commentaire, en bas. Les anciens « pourquoi » restent affichés. */
+  RDV_FORM.accompagne=true; render(); return;
   cousinDemande('Accompagnement', 'Pourquoi ? Un argument médical ou social.', RDV_FORM.accomp_motif||'', function(t){
     t=(t||'').trim();
     if(!t){ toast('Il faut un argument médical ou social'); return; }
@@ -19543,7 +19556,7 @@ async function rdvEnregistrer(){
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
     accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
-    pmr:!!F.pmr, taxi:!!F.taxi, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
+    pmr:!!F.pmr, taxi:!!F.taxi, transport:!!F.transport, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome, a_jeun:!!F.a_jeun};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
   const avant=F.id ? rdvLigne(F.id) : null;
@@ -19643,7 +19656,10 @@ function rdvFormHTML(){
   const pill=function(on, txt, act, c){ return '<button class="chip'+(on?' on':'')+'" style="--c:'+(c||chipCouleur(0))+'" onclick="'+act+'">'+esc(txt)+'</button>'; };
   let h='<div class="rdvform"><b class="rdvf-t">'+(F.id?'Modifier le rendez-vous':'Encoder un rendez-vous')+'</b>'+
     '<p class="rdvf-l">Pour qui</p>'+
-    '<div class="tbduo"><input id="rdvNom" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
+    /* ⭐ L'HISTORIQUE DES NOMS (Mag, 17/10/2026) : les noms déjà écrits dans l'agenda et les entrants se proposent pendant
+       qu'on tape. Rien de nouveau n'est stocké : ce sont les noms déjà dans la base. */
+    '<datalist id="rdvNomsHist">'+rdvNomsHistorique().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'+
+    '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
     '<p class="rdvf-l">Quoi</p><div class="chips">'+RDV_TYPES.map(function(t){
       return pill(rdvType(F.genre).k===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
@@ -19666,8 +19682,7 @@ function rdvFormHTML(){
      qu'on tape (sans polyvalents ni coordination) ; tout autre nom s'écrit tel quel.
      Vide = à trouver — c'est ce que l'agenda écrit en rouge. */
   if(F.accompagne){
-    h+='<p class="rdvf-l">Pourquoi</p><button class="rdvf-motif'+(F.accomp_motif?'':' vide')+'" onclick="rdvAccOui()">'+
-         (F.accomp_motif?esc(F.accomp_motif):'Un argument médical ou social')+'</button>'+
+    h+=(F.accomp_motif?'<p class="rdvf-l">Pourquoi (ancien)</p><p style="margin:0 0 6px;font-size:14px">'+esc(F.accomp_motif)+'</p>':'')+
       '<p class="rdvf-l">Qui accompagne</p>'+
       '<input id="rdvMain" list="rdvEquipe" placeholder="Accompagnant à trouver — ou écrire un prénom" value="'+esc(F.accomp_nom||'')+'" autocomplete="off">'+
       '<datalist id="rdvEquipe">'+RDV_EQUIPE.map(function(p){ return '<option value="'+esc(p.prenom)+'">'; }).join('')+'</datalist>';
@@ -19679,6 +19694,8 @@ function rdvFormHTML(){
   h+='<p class="rdvf-l">À prévoir</p><div class="chips">'+
       pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
       pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
+      /* TRANSPORT CLASSIQUE (Mag, 17/10/2026) : bus, tram, métro — pas de validation, contrairement au taxi. */
+      pill(F.transport, 'Transport classique', "rdvChoix('transport',"+(!F.transport)+")", '#6fc7d9')+
       pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+
       /* À JEUN (Mag, 11/10/2026 : « absolument ; et écrit en gros sur la carte »). */
       pill(F.a_jeun, 'À jeun', "rdvChoix('a_jeun',"+(!F.a_jeun)+")", '#6cb392')+
@@ -19691,7 +19708,7 @@ function rdvFormHTML(){
       rdvReveilChoix(F.reveil_heure)+'</div>':'');
   /* ⚠ LA PRÉCISION S'ALLONGE (09/10/2026 : « parfois on met des grandes notes
      explicatives ») : une zone de texte qui grandit avec ce qu'on écrit. */
-  h+='<p class="rdvf-l">Une précision</p><textarea id="rdvNote" rows="2" placeholder="Facultatif — ex. prendre la carte d’identité, ou réquisitoire, ou AMU…" '+
+  h+='<p class="rdvf-l">Commentaire</p><textarea id="rdvNote" rows="2" placeholder="Facultatif — ex. prendre la carte d’identité, réquisitoire, AMU, pourquoi un accompagnement…" '+
       'oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(F.note||'')+'</textarea>'+
     '<div class="rdvf-b"><button class="chaddbtn" onclick="rdvEnregistrer()">Enregistrer</button>'+
     '<button class="chaddbtn clair" onclick="rdvAnnuler()">Annuler</button></div></div>';
@@ -20048,7 +20065,7 @@ function rdvImprimerSimple(){
     if(r.jour!==jour){ jour=r.jour; corps+='<tr class="jr"><td colspan="7">'+esc(ppJourFr(r.jour))+'</td></tr>'; }
     const avec = r.accompagne ? (r.accomp_nom ? esc(r.accomp_nom) : '<span class="r">à trouver</span>') : 'seul';
     const e=function(t,c){ return '<span class="e" style="--c:'+c+'">'+esc(t)+'</span>'; };
-    const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+(r.taxi?e(rdvTaxiTexte(r),'#f5c542'):'')+(r.pmr?e('PMR','#f5c542'):'')+
+    const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+(r.taxi?e(rdvTaxiTexte(r),'#f5c542'):'')+(r.transport?e('Transport classique','#6fc7d9'):'')+(r.pmr?e('PMR','#f5c542'):'')+
       (r.a_jeun?e('À JEUN','#6cb392'):'')+(r.pas_autonome?e('Pas autonome','#b28b7a'):'');
     corps+='<tr><td class="h">'+esc(rdvHeureFr(r.heure)||'—')+'</td><td><b>'+esc(r.nom)+'</b></td><td>'+esc(r.chambre||'')+'</td>'+
       '<td>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')||'—')+'</td><td>'+avec+'</td><td>'+prev+'</td><td>'+esc(r.note||'')+'</td></tr>';
