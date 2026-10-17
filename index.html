@@ -18923,7 +18923,7 @@ var RDV_ENVOI=false, RDV_IMPR_DU='', RDV_IMPR_AU='', RDV_VUE='', RDV_SEM=0, RDV_
 var RDV_RETIRES=[], RDV_RETIRES_OUV=false;
 var RDV=[], RDV_PANNE='', RDV_CHARGE=false, RDV_EQUIPE=[], RDV_FORM=null, RDV_PASSES=false;
 /* 15 jours d'historique (09/10/2026 : « on doit pouvoir retourner en arrière de 15 jours »). */
-const RDV_GARDE=15;
+const RDV_GARDE=90;   /* les rendez-vous passés restent 3 mois (Mag, 17/10/2026) — avant : 15 jours */
 /* ⚠ LES COULEURS DE TA PALETTE, ET AUCUNE AUTRE (09/10/2026 : « on a des couleurs de
    base à utiliser, et toi, tu inventes des couleurs ») : rouge, turquoise, brun.
    ⚠ PLUS D'« ADMINISTRATIF » (09/10/2026 : « social et administratif, c'est la même
@@ -18952,7 +18952,7 @@ async function loadRdv(){
     RDV=AGENDA_MASQUE?[]:(data||[]).filter(function(r){ return !r.retire_le; });
     RDV_RETIRES=(data||[]).filter(function(r){ return !!r.retire_le; });
     RDV_PANNE='';
-    rdvBackupGarder(data||[]);
+    rdvBackupGarder(data||[], true);   /* la base a répondu : la copie de l'appareil devient EXACTEMENT la base */
     /* Le backup de 2 semaines : ce qui a passé 14 jours part (seuls ceux qui écrivent le
        peuvent ; pour les autres la base refuse, sans conséquence). */
     if(rdvPeutEcrire()) sb.from('rendez_vous').delete().lt('jour', lim).then(function(){}, function(){});
@@ -20065,9 +20065,13 @@ function rdvImprimerSimple(){
    On garde tout ce qui vient + 30 jours en arrière. Un rendez-vous retiré reste dans le backup, marqué « retiré ». */
 const RDV_BK_CLE='cousin_rdv_backup';
 function rdvBackupLire(){ try{ const o=JSON.parse(localStorage.getItem(RDV_BK_CLE)||'{}'); return (o && o.rdv)?o:{rdv:{}, maj:''}; }catch(e){ return {rdv:{}, maj:''}; } }
-function rdvBackupGarder(liste){
+function rdvBackupGarder(liste, complet){
   try{
-    const o=rdvBackupLire(), lim=ppAjoute(agIso(new Date()), -30);
+    const o=rdvBackupLire(), lim=ppAjoute(agIso(new Date()), -RDV_GARDE);
+    /* ⚠ RÉPARÉ LE 17/10/2026 : la copie ne faisait qu'AJOUTER — un rendez-vous effacé de la base restait dans la copie de
+       l'appareil, et la feuille « Planning des rendez-vous » imprimait encore les 27 TEST effacés le 15/10. Quand la base
+       a répondu en entier, on repart de sa liste. */
+    if(complet) o.rdv={};
     (liste||[]).forEach(function(r){ if(r && r.id!=null) o.rdv[String(r.id)]=r; });
     Object.keys(o.rdv).forEach(function(k){ if(String(o.rdv[k].jour||'')<lim) delete o.rdv[k]; });
     o.maj=new Date().toISOString();
