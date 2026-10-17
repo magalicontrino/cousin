@@ -25368,7 +25368,7 @@ function listeCorps(){
      TROISIÈME FOIS que ce piège mord ici (garde PFO en août, Gens à voir, passation) :
      tout ce qui doit exister pour tout le monde passe par CETTE ligne aussi. */
   if(!CHECKLISTS.length)
-    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+carteServiceSocial()+passationsHTML()+
+    return h+carteAVoir()+rdvJoursHTML()+carteMaListe()+carteBinome()+carteAPrendre()+carteListePfo()+carteServiceSocial()+passationsHTML()+
       replie('Liste de métier — aucune',
         'Beaucoup de métiers de la maison n’ont pas de liste toute faite : on ne peut pas '+
         'écrire à l’avance la journée de quelqu’un qui travaille dans l’urgence. '+
@@ -25500,7 +25500,7 @@ function listeCorps(){
   /* LES RENDEZ-VOUS RESTENT EN HAUT (Mag, 13/10/2026 : « c'est très important »). */
   h+='<div class="ml3-c">'+rdvJoursHTML()+carteMaListe()+carteBinome()+'</div>';
   /* ⭐ LA PASSATION DE NUIT APRÈS LE SERVICE SOCIAL (Mag, 14/10/2026). */
-  h+='<div class="ml3-c">'+carteAPrendre()+carteServiceSocial()+passationsHTML()+'</div>';
+  h+='<div class="ml3-c">'+carteAPrendre()+carteListePfo()+carteServiceSocial()+passationsHTML()+'</div>';
   h+='<div class="ml3-c">';
   if(CHECKLISTS.length){
     /* ⚠ LE DÉROULANT EST REDESCENDU ICI (Mag, 11/09/2026), avec la reprise de cycle :
@@ -43155,7 +43155,7 @@ async function loadPassations(){
        le 9 — elles étaient en base, invisibles. Une ligne du service social reste donc
        tant qu'elle n'est pas cochée. */
     const {data,error}=await sb.from('passations').select('*')
-      .or('jour.gte.'+agIso(h)+',jour.is.null,and(pour.eq.ts,fait_le.is.null)')
+      .or('jour.gte.'+agIso(h)+',jour.is.null,and(pour.eq.ts,fait_le.is.null),and(pour.eq.pfo,fait_le.is.null)')
       .order('jour',{ascending:false}).limit(200);
     if(error) throw error;
     /* ⚠ ON NE PERD PAS UNE LIGNE QU'ON VIENT D'ÉCRIRE. Si la relecture arrive avant que
@@ -43334,6 +43334,7 @@ function passRoles(){ return [PASS_SOCIAL, PASS_EQUIPE]; }
    `LISTE_LABELS`, qui nomme des check-lists. */
 function passPourNom(k, dansUnePhrase){
   if((k||PASS_POUR)===PASS_SOCIAL) return dansUnePhrase ? 'le service social' : 'Service social';
+  if((k||PASS_POUR)==='pfo') return dansUnePhrase ? 'le PFO' : 'PFO';
   if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
   /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
      est bonne en titre, mauvaise au milieu d'une phrase. */
@@ -43738,6 +43739,7 @@ function passLigne(p, mienne, role, heure, gauche){
   /* Le bloc « Service social » porte déjà son titre : on ne le répète pas. */
   /* Service social : « Mag → Afaf » (08/10/2026) — de qui ET pour qui, sur la même ligne. */
   if(p.pour===PASS_SOCIAL) bas.push(esc(socDeVers(p)));
+  else if(p.pour==='pfo'){ if(qui) bas.push('de '+esc(qui)); }
   else if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(passPourNom(p.pour, true))); }
   else if(qui) bas.push('de '+esc(qui));
   /* ⚠ LE JOUR SEULEMENT S'IL N'EST PAS AUJOURD'HUI : un réveil noté le samedi pour le
@@ -43847,7 +43849,7 @@ function passMenu(id, gerable){
    dans l'équipe de nuit »). `passToutes` nourrit la carte de la nuit, SA feuille
    imprimée et SON mail : une note pour le service social n'a rien à y faire. Elle a
    sa carte à elle — voir `passSociales` et `carteServiceSocial`. */
-function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL; }); }
+function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL && p.pour!==PASS_PFO; }); }
 function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL; }); }
 /* ═══ LE RÉVEIL SE MET TOUT SEUL (Mag, 13/10/2026 : « il faudrait directement qu'il soit dans les passations de nuit,
    les réveils, il n'y a même pas à discuter ; il n'y a plus de question de qui prend en charge le réveil ») ═══
@@ -44475,6 +44477,55 @@ async function socEnvoyerRappel(rid, q){
   rappelsSauver(); render();
   confirmePop(true, 'Envoyée', q ? 'à '+socDeVers({pour_qui:q, par:nomAffiche()}).split('→ ')[1] : 'au service social');
 }
+/* ═══ LA LISTE PFO (Mag, 17/10/2026 : « à la place de NOTE mets PFO, et fais une liste visible par l'équipe
+   mais pour le PFO ») ═══ Ses choix : la ligne PART de Ma liste perso ; une carte à part sur l'écran Liste ;
+   toute l'équipe la lit, seuls les PFO (et l'auteur) la cochent « Fait ». Une passation `pour='pfo'` :
+   pas de nouvelle table, la base laisse déjà tout le monde lire. Elle reste tant qu'elle n'est pas faite. */
+const PASS_PFO='pfo';
+function passPfo(){
+  return passUnique((PASSATIONS||[]).filter(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; }))
+    .sort(function(a,b){ return String(b.cree_le||'').localeCompare(String(a.cree_le||'')); });
+}
+function pfoPeutCocher(p){ return !!(PROFILE && (PROFILE.pfo || PROFILE.admin || passMienne(p))); }
+var PFO_OUVERTE=true;
+function pfoPlier(){ PFO_OUVERTE=!PFO_OUVERTE; render(); }
+function carteListePfo(){
+  const l=passPfo();
+  if(!l.length) return '';
+  const plie=!PFO_OUVERTE;
+  return '<div class="pcarte pcarte-lire'+(plie?' plie':'')+'">'+
+    '<div class="ptitre ptitre-lire"><button class="ptitre-pli" onclick="pfoPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
+      '<b>PFO</b><span>'+l.length+'</span>'+
+    '</button>'+
+      '<em class="ch" onclick="pfoPlier()" aria-hidden="true">›</em>'+
+    '</div>'+
+    (plie?'':l.map(function(p){
+      return '<div class="socl">'+passLigne(p, undefined, undefined, undefined,
+        pfoPeutCocher(p)?'<button class="binrep-b" onclick="pfoFait('+p.id+')">Fait</button>':'')+'</div>';
+    }).join(''))+
+  '</div>';
+}
+async function pfoDepuisChamp(){
+  const i=document.getElementById('rapTxt'), c=document.getElementById('rapCh');
+  const t=((i&&i.value)||'').trim(); if(!t){ if(i) i.focus(); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée au PFO','Pas de connexion — ta ligne reste écrite'); return; }
+  const ch=((c&&c.value)||'').trim();
+  const l={texte:t.slice(0,4000), pour:PASS_PFO, genre:'passation', par:nomAffiche(),
+           chambre:ch?ch.slice(0,12):null, jour:todayStr(), uid:PROFILE.uid};
+  const {data,error}=await sb.from('passations').insert(l).select();
+  /* ⚠ Le champ ne se vide QUE si la base a dit oui : sinon le texte reste là, rien n'est perdu. */
+  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée au PFO',(error&&error.message)||'la base n’a pas répondu'); return; }
+  data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
+  if(i) i.value=''; if(c) c.value='';
+  render(); confirmePop(true,'Envoyée','dans la liste PFO');
+}
+async function pfoFait(id){
+  const p=(PASSATIONS||[]).find(function(x){ return x.id===id; }); if(!p) return;
+  const {error}=await sb.from('passations').update({fait_le:new Date().toISOString(), fait_par:nomAffiche()}).eq('id',id);
+  if(error){ confirmePop(false,'Pas cochée',error.message); return; }
+  p.fait_le=new Date().toISOString(); p.fait_par=nomAffiche(); render();
+}
 function passationsHTML(){
   /* ⚠ MÊME SOURCE QUE LA FEUILLE IMPRIMÉE — voir `passToutes`. Ce qui est à l'écran
      doit être sur le papier, sans exception. */
@@ -45040,6 +45091,7 @@ function rappelAjouter(){
   /* ⭐ RÉVEIL COCHÉ (Mag, 15/10/2026 : « rajoute les réveils ici aussi ») : un réveil part TOUJOURS à l'équipe de nuit,
      avec une heure. OK ouvre donc la passation, déjà sur « Réveil », le texte et la chambre dedans. */
   if(RAP_TAGS.reveil){ RAP_TAGS.reveil=false; PASS_GENRE='reveil'; rappelVersPassation(); return; }
+  if(RAP_TAGS.pfo){ pfoDepuisChamp(); return; }
   const c=document.getElementById('rapCh');
   const ch=((c&&c.value)||'').trim();
   /* ⚠ 400 CARACTÈRES, comme dans la feuille du crayon : « on doit mettre vraiment
@@ -48821,9 +48873,11 @@ function rappelsHTML(enCarte){
         /* ⚠ ③ ENTRETIEN · MI-PARCOURS RETIRÉS (Mag, 19/09/2026 : « tu peux retirer ici
            entretien et mi-parcours ») : les entretiens ont leur onglet. Les lignes déjà
            marquées gardent leur marque, et Modifier permet encore de la retirer. */
-        '<button class="absa avmi'+(RAP_TAGS.note?' on':'')+'" onclick="RAP_TAGS.note=!RAP_TAGS.note;render()" '+
-          'aria-pressed="'+(RAP_TAGS.note?'true':'false')+'">'+
-          '<span class="bx"></span>Note</button>'+
+        /* ⭐ « À LA PLACE DE NOTE METS PFO » (Mag, 17/10/2026) : cochée, la ligne part dans la liste PFO au OK
+           (elle quitte Ma liste perso, comme « Service social »). Les lignes déjà marquées « Note » gardent leur marque. */
+        '<button class="absa avmi'+(RAP_TAGS.pfo?' on':'')+'" onclick="RAP_TAGS.pfo=!RAP_TAGS.pfo;render()" '+
+          'aria-pressed="'+(RAP_TAGS.pfo?'true':'false')+'">'+
+          '<span class="bx"></span>PFO</button>'+
         '<button class="absa avmi'+(RAP_TAGS.info?' on':'')+'" onclick="RAP_TAGS.info=!RAP_TAGS.info;render()" '+
           'aria-pressed="'+(RAP_TAGS.info?'true':'false')+'">'+
           '<span class="bx"></span>Info</button>'+
