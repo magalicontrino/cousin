@@ -43347,7 +43347,7 @@ function passRoles(){ return [PASS_SOCIAL, PASS_EQUIPE]; }
    `LISTE_LABELS`, qui nomme des check-lists. */
 function passPourNom(k, dansUnePhrase){
   if((k||PASS_POUR)===PASS_SOCIAL) return dansUnePhrase ? 'le service social' : 'Service social';
-  if((k||PASS_POUR)==='pfo') return dansUnePhrase ? 'le PFO' : 'PFO';
+  if((k||PASS_POUR)==='pfo') return dansUnePhrase ? 'le PFO jour' : 'PFO jour';
   if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
   /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
      est bonne en titre, mauvaise au milieu d'une phrase. */
@@ -44495,6 +44495,7 @@ async function socEnvoyerRappel(rid, q){
    toute l'équipe la lit, seuls les PFO (et l'auteur) la cochent « Fait ». Une passation `pour='pfo'` :
    pas de nouvelle table, la base laisse déjà tout le monde lire. Elle reste tant qu'elle n'est pas faite. */
 const PASS_PFO='pfo';
+const PFO_JOUR_NOMS='Loïc / Adam';
 function passPfo(){
   return passUnique((PASSATIONS||[]).filter(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; }))
     .sort(function(a,b){ return String(b.cree_le||'').localeCompare(String(a.cree_le||'')); });
@@ -44508,7 +44509,8 @@ function carteListePfo(){
   const plie=!PFO_OUVERTE;
   return '<div class="pcarte pcarte-lire'+(plie?' plie':'')+'">'+
     '<div class="ptitre ptitre-lire"><button class="ptitre-pli" onclick="pfoPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
-      '<b>PFO</b><span>'+l.length+'</span>'+
+      /* « C'est même PFO jour. L'équipe de nuit, ça reste l'équipe de nuit, et peux noter Loïc / Adam » (Mag, 17/10/2026). */
+      '<b>PFO jour</b><span>'+esc(PFO_JOUR_NOMS)+' · '+l.length+'</span>'+
     '</button>'+
       '<em class="ch" onclick="pfoPlier()" aria-hidden="true">›</em>'+
     '</div>'+
@@ -44531,7 +44533,7 @@ async function pfoDepuisChamp(){
   data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
   RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
   if(i) i.value=''; if(c) c.value='';
-  render(); confirmePop(true,'Envoyée','dans la liste PFO');
+  render(); confirmePop(true,'Envoyée','au PFO jour');
 }
 /* Une ligne de Ma liste part dans la liste PFO — retirée de Ma liste SEULEMENT quand la base a dit oui. */
 async function pfoEnvoyerRappel(rid){
@@ -44543,7 +44545,7 @@ async function pfoEnvoyerRappel(rid){
   if(error||!data||!data.length){ confirmePop(false,'PAS envoyée au PFO',(error&&error.message)||'la base n’a pas répondu'); return; }
   data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
-  rappelsSauver(); render(); confirmePop(true,'Envoyée','dans la liste PFO');
+  rappelsSauver(); render(); confirmePop(true,'Envoyée','au PFO jour');
 }
 async function pfoFait(id){
   const p=(PASSATIONS||[]).find(function(x){ return x.id===id; }); if(!p) return;
