@@ -20082,11 +20082,11 @@ function rdvAccChanger(id, el){
    le simplifié, imprimé ») ═══ UNE feuille : tous les rendez-vous à venir, A4 à l'horizontale, une ligne chacun —
    l'heure, le nom, la chambre, où, avec qui, ce qu'il faut prévoir. Elle se lit dans la COPIE DE L'APPAREIL
    (`rdvBackupLire`), complétée par l'agenda chargé : elle s'imprime même si la base ne répond plus. */
-function rdvImprimerSimple(du, au){
+function rdvImprimerSimple(du, au, garde){
   if(RDV && RDV.length) rdvBackupGarder(RDV);
   const o=rdvBackupLire(), a=agIso(new Date());
   /* Avec des dates (vue « œil », 17/10/2026 : « une impression comme ça pour l'œil, et triable par date ») : du … au … */
-  const L=Object.keys(o.rdv).map(function(k){ return o.rdv[k]; }).filter(function(r){ return (du ? (String(r.jour)>=du && (!au || String(r.jour)<=au)) : String(r.jour)>=a) && !r.retire_le; })
+  const L=Object.keys(o.rdv).map(function(k){ return o.rdv[k]; }).filter(function(r){ return (du ? (String(r.jour)>=du && (!au || String(r.jour)<=au)) : String(r.jour)>=a) && !r.retire_le && (!garde || garde(r)); })
     .sort(function(x,y){ return (String(x.jour)+String(x.heure||'')).localeCompare(String(y.jour)+String(y.heure||'')); });
   if(!L.length){ cousinInfo('Rien à imprimer', 'Aucun rendez-vous à venir sur cet appareil.'); return; }
   let corps='<style>.sim{width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.35;table-layout:fixed}'+
@@ -20215,7 +20215,7 @@ function vRdv(){
      '<button class="fbtn'+(RDV_MODE!=='oeil'?' rdvon':'')+'" onclick="rdvMode(\'liste\')" aria-label="Liste détaillée" title="Liste détaillée"><span class="ic">'+icon('list')+'</span></button>'+
      '<button class="fbtn'+(RDV_MODE==='oeil'?' rdvon':'')+'" onclick="rdvMode(\'oeil\')" aria-label="Vue simple" title="Vue simple"><span class="ic">'+icon('oeil')+'</span></button>'+
      /* (vue « calendrier » retirée — Mag, 17/10/2026 : « retire ça ») */
-     '<button class="fbtn" onclick="rdvImprimerDates()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
+     '<button class="fbtn" onclick="rdvImprimerChoix()" aria-label="Imprimer" title="Imprimer"><span class="ic">'+icon('imprimer')+'</span></button>'+
      /* (disquette « Backup » retirée — Mag, 17/10/2026 : « retire la disquette d'enregistrement » ; la copie de l'appareil
         continue de se faire en silence, et la vue œil imprime le même tableau) */
      /* « Juste Accompagnement », avec son petit picto (09/10/2026) — le même que la barre de l'accueil. */
@@ -20298,12 +20298,12 @@ function rdvFenetre(titre, corps, css, paysage){
    · « Imprimer » sur un rendez-vous → ce rendez-vous seul ;
    · en haut de la page → la liste DU … AU … (un seul jour = un bloc par sorte ; plusieurs
      jours = un bloc par jour, la sorte écrite sur la ligne). */
-function rdvImprimer(du, au, seulId){
+function rdvImprimer(du, au, seulId, garde){
   const a=agIso(new Date());
   if(!du && !au && !seulId){ const D=rdvDates(); du=D.du; au=D.au; }
   du=du||a; au=au||du; if(au<du){ const x=du; du=au; au=x; }
   const L=RDV.filter(function(r){
-    return seulId ? String(r.id)===String(seulId) : (r.jour>=du && r.jour<=au);
+    return seulId ? String(r.id)===String(seulId) : (r.jour>=du && r.jour<=au && (!garde || garde(r)));
   }).slice().sort(function(x,y){ return (String(x.jour)+String(x.heure||'99')).localeCompare(String(y.jour)+String(y.heure||'99')); });
   /* ⚠ SUR LE PAPIER AUSSI, LE ROUGE NE DIT QUE « ACCOMPAGNANT À TROUVER » (09/10/2026 :
      « s'il y a un accompagnement demandé et qu'il n'a pas été mis, quand on imprime, il faut
@@ -20358,6 +20358,27 @@ function rdvImprimer(du, au, seulId){
     corps:corps
   });
 }
+/* ⭐ ON CHOISIT CE QU'ON IMPRIME (Mag, 17/10/2026 : « je dois pouvoir imprimer en cochant ce que je veux dans une pop-up :
+   LAM, Médical, Accompagnement… »). Les cases s'ADDITIONNENT : un rendez-vous sort si son type est coché, OU s'il est
+   accompagné et que « Accompagnements » est coché. Les dates restent celles du haut ; le dessin, celui de la vue. */
+var RDV_IMPR_SEL={lam:true, medical:true, social:true, psy:true, acc:false, pmr:false, reveil:false};
+function rdvImprimerChoix(){
+  let bg=document.getElementById('rdvImprBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='rdvImprBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; }
+  const L=RDV_TYPES.map(function(t){ return [t.k, t.l]; }).concat([['acc','Accompagnements'],['pmr','PMR'],['reveil','Réveil']]);   /* + PMR, Réveil (17/10/2026) */
+  const n=L.filter(function(x){ return RDV_IMPR_SEL[x[0]]; }).length;
+  bg.innerHTML='<div class="popcard act-pop" role="dialog" aria-modal="true">'+
+    '<div class="act-pt"><span class="act-pi" style="background:#e6e4df">'+icon('imprimer')+'</span>Imprimer</div>'+
+    L.map(function(x){ return '<div class="depl'+(RDV_IMPR_SEL[x[0]]?' on':'')+'" onclick="RDV_IMPR_SEL.'+x[0]+'=!RDV_IMPR_SEL.'+x[0]+';rdvImprimerChoix()"><span class="bx">✓</span>'+esc(x[1])+'</div>'; }).join('')+
+    '<div class="act-b"><button class="rdvk-ref" onclick="document.getElementById(\'rdvImprBg\').classList.remove(\'on\')">Annuler</button><span style="flex:1"></span>'+
+      '<button class="rdvk-val"'+(n?'':' disabled style="opacity:.4"')+' onclick="document.getElementById(\'rdvImprBg\').classList.remove(\'on\');rdvImprimerDates()">Imprimer</button></div></div>';
+  bg.classList.add('on');
+}
+function rdvImprGarde(r){
+  const S=RDV_IMPR_SEL; const t=rdvType(r.genre).k;
+  return !!(S[t] || (S.acc && r.accompagne) || (S.pmr && r.pmr) || (S.reveil && r.reveil) || (t==='autre' && S.medical && S.social && S.psy && S.lam));
+}
 function rdvImprimerDates(){
   /* ⭐ LA FEUILLE = CE QUE L'ÉCRAN MONTRE (Mag, 17/10/2026 : « œil, mauvais print » — l'écran montrait tout jusqu'au 30,
      la feuille s'arrêtait au 19). Tant qu'on n'a pas choisi soi-même une date de fin, l'écran montre TOUT ce qui vient :
@@ -20365,7 +20386,7 @@ function rdvImprimerDates(){
   const D=rdvDates();
   const au = RDV_IMPR_AU ? D.au : RDV.reduce(function(m,r){ return r.jour>m?r.jour:m; }, D.du);
   rdvAvantImprimer(RDV.filter(function(r){ return r.jour>=D.du && r.jour<=au; }), function(){
-    if(RDV_MODE==='oeil') rdvImprimerSimple(D.du, au); else rdvImprimer(D.du, au); });
+    if(RDV_MODE==='oeil') rdvImprimerSimple(D.du, au, rdvImprGarde); else rdvImprimer(D.du, au, null, rdvImprGarde); });
 }
 /* ⚠ UN MESSAGE AVANT D'IMPRIMER S'IL MANQUE UN ACCOMPAGNANT (09/10/2026) : on imprime quand
    même si on veut, mais on sait. */
