@@ -17798,7 +17798,13 @@ function rapportDonnees(){
       return {jr:p.jour, h:String(p.heure||'').slice(0,5), ch:p.chambre||'', t:String(p.texte||'').split('\n')[0], j:!!p.a_jeun}; }))
     .map(function(x){ x.demain=(x.jr===d); x.passe=(x.jr===a && !!x.h && x.h<=hm); return x; })
     .sort(function(x,y){ return (x.passe?1:0)-(y.passe?1:0) || (x.demain?1:0)-(y.demain?1:0) || String(x.h||'99').localeCompare(String(y.h||'99')); });
-  return {acc:auj.filter(function(r){ return r.accompagne; }), autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv.filter(function(x){ return !x.passe; }),
+  /* ⭐ LES ACCOMPAGNEMENTS DE LA SEMAINE (Mag, 17/10/2026) : aujourd'hui (sauf ceux dont l'heure est passée) et les
+     6 jours qui suivent — plus seulement ceux du jour. Refusés et retirés n'y sont pas. */
+  const fin=ppAjoute(a,6);
+  const accS=(RDV||[]).filter(function(r){ return r.accompagne && !r.retire_le && !r.refuse_le && r.jour>=a && r.jour<=fin
+      && !(r.jour===a && r.heure && String(r.heure).slice(0,5)<=hmP); })
+    .sort(function(x,y){ return (String(x.jour)+String(x.heure||'99')).localeCompare(String(y.jour)+String(y.heure||'99')); });
+  return {acc:accS, autres:auj.filter(function(r){ return !r.accompagne; }), reveils:rv.filter(function(x){ return !x.passe; }),
     msg:RAPPORT};
 }
 function rapportBarre(){
@@ -17842,7 +17848,7 @@ function accTrioHTML(){
   try{ if(!estGroupeD() && typeof ABSENCES!=='undefined'){ if(!ABS_LU && !ABS_ENCOURS) setTimeout(loadAbsences,0);
     const A3=ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; }); abs3=A3.length; abs3lam=A3.filter(function(x){ return x.lam; }).length; } }catch(e){}
   /* LE VERT = TOUS LES ACCOMPAGNEMENTS À VENIR (Mag, 13/10/2026 : « des accompagnements globaux ») ; le rouge = ce qui reste à faire. */
-  const nAccTous=(RDV||[]).filter(function(r){ return r.jour>=a && r.accompagne && !r.retire_le && !r.refuse_le; }).length;
+  const nAccTous=rapportDonnees().acc.length;   /* la semaine, comme la section du point du jour (17/10/2026) */
   let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
   const chipsTout=rapEtiquettes({prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
@@ -17951,7 +17957,10 @@ function rapportHTML(page){
       return '<div class="rap-l'+(x.passe?' passe':'')+'"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+(x.demain?'<i class="rap-ch">demain</i> ':'')+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; }).join('')+
       /* ⭐ CHAQUE BLOC MÈNE À SA PAGE (Mag, 13/10/2026 : « du rapport, des raccourcis, que ça aille plus vite ») */
       '<button class="rap-tv rap-cta" onclick="rapVersPassation()">voir la passation ›</button>') : (vides.push('réveils'),'');
-  h+= D.acc.length ? sec('acc','#6cb392','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc.length, D.acc.map(ligneRdv).join('')+
+  h+= D.acc.length ? sec('acc','#6cb392','<img src="picto/accompagnement.svg" alt="">','Accompagnements de la semaine', D.acc.length, D.acc.map(function(r){
+        /* le jour devant l'heure : la section couvre 7 jours */
+        return ligneRdv(r).replace('<span class="rap-h">','<span class="rap-h">'+(r.jour===agIso(new Date())?'auj. ':esc(['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][new Date(r.jour+'T12:00:00').getDay()]+' '+new Date(r.jour+'T12:00:00').getDate())+' · '));
+      }).join('')+
       '<button class="rap-tv rap-cta" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">voir les accompagnements ›</button>') : (AGENDA_MASQUE?'':(vides.push('accompagnements'),''));
   /* ⭐ À VALIDER = LES ACCOMPAGNEMENTS SEULS, EN ROUGE INVERSÉ (Mag, 13/10/2026 : « pourquoi 3 taxis ? », « plus en rouge ») */
   if(OCTROI_DANS_RAPPORT && !gD && nAccV) h+='<button class="coalerte" id="rap-valider-b" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">'+
@@ -18202,7 +18211,9 @@ function rapportImprimer(){
     .sort(function(x,y){ return (y.lam?1:0)-(x.lam?1:0); });
   c+=bloc('Absents +3 nuits', A3, function(x){ return l('', '<b>'+esc(x.nom||'?')+'</b>', absNuits(x).length+' nuits'+(x.lam?' · <b>LAM</b>':'')); });
   c+=bloc('Réveils', D.reveils, function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); });
-  c+=bloc('Accompagnements', D.acc, r2);
+  c+=bloc('Accompagnements de la semaine', D.acc, function(r){ return l((r.jour===agIso(new Date())?'auj. ':ppJourFr(r.jour).split(' ').slice(0,2).join(' ')+' · ')+(rdvHeureFr(r.heure)||''),
+    '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+(r.lieu?' — '+esc(r.lieu):''),
+    r.accomp_nom?esc(r.accomp_nom):'<b style="color:#e63329">à trouver</b>'); });
   if(OCTROI_DANS_RAPPORT) c+=bloc('Accompagnements à valider', aVal.filter(function(r){ return r.accompagne; }), function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):''), esc(ppJourFr(r.jour))); });
   if(typeof PUNAISES!=='undefined'){
     const act=ppActives().filter(function(x){ const e=ppEtat(x); return e!=='fini' && e!=='abandon'; })
