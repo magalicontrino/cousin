@@ -18945,14 +18945,18 @@ const RDV_GARDE=90;   /* les rendez-vous passés restent 3 mois (Mag, 17/10/2026
    base à utiliser, et toi, tu inventes des couleurs ») : rouge, turquoise, brun.
    ⚠ PLUS D'« ADMINISTRATIF » (09/10/2026 : « social et administratif, c'est la même
    chose ») : un rendez-vous déjà écrit « administratif » se lit comme Social. */
+/* ⭐ QUATRE TYPES, « ET C'EST TOUT » (Mag, 17/10/2026) : LAM · Médical · Social · Psy. « Autre » n'est plus proposé ;
+   les anciens rendez-vous « autre » gardent leur nom. LAM et Médical remplacent aussi la rangée LAM / Médical du dessus. */
 const RDV_TYPES=[
+  {k:'lam',           l:'LAM',            en:'LAM',            c:'#e8308a'},
   {k:'medical',       l:'Médical',        en:'Medical',        c:'#e63329'},
   {k:'social',        l:'Social',         en:'Social',         c:'#6fc7d9'},
-  {k:'autre',         l:'Autre',          en:'Other',          c:'#b28b7a'}
+  {k:'psy',           l:'Psy',            en:'Psy',            c:'#f5c542'}
 ];
+const RDV_TYPE_AUTRE={k:'autre', l:'Autre', en:'Other', c:'#b28b7a'};
 function rdvType(k){
   if(k==='administratif') k='social';
-  return RDV_TYPES.find(function(t){ return t.k===k; })||RDV_TYPES[RDV_TYPES.length-1];
+  return RDV_TYPES.find(function(t){ return t.k===k; })||RDV_TYPE_AUTRE;
 }
 async function loadRdv(){
   if(!sb){ RDV_CHARGE=true; return; }
@@ -19296,7 +19300,7 @@ function rdvEtiquettes(r, sansAcc, opt){
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
   if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi', icon('bus')]);
   if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus')]);
-  if(r.lam===true) e.unshift(['LAM','#e8308a','','']); else if(r.lam===false) e.unshift(['Médical','#A9C8E8','','']);
+
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
   if(r.prevenir && !opt.sansPrev) e.push(['Prévenir','#b28b7a','',PREV_MAIN]);
@@ -19382,7 +19386,7 @@ function rdvEtiqPapier(r){
   if(r.pmr) e.push(['PMR','#f5c542']);
   if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
   if(r.transport) e.push(['Transport classique','#6fc7d9']);
-  if(r.lam===true) e.unshift(['LAM','#e8308a']); else if(r.lam===false) e.unshift(['Médical','#A9C8E8']);
+
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
   if(r.prevenir) e.push(['Prévenir','#b28b7a']);
@@ -19578,7 +19582,7 @@ async function rdvEnregistrer(){
     accompagne:!!F.accompagne, accomp_email:F.accompagne?(F.accomp_email||null):null,
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
     accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
-    lam:(F.lam===true?true:(F.lam===false?false:null)),
+    lam:(F.genre==='lam'?true:(F.genre==='medical'?false:null)),   /* déduit du type (17/10/2026) */
     pmr:!!F.pmr, taxi:!!F.taxi, transport:!!F.transport, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome, a_jeun:!!F.a_jeun};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
@@ -19685,9 +19689,7 @@ function rdvFormHTML(){
     '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
     /* ⭐ LAM OU MÉDICAL (Mag, 17/10/2026) : où la personne est hébergée — comme pour les entrants. Un 2ᵉ appui retire le choix. */
-    '<div class="chips" style="margin-top:8px">'+
-      pill(F.lam===true, 'LAM', "rdvChoix('lam',"+(F.lam===true?'null':'true')+")", '#e8308a')+
-      pill(F.lam===false, 'Médical', "rdvChoix('lam',"+(F.lam===false?'null':'false')+")", '#A9C8E8')+'</div>'+
+
     '<p class="rdvf-l">Quoi</p><div class="chips">'+RDV_TYPES.map(function(t){
       return pill(rdvType(F.genre).k===t.k, t.l, "rdvChoix('genre','"+t.k+"')", t.c); }).join('')+'</div>'+
     '<p class="rdvf-l">Quand</p><div class="tbduo"><input id="rdvJour" type="date" value="'+esc(F.jour)+'">'+
