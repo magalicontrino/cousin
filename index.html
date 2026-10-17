@@ -17954,7 +17954,7 @@ function rapportHTML(page){
   h+= D.acc.length ? sec('acc','#6cb392','<img src="picto/accompagnement.svg" alt="">','Accompagnements', D.acc.length, D.acc.map(ligneRdv).join('')+
       '<button class="rap-tv rap-cta" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">voir les accompagnements ›</button>') : (AGENDA_MASQUE?'':(vides.push('accompagnements'),''));
   /* ⭐ À VALIDER = LES ACCOMPAGNEMENTS SEULS, EN ROUGE INVERSÉ (Mag, 13/10/2026 : « pourquoi 3 taxis ? », « plus en rouge ») */
-  if(!gD && nAccV) h+='<button class="coalerte" id="rap-valider-b" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">'+
+  if(OCTROI_DANS_RAPPORT && !gD && nAccV) h+='<button class="coalerte" id="rap-valider-b" onclick="RDV_VUE=\'acc\';RDV_FORM=null;RDV_ACC_DU=\'\';RDV_ACC_AU=\'\';go(\'#/rdv\')">'+
     '<span class="coalerte-i"><img src="picto/accompagnement.svg" alt=""></span><span class="coalerte-t"><b>'+nAccV+' accompagnement'+(nAccV>1?'s':'')+' à valider</b></span><i>›</i></button>';
   /* À VALIDER ET PUNAISES AU-DESSUS DES INFOS (Mag, 13/10/2026, dernier ordre) */
   if(ppPrev || ppSacs) h+=sec('punaises','#f3c6da',icon('punaise'),'Punaises', null,   /* pas de date de passage (Mag, 13/10/2026 : « ce n'est pas encore prévu ») */
@@ -18032,6 +18032,7 @@ function rapPic(k){
    un panneau attention au lieu de « à valider ». « sans PFM » et « infos » restent en mots, sans picto.
    Même dessin sur l'accueil et en haut du rapport. */
 const RAP_ATTENTION='<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z" fill="#f8763f"/><path d="M12 9v5" stroke="#2b2a28" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.3" fill="#2b2a28"/></svg>';
+const OCTROI_DANS_RAPPORT=false;   /* (Mag, 17/10/2026 : « pour l'instant on abandonne les octrois d'accompagnement dans le rapport ») */
 function rapEtiquettes(o, accueil){
   const masque=function(f,c){ return '<i class="etq-m" style="--c:'+c+';-webkit-mask-image:url(picto/'+f+');mask-image:url(picto/'+f+')"></i>'; };
   const ic=function(k,c){ return '<i class="etq-i" style="color:'+c+'">'+icon(k)+'</i>'; };
@@ -18052,13 +18053,15 @@ function rapEtiquettes(o, accueil){
        le total à faire (à trouver + à valider). Même dessin : picto blanc, juste le chiffre. */
     (accueil ? e(o.acc, masque('accompagnement.svg','#fdfdfc'), '', 'acc', 'vert')
              : e(o.acc, masque('accompagnement.svg','#6cb392'), o.acc>1?'accompagnements':'accompagnement','acc'))+
-    e(o.accT, masque('accompagnement.svg','#fdfdfc'), '', accueil?'valider-b':'acc', true)+
+    /* ⏸ L'OCTROI DES ACCOMPAGNEMENTS QUITTE LE RAPPORT « pour l'instant » (Mag, 17/10/2026) : plus d'étiquette rouge ni de
+       bande « à valider ». Remettre OCTROI_DANS_RAPPORT=true pour les retrouver. */
+    (OCTROI_DANS_RAPPORT ? e(o.accT, masque('accompagnement.svg','#fdfdfc'), '', accueil?'valider-b':'acc', true) : '')+
     /* ⭐ LES PUNAISES SE DISTINGUENT (Mag, 14/10/2026, C choisi sur 3) : blanc cerné de noir, punaise fuchsia, et le mot. */
     e(o.punaise, ic('punaise','#e8308a'), o.punaise>1?'punaises':'punaise', 'punaises', 'blanc')+
     /* (la pastille « rendez-vous » est retirée — Mag, 15/10/2026) */
     /* « à valider » = le picto accompagnement, EN ROUGE (Mag, 13/10/2026 : « on prend les mêmes bases, ça devient rouge ») */
     /* ROUGE INVERSÉ, PICTO BLANC (Mag, 13/10/2026) — « à trouver » et « à valider » se lisent tout de suite. */
-    e(o.valider, masque('accompagnement.svg','#fdfdfc'), 'à valider', 'valider', true)+
+    (OCTROI_DANS_RAPPORT ? e(o.valider, masque('accompagnement.svg','#fdfdfc'), 'à valider', 'valider', true) : '')+
     e(o.act, ic('ticket','#6cb392'), o.act>1?'activités':'activité','act')+
     /* ⭐ LES SORTANTS SE TROUVENT DEPUIS L'ACCUEIL (Mag, 13/10/2026 : « je ne sais toujours pas comment on arrive sur les sortants ») */
     e(o.sortants, ic('cle','#a9c8e8'), o.sortants>1?'sortants':'sortant', 'departs');
@@ -18200,7 +18203,7 @@ function rapportImprimer(){
   c+=bloc('Absents +3 nuits', A3, function(x){ return l('', '<b>'+esc(x.nom||'?')+'</b>', absNuits(x).length+' nuits'+(x.lam?' · <b>LAM</b>':'')); });
   c+=bloc('Réveils', D.reveils, function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); });
   c+=bloc('Accompagnements', D.acc, r2);
-  c+=bloc('Accompagnements à valider', aVal.filter(function(r){ return r.accompagne; }), function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):''), esc(ppJourFr(r.jour))); });
+  if(OCTROI_DANS_RAPPORT) c+=bloc('Accompagnements à valider', aVal.filter(function(r){ return r.accompagne; }), function(r){ return l(rdvHeureFr(r.heure), '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):''), esc(ppJourFr(r.jour))); });
   if(typeof PUNAISES!=='undefined'){
     const act=ppActives().filter(function(x){ const e=ppEtat(x); return e!=='fini' && e!=='abandon'; })
       .filter(function(x){ return ppEtat(x)==='alerte' || (ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }) && !x.sacs_le); })
