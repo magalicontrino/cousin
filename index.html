@@ -19469,13 +19469,58 @@ function rdvModalHTML(){
 }
 /* On lit les champs AVANT chaque redessin : un choix (type, accompagnement) redessine le
    formulaire, et ce qui était tapé ne doit pas disparaître. */
+/* ═══ LA LISTE DES HÉBERGÉS (Mag, 17/10/2026 : « voilà tous les noms, retiens-les ») ═══ Table `residents_liste` (une
+   ligne, une liste) : NOM, prénom, chambre, LAM / Médical — rien d'autre (ni date de naissance, ni nationalité).
+   Lue par l'équipe connectée ; un nouveau nom tapé dans un rendez-vous s'y ajoute (rdvNomNouveau). */
+var RESIDENTS=[], RESIDENTS_LU=0;
+async function loadResidents(){
+  if(!sb || Date.now()-RESIDENTS_LU<60000) return;
+  RESIDENTS_LU=Date.now();
+  try{ const r=await sb.from('residents_liste').select('liste').eq('id',1);
+    if(!r.error && r.data && r.data[0] && Array.isArray(r.data[0].liste)) RESIDENTS=r.data[0].liste;
+  }catch(e){}
+}
+function resNomComplet(x){ return (String(x.nom||'')+' '+String(x.prenom||'')).trim(); }
+function resCle(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
+function resLev(a,b){ if(a===b) return 0; const m=a.length,n=b.length; if(!m||!n) return m+n; let p=[]; for(let j=0;j<=n;j++) p[j]=j;
+  for(let i=1;i<=m;i++){ let c=[i]; for(let j=1;j<=n;j++) c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); p=c; } return p[n]; }
+function resTrouver(nom){ const k=resCle(nom); return RESIDENTS.find(function(x){ return resCle(resNomComplet(x))===k; })||null; }
+/* « Ressemble fort » : mêmes mots dans un autre ordre, l'un contient l'autre (absMemePersonne), ou 1-2 lettres d'écart. */
+function resRessemble(nom){
+  const k=resCle(nom); if(!k) return [];
+  return RESIDENTS.filter(function(x){
+    const c=resCle(resNomComplet(x)), cn=resCle(x.nom);
+    if(c===k) return false;
+    const motsA=k.split(' ').sort().join(' '), motsB=c.split(' ').sort().join(' ');
+    return motsA===motsB || (typeof absMemePersonne==='function' && absMemePersonne(nom, resNomComplet(x)))
+      || resLev(k,c)<=2 || (cn.length>=4 && resLev(k.split(' ')[0], cn)<=1);
+  }).slice(0,4);
+}
+/* Un nom choisi dans la liste remplit la chambre (si vide) et le type LAM / Médical. */
+function rdvNomChoisi(){
+  const i=document.getElementById('rdvNom'); if(!i || !RDV_FORM) return;
+  const x=resTrouver(i.value); if(!x) return;
+  rdvLireChamps();
+  if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
+  RDV_FORM.genre = x.type==='LAM' ? 'lam' : (RDV_FORM.genre==='lam' ? 'medical' : RDV_FORM.genre);
+  render();
+}
+async function resAjouter(nomTape, chambre, type){
+  const t=String(nomTape||'').trim(); if(!t) return;
+  const mots=t.split(/\s+/); let nom=mots.filter(function(m){ return m===m.toUpperCase() && /[A-Z]/.test(m); }).join(' '), prenom='';
+  if(nom){ prenom=mots.filter(function(m){ return !(m===m.toUpperCase() && /[A-Z]/.test(m)); }).join(' '); } else { nom=mots[0].toUpperCase(); prenom=mots.slice(1).join(' '); }
+  RESIDENTS=RESIDENTS.concat([{nom:nom, prenom:prenom, type:type||'', ch:chambre||''}]);
+  try{ await sb.from('residents_liste').upsert({id:1, liste:RESIDENTS, maj_le:new Date().toISOString(), maj_par:nomAffiche()}); }catch(e){}
+}
 function rdvNomsHistorique(){
   const vus={}, out=[];
   const ajoute=function(n){ n=String(n||'').split(',')[0].replace(/\s+/g,' ').trim(); if(!n || /^test\b/i.test(n)) return;
     const k=n.toLowerCase(); if(vus[k]) return; vus[k]=1; out.push(n); };
+  setTimeout(loadResidents,0);
+  RESIDENTS.forEach(function(x){ ajoute(resNomComplet(x)); });
   (typeof RDV!=='undefined'?RDV:[]).concat(typeof RDV_RETIRES!=='undefined'?RDV_RETIRES:[]).forEach(function(r){ ajoute(r.nom); });
   (typeof ENTRANTS!=='undefined'?ENTRANTS:[]).forEach(function(e){ ajoute(e.nom); });
-  return out.sort(function(a,b){ return a.localeCompare(b,'fr'); });
+  return out;   /* la liste des hébergés d'abord, dans son ordre ; puis l'agenda */
 }
 function rdvLireChamps(){
   if(!RDV_FORM) return;
@@ -19576,6 +19621,22 @@ async function rdvEnregistrer(){
   const F=RDV_FORM; if(!F) return;
   if(!F.nom.trim()){ toast('Il manque le nom'); return; }
   if(!F.jour){ toast('Il manque le jour'); return; }
+  /* ⭐ UN NOUVEAU NOM (Mag, 17/10/2026 : « on doit pouvoir rentrer un nouveau nom ; s'il est déjà rentré ou ressemble fort,
+     tu dois le dire avant de confirmer ») : un nom de la liste passe tel quel ; un nom qui RESSEMBLE à un hébergé demande
+     « c'est lui ? » ; un nom vraiment nouveau s'ajoute à la liste. Seulement à la création, pas en corrigeant. */
+  if(!F.id && !F._nomVu && RESIDENTS.length && !resTrouver(F.nom)){
+    const proches=resRessemble(F.nom);
+    if(proches.length){
+      ppChoix('« '+F.nom.trim()+' » ressemble à…', 'C’est la même personne ?',
+        proches.map(function(x){ return {t:resNomComplet(x)+(x.ch?' · ch. '+x.ch:'')+(x.type?' · '+x.type:''), fn:function(){
+          RDV_FORM.nom=resNomComplet(x); if(!String(RDV_FORM.chambre||'').trim()) RDV_FORM.chambre=x.ch||'';
+          if(x.type==='LAM') RDV_FORM.genre='lam'; RDV_FORM._nomVu=true; render(); setTimeout(rdvEnregistrer,50); }}; })
+        .concat([{t:'Non — nouveau nom : '+F.nom.trim(), clair:true, fn:function(){ RDV_FORM._nomVu=true; RDV_FORM._nomNouveau=true; setTimeout(rdvEnregistrer,50); }}]));
+      return;
+    }
+    F._nomNouveau=true;
+  }
+  if(F._nomNouveau && !F.id){ resAjouter(F.nom, F.chambre, F.genre==='lam'?'LAM':(F.genre==='medical'?'Médical':'')); F._nomNouveau=false; }
   /* Un réveil sans heure n'en est pas un (même règle que la passation, 22/08/2026). */
   if(F.reveil && !F.reveil_heure){ toast('Il manque l’heure du réveil'); const e=document.getElementById('rdvReveil'); if(e) e.focus(); return; }
   const ligne={jour:F.jour, heure:F.heure||null, nom:F.nom.trim().slice(0,80), chambre:(F.chambre||'').trim().slice(0,12)||null,
@@ -19687,7 +19748,7 @@ function rdvFormHTML(){
     /* ⭐ L'HISTORIQUE DES NOMS (Mag, 17/10/2026) : les noms déjà écrits dans l'agenda et les entrants se proposent pendant
        qu'on tape. Rien de nouveau n'est stocké : ce sont les noms déjà dans la base. */
     '<datalist id="rdvNomsHist">'+rdvNomsHistorique().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'+
-    '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off">'+
+    '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off" onchange="rdvNomChoisi()">'+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
     /* ⭐ LAM OU MÉDICAL (Mag, 17/10/2026) : où la personne est hébergée — comme pour les entrants. Un 2ᵉ appui retire le choix. */
 
