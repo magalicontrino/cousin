@@ -37835,39 +37835,52 @@ function accVal(f){
   return v;
 }
 function accNoteA(volet, k, pourCopie){
-  /* ═══ UNE VRAIE LISTE À PUCES (Mag, 05/10/2026 — quatre essais collés dans KAIROS,
-     elle a gardé le 2) ═══ KAIROS avale les <br> et met un grand blanc après chaque
-     <p> : une ligne par paragraphe étirait toute la note. Les listes <ul>/<li>, il les
-     garde serrées. Donc : le titre en <p> gras souligné, puis une liste ; la phrase de
-     fin en <p> italique. Même rendu à l'écran. Des balises simples, pas de classes. */
+  /* ═══ LA NOTE EN DESSIN 1, « COMME L'ÉCRAN » (Mag, 17/10/2026 : « on refait toute la mise en page de ce truc,
+     c'est vraiment moche » — trois dessins montrés, elle a pris le 1) ═══
+     · le titre de section en capitales, un trait dessous, comme les titres du formulaire ;
+     · une réponse courte (Oui/Non, date, petit champ) : « question : <b>réponse</b> » sur une ligne ;
+     · une grande case : la question en gras au-dessus, le texte dessous, en paragraphes — PAS de puces,
+       sauf si elle a elle-même commencé ses lignes par un tiret (- • * 1.) ;
+     · le gras n'est jamais sur ce qu'on a tapé (« pourquoi c'est en gras en dessous du motif ? ») ;
+     · les documents signés à part, en fin de note, sur une ligne grise.
+     Des balises SIMPLES et des styles en ligne : ce HTML part aussi dans le presse-papier (KAIROS). */
   const d=new Date().toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const P='<p style="margin:0 0 3px">';
   const out=[];
+  const ici=function(f,h){ return (k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h; };
+  const puce=/^\s*(?:[-–—•*·]|\d{1,2}[.)])\s+(.*)$/;
   accJeu(volet).forEach(function(g){
     const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
     if(!remplis.length) return;
-    const li=[];
-    const ici=function(f,h){ return '<li>'+((k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h)+'</li>'; };
-    remplis.filter(function(f){ return !accEstLong(f); }).forEach(function(f){
-      if(f.t==='case'){ li.push(ici(f,'<b>'+esc(accEtiq(f))+'</b>')); return; }
+    /* Les documents (section sans titre dans la note) : une seule ligne grise, en fin de note. */
+    if(g.noteSansTitre){
+      const t=remplis.map(function(f){ return '✓ '+esc(f.t==='case'?accEtiq(f):accEtiq(f)+' : '+accVal(f)); }).join(' · ');
+      out.push('<p style="margin:16px 0 0;color:#73716b"><i>'+t+(accFin(g)?' — '+esc(accFin(g)):'')+'</i></p>');
+      return;
+    }
+    let h='<p style="margin:16px 0 6px;padding-bottom:2px;border-bottom:1.5px solid #2b2a28;letter-spacing:.08em"><b>'+
+          esc(g.s.toUpperCase())+'</b></p>';
+    remplis.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
-      li.push(ici(f,(e?esc(e)+' : ':'')+'<b>'+esc(accVal(f))+'</b>'));
-    });
-    remplis.filter(function(f){ return accEstLong(f); }).forEach(function(f){
-      const e=accSansDoublon(accEtiq(f), g.s);
-      const lignes=String(ACC[f.k]).trim().split('\n').filter(function(x){ return x.trim(); });
-      lignes.forEach(function(x,n){
-        li.push(ici(f,(n===0 && e ? esc(e)+' : ' : '')+esc(x.trim())));
+      if(f.t==='case'){ h+=P+ici(f,'✓ '+esc(accEtiq(f)))+'</p>'; return; }
+      /* Le gras dit « voici la réponse à la question » : sans question écrite, pas de gras. */
+      if(!f.b && !accEstLong(f)){ h+=P+ici(f,e ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(accVal(f)))+'</p>'; return; }
+      if(e) h+='<p style="margin:8px 0 1px">'+ici(f,'<b>'+esc(e)+'</b>')+'</p>';
+      let ul=[];
+      const fermer=function(){ if(ul.length){ h+='<ul style="margin:0 0 3px;padding-left:20px">'+ul.join('')+'</ul>'; ul=[]; } };
+      String(ACC[f.k]).trim().split('\n').filter(function(x){ return x.trim(); }).forEach(function(x){
+        const m=x.match(puce);
+        if(m){ ul.push('<li>'+ici(f,esc(m[1].trim()))+'</li>'); return; }
+        fermer(); h+=P+ici(f,esc(x.trim()))+'</p>';
       });
+      fermer();
     });
-    out.push((g.noteSansTitre?'':'<p><b><u>'+esc(g.s)+'</u></b></p>')+
-      '<ul>'+li.join('')+'</ul>'+
-      (accFin(g)?'<p><i>→ '+esc(accFin(g))+'</i></p>':''));
+    if(accFin(g)) h+='<p style="margin:4px 0 0"><i>→ '+esc(accFin(g))+'</i></p>';
+    out.push(h);
   });
   if(!out.length) return '';
-  return '<p><span style="color:#73716b">'+(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d+'</span></p>'+out.join('');
+  return '<p style="margin:0 0 4px"><span style="color:#73716b">'+(volet==='med'?'Entretien d’accueil — médical — ':'Entretien d’accueil — ')+d+'</span></p>'+out.join('');
 }
-
-
 function accNoteHTML(lignes, k){
   return lignes.map(function(x){
     let t;
@@ -44520,6 +44533,18 @@ async function pfoDepuisChamp(){
   if(i) i.value=''; if(c) c.value='';
   render(); confirmePop(true,'Envoyée','dans la liste PFO');
 }
+/* Une ligne de Ma liste part dans la liste PFO — retirée de Ma liste SEULEMENT quand la base a dit oui. */
+async function pfoEnvoyerRappel(rid){
+  const r=MESRAPPELS.find(function(x){ return x.id===rid; }); if(!r) return;
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée au PFO','Pas de connexion — la ligne reste dans ta liste'); return; }
+  const l={texte:String(r.texte||'').slice(0,4000), pour:PASS_PFO, genre:'passation', par:nomAffiche(),
+           chambre:r.chambre||null, jour:todayStr(), uid:PROFILE.uid};
+  const {data,error}=await sb.from('passations').insert(l).select();
+  if(error||!data||!data.length){ confirmePop(false,'PAS envoyée au PFO',(error&&error.message)||'la base n’a pas répondu'); return; }
+  data[0]._pose=Date.now(); PASSATIONS.unshift(data[0]);
+  MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==rid; });
+  rappelsSauver(); render(); confirmePop(true,'Envoyée','dans la liste PFO');
+}
 async function pfoFait(id){
   const p=(PASSATIONS||[]).find(function(x){ return x.id===id; }); if(!p) return;
   const {error}=await sb.from('passations').update({fait_le:new Date().toISOString(), fait_par:nomAffiche()}).eq('id',id);
@@ -45236,7 +45261,11 @@ function rappelModifier(id){
             pour pouvoir les retirer (retirés du reste le 19/09/2026). */
          .concat(r.entretien?[{k:'entretien', l:'Entretien'}]:[])
          .concat(r.miparcours?[{k:'miparcours', l:'Mi-parcours'}]:[])
-         .concat([{k:'info', l:'Info'},{k:'noteTag', l:'Note'},{k:'vider', l:'Vider la chambre'}]),
+         .concat([{k:'info', l:'Info'}])
+         /* PFO à la place de Note (Mag, 17/10/2026, « là aussi ») ; Note reste proposée sur une ligne qui la porte déjà,
+            pour pouvoir la retirer. Cochée ici, PFO envoie la ligne dans la liste PFO (elle quitte Ma liste). */
+         .concat(r.noteTag?[{k:'noteTag', l:'Note'}]:[])
+         .concat([{k:'pfo', l:'PFO'},{k:'vider', l:'Vider la chambre'}]),
     etqSel:[r.absence?'absence':null, r.encoder?'encoder':null, r.desencodage?'desencodage':null,
             r.entretien?'entretien':null, r.miparcours?'miparcours':null,
             r.info?'info':null, r.noteTag?'noteTag':null,
@@ -45266,6 +45295,7 @@ function rappelModifier(id){
       if(etq&&etq.noteTag) r.noteTag=true; else delete r.noteTag;
       if(etq&&etq.vider) r.vider=true; else delete r.vider;
       rappelsSauver(); render();
+      if(etq&&etq.pfo) pfoEnvoyerRappel(r.id);
     }
   });
 }
