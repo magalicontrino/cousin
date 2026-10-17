@@ -20275,7 +20275,17 @@ function rdvImprimer(du, au, seulId){
      qu'on puisse le voir »). Lignes neutres ; celle qui manque d'accompagnant en rouge, et
      une ligne d'alerte en tête de feuille. */
   const unJour = seulId || du===au;
-  const ligne=function(r){
+  /* Vue « œil » : la feuille simple — heure, chambre, nom, lieu, qui accompagne. Une ligne chacun. */
+  const ligneSimple=function(r){
+    const sans=r.accompagne && !r.accomp_nom;
+    return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
+      '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
+      (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
+      '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lieu?' — '+esc(r.lieu):'')+
+        (r.accompagne?'<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+(sans?'accompagnant à trouver':'avec '+esc(r.accomp_nom))+'</span>':'')+
+      '</span></div>';
+  };
+  const ligne=(!seulId && RDV_MODE==='oeil') ? ligneSimple : function(r){
     const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
     return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
       /* « 09:30 », comme la passation : « 9 h 30 » se coupait en deux dans la colonne. */
@@ -20314,10 +20324,12 @@ function rdvImprimer(du, au, seulId){
   });
 }
 function rdvImprimerDates(){
-  const v=function(id){ const e=document.getElementById(id); return e?e.value:''; };
-  RDV_IMPR_DU=v('rdvDu')||RDV_IMPR_DU; RDV_IMPR_AU=v('rdvAu')||RDV_IMPR_AU;
+  /* ⭐ LA FEUILLE = CE QUE L'ÉCRAN MONTRE (Mag, 17/10/2026 : « œil, mauvais print » — l'écran montrait tout jusqu'au 30,
+     la feuille s'arrêtait au 19). Tant qu'on n'a pas choisi soi-même une date de fin, l'écran montre TOUT ce qui vient :
+     la feuille aussi. Et elle prend le dessin de la vue : œil = une ligne par rendez-vous, liste = le détail. */
   const D=rdvDates();
-  rdvAvantImprimer(RDV.filter(function(r){ return r.jour>=D.du && r.jour<=D.au; }), function(){ rdvImprimer(D.du, D.au); });
+  const au = RDV_IMPR_AU ? D.au : RDV.reduce(function(m,r){ return r.jour>m?r.jour:m; }, D.du);
+  rdvAvantImprimer(RDV.filter(function(r){ return r.jour>=D.du && r.jour<=au; }), function(){ rdvImprimer(D.du, au); });
 }
 /* ⚠ UN MESSAGE AVANT D'IMPRIMER S'IL MANQUE UN ACCOMPAGNANT (09/10/2026) : on imprime quand
    même si on veut, mais on sait. */
