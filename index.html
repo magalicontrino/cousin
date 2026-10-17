@@ -17897,7 +17897,7 @@ function rapportHTML(page){
   };
   const ligneRdv=function(r){
     /* « que fait LAURA ? » (Mag, 13/10/2026) : on écrit « accompagné par Laura », sous le lieu ; « accompagnant à trouver » reste en rouge. */
-    const avec=r.accompagne?(r.accomp_nom?'<em class="rap-avec">accompagné par <b>'+esc(r.accomp_nom)+'</b></em>':'<em class="rap-avec r">accompagnant à trouver</em>'):'';
+    const avec=r.accompagne?(r.accomp_nom?'<em class="rap-avec">accompagné par <b>'+esc(r.accomp_nom)+'</b></em>':(ACCORD_ACC?'<em class="rap-avec r">accompagnant à trouver</em>':'<em class="rap-avec">accompagnement</em>')):'';
     return '<button class="rap-l" onclick="rdvOuvrirModif(\''+r.id+'\')"><span class="rap-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
       '<span class="rap-x">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+(r.lieu?'<em>'+esc(r.lieu)+'</em>':'')+avec+'</span></button>';
   };
@@ -19042,8 +19042,11 @@ function rdvPeutEcrire(){
 function rdvHeureFr(h){ if(!h) return ''; const p=String(h).split(':'); return parseInt(p[0],10)+' h'+(p[1]&&p[1]!=='00'?' '+p[1]:''); }
 function rdvAccTexte(r){
   if(!r.accompagne) return 'Seul';
+  if(!ACCORD_ACC) return r.accomp_nom ? 'Accompagné par '+r.accomp_nom : 'Accompagnement';   /* plus d'alarme rouge (17/10/2026) */
   return r.accomp_nom ? 'Accompagné par '+r.accomp_nom : 'Accompagnant à trouver';
 }
+/* ⭐ EN VERT QUAND IL Y A UN ACCOMPAGNEMENT (Mag, 17/10/2026), au lieu du rouge « à trouver » de l'accord retiré. */
+function rdvKls(r){ return ACCORD_ACC ? ((r.accompagne && !r.accomp_nom)?'k-rdvmanque':'k-rdvneutre') : (r.accompagne?'k-rdvacc':'k-rdvneutre'); }
 /* « PMR · Taxi à commander · Réveil 6 h 30 » — ce qui est à prévoir, sur une ligne. */
 function rdvAPrevoir(r){
   const l=[];
@@ -19446,7 +19449,7 @@ function rdvDetail(id){
   bg.classList.add('on');
 }
 function rdvLigneSimple(r){
-  const avec = r.accompagne ? (r.accomp_nom ? '<span class="rdvl-a">'+esc(r.accomp_nom)+'</span>' : '<span class="rdvl-a rouge">à trouver</span>') : '<span></span>';
+  const avec = r.accompagne ? (r.accomp_nom ? '<span class="rdvl-a">'+esc(r.accomp_nom)+'</span>' : (ACCORD_ACC?'<span class="rdvl-a rouge">à trouver</span>':'<span class="rdvl-a" style="color:#3f8a64">accompagnement</span>')) : '<span></span>';
   return '<button class="rdvl" onclick="rdvModifier(\''+r.id+'\')">'+
     '<span class="rdvl-h">'+esc(rdvHeureFr(r.heure)||'—')+'</span>'+
     '<span class="rdvl-n">'+esc(r.nom)+(r.chambre?' <i>ch. '+esc(r.chambre)+'</i>':'')+(r.lam===true?' <i style="color:#e8308a;font-weight:700">LAM</i>':r.lam===false?' <i>MÉD</i>':'')+'</span>'+
@@ -19816,7 +19819,7 @@ function rdvCorrHTML(r){
 }
 function rdvCarte(r, passe){
   const t=rdvType(r.genre), ecr=rdvPeutEcrire(), ok=!!r.valide_le;
-  const lis = rdvAValider(r) ? (ok?'#6cb392':(r.refuse_le?'#b28b7a':'#f8763f')) : t.c;
+  const lis = rdvAValider(r) ? (ok?'#6cb392':(r.refuse_le?'#b28b7a':'#f8763f')) : ((!ACCORD_ACC && r.accompagne) ? '#6cb392' : t.c);
   const lieu=[r.lieu,r.adresse].filter(Boolean).join(' — ');
   return '<div id="rdvk-'+esc(String(r.id))+'" class="rdvk'+(passe?' passe':'')+(r.accompagne && !r.accomp_nom && !r.refuse_le?' manque':'')+'" style="border-left-color:'+lis+'">'+
     '<div class="rdvk-h'+(ecr?' rdvk-clic" onclick="rdvModifier(\''+r.id+'\')':'')+'">'+esc(rdvHeureFr(r.heure)||'—')+'</div>'+
@@ -20093,7 +20096,7 @@ function rdvImprimerSimple(du, au){
   let jour='';
   L.forEach(function(r){
     if(r.jour!==jour){ jour=r.jour; corps+='<tr class="jr"><td colspan="7">'+esc(ppJourFr(r.jour))+'</td></tr>'; }
-    const avec = r.accompagne ? (r.accomp_nom ? esc(r.accomp_nom) : '<span class="r">à trouver</span>') : 'seul';
+    const avec = r.accompagne ? (r.accomp_nom ? esc(r.accomp_nom) : (ACCORD_ACC?'<span class="r">à trouver</span>':'<span style="color:#3f8a64;font-weight:700">accompagnement</span>')) : 'seul';
     const e=function(t,c){ return '<span class="e" style="--c:'+c+'">'+esc(t)+'</span>'; };
     const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+(r.taxi?e(rdvTaxiTexte(r),'#f5c542'):'')+(r.transport?e('Transport classique','#6fc7d9'):'')+(r.pmr?e('PMR','#f5c542'):'')+
       (r.a_jeun?e('À JEUN','#6cb392'):'')+(r.pas_autonome?e('Pas autonome','#b28b7a'):'');
@@ -20167,7 +20170,7 @@ function rdvImprimerAcc(){
     corps+='<section class="ch neutre"><div class="st"><span>'+esc(ppJourFr(j))+'</span><em>'+l.length+'</em></div>'+
       l.map(function(r){
         const t=rdvType(r.genre);
-        return '<div class="l '+(r.accomp_nom?'k-rdvneutre':'k-rdvmanque')+'"><span class="bx"></span>'+
+        return '<div class="l '+rdvKls(r)+'"><span class="bx"></span>'+
           '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
           (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
           '<span class="quoi">'+esc(t.l)+'</span>'+
@@ -20306,16 +20309,16 @@ function rdvImprimer(du, au, seulId){
   /* Vue « œil » : la feuille simple — heure, chambre, nom, lieu, qui accompagne. Une ligne chacun. */
   const ligneSimple=function(r){
     const sans=r.accompagne && !r.accomp_nom;
-    return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
+    return '<div class="l '+rdvKls(r)+'"><span class="bx"></span>'+
       '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+(r.lam===true?' · LAM':r.lam===false?' · MÉD':'')+(r.lieu?' — '+esc(r.lieu):'')+
-        (r.accompagne?'<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+(sans?'accompagnant à trouver':'avec '+esc(r.accomp_nom))+'</span>':'')+
+        (r.accompagne?'<span class="com"'+((sans&&ACCORD_ACC)?' style="color:#e63329;font-weight:700"':'')+'>'+(sans?(ACCORD_ACC?'accompagnant à trouver':'accompagnement'):'avec '+esc(r.accomp_nom))+'</span>':'')+
       '</span></div>';
   };
   const ligne=(!seulId && RDV_MODE==='oeil') ? ligneSimple : function(r){
     const t=rdvType(r.genre), sans=r.accompagne && !r.accomp_nom;
-    return '<div class="l '+(sans?'k-rdvmanque':'k-rdvneutre')+'"><span class="bx"></span>'+
+    return '<div class="l '+rdvKls(r)+'"><span class="bx"></span>'+
       /* « 09:30 », comme la passation : « 9 h 30 » se coupait en deux dans la colonne. */
       '<span class="hh">'+esc(r.heure?String(r.heure).slice(0,5):'—')+'</span>'+
       (r.chambre?'<span class="chp"><i>CH.</i>'+esc(r.chambre)+'</span>':'')+
@@ -20323,7 +20326,7 @@ function rdvImprimer(du, au, seulId){
       '<span class="tx"><b>'+esc(r.nom)+'</b>'+
         ((r.lieu||r.adresse)?'<br>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')):'')+
         (r.accompagne && r.accomp_nom ? ''
-          : '<span class="com"'+(sans?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>')+
+          : '<span class="com"'+((sans&&ACCORD_ACC)?' style="color:#e63329;font-weight:700"':'')+'>'+esc(rdvAccTexte(r))+'</span>')+
         rdvEtiqPapier(r)+
         (r.note?'<span class="com">'+esc(r.note).replace(/\n/g,'<br>')+'</span>':'')+
       '</span></div>';
@@ -21581,7 +21584,7 @@ function feuilleImprimer(o){
        le turquoise des infos (`k-inf`). */
     '.l.k-rdvmed{border-left-color:#e63329}.ch:has(.k-rdvmed) .st{background:#e63329}'+
     /* Rendez-vous (09/10/2026) : neutre, et ROUGE seulement s'il manque l'accompagnant. */
-    '.l.k-rdvneutre{border-left-color:#d8d4cd}.l.k-rdvmanque{border-left-color:#e63329;background:#fdecea}'+
+    '.l.k-rdvneutre{border-left-color:#d8d4cd}.l.k-rdvmanque{border-left-color:#e63329;background:#fdecea}.l.k-rdvacc{border-left-color:#6cb392;background:#e9f5ef}'+
     /* L'accompagnant, sur le papier : une étiquette turquoise qui ne passe pas inaperçue. */
     '.etq{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.etq .acc{margin-top:0}'+
     '.acc{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;background:#6fc7d9;color:#2b2a28;'+
