@@ -5117,6 +5117,18 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rent-go{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:8px;background:#f5a8cd;
   color:var(--noir);font:inherit;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;cursor:pointer}
 .chadd.ecrire .rapPass.on{outline:2px solid #f2eee6;outline-offset:1px}
+/* Préparer en écrivant (18/10/2026) : Réveil · Info · À prévenir, puis Ma liste · Nuit · Social en couleur. */
+.chadd.ecrire .rprep{display:flex;gap:7px;margin:10px 0 0}
+.chadd.ecrire .rprep-b{flex:1;min-height:42px;border:1px solid rgba(242,238,230,.4);border-radius:8px;background:none;
+  color:#f2eee6;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer}
+.chadd.ecrire .rprep-b.on{background:var(--gc);border-color:var(--gc);color:var(--noir)}
+.chadd.ecrire .rprep-rv{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.chadd.ecrire .rprep-rv input{flex:1 1 120px;min-height:40px;border-radius:6px;border:0;padding:0 10px;font:inherit;background:#fdfdfc}
+.chadd.ecrire .rprep-rv .absa{flex:0 1 auto}
+.chadd.ecrire .rapNuit{background:#a9c8e8}
+.chadd.ecrire .rapSoc{background:#6cb392}
+.chadd.ecrire .rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
+.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:5px;padding:1px 6px;font-weight:700}
 .chadd.ecrire .absa.avmi.on .bx{border-color:var(--noir);background:var(--noir)}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
@@ -45218,6 +45230,11 @@ function rappelAjouter(){
      était écrit dedans. */
   if(RAP_TAGS.note) ligne.noteTag=true;
   if(RAP_TAGS.vider) ligne.vider=true;
+  /* La préparation (réveil + heure, info, à prévenir) reste sur la ligne : elle partira d'un appui (18/10/2026). */
+  rapPrepGarder();
+  if(RAP_PREP.genre){ ligne.prep={genre:RAP_PREP.genre, heure:RAP_PREP.heure||'', jour:RAP_PREP.jour||'', ajeun:!!RAP_PREP.ajeun};
+    if(RAP_PREP.genre==='reveil'){ ligne.reveilJ=RAP_PREP.jour||passDemain(); if(RAP_PREP.heure) ligne.reveilH=RAP_PREP.heure; } }
+  rapPrepVide();
   MESRAPPELS.push(ligne);
   RAP_BROUILLON=''; RAP_CH_BROUILLON=''; RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
   /* La confirmation attend la base (voir rapEnvoyerFusion) ; Désencoder ouvre sa propre fenêtre, pas de confirmation par-dessus. */
@@ -45455,6 +45472,80 @@ async function rapEntEnvoyer(){
   RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
   if(i) i.value=''; if(c) c.value='';
   render(); confirmePop(true,'Envoyée',vers);
+}
+/* ═══ CE QU'ON PRÉPARE EN ÉCRIVANT (18/10/2026) : Réveil · Info · À prévenir — facultatif. ═══ */
+var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false};
+function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false}; }
+function rapPrepGarder(){
+  const j=document.getElementById('rapPrepJour'), h=document.getElementById('rapPrepHeure');
+  if(j) RAP_PREP.jour=j.value; if(h) RAP_PREP.heure=h.value;
+}
+function rapPrepGenre(g){
+  rapPrepGarder(); const i=document.getElementById('rapTxt'); if(i) RAP_BROUILLON=i.value;
+  RAP_PREP.genre=(RAP_PREP.genre===g)?'':g; if(RAP_PREP.genre==='reveil' && !RAP_PREP.jour) RAP_PREP.jour=passDemain();
+  render();
+}
+function rapPrepAjeun(){ rapPrepGarder(); RAP_PREP.ajeun=!RAP_PREP.ajeun; render(); }
+function rapPrepHTML(){
+  const G=[['reveil','Réveil','#E8308A'],['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']];
+  let h='<div class="rprep">'+G.map(function(g){ const on=RAP_PREP.genre===g[0];
+    return '<button class="rprep-b'+(on?' on':'')+'" style="--gc:'+g[2]+'" aria-pressed="'+on+'" onclick="rapPrepGenre(\''+g[0]+'\')">'+g[1]+'</button>'; }).join('')+'</div>';
+  if(RAP_PREP.genre==='reveil') h+='<div class="rprep-rv"><input id="rapPrepJour" type="date" value="'+esc(RAP_PREP.jour||passDemain())+'" onchange="rapPrepGarder()">'+
+    '<input id="rapPrepHeure" type="time" value="'+esc(RAP_PREP.heure||'')+'" aria-label="Heure du réveil" onchange="rapPrepGarder()">'+
+    '<button class="absa avmi'+(RAP_PREP.ajeun?' on':'')+'" onclick="rapPrepAjeun()"><span class="bx"></span>À jeun</button></div>';
+  return h;
+}
+/* Ce qui part dans la base, depuis le champ ou depuis une ligne rangée. */
+function passLignePrete(t, ch, qui, P){
+  const g=(P&&P.genre)||'passation';
+  const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
+           chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
+           heure:(g==='reveil'?(P.heure||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
+  if(qui==='ts') l.pour_qui=null;
+  if(g==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
+  return l;
+}
+function passPrepManque(qui, P){
+  const g=(P&&P.genre)||'passation';
+  if(g==='reveil' && qui!=='nuit') return 'Un réveil part à l’équipe de nuit';
+  if(g==='reveil' && !(P&&P.heure)) return 'Il manque l’heure du réveil';
+  return '';
+}
+var RAP_ENVOI=false;
+async function rapEnvoyerVers(qui){
+  rapPrepGarder();
+  const i=document.getElementById('rapTxt'), c=document.getElementById('rapCh');
+  const t=((i&&i.value)||'').trim(); if(!t){ toast('Écris d’abord ce que tu veux passer'); if(i) i.focus(); return; }
+  const m=passPrepManque(qui, RAP_PREP); if(m){ toast(m); const e=document.getElementById('rapPrepHeure'); if(e && /heure/.test(m)) e.focus(); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — ta ligne reste écrite'); return; }
+  if(RAP_ENVOI) return; RAP_ENVOI=true;
+  let r; try{ r=await sb.from('passations').insert(passLignePrete(t, ((c&&c.value)||'').trim(), qui, RAP_PREP)).select(); } finally { RAP_ENVOI=false; }
+  /* ⚠ Le champ ne se vide QUE si la base a dit oui : sinon le texte reste, rien n'est perdu. */
+  if(r.error||!r.data||!r.data.length){ confirmePop(false,'PAS envoyée',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+  r.data[0]._pose=Date.now(); PASSATIONS.unshift(r.data[0]);
+  RAP_BROUILLON=''; RAP_CH_BROUILLON=''; rapPrepVide();
+  RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
+  if(i) i.value=''; if(c) c.value='';
+  render(); confirmePop(true,'Envoyée',qui==='nuit'?'à l’équipe de nuit':'au service social');
+}
+/* Une ligne rangée qui porte une préparation part d'un appui (Nuit / Social sur la ligne). Sans préparation, « Nuit »
+   ouvre la feuille comme avant, « Social » l'envoie en info. */
+async function rappelEnvoyerPrep(id, qui){
+  const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
+  if(qui==='nuit' && !r.prep){ rappelPasser(id); return; }
+  if(qui==='ts' && !r.prep){ socDepuisRappel(id); return; }
+  const m=passPrepManque(qui, r.prep); if(m){ toast(m+' — corrige-la avec le crayon'); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — la ligne reste dans ta liste'); return; }
+  const res=await sb.from('passations').insert(passLignePrete(r.texte, r.chambre, qui, r.prep)).select();
+  if(res.error||!res.data||!res.data.length){ confirmePop(false,'PAS envoyée',(res.error&&res.error.message)||'la base n’a pas répondu'); return; }
+  res.data[0]._pose=Date.now(); PASSATIONS.unshift(res.data[0]);
+  MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
+  rappelsSauver(); render(); confirmePop(true,'Envoyée',qui==='nuit'?'à l’équipe de nuit':'au service social');
+}
+function rappelPrepTexte(P){
+  if(!P||!P.genre) return '';
+  const g={reveil:'Réveil', passation:'Info', prevenir:'À prévenir'}[P.genre]||'';
+  return g+(P.genre==='reveil'&&P.heure?' '+rdvHeureFr(P.heure):'')+(P.ajeun?' · à jeun':'')+' · à passer';
 }
 function rappelVersPassation(){
   const i=document.getElementById('rapTxt'); if(!i) return;
@@ -49009,20 +49100,22 @@ function rappelsHTML(enCarte){
             'title="Rétablir" aria-label="Rétablir">'+icon('redo')+'</button>':'')+
           notBoutonHTML('rapTxt', true)+'</div>'+
         ((CH_HIST.rapTxt||{}).alerte?'<div class="notalerte">'+esc(CH_HIST.rapTxt.alerte)+'</div>':'')+
+        rapPrepHTML()+
         '<div class="chadd-b">'+
         '<input id="rapCh" class="chadd-ch" type="text" placeholder="N° ch." autocomplete="off" maxlength="12" '+
         'aria-label="Numéro de chambre" inputmode="numeric" value="'+esc(RAP_CH_BROUILLON||'')+'" '+
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');RAP_CH_BROUILLON=this.value" '+
         'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
-        '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
-        '<button class="rapPass'+(RAP_ENT?' on':'')+'" onclick="rapEntOuvrir()">Passation</button>'+
+        /* ═══ TROIS BOUTONS DE COULEUR : MA LISTE · NUIT · SOCIAL (Mag, 18/10/2026 : « garde réveil, info, à prévenir ; et
+           ensuite tu mets nuit, social, ma liste, les trois derniers en couleur : soit OK, soit nuit, soit social ») ═══
+           Un appui = où ça va. « Ma liste » garde ce qui est préparé (réveil + heure…) sur la ligne, pour l'envoyer plus
+           tard d'un seul appui, une fois la note corrigée. */
+        '<button class="chaddbtn" onclick="rappelAjouter()">Ma liste</button>'+
+        '<button class="rapPass rapNuit" onclick="rapEnvoyerVers(\'nuit\')">Nuit</button>'+
+        '<button class="rapPass rapSoc" onclick="rapEnvoyerVers(\'ts\')">Social</button>'+
         '<button class="rapPass rapAct" onclick="actDepuisListe()">Activité</button>'+
         '</div>'+
-        /* ═══ L'ENTONNOIR DE LA PASSATION (Mag, 18/10/2026 : « qu'on puisse partir choisir directement vers les corps de
-           métier, social ou nuit… un entonnoir inversé plutôt que beaucoup trop de pop-ups ») ═══ Passation → à qui ? →
-           quoi ? → Envoyer, DANS la carte noire ; les cases de rangement se cachent pendant ce temps. */
-        (RAP_ENT ? rapEntHTML() : '')+
-        (RAP_ENT ? '' : 
+        (
         /* ═══ LES ENCODÉS COCHABLES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
            Des cases libellées sous le champ, chacune cochable : une absence, un
            désencodage… On coche, on écrit, et la note porte le drapeau. L'absence
@@ -49081,6 +49174,7 @@ function rappelsHTML(enCarte){
       const bas=[];
       if(r.chambre) bas.push('ch. '+esc(r.chambre));
       if(r.quand)   bas.push(esc(rappelQuandFr(r.quand)));
+      if(r.prep && r.prep.genre) bas.push('<b class="prepetq" style="--gc:'+({reveil:'#E8308A',passation:'#a9c8e8',prevenir:'#f8763f'}[r.prep.genre]||'#a9c8e8')+'">'+esc(rappelPrepTexte(r.prep))+'</b>');
       /* ⚠ LE FILET DE COULEUR À GAUCHE DEMANDE SA CLASSE SUR LA RANGÉE. `.pl2.absence`
          était écrit dans le CSS depuis le 24/08 et n'a jamais rien peint : la classe
          n'était posée que pour la réunion. Les absences (rouge) et « à encoder »
@@ -49132,7 +49226,7 @@ function rappelsHTML(enCarte){
           /* ⚠ « PASSATION » SUR CHAQUE LIGNE DÉJÀ ÉCRITE (sa maquette, écran 1) : on
              peut toujours envoyer après coup ce qu'on avait noté pour soi. */
           /* « Nuit » ou « Service social » : le bouton dit OÙ ça part (Mag, 15/10/2026). */
-          '<button class="rapPass mini" onclick="rappelPasser(\''+r.id+'\')">Nuit</button>'+
+          '<button class="rapPass mini" onclick="rappelEnvoyerPrep(\''+r.id+'\',\'nuit\')">Nuit</button>'+
           /* Une note DÉSENCODER pas encore envoyée : « Vider la chambre » (Mag, 14/10/2026), « Envoyer » si rien à vider. */
           ((r.desencodage && !r.sortantId && !estGroupeD())
             ? '<button class="rapPass mini binvers" onclick="departEnvoyerNote(\''+r.id+'\')">'+((r.dep&&r.dep.aff===false)?'Envoyer':'Vider la chambre')+'</button>' : '')+
@@ -49140,8 +49234,8 @@ function rappelsHTML(enCarte){
              notes ») ═══ Comme la passation : on écrit ICI, et un bouton l'envoie. */
           /* Ce bouton-là est pour le service social seulement : les autres passent par
              « Passation » et ses deux boutons. */
-          ((PROFILE && PROFILE.equipe==='Travailleur social')
-            ? '<button class="rapPass mini binvers" onclick="socDepuisRappel(\''+r.id+'\')">Service social</button>'
+          ((PROFILE && (PROFILE.equipe==='Travailleur social' || (r.prep && r.prep.genre && r.prep.genre!=='reveil')))
+            ? '<button class="rapPass mini binvers" onclick="rappelEnvoyerPrep(\''+r.id+'\',\'ts\')">Service social</button>'
             : '')+
         '</div>'+
         /* ═══ CLIQUER SUR LE TEXTE MODIFIE, IL NE COCHE PLUS (Mag, 03/09/2026) ═══
