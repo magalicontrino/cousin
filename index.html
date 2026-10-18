@@ -43647,6 +43647,7 @@ function passCopier(id){
 function passRetirer(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
+  if(!passMienne(p)){ toast('Seule la personne qui l’a écrite peut la reprendre dans sa liste'); return; }
   cousinConfirme('Annuler cette passation ?',
     p.texte+'\n\nElle sort de la passation et redevient une ligne de ta liste. '+
     'Rien n’est effacé — pour ça, c’est la corbeille.',
@@ -43658,13 +43659,19 @@ function passRetirer(id){
          partout dans Ma liste ; et la chambre redescend avec elle. */
       const ret={id:'r'+Date.now(), texte:(com?txt+' — '+com:txt).slice(0,4000)};
       if(p.chambre) ret.chambre=String(p.chambre).slice(0,12);
+      /* ⚠⚠ D'ABORD LA BASE, ENSUITE MA LISTE (Mag, 18/10/2026 : « j'ai annulé la passation, c'est remonté dans ma liste
+         perso… mais c'est Adam qui a pu l'avoir aussi »). La ligne entrait dans la liste AVANT de demander à la base, et
+         une passation déjà retirée par quelqu'un d'autre (0 ligne effacée, sans erreur) revenait quand même : deux
+         personnes l'avaient chacune dans leur liste. Maintenant elle ne revient que si CETTE annulation l'a retirée. */
+      let n=0;
+      try{ const {data,error}=await sb.from('passations').delete().eq('id',p.id).select('id');
+        if(error) throw error; n=(data||[]).length;
+      }catch(e){ render(); toast('La base n’a pas répondu — rien n’a bougé, la passation est restée en bas'); return; }
+      PASS_EDIT=null; PASS_AJEUN=false;
+      if(!n){ await loadPassations(); render(); confirmePop(false,'Déjà retirée','Quelqu’un l’a déjà annulée ou supprimée — rien n’est ajouté à ta liste.'); return; }
       MESRAPPELS.push(ret);
       rappelsSauver();
-      try{ const {error}=await sb.from('passations').delete().eq('id',p.id);
-        if(error) throw error;
-        PASS_EDIT=null; PASS_AJEUN=false;
-        await loadPassations(); render();
-      }catch(e){ render(); toast('La base n’a pas répondu — la ligne est dans ta liste, la passation est restée en bas'); }
+      await loadPassations(); render();
     }, {ok:'Annuler la passation'});
 }
 /* ═══ QUATRE GENRES, PAS DEUX (Mag, 13/08/2026) ═══
@@ -43897,7 +43904,8 @@ function passLigne(p, mienne, role, heure, gauche){
       '<button class="ib" onclick="passCopier(\''+p.id+'\')" aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
       (passGerable(p)
         ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
-          '<button class="ib" onclick="passRetirer(\''+p.id+'\')" aria-label="Revient dans ma liste" title="Revient dans ma liste">'+icon('undo')+'</button>'+
+          /* « Revient dans ma liste » : SEULEMENT pour qui l'a écrite (18/10/2026) — elle retourne chez son auteur, pas chez un collègue. */
+          (passMienne(p)?'<button class="ib" onclick="passRetirer(\''+p.id+'\')" aria-label="Revient dans ma liste" title="Revient dans ma liste">'+icon('undo')+'</button>':'')+
           '<button class="ib sup" onclick="passSupprimer(\''+p.id+'\')" aria-label="Supprimer" title="Supprimer">'+icon('trash')+'</button>'
         : '')+
     '</span>'+
@@ -43907,7 +43915,8 @@ function passMenu(id, gerable){
   const B=[{t:'Copier le texte', fn:function(){ passCopier(id); }}];
   if(gerable){
     B.push({t:'Modifier', fn:function(){ passModifier(id); }});
-    B.push({t:'Annuler la passation (revient dans ma liste)', fn:function(){ passRetirer(id); }});
+    if(passMienne((PASSATIONS||[]).find(function(x){ return String(x.id)===String(id); })))
+      B.push({t:'Annuler la passation (revient dans ma liste)', fn:function(){ passRetirer(id); }});
     B.push({t:'Supprimer', clair:true, fn:function(){ passSupprimer(id); }});
   }
   ppChoix('Cette passation', '', B);
@@ -44850,7 +44859,7 @@ function passFeuilleHTML(){
          retiré le champ qui la posait. Voir `passAjouter`, qui n'y touche plus. */
       '<button class="acok" onclick="passAjouter()">'+
         (PASS_EDIT?'Enregistrer':'Passer à l’équipe')+'</button>'+
-      (PASS_EDIT
+      (PASS_EDIT && passMienne((PASSATIONS||[]).find(function(x){ return String(x.id)===String(PASS_EDIT); }))
         ? '<button class="passannul sup" onclick="passRetirer(\''+PASS_EDIT+'\')">Annuler la passation</button>'
         : '')+
     '</div></div>';
