@@ -5099,6 +5099,24 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
    pastilles de la lecture juste en dessous. Une couleur d'alerte posée sur une chose
    ordinaire finit par rendre les vraies alertes ordinaires. */
 .chadd.ecrire .absa.avmi.on{border-color:#f2eee6;color:var(--noir);background:#f2eee6}
+/* L'entonnoir de la passation, dans la carte noire (18/10/2026). */
+.chadd.ecrire .rent{margin-top:10px;border-top:1px solid rgba(242,238,230,.25);padding-top:10px}
+.chadd.ecrire .rent-fil{display:flex;align-items:center;gap:8px;font-family:ui-monospace,monospace;font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;color:rgba(242,238,230,.75)}
+.chadd.ecrire .rent-fil span{flex:1}
+.chadd.ecrire .rent-ret,.chadd.ecrire .rent-x{border:1px solid rgba(242,238,230,.3);background:none;color:#f2eee6;
+  border-radius:6px;min-width:32px;height:32px;font-size:16px;cursor:pointer}
+.chadd.ecrire .rent-t{margin:10px 0 6px;color:#f2eee6;font-weight:700;font-size:15px}
+.chadd.ecrire .rent-qui{display:flex;gap:8px;flex-wrap:wrap}
+.chadd.ecrire .rent-b{flex:1 1 30%;min-height:46px;border:1px solid rgba(242,238,230,.4);border-radius:8px;background:none;
+  color:#f2eee6;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.chadd.ecrire .rent-b.on{background:var(--gc,#f2eee6);border-color:var(--gc,#f2eee6);color:var(--noir)}
+.chadd.ecrire .rent-rv{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:stretch}
+.chadd.ecrire .rent-rv input{flex:1 1 120px;min-height:42px;border-radius:6px;border:0;padding:0 10px;font:inherit;background:#fdfdfc}
+.chadd.ecrire .rent-rv .absa{flex:0 1 auto}
+.chadd.ecrire .rent-go{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:8px;background:#f5a8cd;
+  color:var(--noir);font:inherit;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;cursor:pointer}
+.chadd.ecrire .rapPass.on{outline:2px solid #f2eee6;outline-offset:1px}
 .chadd.ecrire .absa.avmi.on .bx{border-color:var(--noir);background:var(--noir)}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
@@ -45366,6 +45384,69 @@ function rapReveilDirect(genre){
   if(genre==='prevenir'){ PASS_GENRE='prevenir'; PASS_POUR=PASS_EQUIPE; rappelVersPassation(); return; }
   RAP_TAGS.reveil=true; rappelVersPassation();
 }
+/* ═══ L'ENTONNOIR (18/10/2026) — voir la carte noire de Ma liste perso ═══
+   RAP_ENT = null (fermé) | {qui:'' | 'nuit' | 'ts', genre, pfo, ajeun, jour, heure}. */
+var RAP_ENT=null;
+function rapEntGarder(){
+  if(!RAP_ENT) return;
+  const j=document.getElementById('rapEntJour'), h=document.getElementById('rapEntHeure');
+  if(j) RAP_ENT.jour=j.value; if(h) RAP_ENT.heure=h.value;
+}
+function rapEntOuvrir(){
+  const i=document.getElementById('rapTxt');
+  if(!i || !(i.value||'').trim()){ toast('Écris d’abord ce que tu veux passer'); if(i) i.focus(); return; }
+  RAP_BROUILLON=i.value;
+  RAP_ENT = RAP_ENT ? null : {qui:'', genre:'passation', pfo:false, ajeun:false, jour:passDemain(), heure:''};
+  render();
+}
+function rapEntQui(q){ rapEntGarder(); RAP_ENT.qui=q; RAP_ENT.genre='passation'; RAP_ENT.pfo=false; render(); }
+function rapEntGenre(g){ rapEntGarder(); RAP_ENT.genre=g; render(); }
+function rapEntBascule(k){ rapEntGarder(); RAP_ENT[k]=!RAP_ENT[k]; render(); }
+function rapEntRetour(){ rapEntGarder(); if(RAP_ENT.qui) RAP_ENT.qui=''; else RAP_ENT=null; render(); }
+function rapEntHTML(){
+  const E=RAP_ENT, nuit=(E.qui==='nuit');
+  const fil='<div class="rent-fil"><button class="rent-ret" onclick="rapEntRetour()" aria-label="Revenir">‹</button>'+
+    '<span>Passation'+(E.qui?' › '+(nuit?'Équipe de nuit':'Service social'):'')+'</span>'+
+    '<button class="rent-x" onclick="RAP_ENT=null;render()" aria-label="Fermer">✕</button></div>';
+  if(!E.qui) return '<div class="rent">'+fil+'<p class="rent-t">À qui ?</p><div class="rent-qui">'+
+    '<button class="rent-b" onclick="rapEntQui(\'nuit\')">Équipe de nuit</button>'+
+    '<button class="rent-b" onclick="rapEntQui(\'ts\')">Service social</button></div></div>';
+  const genres = nuit ? [['reveil','Réveil','#E8308A'],['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']]
+                      : [['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']];
+  let h='<div class="rent">'+fil+'<p class="rent-t">Quoi ?</p><div class="rent-qui">'+genres.map(function(g){
+    const on=E.genre===g[0];
+    return '<button class="rent-b'+(on?' on':'')+'" style="--gc:'+g[2]+'" aria-pressed="'+on+'" onclick="rapEntGenre(\''+g[0]+'\')">'+g[1]+'</button>';
+  }).join('')+'</div>';
+  if(nuit && E.genre==='reveil') h+='<div class="rent-rv"><input id="rapEntJour" type="date" value="'+esc(E.jour||passDemain())+'">'+
+    '<input id="rapEntHeure" type="time" value="'+esc(E.heure||'')+'" aria-label="Heure du réveil">'+
+    '<button class="absa avmi'+(E.ajeun?' on':'')+'" onclick="rapEntBascule(\'ajeun\')"><span class="bx"></span>À jeun</button></div>';
+  if(!nuit) h+='<div class="rent-rv"><button class="absa avmi'+(E.pfo?' on':'')+'" onclick="rapEntBascule(\'pfo\')"><span class="bx"></span>PFO</button></div>';
+  return h+'<button class="rent-go" onclick="rapEntEnvoyer()">Envoyer '+(nuit?'à l’équipe de nuit':'au service social')+'</button></div>';
+}
+var RAP_ENT_ENVOI=false;
+async function rapEntEnvoyer(){
+  rapEntGarder(); const E=RAP_ENT; if(!E || !E.qui || RAP_ENT_ENVOI) return;
+  const i=document.getElementById('rapTxt'), c=document.getElementById('rapCh');
+  const t=((i&&i.value)||'').trim(); if(!t){ if(i) i.focus(); return; }
+  if(E.genre==='reveil' && !E.heure){ toast('Il manque l’heure du réveil'); const e=document.getElementById('rapEntHeure'); if(e) e.focus(); return; }
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — ta ligne reste écrite'); return; }
+  const ch=((c&&c.value)||'').trim();
+  const l={texte:t.slice(0,4000), pour:(E.qui==='nuit'?PASS_EQUIPE:PASS_SOCIAL), genre:E.genre, par:nomAffiche(), uid:PROFILE.uid,
+           chambre:ch?ch.slice(0,12):null, jour:(E.genre==='reveil'?(E.jour||passDemain()):todayStr()),
+           heure:(E.genre==='reveil'?E.heure:null), a_jeun:(E.genre==='reveil'&&!!E.ajeun)};
+  if(E.qui==='ts'){ l.pour_qui=null; if(E.pfo) l.fait_note='pfo'; }
+  if(E.genre==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
+  RAP_ENT_ENVOI=true;
+  let r; try{ r=await sb.from('passations').insert(l).select(); } finally { RAP_ENT_ENVOI=false; }
+  /* ⚠ Le champ ne se vide QUE si la base a dit oui : sinon le texte reste, rien n'est perdu. */
+  if(r.error||!r.data||!r.data.length){ confirmePop(false,'PAS envoyée',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+  r.data[0]._pose=Date.now(); PASSATIONS.unshift(r.data[0]);
+  const vers=(E.qui==='nuit'?'à l’équipe de nuit':'au service social'+(E.pfo?' · PFO':''));
+  RAP_ENT=null; RAP_BROUILLON=''; RAP_CH_BROUILLON='';
+  RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
+  if(i) i.value=''; if(c) c.value='';
+  render(); confirmePop(true,'Envoyée',vers);
+}
 function rappelVersPassation(){
   const i=document.getElementById('rapTxt'); if(!i) return;
   const t=(i.value||'').trim(); if(!t){ i.focus(); return; }
@@ -48925,9 +49006,14 @@ function rappelsHTML(enCarte){
         'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');RAP_CH_BROUILLON=this.value" '+
         'onkeydown="if(event.key===\'Enter\'){event.preventDefault();rappelAjouter();}">'+
         '<button class="chaddbtn" onclick="rappelAjouter()">OK</button>'+
-        '<button class="rapPass" onclick="rappelVersPassation()">Passation</button>'+
+        '<button class="rapPass'+(RAP_ENT?' on':'')+'" onclick="rapEntOuvrir()">Passation</button>'+
         '<button class="rapPass rapAct" onclick="actDepuisListe()">Activité</button>'+
         '</div>'+
+        /* ═══ L'ENTONNOIR DE LA PASSATION (Mag, 18/10/2026 : « qu'on puisse partir choisir directement vers les corps de
+           métier, social ou nuit… un entonnoir inversé plutôt que beaucoup trop de pop-ups ») ═══ Passation → à qui ? →
+           quoi ? → Envoyer, DANS la carte noire ; les cases de rangement se cachent pendant ce temps. */
+        (RAP_ENT ? rapEntHTML() : '')+
+        (RAP_ENT ? '' : 
         /* ═══ LES ENCODÉS COCHABLES, AU MOMENT D'ÉCRIRE (Mag, 24/08/2026) ═══
            Des cases libellées sous le champ, chacune cochable : une absence, un
            désencodage… On coche, on écrit, et la note porte le drapeau. L'absence
@@ -48958,23 +49044,14 @@ function rappelsHTML(enCarte){
         /* ⚠ ③ ENTRETIEN · MI-PARCOURS RETIRÉS (Mag, 19/09/2026 : « tu peux retirer ici
            entretien et mi-parcours ») : les entretiens ont leur onglet. Les lignes déjà
            marquées gardent leur marque, et Modifier permet encore de la retirer. */
-        /* ⭐ « À LA PLACE DE NOTE METS PFO » (Mag, 17/10/2026) : cochée, la ligne part dans la liste PFO au OK
-           (elle quitte Ma liste perso, comme « Service social »). Les lignes déjà marquées « Note » gardent leur marque. */
-        '<button class="absa avmi'+(RAP_TAGS.pfo?' on':'')+'" onclick="RAP_TAGS.pfo=!RAP_TAGS.pfo;render()" '+
-          'aria-pressed="'+(RAP_TAGS.pfo?'true':'false')+'">'+
-          '<span class="bx"></span>PFO</button>'+
         '<button class="absa avmi'+(RAP_TAGS.info?' on':'')+'" onclick="RAP_TAGS.info=!RAP_TAGS.info;render()" '+
           'aria-pressed="'+(RAP_TAGS.info?'true':'false')+'">'+
           '<span class="bx"></span>Info</button>'+
         /* ⭐ RÉVEIL AGIT TOUT DE SUITE (Mag, 15/10/2026 : « tu écris, tu fais OK, tu cliques sur Réveil, il n'y a plus rien
            dans la case ») : ce n'est plus une case à cocher puis OK — un appui ouvre la passation sur Réveil, avec ce qui
            est écrit. Case vide : on le dit, on ne perd rien. */
-        '<button class="absa avmi" onclick="rapReveilDirect()">'+
-          '<span class="bx"></span>Réveil</button>'+
-        /* « Prévenir », comme Réveil : un appui ouvre la passation déjà sur « À prévenir » (Mag, 16/10/2026). */
-        '<button class="absa avmi" onclick="rapReveilDirect(\'prevenir\')">'+
-          '<span class="bx"></span>Prévenir</button>'+
-        '</div>'+
+        /* Réveil, Prévenir et PFO sont des PASSATIONS : ils sont dans l'entonnoir (18/10/2026). */
+        '</div>')+
       '</div>';
   /* ⚠ LE RAPPEL AUTOMATIQUE EST POSÉ HORS DU `if(tot)`, et c'est tout le sujet : ce
      bloc-là ne dépend PAS d'avoir écrit quelque chose soi-même. Placé dedans, il ne
