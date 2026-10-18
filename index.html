@@ -19615,10 +19615,40 @@ function rdvNomChoisi(){
   RDV_FORM.nom=i.value;
   rdvNomVerifier(null);
 }
+/* NOM en capitales, puis prénom — comme l'export KAIROS. */
+function resDecouper(t){
+  const mots=String(t||'').trim().split(/\s+/); let nom=mots.filter(function(m){ return m===m.toUpperCase() && /[A-Z]/.test(m); }).join(' '), prenom='';
+  if(nom){ prenom=mots.filter(function(m){ return !(m===m.toUpperCase() && /[A-Z]/.test(m)); }).join(' '); } else { nom=mots[0].toUpperCase(); prenom=mots.slice(1).join(' '); }
+  return {nom:nom, prenom:prenom};
+}
+/* ✎ La correction va dans la liste des hébergés ET dans les rendez-vous à venir qui portent l'ancien nom (18/10/2026).
+   Les rendez-vous passés gardent ce qui était écrit ce jour-là. */
+function rdvNomCorriger(){
+  rdvLireChamps();
+  const x=resTrouver(RDV_FORM && RDV_FORM.nom); if(!x) return;
+  const ancien=resNomComplet(x);
+  cousinPop({titre:'Corriger le nom', texte:'', champ:ancien, max:80, ok:'Enregistrer',
+    quandOui:async function(v){
+      v=String(v||'').replace(/\s+/g,' ').trim(); if(!v || v===ancien) return;
+      const d=resDecouper(v), avant={nom:x.nom, prenom:x.prenom};
+      x.nom=d.nom; x.prenom=d.prenom;
+      const r=await sb.from('residents_liste').upsert({id:1, liste:RESIDENTS, maj_le:new Date().toISOString(), maj_par:nomAffiche()}).select('id');
+      if(r.error||!r.data||!r.data.length){ x.nom=avant.nom; x.prenom=avant.prenom; confirmePop(false,'Pas corrigé',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+      const nouveau=resNomComplet(x), a=agIso(new Date());
+      const ids=(RDV||[]).filter(function(y){ return y.jour>=a && !y.retire_le && resCle(y.nom)===resCle(ancien); }).map(function(y){ return y.id; });
+      let n=0;
+      if(ids.length){
+        const u=await sb.from('rendez_vous').update({nom:nouveau, modifie_par:nomAffiche(), modifie_le:new Date().toISOString()}).in('id',ids).select('id');
+        if(!u.error && u.data){ n=u.data.length; (RDV||[]).forEach(function(y){ if(ids.indexOf(y.id)>=0) y.nom=nouveau; }); }
+      }
+      journal('correction','nom d’hébergé', ancien+' → '+nouveau+(n?' ('+n+' rendez-vous)':''));
+      if(RDV_FORM){ RDV_FORM.nom=nouveau; RDV_FORM._nomVu=nouveau; }
+      render(); confirmePop(true,'Nom corrigé', n?n+' rendez-vous à venir corrigé'+(n>1?'s':''):'');
+    }});
+}
 async function resAjouter(nomTape, chambre, type){
   const t=String(nomTape||'').trim(); if(!t) return;
-  const mots=t.split(/\s+/); let nom=mots.filter(function(m){ return m===m.toUpperCase() && /[A-Z]/.test(m); }).join(' '), prenom='';
-  if(nom){ prenom=mots.filter(function(m){ return !(m===m.toUpperCase() && /[A-Z]/.test(m)); }).join(' '); } else { nom=mots[0].toUpperCase(); prenom=mots.slice(1).join(' '); }
+  const dd=resDecouper(t); let nom=dd.nom, prenom=dd.prenom;
   RESIDENTS=RESIDENTS.concat([{nom:nom, prenom:prenom, type:type||'', ch:chambre||''}]);
   try{ await sb.from('residents_liste').upsert({id:1, liste:RESIDENTS, maj_le:new Date().toISOString(), maj_par:nomAffiche()}); }catch(e){}
 }
@@ -19866,6 +19896,9 @@ function rdvFormHTML(){
        qu'on tape. Rien de nouveau n'est stocké : ce sont les noms déjà dans la base. */
     '<datalist id="rdvNomsHist">'+rdvNomsHistorique().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'+
     '<div class="tbduo"><input id="rdvNom" list="rdvNomsHist" placeholder="Nom" value="'+esc(F.nom)+'" autocomplete="off" onchange="rdvNomChoisi()">'+
+      /* ✎ CORRIGER UN NOM DE LA LISTE (Mag, 18/10/2026 : « si je trouve un nom et que je vois qu'il y a une faute, on doit
+         pouvoir changer le nom ») : seulement quand le nom est celui d'un hébergé de la liste. */
+      (resTrouver(F.nom)?'<button type="button" class="ib" onclick="rdvNomCorriger()" aria-label="Corriger ce nom" title="Corriger ce nom">'+icon('crayon')+'</button>':'')+
       '<input id="rdvChambre" placeholder="Chambre" inputmode="numeric" value="'+esc(F.chambre||'')+'" style="max-width:110px" autocomplete="off"></div>'+
     /* ⭐ LAM OU MÉDICAL (Mag, 17/10/2026) : où la personne est hébergée — comme pour les entrants. Un 2ᵉ appui retire le choix. */
 
