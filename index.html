@@ -5128,6 +5128,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapNuit{background:#a9c8e8}
 .chadd.ecrire .rapPass.rapSoc{background:#6cb392}
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
+.bkp-eff{margin-left:auto;border:0;background:none;color:#8a8780;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 4px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
 .prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
@@ -43279,7 +43280,8 @@ async function loadPassations(){
     const recu=data||[];
     const ilYAPeu=Date.now()-60000;
     const fraiches=(PASSATIONS||[]).filter(function(p){
-      return p && p.id && p._pose && p._pose>ilYAPeu && !recu.some(function(x){ return x.id===p.id; });
+      return p && p.id && p._pose && p._pose>ilYAPeu && !recu.some(function(x){ return x.id===p.id; })
+        && PASS_EFFACEES.indexOf(String(p.id))<0;
     });
     PASSATIONS=fraiches.concat(recu); PASS_PANNE='';
     if(PASSATIONS.some(function(p){ return p && p.pour===PASS_PFO && !p.fait_le; })) await pfoRanger();
@@ -43297,6 +43299,11 @@ async function loadPassations(){
   PASS_CHARGE=true;
 }
 function passFait(p){ return !!(p && p.fait_le); }
+/* ⚠ « ÇA MONTE, MAIS ÇA NE S'EST PAS PASSÉ » (Mag, 18/10/2026) : une passation posée il y a moins d'une minute est gardée
+   à l'écran même si la base ne la renvoie pas encore (voir `loadPassations`) — y compris quand on vient de la RETIRER.
+   Elle restait affichée une minute après la flèche ou la corbeille. Ce qu'on efface est oublié tout de suite. */
+var PASS_EFFACEES=[];
+function passOublier(id){ PASS_EFFACEES.push(String(id)); PASSATIONS=(PASSATIONS||[]).filter(function(x){ return String(x.id)!==String(id); }); }
 function passMienne(p){ return !!(p && PROFILE && p.uid && p.uid===PROFILE.uid); }
 /* ⚠ GERABLE = MIELLE OU ADRESSÉE À MON ÉQUIPE (Mag, 24/08/2026 : « on n'arrive pas à
    changer la note ni à la supprimer ni à la remettre hors Passation »). Une ligne écrite
@@ -43645,6 +43652,7 @@ async function passSupprimer(id){
         if(error) throw error;
         if(!data || !data.length){ toast('Pas supprimée : seule la personne qui l’a écrite peut la supprimer.'); return; }
         if(String(PASS_EDIT)===String(p.id)){ PASS_EDIT=null; PASS_FEUILLE=false; }
+        passOublier(p.id);
         journal('retrait','passation', String(p.texte||'').slice(0,120)+(passMienne(p)?'':' (écrite par '+String(p.par||'?').split(/\s+/)[0]+')'));
         await loadPassations(); render();
       }catch(e){ toast('Suppression refusée'); }
@@ -43690,7 +43698,7 @@ function passRetirer(id){
       try{ const {data,error}=await sb.from('passations').delete().eq('id',p.id).select('id');
         if(error) throw error; n=(data||[]).length;
       }catch(e){ render(); toast('La base n’a pas répondu — rien n’a bougé, la passation est restée en bas'); return; }
-      PASS_EDIT=null; PASS_AJEUN=false;
+      PASS_EDIT=null; PASS_AJEUN=false; passOublier(p.id);
       if(!n){ await loadPassations(); render(); confirmePop(false,'Déjà retirée','Quelqu’un l’a déjà annulée ou supprimée — rien n’est ajouté à ta liste.'); return; }
       MESRAPPELS.push(ret);
       rappelsSauver();
@@ -43925,6 +43933,12 @@ function passLigne(p, mienne, role, heure, gauche){
       /* ⭐ LES PICTOS À LA PLACE DU « … » (Mag, 15/10/2026, dessin A sur deux : « on devrait voir la corbeille directement »).
          Copier pour tout le monde ; modifier · revient dans ma liste · supprimer pour ce qu'on a écrit soi-même. */
       '<button class="ib" onclick="passCopier(\''+p.id+'\')" aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
+      /* Nuit ⇄ Social, mêmes mots et couleurs que Ma liste (18/10/2026). */
+      ((passGerable(p) && (p.pour===PASS_SOCIAL || p.pour===PASS_EQUIPE))
+        ? (p.pour===PASS_SOCIAL
+            ? (p.genre==='reveil'?'':'<button class="rapPass mini lnuit" onclick="passDeplacer(\''+p.id+'\',\'nuit\')">Nuit</button>')
+            : (p.genre==='reveil'?'':'<button class="rapPass mini lsoc" onclick="passDeplacer(\''+p.id+'\',\'ts\')">Social</button>'))
+        : '')+
       (passGerable(p)
         ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
           /* « Revient dans ma liste » : SEULEMENT pour qui l'a écrite (18/10/2026) — elle retourne chez son auteur, pas chez un collègue. */
@@ -43933,6 +43947,18 @@ function passLigne(p, mienne, role, heure, gauche){
         : '')+
     '</span>'+
   '</div>';
+}
+/* ═══ D'UNE PASSATION À L'AUTRE (Mag, 18/10/2026 : « je dois pouvoir passer en nuit, et quand je suis dans nuit, je dois
+   pouvoir passer dans social ») ═══ La même ligne change de carte : rien n'est recopié. Un réveil reste à la nuit. */
+async function passDeplacer(id, vers){
+  const p=(PASSATIONS||[]).find(function(x){ return String(x.id)===String(id); }); if(!p) return;
+  if(vers==='ts' && p.genre==='reveil'){ toast('Un réveil reste à l’équipe de nuit'); return; }
+  const maj={pour:(vers==='nuit'?PASS_EQUIPE:PASS_SOCIAL), pour_qui:null};
+  if(vers==='nuit') maj.fait_note=null;   /* la coche PFO n'a de sens que dans le social */
+  const {data,error}=await sb.from('passations').update(maj).eq('id',p.id).select('*');
+  if(error||!data||!data.length){ confirmePop(false,'Pas déplacée',(error&&error.message)||'la base n’a pas répondu'); return; }
+  Object.assign(p, data[0]); render();
+  confirmePop(true,'Déplacée',vers==='nuit'?'dans l’équipe de nuit':'dans le service social');
 }
 function passMenu(id, gerable){
   const B=[{t:'Copier le texte', fn:function(){ passCopier(id); }}];
@@ -48882,6 +48908,11 @@ function bkpDeLigne(r){
   return {texte:t||'(vide)', donnees:d};
 }
 function bkpDemander(titre, texte, origine, lignes, retirer){
+  /* ⭐ PLUS DE QUESTION (Mag, 18/10/2026 : « mets backup ; on doit pouvoir aussi effacer du backup, en fin de page,
+     discrètement, mais ne demande pas, juste OK ») : la corbeille met la note au backup, tout de suite. Effacer pour de
+     bon se fait dans le backup, en bas de la page. La fenêtre d'avant reste dessous, inutilisée. */
+  (async function(){ const ok=await bkpMettre(lignes(), origine); if(ok){ retirer(); toast('Dans le backup · '+BKP_JOURS+' jours'); } })();
+  return;
   let bg=document.getElementById('bkpBg');
   if(!bg){
     bg=document.createElement('div'); bg.id='bkpBg'; bg.className='popbg';
@@ -48957,10 +48988,17 @@ function bkpHTML(){
           '<button class="dembtn clair" onclick="bkpCopier('+b.id+')">'+icon('copyleger')+'Copier</button>'+
           '<button class="dembtn clair" onclick="bkpRemettre('+b.id+')">'+
             (b.origine==='notes'?'Remettre dans les notes':'Remettre dans ma liste')+'</button>'+
+          /* Effacer pour de bon : discret, sans question (18/10/2026). */
+          '<button class="bkp-eff" onclick="bkpEffacer('+b.id+')">Effacer</button>'+
         '</div></div>';
     });
   }
   return h+'</div>';
+}
+async function bkpEffacer(id){
+  const {data,error}=await sb.from('notes_backup').delete().eq('id',id).select('id');
+  if(error||!data||!data.length){ toast('Pas effacée : la base n’a pas répondu'); return; }
+  BACKUP=BACKUP.filter(function(x){ return x.id!==id; }); render(); toast('Effacée');
 }
 function bkpCopier(id){
   const b=BACKUP.find(function(x){ return x.id===id; }); if(!b) return;
