@@ -5130,7 +5130,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
-.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:5px;padding:1px 6px;font-weight:700}
+.prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
+  padding:1px 6px;font:700 10px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;line-height:1.5;margin:0}
 .chadd.ecrire .absa.avmi.on .bx{border-color:var(--noir);background:var(--noir)}
 /* ═══ DEUX COULEURS SUR LE NOIR (Mag, 22/08/2026 : « le bouton OK, les passations, tu
    peux mettre des couleurs, genre rose et jaune — pas trop foncé pour qu'on voie bien
@@ -44793,7 +44794,9 @@ function passFeuilleHTML(){
          et qui est difficile le matin.
          ⚠ IL GRANDIT TOUT SEUL en tapant (`passGrandir`) : une barre de défilement dans
          un champ de trois lignes cache ce qu'on vient d'écrire. */
-      '<div class="txligne">'+passBarreHTML('passTxt')+txCopierCollerHTML('passTxt')+'</div>'+
+      /* Juste le picto Copier (Mag, 18/10/2026 : « laisse juste le picto à copier ») — Gras, Souligné et Coller retirés. */
+      '<div class="txligne"><button type="button" class="txb pic" onmousedown="event.preventDefault()" '+
+        'onclick="txCopier(\'passTxt\')" title="Copier tout le texte" aria-label="Copier tout le texte">'+icon('copyleger')+'</button></div>'+
       '<textarea id="passTxt" rows="3" placeholder="…" oninput="passGrandir(this)"></textarea>'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
          qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
@@ -45551,10 +45554,13 @@ async function rappelEnvoyerPrep(id, qui){
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
   rappelsSauver(); render(); confirmePop(true,'Envoyée',qui==='nuit'?'à l’équipe de nuit':'au service social');
 }
+/* L'étiquette d'une ligne préparée : seulement Réveil (et son heure) ou À prévenir — « info à passer : on sait que c'est
+   une info, arrête avec les infos » (Mag, 18/10/2026). Ni « Info », ni « à passer ». */
 function rappelPrepTexte(P){
   if(!P||!P.genre) return '';
-  const g={reveil:'Réveil', passation:'Info', prevenir:'À prévenir'}[P.genre]||'';
-  return g+(P.genre==='reveil'&&P.heure?' '+rdvHeureFr(P.heure):'')+(P.ajeun?' · à jeun':'')+' · à passer';
+  if(P.genre==='reveil') return 'Réveil'+(P.heure?' '+rdvHeureFr(P.heure):'')+(P.ajeun?' · à jeun':'');
+  if(P.genre==='prevenir') return 'À prévenir';
+  return '';
 }
 function rappelVersPassation(){
   const i=document.getElementById('rapTxt'); if(!i) return;
@@ -49182,7 +49188,7 @@ function rappelsHTML(enCarte){
       const bas=[];
       if(r.chambre) bas.push('ch. '+esc(r.chambre));
       if(r.quand)   bas.push(esc(rappelQuandFr(r.quand)));
-      if(r.prep && r.prep.genre) bas.push('<b class="prepetq" style="--gc:'+({reveil:'#E8308A',passation:'#a9c8e8',prevenir:'#f8763f'}[r.prep.genre]||'#a9c8e8')+'">'+esc(rappelPrepTexte(r.prep))+'</b>');
+      if(r.prep && rappelPrepTexte(r.prep)) bas.push('<b class="prepetq" style="--gc:'+({reveil:'#E8308A',passation:'#a9c8e8',prevenir:'#f8763f'}[r.prep.genre]||'#a9c8e8')+'">'+esc(rappelPrepTexte(r.prep))+'</b>');
       /* ⚠ LE FILET DE COULEUR À GAUCHE DEMANDE SA CLASSE SUR LA RANGÉE. `.pl2.absence`
          était écrit dans le CSS depuis le 24/08 et n'a jamais rien peint : la classe
          n'était posée que pour la réunion. Les absences (rouge) et « à encoder »
