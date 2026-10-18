@@ -19593,8 +19593,17 @@ function rdvNomVerifier(apres){
       proches.map(function(y){ return {t:resNomComplet(y)+(y.ch?' · ch. '+y.ch:'')+(y.type?' · '+y.type:''), fn:function(){ rdvNomRemplir(y); suite(); }}; })
       .concat([{t:'Non — nouveau nom : '+nom, clair:true, fn:nouveau}, {t:'Corriger le nom', clair:true, fn:corriger}]));
   } else {
-    ppChoix('« '+nom+' » n’est pas dans la liste des hébergés', '',
-      [{t:'C’est un nouvel hébergé — l’ajouter', fn:nouveau}, {t:'Corriger le nom', clair:true, fn:corriger}]);
+    /* ⭐ UNE CASE, PAS TROIS BOUTONS (Mag, 18/10/2026 : « tu mets juste "n'est pas dans la liste des hébergés", un cadre
+       texte qu'on peut corriger directement ou remplir, et annuler — corriger ne servira plus à rien si on peut écrire »).
+       Le nom est dans la case : on le corrige ou on le complète, « Ajouter » l'enregistre comme nouvel hébergé — sauf si,
+       corrigé, il est dans la liste : on prend alors celui de la liste. */
+    cousinPop({titre:'« '+nom+' » n’est pas dans la liste des hébergés', texte:'', champ:nom, max:80, ok:'Ajouter',
+      quandOui:function(v){
+        v=String(v||'').replace(/\s+/g,' ').trim(); if(!v) return;
+        RDV_FORM.nom=v; const i=document.getElementById('rdvNom'); if(i) i.value=v;
+        const y=resTrouver(v); if(y){ rdvNomRemplir(y); suite(); return; }
+        RDV_FORM._nomVu=v; RDV_FORM._nomNouveau=true; render(); suite();
+      }});
   }
   return false;
 }
