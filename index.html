@@ -19365,10 +19365,9 @@ function rdvEtiquettes(r, sansAcc, opt){
   /* « Note juste accompagnement » (Mag, 17/10/2026) : l'étiquette dit ACCOMPAGNEMENT, en vert, avec ou sans nom. */
   if(!sansAcc && r.accompagne && (r.accomp_nom || !ACCORD_ACC)) e.push(['Accompagnement','#6cb392','',IMG('accompagnement.svg')]);
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
-  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542'), 'taxi', icon('bus')]);
-  if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus')]);
-  /* Un rendez-vous à venir enregistré avant la question : on le voit, pour le compléter (18/10/2026). */
-  if(!rdvTrajet(r) && r.jour>=agIso(new Date()) && !r.retire_le) e.push(['Transport ?','#e63329','',icon('bus')]);
+  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542'), 'taxi', '']);
+  if(r.transport) e.push(['Transport classique','#6fc7d9','','']);   /* pas de picto : « bus » n'existe pas, il laissait un trou à gauche (18/10/2026) */
+  /* (« Transport ? » retiré des cartes le 18/10/2026 : le rappel se fait à l'enregistrement.) */
 
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
@@ -19862,7 +19861,11 @@ async function rdvEnregistrer(){
   RDV_FORM=null; render();
   /* UNE FENÊTRE, PAS UN TOAST (Mag, 13/10/2026 : « quand on enregistre, il faut vraiment une pop-up pour confirmer ») :
      on lit le nom, le jour et l'heure de ce qui vient d'être enregistré. */
-  cousinInfo('Rendez-vous enregistré', r.nom+(r.chambre?' · ch. '+r.chambre:'')+' — '+ppJourFr(r.jour)+(r.heure?' à '+rdvHeureFr(r.heure):' · sans heure'));
+  /* ⭐ LE RAPPEL DU TRANSPORT ARRIVE ICI, À L'ENREGISTREMENT (Mag, 18/10/2026 : « c'est au moment où on fait OK qu'il faut
+     qu'on voie : c'est bien encodé, mais n'oublie pas de mettre le transport dans la liste des transports »). */
+  const tj=rdvTrajet(r);
+  cousinInfo('Rendez-vous enregistré', r.nom+(r.chambre?' · ch. '+r.chambre:'')+' — '+ppJourFr(r.jour)+(r.heure?' à '+rdvHeureFr(r.heure):' · sans heure')+
+    ((tj==='taxi'||tj==='transport')?'\n\n⚠ N’oublie pas de l’inscrire dans la liste des transports'+(tj==='taxi'?' (taxi à commander)':'')+'.':''));
   setTimeout(function(){ const e=document.getElementById('rdvk-'+r.id); if(!e) return;
     if(e.scrollIntoView) e.scrollIntoView({behavior:'smooth', block:'center'});
     e.classList.add('rdvk-nouveau'); setTimeout(function(){ e.classList.remove('rdvk-nouveau'); }, 2600); }, 120);
