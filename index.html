@@ -19376,10 +19376,15 @@ function rdvEtiquettes(r, sansAcc, opt){
   /* « Note juste accompagnement » (Mag, 17/10/2026) : l'étiquette dit ACCOMPAGNEMENT, en vert, avec ou sans nom. */
   if(!sansAcc && r.accompagne && (r.accomp_nom || !ACCORD_ACC)) e.push(['Accompagnement','#6cb392','',IMG('accompagnement.svg')]);
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
-  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542'), 'taxi', icon('voiture'), 'tr']);
-  if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus'),'tr']);
+  /* ⭐ UNE SEULE ÉTIQUETTE TRANSPORT (Mag, 18/10/2026 : « juste "Transport ?" ; quand tu cliques, une pop-up, j'ai bien encodé
+     le transport, "OK, transport encodé", ça se met à la place, toujours le même picto, et ça marque qui a mis OK »). */
+  { const tj=rdvTrajet(r);
+    if(!opt.sansTaxi && (tj==='taxi' || tj==='transport' || (!tj && r.jour>=agIso(new Date()) && !r.retire_le))){
+      const pic=icon(tj==='transport'?'bus':'voiture');
+      if(r.transport_ok_par) e.push(['Transport encodé · '+String(r.transport_ok_par).split(/\s+/)[0],'#6cb392','trok',pic,'tr']);
+      else e.push(['Transport ?','#e63329','trq',pic,'tr']);
+    } }
   /* « Transport ? » revient, avec sa petite voiture (Mag, 18/10/2026 : « tu peux mettre ça, mais joli »). */
-  if(!rdvTrajet(r) && r.jour>=agIso(new Date()) && !r.retire_le) e.push(['Transport ?','#e63329','',icon('voiture'),'tr']);
 
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
@@ -19392,7 +19397,7 @@ function rdvEtiquettes(r, sansAcc, opt){
     /* ⭐ LES TRANSPORTS, STYLE 3 (Mag, 18/10/2026) : pastille claire, un ROND de couleur qui porte le picto, puis le mot. */
     if(x[4]==='tr'){
       const rond='<i class="rdvtr-r" style="background:'+x[1]+';color:'+(x[1]==='#e63329'?'#fdfdfc':'#2b2a28')+'">'+(x[3]||'')+'</i>';
-      if(x[2]==='taxi' && r.id && rdvPeutEcrire()) return '<button class="rdvtr" onclick="rdvTaxi(\''+r.id+'\')">'+rond+esc(x[0])+'</button>';
+      if((x[2]==='trq'||x[2]==='trok') && r.id && rdvPeutEcrire()) return '<button class="rdvtr" onclick="rdvTransportOk(\''+r.id+'\')">'+rond+esc(x[0])+'</button>';
       return '<span class="rdvtr">'+rond+esc(x[0])+'</span>';
     }
     if(x[2]==='taxi' && r.id && rdvPeutEcrire())
@@ -19472,8 +19477,7 @@ function rdvEtiqPapier(r){
   if(r.accompagne && (r.accomp_nom || !ACCORD_ACC)) e.push(['Accompagnement','#6cb392']);   /* (17/10/2026) */
   if(r.a_jeun) e.push(['À JEUN','#6cb392']);
   if(r.pmr) e.push(['PMR','#f5c542']);
-  if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542')]);
-  if(r.transport) e.push(['Transport classique','#6fc7d9']);
+  if(r.taxi||r.transport) e.push([(r.transport_ok_par?'Transport encodé · '+String(r.transport_ok_par).split(/\s+/)[0]:'Transport ?')+(r.taxi?' (taxi)':''), r.transport_ok_par?'#6cb392':'#e63329']);
 
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a']);
@@ -19716,8 +19720,24 @@ function rdvTrajet(r){
   return '';
 }
 /* Un taxi à commander pour aujourd'hui ou demain, pas encore commandé : il se voit en ROUGE (18/10/2026). */
+async function rdvTransportOk(id){
+  const r=rdvLigne(id); if(!r) return;
+  const ecrire=async function(maj, msg){
+    const {data,error}=await sb.from('rendez_vous').update(maj).eq('id',r.id).select('*');
+    if(error||!data||!data.length){ confirmePop(false,'Pas enregistré',(error&&error.message)||'la base n’a pas répondu'); return; }
+    Object.assign(r, data[0]); journal('transport','rendez-vous', r.nom+' · '+msg); render(); toast(msg);
+  };
+  if(r.transport_ok_par){
+    cousinConfirme('Transport encodé', 'Par '+String(r.transport_ok_par).split(/\s+/)[0]+(r.transport_ok_le?' · '+ppJourFr(agIso(new Date(r.transport_ok_le))):''),
+      function(){ ecrire({transport_ok_par:null, transport_ok_le:null}, 'Transport à encoder'); }, {ok:'Remettre à encoder'});
+    return;
+  }
+  cousinConfirme('Transport ?', r.nom+' — '+ppJourFr(r.jour)+(r.heure?' à '+rdvHeureFr(r.heure):''),
+    function(){ ecrire({transport_ok_par:nomAffiche(), transport_ok_le:new Date().toISOString()}, 'Transport encodé ✓'); },
+    {ok:'OK, transport encodé'});
+}
 function rdvTaxiUrgent(r){
-  if(!r || !r.taxi || r.taxi_par || r.retire_le) return false;
+  if(!r || !r.taxi || r.taxi_par || r.transport_ok_par || r.retire_le) return false;
   const a=agIso(new Date()); return r.jour===a || r.jour===ppAjoute(a,1);
 }
 function rdvChoix(champ, val){
@@ -20341,7 +20361,7 @@ function rdvImprimerSimple(du, au, garde){
     if(r.jour!==jour){ jour=r.jour; corps+='<tr class="jr"><td colspan="7">'+esc(ppJourFr(r.jour))+'</td></tr>'; }
     const avec = r.accompagne ? (r.accomp_nom ? esc(r.accomp_nom) : (ACCORD_ACC?'<span class="r">à trouver</span>':'<span style="color:#3f8a64;font-weight:700">accompagnement</span>')) : 'seul';
     const e=function(t,c){ return '<span class="e" style="--c:'+c+'">'+esc(t)+'</span>'; };
-    const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+(r.taxi?e(rdvTaxiTexte(r),'#f5c542'):'')+(r.transport?e('Transport classique','#6fc7d9'):'')+(r.pmr?e('PMR','#f5c542'):'')+
+    const prev=(r.reveil?e('Réveil '+(rdvHeureFr(r.reveil_heure)||''),'#fd8fd0'):'')+((r.taxi||r.transport)?e(r.transport_ok_par?'Transport encodé · '+String(r.transport_ok_par).split(/\s+/)[0]:'Transport ?', r.transport_ok_par?'#6cb392':'#e63329'):'')+(r.pmr?e('PMR','#f5c542'):'')+
       (r.a_jeun?e('À JEUN','#6cb392'):'')+(r.pas_autonome?e('Pas autonome','#b28b7a'):'');
     corps+='<tr><td class="h">'+esc(rdvHeureFr(r.heure)||'—')+'</td><td><b>'+esc(r.nom)+'</b> <span class="e" style="--c:'+rdvType(r.genre).c+'">'+esc(rdvType(r.genre).l)+'</span></td><td>'+esc(r.chambre||'')+'</td>'+
       '<td>'+esc([r.lieu,r.adresse].filter(Boolean).join(' — ')||'—')+'</td><td>'+avec+'</td><td>'+prev+'</td><td>'+esc(r.note||'')+'</td></tr>';
