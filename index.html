@@ -17877,7 +17877,8 @@ function accTrioHTML(){
   /* LE VERT = TOUS LES ACCOMPAGNEMENTS À VENIR (Mag, 13/10/2026 : « des accompagnements globaux ») ; le rouge = ce qui reste à faire. */
   const nAccTous=rapportDonnees().acc.length;   /* la semaine, comme la section du point du jour (17/10/2026) */
   let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
-  const chipsTout=rapEtiquettes({prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  const nTaxi=(RDV||[]).filter(rdvTaxiUrgent).length;   /* taxis à commander aujourd'hui / demain (18/10/2026) */
+  const chipsTout=rapEtiquettes({taxi:nTaxi, prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -18078,7 +18079,10 @@ function rapEtiquettes(o, accueil){
     return '<span class="etq'+(rouge==='vert'?' etq-vert':rouge==='blanc'?' etq-blanc':(rouge?' etq-rouge':''))+'" role="button" onclick="'+clic+'">'+(pic||'')+'<b>'+n+'</b>'+(mot?'<span>'+esc(mot)+'</span>':'')+'</span>';
   };
   /* LES ABSENTS +3 NUITS (Mag, 13/10/2026), en tête ; rouge s'il y a un LAM. */
-  return e(o.abs3,'', 'absent'+(o.abs3>1?'s':'')+' +3 nuits','abslam', !!o.abs3lam)+e(o.ent,'', 'sans PFM','entree')+e(o.info, masque('eclair.svg','#f8763f'), o.info>1?'infos':'info','info')+   /* l'éclair pour les infos (Mag, 13/10/2026, B) */
+  /* ⭐ LE TAXI PAS ENCORE COMMANDÉ (Mag, 18/10/2026) : en rouge, en tête ; un appui mène à l'agenda. Disparaît dès qu'il est commandé. */
+  const taxi=o.taxi ? '<span class="etq etq-rouge" role="button" onclick="event.stopPropagation();RDV_VUE=\'\';RDV_FORM=null;go(\'#/rdv\')">'+
+    ic('bus','#fdfdfc')+'<b>'+o.taxi+'</b><span>taxi'+(o.taxi>1?'s':'')+' à commander</span></span>' : '';
+  return taxi+e(o.abs3,'', 'absent'+(o.abs3>1?'s':'')+' +3 nuits','abslam', !!o.abs3lam)+e(o.ent,'', 'sans PFM','entree')+e(o.info, masque('eclair.svg','#f8763f'), o.info>1?'infos':'info','info')+   /* l'éclair pour les infos (Mag, 13/10/2026, B) */
     /* ⭐ LES ENTRANTS PRÉVUS (Mag, 16/10/2026 : « tu dois aussi mettre les entrants prévus ») */
     e(o.prevus, ic('hebergement','#A9C8E8'), o.prevus>1?'entrants prévus':'entrant prévu', 'entrants')+
     e(o.reveil, masque('alarme.svg','#f5c542'),   /* la cloche en JAUNE (Mag, 14/10/2026) */
@@ -19323,8 +19327,10 @@ function rdvEtiquettes(r, sansAcc, opt){
   /* « Note juste accompagnement » (Mag, 17/10/2026) : l'étiquette dit ACCOMPAGNEMENT, en vert, avec ou sans nom. */
   if(!sansAcc && r.accompagne && (r.accomp_nom || !ACCORD_ACC)) e.push(['Accompagnement','#6cb392','',IMG('accompagnement.svg')]);
   if(r.pmr) e.push(['PMR','#f5c542','','<img src="picto/handicap.svg" alt="" style="width:18px;height:18px">']);   /* son picto fauteuil (13/10/2026 : « je ne comprends pas le picto ») */
-  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':'#f5c542', 'taxi', icon('bus')]);
+  if(r.taxi && !opt.sansTaxi) e.push([rdvTaxiTexte(r), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542'), 'taxi', icon('bus')]);
   if(r.transport) e.push(['Transport classique','#6fc7d9','',icon('bus')]);
+  /* Un rendez-vous à venir enregistré avant la question : on le voit, pour le compléter (18/10/2026). */
+  if(!rdvTrajet(r) && r.jour>=agIso(new Date()) && !r.retire_le) e.push(['Transport ?','#e63329','',icon('bus')]);
 
   if(r.reveil) e.push([(r.reveil_heure?rdvHeureFr(r.reveil_heure):'Réveil'),'#fd8fd0','',IMG('alarme.svg')]);
   if(r.pas_autonome) e.push(['Pas autonome','#b28b7a','',icon('user')]);
@@ -19332,9 +19338,10 @@ function rdvEtiquettes(r, sansAcc, opt){
   if(!e.length) return '';
   /* L'étiquette du taxi est un BOUTON : on y note qu'il est commandé, et pour quelle heure. */
   return '<div class="rdvet">'+e.map(function(x){
+    const blanc=(x[1]==='#e63329')?';color:#fdfdfc':'';   /* le rouge porte un texte blanc (18/10/2026) */
     if(x[2]==='taxi' && r.id && rdvPeutEcrire())
-      return '<button class="rdvet-b" style="background:'+x[1]+';--ec:'+x[1]+'" onclick="rdvTaxi(\''+r.id+'\')">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</button>';
-    return '<span style="background:'+x[1]+';--ec:'+x[1]+'">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</span>';
+      return '<button class="rdvet-b" style="background:'+x[1]+';--ec:'+x[1]+blanc+'" onclick="rdvTaxi(\''+r.id+'\')">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</button>';
+    return '<span style="background:'+x[1]+';--ec:'+x[1]+blanc+'">'+(x[3]?'<i class="eti">'+x[3]+'</i>':'')+esc(x[0])+'</span>';
   }).join('')+'</div>';
 }
 /* L'auteur : son compte (cree_uid) ; pour les rendez-vous d'avant cette colonne, son prénom. */
@@ -19409,7 +19416,7 @@ function rdvEtiqPapier(r){
   if(r.accompagne && (r.accomp_nom || !ACCORD_ACC)) e.push(['Accompagnement','#6cb392']);   /* (17/10/2026) */
   if(r.a_jeun) e.push(['À JEUN','#6cb392']);
   if(r.pmr) e.push(['PMR','#f5c542']);
-  if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':'#f5c542']);
+  if(r.taxi) e.push([rdvTaxiTexte(r)+(r.taxi_note?' — '+r.taxi_note:''), r.taxi_par?'#6cb392':(rdvTaxiUrgent(r)?'#e63329':'#f5c542')]);
   if(r.transport) e.push(['Transport classique','#6fc7d9']);
 
   if(r.reveil) e.push(['Réveil'+(r.reveil_heure?' '+rdvHeureFr(r.reveil_heure):''),'#fd8fd0']);
@@ -19605,6 +19612,19 @@ function rdvAccOui(){
     RDV_FORM.accomp_motif=t.slice(0,600); RDV_FORM.accompagne=true; render();
   }, 600, true);
 }
+/* La réponse à « Comment y va-t-il ? » : posée (`trajet`), sinon déduite des anciennes cases taxi / transport ; '' = pas répondu. */
+function rdvTrajet(r){
+  if(!r) return '';
+  if(r.trajet) return r.trajet;
+  if(r.taxi) return 'taxi';
+  if(r.transport) return 'transport';
+  return '';
+}
+/* Un taxi à commander pour aujourd'hui ou demain, pas encore commandé : il se voit en ROUGE (18/10/2026). */
+function rdvTaxiUrgent(r){
+  if(!r || !r.taxi || r.taxi_par || r.retire_le) return false;
+  const a=agIso(new Date()); return r.jour===a || r.jour===ppAjoute(a,1);
+}
 function rdvChoix(champ, val){
   rdvLireChamps();
   if(champ==='accomp'){
@@ -19679,6 +19699,7 @@ async function rdvEnregistrer(){
   { const manque=[];
     if(!F.nom.trim()) manque.push('le nom'); if(!F.jour) manque.push('le jour'); if(!F.heure) manque.push('l’heure');
     if(!String(F.chambre||'').trim()) manque.push('la chambre'); if(!String(F.lieu||'').trim()) manque.push('le lieu');
+    if(!rdvTrajet(F)) manque.push('le transport');
     if(manque.length){ confirmePop(false, 'Pas enregistré', 'Il manque '+manque.join(', ').replace(/, ([^,]*)$/,' et $1')+'.'); return; } }
   /* Le nom pas encore réglé (case quittée en appuyant direct sur Enregistrer) : on demande d'abord, puis on reprend.
      Si la fenêtre du nom est déjà ouverte, on attend la réponse. */
@@ -19693,7 +19714,7 @@ async function rdvEnregistrer(){
     accomp_nom:F.accompagne?((F.accomp_nom||'').trim().slice(0,60)||null):null,
     accomp_motif:F.accompagne?((F.accomp_motif||'').trim().slice(0,600)||null):null, note:(F.note||'').trim().slice(0,4000)||null,
     lam:(F.genre==='lam'?true:(F.genre==='medical'?false:null)),   /* déduit du type (17/10/2026) */
-    pmr:!!F.pmr, taxi:!!F.taxi, transport:!!F.transport, reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
+    pmr:!!F.pmr, taxi:rdvTrajet(F)==='taxi', transport:rdvTrajet(F)==='transport', trajet:rdvTrajet(F), reveil:!!F.reveil, reveil_heure:F.reveil?(F.reveil_heure||null):null,
     prevenir:!!F.prevenir, pas_autonome:!!F.pas_autonome, a_jeun:!!F.a_jeun};
   /* Le nom de l'accompagnant a changé (ou est posé) : on note qui l'a fait (09/10/2026). */
   const avant=F.id ? rdvLigne(F.id) : null;
@@ -19812,6 +19833,13 @@ function rdvFormHTML(){
       'oninput="rdvLieuSaisi(this.value);rdvLieuProp()" onfocus="rdvLieuProp()" onblur="setTimeout(rdvLieuFerme,150)" autocomplete="off">'+
       '<div id="rdvLieuProp" class="rdvlp"></div></div>'+
     '<input id="rdvAdresse" placeholder="Adresse" value="'+esc(F.adresse||'')+'" autocomplete="off" style="margin-top:8px">'+
+    /* ═══ COMMENT Y VA-T-IL ? — OBLIGATOIRE (Mag, 18/10/2026 : « il faut vraiment qu'on sache si un transport est encodé
+       ou non… sans que ce soit encore dix mille pop-ups ») ═══ Une seule réponse ; sans réponse, la fenêtre « Il manque »
+       qui existe déjà le dit. Taxi et Transport classique ont quitté les cases « À prévoir ». */
+    '<p class="rdvf-l">Comment y va-t-il ?</p><div class="chips">'+
+      pill(rdvTrajet(F)==='seul', 'Seul·e', "rdvChoix('trajet','seul')", chipCouleur(1))+
+      pill(rdvTrajet(F)==='transport', 'Transport classique', "rdvChoix('trajet','transport')", '#6fc7d9')+
+      pill(rdvTrajet(F)==='taxi', 'Taxi à commander', "rdvChoix('trajet','taxi')", '#f5c542')+'</div>'+
     '<p class="rdvf-l">Accompagnement</p><div class="chips">'+
       pill(F.accompagne, 'Oui', "rdvAccOui()", chipCouleur(2))+
       pill(!F.accompagne, 'Non', "rdvChoix('accompagne',false)", chipCouleur(1))+'</div>';
@@ -19832,9 +19860,7 @@ function rdvFormHTML(){
      nuit reste à décider ensemble : rien ne part tout seul. */
   h+='<p class="rdvf-l">À prévoir</p><div class="chips">'+
       pill(F.pmr, 'PMR', "rdvChoix('pmr',"+(!F.pmr)+")", chipCouleur(4))+
-      pill(F.taxi, 'Taxi à commander', "rdvChoix('taxi',"+(!F.taxi)+")", chipCouleur(1))+
-      /* TRANSPORT CLASSIQUE (Mag, 17/10/2026) : bus, tram, métro — pas de validation, contrairement au taxi. */
-      pill(F.transport, 'Transport classique', "rdvChoix('transport',"+(!F.transport)+")", '#6fc7d9')+
+      /* Taxi et Transport classique sont montés dans « Comment y va-t-il ? » (18/10/2026). */
       pill(F.reveil, 'Réveil', "rdvChoix('reveil',"+(!F.reveil)+")", chipCouleur(3))+
       /* À JEUN (Mag, 11/10/2026 : « absolument ; et écrit en gros sur la carte »). */
       pill(F.a_jeun, 'À jeun', "rdvChoix('a_jeun',"+(!F.a_jeun)+")", '#6cb392')+
