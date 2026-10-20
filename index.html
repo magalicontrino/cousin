@@ -43809,6 +43809,7 @@ async function passAjouter(){
         }
       }catch(e){}
     }
+    PASS_VALS={};
     ['passTxt','passHeure','passCh','passCom'].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value=''; });
     /* ⚠ LA NOTE D'ORIGINE PART AVEC LA PASSATION : le texte était gardé dans Ma liste
@@ -45090,7 +45091,11 @@ function passFeuilleHTML(){
       /* Juste le picto Copier (Mag, 18/10/2026 : « laisse juste le picto à copier ») — Gras, Souligné et Coller retirés. */
       '<div class="txligne"><button type="button" class="txb pic" onmousedown="event.preventDefault()" '+
         'onclick="txCopier(\'passTxt\')" title="Copier tout le texte" aria-label="Copier tout le texte">'+icon('copyleger')+'</button></div>'+
-      '<textarea id="passTxt" rows="3" placeholder="…" oninput="passGrandir(this)"></textarea>'+
+      /* ⚠⚠ LA CASE RETIENT CE QU'ON TAPE (Mag, 20/10/2026 : « quand j'ouvre une fenêtre pour modifier, quand ça prend un
+         peu de temps, ça saute et je perds mon texte, c'est insupportable ») : les cases étaient dessinées VIDES puis
+         remplies une fois ; la relecture automatique (toutes les 20 s) les redessinait vides. Elles se dessinent
+         maintenant avec PASS_VALS, mis à jour à chaque lettre. */
+      '<textarea id="passTxt" rows="3" placeholder="…" oninput="PASS_VALS.txt=this.value;passGrandir(this)">'+esc(PASS_VALS.txt||'')+'</textarea>'+
       /* ⚠ PLUS DE BOUTONS « À QUI ? » (Mag, 22/08/2026 : « retire ça »). C'est le métier
          qui décide du destinataire, pas la personne qui écrit à 23 h — voir `passRoles`.
          On l'ÉCRIT, pour qu'elle sache où sa ligne part, mais on ne le lui demande pas.
@@ -45146,7 +45151,7 @@ function passFeuilleHTML(){
           '<i></i><span>Il doit être à jeun</span></button>'
         : '')+
       (PASS_GENRE!=='passation'
-        ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(passDemain())+'">'+
+        ? '<div class="acduo"><input id="passJour" type="date" value="'+esc(PASS_VALS.jour||passDemain())+'" oninput="PASS_VALS.jour=this.value">'+
           /* ⚠ « HEURE », ET RIEN D'AUTRE (Mag, 22/08/2026 : « marque plutôt heure »).
              « À quelle heure ? — 05:30 » ne tenait pas dans le champ sur un téléphone.
              ⚠ ET L'À JEUN LA REÇOIT AUSSI (Mag, 22/08/2026 : « c'est surtout dans à jeun
@@ -45156,7 +45161,7 @@ function passFeuilleHTML(){
              du genre — et l'heure du RÉVEIL, variable, que voici. C'est cette dernière
              qui compte pour l'équipe du matin, et c'est elle qui est enregistrée. */
           (g.heure
-            ? '<input id="passHeure" inputmode="numeric" placeholder="'+
+            ? '<input id="passHeure" inputmode="numeric" value="'+esc(PASS_VALS.heure||'')+'" oninput="PASS_VALS.heure=this.value" placeholder="'+
               (PASS_GENRE==='ajeun'?'Heure du réveil':'Heure')+'">'
             : '')+'</div>'
         : '')+
@@ -45168,8 +45173,8 @@ function passFeuilleHTML(){
       /* ⚠ PLUS DE « FACULTATIF » (Mag, 22/08/2026 : « retire le facultatif »). Tous les
          champs de cette feuille le sont sauf le texte : le dire sur un seul faisait
          croire que les autres ne l'étaient pas. */
-      '<input id="passCh" placeholder="N° de chambre" inputmode="numeric" '+
-        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')">'+
+      '<input id="passCh" placeholder="N° de chambre" inputmode="numeric" value="'+esc(PASS_VALS.ch||'')+'" '+
+        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\');PASS_VALS.ch=this.value">'+
       /* ⚠ LE CHAMP « CE QU'IL FAUT SAVOIR EN PLUS » EST RETIRÉ (Mag, 22/08/2026 :
          « retire ça, il y a déjà un texte, c'est bien assez complexe comme ça »).
          Il avait été demandé le matin même — « dans les passations, il y a beaucoup de
@@ -45408,6 +45413,13 @@ function passFeuilleMaj(){
    deuxième fenêtre à entretenir : un seul endroit où l'on écrit une passation, qu'on
    la crée ou qu'on la corrige. */
 var PASS_EDIT=null, PASS_OUVRIR=false, PASS_FEUILLE=false, PASS_GARDE=null;
+var PASS_VALS={};
+/* Relit les cases dans PASS_VALS (après un remplissage fait par le code, qui ne déclenche pas « oninput »). */
+function passValsLire(){
+  const v=function(id){ const e=document.getElementById(id); return e?e.value:undefined; };
+  const t=v('passTxt'), h=v('passHeure'), c=v('passCh'), j=v('passJour');
+  if(t!==undefined) PASS_VALS.txt=t; if(h!==undefined) PASS_VALS.heure=h; if(c!==undefined) PASS_VALS.ch=c; if(j!==undefined) PASS_VALS.jour=j;
+}
 /* D'où vient la feuille : l'id de la note de Ma liste, quand elle a été ouverte depuis
    une note déjà rangée. La note n'est retirée QUE si la passation part vraiment. */
 var PASS_DEPUIS_RAPPEL=null;
@@ -45416,6 +45428,7 @@ function passModifier(id){
   if(!p) return;
   PASS_EDIT=p.id;
   PASS_POUR=p.pour; PASS_GENRE=p.genre||'passation'; PASS_AJEUN=!!p.a_jeun; PASS_COEUR=passPourAfaf(p);
+  PASS_VALS={txt:p.texte||'', heure:String(p.heure||'').slice(0,5), ch:p.chambre||'', jour:p.jour||''};
   render();
   /* Les champs se remplissent APRÈS le rendu : avant, ils n'existent pas encore. */
   setTimeout(function(){
@@ -45435,7 +45448,7 @@ function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false
    de corriger : sinon, une feuille ouverte par erreur ne se referme jamais. */
 /* ⚠ ON OUBLIE D'OÙ ON VENAIT EN FERMANT : sinon une note ouverte puis abandonnée
    partirait à la prochaine passation, celle d'une AUTRE note. */
-function passFeuilleFermer(){ PASS_COEUR=false; PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; PASS_POUR=PASS_EQUIPE; render(); }
+function passFeuilleFermer(){ PASS_VALS={}; PASS_COEUR=false; PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; PASS_POUR=PASS_EQUIPE; render(); }
 
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
@@ -45886,7 +45899,7 @@ function rappelVersPassation(){
   setTimeout(function(){
     const e=document.getElementById('passTxt');
     if(!e) return;
-    e.value=t; e.focus();
+    e.value=t; e.focus(); setTimeout(passValsLire,0);
     const cc=document.getElementById('passCh'); if(cc && ch) cc.value=ch;
     if(e.scrollIntoView){
       const doux=!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
@@ -49864,7 +49877,7 @@ function rappelPasser(id){
   setTimeout(function(){
     const e=document.getElementById('passTxt');
     if(!e) return;
-    e.value=t; e.focus();
+    e.value=t; e.focus(); setTimeout(passValsLire,0);
     const cc=document.getElementById('passCh'); if(cc && ch) cc.value=ch;
     if(estReveil){
       const hh=document.getElementById('passHeure'); if(hh && r.reveilH) hh.value=String(r.reveilH).slice(0,5);
