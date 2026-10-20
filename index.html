@@ -4819,6 +4819,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chprev{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 10px;border:1.25px solid #f8763f;border-radius:8px;background:#fdfdfc;
   color:#2b2a28;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .chprev .pmain{width:18px;height:18px;color:#f8763f}
+.chedpop label{display:block;font-size:12px;font-weight:700;color:#6b6862;margin-top:10px}
+.chedpop input,.chedpop textarea{display:block;width:100%;margin-top:4px;min-height:42px;border:1px solid #bdbab3;border-radius:8px;padding:8px 10px;font:inherit;font-size:15px;background:#fdfdfc;color:#2b2a28}
 .chedit{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1.25px solid #bdbab3;border-radius:8px;background:#fdfdfc;color:#6b6862;cursor:pointer;padding:0}
 .chedit svg{width:16px;height:16px}
 @media(max-width:560px){ .chprev span{display:none} }
@@ -15948,18 +15950,33 @@ async function chPrevenir(id){
   r.data[0]._pose=Date.now(); PASSATIONS.unshift(r.data[0]); render();
   confirmePop(true,'À prévenir','envoyé au service social · ch. '+ch.numero);
 }
+/* ✎ TOUT SE CHANGE SUR UN SORTANT (Mag, 20/10/2026 : « on doit pouvoir changer ») : le numéro, le nom, la date de sortie
+   et le commentaire, dans une seule fenêtre. Les cases sont dessinées UNE fois (pas de render() pendant qu'on tape). */
 function chEditer(id){
   const ch0=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(!ch0) return;
-  cousinPop({titre:'Chambre '+ch0.numero, texte:'', champ:ch0.commentaire||'', max:600, multi:true, ok:'Enregistrer',
-    plus:{deux:ch0.initiales||'', deuxMax:40, deuxPlaceholder:'Nom'},
-    quandOui:async function(v, plus){
-      const maj={commentaire:String(v||'').trim().slice(0,600)||null, initiales:String((plus&&plus.deux)||'').trim().slice(0,40)||null};
-      const r=await sb.from('chambres').update(maj).eq('id',ch0.id).select('*');
-      if(r.error||!r.data||!r.data.length){ confirmePop(false,'Pas enregistré',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
-      /* la ligne se retrouve au moment d'enregistrer (la liste a pu se relire entre-temps) */
-      const ch=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(ch) Object.assign(ch, r.data[0]);
-      render(); toast('Enregistré ✓');
-    }});
+  let bg=document.getElementById('chEdBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='chEdBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  bg.innerHTML='<div class="popcard chedpop" role="dialog" aria-modal="true"><b>Chambre '+esc(ch0.numero)+'</b>'+
+    '<label>N° de chambre<input id="chEdNum" inputmode="numeric" maxlength="3" value="'+esc(ch0.numero||'')+'" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></label>'+
+    '<label>Nom<input id="chEdNom" maxlength="40" value="'+esc(ch0.initiales||'')+'"></label>'+
+    '<label>Date de sortie<input id="chEdDate" type="date" value="'+esc(ch0.sortie_le||'')+'"></label>'+
+    '<label>Commentaire<textarea id="chEdCom" rows="3" maxlength="600">'+esc(ch0.commentaire||'')+'</textarea></label>'+
+    '<div class="entpart-b"><button class="dembtn clair" onclick="document.getElementById(\'chEdBg\').classList.remove(\'on\')">Annuler</button>'+
+    '<button class="dembtn" onclick="chEditerOk(\''+ch0.id+'\')">Enregistrer</button></div></div>';
+  bg.classList.add('on');
+}
+async function chEditerOk(id){
+  const v=function(k){ const e=document.getElementById(k); return e?String(e.value||'').trim():''; };
+  const num=v('chEdNum');
+  if(!num){ toast('Il manque le numéro de chambre'); return; }
+  const maj={numero:num.slice(0,3), initiales:v('chEdNom').slice(0,40)||null, sortie_le:v('chEdDate')||null, commentaire:v('chEdCom').slice(0,600)||null};
+  const r=await sb.from('chambres').update(maj).eq('id',id).select('*');
+  if(r.error||!r.data||!r.data.length){ confirmePop(false,'Pas enregistré',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+  const bg=document.getElementById('chEdBg'); if(bg) bg.classList.remove('on');
+  /* la ligne se retrouve au moment d'enregistrer (la liste a pu se relire entre-temps) */
+  const ch=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(ch) Object.assign(ch, r.data[0]);
+  render(); confirmePop(true,'Enregistré','Chambre '+maj.numero);
 }   /* le formulaire : affaires (true/false), motif (sortant/hospitalise), place désencodée (true/false) */
 function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
 /* Cocher ou décocher — toujours avec confirmation, et on note QUI l'a fait. */
