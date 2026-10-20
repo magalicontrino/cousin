@@ -46517,6 +46517,74 @@ function arriveeJour(id){
       });
     }});
 }
+/* ═══ COLLER LES MI-PARCOURS DE LA PMS (19/10/2026) ═══
+   Une ligne à puce (• - *) = une personne ; « M. », « Mme », « Mr » enlevés ; ce qui est entre parenthèses et les
+   sous-puces « o » vont dans le commentaire, précédés de « PMS ». « Entretiens RdC » → MÉD ; un étage (2e…) → LAM. */
+let MI_PLAN=null;
+function miLire(t){
+  const L=String(t||'').replace(/[⁠​‌‍﻿]/g,'').split(/\r?\n/);
+  const out=[]; let lam=null;
+  L.forEach(function(l){
+    const x=l.trim(); if(!x) return;
+    const et=/entretiens?\s+(?:au\s+)?(rdc|rez[^:]*|\d+\s*(?:e|è|ème|er)\b[^:]*)/i.exec(x);
+    if(et){ lam=!/^(rdc|rez)/i.test(et[1].trim()); return; }
+    const sous=/^(?:o|◦|‣)\s+(.+)$/.exec(x);
+    if(sous && out.length){ out[out.length-1].notes.push(sous[1].trim()); return; }
+    const pu=/^[•\-\*·]\s*(.+)$/.exec(x); if(!pu) return;
+    let nom=pu[1].trim(), com='';
+    const par=/\(([^)]*)\)/.exec(nom); if(par){ com=par[1].trim(); nom=nom.replace(par[0],'').trim(); }
+    nom=nom.replace(/^(m\.|mme\.?|mr\.?|mlle\.?|monsieur|madame)\s+/i,'').replace(/\s+/g,' ').trim();
+    if(nom) out.push({nom:nom, lam:lam===null?true:lam, notes:com?[com]:[], ok:true});
+  });
+  return out;
+}
+function miCollerOuvrir(){
+  let bg=document.getElementById('miColBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='miColBg'; bg.className='popbg';
+    bg.onclick=function(ev){ if(ev.target===bg) bg.classList.remove('on'); }; document.body.appendChild(bg); }
+  MI_PLAN=null;
+  bg.innerHTML='<div class="popcard abscol" role="dialog" aria-modal="true"><b>Les mi-parcours de la PMS</b>'+
+    '<textarea id="miColTxt" rows="8" placeholder="Entretiens RdC :\n• M. NOM Prénom (vu au social)\nEntretiens 2e :\n• Mme NOM Prénom"></textarea>'+
+    '<div class="entpart-b"><button class="dembtn clair" onclick="document.getElementById(\'miColBg\').classList.remove(\'on\')">Annuler</button>'+
+    '<button class="dembtn" onclick="miCollerLire()">Lire</button></div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const t=document.getElementById('miColTxt'); if(t) t.focus(); },50);
+}
+function miCollerLire(){
+  const t=document.getElementById('miColTxt'), lus=miLire(t&&t.value);
+  if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  lus.forEach(function(x){ x.deja=ENTRANTS.some(function(e){ return e.mi_parcours && !entretienFait(e,'acc') && absMemePersonne(e.nom, x.nom); }); if(x.deja) x.ok=false; });
+  MI_PLAN=lus; miCollerDessine();
+}
+function miCollerDessine(){
+  const bg=document.getElementById('miColBg'); if(!bg||!MI_PLAN) return;
+  bg.firstElementChild.innerHTML='<b>Les mi-parcours de la PMS · '+MI_PLAN.length+'</b>'+
+    '<div class="abscol-g">'+MI_PLAN.map(function(x,i){
+      return '<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="MI_PLAN['+i+'].ok=this.checked">'+
+        '<b>'+esc(x.nom)+'</b><span class="abscol-lam">'+
+        '<button class="'+(x.lam?'on lam':'')+'" onclick="event.preventDefault();MI_PLAN['+i+'].lam=true;miCollerDessine()">LAM</button>'+
+        '<button class="'+(!x.lam?'on med':'')+'" onclick="event.preventDefault();MI_PLAN['+i+'].lam=false;miCollerDessine()">MÉD</button></span>'+
+        '<em>'+(x.deja?'déjà dans les mi-parcours':esc(x.notes.join(' · ')))+'</em></label>';
+    }).join('')+'</div>'+
+    '<div class="entpart-b"><button class="dembtn clair" onclick="miCollerOuvrir()">Recoller</button>'+
+    '<button class="dembtn" onclick="miCollerValider()">Valider</button></div>';
+}
+async function miCollerValider(){
+  const P=MI_PLAN; if(!P) return;
+  const bg=document.getElementById('miColBg'); if(bg) bg.classList.remove('on');
+  let fait=0, rate=0;
+  for(const x of P){
+    if(!x.ok) continue;
+    const com=('PMS'+(x.notes.length?' — '+x.notes.join(' · '):'')).slice(0,2000);
+    entEcrit();
+    const r=await sb.from('entrants').insert({nom:x.nom.slice(0,80), lam:!!x.lam, pour_entretien:true, mi_parcours:true,
+      commentaire:com, commentaire_par:(nomAffiche()||''), commentaire_le:new Date().toISOString(), ajoute_par:(nomAffiche()||'')}).select();
+    if(r.error||!r.data||!r.data.length) rate++; else { ENTRANTS.push(r.data[0]); fait++; }
+  }
+  MI_PLAN=null; render();
+  if(rate) confirmePop(false, rate+' pas ajouté'+(rate>1?'s':''), 'La base n’a pas répondu — recolle.');
+  else confirmePop(true, fait+' mi-parcours ajouté'+(fait>1?'s':''), '');
+}
 function arriveeMiParcours(){
   const n=(ARR_BR_NOM||'').trim(); if(!n){ toast('Écris un nom.'); return; }
   entEcrit(); sb.from('entrants').insert({nom:n.slice(0,80), lam:!!ARR_BR_LAM, pour_entretien:true,
@@ -47839,6 +47907,9 @@ function entretiensCorps(){
          pictos, c'est plus logique ; laisse accueil social, médical et charte en groupe
          isolé »). */
       '<button class="entacc entcoller" onclick="arrCollerOuvrir()">'+icon('collerleger')+'Coller les entrants</button>'+
+      /* ⭐ LES MI-PARCOURS DE LA PMS (Mag, 19/10/2026 : « coller les entretiens à mi-parcours PMS ; quand ce sera comme ça,
+         ce sera toujours mi-parcours ») — le texte « Parcours de l'hébergé / Entretiens RdC / Entretiens 2e / À réaliser ». */
+      '<button class="entacc entcoller" onclick="miCollerOuvrir()">'+icon('collerleger')+'Coller les mi-parcours PMS</button>'+
       boutonImprimer('', true)+
       '<button class="imprbtn nu" onclick="copierEntretiens()" title="Copier" aria-label="Copier">'+icon('copyleger')+'</button>'+
       /* ═══ UN SEUL PICTO PARTAGER (Mag, 19/09/2026 : « retire le picto mail. Garde un
