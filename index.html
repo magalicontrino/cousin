@@ -5140,6 +5140,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
 .bkp-eff{margin-left:auto;border:0;background:none;color:#8a8780;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 4px}
 .pcol{display:inline-flex;width:24px;height:24px;color:#6b6862}.pcol svg{width:100%;height:100%}.pcol-main{color:#f8763f}
+.rap-jus{display:block;font-size:12px;font-weight:400;color:#6b6862;margin-top:1px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
 .prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
@@ -5853,6 +5854,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .abspic.q .pico{background:#c4291f}
 .abspic.c{color:#2f7a52;border-color:#9fd3b6;background:#eef8f2}
 .abspic.h{color:#12354f;border-color:#A9C8E8;background:#e8f0fa}
+.abspic.sp{color:#fff;border-color:#c4291f;background:#c4291f}.abspic-t{font-size:11px;font-weight:900;letter-spacing:.02em}
+.absetat.sp{color:#fff;background:#c4291f;border-color:#c4291f}
 .popcard.abspop{max-width:340px}
 .abspop-s{font-size:13px;color:#73716b;margin:4px 0 8px}
 .abspop-o{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:1.5px solid var(--ligne);border-radius:12px;margin-top:8px;font:inherit;font-weight:600;font-size:15px;background:#fdfdfc;cursor:pointer;text-align:left;color:var(--noir)}
@@ -18034,7 +18037,10 @@ function rapportHTML(page){
       .sort(function(x,y){ return (y.lam?1:0)-(x.lam?1:0); });
     if(lam.length) h+=sec('abslam','#e63329','<span class="rap-ic" style="color:#fdfdfc">!</span>','Absents +3 nuits', lam.length,
       lam.map(function(x){ const nn=absNuits(x).length;
-        return '<button class="rap-l rap-abs" onclick="go(\'#/liste/absences\')"><span class="rap-x"><b class="rap-nom">'+esc(x.nom||'?')+'</b> · '+nn+' nuits'+(x.lam?' <span class="rap-lam">LAM</span>':'')+'</span></button>'; }).join(''));
+        /* ⭐ LA JUSTIFICATION EN PETIT (Mag, 19/10/2026 : « dans le rapport tu peux mettre aussi les justifications en petit ») */
+        const st=absStatut(x), jus=(st.k!=='nonjust'?st.l:'')+(x.note?(st.k!=='nonjust'?' · ':'')+x.note:'');
+        return '<button class="rap-l rap-abs" onclick="go(\'#/liste/absences\')"><span class="rap-x"><b class="rap-nom">'+esc(x.nom||'?')+'</b> · '+nn+' nuits'+(x.lam?' <span class="rap-lam">LAM</span>':'')+
+          (jus?'<small class="rap-jus">'+esc(jus)+'</small>':'')+'</span></button>'; }).join(''));
   }
   h+= D.reveils.length ? sec('reveils','#fd8fd0','<img src="picto/alarme.svg" alt="">','Réveils', D.reveils.length, D.reveils.map(function(x){
       return '<div class="rap-l'+(x.passe?' passe':'')+'"><span class="rap-h">'+esc(x.h?rdvHeureFr(x.h):'—')+'</span><span class="rap-x">'+(x.demain?'<i class="rap-ch">demain</i> ':'')+esc(x.t)+(x.ch?' <i>ch. '+esc(x.ch)+'</i>':'')+'</span>'+(x.j?'<span class="rap-acc j">à jeun</span>':'')+'</div>'; }).join('')+
@@ -18295,7 +18301,8 @@ function rapportImprimer(){
      informations : mets-les ») : absents +3 nuits, sortants, punaises chambre par chambre, à valider = accompagnements. */
   const A3=(typeof ABSENCES!=='undefined'?ABSENCES:[]).filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; })
     .sort(function(x,y){ return (y.lam?1:0)-(x.lam?1:0); });
-  c+=bloc('Absents +3 nuits', A3, function(x){ return l('', '<b>'+esc(x.nom||'?')+'</b>', absNuits(x).length+' nuits'+(x.lam?' · <b>LAM</b>':'')); });
+  c+=bloc('Absents +3 nuits', A3, function(x){ const st=absStatut(x), jus=(st.k!=='nonjust'?st.l:'')+(x.note?(st.k!=='nonjust'?' · ':'')+x.note:'');
+    return l('', '<b>'+esc(x.nom||'?')+'</b>'+(jus?'<br><small>'+esc(jus)+'</small>':''), absNuits(x).length+' nuits'+(x.lam?' · <b>LAM</b>':'')); });
   c+=bloc('Réveils', D.reveils, function(x){ return l(x.h?rdvHeureFr(x.h):'', (x.demain?'demain — ':'')+esc(x.t)+(x.ch?' · ch. '+esc(x.ch):''), (x.passe?'passé':'')+(x.j?' à jeun':'')); });
   c+=bloc('Accompagnements de la semaine', D.acc, function(r){ return l((r.jour===agIso(new Date())?'auj. ':ppJourFr(r.jour).split(' ').slice(0,2).join(' ')+' · ')+(rdvHeureFr(r.heure)||''),
     '<b>'+esc(r.nom)+'</b>'+(r.chambre?' · ch. '+esc(r.chambre):'')+(r.lieu?' — '+esc(r.lieu):''),
@@ -47984,8 +47991,11 @@ let ABS_MAJ=null, ABS_COLLE=null, ABSENCES=[], ABS_LU=0, ABS_ENCOURS=false, ABS_
 const ABS_STATUTS=[
   {k:'nonjust', l:'Non justifiée', ic:'question', cl:'q'},
   {k:'just',    l:'Justifiée',     ic:'check',    cl:'c'},
-  {k:'hospit',  l:'Hospitalisé·e', ic:'seringue', cl:'h'}
+  {k:'hospit',  l:'Hospitalisé·e', ic:'seringue', cl:'h'},
+  /* ⭐ SP, EN ROUGE, « SP » ÉCRIT DANS LE ROND (Mag, 19/10/2026). Reste dans « à traiter ». */
+  {k:'sp',      l:'SP',            txt:'SP',      cl:'sp'}
 ];
+function absPicto(s){ return s.txt ? '<b class="abspic-t">'+esc(s.txt)+'</b>' : icon(s.ic); }
 function absStatut(a){ return ABS_STATUTS.find(function(s){ return s.k===a.statut; })||ABS_STATUTS[0]; }
 function absJour(d){ const x=d?new Date(d):new Date();
   return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
@@ -48145,7 +48155,7 @@ function absStatutOuvrir(id){
     '<b>Cette absence</b><div class="abspop-s">'+esc(a.nom)+' · '+n+' nuit'+(n>1?'s':'')+'</div>'+
     ABS_STATUTS.map(function(s){
       return '<button class="abspop-o'+(a.statut===s.k?' on':'')+'" onclick="absStatutChoisir('+a.id+',\''+s.k+'\')">'+
-        '<span class="abspic '+s.cl+'">'+icon(s.ic)+'</span>'+s.l+'</button>';
+        '<span class="abspic '+s.cl+'">'+absPicto(s)+'</span>'+s.l+'</button>';
     }).join('')+
     '<button class="abspop-o alerte'+(absAlerte(a)?' on':'')+'" onclick="absAlerteBascule('+a.id+')">'+
       '<span class="abspic">!</span>'+(absAlerte(a)?'Retirer l’alerte':'Disparition inquiétante')+'</button>'+
@@ -48189,7 +48199,7 @@ function absPic(a){
   /* Une justification dépassée se dessine « non justifiée » : la base dit encore
      « justifiée » jusqu'à la prochaine liste collée, mais ce n'est plus vrai. */
   const s=absDepassee(a) ? ABS_STATUTS[0] : absStatut(a);
-  return '<button type="button" class="abspic '+s.cl+'" onclick="absStatutOuvrir('+a.id+')" title="'+s.l+'" aria-label="'+s.l+'">'+icon(s.ic)+'</button>';
+  return '<button type="button" class="abspic '+s.cl+'" onclick="absStatutOuvrir('+a.id+')" title="'+s.l+'" aria-label="'+s.l+'">'+absPicto(s)+'</button>';
 }
 /* La note (03/10/2026 : « Disparition inquiétante faite le 01/10 », « Justifié
    jusqu'au 04/10 ») : une ligne sous le nom, qui s'écrit depuis la fenêtre du rond. */
@@ -48202,6 +48212,7 @@ function absEtatHTML(a){
   const n=absNuits(a).length;
   if(a.statut==='hospit')
     return '<div class="absetat h">Hospitalisé·e'+(n>=3?' · '+n+' nuits':'')+'</div>';
+  if(a.statut==='sp') return '<div class="absetat sp">SP</div>';
   if(a.statut==='just'){
     const m=ABS_NOTE_AUTO.exec(a.note||'');
     return '<div class="absetat c">Justifié'+(m?' jusqu’au '+m[1]+'/'+m[2]:'')+'</div>';
@@ -48329,6 +48340,7 @@ function absencesCorps(){
 function absPhrase(a){
   const n=absNuits(a).length, nn=n+' nuit'+(n>1?'s':'');
   return a.statut==='hospit' ? nn+' · hospitalisé·e'
+       : a.statut==='sp' ? nn+' · SP'
        : nn+' '+(a.statut==='just' && !absDepassee(a) ? (n>1?'justifiées':'justifiée') : (n>1?'non justifiées':'non justifiée'));
 }
 /* ═══ LE TOTAL EN TÊTE (Mag, 03/10/2026 : « mettre le nombre d'absences en début de
