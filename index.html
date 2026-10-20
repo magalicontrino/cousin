@@ -5151,6 +5151,8 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rprep-b{flex:1;min-height:42px;border:1px solid rgba(242,238,230,.4);border-radius:8px;background:none;
   color:#f2eee6;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer}
 .chadd.ecrire .rprep-b.on{background:var(--gc);border-color:var(--gc);color:var(--noir)}
+.chadd.ecrire .rprep-c{flex:0 0 52px;color:#e8308a;display:flex;align-items:center;justify-content:center}
+.chadd.ecrire .rprep-c svg{width:20px;height:18px}.chadd.ecrire .rprep-c.on{color:#fdfdfc}
 .chadd.ecrire .rprep-rv{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
 .chadd.ecrire .rprep-rv input{flex:1 1 120px;min-height:40px;border-radius:6px;border:0;padding:0 10px;font:inherit;background:#fdfdfc}
 .chadd.ecrire .rprep-rv .absa{flex:0 1 auto}
@@ -5158,7 +5160,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapSoc{background:#6cb392}
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
 .bkp-eff{margin-left:auto;border:0;background:none;color:#8a8780;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 4px}
-.pcol{display:inline-flex;width:24px;height:24px;color:#6b6862}.pcol svg{width:100%;height:100%}.pcol-main{color:#f8763f}
+.pcol{display:inline-flex;width:24px;height:24px;color:#6b6862}.pcol-coeur{color:#e8308a}.pcol svg{width:100%;height:100%}.pcol-main{color:#f8763f}
 .rap-jus{display:block;font-size:12px;font-weight:400;color:#6b6862;margin-top:1px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
@@ -44062,7 +44064,15 @@ function passProgramme(liste){
 /* `role` : 'prevenir' (minuit, on annonce le jeûne) ou 'reveil'/absent. Voir
    `passProgramme` — une même passation « à jeun » s'affiche à deux heures. */
 /* `gauche` : un bouton posé à GAUCHE dans la rangée des boutons (« Répondre », service social). */
+/* ═══ LE CŒUR = UN MESSAGE SEULEMENT POUR AFAF (Mag, 20/10/2026) ═══ Comme la petite main dit « à prévenir », le cœur
+   dit « pour Afaf » — sans écrire son nom. La ligne part au service social avec pour_qui = Afaf : la BASE ne la montre
+   qu'à elle et à l'auteur. */
+const AFAF_MAILS=['afaf.aboulkhir@samusocial.be'];
+function passPourAfaf(p){ return !!(p && Array.isArray(p.pour_qui) && p.pour_qui.length &&
+  p.pour_qui.every(function(e){ return AFAF_MAILS.indexOf(String(e).toLowerCase())>=0; })); }
+const COEUR_SVG='<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="currentColor" d="M12 21s-7.5-4.6-10-9.3C.3 8.4 2 4 6 4c2.3 0 3.6 1.3 6 3.6C14.4 5.3 15.7 4 18 4c4 0 5.7 4.4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>';
 function passColonne(p, g, heure){
+  if(passPourAfaf(p)) return '<i class="pcol pcol-coeur" title="Pour Afaf">'+COEUR_SVG+'</i>';
   const h=(heure!==undefined)?heure:(g.heure?p.heure:'');
   if(h) return esc(String(h).slice(0,5).replace(':',' h '));
   if(p.genre==='prevenir') return '<i class="pcol pcol-main" title="À prévenir">'+PREV_MAIN+'</i>';
@@ -44666,10 +44676,9 @@ function carteServiceSocial(){
   const plie=!SOC_OUVERTE;
   return '<div class="pcarte pcarte-lire pcarte-social'+(plie?' plie':'')+'">'+
     '<div class="ptitre ptitre-lire"><button class="ptitre-pli" onclick="socPlier()" aria-expanded="'+(plie?'false':'true')+'">'+
-      /* ⭐ LE CŒUR, SANS MOT (Mag, 20/10/2026 : « la petite main, c'est à prévenir ; le cœur, c'est le service social —
-         on ne va pas noter son nom, tu mets juste un cœur, tu marques rien »). */
-      '<span class="soc-coeur" aria-label="Service social" title="Service social"><span class="cafaf-r"><svg viewBox="0 0 24 22" width="18" height="17" aria-hidden="true">'+
-        '<path fill="#fdfdfc" d="M12 21s-7.5-4.6-10-9.3C.3 8.4 2 4 6 4c2.3 0 3.6 1.3 6 3.6C14.4 5.3 15.7 4 18 4c4 0 5.7 4.4 4 7.7C19.5 16.4 12 21 12 21z"/></svg></span></span>'+
+      /* « Passation sociale », écrit (Mag, 20/10/2026 : « il fallait pas mettre un cœur dans social, fallait marquer
+         passation sociale ; mettre le cœur quand c'est vraiment que pour Afaf »). */
+      '<b>Passation sociale</b>'+
     '</button>'+
       /* (imprimante retirée : un seul bouton imprimer, en haut et en bas de la Liste — Mag, 16/10/2026) */
       '<button class="ptitre-i" onclick="passPartager(\'social\')" aria-label="Partager la passation" '+
@@ -44757,6 +44766,7 @@ function prenomDeMail(m){
 }
 /* « Mag → Afaf » / « Mag → tout le service social » : sous chaque ligne de la carte. */
 function socDeVers(p){
+  if(passPourAfaf(p)) return String(p.par||'').trim().split(/\s+/)[0];   /* le cœur le dit : pas de nom (20/10/2026) */
   const de=String(p.par||'').trim().split(/\s+/)[0];
   /* « Mag → tout le service social » : « on le sait, c'est tout le service social » (Mag, 18/10/2026) — juste « Mag ». */
   let vers='';
@@ -45504,7 +45514,7 @@ function rappelAjouter(){
   /* La préparation (réveil + heure, info, à prévenir) reste sur la ligne : elle partira d'un appui (18/10/2026). */
   rapPrepGarder();
   if(RAP_PREP.genre==='passation') ligne.info=true;
-  if(RAP_PREP.genre){ ligne.prep={genre:RAP_PREP.genre, heure:RAP_PREP.heure||'', jour:RAP_PREP.jour||'', ajeun:!!RAP_PREP.ajeun};
+  if(RAP_PREP.genre||RAP_PREP.coeur){ ligne.prep={genre:RAP_PREP.genre||'passation', heure:RAP_PREP.heure||'', jour:RAP_PREP.jour||'', ajeun:!!RAP_PREP.ajeun, coeur:!!RAP_PREP.coeur};
     if(RAP_PREP.genre==='reveil'){ ligne.reveilJ=RAP_PREP.jour||passDemain(); if(RAP_PREP.heure) ligne.reveilH=RAP_PREP.heure; } }
   rapPrepVide();
   MESRAPPELS.push(ligne);
@@ -45746,8 +45756,9 @@ async function rapEntEnvoyer(){
   render(); confirmePop(true,'Envoyée',vers);
 }
 /* ═══ CE QU'ON PRÉPARE EN ÉCRIVANT (18/10/2026) : Réveil · Info · À prévenir — facultatif. ═══ */
-var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false};
-function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false}; }
+var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false};
+function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false}; }
+function rapPrepCoeur(){ rapPrepGarder(); const i=document.getElementById('rapTxt'); if(i) RAP_BROUILLON=i.value; RAP_PREP.coeur=!RAP_PREP.coeur; render(); }
 function rapPrepGarder(){
   const j=document.getElementById('rapPrepJour'), h=document.getElementById('rapPrepHeure');
   if(j) RAP_PREP.jour=j.value; if(h) RAP_PREP.heure=h.value;
@@ -45761,7 +45772,10 @@ function rapPrepAjeun(){ rapPrepGarder(); RAP_PREP.ajeun=!RAP_PREP.ajeun; render
 function rapPrepHTML(){
   const G=[['reveil','Réveil','#E8308A'],['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']];
   let h='<div class="rprep">'+G.map(function(g){ const on=RAP_PREP.genre===g[0];
-    return '<button class="rprep-b'+(on?' on':'')+'" style="--gc:'+g[2]+'" aria-pressed="'+on+'" onclick="rapPrepGenre(\''+g[0]+'\')">'+g[1]+'</button>'; }).join('')+'</div>';
+    return '<button class="rprep-b'+(on?' on':'')+'" style="--gc:'+g[2]+'" aria-pressed="'+on+'" onclick="rapPrepGenre(\''+g[0]+'\')">'+g[1]+'</button>'; }).join('')+
+    /* ♥ = seulement pour Afaf (20/10/2026) — un cœur, pas de nom. Il part avec « Social ». */
+    '<button class="rprep-b rprep-c'+(RAP_PREP.coeur?' on':'')+'" style="--gc:#e8308a" aria-pressed="'+!!RAP_PREP.coeur+'" aria-label="Seulement pour Afaf" title="Seulement pour Afaf" onclick="rapPrepCoeur()">'+COEUR_SVG+'</button>'+
+    '</div>';
   if(RAP_PREP.genre==='reveil') h+='<div class="rprep-rv"><input id="rapPrepJour" type="date" value="'+esc(RAP_PREP.jour||passDemain())+'" onchange="rapPrepGarder()">'+
     '<input id="rapPrepHeure" type="time" value="'+esc(RAP_PREP.heure||'')+'" aria-label="Heure du réveil" onchange="rapPrepGarder()">'+
     '<button class="absa avmi'+(RAP_PREP.ajeun?' on':'')+'" onclick="rapPrepAjeun()"><span class="bx"></span>À jeun</button></div>';
@@ -45773,12 +45787,13 @@ function passLignePrete(t, ch, qui, P){
   const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
            chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
            heure:(g==='reveil'?(P.heure||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
-  if(qui==='ts') l.pour_qui=null;
+  if(qui==='ts') l.pour_qui=(P&&P.coeur)?AFAF_MAILS.slice():null;
   if(g==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
   return l;
 }
 function passPrepManque(qui, P){
   const g=(P&&P.genre)||'passation';
+  if(P && P.coeur && qui!=='ts') return 'Le cœur part avec « Social »';
   if(g==='reveil' && qui!=='nuit') return 'Un réveil part à l’équipe de nuit';
   if(g==='reveil' && !(P&&P.heure)) return 'Il manque l’heure du réveil';
   return '';
@@ -45819,6 +45834,7 @@ async function rappelEnvoyerPrep(id, qui){
    une info, arrête avec les infos » (Mag, 18/10/2026). Ni « Info », ni « à passer ». */
 function rappelPrepTexte(P){
   if(!P||!P.genre) return '';
+  if(P.coeur) return '♥'+(P.genre==='prevenir'?' · À prévenir':'');
   if(P.genre==='reveil') return 'Réveil'+(P.heure?' '+rdvHeureFr(P.heure):'')+(P.ajeun?' · à jeun':'');
   if(P.genre==='prevenir') return 'À prévenir';
   return '';
