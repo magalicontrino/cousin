@@ -21772,7 +21772,7 @@ function imprimerMaListe(sel){
         return String(a.heure||'~').localeCompare(String(b.heure||'~'));
       };
       const reveils=dujour.filter(estReveil).sort(parHeure);
-      const reste=dujour.filter(function(l){ return !estReveil(l); }).sort(parHeure);
+      const reste=dujour.filter(function(l){ return !estReveil(l); }).sort(function(a,b){ return ((passEnAvant(b)?1:0)-(passEnAvant(a)?1:0)) || parHeure(a,b); });
       /* Une ligne de passation : l'heure alignée, le genre en petit, et le trait de
          couleur du genre à gauche — le même repère que dans l'app. */
       const ligneP=function(l){
@@ -21785,6 +21785,9 @@ function imprimerMaListe(sel){
           '<span class="bx"></span>'+
           (l.heure?'<span class="hh">'+esc(l.heure)+'</span>':'')+
           '<span class="tx">'+
+            /* Les pictos sur le papier (Mag, 20/10/2026) : la petite main pour « à prévenir », le rond rose « mis en avant ». */
+            (passEnAvant(l)?'<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#e8308a;margin-right:6px;vertical-align:1px"></span>':'')+
+            (l.genre==='prevenir'?'<span style="display:inline-block;width:16px;height:16px;color:#f8763f;margin-right:4px;vertical-align:-3px">'+PREV_MAIN+'</span>':'')+
             (g.court?'<span class="quoi" style="width:auto;padding:0 8px 0 0">'+esc(g.court)+'</span>':'')+
             esc(l.texte||'')+
             (bas.length?'<span class="com">'+esc(bas.join(' · '))+'</span>':'')+
@@ -43590,6 +43593,7 @@ function passPourEstAMoi(k){
 const PASS_RANG={reveil:0, ajeun:0, sortie:2, passation:3};
 function passTri(liste){
   return liste.slice().sort(function(a,b){
+    const ea=passEnAvant(a)?0:1, eb=passEnAvant(b)?0:1; if(ea!==eb) return ea-eb;   /* mis en avant d'abord (20/10/2026) */
     const ra=(PASS_RANG[a.genre]!==undefined?PASS_RANG[a.genre]:3);
     const rb=(PASS_RANG[b.genre]!==undefined?PASS_RANG[b.genre]:3);
     if(ra!==rb) return ra-rb;
@@ -43714,7 +43718,7 @@ async function passAjouter(){
      ligne (08/10/2026). La réponse est posée, puis on repasse ici. */
   /* ♥ : seulement pour Afaf — au service social, sans passer par « à qui ? » (20/10/2026). */
   if(PASS_COEUR && !PASS_EDIT){ PASS_POUR=PASS_SOCIAL; PASS_SOC_QUI=AFAF_MAILS.slice(); if(PASS_GENRE==='reveil') PASS_GENRE='passation'; }
-  if(PASS_COEUR && PASS_EDIT){ PASS_POUR=PASS_SOCIAL; if(PASS_GENRE==='reveil') PASS_GENRE='passation'; }
+  /* (en modifiant, « mettre en avant » ne change plus d'équipe : il marche aussi en nuit — 20/10/2026) */
   const socQui=PASS_SOC_QUI; PASS_SOC_QUI=undefined;
   if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL && socQui===undefined){
     socAQui(function(q){ PASS_SOC_QUI=q; passAjouter(); });
@@ -43785,7 +43789,8 @@ async function passAjouter(){
       delete l.par;
       /* ♥ posé ou retiré en modifiant (20/10/2026) : pour Afaf seule, ou de nouveau pour tout le service social. */
       { const avant=(PASSATIONS||[]).find(function(x){ return String(x.id)===String(PASS_EDIT); });
-        if(PASS_COEUR) l.pour_qui=AFAF_MAILS.slice(); else if(passPourAfaf(avant)) l.pour_qui=null; }
+        l.en_avant=!!PASS_COEUR;
+        if(PASS_POUR===PASS_SOCIAL){ if(PASS_COEUR) l.pour_qui=AFAF_MAILS.slice(); else if(passPourAfaf(avant)) l.pour_qui=null; } }
       const {error}=await sb.from('passations').update(l).eq('id',PASS_EDIT);
       if(error) throw error;
       PASS_EDIT=null;
@@ -44086,12 +44091,14 @@ function passProgramme(liste){
    dit « pour Afaf » — sans écrire son nom. La ligne part au service social avec pour_qui = Afaf : la BASE ne la montre
    qu'à elle et à l'auteur. */
 const AFAF_MAILS=['afaf.aboulkhir@samusocial.be'];
+/* « Mis en avant » (20/10/2026) : la marque `en_avant`, en nuit comme au social ; au social, aussi « pour Afaf ». */
+function passEnAvant(p){ return !!(p && (p.en_avant || passPourAfaf(p))); }
 function passPourAfaf(p){ return !!(p && Array.isArray(p.pour_qui) && p.pour_qui.length &&
   p.pour_qui.every(function(e){ return AFAF_MAILS.indexOf(String(e).toLowerCase())>=0; })); }
 const COEUR_SVG='<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="currentColor" d="M12 21s-7.5-4.6-10-9.3C.3 8.4 2 4 6 4c2.3 0 3.6 1.3 6 3.6C14.4 5.3 15.7 4 18 4c4 0 5.7 4.4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>';
 function passColonne(p, g, heure){
   /* Un ROND ROSE qui pulse lentement, plutôt qu'un cœur (Mag, 20/10/2026). */
-  if(passPourAfaf(p)) return '<i class="pcol" title="Mis en avant"><span class="rondrose"></span></i>';
+  if(passEnAvant(p)) return '<i class="pcol" title="Mis en avant"><span class="rondrose"></span></i>';
   const h=(heure!==undefined)?heure:(g.heure?p.heure:'');
   if(h) return esc(String(h).slice(0,5).replace(':',' h '));
   if(p.genre==='prevenir') return '<i class="pcol pcol-main" title="À prévenir">'+PREV_MAIN+'</i>';
@@ -44131,7 +44138,7 @@ function passLigne(p, mienne, role, heure, gauche){
 
   return '<div class="pl'+(ok?' faite':'')+'">'+
     /* Pour Afaf : la barre ROSE, EN POINTILLÉS (Mag, 20/10/2026). */
-    (passPourAfaf(p)?'<span class="pgc pgc-coeur"></span>':'<span class="pgc" style="background:'+g.c+'"></span>')+
+    (passEnAvant(p)?'<span class="pgc pgc-coeur"></span>':'<span class="pgc" style="background:'+g.c+'"></span>')+
     /* ⭐ PLUS DE « – » À GAUCHE (Mag, 19/10/2026 : « c'est pas là plutôt qu'il faudrait mettre la petite main, ou l'heure
        en grand pour un réveil ? ») : l'heure pour ce qui en a une, la petite main pour « à prévenir », l'agenda pour ce
        qui vient d'un rendez-vous, rien pour une info. */
@@ -44495,6 +44502,8 @@ function imprimerPassation(pour){
          côté de l'heure. */
       (g.chambre && p.chambre ? '<span class="chp"><i>CH.</i>'+esc(p.chambre)+'</span>' : '')+
       '<span class="tx">'+
+        (passEnAvant(p)?'<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#e8308a;margin-right:6px;vertical-align:1px"></span>':'')+
+        (p.genre==='prevenir'?'<span style="display:inline-block;width:16px;height:16px;color:#f8763f;margin-right:4px;vertical-align:-3px">'+PREV_MAIN+'</span>':'')+
         (g.court?'<span class="quoi" style="display:inline;min-width:0;padding-right:7px">'+
           esc(g.court)+'</span>':'')+
         passRiche(p.texte,true)+
@@ -44686,9 +44695,9 @@ function carteServiceSocial(){
   /* Les lignes PFO en haut (Mag, 17/10/2026) ; l'ordre reste le même à l'intérieur de chaque groupe. */
   const l0=passUnique(passSociales());
   /* ⭐ L'ORDRE (Mag, 20/10/2026 : « Afaf doit toujours être en haut, avant PFO ») : le cœur, puis PFO, puis le reste. */
-  const l=l0.filter(passPourAfaf)
-    .concat(l0.filter(function(p){ return !passPourAfaf(p) && passEstPfo(p); }))
-    .concat(l0.filter(function(p){ return !passPourAfaf(p) && !passEstPfo(p); }));
+  const l=l0.filter(passEnAvant)
+    .concat(l0.filter(function(p){ return !passEnAvant(p) && passEstPfo(p); }))
+    .concat(l0.filter(function(p){ return !passEnAvant(p) && !passEstPfo(p); }));
   if(!l.length) return '';
   const der=l.concat(PASS_REPONSES).filter(binDeLautre)
     .reduce(function(m,x){ return String(x.cree_le||'')>m ? String(x.cree_le) : m; }, '');
@@ -45427,7 +45436,7 @@ function passModifier(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
   PASS_EDIT=p.id;
-  PASS_POUR=p.pour; PASS_GENRE=p.genre||'passation'; PASS_AJEUN=!!p.a_jeun; PASS_COEUR=passPourAfaf(p);
+  PASS_POUR=p.pour; PASS_GENRE=p.genre||'passation'; PASS_AJEUN=!!p.a_jeun; PASS_COEUR=passEnAvant(p);
   PASS_VALS={txt:p.texte||'', heure:String(p.heure||'').slice(0,5), ch:p.chambre||'', jour:p.jour||''};
   render();
   /* Les champs se remplissent APRÈS le rendu : avant, ils n'existent pas encore. */
