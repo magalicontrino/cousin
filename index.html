@@ -43704,6 +43704,7 @@ async function passAjouter(){
      ligne (08/10/2026). La réponse est posée, puis on repasse ici. */
   /* ♥ : seulement pour Afaf — au service social, sans passer par « à qui ? » (20/10/2026). */
   if(PASS_COEUR && !PASS_EDIT){ PASS_POUR=PASS_SOCIAL; PASS_SOC_QUI=AFAF_MAILS.slice(); if(PASS_GENRE==='reveil') PASS_GENRE='passation'; }
+  if(PASS_COEUR && PASS_EDIT){ PASS_POUR=PASS_SOCIAL; if(PASS_GENRE==='reveil') PASS_GENRE='passation'; }
   const socQui=PASS_SOC_QUI; PASS_SOC_QUI=undefined;
   if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL && socQui===undefined){
     socAQui(function(q){ PASS_SOC_QUI=q; passAjouter(); });
@@ -43772,6 +43773,9 @@ async function passAjouter(){
        corriger une ligne ne change pas qui l'a écrite, ni qui l'a cochée. */
     if(PASS_EDIT){
       delete l.par;
+      /* ♥ posé ou retiré en modifiant (20/10/2026) : pour Afaf seule, ou de nouveau pour tout le service social. */
+      { const avant=(PASSATIONS||[]).find(function(x){ return String(x.id)===String(PASS_EDIT); });
+        if(PASS_COEUR) l.pour_qui=AFAF_MAILS.slice(); else if(passPourAfaf(avant)) l.pour_qui=null; }
       const {error}=await sb.from('passations').update(l).eq('id',PASS_EDIT);
       if(error) throw error;
       PASS_EDIT=null;
@@ -45106,7 +45110,9 @@ function passFeuilleHTML(){
         }).join('')+
         /* ♥ À CÔTÉ DE « À PRÉVENIR » (Mag, 20/10/2026 : « comment je peux remettre le cœur ? à côté de ça ») : le message
            part au service social, seulement pour Afaf. Pas de nom écrit. */
-        (PASS_EDIT?'':'<button class="chdep-b pcoeur'+(PASS_COEUR?' on':'')+'" onclick="PASS_COEUR=!PASS_COEUR;passChampsGarder()" '+
+        /* ♥ SEULEMENT EN MODIFIANT (Mag, 20/10/2026 : « c'est plutôt après, quand c'est dans la liste, qu'on peut mettre un
+           cœur, quand on peut modifier ») — pas au moment d'écrire. */
+        (!PASS_EDIT?'':'<button class="chdep-b pcoeur'+(PASS_COEUR?' on':'')+'" onclick="PASS_COEUR=!PASS_COEUR;passChampsGarder()" '+
           'aria-pressed="'+PASS_COEUR+'" aria-label="Seulement pour Afaf" title="Seulement pour Afaf" style="'+(PASS_COEUR?'border-color:#e8308a':'')+'">'+
           '<b class="pcoeur-i">'+COEUR_SVG+'</b></button>')+
       '</div>'+
@@ -45394,7 +45400,7 @@ function passModifier(id){
   const p=PASSATIONS.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
   PASS_EDIT=p.id;
-  PASS_POUR=p.pour; PASS_GENRE=p.genre||'passation'; PASS_AJEUN=!!p.a_jeun;
+  PASS_POUR=p.pour; PASS_GENRE=p.genre||'passation'; PASS_AJEUN=!!p.a_jeun; PASS_COEUR=passPourAfaf(p);
   render();
   /* Les champs se remplissent APRÈS le rendu : avant, ils n'existent pas encore. */
   setTimeout(function(){
@@ -45782,8 +45788,7 @@ function rapPrepHTML(){
   const G=[['reveil','Réveil','#E8308A'],['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']];
   let h='<div class="rprep">'+G.map(function(g){ const on=RAP_PREP.genre===g[0];
     return '<button class="rprep-b'+(on?' on':'')+'" style="--gc:'+g[2]+'" aria-pressed="'+on+'" onclick="rapPrepGenre(\''+g[0]+'\')">'+g[1]+'</button>'; }).join('')+
-    /* ♥ = seulement pour Afaf (20/10/2026) — un cœur, pas de nom. Il part avec « Social ». */
-    '<button class="rprep-b rprep-c'+(RAP_PREP.coeur?' on':'')+'" style="--gc:#e8308a" aria-pressed="'+!!RAP_PREP.coeur+'" aria-label="Seulement pour Afaf" title="Seulement pour Afaf" onclick="rapPrepCoeur()">'+COEUR_SVG+'</button>'+
+    /* (♥ retiré d'ici : il se pose APRÈS, en modifiant la passation — Mag, 20/10/2026) */
     '</div>';
   if(RAP_PREP.genre==='reveil') h+='<div class="rprep-rv"><input id="rapPrepJour" type="date" value="'+esc(RAP_PREP.jour||passDemain())+'" onchange="rapPrepGarder()">'+
     '<input id="rapPrepHeure" type="time" value="'+esc(RAP_PREP.heure||'')+'" aria-label="Heure du réveil" onchange="rapPrepGarder()">'+
