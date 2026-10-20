@@ -43869,7 +43869,7 @@ async function passSupprimer(id){
         if(String(PASS_EDIT)===String(p.id)){ PASS_EDIT=null; PASS_FEUILLE=false; }
         passOublier(p.id);
         journal('retrait','passation', String(p.texte||'').slice(0,120)+(passMienne(p)?'':' (écrite par '+String(p.par||'?').split(/\s+/)[0]+')'));
-        await loadPassations(); render();
+        await loadPassations(); render(); confirmePop(true,'Supprimée','');
       }catch(e){ toast('Suppression refusée'); }
     }, {ok:'Supprimer', danger:true});
 }
@@ -43917,7 +43917,7 @@ function passRetirer(id){
       if(!n){ await loadPassations(); render(); confirmePop(false,'Déjà retirée','Quelqu’un l’a déjà annulée ou supprimée — rien n’est ajouté à ta liste.'); return; }
       MESRAPPELS.push(ret);
       rappelsSauver();
-      await loadPassations(); render();
+      await loadPassations(); render(); confirmePop(true,'Remontée','dans ta liste');
     }, {ok:'Annuler la passation'});
 }
 /* ═══ QUATRE GENRES, PAS DEUX (Mag, 13/08/2026) ═══
@@ -44267,7 +44267,7 @@ function passMasquer(p){
   const id=String(p.id); if(PASS_MASQUEES.indexOf(id)<0) PASS_MASQUEES.push(id);
   try{ localStorage.setItem('lux_pass_masquees', JSON.stringify(PASS_MASQUEES)); }catch(e){}
   reglagePousser('pass_masquees', PASS_MASQUEES.slice());
-  render(); toast('Retirée de ton écran');
+  render(); confirmePop(true,'Retirée','de ton écran');
 }
 /* ⚠ DOUBLON DE CONTENU (Mag, 24/08/2026 : « je ne comprends pas pourquoi il y a deux fois
    le même nom, donc la même note »). La même passation peut exister deux fois en base
@@ -49219,7 +49219,7 @@ function bkpDemander(titre, texte, origine, lignes, retirer){
   /* ⭐ PLUS DE QUESTION (Mag, 18/10/2026 : « mets backup ; on doit pouvoir aussi effacer du backup, en fin de page,
      discrètement, mais ne demande pas, juste OK ») : la corbeille met la note au backup, tout de suite. Effacer pour de
      bon se fait dans le backup, en bas de la page. La fenêtre d'avant reste dessous, inutilisée. */
-  (async function(){ const ok=await bkpMettre(lignes(), origine); if(ok){ retirer(); toast('Dans le backup · '+BKP_JOURS+' jours'); } })();
+  (async function(){ const ok=await bkpMettre(lignes(), origine); if(ok){ retirer(); confirmePop(true,'Effacée','dans le backup · '+BKP_JOURS+' jours'); } })();   /* la coche verte, comme pour déplacer (20/10/2026) */
   return;
   let bg=document.getElementById('bkpBg');
   if(!bg){
@@ -49306,7 +49306,7 @@ function bkpHTML(){
 async function bkpEffacer(id){
   const {data,error}=await sb.from('notes_backup').delete().eq('id',id).select('id');
   if(error||!data||!data.length){ toast('Pas effacée : la base n’a pas répondu'); return; }
-  BACKUP=BACKUP.filter(function(x){ return x.id!==id; }); render(); toast('Effacée');
+  BACKUP=BACKUP.filter(function(x){ return x.id!==id; }); render(); confirmePop(true,'Effacée pour de bon','');
 }
 function bkpCopier(id){
   const b=BACKUP.find(function(x){ return x.id===id; }); if(!b) return;
@@ -49325,7 +49325,7 @@ async function bkpRemettre(id){
     MESRAPPELS.push(d); rappelsSauver();
   }
   BACKUP=BACKUP.filter(function(x){ return x.id!==id; });
-  render(); toast(b.origine==='notes'?'Remise dans les notes':'Remise dans ta liste');
+  render(); confirmePop(true,'Remise',b.origine==='notes'?'dans les notes':'dans ta liste');
   /* La note est déjà revenue : si la base refuse d'effacer le backup, il reste une copie
      en trop pendant 7 jours, rien de perdu. */
   try{ await sb.from('notes_backup').delete().eq('id',id); }catch(e){}
