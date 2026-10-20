@@ -5139,6 +5139,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapSoc{background:#6cb392}
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
 .bkp-eff{margin-left:auto;border:0;background:none;color:#8a8780;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 4px}
+.pcol{display:inline-flex;width:24px;height:24px;color:#6b6862}.pcol svg{width:100%;height:100%}.pcol-main{color:#f8763f}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
 .prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
@@ -18105,8 +18106,8 @@ function rapportHTML(page){
     h+=sec('act','#6cb392',icon('ticket'),'Activités de la semaine', actS.filter(function(x){ return x.jour>=a; }).length||null, '<div class="rap-fl">'+actS.map(function(x,i){
       const d=new Date(x.jour+'T12:00:00');
       return '<button class="rap-fc" style="--c:'+ACT_COUL[i%ACT_COUL.length]+'" onclick="actEditer('+x.id+')"><i>'+(x.jour===a?'AUJ.':JS[d.getDay()]+' '+d.getDate())+(x.heure?' · '+esc(rdvHeureFr(x.heure)):'')+'</i><b>'+esc(x.titre)+'</b>'+(x.lieu?'<span>'+esc(x.lieu)+'</span>':'')+(x.cr?'<em class="rap-cr">« '+esc(x.cr)+' »</em>':'')+'</button>'; }).join('')+'</div>',
-      '<button class="rap-add" onclick="actOuvrir({})">+ ajouter</button>');
-  } else { vides.push('activités'); plus.push('<button class="rap-add" onclick="actOuvrir({})">+ Activité</button>'); }
+      '<button class="rap-add" onclick="actFormOuvrir({})">+ ajouter</button>');
+  } else { vides.push('activités'); plus.push('<button class="rap-add" onclick="actFormOuvrir({})">+ Activité</button>'); }
   if(vides.length || plus.length) h+='<div class="rap-bas">'+(vides.length?'<span>Rien : '+esc(vides.join(' · '))+'</span>':'')+plus.join('')+'</div>';
   if(RAPPORT_PANNE) h+='<div class="rap-v" style="color:#e63329">Les messages n’ont pas pu être lus : la base n’a pas répondu.</div>';
   return h+'</div>';
@@ -18350,7 +18351,7 @@ function actHeures(v){
   if(v && o.indexOf(v)<0) o.push(v);
   return o.map(function(x){ return '<option value="'+x+'"'+(x===(v||'')?' selected':'')+'>'+(x?esc(rdvHeureFr(x)):'heure')+'</option>'; }).join('');
 }
-function actOuvrir(o){
+function actFormOuvrir(o){
   ACT_EDIT=o;
   journal('ouvert','formulaire activité', o.id?'modification':'nouveau');
   let bg=document.getElementById('actBg');
@@ -18365,15 +18366,15 @@ function actOuvrir(o){
     '<input id="actLieu" class="act-in" placeholder="Où ? (salle commune, parc…)" value="'+esc(o.lieu||'')+'" maxlength="140">'+
     (o.id?'<textarea id="actCr" class="act-in" rows="3" placeholder="Comment ça s’est passé ? (combien de personnes…)">'+esc(o.cr||'')+'</textarea>':'')+
     '<div class="act-b">'+(o.id?'<button class="rdvk-ref" onclick="actRetirer()">Retirer</button>':'')+
-      '<span style="flex:1"></span><button class="rdvk-ref" onclick="actFermer()">Annuler</button>'+
+      '<span style="flex:1"></span><button class="rdvk-ref" onclick="actFormFermer()">Annuler</button>'+
       '<button class="rdvk-val" onclick="actEnregistrer()">'+(o.id?'Enregistrer':'Mettre au calendrier')+'</button></div></div>';
   bg.classList.add('on');
   setTimeout(function(){ const e=document.getElementById(o.titre?'actJour':'actTitre'); if(e) e.focus(); },40);
 }
-function actFermer(){ const bg=document.getElementById('actBg'); if(bg) bg.classList.remove('on'); if(ACT_EDIT && !ACT_EDIT._ok) journal('abandon','formulaire activité', ACT_EDIT.id?'modification':'nouveau'); ACT_EDIT=null; }
+function actFormFermer(){ const bg=document.getElementById('actBg'); if(bg) bg.classList.remove('on'); if(ACT_EDIT && !ACT_EDIT._ok) journal('abandon','formulaire activité', ACT_EDIT.id?'modification':'nouveau'); ACT_EDIT=null; }
 function actDepuisListe(){
   const i=document.getElementById('rapTxt'); const t=((i&&i.value)||'').trim();
-  actOuvrir({titre:t.slice(0,140), depuisListe:!!t});
+  actFormOuvrir({titre:t.slice(0,140), depuisListe:!!t});
 }
 async function actEnregistrer(){
   const o=ACT_EDIT; if(!o) return;
@@ -18395,12 +18396,12 @@ async function actEnregistrer(){
   ACT=ACT.filter(function(x){ return x.id!==r.data[0].id; }).concat(r.data);
   o._ok=true; journal(o.id?'modif':'ajout','activité', titre+' · '+jour);
   if(o.depuisListe){ const i=document.getElementById('rapTxt'); if(i) i.value=''; RAP_BROUILLON=''; }
-  actFermer(); render();
+  actFormFermer(); render();
   cousinInfo(o.id?'Activité enregistrée':'Au calendrier', titre+' — '+ppJourFr(jour)+(ligne.heure?' à '+rdvHeureFr(ligne.heure):''));
 }
 function actRetirer(){
   const o=ACT_EDIT; if(!o || !o.id) return;
-  o._ok=true; actFermer();
+  o._ok=true; actFormFermer();
   cousinConfirme('Retirer cette activité ?', o.titre+' — '+ppJourFr(o.jour), async function(){
     const r=await sb.from('activites_centre').delete().eq('id',o.id).select('id');
     if(r.error || !r.data || !r.data.length){ toast('Pas retirée : la base a refusé'); return; }
@@ -18408,7 +18409,7 @@ function actRetirer(){
     ACT=ACT.filter(function(x){ return x.id!==o.id; }); render();
   }, {ok:'Retirer', danger:true});
 }
-function actEditer(id){ const x=ACT.find(function(y){ return y.id===id; }); if(x) actOuvrir(Object.assign({}, x)); }
+function actEditer(id){ const x=ACT.find(function(y){ return y.id===id; }); if(x) actFormOuvrir(Object.assign({}, x)); }
 function actRapportHTML(sec){
   if(!ACT_CHARGE) setTimeout(rafraichirAct,0);
   const a=agIso(new Date()), L=actDuJour(a);
@@ -18419,7 +18420,7 @@ function actRapportHTML(sec){
         (x.cr?'':'<button class="rap-add" onclick="actEditer('+x.id+')">+ comment ça s’est passé ?</button>')+'</div>'; }).join('')
       :'<div class="rap-v">Rien aujourd’hui</div>')+
     (v.length?'<div class="rap-v">À venir : '+v.map(function(x){ return esc(['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][new Date(x.jour+'T12:00:00').getDay()]+' '+x.titre); }).join(' · ')+'</div>':'');
-  return sec('#6cb392', icon('ticket'), 'Activités', L.length, corps, '<button class="rap-add" onclick="actOuvrir({})">+ ajouter</button>');
+  return sec('#6cb392', icon('ticket'), 'Activités', L.length, corps, '<button class="rap-add" onclick="actFormOuvrir({})">+ ajouter</button>');
 }
 /* ═══ LES ACTIVITÉS EN FLYERS (Mag, 13/10/2026 : « il y en a rarement, un dimanche ou deux par mois ; pas un calendrier
    toujours vide — une sorte de slide des prochaines activités, comme des flyers : activité du centre, où (dehors, au
@@ -19280,7 +19281,10 @@ function rdvPrendre(id){
 /* ⭐ REMETTRE À L'ÉQUIPE (Mag, 13/10/2026 : « je pars à 5 heures parce que je suis malade : si je me le suis approprié et
    que je ne peux pas le remettre, c'est problématique ») : la ligne quitte ma liste et revient dans « Agenda · À prévenir »
    pour toute l'équipe de jour et du soir. */
-function rdvRemettre(id){
+/* ⚠⚠ RENOMMÉE (Mag, 19/10/2026 : « quand je le fais passer à l'équipe, ce n'est pas passé ») : elle s'appelait
+   `rdvRemettre`, comme la fonction qui remet un rendez-vous RETIRÉ, plus bas — la seconde écrasait la première, et le
+   bouton « Remettre à l'équipe » appelait la mauvaise : il ne se passait rien. */
+function rdvRemettreEquipe(id){
   const r=rdvLigne(id); if(!r) return;
   cousinConfirme('Remettre à l’équipe ?', 'Prévenir '+r.nom+' — '+rdvQuandCourt(r)+'. Ça quitte ta liste et revient dans « À prévenir » pour toute l’équipe.', async function(){
     const res=await sb.from('rendez_vous').update({prevenir_note:null}).eq('id',r.id).select('*');
@@ -43947,6 +43951,14 @@ function passProgramme(liste){
 /* `role` : 'prevenir' (minuit, on annonce le jeûne) ou 'reveil'/absent. Voir
    `passProgramme` — une même passation « à jeun » s'affiche à deux heures. */
 /* `gauche` : un bouton posé à GAUCHE dans la rangée des boutons (« Répondre », service social). */
+function passColonne(p, g, heure){
+  const h=(heure!==undefined)?heure:(g.heure?p.heure:'');
+  if(h) return esc(String(h).slice(0,5).replace(':',' h '));
+  if(p.genre==='prevenir') return '<i class="pcol pcol-main" title="À prévenir">'+PREV_MAIN+'</i>';
+  if(/^rendez-vous/i.test(String(p.source||''))) return '<i class="pcol" title="Vient de l’agenda">'+icon('calendrier')+'</i>';
+  if(g.heure) return '—';
+  return '';
+}
 function passLigne(p, mienne, role, heure, gauche){
   if(mienne===undefined) mienne=passMienne(p);
   const ok=passFait(p), g=passGenreDe(p.genre);
@@ -43979,7 +43991,10 @@ function passLigne(p, mienne, role, heure, gauche){
 
   return '<div class="pl'+(ok?' faite':'')+'">'+
     '<span class="pgc" style="background:'+g.c+'"></span>'+
-    '<span class="h">'+esc(heure!==undefined?(heure||'—'):(g.heure?(p.heure||'—'):'—'))+'</span>'+
+    /* ⭐ PLUS DE « – » À GAUCHE (Mag, 19/10/2026 : « c'est pas là plutôt qu'il faudrait mettre la petite main, ou l'heure
+       en grand pour un réveil ? ») : l'heure pour ce qui en a une, la petite main pour « à prévenir », l'agenda pour ce
+       qui vient d'un rendez-vous, rien pour une info. */
+    '<span class="h">'+passColonne(p, g, heure)+'</span>'+
     '<span class="tx">'+
       '<b>'+passRiche(p.texte)+'</b>'+
       /* ⚠ PAS DE PHRASE D'ACTION SOUS LE TEXTE (22/08/2026, « c'est trop compliqué ») :
@@ -44005,7 +44020,7 @@ function passLigne(p, mienne, role, heure, gauche){
     /* L'étiquette verte : « à jeun » suffit sur une rangée — c'est sur la feuille
        d'écriture que l'heure devait être dite, pas ici où la place manque. */
     (p.a_jeun && p.genre==='reveil' ? '<span class="ajeun">à jeun</span>' : '')+
-    (p.genre==='prevenir' ? '<span class="pprev" title="À prévenir">'+PREV_MAIN+'</span>' : '')+
+
     /* ⚠ PAS DE CASE À COCHER (Mag, 22/08/2026 : « retire les cases à cocher dans la
        passation, c'est juste une passation »). Une passation se lit et s'imprime ;
        cocher, c'est le travail de sa propre liste.
@@ -44227,7 +44242,7 @@ function prevCarte(x){
       /* Pas pris : « Je m'en occupe ». Pris par moi : « Pas vu ? Passer à la nuit ». Pris par un·e autre : son nom. */
       (!x.fait && x.k==='rdv' && !x.pris?'<button class="prk-nuit" onclick="rdvPrendre(\''+x.id+'\')">Je m’en occupe</button>':'')+
       (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>'+
-        '<button class="prk-nuit" onclick="rdvRemettre(\''+x.id+'\')">Remettre à l’équipe</button>':'')+
+        '<button class="prk-nuit" onclick="rdvRemettreEquipe(\''+x.id+'\')">Remettre à l’équipe</button>':'')+
       (!x.fait && x.k==='rdv' && x.pris && !x.aMoi?'<div class="prk-f">'+esc(x.pris)+' s’en occupe</div>':'')+
       (x.fait?'<div class="prk-f">✓ prévenu'+(x.faitPar?' par '+esc(String(x.faitPar).split(/\s+/)[0]):'')+(x.faitLe?', '+esc(binQuand(x.faitLe)):'')+'</div>':'')+
     '</div>'+
