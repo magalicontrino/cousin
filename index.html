@@ -44483,11 +44483,14 @@ function imprimerPrevenir(){
    s'en sert encore — les DEUX boutons imprimer de la passation plantaient sans rien dire. Dans l'ordre des chambres. */
 function passParChambre(L){
   const n=function(p){ const m=/\d+/.exec(String(p.chambre||'')); return m?parseInt(m[0],10):99999; };
-  return L.slice().sort(function(a,b){ return n(a)-n(b); });
+  /* Les lignes « mises en avant » d'abord, comme à l'écran (20/10/2026), puis l'ordre des chambres. */
+  return L.slice().sort(function(a,b){ return ((passEnAvant(b)?1:0)-(passEnAvant(a)?1:0)) || n(a)-n(b); });
 }
 function imprimerPassation(pour){
   const social=pour==='social';
-  const liste=social ? passUnique(passSociales())
+  const liste=social ? (function(){ const l0=passUnique(passSociales());   /* l'ordre de la carte : en avant, PFO, le reste */
+      return l0.filter(passEnAvant).concat(l0.filter(function(p){ return !passEnAvant(p) && passEstPfo(p); }))
+        .concat(l0.filter(function(p){ return !passEnAvant(p) && !passEstPfo(p); })); })()
     : passUnique(passToutes()).filter(function(p){ return !PASS_IMPR_PREV || p.genre==='prevenir'; });
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
@@ -44543,14 +44546,15 @@ function imprimerPassation(pour){
   const infos=passParChambre(liste.filter(function(p){ return (p.genre||'passation')==='passation'; }));
   const aprev=passParChambre(liste.filter(function(p){ return p.genre==='prevenir'; }));
   let corps='';
-  if(aprev.length)
-    corps+='<section class="ch"><div class="st"><span>À prévenir</span><em>'+aprev.length+'</em></div>'+aprev.map(ligneP).join('')+'</section>';
   if(moments.length)
     corps+='<section class="ch"><div class="st"><span>Réveil</span>'+
       /* « c'est la nuit qui coche » retiré (Mag, 04/10/2026 : « ça veut rien dire ») */
       '<em>'+moments.length+'</em></div>'+
       moments.map(function(m){ return ligneP(m.p); }).join('')+
     '</section>';
+  /* Dans l'ordre de l'écran (Mag, 20/10/2026) : Réveil, puis À prévenir, puis Info. */
+  if(aprev.length)
+    corps+='<section class="ch"><div class="st"><span>À prévenir</span><em>'+aprev.length+'</em></div>'+aprev.map(ligneP).join('')+'</section>';
   if(infos.length)
     corps+='<section class="ch"><div class="st"><span>Info</span>'+
       '<em>'+infos.length+'</em></div>'+infos.map(ligneP).join('')+'</section>';
