@@ -37995,10 +37995,10 @@ function accBrCopier(){
   if(!ACC_PROPOSE) return;
   const garde=ACC, gardeS=ACC_SESSION;
   ACC=ACC_PROPOSE.acc||{};
-  const t=accNote(ACC_PROPOSE.volet||'');
+  const t=accNote(ACC_PROPOSE.volet||''), html=accNoteA(ACC_PROPOSE.volet||'',null,true);
   ACC=garde; ACC_SESSION=gardeS;
   if(!t){ toast('Cet entretien est vide'); return; }
-  copyTxt(t,'Note copiée — colle-la dans KAIROS');
+  copierRiche(html, t, 'Note copiée — colle-la dans KAIROS');   /* la même mise en forme que la page (19/10/2026) */
   _accBrCopie=true; accBrDessine();
 }
 let _accBrJeterArme=false;
@@ -38768,9 +38768,35 @@ function accNote(volet){
   if(l.length<=2) return '';
   return l.join('\n');
 }
+/* ═══ COPIER COMME UNE SÉLECTION À LA MAIN (Mag, 19/10/2026 : « quand je copie et colle dans KAIROS, les titres ne sont
+   pas en gras ; quand je colle de la petite fenêtre, il y a un picto aussi copié ») ═══ On pose la note mise en forme dans
+   un cadre invisible, on la sélectionne et on copie : c'est exactement ce que fait une sélection à la souris, la seule
+   façon qui gardait le gras chez elle. Sinon, l'ancienne écriture HTML + texte ; sinon le texte seul. */
+function copierRiche(html, plain, msg){
+  try{
+    const d=document.createElement('div');
+    d.setAttribute('contenteditable','true');
+    d.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;font-family:Arial,sans-serif;font-size:14px;color:#000;background:#fff';
+    d.innerHTML=html; document.body.appendChild(d);
+    const r=document.createRange(); r.selectNodeContents(d);
+    const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    const ok=document.execCommand('copy');
+    sel.removeAllRanges(); d.remove();
+    if(ok){ toast(msg); return; }
+  }catch(e){}
+  try{
+    if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+      navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})])
+        .then(function(){ toast(msg); }, function(){ copyTxt(plain,msg); });
+      return;
+    }
+  }catch(e){}
+  copyTxt(plain,msg);
+}
 function accCopier(volet){
   const t=accNote(volet);
   if(!t){ toast('Rien à copier — la page est vide'); return; }
+  copierRiche(accNoteA(volet,null,true), t, 'Note copiée — colle-la dans KAIROS'); return;
   /* ⚠ DEUX VERSIONS DANS LE PRESSE-PAPIER (Mag, 05/10/2026, après l'essai des quatre
      dessins dans son programme) : la mise en forme A (gras, souligné) pour un programme
      qui la lit, et le texte simple d'avant pour celui qui ne la lit pas. Chaque
