@@ -8628,7 +8628,7 @@ try{ var _pv=localStorage.getItem('cousin_pannes'); if(_pv) window.PANNES_AVANT=
     <div id="entAlerte" class="notalerte" style="display:none"></div>
     <div id="entPanne" class="dempanne" style="display:none"></div>
     <div class="notb">
-      <button class="dembtn" id="entBtnC" onclick="notOk()">Corriger</button>
+      <button class="dembtn" id="entBtnC" onclick="notOk()" style="display:none">Corriger</button>
       <button class="dembtn clair pic" onclick="notGarder()" title="Garder" aria-label="Garder"><span class="ic" data-ic="check"></span></button>
       <button class="dembtn clair pic" onclick="notCopier()" title="Copier" aria-label="Copier"><span class="ic" data-ic="copyleger"></span></button>
       <button class="dembtn clair pic" onclick="notCollerIci()" title="Coller" aria-label="Coller dans la case"><span class="ic" data-ic="collerleger"></span></button>
@@ -26219,7 +26219,7 @@ function popValider(){
 let _popCorr=false;
 function popBarreHTML(id){
   let h=txCopierCollerHTML(id);
-  if(_popCorr){
+  if(_popCorr && iaOk()){
     const hi=CH_HIST[id]||{};
     h+='<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
          'onclick="popCorriger(\'champCorriger\')"'+(CH_ENCOURS===id?' disabled':'')+'>'+
@@ -35942,7 +35942,13 @@ const DEM_ACCES=['810e887c3382ae03a60b','5ebcacb1f4b0595fb430',
   '9f1b24a3ae16f896a048','002ca1ceaaeca5d4ac60',
   /* Afaf Aboulkhir, ajoutée le 10/09/2026 (Mag : « elle aussi a droit d'utiliser
      l'IA »). Son adresse professionnelle. */
-  'da59bc582d03ea4e98af'];
+  'da59bc582d03ea4e98af',
+  /* Adam Azmi, ajouté le 19/10/2026 (Mag : « Adam doit aussi avoir accès à l'IA pour quand il fait corriger »). */
+  '041483444dd759c86d47'];
+/* ⭐ « CORRIGER » SEULEMENT POUR CEUX QUI ONT L'IA (Mag, 19/10/2026 : « ceux qui n'ont pas accès, il ne faut pas mettre
+   corriger ») ; ⭐ LE MICRO SEULEMENT SUR ORDINATEUR (« l'audio, que sur l'écran, jamais sur le téléphone »). */
+function iaOk(){ return typeof DEM_OK!=='undefined' && !!DEM_OK; }
+function audioOk(){ return !(window.matchMedia && matchMedia('(pointer:coarse)').matches) && window.innerWidth>=768; }
 /* Mise de côté : '47902f26f04dae3775a8' (Nadia Draoui), retirée le 05/09/2026. */
 let DEM_OK=false;
 /* ⚠ « DEMANDER » EST RANGÉE POUR L'INSTANT (Mag, 07/09/2026 : « tu peux cacher la
@@ -35962,6 +35968,7 @@ async function demVerifierAcces(){
     const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(mail));
     const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,20);
     const avant=DEM_OK; DEM_OK=DEM_ACCES.indexOf(hex)>=0;
+    { const b=document.getElementById('entBtnC'); if(b) b.style.display=DEM_OK?'':'none'; }
     if(avant!==DEM_OK) render();
   }catch(e){ DEM_OK=false; }
 }
@@ -36510,6 +36517,7 @@ function notContenuBouton(on){
    ⚠ `onmousedown` RETIENT LE CURSEUR DANS LA CASE : sans lui, appuyer sur le bouton
    sort du champ — et sur téléphone, le clavier se referme. */
 function notBoutonHTML(champ, petit){
+  if(!audioOk()) return '';
   const on=(NOT_ECOUTE && NOT_LIBRE===champ);
   return '<button type="button" id="notMic_'+champ+'" '+
     'class="notmic'+(petit?' petit':'')+(on?' ecoute':'')+'" '+
@@ -36914,10 +36922,10 @@ function notesCorps(){
      une seule barre en haut, puis l'alerte rouge, puis la case. Sur téléphone la barre
      passe à la ligne au lieu de sortir de l'écran. */
 h+='<div class="notbarre">'+mic+'<div class="notb">'+
-        '<button class="dembtn" onclick="notOk()"'+(NOT_ENCOURS?' disabled':'')+'>'+
+        (iaOk()?'<button class="dembtn" onclick="notOk()"'+(NOT_ENCOURS?' disabled':'')+'>'+
           (NOT_ENCOURS
             ?'<span class="notspin"><span class="sp1"></span></span>'
-            :'Corriger')+'</button>'+
+            :'Corriger')+'</button>':'')+
        '<button class="dembtn clair pic" onclick="notGarder()" title="Garder" '+
          'aria-label="Garder">'+icon('check')+'</button>'+
        /* ⚠ LES BOUTONS SONT TOUJOURS LÀ (Mag, 05/09/2026 : « la deuxième note ne
@@ -49286,9 +49294,9 @@ function rappelsHTML(enCarte){
            garde-fou des chiffres et des côtés, et « Revenir » / « Rétablir » juste à côté :
            une correction qui remplace un texte doit toujours pouvoir se défaire. */
         '<div class="chadd-a">'+txCopierCollerHTML('rapTxt')+
-          '<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
+          (iaOk()?'<button type="button" class="txb mot" onmousedown="event.preventDefault()" '+
             'onclick="champCorriger(\'rapTxt\')"'+(CH_ENCOURS==='rapTxt'?' disabled':'')+'>'+
-            (CH_ENCOURS==='rapTxt'?'…':'Corriger')+'</button>'+
+            (CH_ENCOURS==='rapTxt'?'…':'Corriger')+'</button>':'')+
           ((CH_HIST.rapTxt||{}).avant?'<button type="button" class="txb pic" onclick="champRevenir(\'rapTxt\')" '+
             'title="Revenir" aria-label="Revenir">'+icon('undo')+'</button>':'')+
           ((CH_HIST.rapTxt||{}).apres?'<button type="button" class="txb pic" onclick="champRetablir(\'rapTxt\')" '+
