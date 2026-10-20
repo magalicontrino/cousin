@@ -5160,6 +5160,7 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chadd.ecrire .rapPass.rapSoc{background:#6cb392}
 .chadd.ecrire .rapPass.rapAct{background:none;border:1px solid rgba(242,238,230,.4);color:#f2eee6}
 .bkp-eff{margin-left:auto;border:0;background:none;color:#8a8780;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 4px}
+.chdep-b.pcoeur{display:flex;align-items:center;justify-content:center}.pcoeur-i{display:inline-flex;width:30px;height:28px;color:#e8308a}.pcoeur-i svg{width:100%;height:100%}
 .pcol{display:inline-flex;width:24px;height:24px;color:#6b6862}.pcol-coeur{color:#e8308a}.pcol svg{width:100%;height:100%}.pcol-main{color:#f8763f}
 .rap-jus{display:block;font-size:12px;font-weight:400;color:#6b6862;margin-top:1px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
@@ -43701,6 +43702,8 @@ async function passAjouter(){
   if(!texte){ const e=document.getElementById('passTxt'); if(e) e.focus(); return; }
   /* Service social depuis la feuille : la même question « à qui ? » que le bouton de la
      ligne (08/10/2026). La réponse est posée, puis on repasse ici. */
+  /* ♥ : seulement pour Afaf — au service social, sans passer par « à qui ? » (20/10/2026). */
+  if(PASS_COEUR && !PASS_EDIT){ PASS_POUR=PASS_SOCIAL; PASS_SOC_QUI=AFAF_MAILS.slice(); if(PASS_GENRE==='reveil') PASS_GENRE='passation'; }
   const socQui=PASS_SOC_QUI; PASS_SOC_QUI=undefined;
   if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL && socQui===undefined){
     socAQui(function(q){ PASS_SOC_QUI=q; passAjouter(); });
@@ -43813,7 +43816,7 @@ async function passAjouter(){
     /* ⚠ LA FEUILLE SE REFERME UNE FOIS LA LIGNE PASSÉE : elle a fait son travail, et la
        ligne est maintenant visible en bas de la liste. La laisser ouverte donnerait à
        croire que rien n'est parti. */
-    PASS_AJEUN=false; PASS_FEUILLE=false; PASS_GARDE=null;
+    PASS_AJEUN=false; PASS_FEUILLE=false; PASS_GARDE=null; PASS_COEUR=false;
     /* On revient à la nuit : sinon la note suivante partirait au service social
        sans qu'on y pense. */
     const etaitEdit=!!PASS_EDIT, vers=passPourNom(l.pour), rev=l.genre==='reveil';
@@ -45101,6 +45104,11 @@ function passFeuilleHTML(){
             '<b'+(PASS_GENRE===x.k?' style="color:'+x.c+'"':'')+'>'+(x.k==='prevenir'?PREV_MAIN:'')+esc(x.l)+'</b>'+
             '<em>'+esc(x.s)+'</em></button>';
         }).join('')+
+        /* ♥ À CÔTÉ DE « À PRÉVENIR » (Mag, 20/10/2026 : « comment je peux remettre le cœur ? à côté de ça ») : le message
+           part au service social, seulement pour Afaf. Pas de nom écrit. */
+        (PASS_EDIT?'':'<button class="chdep-b pcoeur'+(PASS_COEUR?' on':'')+'" onclick="PASS_COEUR=!PASS_COEUR;passChampsGarder()" '+
+          'aria-pressed="'+PASS_COEUR+'" aria-label="Seulement pour Afaf" title="Seulement pour Afaf" style="'+(PASS_COEUR?'border-color:#e8308a':'')+'">'+
+          '<b class="pcoeur-i">'+COEUR_SVG+'</b></button>')+
       '</div>'+
       /* ═══ SUR UN RÉVEIL, ON PRÉCISE S'IL EST À JEUN (Mag, 22/08/2026) ═══
          Ses mots, et il n'y a rien à interpréter au-delà : « quand quelqu'un doit être
@@ -45406,7 +45414,7 @@ function passEditAnnuler(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false
    de corriger : sinon, une feuille ouverte par erreur ne se referme jamais. */
 /* ⚠ ON OUBLIE D'OÙ ON VENAIT EN FERMANT : sinon une note ouverte puis abandonnée
    partirait à la prochaine passation, celle d'une AUTRE note. */
-function passFeuilleFermer(){ PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; PASS_POUR=PASS_EQUIPE; render(); }
+function passFeuilleFermer(){ PASS_COEUR=false; PASS_EDIT=null; PASS_AJEUN=false; PASS_FEUILLE=false; PASS_DEPUIS_RAPPEL=null; PASS_POUR=PASS_EQUIPE; render(); }
 
 /* ═══ LA DATE SUR UN RAPPEL (Mag, 08/08/2026, pour Mathilde) ═══
    « Mathilde peut mettre son rappel pour elle-même dans sa liste perso avec une
@@ -45756,6 +45764,7 @@ async function rapEntEnvoyer(){
   render(); confirmePop(true,'Envoyée',vers);
 }
 /* ═══ CE QU'ON PRÉPARE EN ÉCRIVANT (18/10/2026) : Réveil · Info · À prévenir — facultatif. ═══ */
+var PASS_COEUR=false;
 var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false};
 function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false}; }
 function rapPrepCoeur(){ rapPrepGarder(); const i=document.getElementById('rapTxt'); if(i) RAP_BROUILLON=i.value; RAP_PREP.coeur=!RAP_PREP.coeur; render(); }
