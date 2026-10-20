@@ -4803,6 +4803,12 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .chc{border:1px solid var(--ligne);background:#f4f3f0;margin-bottom:8px}
 .chc.finie{opacity:.62}
 .chh{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px;background:transparent;border:0;border-radius:0}
+.chh-w{display:flex;align-items:center}.chh-w .chh{flex:1;min-width:0}
+.chh-a{display:flex;align-items:center;gap:6px;padding-right:10px;flex:none}
+.chprev{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 10px;border:1.25px solid #f8763f;border-radius:8px;background:#fdfdfc;
+  color:#2b2a28;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.chprev .pmain{width:18px;height:18px;color:#f8763f}
+@media(max-width:560px){ .chprev span{display:none} }
 .chnum{font-size:19px;font-weight:700}
 .chini{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--noir);background:rgba(27,27,27,.09);padding:3px 7px}
@@ -15905,6 +15911,17 @@ async function ajouterChambre(){
   }catch(e){ confirmePop(false,'Sortant PAS ajouté', (e&&e.message)||String(e)); }
 }
 var CH_AFF=null, CH_MOTIF='', CH_DES=null;
+async function chPrevenir(id){
+  const ch=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(!ch) return;
+  if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyé','Pas de connexion'); return; }
+  const t=('Prévenir '+(ch.initiales||'la personne')+' — sortie '+(chSortieFr(ch)||'')+'.'+(ch.commentaire?' '+ch.commentaire:'')).replace(/\s+/g,' ').trim();
+  const l={texte:t.slice(0,4000), pour:PASS_SOCIAL, genre:'prevenir', par:nomAffiche(), uid:PROFILE.uid, chambre:String(ch.numero||'').slice(0,12)||null,
+           jour:todayStr(), pour_qui:null, source:'Sortants'};
+  const r=await sb.from('passations').insert(l).select();
+  if(r.error||!r.data||!r.data.length){ confirmePop(false,'PAS envoyé',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+  r.data[0]._pose=Date.now(); PASSATIONS.unshift(r.data[0]); render();
+  confirmePop(true,'À prévenir','envoyé au service social · ch. '+ch.numero);
+}
 function chEditer(id){
   const ch0=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(!ch0) return;
   cousinPop({titre:'Chambre '+ch0.numero, texte:'', champ:ch0.commentaire||'', max:600, multi:true, ok:'Enregistrer',
@@ -16004,6 +16021,9 @@ function chCard(ch){
   const faites=oblig.filter(e=>ch[e.k+'_le']).length, finie=chambreFinie(ch);   /* ⚠ un hospitalisé à place gardée n'a pas d'étape : il n'est PAS « libéré » (bug vu au tour du 13/10) */
   const g=genreEtage(ch.numero), ouverte=!!CH_OUVERTES[ch.id];
   return '<div class="chc'+(finie?' finie':'')+'">'+
+    /* ⭐ MODIFIER ET « À PRÉVENIR » SUR LA LIGNE (Mag, 20/10/2026 : « on doit pouvoir modifier, et mettre à prévenir, ce
+       qui va directement dans le social »), sans avoir à la déplier. */
+    '<div class="chh-w">'+
     '<button class="chh" onclick="toggleChambre(\''+ch.id+'\')">'+
       '<span class="chnum">'+esc(ch.numero)+'</span>'+
       (ch.initiales?'<span class="chini">'+esc(ch.initiales)+'</span>':'')+
@@ -16020,6 +16040,10 @@ function chCard(ch){
               '</span>')+
       '<span class="ic chchev" style="transform:rotate('+(ouverte?'90deg':'-90deg')+')">'+icon('chevron')+'</span>'+
     '</button>'+
+    '<span class="chh-a">'+
+      '<button class="ib" onclick="chEditer(\''+ch.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+      '<button class="chprev" onclick="chPrevenir(\''+ch.id+'\')" title="À prévenir — au service social">'+PREV_MAIN+'<span>À prévenir</span></button>'+
+    '</span></div>'+
     (ouverte?'<div class="chcorps">'+
       /* Le nom et le commentaire se changent après coup (19/10/2026). */
       '<button type="button" class="entcom'+(ch.commentaire?'':' vide')+'" onclick="chEditer(\''+ch.id+'\')">'+
