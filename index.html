@@ -15884,25 +15884,36 @@ const CH_SANS_OBJET='sans objet';
 async function ajouterChambre(){
   const n=document.getElementById('chNum'), i=document.getElementById('chIni'), dj=document.getElementById('chSortie');
   const num=(n&&n.value||'').trim(); if(!num){n&&n.focus();return}
-  if(!CH_MOTIF){ toast('Choisis : sortant ou hospitalisé'); return; }
-  if(CH_MOTIF==='hospitalise' && CH_DES===null){ toast('Choisis : place gardée ou place désencodée'); return; }
-  const suivi=(CH_MOTIF==='sortant' || CH_DES===true);
-  if(suivi && CH_AFF===null){ toast('Choisis : affaires restantes, ou aucune affaire restante'); return; }
   if(!sb){ toast('Pas de connexion'); return; }
+  const co=document.getElementById('chCom');
   const ligne={numero:num, initiales:(i&&i.value||'').trim().slice(0,40)||null,
-               cree_par:nomAffiche(), sortie_le:(dj&&dj.value)||agIso(new Date()), avec_affaires:suivi?CH_AFF:null, motif:CH_MOTIF};
+               cree_par:nomAffiche(), sortie_le:(dj&&dj.value)||agIso(new Date()), avec_affaires:null, motif:'sortant',
+               commentaire:((co&&co.value)||'').trim().slice(0,600)||null};
   /* ⚠ RÉPARÉ LE 16/10/2026 (« je n'arrive pas à rentrer cette info ») : deux défauts. ① La réponse de la base n'était pas
      lue — `insert` ne lève pas d'exception, une panne passait pour un succès. ② Depuis l'onglet Sortants de Liste et
      notes (vue « liste »), on ne redessinait pas : la chambre partait dans la base mais rien ne bougeait à l'écran. */
   try{
     const r=await sb.from('chambres').insert(ligne).select('id');
     if(r.error || !r.data || !r.data.length){ confirmePop(false,'Sortant PAS ajouté', (r.error&&r.error.message)||'la base n’a pas répondu'); return; }
-    if(n)n.value=''; if(i)i.value=''; CH_AFF=null; CH_MOTIF=''; CH_DES=null;
+    if(n)n.value=''; if(i)i.value=''; if(co)co.value=''; CH_AFF=null; CH_MOTIF=''; CH_DES=null;
     _chVu=0; await loadChambres(); render();
     confirmePop(true,'Sortant ajouté','Chambre '+num+(ligne.initiales?' · '+ligne.initiales:''));
   }catch(e){ confirmePop(false,'Sortant PAS ajouté', (e&&e.message)||String(e)); }
 }
-var CH_AFF=null, CH_MOTIF='', CH_DES=null;   /* le formulaire : affaires (true/false), motif (sortant/hospitalise), place désencodée (true/false) */
+var CH_AFF=null, CH_MOTIF='', CH_DES=null;
+function chEditer(id){
+  const ch0=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(!ch0) return;
+  cousinPop({titre:'Chambre '+ch0.numero, texte:'', champ:ch0.commentaire||'', max:600, multi:true, ok:'Enregistrer',
+    plus:{deux:ch0.initiales||'', deuxMax:40, deuxPlaceholder:'Nom'},
+    quandOui:async function(v, plus){
+      const maj={commentaire:String(v||'').trim().slice(0,600)||null, initiales:String((plus&&plus.deux)||'').trim().slice(0,40)||null};
+      const r=await sb.from('chambres').update(maj).eq('id',ch0.id).select('*');
+      if(r.error||!r.data||!r.data.length){ confirmePop(false,'Pas enregistré',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+      /* la ligne se retrouve au moment d'enregistrer (la liste a pu se relire entre-temps) */
+      const ch=CHAMBRES.find(function(c){ return String(c.id)===String(id); }); if(ch) Object.assign(ch, r.data[0]);
+      render(); toast('Enregistré ✓');
+    }});
+}   /* le formulaire : affaires (true/false), motif (sortant/hospitalise), place désencodée (true/false) */
 function toggleChambre(id){CH_OUVERTES[id]=!CH_OUVERTES[id];render()}
 /* Cocher ou décocher — toujours avec confirmation, et on note QUI l'a fait. */
 async function cocherEtape(id,k){
@@ -16006,7 +16017,9 @@ function chCard(ch){
       '<span class="ic chchev" style="transform:rotate('+(ouverte?'90deg':'-90deg')+')">'+icon('chevron')+'</span>'+
     '</button>'+
     (ouverte?'<div class="chcorps">'+
-      (ch.motif?'<div class="chaff">'+chMotifL(ch)+(chGardee(ch)?' · place gardée':'')+'</div>':'')+
+      /* Le nom et le commentaire se changent après coup (19/10/2026). */
+      '<button type="button" class="entcom'+(ch.commentaire?'':' vide')+'" onclick="chEditer(\''+ch.id+'\')">'+
+        '<span class="ic">'+icon('crayon')+'</span>'+(ch.commentaire?'<span class="entcom-t">'+esc(ch.commentaire)+'</span>':'Commentaire · nom')+'</button>'+
       (chGardee(ch)?'<div class="chgarde"><button class="chaffb" onclick="chRevenu(\''+ch.id+'\')">Revenu</button>'+
         '<button class="chaffb" onclick="chDesencoder(\''+ch.id+'\')">Désencoder la place</button></div>':'')+
       (ch.avec_affaires!==null&&ch.avec_affaires!==undefined?'<div class="chaff">'+(ch.avec_affaires?'À vider'+(ch.dest==='moins1'?' · −1':ch.dest==='lieu'?' · Transport'+(ch.lieu?' — '+esc(ch.lieu):'')+(ch.pret_le?' · prêt ✓':''):''):'Aucune affaire restante')+'</div>':'')+
@@ -16115,20 +16128,10 @@ function vChambres(dansListe){
       '<input id="chIni" type="text" maxlength="40" placeholder="Nom (ex. Marie D.)" autocomplete="off">'+
       '<input id="chSortie" type="date" value="'+agIso(new Date())+'" title="Date de sortie">'+
     '</div>'+
-    /* ⭐ DEUX QUESTIONS (Mag, 13/10/2026) : pourquoi la personne n'est pas là (sortant / hospitalisé), et la place est-elle
-       désencodée ? Une place gardée (hospitalisé qui revient) n'a pas de suivi ; une place désencodée a le suivi de la chambre. */
-    '<div class="chaddaff">'+
-      '<button class="chaffb'+(CH_MOTIF==='sortant'?' on':'')+'" onclick="chAffGarde(\'sortant\',\'motif\')">Sortant</button>'+
-      '<button class="chaffb'+(CH_MOTIF==='hospitalise'?' on':'')+'" onclick="chAffGarde(\'hospitalise\',\'motif\')">Hospitalisé</button>'+
-    '</div>'+
-    (CH_MOTIF==='hospitalise'?'<div class="chaddaff">'+
-      '<button class="chaffb'+(CH_DES===false?' on':'')+'" onclick="chAffGarde(false,\'des\')">Place gardée</button>'+
-      '<button class="chaffb'+(CH_DES===true?' on':'')+'" onclick="chAffGarde(true,\'des\')">Place désencodée</button>'+
-    '</div>':'')+
-    ((CH_MOTIF==='sortant'||CH_DES===true)?'<div class="chaddaff">'+
-      '<button class="chaffb'+(CH_AFF===true?' on':'')+'" onclick="chAffGarde(true)">Affaires restantes</button>'+
-      '<button class="chaffb'+(CH_AFF===false?' on':'')+'" onclick="chAffGarde(false)">Aucune affaire restante</button>'+
-    '</div>':'')+
+    /* ⭐ SIMPLIFIÉ (Mag, 19/10/2026 : « retire ces quatre fonctions, juste ajouter ; après on peut mettre un commentaire,
+       changer le commentaire et changer le nom… on met tout dans la note, simplifie vraiment ») : plus de sortant /
+       hospitalisé / place gardée / affaires. Un commentaire libre, et Ajouter. */
+    '<div class="chadd"><input id="chCom" type="text" maxlength="600" placeholder="Commentaire (facultatif)" autocomplete="off"></div>'+
     '<div class="chaddaff"><button class="chaddbtn" onclick="ajouterChambre()">Ajouter</button></div>'+
     /* ⚠ LES DEUX BOUTONS « À VIDER / DÉJÀ VIDE » SONT PARTIS (Mag, 22/08/2026 :
        « pour ça, moi, ça sert plus à rien »). Voir CH_ETAPES : « vider » est devenue
@@ -47504,9 +47507,14 @@ function entrantChambre(id){
     }});
 }
 function entrantCommenter(id){
-  const e=ENTRANTS.find(function(x){ return x.id===id; }); if(!e) return;
+  const e0=ENTRANTS.find(function(x){ return x.id===id; }); if(!e0) return; const e=e0;
   const ecrire=function(txt){
-    txt=(txt||'').trim().slice(0,300);
+    /* ⚠⚠ LA LIGNE SE RETROUVE AU MOMENT D'ENREGISTRER (Mag, 19/10/2026 : « j'avais écrit un commentaire, il a fallu
+       recharger la page pour le voir » ; « j'ai changé et ça n'a pas changé »). La liste se relit toutes les 15 s : si elle
+       s'était relue pendant que la fenêtre était ouverte, on écrivait sur l'ANCIENNE copie — la base était à jour, l'écran
+       non. */
+    const e=ENTRANTS.find(function(x){ return x.id===id; })||e0;
+    txt=(txt||'').trim().slice(0,2000);
     const avant={commentaire:e.commentaire, commentaire_par:e.commentaire_par, commentaire_le:e.commentaire_le};
     const maj = txt ? {commentaire:txt, commentaire_par:(nomAffiche()||''), commentaire_le:new Date().toISOString()}
                     : {commentaire:null, commentaire_par:null, commentaire_le:null};
@@ -47518,7 +47526,7 @@ function entrantCommenter(id){
       }
     });
   };
-  const o={titre:'Commentaire', texte:e.nom, champ:e.commentaire||'', max:300, multi:true, ok:'Enregistrer',
+  const o={titre:'Commentaire', texte:e.nom, champ:e.commentaire||'', max:2000, multi:true, ok:'Enregistrer',
     quandOui:function(v){ ecrire(v); }};
   if(e.commentaire){ o.autre='Retirer'; o.quandAutre=function(){ ecrire(''); }; }
   cousinPop(o);
