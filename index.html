@@ -21813,19 +21813,27 @@ function imprimerMaListe(sel){
   /* Le service social et les « à prévenir », capturés à leur propre fonction (voir imprimerChoix). */
   if(sel.social){ const o=imprCapturer(function(){ imprimerPassation('social'); });
     if(o && o.corps) corps+='<section class="ch"><div class="st"><span>Service social</span></div></section>'+o.corps; }
-  corps+=partNuit;
+  /* ⭐ LA NUIT = L'IMPRESSION DE LA CARTE « ÉQUIPE DE NUIT », DANS L'ORDRE DE L'ÉCRAN (Mag, 20/10/2026 : « pourquoi tu ne
+     mets pas dans le même ordre que la passation ? »). La recette d'ici (réveils puis le reste par heure) n'est plus
+     utilisée : on prend la feuille de la carte, comme pour le service social. */
+  if(sel.nuit){ const o=imprCapturer(function(){ imprimerPassation(PASS_EQUIPE); });
+    if(o && o.corps) corps+='<section class="ch"><div class="st"><span>Équipe de nuit</span></div></section>'+o.corps; }
+  else corps+=partNuit;
   if(sel.prevenir){ const o=imprCapturer(function(){ imprimerPrevenir(); });
     if(o && o.corps) corps+='<section class="ch"><div class="st"><span>À prévenir</span></div></section>'+o.corps; }
   if(!corps) corps='<p class="vide">Rien à imprimer.</p>';
 
+  /* Le TITRE dit ce qui est imprimé (Mag, 20/10/2026 : « pourquoi tu mets Ma liste perso quand tu imprimes la nuit ? »). */
+  const titres=[]; if(sel.liste) titres.push('Ma liste perso'); if(sel.social) titres.push('Passation sociale'); if(sel.nuit) titres.push('Équipe de nuit');
+  const titre=titres.join(' · ')||'Impression';
   feuilleImprimer({
-    onglet:'Ma liste — '+jour,
-    entete:'Ma liste et la passation — aperçu',
-    titre:'Ma liste perso',
+    onglet:titre+' — '+jour,
+    entete:titre+' — aperçu',
+    titre:titre,
     sous:jour+(qui?' · '+qui:''),
-    compte:(tot
+    compte:(sel.liste ? (tot
       ? faites+' sur '+tot+' déjà faites — elles ne sont pas sur la feuille.'
-      : 'Rien de noté pour l’instant.'),
+      : 'Rien de noté pour l’instant.') : ''),
     corps:corps
   });
 }
