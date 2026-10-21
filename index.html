@@ -46438,7 +46438,9 @@ async function arriveeAjouter(){
    avant « Ajouter » ; LAM / MÉD se change d'un toucher, une ligne se décoche. Un nom
    déjà dans la liste n'est pas ajouté deux fois. */
 let ARR_PLAN=null;
+var SORT_LUS=[];
 function arrLireListe(txt){
+  SORT_LUS=[];
   const out=[]; let jour=null;
   const auj=new Date();
   /* ⭐ UN REPORT (Mag, 17/10/2026, mail collé : « L'entrée de Monsieur IVANOVA prévue le lundi 19/10 au LAM est reportée
@@ -46477,9 +46479,28 @@ function arrLireListe(txt){
   const TAG=/\(\s*(LAM|m[ée]d[a-zé]*)\s*\)|[-–]\s*(LAM|m[ée]d[a-zé]*)\s*$/i;
   const avecTag=lignes.some(function(l){ return TAG.test(l); });
   const DATE=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
-  let dernier=null;
+  let dernier=null, horsEntrants=false;
   lignes.forEach(function(l){
     const t=l.replace(/ /g,' ').trim(); if(!t){ dernier=null; return; }
+    /* ⚠ LES SORTANTS NE SONT PAS DES ENTRANTS (Mag, 21/10/2026 : « tu as mis aussi les sortants ») : un bloc « Retour sur
+       PC », « Sortants », « Départs » est sauté jusqu'au prochain titre d'entrants. KABONGO et NKAMA y étaient passés. */
+    if(t.length<70 && /^(\*\s*)?(retours?\s+(sur|au|vers)\b|sortants?\b|d[ée]parts?\b)/i.test(t)){ horsEntrants=true; dernier=null; return; }
+    if(t.length<70 && /^(\*\s*)?(les\s+)?(entrants?|arriv[ée]es?|entr[ée]es?)\b/i.test(t)){ horsEntrants=false; dernier=null; return; }
+    if(horsEntrants){
+      /* ⭐ ILS VONT DANS LES SORTANTS (Mag, 21/10/2026 : « note aussi directement dans les sortants ») : une puce = une
+         personne (jour, nom, chambre) ; la ligne d'après sans puce = son commentaire. */
+      const pu=/^[-•*–]\s*/.test(t);
+      if(pu){
+        const x=t.replace(/^[-•*–]\s*/,'');
+        const dm=DATE.exec(x), chm=/\bch(?:ambre)?\.?\s*(\d{3})\b/i.exec(x);
+        let nom=x.replace(/^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b[^:]*:\s*/i,'').replace(DATE,'')
+          .replace(/\/?\s*\bch(?:ambre)?\.?\s*\d{3}\b/i,'').replace(/^(m\.|mr\.?|mme\.?|monsieur|madame)\s+/i,'').replace(/[:\/.,\s]+$/,'').trim();
+        let jour=null;
+        if(dm){ let an=dm[3]?(dm[3].length===2?2000+(+dm[3]):+dm[3]):auj.getFullYear(); jour=an+'-'+String(+dm[2]).padStart(2,'0')+'-'+String(+dm[1]).padStart(2,'0'); }
+        if(nom) SORT_LUS.push({nom:nom.slice(0,40), chambre:chm?chm[1]:'', jour:jour, com:[]});
+      } else if(SORT_LUS.length) SORT_LUS[SORT_LUS.length-1].com.push(t);
+      return;
+    }
     if(!/[A-Za-zÀ-ÿ0-9]/.test(t)) return;   /* une ligne de « ____ » ne dit rien */
     if(/^(bonjour|bonsoir|hello|merci|bonne (journ|soir|fin)|cordialement|bien à (vous|toi)|belle journ)/i.test(t)){ dernier=null; return; }
     const tiret=/^[-•*–]/.test(t);
@@ -46569,7 +46590,7 @@ function arrNomColle(ev){
 async function arrCollerLire(){
   const t=document.getElementById('arrColTxt');
   const lus=arrLireListe(t&&t.value);
-  if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  if(!lus.length && !SORT_LUS.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
   /* ═══ LA CORBEILLE (Mag, 06/10/2026 : « Irfan est déjà passé — dis que c'est passé
      dans la base, que ça a été validé et passé à la corbeille ») ═══ Chaque entrant
      retiré y laisse une copie pendant 15 jours (sql/entrants-corbeille.sql). Un nom
@@ -46610,7 +46631,16 @@ async function arrCollerLire(){
     if(lam!==null && !!e.lam!==lam) ch.lam=lam;
     deja.push({e:e, ch:ch, ok:Object.keys(ch).length>0});
   });
-  ARR_PLAN={nouveaux:nouveaux, deja:deja, corbPanne:corbPanne};
+  /* ⭐ LA NOUVELLE LISTE REMPLACE CELLE D'AVANT (Mag, 21/10/2026 : « efface la liste d'avant, remets la liste à jour sur
+     COUSIN du même coup ») : les entrants À VENIR (pas encore arrivés, date d'aujourd'hui ou plus tard) qui ne sont plus dans
+     le texte collé sont proposés au retrait, cochés d'office. Rien ne part sans « Valider ». */
+  const anciens = lus.length ? ENTRANTS.filter(function(e){
+      return !e.pour_entretien && !e.mi_parcours && e.arrive_le && e.arrive_le>=absJour() && !lus.some(function(x){ return absMemePersonne(e.nom, x.nom); });
+    }).map(function(e){ return {e:e, ok:true}; }) : [];
+  ARR_PLAN={nouveaux:nouveaux, deja:deja, corbPanne:corbPanne, anciens:anciens,
+    sortants:SORT_LUS.map(function(x){
+      const deja=(typeof CHAMBRES!=='undefined'?CHAMBRES:[]).some(function(c){ return x.chambre && String(c.numero)===x.chambre && c.motif && !chambreFinie(c); });
+      return {nom:x.nom, chambre:x.chambre, jour:x.jour, com:x.com.join(' · ').slice(0,600), ok:!!x.chambre && !deja, deja:deja}; })};
   arrCollerDessine();
 }
 function arrCollerDessine(){
@@ -46660,7 +46690,24 @@ function arrCollerDessine(){
       '<b>'+esc(x.e.nom)+'</b><span class="abstag'+(x.e.lam?' lam':'')+'">'+(x.e.lam?'LAM':'MÉD')+'</span>'+
       '<em>'+(mots.length?esc(mots.join(' · ')):(x.e.pour_entretien?'déjà arrivé·e':'inchangé'))+'</em></label>';
   });
-  h+='</div><div class="entpart-b">'+
+  h+='</div>';
+  if(P.anciens && P.anciens.length){
+    h+='<div class="abscol-g"><div class="abscol-t rouge">Plus dans la nouvelle liste · '+P.anciens.length+'<span>retirés de COUSIN — décoche pour en garder un</span></div>'+
+      P.anciens.map(function(x,i){
+        return '<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+' onchange="ARR_PLAN.anciens['+i+'].ok=this.checked">'+
+          '<b>'+esc(x.e.nom)+'</b><em>'+esc(arrJourTxt(x.e.arrive_le)||'')+'</em></label>';
+      }).join('')+'</div>';
+  }
+  /* Les sortants trouvés dans le texte (21/10/2026) : ils partent dans l'onglet Sortants. */
+  if(P.sortants && P.sortants.length){
+    h+='<div class="abscol-g"><div class="abscol-t">Sortants · '+P.sortants.length+'<span>ajoutés aux Sortants, pas aux entrants</span></div>'+
+      P.sortants.map(function(x,i){
+        return '<label class="abscol-l"><input type="checkbox" '+(x.ok?'checked':'')+(x.chambre?'':' disabled')+' onchange="ARR_PLAN.sortants['+i+'].ok=this.checked">'+
+          '<b>'+esc(x.nom)+'</b><em>'+(x.chambre?'ch. '+esc(x.chambre):'sans chambre — à ajouter à la main')+(x.jour?' · '+esc(arrJourTxt(x.jour)):'')+
+          (x.deja?' · déjà dans les sortants':'')+(x.com?' · '+esc(x.com):'')+'</em></label>';
+      }).join('')+'</div>';
+  }
+  h+='<div class="entpart-b">'+
     '<button class="dembtn clair" onclick="arrCollerOuvrir()">Recoller</button>'+
     '<button class="dembtn" onclick="arrCollerValider()">Valider</button></div>';
   bg.firstElementChild.innerHTML=h;
@@ -46684,6 +46731,19 @@ async function arrCollerValider(){
     const r=await sb.from('entrants').update(x.ch).eq('id',x.e.id).select();
     if(r.error||!r.data||!r.data.length) rate++; else { Object.assign(x.e, x.ch); fait++; }
   }
+  for(const x of (P.anciens||[])){
+    if(!x.ok) continue;
+    entEcrit();
+    const r=await sb.from('entrants').delete().eq('id',x.e.id).select('id');
+    if(r.error||!r.data||!r.data.length) rate++; else { ENTRANTS=ENTRANTS.filter(function(y){ return y.id!==x.e.id; }); fait++; }
+  }
+  for(const x of (P.sortants||[])){
+    if(!x.ok || !x.chambre) continue;
+    const r=await sb.from('chambres').insert({numero:x.chambre, initiales:x.nom||null, sortie_le:x.jour||agIso(new Date()), motif:'sortant',
+      avec_affaires:null, commentaire:x.com||null, cree_par:nomAffiche()}).select('id');
+    if(r.error||!r.data||!r.data.length) rate++; else fait++;
+  }
+  if((P.sortants||[]).some(function(x){ return x.ok; })){ _chVu=0; try{ await loadChambres(); }catch(e){} }
   ARR_PLAN=null; render();
   toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
              : (fait ? 'Liste des entrants appliquée' : 'Rien de nouveau')+
