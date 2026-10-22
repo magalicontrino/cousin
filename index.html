@@ -4820,6 +4820,11 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   color:#2b2a28;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .chprev .pmain{width:18px;height:18px;color:#f8763f}
 .pecrire-h{display:flex;justify-content:flex-end;margin:-4px 0 6px}
+.chsimp{display:flex;align-items:center;gap:12px;background:#fdfdfc;border:1px solid var(--ligne);border-left:4px solid #6fc7d9;border-radius:0 10px 10px 0;padding:10px 12px;margin-bottom:8px}
+.chsimp-n{font-size:22px;font-weight:800;min-width:48px}
+.chsimp-t{flex:1;min-width:0}.chsimp-t b{display:block;font-size:15px}.chsimp-t span{display:block;font-size:13px;color:#6b6862;margin-top:2px}
+.chsimp-b{display:flex;gap:6px;flex:none}.chsimp-b .chprev{padding:0 8px}
+.chsimp-del{border-color:#e63329!important;color:#e63329!important}
 .chedpop label{display:block;font-size:12px;font-weight:700;color:#6b6862;margin-top:10px}
 .chedpop input,.chedpop textarea{display:block;width:100%;margin-top:4px;min-height:42px;border:1px solid #bdbab3;border-radius:8px;padding:8px 10px;font:inherit;font-size:15px;background:#fdfdfc;color:#2b2a28}
 .chedit{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1.25px solid #bdbab3;border-radius:8px;background:#fdfdfc;color:#6b6862;cursor:pointer;padding:0}
@@ -16046,10 +16051,23 @@ async function chPoser(ch, maj){
   try{ const r=await sb.from('chambres').update(maj).eq('id',ch.id).select('id'); if(r.error||!r.data||!r.data.length){ toast('Modification refusée'); return; }
     await loadChambres(); render(); }catch(e){ toast('Modification refusée'); }
 }
+function chLigneSimple(ch){
+  const sous=[ch.sortie_le?'sort '+chSortieFr(ch):'', ch.commentaire||''].filter(Boolean).join(' · ');
+  return '<div class="chsimp">'+
+    '<span class="chsimp-n">'+esc(ch.numero)+'</span>'+
+    '<span class="chsimp-t"><b>'+esc(ch.initiales||'—')+'</b>'+(sous?'<span>'+esc(sous)+'</span>':'')+'</span>'+
+    '<span class="chsimp-b">'+
+      '<button class="chedit" onclick="chEditer(\''+ch.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
+      '<button class="chprev" onclick="chPrevenir(\''+ch.id+'\')" title="À prévenir — au service social">'+PREV_MAIN+'</button>'+
+      '<button class="chedit chsimp-del" onclick="retirerChambre(\''+ch.id+'\',\''+esc(ch.numero)+'\')" aria-label="Retirer" title="Retirer">'+icon('trash')+'</button>'+
+    '</span></div>';
+}
 function retirerChambre(id,num){
   cousinConfirme('Retirer la chambre '+num+' ?','Elle disparaît de la liste de toute l’équipe.',
     async function(){
-      try{ await sb.from('chambres').delete().eq('id',id); await loadChambres(); render(); }
+      try{ const r=await sb.from('chambres').delete().eq('id',id).select('id');
+        if(r.error||!r.data||!r.data.length){ confirmePop(false,'Pas retiré',(r.error&&r.error.message)||'la base n’a pas répondu'); return; }
+        _chVu=0; await loadChambres(); render(); confirmePop(true,'Retiré','chambre '+num); }
       catch(e){ toast('Suppression refusée'); }
     }, {ok:'Retirer', danger:true});
 }
@@ -16186,19 +16204,17 @@ function vChambres(dansListe){
   const parEtage={};
   encours.forEach(function(ch){ const e=etageDe(ch.numero); (parEtage[e]=parEtage[e]||[]).push(ch); });
   const etages=Object.keys(parEtage).sort(function(a,b){ return a-b; });
-  let liste='';
-  etages.forEach(function(e){
-    const l=parEtage[e].slice().sort(function(a,b){
-      return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
-    liste+=chTitreEtage(parseInt(e,10), l.length)+l.map(chCard).join('');
-  });
+  /* ⭐ LA PAGE SIMPLE (Mag, 22/10/2026 : « cette page n'est pas agréable, on ne sait même pas effacer les sortants, c'est trop
+     complexe ») : une ligne par sortant — numéro, nom, « sort … · commentaire » — et trois boutons : ✎, ✋ à prévenir, 🗑.
+     Plus de tableau « ce qui reste », plus d'étapes ni d'étages. Triés par date de sortie. */
+  const liste=encours.slice().sort(function(a,b){ return String(a.sortie_le||'').localeCompare(String(b.sortie_le||'')) ||
+      String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); }).map(chLigneSimple).join('');
   /* ⚠ LE WIKI VIENT APRÈS LA LISTE. Cette page assemblait tout dans un seul
      `return` : on passe par `h` pour pouvoir lui ajouter le carnet, sans rien
      changer à ce qui est construit au-dessus. */
   /* Dans l'onglet Sortants de Liste et notes (15/10/2026) : pas de barre de retour, l'onglet dit déjà où on est. */
   let h=(dansListe?'<div style="height:10px"></div>':'<div class="subtop"><button class="cbtn" onclick="retour()" aria-label="Retour"><span class="ic">'+icon('chevron')+'</span></button>'+
     '<h1>Sortants</h1><span class="etq etq-s">'+encours.length+'</span></div>')+
-    chTableau(encours)+
     '<div class="chadd">'+
       '<input id="chNum" type="text" inputmode="numeric" placeholder="N° de chambre" autocomplete="off">'+
       '<input id="chIni" type="text" maxlength="40" placeholder="Nom (ex. Marie D.)" autocomplete="off">'+
@@ -16222,8 +16238,7 @@ function vChambres(dansListe){
        ⚠ LA RÈGLE ELLE-MÊME NE BOUGE PAS, et elle reste écrite LÀ OÙ L'ON ÉCRIT : dans
        le bandeau du formulaire (« trois bacs par chambre… initiales ou prénom, jamais
        le nom de famille ») et sur la feuille imprimée. Vérifié avant de retirer. */
-    liste+
-    (finies.length?'<div class="ghead">Terminées</div>'+finies.map(chCard).join(''):'')+
+    (encours.length?'<div class="ghead">Sortants · '+encours.length+'</div>':'')+liste+
     (!CHAMBRES.length?(chambresLoaded
       /* ⚠ « Ajoute un numéro quand une personne part » est parti avec (Mag, 11/09/2026 :
          « et ça »). Le vide se dit, il ne s'explique pas — le formulaire est juste en
@@ -19293,7 +19308,9 @@ function carteAPrendre(){
       const quoi=['Prévenir']; if(r.pas_autonome) quoi.push('Pas autonome');
       /* ⚠ LA DATE EN GROS (09/10/2026 : « je ne vois aucune date, il faut une date pour
          savoir pourquoi c'est remonté en haut ») : le petit calendrier des entrants. */
-      return '<div class="rdvt">'+
+      /* ⭐ UN APPUI SUR LA LIGNE OUVRE LE RENDEZ-VOUS (Mag, 22/10/2026 : « on doit pouvoir rentrer dans le rendez-vous par
+         les listes si on clique dessus ») ; la petite flèche garde son rôle. */
+      return '<div class="rdvt" role="button" style="cursor:pointer" onclick="rdvOuvrirModif(\''+r.id+'\')">'+
         '<span class="entarr-cal">'+arrCalHTML(r.jour)+'</span><div class="rdvt-x">'+
         '<b>'+esc(r.nom)+(r.chambre?' · ch. '+esc(r.chambre):'')+'</b>'+
         '<span><b class="rdvt-q">'+esc(quoi.join(' · '))+'</b></span>'+
@@ -19302,7 +19319,7 @@ function carteAPrendre(){
         /* ⚠ UNE PETITE FLÈCHE, PAS UN GROS BOUTON (09/10/2026 : « mettre une petite flèche qui
            te fait descendre vers ta passation ») — la même que pour faire descendre un
            entrant. Elle ouvre « Je prends en charge ». */
-        (rdvPeutPrendre()?'<button class="entvus-b" onclick="rdvPrendre(\''+r.id+'\')" '+
+        (rdvPeutPrendre()?'<button class="entvus-b" onclick="event.stopPropagation();rdvPrendre(\''+r.id+'\')" '+
           'title="Je m’en occupe" aria-label="Je m’en occupe">'+icon('flechebas')+'</button>':'')+
       '</div>';
     }).join('')+
@@ -44419,14 +44436,15 @@ function prevSiOuvert(){ const bg=document.getElementById('prevBg'); if(bg && bg
 function prevCarte(x){
   return '<div class="prk'+(x.fait?' fait':'')+'">'+
     '<span class="prk-ch">'+(x.chambre?esc(x.chambre):'—')+'</span>'+
-    '<div class="prk-c"><div class="prk-n">'+esc(x.nom)+'</div>'+
+    /* Le nom d'un rendez-vous ouvre le rendez-vous (22/10/2026). */
+    '<div class="prk-c"'+(x.k==='rdv'?' role="button" style="cursor:pointer" onclick="rdvOuvrirModif(\''+x.id+'\')"':'')+'><div class="prk-n">'+esc(x.nom)+'</div>'+
       ((x.quoi||x.quand)?'<div class="prk-q">'+esc([x.quoi,x.quand].filter(Boolean).join(' · '))+'</div>':'')+
       ((x.jeun||x.pa||x.src)?'<div class="prk-t">'+(x.jeun?'<span class="prk-j">À JEUN</span>':'')+(x.pa?'<span class="prk-pa">Pas autonome</span>':'')+
         (x.src?'<span class="prk-s">'+esc(x.src)+'</span>':'')+'</div>':'')+
       /* Pas pris : « Je m'en occupe ». Pris par moi : « Pas vu ? Passer à la nuit ». Pris par un·e autre : son nom. */
-      (!x.fait && x.k==='rdv' && !x.pris?'<button class="prk-nuit" onclick="rdvPrendre(\''+x.id+'\')">Je m’en occupe</button>':'')+
-      (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>'+
-        '<button class="prk-nuit" onclick="rdvRemettreEquipe(\''+x.id+'\')">Remettre à l’équipe</button>':'')+
+      (!x.fait && x.k==='rdv' && !x.pris?'<button class="prk-nuit" onclick="event.stopPropagation();rdvPrendre(\''+x.id+'\')">Je m’en occupe</button>':'')+
+      (!x.fait && x.k==='rdv' && x.aMoi?'<button class="prk-nuit" onclick="event.stopPropagation();prevPasserNuit(\''+x.id+'\')">Pas vu ? Passer à la nuit</button>'+
+        '<button class="prk-nuit" onclick="event.stopPropagation();rdvRemettreEquipe(\''+x.id+'\')">Remettre à l’équipe</button>':'')+
       (!x.fait && x.k==='rdv' && x.pris && !x.aMoi?'<div class="prk-f">'+esc(x.pris)+' s’en occupe</div>':'')+
       (x.fait?'<div class="prk-f">✓ prévenu'+(x.faitPar?' par '+esc(String(x.faitPar).split(/\s+/)[0]):'')+(x.faitLe?', '+esc(binQuand(x.faitLe)):'')+'</div>':'')+
     '</div>'+
