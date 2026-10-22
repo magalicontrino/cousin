@@ -4860,6 +4860,13 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .ppx-bx b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1b1b1b;line-height:1}
 .ppx-bx.ok span{opacity:.25}
 .ppx-n{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#55524c;margin:8px 0 0;line-height:1.4}.ppx-n span{flex:1;min-width:0;overflow-wrap:anywhere}.ppx-n b{color:#2b2a28}
+.ppx-chs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ppx-ch{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cfcdc7;border-radius:999px;padding:5px 11px 5px 7px;font:inherit;font-size:12.5px;color:#6b6862;cursor:pointer}
+.ppx-ch i{width:18px;height:18px;border:2px solid #b9b6af;border-radius:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px;color:#fff;flex:none}
+.ppx-ch span{width:16px;height:16px;color:#9a978f}.ppx-ch span svg{width:100%;height:100%}
+.ppx-ch.on{border:2px solid var(--c);color:#1b1b1b;font-weight:800}
+.ppx-ch.on i{background:var(--c);border-color:var(--c)}
+.ppx-ch.on span{color:var(--c)}
 .ppx-nx{flex:none;background:none;border:0;color:#9a978f;font-size:20px;line-height:1;padding:0 4px;cursor:pointer}
 .ppx-nm:focus,.ppx-m input:focus{outline:none!important;box-shadow:none!important;border-color:transparent!important;border-bottom:1.5px solid #2b2a28!important}
 .ppx-ret{margin:0 0 14px;font-size:13px;color:#55524c}.ppx-ret div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #e3e1dc}
@@ -17777,6 +17784,23 @@ const PP_CASES=[{k:'prev', e:'prevenu', p:'prevenu', l:'Prévenu', c:'#f8763f'},
   {k:'dou', e:'personne', p:'personne', l:'Douche', c:'#e63329'}];
 const PP_RAPPEL='<b>Rentokil</b> · tout mettre dans des sacs plastiques fermés · porte fermée de 11 h à 18 h';
 var PP_FORM_OUV=false;
+/* ═══ CE QU'IL FAUT FAIRE POUR CETTE CHAMBRE (Mag, 22/10/2026 : « est-ce qu'il faut faire le protocole des sacs aussi, et le
+   protocole de la personne ? On devrait pouvoir le choisir ; si on choisit, le picto apparaît dans la ligne, à l'impression
+   aussi ») ═══ Deux choix par chambre, rangés dans chaque personne (`cs` = sacs, `cd` = douche) : pas de colonne nouvelle.
+   Sans choix enregistré : sacs OUI ; douche = protocole de la personne (Rentokil = oui). */
+function ppOpt(a, k){
+  const P=ppPersonnes(a), x=P.find(function(o){ return o[k]!==undefined && o[k]!==null; });
+  if(x) return !!x[k];
+  return k==='cs' ? true : ppProto(a).k==='tout';
+}
+function ppOptChanger(id, k){
+  const a=ppLigne(id); if(!a) return;
+  const v=!ppOpt(a,k), P=ppPersDuDom(a); while(P.length<2) P.push({nom:'', pa:false});
+  P.forEach(function(x){ x[k]=v; });
+  const maj={personnes:P};
+  if(k==='cd') maj.protocole = v ? 'tout' : 'produit';
+  ppMaj(a, maj, (k==='cs'?'Sacs':'Protocole de la personne')+(v?' : oui':' : non'));
+}
 function ppPersOk(a, x, k){
   if(x[k]!==undefined && x[k]!==null) return !!x[k];
   const c=PP_CASES.find(function(o){ return o.k===k; });
@@ -17804,17 +17828,22 @@ function ppFeuilleLigne(a){
   const id=a.id;
   let h='<div class="ppx-r"><div class="ppx-g">'+
     '<button class="ppx-sq" onclick="ppNumero(\''+id+'\')" title="Changer le numéro">'+esc(a.numero)+'</button>'+
-    '<button class="ppx-rk'+(ppRento(a)?' on':'')+'" aria-pressed="'+ppRento(a)+'" onclick="ppRentoChanger(\''+id+'\')"><i></i>Rentokil</button>'+
     (ppPeutRetirer()?'<button class="ppx-x" onclick="ppRetirer(\''+id+'\')" aria-label="Retirer la chambre '+esc(a.numero)+'" title="Retirer">'+icon('trash')+'</button>':'')+
     '</div><div>';
   P.forEach(function(x,i){
     h+='<div class="ppx-p"><input id="ppP'+id+'_'+i+'" class="ppx-nm" type="text" maxlength="60" placeholder="+ Nom" autocomplete="off" value="'+esc(x.nom||'')+'" '+
       'onchange="ppPersNom(\''+id+'\','+i+',this.value)">'+
       PP_CASES.map(function(c){ const ok=ppPersOk(a,x,c.k);
+        if((c.k==='sac' && !ppOpt(a,'cs')) || (c.k==='dou' && !ppOpt(a,'cd'))) return '<span></span>';
         return '<button class="ppx-bx'+(ok?' ok':'')+'" style="--c:'+c.c+'" aria-pressed="'+ok+'" aria-label="'+c.l+'" title="'+c.l+
           (ok&&x[c.k+'_par']?' · '+esc(String(x[c.k+'_par']).split(/\s+/)[0])+' '+ppHeure(x[c.k+'_le']):'')+'" '+
           'onclick="ppPersCase(\''+id+'\','+i+',\''+c.k+'\')"><span>'+ppPic(c.p)+'</span>'+(ok?'<b>✓</b>':'')+'</button>'; }).join('')+'</div>';
   });
+  /* Les choix, bien visibles (22/10/2026 : « on ne voit pas bien que ça sélectionne ») : une case cochée ✓, le mot en gras. */
+  const chip=function(on, fn, lab, pic, col){ return '<button class="ppx-ch'+(on?' on':'')+'" style="--c:'+col+'" aria-pressed="'+on+'" onclick="'+fn+'"><i>'+(on?'✓':'')+'</i>'+(pic?'<span>'+ppPic(pic)+'</span>':'')+lab+'</button>'; };
+  h+='<div class="ppx-chs">'+chip(ppRento(a), 'ppRentoChanger(\''+id+'\')', 'Rentokil', '', '#6fc7d9')+
+    chip(ppOpt(a,'cs'), 'ppOptChanger(\''+id+'\',\'cs\')', 'Sacs', 'sacs', '#6fc7d9')+
+    chip(ppOpt(a,'cd'), 'ppOptChanger(\''+id+'\',\'cd\')', 'Personne', 'personne', '#e63329')+'</div>';
   /* Effacer UNE note (Mag, 22/10/2026 : « j'ai jeté la note, mais j'ai jeté la chambre entière ») : la croix est sur la note. */
   h+=ppNotes(a).map(function(n){ const moi=String(n.par||'').trim()===nomAffiche();
     return '<p class="ppx-n"><span><b>'+esc(String(n.par||'').split(/\s+/)[0])+'</b> '+esc(n.txt)+'</span>'+
@@ -19099,6 +19128,7 @@ function ppImprimer(quoi, rendre, seule){
           '<span class="rk"><i>'+(a&&ppRento(a)?'✓':'')+'</i>Rentokil</span></td>')+
           '<td>'+(a&&x.nom?'<div class="ln nmx">'+esc(x.nom)+'</div>':'<div class="ln"></div>')+'</td>';
         PP_CASES.forEach(function(c){ const ok=a && ppPersOk(a,x,c.k);
+          if(a && ((c.k==='sac' && !ppOpt(a,'cs')) || (c.k==='dou' && !ppOpt(a,'cd')))){ r+='<td class="e"></td>'; return; }
           r+='<td class="e"><span class="bx'+(ok?' ok':'')+'" style="--c:'+c.c+'">'+ppPic(c.p)+(ok?'<b>✓</b>':'')+'</span></td>'; });
         r+=(p?'':'<td rowspan="'+P.length+'" class="c">'+N.map(function(n){ return '<p class="jn"><b>'+esc(String(n.par||'').split(/\s+/)[0])+'</b> '+esc(n.txt)+'</p>'; }).join('')+
           '<div class="ln"></div></td>')+'</tr>';
@@ -19127,11 +19157,11 @@ function ppImprimer(quoi, rendre, seule){
       '.vs tr.h td{border-top:1.5px solid #cfcfcf}.vs tr:last-child td{border-bottom:1.5px solid #cfcfcf}.vs tr{break-inside:avoid}'+
       '.vs td.cc{text-align:center}.vs .ch{width:16mm;height:16mm;margin:0 auto;border:2.5px solid #6fc7d9;border-radius:3mm}'+
       '.vs .ln{border-bottom:1.5px dotted #888;height:7mm}'+
-      '.vs td.e{text-align:center}.vs .bx{display:inline-block;width:9mm;height:9mm;border:2.2px solid var(--c);border-radius:2mm;padding:1.4mm;box-sizing:border-box;color:#bdbdbd}'+
+      '.vs td.e{text-align:center}.vs .bx{display:inline-block;width:9mm;height:9mm;border:2.8px solid var(--c);border-radius:2mm;padding:1.4mm;box-sizing:border-box;color:#bdbdbd}'+
       '.vs .bx svg{display:block;width:100%;height:100%}'+
       '.vs td.c{border-left:1.5px solid #cfcfcf;padding-left:3mm}'+
       '.vs .rk{display:flex;align-items:center;justify-content:center;gap:1.2mm;margin-top:1.5mm;font-size:8.5pt;color:#444}'+
-      '.vs .rk i{display:inline-block;width:3.8mm;height:3.8mm;border:1.8px solid #6fc7d9;border-radius:1mm}'+
+      '.vs .rk i{display:inline-block;width:4.2mm;height:4.2mm;border:2.4px solid #6fc7d9;border-radius:1mm}'+
       '.vs .ch{display:flex;align-items:center;justify-content:center}.vs .ch b{font-size:20pt;font-weight:800}'+
       '.vs .rk i{text-align:center;font-style:normal;font-weight:800;font-size:8pt;line-height:3mm;color:#2b2a28}'+
       '.vs .ln.nmx{border-bottom-style:solid;border-bottom-color:#ddd;font-size:12pt;font-weight:700;line-height:7mm;height:7mm;overflow:hidden;white-space:nowrap;text-transform:uppercase}'+
