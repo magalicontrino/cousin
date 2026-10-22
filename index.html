@@ -18116,7 +18116,8 @@ function accTrioHTML(){
   const nAccTous=rapportDonnees().acc.length;   /* la semaine, comme la section du point du jour (17/10/2026) */
   let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
   const nTaxi=(RDV||[]).filter(rdvTaxiUrgent).length;   /* taxis à commander aujourd'hui / demain (18/10/2026) */
-  const chipsTout=rapEtiquettes({taxi:nTaxi, prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  const _ve=voitEntrants();   /* les entretiens d’arrivée = les entrants prévus : pas deux fois (22/10/2026) */
+  const chipsTout=rapEtiquettes({eSoc:_ve?(ENT_N_SOC||0):0, eMed:_ve?(ENT_N_MED||0):0, taxi:nTaxi, prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -18316,7 +18317,8 @@ function rapEtiquettes(o, accueil){
   const ic=function(k,c){ return '<i class="etq-i" style="color:'+c+'">'+icon(k)+'</i>'; };
   const e=function(n, pic, mot, bloc, rouge){
     if(!n) return '';
-    const clic=accueil ? 'event.stopPropagation();go(\'#/rapport\');setTimeout(function(){rapAller(\''+bloc+'\')},80)' : 'rapAller(\''+bloc+'\')';
+    const clic=bloc.charAt(0)==='#' ? 'event.stopPropagation();go(\''+bloc+'\')'
+      : accueil ? 'event.stopPropagation();go(\'#/rapport\');setTimeout(function(){rapAller(\''+bloc+'\')},80)' : 'rapAller(\''+bloc+'\')';
     return '<span class="etq'+(rouge==='vert'?' etq-vert':rouge==='blanc'?' etq-blanc':(rouge?' etq-rouge':''))+'" role="button" onclick="'+clic+'">'+(pic||'')+'<b>'+n+'</b>'+(mot?'<span>'+esc(mot)+'</span>':'')+'</span>';
   };
   /* LES ABSENTS +3 NUITS (Mag, 13/10/2026), en tête ; rouge s'il y a un LAM. */
@@ -18326,6 +18328,11 @@ function rapEtiquettes(o, accueil){
   return taxi+e(o.abs3,'', 'absent'+(o.abs3>1?'s':'')+' +3 nuits','abslam', !!o.abs3lam)+e(o.ent,'', 'sans PFM','entree')+e(o.info, masque('eclair.svg','#f8763f'), o.info>1?'infos':'info','info')+   /* l'éclair pour les infos (Mag, 13/10/2026, B) */
     /* ⭐ LES ENTRANTS PRÉVUS (Mag, 16/10/2026 : « tu dois aussi mettre les entrants prévus ») */
     e(o.prevus, ic('hebergement','#A9C8E8'), o.prevus>1?'entrants prévus':'entrant prévu', 'entrants')+
+    /* ⭐ LES ENTRETIENS À FAIRE (Mag, 22/10/2026 : « c'est des entretiens à faire, il faut le mettre sur le point du jour ») :
+       ils quittent la Liste perso ; un appui ouvre les entretiens. */
+    e(o.eArr, ic('hebergement','#A9C8E8'), 'entretien'+(o.eArr>1?'s':'')+' d’arrivée', '#/liste/entretiens')+
+    e(o.eSoc, ic('social','#f2b8cd'), 'entretien'+(o.eSoc>1?'s sociaux':' social'), '#/liste/entretiens')+
+    e(o.eMed, ic('medical','#f3bdb8'), 'entretien'+(o.eMed>1?'s médicaux':' médical'), '#/liste/entretiens')+
     e(o.reveil, masque('alarme.svg','#f5c542'),   /* la cloche en JAUNE (Mag, 14/10/2026) */
        o.reveil>1?'réveils':'réveil', 'reveils')+   /* le mot revient à côté de la cloche (13/10/2026) */
     /* UNE SEULE ÉTIQUETTE ACCOMPAGNEMENTS (Mag, 13/10/2026 : « mets-les en un ») : rouge avec le total à faire (à trouver +
@@ -22182,7 +22189,12 @@ const PRINT_FEUILLES=[
   {k:'parcs', nom:'Les parcs autour d’ici',
    sous:'La liste et le plan',
    det:'Les parcs proches, leurs adresses, et lequel est à côté ou loin — à remettre à quelqu’un qui part à pied.',
-   pages:'A4', pi:'fleur', act:'imprimerParcs()'}
+   pages:'A4', pi:'fleur', act:'imprimerParcs()'},
+  /* ⭐ LA LISTE PORTE (Mag, 22/10/2026 : « on colle la page Bénéficiaires, ça génère un print ») : rien n'est enregistré. */
+  {k:'porte', nom:'Liste porte',
+   sous:'Coller la page Bénéficiaires',
+   det:'MEDICAL et LAM, par ordre alphabétique, avec la chambre.',
+   pages:'A4', pi:'cle', act:'portOuvrir()'}
 ];
 
 /* ═══ LA PAGE PRINT EN CARTES (Mag, 13/10/2026 : « immonde, aucune couleur ; on s'en fout de ce que c'est —
@@ -22192,7 +22204,8 @@ const PRINT_CARTES={
   punaises:   {nom:'Protocole punaises', c:'#f3c6da'},
   congelateur:{nom:'Congélateur',        c:'#a9c8e8'},
   eau:        {nom:'Points d’eau',       c:'#6fc7d9'},
-  parcs:      {nom:'Parcs',              c:'#6cb392'}
+  parcs:      {nom:'Parcs',              c:'#6cb392'},
+  porte:      {nom:'Liste porte',        c:'#f5c542'}
 };
 function printPicto(k, f){
   if(k==='congelateur') return '<svg viewBox="0 0 24 24" fill="none" stroke="#2b2a28" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
@@ -24299,10 +24312,10 @@ function vHome(){
        /* ⭐ LES ENTRANTS PAS ENCORE ARRIVÉS NE SONT PAS DES ENTRETIENS (Mag, 15/10/2026 : « je n'ai pas encore trois
           entretiens d'arrivée ») : deux comptes, deux mots. */
        (function(){ const v=Math.min(ENT_N_ARR_VENIR||0, nArr), ici=nArr-v;
-         return (ici?ligneCta(ici,'entretien'+(ici>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+
+         return (false&&ici?ligneCta(ici,'entretien'+(ici>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+   /* → point du jour (22/10/2026) */
                 (v?ligneCta(v,'entrant'+(v>1?'s':'')+' à venir','#/liste/entretiens','hebergement','#A9C8E8'):''); })()+
-       (nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
-       (nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
+       (false&&nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
+       (false&&nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
        /* ⚠ LES ABSENCES QUITTENT LA LISTE PERSO (Mag, 13/10/2026 : « ce n'est pas personnel, tout le monde doit voir les
           absences ») : elles sont dans le point du jour (absents +3 nuits) et dans l'onglet Absences. */
        (false&&nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
@@ -40687,6 +40700,122 @@ function quartierRepere(titre){
    Les deux ensemble, parce qu'ils ne disent pas la même chose — la liste donne les
    adresses, le plan dit lequel est à côté et lequel est loin. Sur une feuille qu'on
    remet à quelqu'un qui part à pied, la deuxième information vaut la première. */
+/* ═══ LA LISTE PORTE (Mag, 22/10/2026) ═══ On colle la page « Bénéficiaires » de KAIROS (Ctrl+A, Ctrl+C) ; la feuille
+   sort : MEDICAL (Médical + socialMédical, aérée) puis LAM (serrée, sur UNE page, avec le récapitulatif).
+   ⚠ RIEN N'EST ENREGISTRÉ : ni dans la base, ni sur le téléphone. Le texte collé disparaît avec la fenêtre.
+   Le bloc d'une personne dans l'export : un numéro seul, le NOM, « User Photo », puis « Prénom ⇥ date de naissance… ».
+   ⚠ Le total est comparé à « Affichage de 1 à X sur X entrées » : si ça ne colle pas, on le dit en rouge. */
+function portLire(txt){
+  const L=String(txt||'').split(/\r?\n/).map(function(x){ return x.replace(/ /g,' '); });
+  const out=[], date=/\d{2}\/\d{2}\/\d{4}/;
+  const debut=[]; for(let i=0;i<L.length;i++) if(/^\s*\d+\s*$/.test(L[i])) debut.push(i);
+  for(let b=0;b<debut.length;b++){
+    const i=debut[b], fin=b+1<debut.length?debut[b+1]:Math.min(L.length, i+40);
+    let nom='', prenom='', naiss='', j=i+1;
+    for(; j<fin; j++){
+      const t=L[j].trim();
+      if(!t || /^user photo$/i.test(t)) continue;
+      if(!nom && /enregistrements\s+par\s+page|^rechercher\s*:|^afficher\b|^affichage\b/i.test(t)) break;
+      if(!nom){ nom=t; continue; }
+      if(date.test(L[j])){
+        const c=L[j].split('\t').map(function(x){ return x.trim(); });
+        prenom=c[0].replace(date,'').replace(/\(.*?\)/g,'').trim();
+        naiss=(L[j].match(date)||[''])[0];
+        if(!prenom && c.length>1) prenom='';
+        break;
+      }
+    }
+    if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) continue;
+    let cat='', ch='';
+    for(let k=j; k<fin; k++){
+      const cases=L[k].split('\t').map(function(x){ return x.trim(); });
+      if(!cat){
+        if(cases.some(function(x){ return /^LAM$/i.test(x); })) cat='LAM';
+        else if(cases.some(function(x){ return /^(social\s*)?m[ée]dical$/i.test(x); })) cat='MED';
+      }
+      const m=/\bChambre\s+([A-Za-z0-9]+)/i.exec(L[k]); if(!ch && m) ch=m[1];
+    }
+    out.push({nom:nom.toUpperCase(), prenom:portPrenom(prenom), naiss:naiss, cat:cat, ch:ch});
+  }
+  const t=/Affichage de \d+ (?:à|a) \d+ sur (\d+) entr/i.exec(txt||'');
+  return {gens:out, total:t?parseInt(t[1],10):null};
+}
+function portPrenom(p){
+  return String(p||'').toLowerCase().replace(/(^|[\s'’-])([a-zà-ÿ])/g, function(m,a,b){ return a+b.toUpperCase(); });
+}
+function portTri(a,b){
+  return a.nom.localeCompare(b.nom,'fr',{sensitivity:'base'}) || a.prenom.localeCompare(b.prenom,'fr',{sensitivity:'base'});
+}
+function portOuvrir(){
+  let bg=document.getElementById('portBg');
+  if(!bg){ bg=document.createElement('div'); bg.id='portBg'; bg.className='popbg'; document.body.appendChild(bg);
+    bg.onclick=function(ev){ if(ev.target===bg){ bg.classList.remove('on'); bg.innerHTML=''; } }; }
+  bg.innerHTML='<div class="popcard entpart" role="dialog" aria-modal="true"><b>Liste porte</b>'+
+    '<textarea id="portTxt" rows="8" placeholder="Coller ici la page Bénéficiaires" style="width:100%;margin:10px 0;font:inherit;font-size:14px;padding:10px;border:1.25px solid var(--trait);border-radius:10px"></textarea>'+
+    '<div id="portMsg"></div>'+
+    '<div class="entpart-b"><button class="dembtn" onclick="portGenerer()">Générer la liste porte</button>'+
+    '<button class="dembtn clair" onclick="var b=document.getElementById(\'portBg\');b.classList.remove(\'on\');b.innerHTML=\'\'">Annuler</button></div></div>';
+  bg.classList.add('on');
+  setTimeout(function(){ const e=document.getElementById('portTxt'); if(e) e.focus(); },50);
+}
+function portGenerer(){
+  const e=document.getElementById('portTxt'), R=portLire(e?e.value:'');
+  const G=R.gens, msg=document.getElementById('portMsg');
+  if(!G.length){ if(msg) msg.innerHTML='<p style="color:#e63329;font-weight:700">Personne n’a été lu dans ce texte.</p>'; return; }
+  const med=G.filter(function(x){ return x.cat==='MED'; }).sort(portTri), lam=G.filter(function(x){ return x.cat==='LAM'; }).sort(portTri);
+  const sans=G.filter(function(x){ return !x.cat; });
+  const alertes=[];
+  if(R.total===null) alertes.push('La ligne « Affichage de 1 à X sur X entrées » est absente : la liste est peut-être coupée.');
+  else if(R.total!==G.length) alertes.push('KAIROS dit '+R.total+' personnes, j’en ai lu '+G.length+'.');
+  if(sans.length) alertes.push(sans.length+' sans catégorie (pas sur la feuille) : '+sans.map(function(x){ return x.nom; }).join(', '));
+  const w=window.open('','_blank');
+  if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
+  const d=new Date(), dj=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  const tab=function(L, cls){
+    return '<table class="'+cls+'"><thead><tr><th class="n">N°</th><th>Nom</th><th>Prénom</th><th class="d">Date de naissance</th><th class="c">Chambre</th></tr></thead><tbody>'+
+      L.map(function(x,i){ return '<tr><td class="n">'+(i+1)+'</td><td><b>'+esc(x.nom)+'</b></td><td>'+esc(x.prenom)+'</td><td class="d">'+esc(x.naiss)+'</td><td class="c">'+esc(x.ch)+'</td></tr>'; }).join('')+
+      '</tbody></table>';
+  };
+  const manque=45-lam.length;
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Liste porte — '+dj+'</title><style>'+
+    '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:#e8e7e4;color:#2b2a28}'+
+    '.bar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;background:#2b2a28;color:#f0efed;padding:11px 16px}'+
+    '.bar b{flex:1;font-size:14px}'+
+    '.bar button{border:1px solid rgba(240,239,237,.45);border-radius:5px;padding:8px 13px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f0efed;background:none;cursor:pointer}'+
+    '.bar button.ok{background:#f0efed;color:#2b2a28}'+
+    '.al{background:#e63329;color:#fff;font-weight:700;font-size:14px;padding:10px 16px}'+
+    '.pg{width:210mm;margin:20px auto;padding:12mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.18)}'+
+    '@media(max-width:230mm){.pg{width:auto;margin:10px;padding:6mm}}'+
+    'h1{font-size:18pt;margin-bottom:8mm}h2{font-size:14pt;margin:0 0 3mm}'+
+    'table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}'+
+    'th,td{border:.5pt solid #9a978f;text-align:left;overflow-wrap:anywhere}th{background:#2b2a28;color:#fff}'+
+    'tbody tr:nth-child(even) td{background:#f0efed}'+
+    '.n{width:10mm}.d{width:32mm}.c{width:20mm}'+
+    '.med th,.med td{font-size:10pt;padding:2.3mm 2mm;height:8.2mm;vertical-align:top}'+
+    '.lam th,.lam td{font-size:8.5pt;padding:.6mm 1.6mm;line-height:1.15}'+
+    '.saut{break-before:page;page-break-before:always}'+
+    '.lamp h2{font-size:12pt;margin-bottom:2mm}'+
+    '.rec{margin-top:3mm;font-size:9.5pt;line-height:1.5}.rec .alerte{color:#e63329;font-weight:800}'+
+    '@page{size:A4 portrait;margin:12mm 12mm 14mm;@bottom-right{content:counter(page);font-size:9pt}}'+
+    '@media print{body{background:#fff}.bar,.al{display:none}.pg{width:100%;margin:0;padding:0;box-shadow:none}.saut{margin-top:0}}'+
+    '</style></head><body>'+
+    '<div class="bar"><b>Liste porte — '+G.length+' personnes</b><button onclick="window.close()">Fermer</button><button class="ok" onclick="window.print()">Imprimer</button></div>'+
+    alertes.map(function(a){ return '<div class="al">'+esc(a)+'</div>'; }).join('')+
+    '<div class="pg"><h1>Liste porte — '+dj+'</h1>'+
+      '<h2>MEDICAL ('+med.length+' personnes)</h2>'+tab(med,'med')+
+      '<div class="saut lamp"><h2>LAM ('+lam.length+' personnes)</h2>'+tab(lam,'lam')+
+      '<div class="rec">Total : '+(med.length+lam.length)+' personnes.<br>MEDICAL : '+med.length+'  |  LAM : '+lam.length+
+        (manque>0?'<br><span class="alerte">ALERTE : il manque '+manque+' LAM (objectif 45, '+lam.length+' présents).</span>':'')+'</div></div>'+
+    '</div></body></html>');
+  w.document.close();
+  /* La page LAM tient-elle sur une feuille ? A4 moins les marges ≈ 271 mm. */
+  setTimeout(function(){ try{
+    const lp=w.document.querySelector('.lamp'), mm=lp.getBoundingClientRect().height/3.7795;
+    if(mm>271){ const a=w.document.createElement('div'); a.className='al'; a.textContent='La page LAM dépasse une feuille ('+Math.round(mm)+' mm).'; w.document.body.insertBefore(a, w.document.querySelector('.pg')); }
+  }catch(x){} }, 300);
+  const b=document.getElementById('portBg'); if(b){ b.classList.remove('on'); b.innerHTML=''; }
+}
 function imprimerParcs(){
   const g=(QUARTIER||[]).find(function(x){ return /parcs/i.test(x.grp||''); });
   const lignes=(g?g.lignes:[]);
