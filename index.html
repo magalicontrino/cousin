@@ -40726,6 +40726,10 @@ function portLire(txt){
       }
     }
     if(!nom || !/[A-Za-zÀ-ÿ]{2}/.test(nom)) continue;
+    /* ⚠ UNE PERSONNE A SA « USER PHOTO » (Mag, 22/10/2026 : le menu de KAIROS — Réservations, Bénéficiaires, Lits
+       disponibles… — était compté comme 8 personnes). */
+    let photo=false; for(let k=i+1;k<fin;k++) if(/^\s*user photo\s*$/i.test(L[k])){ photo=true; break; }
+    if(!photo) continue;
     let cat='', ch='';
     for(let k=j; k<fin; k++){
       const cases=L[k].split('\t').map(function(x){ return x.trim(); });
@@ -40765,9 +40769,12 @@ function portGenerer(){
   const med=G.filter(function(x){ return x.cat==='MED'; }).sort(portTri), lam=G.filter(function(x){ return x.cat==='LAM'; }).sort(portTri);
   const sans=G.filter(function(x){ return !x.cat; });
   const alertes=[];
-  if(R.total===null) alertes.push('La ligne « Affichage de 1 à X sur X entrées » est absente : la liste est peut-être coupée.');
-  else if(R.total!==G.length) alertes.push('KAIROS dit '+R.total+' personnes, j’en ai lu '+G.length+'.');
-  if(sans.length) alertes.push(sans.length+' sans catégorie (pas sur la feuille) : '+sans.map(function(x){ return x.nom; }).join(', '));
+  /* (Mag, 22/10/2026 : « je comprends pas ce que tu dis ») : des phrases simples, et les noms. */
+  const surF=med.length+lam.length;
+  if(R.total===null) alertes.push('Liste peut-être coupée : as-tu fait Ctrl + A avant de copier ?');
+  else if(R.total>surF) alertes.push('Il manque '+(R.total-surF)+' personne'+(R.total-surF>1?'s':'')+' : KAIROS en compte '+R.total+', la feuille '+surF+'.');
+  else if(R.total<surF) alertes.push('La feuille a '+(surF-R.total)+' personne'+(surF-R.total>1?'s':'')+' de trop : KAIROS en compte '+R.total+', la feuille '+surF+'.');
+  if(sans.length) alertes.push('Ni MEDICAL ni LAM, donc pas sur la feuille : '+sans.map(function(x){ return x.nom+(x.prenom?' '+x.prenom:''); }).join(', '));
   const w=window.open('','_blank');
   if(!w){ toast('Le navigateur a bloqué la fenêtre — autorise les pop-ups'); return; }
   const d=new Date(), dj=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
