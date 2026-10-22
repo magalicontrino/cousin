@@ -4826,6 +4826,10 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .pprt-c.on{border-color:#6cb392;background:#e7f3ec}.pprt-c.on i{background:#6cb392;border-color:#6cb392;color:#fff}
 .pprt-n{flex:1;min-width:0}.pprt-n input{width:100%;border:0;background:none;font:inherit;font-size:16px;font-weight:800;text-transform:uppercase;padding:2px 0}
 .pprt-n em{display:block;font-style:normal;font-size:12px;color:#6b6862}
+.pprb-l{display:flex;align-items:flex-start;gap:12px;padding:6px 0;border-bottom:1px solid #e3e1dc}
+.pprb-l .ppf-n{flex:none;margin-top:6px;font-size:22px;min-width:46px;text-align:left}.pprb-l .pprt{flex:1;min-width:0;margin:0}.pprb-l .pprt-l:last-child{border-bottom:0}
+.pprb-x{flex:none;background:none;border:0;color:#6b6862;cursor:pointer;padding:10px 2px}.pprb-x svg{width:18px;height:18px}
+.pprb .ppm-ecr{margin-top:10px}
 .chsimp{display:flex;align-items:center;gap:12px;background:#fdfdfc;border:1px solid var(--ligne);border-left:4px solid #6fc7d9;border-radius:0 10px 10px 0;padding:10px 12px;margin-bottom:8px}
 .chsimp-n{font-size:22px;font-weight:800;min-width:48px}
 .chsimp-t{flex:1;min-width:0}.chsimp-t b{display:block;font-size:15px}.chsimp-t span{display:block;font-size:13px;color:#6b6862;margin-top:2px}
@@ -17798,6 +17802,49 @@ function ppCarte(a){
      (ppPeutRetirer()?'<button onclick="ppRetirer(\''+a.id+'\')">Retirer</button>':'')+'</div>';
   return h+'</div>';
 }
+/* ═══ UN SEUL BLOC RENTOKIL PAR JOUR (Mag, 22/10/2026 : « il faut vraiment simplifier, pas que ça sorte 2 000 fois ») ═══
+   Le titre, la date et le compte une fois ; une ligne par chambre (le numéro, chaque personne avec sa case
+   « Prévenu », la poubelle) ; Info et Copier une fois, en bas. Les autres protocoles gardent leur carte. */
+function ppBlocRento(jour, L){
+  L=L.slice().sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
+  const q=ppQui(L[0]), ancre=L[0];
+  let n=0, p=0;
+  L.forEach(function(a){ ppPersonnes(a).forEach(function(x){ const v=String(x.nom||'').trim(); if(v && v!=='/'){ n++; if(x.prev) p++; } }); });
+  let h='<div class="ppf pprb'+(p<n?' alerte':'')+'" style="--c:'+q.c+';--cf:'+q.f+'"><span class="ppf-bande"></span>'+
+    '<div class="ppf-top"><span class="ppf-qui">Rentokil</span><span class="ppf-j">'+esc(ppJourFr(jour))+'</span>'+
+    '<span class="ppf-e">'+p+' / '+n+' prévenus</span></div>';
+  h+=L.map(function(a){
+    return '<div class="pprb-l"><button class="ppf-n" onclick="ppNumero(\''+a.id+'\')" title="Changer le numéro">'+esc(a.numero)+'</button>'+
+      ppPersRento(a)+
+      (ppPeutRetirer()?'<button class="pprb-x" onclick="ppRetirer(\''+a.id+'\')" title="Retirer" aria-label="Retirer la chambre '+esc(a.numero)+'">'+icon('trash')+'</button>':'')+'</div>';
+  }).join('');
+  const J=[];
+  L.forEach(function(a){ ppNotes(a).forEach(function(x){ J.push({a:a, x:x}); }); });
+  J.sort(function(u,v){ return String(u.x.le)<String(v.x.le)?-1:1; });
+  if(J.length) h+='<div class="ppc-j"><div class="ppm-fil">'+J.map(function(o){
+    const x=o.x, a=o.a, n=String(x.par||'').trim();
+    return '<div class="ppm"><span class="ppm-av" style="--p:'+ppCouleurNom(n)+'">'+esc((n[0]||'?').toUpperCase())+'</span>'+
+      '<div class="ppm-c"><div class="ppm-h"><b>'+esc(n)+'</b><i>'+(a!==ancre?'ch. '+esc(a.numero)+' · ':'')+ppQuand(x.le)+(x.modif_le?' · modifié':'')+'</i>'+
+        (n===nomAffiche() ? '<span class="ppm-act"><button onclick="ppMotModifier(\''+a.id+'\',\''+esc(x.le)+'\')">Modifier</button>'+
+          '<button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\')">Effacer</button></span>'
+          : ppModere() ? '<span class="ppm-act"><button onclick="ppMotEffacer(\''+a.id+'\',\''+esc(x.le)+'\',true)">Effacer</button></span>' : '')+'</div>'+
+      '<div class="ppm-t">'+esc(x.txt)+'</div></div></div>'; }).join('')+'</div></div>';
+  h+='<div class="ppm-ecr"><textarea id="ppMot'+ancre.id+'" rows="1" maxlength="300" placeholder="Info…" '+
+       'oninput="PP_MOTS[\''+ancre.id+'\']=this.value">'+esc(PP_MOTS[ancre.id]||'')+'</textarea>'+
+     '<button class="ppm-go" onclick="ppEnvoyerMot(\''+ancre.id+'\')">OK</button></div>';
+  h+='<div class="ppc-b"><button class="ppc-cop" onclick="ppCopierRento(\''+jour+'\')" title="Copier">'+PP_SV_COPIE+'Copier</button></div>';
+  return h+'</div>';
+}
+function ppCopierRento(jour){
+  const L=ppActives().filter(function(a){ return ppRento(a) && a.jour===jour; })
+    .sort(function(a,b){ return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}); });
+  let t='Rentokil — '+ppJourFr(jour);
+  L.forEach(function(a){
+    const P=ppPersonnes(a).filter(function(x){ const v=String(x.nom||'').trim(); return v && v!=='/'; });
+    t+='\n'+a.numero+' : '+(P.length?P.map(function(x){ return x.nom+(x.prev?' ✓ prévenu'+(x.prev_par?' ('+String(x.prev_par).split(/\s+/)[0]+' '+ppHeure(x.prev_le)+')':''):' ✗ pas prévenu'); }).join(', '):'—');
+  });
+  copyTxt(t, 'Rentokil copié');
+}
 /* ═══ LES AIDES-SOIGNANTES (Mag, 13/10/2026 : maquette validée, « on testera, je vais leur demander ») ═══
    Deux listes : LES SOINS DU JOUR (douche, toilette — une case « fait », qui et quand) et LES PLUS FRAGILES (UN passage
    le matin : « Va bien » ou « À signaler » ; ce qui est à signaler part dans la passation, avec le mot).
@@ -18672,7 +18719,9 @@ function vPunaises(){
   const enCours=act.filter(function(a){ return ppEtat(a)!=='fini'; }), finis=act.filter(function(a){ return ppEtat(a)==='fini'; });
   /* ⚠ PAS DE TITRES PAR ÉTAGE (Mag, 09/10/2026 : « tu ne dois pas le noter, tu vas juste dans
      l'ordre ») : une seule liste, dans l'ordre des numéros de chambre. */
-  h+=enCours.slice().sort(function(a,b){
+  const rjours=[]; enCours.forEach(function(a){ if(ppRento(a) && rjours.indexOf(a.jour)<0) rjours.push(a.jour); });
+  rjours.sort().forEach(function(j){ h+=ppBlocRento(j, enCours.filter(function(a){ return ppRento(a) && a.jour===j; })); });
+  h+=enCours.filter(function(a){ return !ppRento(a); }).sort(function(a,b){
     return String(a.numero).localeCompare(String(b.numero),'fr',{numeric:true}) || (a.jour<b.jour?-1:1); }).map(ppCarte).join('');
   /* ═══ L'HISTORIQUE, 30 JOURS, EN GRIS EN BAS (Mag, 13/10/2026) ═══
      « Quand on ne retrouve plus les affaires, on a besoin de savoir qui a fait quoi. » SEULEMENT : qui a préparé les
