@@ -4820,6 +4820,12 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
   color:#2b2a28;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .chprev .pmain{width:18px;height:18px;color:#f8763f}
 .pecrire-h{display:flex;justify-content:flex-end;margin:-4px 0 6px}
+.pprt{margin:10px 0 4px}.pprt-l{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dotted #bdbab3}
+.pprt-c{display:inline-flex;align-items:center;gap:8px;border:1.25px solid #bdbab3;border-radius:8px;padding:6px 12px;background:#fdfdfc;font:inherit;font-size:13px;font-weight:700;cursor:pointer;flex:none}
+.pprt-c i{width:18px;height:18px;border:1.5px solid #6b6862;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:13px}
+.pprt-c.on{border-color:#6cb392;background:#e7f3ec}.pprt-c.on i{background:#6cb392;border-color:#6cb392;color:#fff}
+.pprt-n{flex:1;min-width:0}.pprt-n input{width:100%;border:0;background:none;font:inherit;font-size:16px;font-weight:800;text-transform:uppercase;padding:2px 0}
+.pprt-n em{display:block;font-style:normal;font-size:12px;color:#6b6862}
 .chsimp{display:flex;align-items:center;gap:12px;background:#fdfdfc;border:1px solid var(--ligne);border-left:4px solid #6fc7d9;border-radius:0 10px 10px 0;padding:10px 12px;margin-bottom:8px}
 .chsimp-n{font-size:22px;font-weight:800;min-width:48px}
 .chsimp-t{flex:1;min-width:0}.chsimp-t b{display:block;font-size:15px}.chsimp-t span{display:block;font-size:13px;color:#6b6862;margin-top:2px}
@@ -17698,23 +17704,54 @@ function ppColler(){
 /* ═══ LA CARTE EN FRISE — PISTE B, CHOISIE (Mag, 09/10/2026 : « on va prendre la frise ») ═══
    Le flanc et le contour de la couleur de QUI PASSE ; les étapes reliées comme une ligne de
    temps, chacune avec le picto de l'affiche ; ce qui est fait se teinte de la couleur. */
+/* ═══ LA CARTE RENTOKIL (Mag, 22/10/2026 : « quand c'est Rentokil, il faut juste prévenir les gens qu'ils mettent dans les
+   sacs ; mettre devant chaque nom une case prévenu, et enlever tout le reste ; pour les autres protocoles, laisser comme
+   ça ») ═══ Le numéro, « Rentokil », la date ; chaque personne avec sa case « Prévenu » (qui, quand) ; Info, Copier,
+   Retirer. Quand toutes les personnes nommées sont prévenues, l'étape « Prévenu » de la chambre se coche toute seule. */
+function ppPersRento(a){
+  const P=ppPersonnes(a); while(P.length<2) P.push({nom:'', pa:false});
+  return '<div class="pprt">'+P.map(function(x,i){
+    return '<div class="pprt-l">'+
+      '<button class="pprt-c'+(x.prev?' on':'')+'" aria-pressed="'+!!x.prev+'" onclick="ppPersPrev(\''+a.id+'\','+i+')"><i>'+(x.prev?'✓':'')+'</i>Prévenu</button>'+
+      '<span class="pprt-n"><input id="ppP'+a.id+'_'+i+'" type="text" maxlength="60" placeholder="+ Nom" value="'+esc(x.nom||'')+'" '+
+        'autocomplete="off" onchange="ppPersNom(\''+a.id+'\','+i+',this.value)">'+
+        (x.prev&&x.prev_par?'<em>'+esc(String(x.prev_par).split(/\s+/)[0])+' · '+ppHeure(x.prev_le)+'</em>':'')+'</span></div>';
+  }).join('')+'</div>';
+}
+function ppPersPrev(id, i){
+  const a=ppLigne(id); if(!a) return;
+  const P=ppPersDuDom(a); while(P.length<=i) P.push({nom:'', pa:false});
+  const qui=P[i].nom||'Cette personne';
+  const appliquer=function(){
+    P[i].prev=!P[i].prev; P[i].prev_par=P[i].prev?nomAffiche():null; P[i].prev_le=P[i].prev?new Date().toISOString():null;
+    const nommes=P.filter(function(x){ return x.nom; }), tous=nommes.length && nommes.every(function(x){ return x.prev; });
+    const maj={personnes:P};
+    if(tous && !a.prevenu_le){ maj.prevenu_le=new Date().toISOString(); maj.prevenu_par=nomAffiche(); }
+    if(!tous && a.prevenu_le){ maj.prevenu_le=null; maj.prevenu_par=null; }
+    ppMaj(a, maj, qui+(P[i].prev?' : prévenu':' : plus prévenu'));
+  };
+  if(P[i].prev) ppConfirme(a, {question:qui+' n’est plus prévenu ?', ok:'Oui, décocher'}, appliquer);
+  else appliquer();
+}
 function ppCarte(a){
   const e=ppEtat(a), E=ppEtapesDe(a), pr=ppProto(a), q=ppQui(a);
+  const rento=!!a.rentokil;
   const fait=E.filter(function(s){ return ppFait(a,s.k); }).length;
   const etat = e==='fini' ? '✓ Terminé' : e==='abandon' ? 'Abandonné' : e==='alerte' ? 'Pas prévenu' : fait+' / '+E.length;
   let h='<div class="ppf '+e+(pr.k==='tout'?' ppf-perso':'')+'" style="--c:'+q.c+';--cf:'+q.f+'"><span class="ppf-bande"></span>'+
     '<div class="ppf-top"><button class="ppf-n" onclick="ppNumero(\''+a.id+'\')" title="Changer le numéro">'+esc(a.numero)+'</button>'+
       '<button class="ppf-qui'+(q.l?'':' off')+'" onclick="ppQuiChanger(\''+a.id+'\')" title="Rentokil ?">'+(q.l||'Rentokil ?')+'</button>'+
-      '<span class="ppf-j">'+esc(ppJourFr(a.jour))+'</span><span class="ppf-e">'+etat+'</span></div>'+
-    '<div class="ppf-h"><span class="ppf-cad" title="Chambre fermée">'+ppPic('cadenas')+'</span>'+
+      '<span class="ppf-j">'+esc(ppJourFr(a.jour))+'</span>'+(rento?'':'<span class="ppf-e">'+etat+'</span>')+'</div>'+
+    (rento?'':'<div class="ppf-h"><span class="ppf-cad" title="Chambre fermée">'+ppPic('cadenas')+'</span>'+
       '<input type="time" value="'+esc(ppDe(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_de\',this.value)"><span>→</span>'+
       '<input type="time"'+(ppProto(a).k==='tout'&&!ppFait(a,'personne')?' class="ppf-rouge"':'')+' value="'+esc(ppAh(a))+'" onchange="ppHeureChanger(\''+a.id+'\',\'produit_a\',this.value)">'+
       /* LA CHAMBRE NE ROUVRE PAS AVANT LE PROTOCOLE DE LA PERSONNE (Mag, 10/10/2026, mélange des pistes A et B) :
          l'heure de fin en ROUGE + « + douche » à l'extérieur ; protocole fait → l'heure redevient normale,
          « + douche ✓ » en vert. On ne ferme plus « pour prévenir » (bouton retiré). */
       (ppProto(a).k==='tout' ? '<span class="ppf-plus'+(ppFait(a,'personne')?' ok':'')+'">+</span><span class="ppf-dou'+(ppFait(a,'personne')?' ok':'')+'" title="Pas avant le protocole de la personne">'+ppPic('personne')+(ppFait(a,'personne')?'<b>✓</b>':'')+'</span>' : '')+
-      '</div>';
-  if(e==='abandon'){
+      '</div>');
+  if(rento){ /* Rentokil : ni étapes ni « abandon » à l'écran (22/10/2026) */ }
+  else if(e==='abandon'){
     h+='<p class="ppc-ab">Pas prévenu à l’heure du passage : pas de protocole, on ne touche pas à ses affaires.</p>';
   } else {
     /* L'ÉTAPE OÙ ON EN EST est mise en avant par une OMBRE (Mag, 10/10/2026 : « pas "à faire" en rouge — une
@@ -17733,7 +17770,8 @@ function ppCarte(a){
     }).join('')+'</div>';
     /* (Mag, 09/10/2026 : « ils sauront bien que si ce n'est pas coché, il faut le faire ») : plus de « À faire maintenant ». */
   }
-  h+='<div class="ppf-opts">'+
+  if(rento) h+=ppPersRento(a);
+  else h+='<div class="ppf-opts">'+
     '<button class="ppf-o'+(pr.k==='tout'?' on ppf-pp':'')+'" onclick="ppChangerProto(\''+a.id+'\',\''+(pr.k==='tout'?'produit':'tout')+'\')">'+
       '<span class="ppf-ic">'+ppPic('personne')+'</span>'+(pr.k==='tout'?'Protocole personne : oui':'+ protocole personne')+'</button>'+
   '</div>'+
