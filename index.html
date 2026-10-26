@@ -18177,6 +18177,24 @@ function rafraichirRapport(){
   _rapportVu=Date.now();
   loadRapport().then(function(){ if(current.view==='rapport' || current.view==='centre') render(); });
 }
+/* ═══ LE POINT DU JOUR NE MONTRE QUE CE QUI EST À JOUR (Mag, 26/10/2026) ═══
+   « Quand les autres ne collent pas les absences, il ne faut pas les mettre, sinon c'est une erreur. Il faut que ce
+   soit fait tous les jours. Pareil pour les entrées, les sorties : quand les dates sont passées, tu ne mets pas dans le
+   point du jour. Tu laisses tout où il faut : on enlève à la main aux emplacements dédiés. »
+   · ABSENTS +3 NUITS : seulement si la liste a été collée hier ou aujourd'hui, et pour une personne dont les 3 dernières
+     nuits se suivent et vont jusqu'à hier ou ce soir. Sinon : rien dans le point du jour (l'onglet Absences garde tout).
+   · SORTANTS / ENTRANTS PRÉVUS : pas ceux dont la date est passée (la page Départs / Entrants les garde). */
+function rapAbsFiables(){
+  if(typeof ABSENCES==='undefined' || absPasColleHier()) return [];
+  const auj=absJour(), hier=absDecale(auj,-1);
+  return ABSENCES.filter(function(x){
+    if(x.rentre_le || x.desencode_le) return false;
+    const N=absNuits(x); if(N.length<3) return false;
+    const der=N[N.length-1]; if(der!==auj && der!==hier) return false;
+    const t=N.slice(-3); return t[1]===absDecale(t[0],1) && t[2]===absDecale(t[1],1);
+  });
+}
+function rapDatePassee(v){ return !!(v && String(v).slice(0,10)<agIso(new Date())); }
 function rapportDonnees(){
   if(!RDV_CHARGE || Date.now()-_rdvVu>60000) setTimeout(rafraichirRdv,0);
   if(!RAPPORT_CHARGE) setTimeout(rafraichirRapport,0);
@@ -18244,13 +18262,13 @@ function accTrioHTML(){
   const nValA=estGroupeD()?0:(RDV||[]).filter(function(r){ return r.jour>=a && rdvAValider(r) && !r.valide_le && !r.refuse_le && r.accompagne; }).length;
   let abs3=0, abs3lam=0;
   try{ if(!estGroupeD() && typeof ABSENCES!=='undefined'){ if(!ABS_LU && !ABS_ENCOURS) setTimeout(loadAbsences,0);
-    const A3=ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; }); abs3=A3.length; abs3lam=A3.filter(function(x){ return x.lam; }).length; } }catch(e){}
+    const A3=rapAbsFiables(); abs3=A3.length; abs3lam=A3.filter(function(x){ return x.lam; }).length; } }catch(e){}
   /* LE VERT = TOUS LES ACCOMPAGNEMENTS À VENIR (Mag, 13/10/2026 : « des accompagnements globaux ») ; le rouge = ce qui reste à faire. */
   const nAccTous=rapportDonnees().acc.length;   /* la semaine, comme la section du point du jour (17/10/2026) */
-  let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).length; } }catch(e){}
+  let nSort=0; try{ if(!estGroupeD() && typeof CHAMBRES!=='undefined'){ rafraichirChambres(); nSort=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c) && !rapDatePassee(c.sortie_le); }).length; } }catch(e){}
   const nTaxi=(RDV||[]).filter(rdvTaxiUrgent).length;   /* taxis à commander aujourd'hui / demain (18/10/2026) */
   const _ve=voitEntrants();   /* les entretiens d’arrivée = les entrants prévus : pas deux fois (22/10/2026) */
-  const chipsTout=rapEtiquettes({eSoc:_ve?(ENT_N_SOC||0):0, eMed:_ve?(ENT_N_MED||0):0, taxi:nTaxi, prevus:(voitEntrants()&&typeof ENT_N_ARR==='number')?ENT_N_ARR:0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
+  const chipsTout=rapEtiquettes({eSoc:_ve?(ENT_N_SOC||0):0, eMed:_ve?(ENT_N_MED||0):0, taxi:nTaxi, prevus:voitEntrants()?(ENT_N_ARR_RAP||0):0, sortants:nSort, abs3:abs3, abs3lam:abs3lam, ent:nEnt, info:nInfo, reveil:rv, acc:nAccTous, accT:nTotA, punaise:pp, rdv:nRdv, valider:0, act:nAct}, true);   /* « à valider » : la bande rouge, pas une étiquette (13/10/2026) */
   /* ⭐ L'ALERTE DES COORDIS (Mag, 13/10/2026 : « les cordis doivent avoir une notification bien spéciale, en rouge : les
      validations des accompagnements »). Au-dessus du point du jour, seulement pour la coordination (et l'admin). */
   let alerteCo='';
@@ -18347,7 +18365,7 @@ function rapportHTML(page){
   if(!gD && typeof ABSENCES!=='undefined'){
     if(!ABS_LU && !ABS_ENCOURS && typeof loadAbsences==='function') setTimeout(loadAbsences,0);
     /* TITRE « ABSENTS +3 NUITS », et l'étiquette LAM quand c'est LAM (Mag, 13/10/2026). Les LAM en tête. */
-    const lam=ABSENCES.filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; })
+    const lam=rapAbsFiables()
       .sort(function(x,y){ return (y.lam?1:0)-(x.lam?1:0); });
     if(lam.length) h+=sec('abslam','#e63329','<span class="rap-ic" style="color:#fdfdfc">!</span>','Absents +3 nuits', lam.length,
       lam.map(function(x){ const nn=absNuits(x).length;
@@ -18377,7 +18395,7 @@ function rapportHTML(page){
   if(!gD && typeof CHAMBRES!=='undefined'){
     rafraichirChambres();
     if(typeof ABSENCES!=='undefined' && !ABS_LU && !ABS_ENCOURS && typeof loadAbsences==='function') setTimeout(loadAbsences,0);
-    const dep=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); })
+    const dep=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c) && !rapDatePassee(c.sortie_le); })
       .sort(function(x,y){ return String(x.sortie_le||'').localeCompare(String(y.sortie_le||'')); });
     /* « Mets SORTANTS comme titre, et un autre truc pour les absences » (Mag, 13/10/2026) : les absents sortent d'ici. */
     const abs=[];
@@ -18395,7 +18413,7 @@ function rapportHTML(page){
   /* ⭐ LES ENTRANTS PRÉVUS (Mag, 16/10/2026) : ceux qui ne sont pas encore descendus en entretien, par jour d'arrivée. */
   if(voitEntrants()){
     if(!ENTRANTS.length && !ENTRANTS_ENCOURS && Date.now()-ENTRANTS_LU>60000) setTimeout(loadEntrants,0);
-    const EP=ENTRANTS.filter(function(x){ return x.pour_entretien===false; })
+    const EP=ENTRANTS.filter(function(x){ return x.pour_entretien===false && !rapDatePassee(x.arrive_le); })
       .sort(function(x,y){ return String(x.arrive_le||'').localeCompare(String(y.arrive_le||'')); });
     if(EP.length) h+=sec('entrants','#A9C8E8',icon('hebergement'),'Entrants prévus', EP.length,
       EP.map(function(x){
@@ -18619,7 +18637,7 @@ function rapportImprimer(){
   let c='<style>.rp{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 12px}.rp td{border-bottom:1px solid #e4e1dc;padding:6px 4px;vertical-align:top}.rp .h{width:18mm;font-weight:700;white-space:nowrap}.rp .d{width:40mm;text-align:right}</style>';
   /* ⭐ LA FEUILLE = L'ÉCRAN, DANS LE MÊME ORDRE ET AVEC LES DÉTAILS (Mag, 13/10/2026 : « si ça apparaît là, c'est qu'il y a des
      informations : mets-les ») : absents +3 nuits, sortants, punaises chambre par chambre, à valider = accompagnements. */
-  const A3=(typeof ABSENCES!=='undefined'?ABSENCES:[]).filter(function(x){ return !x.rentre_le && !x.desencode_le && absNuits(x).length>=3; })
+  const A3=rapAbsFiables()
     .sort(function(x,y){ return (y.lam?1:0)-(x.lam?1:0); });
   c+=bloc('Absents +3 nuits', A3, function(x){ const st=absStatut(x), jus=(st.k!=='nonjust'?st.l:'')+(x.note?(st.k!=='nonjust'?' · ':'')+x.note:'');
     return l('', '<b>'+esc(x.nom||'?')+'</b>'+(jus?'<br><small>'+esc(jus)+'</small>':''), absNuits(x).length+' nuits'+(x.lam?' · <b>LAM</b>':'')); });
@@ -18637,7 +18655,7 @@ function rapportImprimer(){
       return l('ch. '+esc(x.numero), esc(noms), [ppEtat(x)==='alerte'?'<b style="color:#e63329">à prévenir</b>':'', (!x.sacs_le && ppEtapesDe(x).some(function(e){ return e.k==='sacs'; }))?'sacs à faire':''].filter(Boolean).join(' · ')); });
   }
   if(typeof CHAMBRES!=='undefined'){
-    const dep=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c); }).sort(function(x,y){ return String(x.sortie_le||'').localeCompare(String(y.sortie_le||'')); });
+    const dep=CHAMBRES.filter(function(c){ return c.motif && !chambreFinie(c) && !rapDatePassee(c.sortie_le); }).sort(function(x,y){ return String(x.sortie_le||'').localeCompare(String(y.sortie_le||'')); });
     c+=bloc('Sortants', dep, function(x){ return l('ch. '+esc(x.numero), '<b>'+esc(x.initiales||'?')+'</b>', esc(chMotifL(x))); });
   }
   c+=bloc(RAPPORT_RUB[0][1], msg(RAPPORT_RUB[0]), lm);
@@ -46534,7 +46552,7 @@ function resteRappels(){
    dossier, c'est KAIROS. Ne pas ajouter de champ ici sans qu'elle l'ait décidé.
    ═══════════════════════════════════════════════════════════════════════════ */
 let ENTRANTS=[], ENTRANTS_LU=0, ENTRANTS_ENCOURS=false, ENTRANTS_PANNE='';
-let ENT_N_ARR=0, ENT_N_SOC=0, ENT_N_MED=0, ENT_N_ARR_VENIR=0;
+let ENT_N_ARR=0, ENT_N_SOC=0, ENT_N_MED=0, ENT_N_ARR_VENIR=0, ENT_N_ARR_RAP=0;
 /* ═══ LA LISTE SE MET À JOUR TOUTE SEULE (Mag, 19/09/2026 : « si ma collègue met un
    nouvel entrant, moi je dois rafraîchir ma page, mais je veux que ce soit
    automatique ») ═══
@@ -46589,6 +46607,8 @@ async function loadEntrantsCompte(){
          l'accueil : c'est un autre besoin, pas la même pastille.) */
       ENT_N_AVOIR=d.filter(function(e){ return !entretienFait(e,'acc'); }).length;
       ENT_N_ARR=d.filter(function(e){ return e.pour_entretien===false; }).length;
+      /* Le point du jour : pas les arrivées dont la date est passée (Mag, 26/10/2026). */
+      ENT_N_ARR_RAP=d.filter(function(e){ return e.pour_entretien===false && !rapDatePassee(e.arrive_le); }).length;
       /* Ceux dont le jour n'est pas encore arrivé (Mag, 15/10/2026 : « je n'ai pas encore trois entretiens d'arrivée ») */
       ENT_N_ARR_VENIR=d.filter(function(e){ return e.pour_entretien===false && e.arrive_le && e.arrive_le>agIso(new Date()); }).length;
       /* ⚠ LE SOCIAL ET LE MÉDICAL SE COMPTENT À PART (Mag, 20/09/2026 : « parfois il y a
