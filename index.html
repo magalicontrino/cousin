@@ -2678,6 +2678,14 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le repère de la ligne active a besoin d'un parent positionné pour que son
    `offsetTop` soit compté DANS le cadre, et pas dans la page. */
 .accnote{position:relative}
+.accrailw{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:start}
+.accrail{position:sticky;top:10px;display:flex;flex-direction:column;border-right:1.5px solid var(--trait);padding-right:6px;max-height:calc(100dvh - 20px);overflow:auto}
+.accrp{display:flex;align-items:center;gap:6px;background:none;border:0;padding:5px 0;font:inherit;font-size:11px;line-height:1.15;color:#8a877f;text-align:left;cursor:pointer}
+.accrp i{width:11px;height:11px;border-radius:50%;border:2px solid #b9b6af;flex:none;box-sizing:border-box}
+.accrp.ok{color:#2b2a28}.accrp.ok i{background:#6cb392;border-color:#6cb392}
+.accrp.cur{color:#1b1b1b;font-weight:800}.accrp.cur i{border-color:#1b1b1b;box-shadow:0 0 0 3px #f5c542}
+@media(min-width:900px){ .accrailw{grid-template-columns:130px minmax(0,1fr);gap:16px} .accrp{font-size:13px;padding:6px 0} }
+@media print{ .accrail{display:none} .accrailw{display:block} }
 @media(min-width:900px){
   .accdeux{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
     gap:26px;align-items:start;max-width:1100px;margin-left:auto;margin-right:auto}
@@ -23783,7 +23791,7 @@ function renderInterne(){
        sur le médical, CHAQUE redessin reposait la question — et juste après la disquette,
        la fenêtre reproposait l'entretien qu'on venait de ranger. */
     if(_ecranDessine!==keyOf(current)) accBrouillonRelire();
-    view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); accCalerPlusTard();
+    ACC_RAIL_CUR=-1; view.innerHTML=vAccueilPersonne(current.volet); accGrandirTout(); accCalerPlusTard(); setTimeout(accRailCaler,0);
     /* Tant qu'on n'a pas répondu, la page est là mais on ne peut pas écrire dessus. */
     if(ACC_PROPOSE) accBrOuvrir(); else accBrFermer();
   }
@@ -38516,7 +38524,43 @@ function accBrJeter(){
 }
 function accBrouillonHTML(){ return ''; }   /* le bandeau a laissé la place à la fenêtre */
 function accBandeauMaj(){}
-function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); }
+function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); accRailMaj(); }
+function accGRempli(g){ return (g.c||[]).some(function(f){ return String(ACC[f.k]||'').trim()!==''; }); }
+function accRailMaj(){
+  const JEU=accJeu((current&&current.volet)||'');
+  JEU.forEach(function(g,i){ const b=document.getElementById('accrp-'+i); if(b) b.classList.toggle('ok', accGRempli(g)); });
+}
+var ACC_RAIL_CUR=-1;
+function accRailCur(i){
+  if(i===ACC_RAIL_CUR) return;
+  const a=document.getElementById('accrp-'+ACC_RAIL_CUR); if(a) a.classList.remove('cur');
+  ACC_RAIL_CUR=i; const b=document.getElementById('accrp-'+i); if(b) b.classList.add('cur');
+}
+function accRailVa(i){
+  const g=document.getElementById('accg-'+i); if(!g) return;
+  window.scrollTo({top:g.getBoundingClientRect().top+window.scrollY-70, behavior:'smooth'});
+  accRailCur(i);
+  setTimeout(function(){ const f=g.querySelector('textarea,input'); if(f) f.focus({preventScroll:true}); }, 350);
+}
+/* La colonne se colle SOUS le bandeau du titre, qui reste lui aussi collé en haut (sinon il la cachait, 03/11/2026). */
+function accRailCaler(){
+  const r=document.querySelector('.accrail'); if(!r) return;
+  const h=document.querySelector('#view .hero'); let t=10;
+  if(h && getComputedStyle(h).position==='sticky') t=(parseFloat(getComputedStyle(h).top)||0)+h.offsetHeight+10;
+  r.style.top=t+'px'; r.style.maxHeight='calc(100dvh - '+(t+10)+'px)';
+}
+/* En défilant, la partie la plus haute encore visible devient « en cours ». */
+let _accRailT=0;
+window.addEventListener('scroll', function(){
+  if(!document.querySelector('.accrail')) return;
+  clearTimeout(_accRailT);
+  _accRailT=setTimeout(function(){
+    accRailCaler();
+    const G=document.querySelectorAll('.accform .accg'); let cur=-1;
+    for(let i=0;i<G.length;i++){ if(G[i].getBoundingClientRect().top<(parseFloat((document.querySelector('.accrail')||{style:{}}).style.top)||10)+80) cur=i; else break; }
+    if(cur<0) cur=0; accRailCur(cur);
+  }, 80);
+}, {passive:true});
 /* ⚠ ON NE REDESSINE PAS LE FORMULAIRE — on ne change que la couleur des deux
    boutons. Redessiner à chaque clic effacerait le curseur du champ d'à côté :
    c'est le piège déjà payé trois fois sur cette page. */
@@ -38524,7 +38568,7 @@ function accCase(k){
   ACC[k]=ACC[k]?'':'OK';
   const b=document.getElementById('acccase-'+k);
   if(b){ b.classList.toggle('on',!!ACC[k]); const x=b.querySelector('.bx'); if(x) x.textContent=ACC[k]?'✓':''; }
-  accNoteMaj(k); accBrouillonSauver();
+  accNoteMaj(k); accBrouillonSauver(); accRailMaj();
 }
 function accOuiNon(k,v){
   ACC[k]=(ACC[k]===v)?'':v;
@@ -38532,7 +38576,7 @@ function accOuiNon(k,v){
   if(w) [].forEach.call(w.querySelectorAll('button'), function(b){
     b.classList.toggle('on', b.getAttribute('data-v')===ACC[k]);
   });
-  accNoteMaj(k); accBrouillonSauver();
+  accNoteMaj(k); accBrouillonSauver(); accRailMaj();
 }
 /* Voir le bloc de la note : on réécrit le <pre>, et rien d'autre. */
 /* ═══ LES TITRES ET LES RÉPONSES EN GRAS, À L'ÉCRAN (Mag, 05/10/2026 : « ce sont les
@@ -39076,8 +39120,14 @@ function vAccueilPersonne(volet){
      elle doit se lire avant qu'on commence à écrire par-dessus. */
   h+=accBrouillonHTML();
   h+='<div class="accdeux">';
-  h+='<div class="accform">'+JEU.map(function(g){
-    return '<div class="accg"><div class="acct">'+esc(g.s)+' :</div>'+
+  /* ═══ LES REPÈRES À GAUCHE (Mag, 03/11/2026 : « sur le côté à gauche, des curseurs pour savoir où on en est de
+     l'entretien ») ═══ Une colonne : chaque partie, un rond VERT si elle est remplie, VIDE sinon ; celle où l'on écrit
+     est en gras, cerclée de jaune. Un appui descend à la partie. Mis à jour sans redessiner (`accRailMaj`). */
+  h+='<div class="accrailw"><nav class="accrail" aria-label="Les parties de l’entretien">'+JEU.map(function(g,i){
+    return '<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
+  }).join('')+'</nav>';
+  h+='<div class="accform">'+JEU.map(function(g,i){
+    return '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')"><div class="acct">'+esc(g.s)+' :</div>'+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
@@ -39123,7 +39173,7 @@ function vAccueilPersonne(volet){
               'oninput="passGrandir(this);accSet(\''+f.k+'\',this.value)">'+v+'</textarea>')+
           '</label>';
       }).join('')+'</div>';
-  }).join('')+'</div>';
+  }).join('')+'</div></div>';   /* .accform puis .accrailw */
   /* ═══ LA NOTE SE FORME EN BAS, AU FUR ET À MESURE (Mag, 21/08/2026) ═══
      « J'aimerais que la note se forme en bas au fur et à mesure, comme ça on a une
      vue d'ensemble. Il faut une note structurée, qu'on puisse la recopier. »
