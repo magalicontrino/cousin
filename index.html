@@ -2688,7 +2688,7 @@ button.accrp-pb.ok::after{content:'✓';margin-left:4px}
 button.accrp-pb.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* À L'INTÉRIEUR : le cadre extérieur était coupé par le bord de la colonne (03/11/2026) */
 .accb-encours{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6b6862;padding:0 8px;align-self:center}
 .accli{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-.accli input{flex:1;min-width:0}
+.accli input,.accli textarea{flex:1;min-width:0}
 .accli-x{flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--trait);background:#fff;font-size:18px;line-height:1;color:#6b6862;cursor:pointer}
 .accli-plus{margin-top:2px;background:#fff;border:1.5px dashed #9a978f;border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;color:#2b2a28;cursor:pointer}
 .accrail2{display:flex;flex-direction:column;justify-content:center;align-items:center;border-right:0;padding:0 6px}
@@ -39236,24 +39236,25 @@ function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : accJeuSocial(); 
    en écrivant — on ajoute ou retire juste la ligne. */
 function accListeItems(v){ return String(v||'').split('\n').map(function(x){ return x.replace(/^\s*[-–—•*·]\s*/,'').trim(); }).filter(Boolean); }
 function accListeLigne(k, v){
-  return '<div class="accli"><input type="text" autocomplete="off" spellcheck="false" value="'+esc(v||'')+'" placeholder="Une démarche…" '+
-    'oninput="accListeMaj(\''+k+'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();accListePlus(\''+k+'\')}">'+
+  /* Une case qui passe à la ligne au lieu de couper le texte (03/11/2026) ; Entrée = démarche suivante. */
+  return '<div class="accli"><textarea rows="1" class="accgr accgr1" autocomplete="off" spellcheck="false" placeholder="Une démarche…" '+
+    'oninput="passGrandir(this);accListeMaj(\''+k+'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();accListePlus(\''+k+'\')}">'+esc(v||'')+'</textarea>'+
     '<button type="button" class="accli-x" aria-label="Retirer cette démarche" onclick="accListeMoins(this,\''+k+'\')">×</button></div>';
 }
 function accListeMaj(k){
   const w=document.getElementById('accli-'+k); if(!w) return;
-  const L=[].map.call(w.querySelectorAll('input'), function(i){ return i.value.trim(); }).filter(Boolean);
+  const L=[].map.call(w.querySelectorAll('textarea'), function(i){ return i.value.replace(/\n/g,' ').trim(); }).filter(Boolean);
   ACC[k]=L.map(function(x){ return '- '+x; }).join('\n');
   accNoteMaj(k); accBrouillonSauver(); accRailMaj();
 }
 function accListePlus(k){
   const w=document.getElementById('accli-'+k); if(!w) return;
   w.insertAdjacentHTML('beforeend', accListeLigne(k,''));
-  const L=w.querySelectorAll('input'); L[L.length-1].focus();
+  const L=w.querySelectorAll('textarea'); L[L.length-1].focus();
 }
 function accListeMoins(b, k){
   const w=document.getElementById('accli-'+k); const r=b.closest('.accli'); if(!w||!r) return;
-  if(w.querySelectorAll('.accli').length>1) r.remove(); else r.querySelector('input').value='';
+  if(w.querySelectorAll('.accli').length>1) r.remove(); else r.querySelector('textarea').value='';
   accListeMaj(k);
 }
 /* Les cases à cocher de « Papiers » : plusieurs réponses possibles, rangées dans ACC en texte (« Passeport, Titre de séjour »). */
