@@ -2714,7 +2714,7 @@ button.accrp-pb.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* À L'INTÉRIEUR : l
 .accrp:focus,.accrp:focus-visible{outline:none}
 .accrp.ok{color:#2b2a28}.accrp.ok i{background:#6cb392;border-color:#6cb392}
 .accrp.cur{color:#1b1b1b;font-weight:800}.accrp.cur i{border-color:#1b1b1b;box-shadow:0 0 0 3px #f5c542}
-@media(min-width:900px){ .accrailw{grid-template-columns:160px minmax(0,1fr);gap:16px} .accrp{font-size:13px;padding:6px 0} }
+@media(min-width:900px){ .accrailw{grid-template-columns:190px minmax(0,1fr);gap:22px} .accrp{font-size:13px;padding:6px 0} }
 @media print{ .accrail{display:none} .accrailw{display:block} }
 @media(min-width:900px){
   .accdeux{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
@@ -38567,8 +38567,8 @@ function accMemeQueBandeau(g){
 /* Ce qui part dans la note. `siOui` : un Oui/Non qui ne s'écrit QUE s'il est Oui, en une phrase (Mag, 03/11/2026 :
    « interprète : quand on met oui, "Besoin d'un interprète" ; si on a mis non, tu ne notes rien »). */
 function accPourNote(g){
-  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui') && !(f.t==='choix' && !accVal(f)); })
-    .map(function(f){ return f.siOui ? Object.assign({}, f, {t:'case', l:f.siOui, n:f.siOui, phrase:1}) : f; });
+  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui' && !(f.siNon && v==='Non')) && !(f.t==='choix' && !accVal(f)); })
+    .map(function(f){ if(!f.siOui) return f; const t=String(ACC[f.k]).trim()==='Oui' ? f.siOui : f.siNon; return Object.assign({}, f, {t:'case', l:t, n:t, phrase:1}); });
 }
 function accGRempli(g){
   /* ROI : la copie rendue ET la charte signée (Mag, 03/11/2026 : « quand je coche la copie du ROI, le ROI ne devrait pas être
@@ -38689,7 +38689,7 @@ function accNoteA(volet, k, pourCopie){
       const e=accSansDoublon(accEtiq(f), g.s);
       if(f.t==='case'){ h+=P+ici(f,(f.phrase?'':'✓ ')+esc(accEtiq(f)))+'</p>'; return; }
       /* Le gras dit « voici la réponse à la question » : sans question écrite, pas de gras. */
-      if(f.court){ h+=P+ici(f,esc(e)+' / '+esc(accVal(f)))+'</p>'; return; }
+      if(f.court){ h+=P+ici(f,(e?esc(e)+' / ':'')+esc(accVal(f)))+'</p>'; return; }
       /* Au social : « étiquette / valeur », sans gras (Mag, 03/11/2026 : « je ne vois pas pourquoi c'est en gras ») ; seule la
          nationalité ressort (`gras`). Le médical garde sa forme. */
       if(!f.b && !accEstLong(f)){
@@ -39241,6 +39241,12 @@ function accJeuSocial(){
      du papier sans titre. */
   /* (Mag, 03/11/2026) : « Adresse / AR · dernier domicile » au-dessus de la case ; « Adresse » dans la note. */
   if(par.adresse) par.adresse=Object.assign({}, par.adresse, {l:'Adresse / AR · dernier domicile', n:'Adresse'});
+  /* MUTUELLE ET CARTE MÉDICALE, SOBRES (Mag, 03/11/2026 : « si c'est oui, on met juste En ordre de mutuelle, et en dessous
+     Mutuelle Solidaris ; c'est tout, proprement »). Un Non s'écrit aussi : c'est une information qui compte. */
+  if(par.mut) par.mut=Object.assign({}, par.mut, {siOui:'En ordre de mutuelle', siNon:'Pas en ordre de mutuelle'});
+  if(par.mut_info) par.mut_info=Object.assign({}, par.mut_info, {n:'Mutuelle', b:0, court:1});
+  if(par.cm) par.cm=Object.assign({}, par.cm, {siOui:'Carte médicale', siNon:'Pas de carte médicale'});
+  if(par.cm_info) par.cm_info=Object.assign({}, par.cm_info, {n:'', b:0});
   if(par.nationalite) par.nationalite=Object.assign({}, par.nationalite, {n:'', gras:1, b:0});
   if(par.rn) par.rn=Object.assign({}, par.rn, {l:'', tip:'NN ou SP', n:''});
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {n:''});
