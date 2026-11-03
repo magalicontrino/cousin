@@ -49536,6 +49536,13 @@ function absColNettoie(){
    la page en montre. Adam avait collé la page de TOUS les bénéficiaires (142) : au-dessus de 30, ou si la page n'est pas
    celle des absents, on le lui dit, avec son prénom. */
 const ABS_MAX=30;
+/* ⚠ AU-DESSUS DE 50, C'EST UNE ERREUR, POINT (Mag, 03/11/2026 : « plus de 50, c'est un message d'erreur, on ne peut pas
+   confirmer ») : pas de « continuer quand même ». Entre 30 et 50, on prévient et un second appui passe. */
+const ABS_BLOQUE=50;
+function absColBloque(n){
+  const qui=String(nomAffiche()||'').split(/\s+/)[0];
+  return (qui?qui+', ':'')+n+' noms : ce n’est pas la page des absents. Rien n’est enregistré. Dans KAIROS, ouvre la page des absents, puis Ctrl A · Ctrl C · Ctrl V ici.';
+}
 var ABS_FORCE=false;
 function absKairosChiffres(txt){
   const L=String(txt||'').split(/\r?\n/).map(function(x){ return x.replace(/ /g,' ').trim(); }).filter(Boolean);
@@ -49558,7 +49565,7 @@ function absColVu(){
   const lus=t.value.trim()?absLireListe(t.value):[];
   /* Juste le nombre (Mag, 10/10/2026 : « pas besoin de mettre les noms »). */
   ABS_FORCE=false;
-  const doute=lus.length?absColDoute(t.value, lus.length):'';
+  const doute=lus.length>ABS_BLOQUE ? absColBloque(lus.length) : (lus.length?absColDoute(t.value, lus.length):'');
   d.innerHTML=(lus.length ? '<b>'+lus.length+' personne'+(lus.length>1?'s':'')+' lue'+(lus.length>1?'s':'')+'</b>'
     : (t.value.trim()?'<b class="rouge">Aucun nom trouvé dans ce texte</b>':''))+
     (doute?'<p class="abscol-doute">⚠ '+esc(doute)+'</p>':'');
@@ -49567,6 +49574,7 @@ async function absCollerComparer(){
   const t=document.getElementById('absColTxt');
   const lus=absLireListe(t&&t.value);
   if(!lus.length){ toast('Je ne trouve aucun nom dans ce texte.'); return; }
+  if(lus.length>ABS_BLOQUE){ absColVu(); toast('Plus de '+ABS_BLOQUE+' noms : ce n’est pas la page des absents'); return; }
   /* Un doute (trop de noms, ou pas le chiffre de KAIROS) : le premier appui le montre, le second passe outre. */
   if(absColDoute(t.value, lus.length) && !ABS_FORCE){
     ABS_FORCE=true; absColVu(); ABS_FORCE=true;
@@ -49648,6 +49656,7 @@ function absCollerDessine(){
 }
 async function absCollerValider(){
   const P=ABS_PLAN; if(!P) return;
+  if((P.encore.length+P.nouveaux.length)>ABS_BLOQUE){ toast('Plus de '+ABS_BLOQUE+' noms : ce n’est pas la page des absents — rien n’est enregistré'); return; }
   const bg=document.getElementById('absColBg'); if(bg) bg.classList.remove('on');
   const auj=absJour(); let rate=0, fait=0;
   ABS_ECRIT=Date.now();
