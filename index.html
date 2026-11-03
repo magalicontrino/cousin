@@ -38567,8 +38567,17 @@ function accMemeQueBandeau(g){
 /* Ce qui part dans la note. `siOui` : un Oui/Non qui ne s'écrit QUE s'il est Oui, en une phrase (Mag, 03/11/2026 :
    « interprète : quand on met oui, "Besoin d'un interprète" ; si on a mis non, tu ne notes rien »). */
 function accPourNote(g){
-  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui' && !(f.siNon && v==='Non')) && !(f.t==='choix' && !accVal(f)); })
-    .map(function(f){ if(!f.siOui) return f; const t=String(ACC[f.k]).trim()==='Oui' ? f.siOui : f.siNon; return Object.assign({}, f, {t:'case', l:t, n:t, phrase:1}); });
+  const val=function(k){ const v=String(ACC[k]||'').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? 'jusqu’au '+v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4) : v; };
+  const L=g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui' && !(f.siNon && v==='Non')) && !(f.t==='choix' && !accVal(f)); });
+  const pris={};
+  L.forEach(function(f){ if(f.siOui && f.joint) f.joint.forEach(function(k){ pris[k]=1; }); });
+  return L.filter(function(f){ return !pris[f.k]; }).map(function(f){
+    if(!f.siOui) return f;
+    let t=String(ACC[f.k]).trim()==='Oui' ? f.siOui : f.siNon;
+    const plus=(f.joint||[]).map(val).filter(Boolean); if(plus.length) t+=' · '+plus.join(' · ');
+    return Object.assign({}, f, {t:'case', l:t, n:t, phrase:1});
+  });
 }
 function accGRempli(g){
   /* ROI : la copie rendue ET la charte signée (Mag, 03/11/2026 : « quand je coche la copie du ROI, le ROI ne devrait pas être
@@ -38603,9 +38612,19 @@ function accRailCaler(){
   const h=document.querySelector('#view .hero'); let t=10;
   if(h && getComputedStyle(h).position==='sticky') t=(parseFloat(getComputedStyle(h).top)||0)+h.offsetHeight+10;
   r.style.top=t+'px'; r.style.maxHeight='calc(100dvh - '+(t+10)+'px)'; r.style.height='calc(100dvh - '+(t+10)+'px)';   /* centrée en hauteur */
+  /* ⭐ CENTRÉE DANS L'ESPACE LIBRE À GAUCHE (Mag, 03/11/2026 : « la ligne des boutons, tu peux pas la mettre centrée sur la
+     colonne ? ») : sur grand écran, le formulaire est centré et laisse un grand vide à sa gauche ; la colonne se pose au milieu
+     de ce vide (position fixe). Pas assez de place : elle reste à sa place, collée en haut comme avant. */
+  const fo=document.querySelector('.accform'), vw=document.getElementById('view');
+  r.style.position=''; r.style.left=''; r.style.width='';
+  if(fo && vw && innerWidth>=900){
+    const fl=fo.getBoundingClientRect().left, vl=vw.getBoundingClientRect().left, place=fl-vl-16, lg=170;
+    if(place>=lg+40){ r.style.position='fixed'; r.style.width=lg+'px'; r.style.left=Math.round(vl+(place-lg)/2)+'px'; }
+  }
 }
 /* En défilant, la partie la plus haute encore visible devient « en cours ». */
 let _accRailT=0;
+window.addEventListener('resize', function(){ if(document.querySelector('.accrail')) accRailCaler(); });
 window.addEventListener('scroll', function(){
   if(!document.querySelector('.accrail')) return;
   clearTimeout(_accRailT);
@@ -39180,7 +39199,7 @@ const ACC_NOUVEAUX={
   reseau:{k:'reseau',l:'',n:'',b:1},   /* sans pense-bête : « on le sait » (03/11/2026) */
   psy_ok:{k:'psy_ok',l:'OK pour voir une psy du centre',t:'case',n:'OK pour voir une psy du centre'},
   famille:{k:'famille',l:'',tip:'Mariage · Enfants · Famille · Famille en Belgique',n:'',b:1},
-  cm_renouv:{k:'cm_renouv',l:'À renouveler',t:'case',n:'Carte médicale à renouveler'}
+  cm_renouv:{k:'cm_renouv',l:'À renouveler',t:'case',n:'CM à renouveler'}
 };
 /* ═══ LES TITRES (Mag, 03/11/2026 : « j'aime pas les titres, sa vie… Afaf n'avait pas mis ça » — titres repris de
    l'entretien rédigé d'une collègue, validés : « tu peux faire comme ça, c'est très bien ») ═══
@@ -39206,8 +39225,9 @@ const ACC_PARTIES_SOC=[
   {p:'Social', pc:'#f3c6da', bouton:1, s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
   /* ⭐ DEUX BOUTONS (Mag, 03/11/2026 : « médical directement cliquable, mutuelle et carte médicale dedans ; consommations sort,
      juste après, avec sa couleur ; il ne doit rester que deux boutons ») — `horsRail` cache la sous-rubrique à gauche. */
-  {p:'Médical', pc:'#6fc7d9', bouton:1, s:'Mutuelle', k:['mut','mut_info']},
-  {s:'Carte médicale', k:['cm','cm_renouv','cm_date','cm_info'], horsRail:1},
+  /* ⭐ UN SEUL BLOC « MÉDICAL » (Mag, 03/11/2026 : « on devrait avoir un titre Médical et en dessous Mutuelle OK, et le nom à côté ;
+     là il y a plusieurs titres, on ne voit pas qu'on est dans le médical »). */
+  {p:'Médical', pc:'#6fc7d9', s:'Médical', k:['mut','mut_info','cm','cm_renouv','cm_date','cm_info']},
   {p:'Consommations', pc:'#b28b7a', s:'Consommations', k:['assue']},
   /* UNE case libre, plus de Oui/Non (Mag, 03/11/2026 : « un titre Psy, il ne va pas mettre Psy : oui ; que je puisse mettre
      ce que je veux — OK pour être approchée par Charlotte ou Isaline »). L'ancien Oui/Non (`psy`) en vieux. */
@@ -39243,10 +39263,12 @@ function accJeuSocial(){
   if(par.adresse) par.adresse=Object.assign({}, par.adresse, {l:'Adresse / AR · dernier domicile', n:'Adresse'});
   /* MUTUELLE ET CARTE MÉDICALE, SOBRES (Mag, 03/11/2026 : « si c'est oui, on met juste En ordre de mutuelle, et en dessous
      Mutuelle Solidaris ; c'est tout, proprement »). Un Non s'écrit aussi : c'est une information qui compte. */
-  if(par.mut) par.mut=Object.assign({}, par.mut, {siOui:'En ordre de mutuelle', siNon:'Pas en ordre de mutuelle'});
-  if(par.mut_info) par.mut_info=Object.assign({}, par.mut_info, {n:'Mutuelle', b:0, court:1});
-  if(par.cm) par.cm=Object.assign({}, par.cm, {siOui:'Carte médicale', siNon:'Pas de carte médicale'});
-  if(par.cm_info) par.cm_info=Object.assign({}, par.cm_info, {n:'', b:0});
+  /* `joint` : les réponses qui se mettent sur la MÊME ligne, après un point (« Mutuelle OK · Solidaris »). */
+  if(par.mut) par.mut=Object.assign({}, par.mut, {siOui:'Mutuelle OK', siNon:'Pas en ordre de mutuelle', joint:['mut_info']});
+  if(par.mut_info) par.mut_info=Object.assign({}, par.mut_info, {l:'Quelle mutuelle', n:'', b:0});
+  if(par.cm) par.cm=Object.assign({}, par.cm, {siOui:'Carte médicale', siNon:'Pas de carte médicale', joint:['cm_info','cm_date']});
+  if(par.cm_info) par.cm_info=Object.assign({}, par.cm_info, {l:'Infos carte médicale', n:'', b:0});
+  if(par.cm_date) par.cm_date=Object.assign({}, par.cm_date, {n:''});
   if(par.nationalite) par.nationalite=Object.assign({}, par.nationalite, {n:'', gras:1, b:0});
   if(par.rn) par.rn=Object.assign({}, par.rn, {l:'', tip:'NN ou SP', n:''});
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {n:''});
