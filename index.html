@@ -2691,13 +2691,16 @@ button.accrp-pb.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* À L'INTÉRIEUR : l
 .accli input{flex:1;min-width:0}
 .accli-x{flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--trait);background:#fff;font-size:18px;line-height:1;color:#6b6862;cursor:pointer}
 .accli-plus{margin-top:2px;background:#fff;border:1.5px dashed #9a978f;border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;color:#2b2a28;cursor:pointer}
-.accrail2{display:flex;flex-direction:column;justify-content:center;border-right:0;padding-right:0}
+.accrail2{display:flex;flex-direction:column;justify-content:center;align-items:center;border-right:0;padding:0 6px}
+.accrail2 .accrp2{max-width:150px}
 .accrp2{display:flex;align-items:center;gap:6px;width:100%;background:color-mix(in srgb, var(--c) 38%, #fff);border:0;border-radius:8px;padding:6px 8px;margin:3px 0;font:inherit;font-size:10.5px;font-weight:800;line-height:1.15;color:#1b1b1b;text-align:left;cursor:pointer;transition:transform .15s}
 .accrp2:focus,.accrp2:focus-visible{outline:none}
 .accrp2 span{flex:1;min-width:0}
 .accrp2 b{display:none;flex:none;font-size:12px}
 .accrp2.ok{background:var(--c)}.accrp2.ok b{display:inline}
-.accrp2.cur{box-shadow:inset 0 0 0 2px #2b2a28;transform:scale(1.05)}
+.accrp2.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* plus de zoom : il coupait la barre sur le bord (03/11/2026) */
+.accrp2.apart{background:#fff;color:#8a877f;box-shadow:inset 0 0 0 1.5px #dcdad5}.accrp2.apart.ok{background:#fff;color:#55524c}
+.accrp2.apart.cur{box-shadow:inset 0 0 0 2px #2b2a28;color:#1b1b1b}
 @media(min-width:900px){ .accrp2{font-size:13px;padding:8px 10px} }
 .accrailw{display:grid;grid-template-columns:134px minmax(0,1fr);gap:10px;align-items:start}
 .accrail{position:sticky;top:10px;display:flex;flex-direction:column;border-right:1.5px solid var(--trait);padding-right:6px;max-height:calc(100dvh - 20px);overflow:auto}
@@ -38556,7 +38559,13 @@ function accMemeQueBandeau(g){
   const nu=function(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^\d+\s*·\s*/,'').replace(/[^a-z]/g,''); };
   const a=nu(g.p), b=nu(g.s); return a===b || b.indexOf(a)===0;
 }
-function accGRempli(g){ return (g.c||[]).some(function(f){ return String(ACC[f.k]||'').trim()!==''; }); }
+function accGRempli(g){
+  /* ROI : la copie rendue ET la charte signée (Mag, 03/11/2026 : « quand je coche la copie du ROI, le ROI ne devrait pas être
+     coché ; la charte fait partie de ça »). Une rubrique faite seulement de cases n'est remplie que si TOUTES sont cochées. */
+  const C=(g.c||[]);
+  if(C.length && C.every(function(f){ return f.t==='case'; })) return C.every(function(f){ return !!ACC[f.k]; });
+  return C.some(function(f){ return String(ACC[f.k]||'').trim()!==''; });
+}
 function accRailMaj(){
   const JEU=accJeu((current&&current.volet)||'');
   JEU.forEach(function(g,i){ const b=document.getElementById('accrp-'+i); if(b) b.classList.toggle('ok', accGRempli(g)); });
@@ -38569,7 +38578,11 @@ function accRailCur(i){
 }
 function accRailVa(i){
   const g=document.getElementById('accg-'+i); if(!g) return;
-  window.scrollTo({top:g.getBoundingClientRect().top+window.scrollY-70, behavior:'smooth'});
+  /* On vise le BANDEAU s'il y en a un (Mag, 03/11/2026 : « on clique sur Réseau et on ne voit pas tout le haut »), et on
+     descend sous le titre collant, pas à 70 px au hasard. */
+  const cible=(g.previousElementSibling && g.previousElementSibling.classList.contains('accpart')) ? g.previousElementSibling : g;
+  const r=document.querySelector('.accrail'), haut=(r && parseFloat(r.style.top)) || 70;
+  window.scrollTo({top:cible.getBoundingClientRect().top+window.scrollY-haut-12, behavior:'smooth'});
   accRailCur(i);
   setTimeout(function(){ const f=g.querySelector('textarea,input'); if(f) f.focus({preventScroll:true}); }, 350);
 }
@@ -39290,7 +39303,7 @@ function vAccueilPersonne(volet){
     /* DESSIN C (Mag, 03/11/2026) : des barres de couleur, pâles tant que c'est vide, vives quand c'est rempli ; centrées en
        hauteur. Sans partie : gris ; Projet (blanc) : gris clair. Teintes pâles acceptées par elle pour ce dessin. */
     const lab=g.p||g.s, c=!g.p?'#cfcdc7':(g.pc==='#ffffff'?'#e3e1dc':g.pc);
-    return '<button type="button" id="accrp-'+i+'" class="accrp2'+(accGRempli(g)?' ok':'')+'" style="--c:'+c+'" onclick="accRailVa('+i+')">'+
+    return '<button type="button" id="accrp-'+i+'" class="accrp2'+((g.p || !JEU.some(function(x){ return x.p; }))?'':' apart')+(accGRempli(g)?' ok':'')+'" style="--c:'+c+'" onclick="accRailVa('+i+')">'+
       '<span>'+esc(lab)+'</span><b aria-hidden="true">✓</b></button>';
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
