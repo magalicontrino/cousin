@@ -2682,6 +2682,7 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accform .accpart:first-child{margin-top:0}
 .accrp-p{display:block;margin:10px 0 2px;padding:2px 6px;border-radius:6px;background:var(--pc);border:1.5px solid #2b2a28;font-size:10.5px;font-weight:800;color:#1b1b1b}
 .accchoix{flex-wrap:wrap}
+.accautre{display:block;width:100%;margin-top:8px}
 button.accrp-pb{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;font:inherit;font-size:10.5px;font-weight:800;color:#1b1b1b;cursor:pointer}
 @media(min-width:900px){ button.accrp-pb{font-size:12px} }
 button.accrp-pb.ok::after{content:'✓';margin-left:4px}
@@ -38562,7 +38563,7 @@ function accMemeQueBandeau(g){
 /* Ce qui part dans la note. `siOui` : un Oui/Non qui ne s'écrit QUE s'il est Oui, en une phrase (Mag, 03/11/2026 :
    « interprète : quand on met oui, "Besoin d'un interprète" ; si on a mis non, tu ne notes rien »). */
 function accPourNote(g){
-  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui'); })
+  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui') && !(f.t==='choix' && !accVal(f)); })
     .map(function(f){ return f.siOui ? Object.assign({}, f, {t:'case', l:f.siOui, n:f.siOui, phrase:1}) : f; });
 }
 function accGRempli(g){
@@ -38646,6 +38647,10 @@ function accFin(g){
 /* La réponse telle qu'elle part dans la note : une date du calendrier (AAAA-MM-JJ)
    s'écrit JJ/MM/AAAA. */
 function accVal(f){
+  if(f.t==='choix'){
+    return String(ACC[f.k]||'').split(/\s*,\s*/).filter(Boolean).map(function(x){
+      return (x==='Autre' && f.autre) ? String(ACC[f.autre]||'').trim() : x; }).filter(Boolean).join(f.sep||', ');
+  }
   const v=String(ACC[f.k]||'').trim();
   if(f.t==='date' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4);
   return v;
@@ -38681,7 +38686,11 @@ function accNoteA(volet, k, pourCopie){
       if(f.t==='case'){ h+=P+ici(f,(f.phrase?'':'✓ ')+esc(accEtiq(f)))+'</p>'; return; }
       /* Le gras dit « voici la réponse à la question » : sans question écrite, pas de gras. */
       if(f.court){ h+=P+ici(f,esc(e)+' / '+esc(accVal(f)))+'</p>'; return; }
-      if(!f.b && !accEstLong(f)){ h+=P+ici(f,e ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(accVal(f)))+'</p>'; return; }
+      /* Au social : « étiquette / valeur », sans gras (Mag, 03/11/2026 : « je ne vois pas pourquoi c'est en gras ») ; seule la
+         nationalité ressort (`gras`). Le médical garde sa forme. */
+      if(!f.b && !accEstLong(f)){
+        const val = f.gras ? '<b>'+esc(accVal(f))+'</b>' : esc(accVal(f));
+        h+=P+ici(f, e ? (volet==='med' ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(e)+' / '+val) : val)+'</p>'; return; }
       if(e) h+='<p style="margin:8px 0 1px">'+ici(f,'<b>'+esc(e)+'</b>')+'</p>';
       let ul=[];
       const fermer=function(){ if(ul.length){ h+='<ul style="margin:0 0 3px;padding-left:20px">'+ul.join('')+'</ul>'; ul=[]; } };
@@ -39157,7 +39166,9 @@ const ACC_CHAMPS=[
    Deux nouveautés seulement : les papiers EN CASES (`papiers_type`, t:'choix') et « médecin traitant · maison médicale »
    (`mt`), repris de l'entretien rédigé d'une collègue. */
 const ACC_NOUVEAUX={
-  papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','Carte d’identité','Titre de séjour','Aucun'],n:'Papiers'},
+  /* (Mag, 03/11/2026) : « CI » plus court, plus de « Aucun » (on décoche), et « Autre » qui ouvre une case (annexe, 9ter…).
+     Dans la note : les papiers sur une ligne, sans le mot « Papiers ». */
+  papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','CI','Titre de séjour','Autre'],autre:'papiers_autre',sep:' · ',n:''},
   mt:{k:'mt',l:'Médecin traitant · maison médicale',n:'Médecin traitant · maison médicale'},
   /* (Mag, 03/11/2026 : « ici, rajouter une petite case à cocher : à renouveler ») */
   /* LA FAMILLE EN UNE CASE (Mag, 03/11/2026 : « on ne fait jamais des trucs si séparés, on fait des grands textes ;
@@ -39222,6 +39233,13 @@ function accJeuSocial(){
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {l:'Valable jusqu’au… · perdu ou volé le…', n:'Document d’identité'});
   if(par.passe) par.passe=Object.assign({}, par.passe, {l:'', tip:'Que s’est-il passé ? · Depuis combien de temps sans hébergement ? · Qu’est-ce qui l’a amené au Samusocial ?', n:'', b:1});
   if(par.assue) par.assue=Object.assign({}, par.assue, {n:'Consommations'});
+  /* La note administrative (Mag, 03/11/2026) : la nationalité seule et en gras ; « NN ou SP » qu'on écrit soi-même ; la validité
+     du papier sans titre. */
+  /* (Mag, 03/11/2026) : « Adresse / AR · dernier domicile » au-dessus de la case ; « Adresse » dans la note. */
+  if(par.adresse) par.adresse=Object.assign({}, par.adresse, {l:'Adresse / AR · dernier domicile', n:'Adresse'});
+  if(par.nationalite) par.nationalite=Object.assign({}, par.nationalite, {n:'', gras:1, b:0});
+  if(par.rn) par.rn=Object.assign({}, par.rn, {l:'', tip:'NN ou SP', n:''});
+  if(par.papiers) par.papiers=Object.assign({}, par.papiers, {n:''});
   if(par.interprete) par.interprete=Object.assign({}, par.interprete, {siOui:'Interprète recommandé'});
   /* Dans la note : « Qui prévenir en cas de problème », pas toute la question (Mag, 03/11/2026). */
   if(par.prevenir) par.prevenir=Object.assign({}, par.prevenir, {n:'Qui prévenir en cas de problème', b:0, court:1});
@@ -39272,11 +39290,12 @@ function accListeMoins(b, k){
 function accChoix(k, v){
   const f=ACC_NOUVEAUX[k]; if(!f) return;
   let L=String(ACC[k]||'').split(/\s*,\s*/).filter(Boolean);
-  if(v==='Aucun') L = L.indexOf('Aucun')>=0 ? [] : ['Aucun'];
-  else { L=L.filter(function(x){ return x!=='Aucun'; }); L = L.indexOf(v)>=0 ? L.filter(function(x){ return x!==v; }) : L.concat([v]); }
+  L=L.filter(function(x){ return x!=='Aucun'; }); L = L.indexOf(v)>=0 ? L.filter(function(x){ return x!==v; }) : L.concat([v]);
   ACC[k]=f.o.filter(function(o){ return L.indexOf(o)>=0; }).join(', ');
   const w=document.getElementById('accch-'+k);
   if(w) [].forEach.call(w.querySelectorAll('button'), function(b){ b.classList.toggle('on', L.indexOf(b.getAttribute('data-v'))>=0); });
+  const au=document.getElementById('accautre-'+k);
+  if(au){ au.style.display = L.indexOf('Autre')>=0 ? '' : 'none'; if(v==='Autre' && L.indexOf('Autre')>=0) au.focus(); }
   accNoteMaj(k); accBrouillonSauver(); accRailMaj();
 }
 function vAccueilPersonne(volet){
@@ -39346,7 +39365,9 @@ function vAccueilPersonne(volet){
           return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
             '<div class="accon accchoix" id="accch-'+f.k+'">'+f.o.map(function(x){
               return '<button type="button" data-v="'+esc(x)+'" class="'+(L.indexOf(x)>=0?'on':'')+'" onclick="accChoix(\''+f.k+'\',\''+x.replace(/'/g,'\\\'')+'\')">'+esc(x)+'</button>';
-            }).join('')+'</div></div>';
+            }).join('')+'</div>'+
+            (f.autre?'<input type="text" id="accautre-'+f.k+'" class="accautre" autocomplete="off" spellcheck="false" placeholder="Annexe 35, 9ter, annexe 12…" value="'+esc(ACC[f.autre]||'')+'" '+
+              'style="'+(L.indexOf('Autre')>=0?'':'display:none')+'" oninput="accSet(\''+f.autre+'\',this.value)">':'')+'</div>';
         }
         if(f.t==='ouinon'){
           return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
@@ -39537,7 +39558,7 @@ function accNote(volet){
     courts.forEach(function(f){
       if(f.t==='case'){ l.push('· '+accEtiq(f)); return; }
       const e=accSansDoublon(accEtiq(f), g.s);
-      l.push(e ? ('· '+e+' / '+String(ACC[f.k]).trim()) : ('· '+String(ACC[f.k]).trim()));
+      l.push(e ? ('· '+e+' / '+accVal(f)) : ('· '+accVal(f)));
     });
     longs.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
