@@ -4832,6 +4832,14 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .pprb .ppm-ecr{margin-top:10px}
 /* ═══ LA PAGE = LA FEUILLE (Mag, 22/10/2026 : « en ligne on ne le fera jamais, mets en avant le print » ; « la page
    doit ressembler comme deux gouttes d'eau au print, sur téléphone ») ═══ */
+.acc4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 18px}
+.acc4-c{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;background:var(--c);border:2px solid #2b2a28;border-radius:14px;padding:12px 4px 10px;font:inherit;color:#1b1b1b;cursor:pointer;min-width:0}
+.acc4-c b{font-size:11.5px;font-weight:800;line-height:1.15;text-align:center;overflow-wrap:anywhere}
+.acc4-i{width:28px;height:28px;display:inline-flex}.acc4-i svg,.acc4-i img,.acc4-i .pico{width:28px!important;height:28px!important}
+.acc4-i .pico{background-color:#1b1b1b!important}
+.acc4-c.alerte{border-color:#e63329;box-shadow:0 0 0 2px #e63329}
+.acc4-c em{position:absolute;top:-8px;right:-6px;min-width:22px;height:22px;border-radius:11px;background:#e63329;color:#fff;font-style:normal;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+@media (min-width:700px){ .acc4{gap:12px} .acc4-c{padding:18px 8px 14px;gap:10px} .acc4-c b{font-size:14px} .acc4-i{width:34px;height:34px} .acc4-i svg,.acc4-i img,.acc4-i .pico{width:34px!important;height:34px!important} }
 .ppx-act{display:flex;gap:8px;margin:4px 0 8px}
 .ppx-b{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#2b2a28;color:#fff;border:0;border-radius:12px;padding:13px 10px;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
 .ppx-b svg{width:20px;height:20px}
@@ -24501,7 +24509,9 @@ function vHome(){
      ⚠ Le groupe D ne l'a pas — la page lui est fermée depuis ce matin. */
   /* ⚠ PAS D'AGENDA NI D'ACCOMPAGNEMENTS POUR LE GROUPE D (Mag, 11/10/2026). */
   /* LE RAPPORT DU JOUR, TOUT EN HAUT (Mag, 13/10/2026) — pas pour le groupe D. */
-  if(!estGroupeD()) h+=accTrioHTML();   /* ni rapport, ni agenda pour le groupe D */
+  /* ⚠ LE POINT DU JOUR QUITTE L'ACCUEIL « POUR L'INSTANT » (Mag, 03/11/2026 : « il y a trop d'informations ; je crois que
+     tu peux pour l'instant l'enlever »). La page #/rapport existe toujours. Pour le remettre : décommenter la ligne. */
+  /* if(!estGroupeD()) h+=accTrioHTML(); */
   if(!estGroupeD()){
     /* ⚠ « SUR TA LISTE », C'EST SA LISTE — PAS SA CHECK-LIST (Mag, 20/09/2026 : « tu dis
        14 sur ta liste, mais il n'y a pas 14 choses, c'est pas vrai »). Le compte
@@ -24570,60 +24580,23 @@ function vHome(){
        ⚠ ET LA CARTE N'EST PLUS CLIQUABLE EN ENTIER. Elle menait à `#/liste` ; c'était
        le rôle du titre. La page reste atteignable par le bouton dossier de la barre du
        haut, visible depuis n'importe où — donc rien n'est fermé. */
-    h+='<div class="ctacarte sanstitre"><div class="pourmoi-t">Liste perso</div>'+
-       /* ⭐ EN PREMIER (Mag, 17/10/2026 : « rendez-vous toujours tout en haut, juste après les points du jour »). */
-       /* ⭐ LES RENDEZ-VOUS, TOUJOURS LÀ (Mag, 15/10/2026 : « mets aussi un CTA RDV à l'accueil ») : ils ont quitté le point
-          du jour ; ici on y entre. Le chiffre = ceux d'aujourd'hui ; à zéro, la ligne reste, sans chiffre (comme le mémo). */
-       (AGENDA_MASQUE?'':(function(){ const a=agIso(new Date());
-         /* ⭐ AUJOURD'HUI ET DEMAIN (Mag, 17/10/2026 : « mets les rdv à l'accueil ») */
-         if(typeof RDV!=='undefined' && (!RDV_CHARGE || Date.now()-_rdvVu>60000)) setTimeout(rafraichirRdv,0);
-         const vrai=function(r){ return !r.retire_le && !r.refuse_le; }, dm=ppAjoute(a,1);
-         const n=(typeof RDV!=='undefined'&&RDV||[]).filter(function(r){ return r.jour===a && vrai(r); }).length;
-         const nd=(typeof RDV!=='undefined'&&RDV||[]).filter(function(r){ return r.jour===dm && vrai(r); }).length;
-         return ligneCta(n||'', (n?'rendez-vous aujourd’hui':'rendez-vous')+(nd?' · '+nd+' demain':''),'#/rdv','calendrier','#6fc7d9',"RDV_VUE='';RDV_FORM=null;go('#/rdv')"); })())+
-       /* ⚠ DES TITRES COURTS (Mag, 20/09/2026 : « je n'aime pas trop les titres, marque
-          juste… ») : « à faire », « arrivés » et « pour toi » sont partis — la carte dit
-          déjà que c'est ce qui attend. */
-       /* ⭐ LES ENTRANTS PAS ENCORE ARRIVÉS NE SONT PAS DES ENTRETIENS (Mag, 15/10/2026 : « je n'ai pas encore trois
-          entretiens d'arrivée ») : deux comptes, deux mots. */
-       (function(){ const v=Math.min(ENT_N_ARR_VENIR||0, nArr), ici=nArr-v;
-         return (false&&ici?ligneCta(ici,'entretien'+(ici>1?'s':'')+' d’arrivée','#/liste/entretiens','hebergement','#A9C8E8'):'')+   /* → point du jour (22/10/2026) */
-                (v?ligneCta(v,'entrant'+(v>1?'s':'')+' à venir','#/liste/entretiens','hebergement','#A9C8E8'):''); })()+
-       (false&&nSoc?ligneCta(nSoc,'entretien'+(nSoc>1?'s sociaux':' social'),'#/liste/entretiens','social','#f2b8cd'):'')+
-       (false&&nMed?ligneCta(nMed,'entretien'+(nMed>1?'s médicaux':' médical'),'#/liste/entretiens','medical','#f3bdb8'):'')+
-       /* ⚠ LES ABSENCES QUITTENT LA LISTE PERSO (Mag, 13/10/2026 : « ce n'est pas personnel, tout le monde doit voir les
-          absences ») : elles sont dans le point du jour (absents +3 nuits) et dans l'onglet Absences. */
-       (false&&nAbsTous?ligneCta(nAbsTous,'absence'+(nAbsTous>1?'s':'')+(nAbs?' · '+nAbs+' à traiter':''),'#/liste/absences','absence','#f0a8a3'):'')+
-       (nPass?ligneCta(nPass,'passation'+(nPass>1?'s':''),'#/liste','partage','#b8ddc4','allerPassation()'):'')+
-       /* LES « À PRÉVENIR », REGROUPÉS (Mag, 11/10/2026) : une ligne à part ; un appui ouvre la liste simplifiée
-          (qui, chambre, la source : rendez-vous, social, médical…). */
-       (nPrev?ligneCta(nPrev,'à prévenir','#/liste','main','#f8763f','prevListeOuvrir()')   /* ni « personnes à prévenir » ni « à prendre en charge » (13/10/2026) */:'')+
-       (nMoi?ligneCta(nMoi,'sur ta liste','#/liste','list','#f5d98a'):'')+
-       /* Les rendez-vous du jour : plus ici depuis le 09/10/2026, ils ont leur barre au-dessus
-          (`rdvBarre`) — la même info deux fois sur le même écran ferait doublon. */
-       /* ═══ LE MÉMO, EN DERNIER (Mag, 22/09/2026 — dessin B sur deux) ═══
-          « Quand ce sera terminé, tu pourras rajouter le mémo quelque part ici. »
-          ⚠ IL NE PORTE PAS DE CHIFFRE, ET C'EST EXPRÈS. Toutes les autres lignes
-          comptent quelque chose et disparaissent à zéro ; lui est là tout le temps.
-          Lui inventer un compte (« 6 écrans »), ce serait refaire l'erreur du
-          « 14 sur ta liste » du 20/09 : un chiffre qui ne correspond à rien.
-          ⚠ Sa ligne est plus discrète que celles qui comptent — c'est le dessin B
-          qu'elle a choisi, pas une ligne comme les autres. */
-       /* ⚠ PAS D'HORLOGE ICI (Mag, 22/09/2026 : « je n'aime pas, parce qu'il y a le
-          picto juste en haut et ça fait double emploi »). Je l'avais ajoutée parce que
-          le mémo ouvre maintenant sur la frise — mais l'horloge est déjà dans la barre,
-          deux fois le même dessin sur le même écran ne dit rien de plus.
-          ⚠ UNE ÉTIQUETTE COMME LES AUTRES (dessin B sur deux, 22/09/2026). Elle était
-          plus discrète que les lignes à chiffre ; elle a maintenant sa languette, sa
-          taille et son alignement. Le `<b>` reste VIDE — il ne compte rien — mais il
-          garde sa largeur, pour que les mots s'alignent en colonne avec « entrants »
-          et « sur ta liste ». */
-       /* ⭐ LES SORTANTS, TOUJOURS LÀ (Mag, 13/10/2026 : « un CTA dans ma liste perso ») — même à zéro, pour pouvoir en noter un. */
-       /* LES DÉPARTS QUITTENT LA LISTE PERSO (13/10/2026 : « ce n'est pas personnel ») : ils sont dans le point du jour,
-          avec « + ajouter ». */
-       '<button class="ctal" style="--cc:#c9bfe3" onclick="event.stopPropagation();accSlideOuvrir()">'+
-         '<span class="lang"></span><span class="ic">'+icon('bulb')+'</span>'+
-         '<b></b><span>Mémo ROI</span><i>›</i></button>'+
+    /* ═══ LA LIGNE DE 4 CARTES (Mag, 03/11/2026, dessin A choisi : « les 4 sur une ligne, même sur le téléphone ») ═══
+       « Liste perso, il faut marquer Liste et notes, et c'est tout, ça doit être juste un raccourci ; à chaque fois qu'on
+       va sur l'accueil, on cherche la liste porte. » Quatre raccourcis en couleur, pour qu'ils se distinguent du linge,
+       des poubelles et des produits juste dessous. Les lignes de « Liste perso » (rendez-vous, entrants, passations,
+       à prévenir, sur ta liste) sont parties : on les retrouve dans Liste et notes.
+       ⚠ Les punaises gardent leur alerte : la carte passe au ROUGE avec le nombre à prévenir (la barre du dessous
+       n'est plus montrée qu'au groupe D, qui n'a pas cette ligne). */
+    let ppAl=0; try{ if(typeof PUNAISES!=='undefined'){ if(!PP_CHARGE) setTimeout(rafraichirPunaises,0); ppAl=ppAlertes(); } }catch(e){}
+    const carte4=function(lab, ic, c, action, badge){
+      return '<button class="acc4-c'+(badge?' alerte':'')+'" style="--c:'+c+'" onclick="'+action+'">'+
+        (badge?'<em>'+badge+'</em>':'')+'<span class="acc4-i">'+icon(ic)+'</span><b>'+lab+'</b></button>';
+    };
+    h+='<div class="acc4">'+
+       carte4('Liste et notes','list','#6fc7d9',"go('#/liste')")+
+       carte4('Print liste porte','imprimer','#f5c542','portOuvrir()')+
+       carte4('Mémo ROI','bulb','#6cb392','accSlideOuvrir()')+
+       carte4('Protocole punaises','punaise','#fd8fd0',"go('#/punaises')", ppAl)+
        '</div>';
   }
   /* ⭐ LES RÉVEILS POUR LES POLYVALENTS (Mag, 13/10/2026 : « les polyvalents doivent voir les réveils ») : ils n'ont ni
@@ -24745,7 +24718,7 @@ function vHome(){
   /* ⭐ LA BARRE DES PUNAISES POUR TOUT LE MONDE, TOUS LES JOURS (Mag, 13/10/2026 : « il peut y avoir des protocoles les
      autres jours ; rouge s'il y a à faire, blanc quand il n'y a rien, mais qu'on puisse toujours y accéder »). Après le
      linge, les chambres, les produits. */
-  if(typeof ppBarre==='function') h+=ppBarre();
+  if(typeof ppBarre==='function' && estGroupeD()) h+=ppBarre();   /* les autres ont la carte (03/11/2026) */
 
   /* ═══ LE RESTE ═══
      Chacune dit CE QU'IL Y A DERRIÈRE, pas ce qu'elle est. « 2 à faire » et
