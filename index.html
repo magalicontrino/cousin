@@ -2682,6 +2682,11 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accform .accpart:first-child{margin-top:0}
 .accrp-p{display:block;margin:10px 0 2px;padding:2px 6px;border-radius:6px;background:var(--pc);border:1.5px solid #2b2a28;font-size:10.5px;font-weight:800;color:#1b1b1b}
 .accchoix{flex-wrap:wrap}
+.accb-encours{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6b6862;padding:0 8px;align-self:center}
+.accli{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.accli input{flex:1;min-width:0}
+.accli-x{flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--trait);background:#fff;font-size:18px;line-height:1;color:#6b6862;cursor:pointer}
+.accli-plus{margin-top:2px;background:#fff;border:1.5px dashed #9a978f;border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;color:#2b2a28;cursor:pointer}
 .accrailw{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:start}
 .accrail{position:sticky;top:10px;display:flex;flex-direction:column;border-right:1.5px solid var(--trait);padding-right:6px;max-height:calc(100dvh - 20px);overflow:auto}
 .accrp{display:flex;align-items:center;gap:6px;background:none;border:0;padding:5px 0;font:inherit;font-size:11px;line-height:1.15;color:#8a877f;text-align:left;cursor:pointer}
@@ -38721,6 +38726,7 @@ function accEnregistrer(){
   l=l.filter(function(b){ return b.id!==ACC_SESSION; });
   l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
   accBrouillonsEcrire(l);
+  const gw=document.getElementById('accGardesW'); if(gw) gw.innerHTML=accGardesHTML();
   toast('Enregistré — tu restes dans l’entretien');
 }
 function accFermer(){
@@ -38746,7 +38752,10 @@ function accGardesHTML(){
      entretiens médicaux dans la page entretiens médicaux ? ») : le médical ne voit que
      les médicaux, le social que les sociaux. */
   const v=(current&&current.volet)||'';
-  const L=accBrouillonsLire().filter(function(b){ return b.id!==ACC_SESSION && (b.volet||'')===v; });
+  /* ⭐ L'ENTRETIEN EN COURS Y EST AUSSI, UNE FOIS ENREGISTRÉ (Mag, 03/11/2026 : « quand on enregistre, ça reste là, mais ça
+     ne se met pas en dessous dans les entretiens gardés ») : marqué « en cours », sans Reprendre ni corbeille. */
+  const L=accBrouillonsLire().filter(function(b){ return (b.volet||'')===v; })
+    .sort(function(a,b){ return (a.id===ACC_SESSION?0:1)-(b.id===ACC_SESSION?0:1); });
   if(!L.length) return '';
   return '<div class="accgardes"><div class="acct">Entretiens gardés · '+L.length+'</div>'+
     (L.length>=ACC_STOCK_TROP ? '<div class="acctrop">Trop d’entretiens en stock : il faut les copier dans KAIROS.</div>' : '')+
@@ -38762,9 +38771,9 @@ function accGardesHTML(){
          l'accueil. Et Copier est le picto copier, comme partout. */
       return '<div class="accgarde '+(b.volet==='med'?'med':'soc')+'"><span><b>'+(nom?esc(nom):'Sans nom')+'</b>'+
         '<i>'+(b.volet==='med'?'Médical':'Social')+' · '+esc(quand)+'</i></span>'+
-        '<button class="accb" onclick="accGardeReprendre('+b.id+')">Reprendre</button>'+
+        (b.id===ACC_SESSION ? '<span class="accb-encours">en cours</span>' : '<button class="accb" onclick="accGardeReprendre('+b.id+')">Reprendre</button>')+
         '<button class="accb accb-cop" onclick="accGardeCopier('+b.id+')" aria-label="Copier" title="Copier">'+icon('copyleger')+'</button>'+
-        '<button class="accb accb-att" onclick="accGardeJeter('+b.id+')" aria-label="Jeter" title="Jeter">'+icon('trash')+'</button></div>';
+        (b.id===ACC_SESSION ? '' : '<button class="accb accb-att" onclick="accGardeJeter('+b.id+')" aria-label="Jeter" title="Jeter">'+icon('trash')+'</button>')+'</div>';
     }).join('')+'</div>';
 }
 function accGardeTrouver(id){ return accBrouillonsLire().find(function(b){ return b.id===id; }); }
@@ -39159,6 +39168,8 @@ function accJeuSocial(){
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {l:'Valable jusqu’au… · perdu ou volé le…', n:'Document d’identité'});
   if(par.passe) par.passe=Object.assign({}, par.passe, {l:'', tip:'Que s’est-il passé ? · Depuis combien de temps sans hébergement ? · Qu’est-ce qui l’a amenée au Samusocial ?', n:'', b:1});
   if(par.assue) par.assue=Object.assign({}, par.assue, {n:'Consommations'});
+  /* LES DÉMARCHES EN LISTE (Mag, 03/11/2026 : « un + pour rajouter à la liste ») : une ligne par démarche. */
+  if(par.demarches) par.demarches=Object.assign({}, par.demarches, {t:'liste', l:'', n:''});
   if(par.suivie) par.suivie=Object.assign({}, par.suivie, {l:'', tip:'Qui la suit ? CPAS · service social · maraude · équipe mobile · avocat…', n:'', b:1});
   const vus={}; ACC_RETIRES_SOC.forEach(function(k){ vus[k]=1; });
   const J=ACC_PARTIES_SOC.map(function(x){
@@ -39173,6 +39184,31 @@ function accJeuSocial(){
   return J;
 }
 function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : accJeuSocial(); }
+/* ═══ UNE LIGNE PAR DÉMARCHE ═══ Rangées dans ACC en texte, une par ligne, précédées d'un tiret (« - Adresse de
+   référence ») : la note en fait une liste à puces, la feuille imprimée une ligne chacune. On ne redessine jamais la page
+   en écrivant — on ajoute ou retire juste la ligne. */
+function accListeItems(v){ return String(v||'').split('\n').map(function(x){ return x.replace(/^\s*[-–—•*·]\s*/,'').trim(); }).filter(Boolean); }
+function accListeLigne(k, v){
+  return '<div class="accli"><input type="text" autocomplete="off" spellcheck="false" value="'+esc(v||'')+'" placeholder="Une démarche…" '+
+    'oninput="accListeMaj(\''+k+'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();accListePlus(\''+k+'\')}">'+
+    '<button type="button" class="accli-x" aria-label="Retirer cette démarche" onclick="accListeMoins(this,\''+k+'\')">×</button></div>';
+}
+function accListeMaj(k){
+  const w=document.getElementById('accli-'+k); if(!w) return;
+  const L=[].map.call(w.querySelectorAll('input'), function(i){ return i.value.trim(); }).filter(Boolean);
+  ACC[k]=L.map(function(x){ return '- '+x; }).join('\n');
+  accNoteMaj(k); accBrouillonSauver(); accRailMaj();
+}
+function accListePlus(k){
+  const w=document.getElementById('accli-'+k); if(!w) return;
+  w.insertAdjacentHTML('beforeend', accListeLigne(k,''));
+  const L=w.querySelectorAll('input'); L[L.length-1].focus();
+}
+function accListeMoins(b, k){
+  const w=document.getElementById('accli-'+k); const r=b.closest('.accli'); if(!w||!r) return;
+  if(w.querySelectorAll('.accli').length>1) r.remove(); else r.querySelector('input').value='';
+  accListeMaj(k);
+}
 /* Les cases à cocher de « Papiers » : plusieurs réponses possibles, rangées dans ACC en texte (« Passeport, Titre de séjour »). */
 function accChoix(k, v){
   const f=ACC_NOUVEAUX[k]; if(!f) return;
@@ -39217,7 +39253,7 @@ function vAccueilPersonne(volet){
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
     return (g.p?'<div class="accpart" style="--pc:'+g.pc+'">'+esc(g.p)+'</div>':'')+
-      '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')"><div class="acct">'+esc(g.s)+' :</div>'+
+      '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')">'+((g.p && g.p.replace(/^\d+\s*·\s*/,'')===g.s)?'':'<div class="acct">'+esc(g.s)+' :</div>')+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
@@ -39230,6 +39266,11 @@ function vAccueilPersonne(volet){
         if(f.t==='date'){
           return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
             '<input type="date" class="accdate" value="'+v+'" oninput="accSet(\''+f.k+'\',this.value)"></label>';
+        }
+        if(f.t==='liste'){
+          const I=accListeItems(ACC[f.k]); if(!I.length) I.push('');
+          return '<div class="accf"><div class="accliste" id="accli-'+f.k+'">'+I.map(function(x){ return accListeLigne(f.k,x); }).join('')+'</div>'+
+            '<button type="button" class="accli-plus" onclick="accListePlus(\''+f.k+'\')">+ Ajouter une démarche</button></div>';
         }
         if(f.t==='choix'){
           const L=String(ACC[f.k]||'').split(/\s*,\s*/);
@@ -39296,7 +39337,7 @@ function vAccueilPersonne(volet){
      '<button class="accb" onclick="accFermer()"'+(accVide()?' disabled':'')+'>Fermer</button>'+
      '<button class="accb" onclick="accEffacer()">Nouvel entretien</button>'+
      '</div>';
-  h+=accGardesHTML();
+  h+='<div id="accGardesW">'+accGardesHTML()+'</div>';
   h+='</div></div>';   /* .acccote puis .accdeux */
   return h+'<div class="accfin" style="height:26px"></div>';
 }
