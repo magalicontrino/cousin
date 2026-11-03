@@ -2678,6 +2678,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 /* Le repère de la ligne active a besoin d'un parent positionné pour que son
    `offsetTop` soit compté DANS le cadre, et pas dans la page. */
 .accnote{position:relative}
+.accpart{margin:22px 0 4px;padding:8px 12px;border:2px solid #2b2a28;border-radius:10px;background:var(--pc);font-weight:800;font-size:15px;letter-spacing:.02em}
+.accform .accpart:first-child{margin-top:0}
+.accrp-p{display:block;margin:10px 0 2px;padding:2px 6px;border-radius:6px;background:var(--pc);border:1.5px solid #2b2a28;font-size:10.5px;font-weight:800;color:#1b1b1b}
+.accchoix{flex-wrap:wrap}
 .accrailw{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:start}
 .accrail{position:sticky;top:10px;display:flex;flex-direction:column;border-right:1.5px solid var(--trait);padding-right:6px;max-height:calc(100dvh - 20px);overflow:auto}
 .accrp{display:flex;align-items:center;gap:6px;background:none;border:0;padding:5px 0;font:inherit;font-size:11px;line-height:1.15;color:#8a877f;text-align:left;cursor:pointer}
@@ -39097,7 +39101,65 @@ const ACC_CHAMPS=[
     {k:'charte_signee',l:'Charte d’engagement signée',t:'case',n:'Charte d’engagement signée'}
   ]}
 ];
-function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : ACC_CHAMPS; }
+/* ═══ L'ENTRETIEN SOCIAL EN TROIS PARTIES (Mag, 03/11/2026 : « il faut le faire en 3 catégories : situation sociale,
+   administrative, médicale ; il ne faut rien retirer, mais remodeler pour que ce soit plus simple » — maquette « Sa vie ·
+   Ses papiers · Sa santé » acceptée) ═══
+   ⚠ LES QUESTIONS NE BOUGENT PAS DANS ACC_CHAMPS (avec tout leur historique) : ce tableau ne fait que les RANGER, par leur
+   clé. Une clé oubliée ici serait une question perdue — `accJeuSocial` les remet en fin de liste et le signale.
+   Deux nouveautés seulement : les papiers EN CASES (`papiers_type`, t:'choix') et « médecin traitant · maison médicale »
+   (`mt`), repris de l'entretien rédigé d'une collègue. */
+const ACC_NOUVEAUX={
+  papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','Carte d’identité','Titre de séjour','Aucun'],n:'Papiers'},
+  mt:{k:'mt',l:'Médecin traitant · maison médicale',n:'Médecin traitant · maison médicale'}
+};
+const ACC_PARTIES_SOC=[
+  {s:'Nom et chambre', k:['nom','chambre']},
+  {s:'Téléphone', k:['gsm']},
+  {p:'1 · Sa vie', pc:'#f3c6da', s:'Ce qui s’est passé', k:['passe','depuis','venue']},
+  {s:'Famille', k:['etatcivil','enfants','famillebe']},
+  {s:'Réseaux', k:['suivie','liens','prevenir']},
+  {s:'Activités', k:['aime']},
+  {s:'Bien-être', k:['bienetre']},
+  {p:'2 · Ses papiers', pc:'#f5c542', s:'Situation administrative', k:['langues','interprete','nationalite','papiers_type','papiers','rn','revenu','adresse']},
+  {p:'3 · Sa santé', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
+  {s:'Carte médicale', k:['cm','cm_date','cm_info']},
+  {s:'Médecin', k:['mt']},
+  {s:'Assuétudes', k:['assue']},
+  {s:'Soutien', k:['soutien','psy','psy_com']},
+  {p:'Pour finir', pc:'#ffffff', s:'Projet', k:['projet']},
+  {s:'Démarches', k:['demarches']},
+  {s:'Documents', k:['roi_copie','charte_signee'], depuis:'Documents'}
+];
+let _accJeuSoc=null;
+function accJeuSocial(){
+  if(_accJeuSoc) return _accJeuSoc;
+  const par={}, sect={};
+  ACC_CHAMPS.forEach(function(g){ sect[g.s]=g; g.c.forEach(function(f){ par[f.k]=f; }); });
+  Object.keys(ACC_NOUVEAUX).forEach(function(k){ par[k]=ACC_NOUVEAUX[k]; });
+  /* Le libellé des papiers : le type part dans les cases, la case texte garde la date et la perte. */
+  if(par.papiers) par.papiers=Object.assign({}, par.papiers, {l:'Valable jusqu’au… · perdu ou volé le…', n:'Document d’identité'});
+  const vus={};
+  const J=ACC_PARTIES_SOC.map(function(x){
+    const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc});
+    g.c=x.k.map(function(k){ vus[k]=1; return par[k]; }).filter(Boolean);
+    return g;
+  });
+  const oublies=[]; ACC_CHAMPS.forEach(function(g){ g.c.forEach(function(f){ if(!vus[f.k]) oublies.push(f); }); });
+  if(oublies.length){ console.warn('Entretien : questions non rangées', oublies.map(function(f){ return f.k; })); J.push({s:'Autres', c:oublies}); }
+  _accJeuSoc=J; return J;
+}
+function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : accJeuSocial(); }
+/* Les cases à cocher de « Papiers » : plusieurs réponses possibles, rangées dans ACC en texte (« Passeport, Titre de séjour »). */
+function accChoix(k, v){
+  const f=ACC_NOUVEAUX[k]; if(!f) return;
+  let L=String(ACC[k]||'').split(/\s*,\s*/).filter(Boolean);
+  if(v==='Aucun') L = L.indexOf('Aucun')>=0 ? [] : ['Aucun'];
+  else { L=L.filter(function(x){ return x!=='Aucun'; }); L = L.indexOf(v)>=0 ? L.filter(function(x){ return x!==v; }) : L.concat([v]); }
+  ACC[k]=f.o.filter(function(o){ return L.indexOf(o)>=0; }).join(', ');
+  const w=document.getElementById('accch-'+k);
+  if(w) [].forEach.call(w.querySelectorAll('button'), function(b){ b.classList.toggle('on', L.indexOf(b.getAttribute('data-v'))>=0); });
+  accNoteMaj(k); accBrouillonSauver(); accRailMaj();
+}
 function vAccueilPersonne(volet){
   const JEU=accJeu(volet);
   const d=new Date();
@@ -39127,10 +39189,11 @@ function vAccueilPersonne(volet){
      l'entretien ») ═══ Une colonne : chaque partie, un rond VERT si elle est remplie, VIDE sinon ; celle où l'on écrit
      est en gras, cerclée de jaune. Un appui descend à la partie. Mis à jour sans redessiner (`accRailMaj`). */
   h+='<div class="accrailw"><nav class="accrail" aria-label="Les parties de l’entretien">'+JEU.map(function(g,i){
-    return '<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
+    return (g.p?'<span class="accrp-p" style="--pc:'+g.pc+'">'+esc(g.p)+'</span>':'')+'<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
-    return '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')"><div class="acct">'+esc(g.s)+' :</div>'+
+    return (g.p?'<div class="accpart" style="--pc:'+g.pc+'">'+esc(g.p)+'</div>':'')+
+      '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')"><div class="acct">'+esc(g.s)+' :</div>'+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
@@ -39143,6 +39206,13 @@ function vAccueilPersonne(volet){
         if(f.t==='date'){
           return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
             '<input type="date" class="accdate" value="'+v+'" oninput="accSet(\''+f.k+'\',this.value)"></label>';
+        }
+        if(f.t==='choix'){
+          const L=String(ACC[f.k]||'').split(/\s*,\s*/);
+          return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
+            '<div class="accon accchoix" id="accch-'+f.k+'">'+f.o.map(function(x){
+              return '<button type="button" data-v="'+esc(x)+'" class="'+(L.indexOf(x)>=0?'on':'')+'" onclick="accChoix(\''+f.k+'\',\''+x.replace(/'/g,'\\\'')+'\')">'+esc(x)+'</button>';
+            }).join('')+'</div></div>';
         }
         if(f.t==='ouinon'){
           return '<div class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
@@ -39405,6 +39475,11 @@ function accImprimer(volet){
     if(f.t==='case'){
       return '<div class="ch"><span class="cs">'+(v?'☒':'☐')+' '+esc(f.l)+'</span></div>';
     }
+    if(f.t==='choix'){
+      const L=v.split(/\s*,\s*/);
+      return '<div class="ch">'+(f.l?'<span class="lb">'+esc(f.l)+'</span>':'')+'<span class="on">'+
+        f.o.map(function(x){ return '<span class="cs">'+(L.indexOf(x)>=0?'☒':'☐')+' '+esc(x)+'</span>'; }).join('')+'</span></div>';
+    }
     if(f.t==='ouinon'){
       const cases=['Oui','Non'].map(function(x){
         return '<span class="cs">'+(v===x?'☒':'☐')+' '+x+'</span>';
@@ -39447,7 +39522,7 @@ function accImprimer(volet){
     '<div class="pg"><h1>Premier accueil — '+(volet==='med'?'médical':'social')+'</h1>'+
     '<div class="dt">'+(rempli?'Entretien du '+d:'Feuille vierge · à remplir pendant l’entretien')+'</div>'+
     JEU.map(function(g){
-      return '<div class="gr"><div class="gt">'+esc(g.s)+'</div>'+g.c.map(ligne).join('')+'</div>';
+      return (g.p?'<div class="gp" style="border-left:6px solid '+g.pc+'">'+esc(g.p)+'</div>':'')+'<div class="gr"><div class="gt">'+esc(g.s)+'</div>'+g.c.map(ligne).join('')+'</div>';
     }).join('')+
     '</div></body></html>');
   w.document.close();
