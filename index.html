@@ -39135,28 +39135,30 @@ const ACC_NOUVEAUX={
    consommations · Projet d'orientation. Les sous-titres sont ceux qui partent dans la note.
    « Parcours » = UNE case ; les trois questions d'avant deviennent son pense-bête (`tip`). */
 const ACC_PARTIES_SOC=[
-  {s:'Nom et chambre', k:['nom','chambre']},
+  /* `horsRail` : remplis d'office en arrivant, ils ne sont pas dans les repères (Mag, 03/11/2026 : « on le fait directement,
+     on n'oublie pas, on ne cherche pas »). Les titres des bandeaux : un mot (« c'est trop long les titres »). */
+  {s:'Nom et chambre', k:['nom','chambre'], horsRail:1},
   /* La langue tout en haut, au-dessus du téléphone (Mag, 03/11/2026 : « ça devrait être tout en haut »). */
-  {s:'Langue', k:['langues','interprete']},
-  {s:'Téléphone', k:['gsm']},
-  {p:'1 · Situation sociale', pc:'#f3c6da', s:'Parcours', k:['passe'], vieux:['depuis','venue']},
+  {s:'Langue', k:['langues','interprete'], horsRail:1},
+  {s:'Téléphone', k:['gsm'], horsRail:1},
+  {p:'Social', pc:'#f3c6da', s:'Parcours', k:['passe'], vieux:['depuis','venue']},
   {s:'Famille et entourage', k:['famille','prevenir'], vieux:['etatcivil','enfants','famillebe','liens']},
   /* « C'est son RÉSEAU » (Mag, 03/11/2026 : « les suivis, ça devrait être dans réseau ; le sous-titre répète le titre »). */
   /* Plus de bandeau à elle (Mag, 03/11/2026 : « enlève le titre 2, mets situation administrative et financière dans social »). */
   {s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
-  {p:'2 · Situation médicale et consommations', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
+  {p:'Médical', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
   {s:'Carte médicale', k:['cm','cm_renouv','cm_date','cm_info']},
   {s:'Consommations', k:['assue']},
   {s:'Soutien', k:['soutien']},
   /* « Psy » à part, pour qu'on la trouve dans les repères (Mag, 03/11/2026 : « c'est important qu'on sache où c'est »). */
   {s:'Psy', k:['psy','psy_com']},
-  {p:'3 · Projet d’orientation', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
+  {p:'Projet', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
   {s:'Démarches', k:['demarches']},
   {s:'ROI', k:['roi_copie','charte_signee'], depuis:'Documents'},   /* « juste marqué ROI » (Mag, 03/11/2026) */
   /* ⭐ LE RÉSEAU, SOCIAL ET MÉDICAL ENSEMBLE, EN DERNIER (Mag, 03/11/2026 : « l'instance sociale est parfois dans une maison
      d'accueil, parfois dans un hôpital ; on ne va pas tout séparer »). Une seule case ; les deux anciennes (`suivie`, `mt`)
      ne reviennent que si un entretien gardé les avait remplies. */
-  {p:'4 · Réseau', pc:'#a9c8e8', s:'Réseau', k:['reseau'], vieux:['suivie','mt']}
+  {p:'Réseau', pc:'#a9c8e8', s:'Réseau', k:['reseau'], vieux:['suivie','mt']}
 ];
 /* RETIRÉES DE L'ENTRETIEN SOCIAL (Mag, 03/11/2026 : « retire ça de l'entretien » — Activités et Bien-être). Les questions
    restent dans ACC_CHAMPS ; elles ne s'affichent plus et ne partent plus dans la note. */
@@ -39175,7 +39177,7 @@ function accJeuSocial(){
   if(par.suivie) par.suivie=Object.assign({}, par.suivie, {l:'', tip:'Qui la suit ? CPAS · service social · maraude · équipe mobile · avocat…', n:'', b:1});
   const vus={}; ACC_RETIRES_SOC.forEach(function(k){ vus[k]=1; });
   const J=ACC_PARTIES_SOC.map(function(x){
-    const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc});
+    const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc, horsRail:x.horsRail});
     g.c=x.k.map(function(k){ vus[k]=1; return par[k]; }).filter(Boolean);
     /* Les anciennes cases de Parcours ne reviennent que si un entretien gardé les a remplies : rien ne se perd. */
     (x.vieux||[]).forEach(function(k){ vus[k]=1; if(par[k] && String(ACC[k]||'').trim()) g.c.push(par[k]); });
@@ -39251,6 +39253,7 @@ function vAccueilPersonne(volet){
      l'entretien ») ═══ Une colonne : chaque partie, un rond VERT si elle est remplie, VIDE sinon ; celle où l'on écrit
      est en gras, cerclée de jaune. Un appui descend à la partie. Mis à jour sans redessiner (`accRailMaj`). */
   h+='<div class="accrailw"><nav class="accrail" aria-label="Les parties de l’entretien">'+JEU.map(function(g,i){
+    if(g.horsRail) return '';
     return (g.p?'<span class="accrp-p" style="--pc:'+g.pc+'">'+esc(g.p)+'</span>':'')+'<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
