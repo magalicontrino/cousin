@@ -39157,14 +39157,14 @@ const ACC_PARTIES_SOC=[
   {s:'Famille et entourage', k:['famille','prevenir'], vieux:['etatcivil','enfants','famillebe','liens']},
   /* « C'est son RÉSEAU » (Mag, 03/11/2026 : « les suivis, ça devrait être dans réseau ; le sous-titre répète le titre »). */
   /* Plus de bandeau à elle (Mag, 03/11/2026 : « enlève le titre 2, mets situation administrative et financière dans social »). */
-  {p:'Social', pc:'#f3c6da', s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
+  /* `bouton` : à gauche, juste « Social », qui mène ici (Mag, 03/11/2026 : « tu laisses juste le bouton social »). */
+  {p:'Social', pc:'#f3c6da', bouton:1, s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
   {p:'Médical', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
   {s:'Carte médicale', k:['cm','cm_renouv','cm_date','cm_info']},
   {s:'Consommations', k:['assue']},
-  {p:'Projet', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
-  /* ⭐ PSY A SON BANDEAU (Mag, 03/11/2026 : « social, médical, projet, psy, réseau »). */
   /* UNE case libre, plus de Oui/Non (Mag, 03/11/2026 : « un titre Psy, il ne va pas mettre Psy : oui ; que je puisse mettre
      ce que je veux — OK pour être approchée par Charlotte ou Isaline »). L'ancien Oui/Non (`psy`) en vieux. */
+  /* ⭐ L'ORDRE DE LA FIN (Mag, 03/11/2026 : « médical, psy, réseau, projet, démarches »). */
   /* (Mag, 03/11/2026) : « Suivi psy » en pense-bête, on écrit librement ; puis une case « OK pour voir une psy du centre » :
      cochée, la phrase part dans la note, sinon rien. */
   {p:'Psy', pc:'#f5c542', s:'Psy', k:['psy_com','psy_ok'], vieux:['psy']},
@@ -39172,6 +39172,7 @@ const ACC_PARTIES_SOC=[
      d'accueil, parfois dans un hôpital ; on ne va pas tout séparer »). Une seule case ; les deux anciennes (`suivie`, `mt`)
      ne reviennent que si un entretien gardé les avait remplies. */
   {p:'Réseau', pc:'#a9c8e8', s:'Réseau', k:['reseau'], vieux:['suivie','mt','soutien']},   /* « Soutien » retiré : « ça veut pas dire grand-chose, c'est réseau » (03/11/2026) */
+  {p:'Projet', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
   /* ⭐ LES DÉMARCHES À FAIRE, TOUT À LA FIN (Mag, 03/11/2026 : « démarches et ROI n'ont rien à voir avec le projet ; c'est les
      démarches à faire, c'est très important, mets-le à la fin »). */
   {p:'Démarches', pc:'#6cb392', s:'Démarches à faire', k:['demarches']},
@@ -39195,7 +39196,7 @@ function accJeuSocial(){
   if(par.suivie) par.suivie=Object.assign({}, par.suivie, {l:'', tip:'Qui la suit ? CPAS · service social · maraude · équipe mobile · avocat…', n:'', b:1});
   const vus={}; ACC_RETIRES_SOC.forEach(function(k){ vus[k]=1; });
   const J=ACC_PARTIES_SOC.map(function(x){
-    const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc, horsRail:x.horsRail});
+    const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc, horsRail:x.horsRail, bouton:x.bouton});
     g.c=x.k.map(function(k){ vus[k]=1; return par[k]; }).filter(Boolean);
     /* Les anciennes cases de Parcours ne reviennent que si un entretien gardé les a remplies : rien ne se perd. */
     (x.vieux||[]).forEach(function(k){ vus[k]=1; if(par[k] && String(ACC[k]||'').trim()) g.c.push(par[k]); });
@@ -39273,9 +39274,10 @@ function vAccueilPersonne(volet){
   h+='<div class="accrailw"><nav class="accrail" aria-label="Les parties de l’entretien">'+JEU.map(function(g,i){
     if(g.horsRail) return '';
     /* « Psy » puis « • Psy », « Projet » puis « • Projet d'orientation » : un doublon. Le bandeau devient alors le bouton. */
-    if(g.p && accMemeQueBandeau(g))
+    if(g.p && (g.bouton || accMemeQueBandeau(g)))
       return '<button type="button" id="accrp-'+i+'" class="accrp-p accrp-pb'+(accGRempli(g)?' ok':'')+'" style="--pc:'+g.pc+'" onclick="accRailVa('+i+')">'+esc(g.p)+'</button>';
-    return (g.p?'<span class="accrp-p" style="--pc:'+g.pc+'">'+esc(g.p)+'</span>':'')+'<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
+    /* Tous les bandeaux sont cliquables (Mag, 03/11/2026 : « il faut que ces boutons soient cliquables, évidemment »). */
+    return (g.p?'<button type="button" class="accrp-p accrp-pb" style="--pc:'+g.pc+'" onclick="accRailVa('+i+')">'+esc(g.p)+'</button>':'')+'<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
     return (g.p?'<div class="accpart" style="--pc:'+g.pc+'">'+esc(g.p)+'</div>':'')+
