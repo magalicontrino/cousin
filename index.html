@@ -39112,24 +39112,32 @@ const ACC_CHAMPS=[
    (`mt`), repris de l'entretien rédigé d'une collègue. */
 const ACC_NOUVEAUX={
   papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','Carte d’identité','Titre de séjour','Aucun'],n:'Papiers'},
-  mt:{k:'mt',l:'Médecin traitant · maison médicale',n:'Médecin traitant · maison médicale'}
+  mt:{k:'mt',l:'Médecin traitant · maison médicale',n:'Médecin traitant · maison médicale'},
+  /* (Mag, 03/11/2026 : « ici, rajouter une petite case à cocher : à renouveler ») */
+  cm_renouv:{k:'cm_renouv',l:'À renouveler',t:'case',n:'Carte médicale à renouveler'}
 };
+/* ═══ LES TITRES (Mag, 03/11/2026 : « j'aime pas les titres, sa vie… Afaf n'avait pas mis ça » — titres repris de
+   l'entretien rédigé d'une collègue, validés : « tu peux faire comme ça, c'est très bien ») ═══
+   Les quatre bandeaux : Situation sociale · Situation administrative et financière · Situation médicale et
+   consommations · Projet d'orientation. Les sous-titres sont ceux qui partent dans la note.
+   « Parcours » = UNE case ; les trois questions d'avant deviennent son pense-bête (`tip`). */
 const ACC_PARTIES_SOC=[
   {s:'Nom et chambre', k:['nom','chambre']},
-  /* La langue tout en haut, au-dessus du téléphone (Mag, 03/11/2026 : « ça devrait être tout en haut ») : c'est la
-     première chose à savoir pour mener l'entretien. */
+  /* La langue tout en haut, au-dessus du téléphone (Mag, 03/11/2026 : « ça devrait être tout en haut »). */
   {s:'Langue', k:['langues','interprete']},
   {s:'Téléphone', k:['gsm']},
-  {p:'1 · Sa vie', pc:'#f3c6da', s:'Ce qui s’est passé', k:['passe','depuis','venue']},
-  {s:'Famille', k:['etatcivil','enfants','famillebe']},
-  {s:'Réseaux', k:['suivie','liens','prevenir']},
-  {p:'2 · Ses papiers', pc:'#f5c542', s:'Situation administrative', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
-  {p:'3 · Sa santé', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
-  {s:'Carte médicale', k:['cm','cm_date','cm_info']},
+  {p:'1 · Situation sociale', pc:'#f3c6da', s:'Parcours', k:['passe'], vieux:['depuis','venue']},
+  {s:'Famille et entourage', k:['etatcivil','enfants','famillebe','liens','prevenir']},
+  {s:'Suivi', k:['suivie']},
+  {p:'2 · Situation administrative et financière', pc:'#f5c542', s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
+  {p:'3 · Situation médicale et consommations', pc:'#6fc7d9', s:'Mutuelle', k:['mut','mut_info']},
+  {s:'Carte médicale', k:['cm','cm_renouv','cm_date','cm_info']},
   {s:'Médecin', k:['mt']},
-  {s:'Assuétudes', k:['assue']},
-  {s:'Soutien', k:['soutien','psy','psy_com']},
-  {p:'Pour finir', pc:'#ffffff', s:'Projet', k:['projet']},
+  {s:'Consommations', k:['assue']},
+  {s:'Soutien', k:['soutien']},
+  /* « Psy » à part, pour qu'on la trouve dans les repères (Mag, 03/11/2026 : « c'est important qu'on sache où c'est »). */
+  {s:'Psy', k:['psy','psy_com']},
+  {p:'4 · Projet d’orientation', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
   {s:'Démarches', k:['demarches']},
   {s:'ROI', k:['roi_copie','charte_signee'], depuis:'Documents'}   /* « juste marqué ROI » (Mag, 03/11/2026) */
 ];
@@ -39138,21 +39146,24 @@ const ACC_PARTIES_SOC=[
 const ACC_RETIRES_SOC=['aime','bienetre'];
 let _accJeuSoc=null;
 function accJeuSocial(){
-  if(_accJeuSoc) return _accJeuSoc;
   const par={}, sect={};
   ACC_CHAMPS.forEach(function(g){ sect[g.s]=g; g.c.forEach(function(f){ par[f.k]=f; }); });
   Object.keys(ACC_NOUVEAUX).forEach(function(k){ par[k]=ACC_NOUVEAUX[k]; });
   /* Le libellé des papiers : le type part dans les cases, la case texte garde la date et la perte. */
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {l:'Valable jusqu’au… · perdu ou volé le…', n:'Document d’identité'});
+  if(par.passe) par.passe=Object.assign({}, par.passe, {l:'', tip:'Que s’est-il passé ? · Depuis combien de temps sans hébergement ? · Qu’est-ce qui l’a amenée au Samusocial ?', n:'', b:1});
+  if(par.assue) par.assue=Object.assign({}, par.assue, {n:'Consommations'});
   const vus={}; ACC_RETIRES_SOC.forEach(function(k){ vus[k]=1; });
   const J=ACC_PARTIES_SOC.map(function(x){
     const g=Object.assign({}, x.depuis && sect[x.depuis] ? sect[x.depuis] : {}, {s:x.s, p:x.p, pc:x.pc});
     g.c=x.k.map(function(k){ vus[k]=1; return par[k]; }).filter(Boolean);
+    /* Les anciennes cases de Parcours ne reviennent que si un entretien gardé les a remplies : rien ne se perd. */
+    (x.vieux||[]).forEach(function(k){ vus[k]=1; if(par[k] && String(ACC[k]||'').trim()) g.c.push(par[k]); });
     return g;
   });
   const oublies=[]; ACC_CHAMPS.forEach(function(g){ g.c.forEach(function(f){ if(!vus[f.k]) oublies.push(f); }); });
   if(oublies.length){ console.warn('Entretien : questions non rangées', oublies.map(function(f){ return f.k; })); J.push({s:'Autres', c:oublies}); }
-  _accJeuSoc=J; return J;
+  return J;
 }
 function accJeu(volet){ return volet==='med' ? ACC_CHAMPS_MED : accJeuSocial(); }
 /* Les cases à cocher de « Papiers » : plusieurs réponses possibles, rangées dans ACC en texte (« Passeport, Titre de séjour »). */
