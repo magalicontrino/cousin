@@ -38559,6 +38559,12 @@ function accMemeQueBandeau(g){
   const nu=function(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^\d+\s*·\s*/,'').replace(/[^a-z]/g,''); };
   const a=nu(g.p), b=nu(g.s); return a===b || b.indexOf(a)===0;
 }
+/* Ce qui part dans la note. `siOui` : un Oui/Non qui ne s'écrit QUE s'il est Oui, en une phrase (Mag, 03/11/2026 :
+   « interprète : quand on met oui, "Besoin d'un interprète" ; si on a mis non, tu ne notes rien »). */
+function accPourNote(g){
+  return g.c.filter(function(f){ const v=String(ACC[f.k]||'').trim(); return !f.hn && v && !(f.siOui && v!=='Oui'); })
+    .map(function(f){ return f.siOui ? Object.assign({}, f, {t:'case', l:f.siOui, n:f.siOui, phrase:1}) : f; });
+}
 function accGRempli(g){
   /* ROI : la copie rendue ET la charte signée (Mag, 03/11/2026 : « quand je coche la copie du ROI, le ROI ne devrait pas être
      coché ; la charte fait partie de ça »). Une rubrique faite seulement de cases n'est remplie que si TOUTES sont cochées. */
@@ -38660,7 +38666,7 @@ function accNoteA(volet, k, pourCopie){
   const ici=function(f,h){ return (k && f.k===k) ? '<span id="accIci">'+h+'</span>' : h; };
   const puce=/^\s*(?:[-–—•*·]|\d{1,2}[.)])\s+(.*)$/;
   accJeu(volet).forEach(function(g){
-    const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
+    const remplis=accPourNote(g);
     if(!remplis.length) return;
     /* Les documents (section sans titre dans la note) : une seule ligne grise, en fin de note. */
     if(g.noteSansTitre){
@@ -38672,7 +38678,7 @@ function accNoteA(volet, k, pourCopie){
           esc(g.s.toUpperCase())+'</b></p>';
     remplis.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
-      if(f.t==='case'){ h+=P+ici(f,'✓ '+esc(accEtiq(f)))+'</p>'; return; }
+      if(f.t==='case'){ h+=P+ici(f,(f.phrase?'':'✓ ')+esc(accEtiq(f)))+'</p>'; return; }
       /* Le gras dit « voici la réponse à la question » : sans question écrite, pas de gras. */
       if(!f.b && !accEstLong(f)){ h+=P+ici(f,e ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(accVal(f)))+'</p>'; return; }
       if(e) h+='<p style="margin:8px 0 1px">'+ici(f,'<b>'+esc(e)+'</b>')+'</p>';
@@ -39214,6 +39220,7 @@ function accJeuSocial(){
   if(par.papiers) par.papiers=Object.assign({}, par.papiers, {l:'Valable jusqu’au… · perdu ou volé le…', n:'Document d’identité'});
   if(par.passe) par.passe=Object.assign({}, par.passe, {l:'', tip:'Que s’est-il passé ? · Depuis combien de temps sans hébergement ? · Qu’est-ce qui l’a amenée au Samusocial ?', n:'', b:1});
   if(par.assue) par.assue=Object.assign({}, par.assue, {n:'Consommations'});
+  if(par.interprete) par.interprete=Object.assign({}, par.interprete, {siOui:'Besoin d’un interprète'});
   if(par.psy_com) par.psy_com=Object.assign({}, par.psy_com, {l:'', tip:'Suivi psy', n:'', b:1});
   /* LES DÉMARCHES EN LISTE (Mag, 03/11/2026 : « un + pour rajouter à la liste ») : une ligne par démarche. */
   if(par.demarches) par.demarches=Object.assign({}, par.demarches, {t:'liste', l:'', n:''});
@@ -39466,7 +39473,7 @@ function accNoteLignes(volet){
     /* ⚠ `hn` : le champ existe à l'écran et sur la feuille, mais il ne part PAS dans
        la note (voir le nom). Une section qui n'aurait que des champs `hn` ne pose
        même pas son titre — sinon la note s'ouvrirait sur un intertitre suivi de rien. */
-    const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
+    const remplis=accPourNote(g);
     if(!remplis.length) return;
     if(!g.noteSansTitre) l.push({t:g.s.toUpperCase(), titre:1});
     /* ⚠ LA FORME SUIT LA LONGUEUR — proposition B, choisie par toi le 27/08/2026.
@@ -39513,7 +39520,7 @@ function accNote(volet){
        texte-ci est celui qui part dans le PRESSE-PAPIER, donc dans le KAIROS. Je l'ai
        oublié la première fois — l'aperçu était propre et le nom partait quand même à
        la copie. Vu en lisant `accNote()`, pas en regardant l'écran. */
-    const remplis=g.c.filter(function(f){ return !f.hn && (ACC[f.k]||'').trim(); });
+    const remplis=accPourNote(g);
     if(!remplis.length) return;
     if(!g.noteSansTitre) l.push(g.s.toUpperCase());
     /* Même règle que pour l'écran : les courtes en liste, les longues en dessous.
