@@ -49692,7 +49692,9 @@ async function absCollerValider(){
   if(fait) absNoterMaj();
   /* La date du dernier COLLAGE (pour « pas collé hier »). */
   if(!rate){ const c={id:2, le:new Date().toISOString(), par:(nomAffiche()||'')}; ABS_COLLE={le:c.le, par:c.par};
-    sb.from('absences_maj').upsert(c,{onConflict:'id'}).then(function(){}, function(){}); }
+    /* ⚠ L'ÉCHEC SE NOTE (03/11/2026) : la table refusait id 2 depuis le début, en silence — l'alerte « pas collé
+       depuis » se fiait aux nuits. Corrigé en base (sql/absences-maj-collage.sql). */
+    sb.from('absences_maj').upsert(c,{onConflict:'id'}).then(function(r){ if(r && r.error) panneNoter('absences_maj collage', r.error.message||'refus'); }, function(){}); }
   render();
   toast(rate ? '⚠ '+rate+' changement'+(rate>1?'s':'')+' pas enregistré'+(rate>1?'s':'')+' — la base n’a pas répondu. Recolle la liste.'
              : 'Liste du jour appliquée');
