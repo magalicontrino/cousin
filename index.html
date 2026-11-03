@@ -2682,6 +2682,10 @@ body.pan-ouvert #view{animation:none;transform:none}
 .accform .accpart:first-child{margin-top:0}
 .accrp-p{display:block;margin:10px 0 2px;padding:2px 6px;border-radius:6px;background:var(--pc);border:1.5px solid #2b2a28;font-size:10.5px;font-weight:800;color:#1b1b1b}
 .accchoix{flex-wrap:wrap}
+button.accrp-pb{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;font:inherit;font-size:10.5px;font-weight:800;color:#1b1b1b;cursor:pointer}
+@media(min-width:900px){ button.accrp-pb{font-size:12px} }
+button.accrp-pb.ok::after{content:'✓';margin-left:4px}
+button.accrp-pb.cur{box-shadow:0 0 0 3px #2b2a28}
 .accb-encours{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6b6862;padding:0 8px;align-self:center}
 .accli{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .accli input{flex:1;min-width:0}
@@ -38539,6 +38543,11 @@ function accBrJeter(){
 function accBrouillonHTML(){ return ''; }   /* le bandeau a laissé la place à la fenêtre */
 function accBandeauMaj(){}
 function accSet(k,v){ ACC[k]=v; accNoteMaj(k); accBrouillonSauver(); accRailMaj(); }
+function accMemeQueBandeau(g){
+  if(!g.p) return false;
+  const nu=function(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^\d+\s*·\s*/,'').replace(/[^a-z]/g,''); };
+  const a=nu(g.p), b=nu(g.s); return a===b || b.indexOf(a)===0;
+}
 function accGRempli(g){ return (g.c||[]).some(function(f){ return String(ACC[f.k]||'').trim()!==''; }); }
 function accRailMaj(){
   const JEU=accJeu((current&&current.volet)||'');
@@ -39125,7 +39134,7 @@ const ACC_NOUVEAUX={
   /* (Mag, 03/11/2026 : « ici, rajouter une petite case à cocher : à renouveler ») */
   /* LA FAMILLE EN UNE CASE (Mag, 03/11/2026 : « on ne fait jamais des trucs si séparés, on fait des grands textes ;
      c'est trop trié ») : les quatre mots en pense-bête au-dessus, un seul texte. */
-  reseau:{k:'reseau',l:'',tip:'Qui la suit, au social comme au médical : CPAS · service social · maison d’accueil · hôpital · médecin traitant · maison médicale · équipe mobile…',n:'',b:1},
+  reseau:{k:'reseau',l:'',n:'',b:1},   /* sans pense-bête : « on le sait » (03/11/2026) */
   psy_ok:{k:'psy_ok',l:'OK pour voir une psy du centre',t:'case',n:'OK pour voir une psy du centre'},
   famille:{k:'famille',l:'',tip:'Mariage · Enfants · Famille · Famille en Belgique',n:'',b:1},
   cm_renouv:{k:'cm_renouv',l:'À renouveler',t:'case',n:'Carte médicale à renouveler'}
@@ -39142,8 +39151,9 @@ const ACC_PARTIES_SOC=[
   /* La langue tout en haut, au-dessus du téléphone (Mag, 03/11/2026 : « ça devrait être tout en haut »). */
   {s:'Langue', k:['langues','interprete'], horsRail:1},
   {s:'Téléphone', k:['gsm'], horsRail:1},
-  {p:'Social', pc:'#f3c6da', s:'Parcours', k:['passe'], vieux:['depuis','venue']},
-  {s:'Famille et entourage', k:['famille','prevenir'], vieux:['etatcivil','enfants','famillebe','liens']},
+  /* « Famille en premier bouton » (Mag, 03/11/2026). */
+  {p:'Social', pc:'#f3c6da', s:'Famille et entourage', k:['famille','prevenir'], vieux:['etatcivil','enfants','famillebe','liens']},
+  {s:'Parcours', k:['passe'], vieux:['depuis','venue']},
   /* « C'est son RÉSEAU » (Mag, 03/11/2026 : « les suivis, ça devrait être dans réseau ; le sous-titre répète le titre »). */
   /* Plus de bandeau à elle (Mag, 03/11/2026 : « enlève le titre 2, mets situation administrative et financière dans social »). */
   {s:'Situation administrative et financière', k:['nationalite','papiers_type','papiers','rn','revenu','adresse']},
@@ -39151,8 +39161,6 @@ const ACC_PARTIES_SOC=[
   {s:'Carte médicale', k:['cm','cm_renouv','cm_date','cm_info']},
   {s:'Consommations', k:['assue']},
   {p:'Projet', pc:'#ffffff', s:'Projet d’orientation', k:['projet']},
-  {s:'Démarches', k:['demarches']},
-  {s:'ROI', k:['roi_copie','charte_signee'], depuis:'Documents'},   /* « juste marqué ROI » (Mag, 03/11/2026) */
   /* ⭐ PSY A SON BANDEAU (Mag, 03/11/2026 : « social, médical, projet, psy, réseau »). */
   /* UNE case libre, plus de Oui/Non (Mag, 03/11/2026 : « un titre Psy, il ne va pas mettre Psy : oui ; que je puisse mettre
      ce que je veux — OK pour être approchée par Charlotte ou Isaline »). L'ancien Oui/Non (`psy`) en vieux. */
@@ -39162,7 +39170,11 @@ const ACC_PARTIES_SOC=[
   /* ⭐ LE RÉSEAU, SOCIAL ET MÉDICAL ENSEMBLE, EN DERNIER (Mag, 03/11/2026 : « l'instance sociale est parfois dans une maison
      d'accueil, parfois dans un hôpital ; on ne va pas tout séparer »). Une seule case ; les deux anciennes (`suivie`, `mt`)
      ne reviennent que si un entretien gardé les avait remplies. */
-  {p:'Réseau', pc:'#a9c8e8', s:'Réseau', k:['reseau'], vieux:['suivie','mt','soutien']}   /* « Soutien » retiré : « ça veut pas dire grand-chose, c'est réseau » (03/11/2026) */
+  {p:'Réseau', pc:'#a9c8e8', s:'Réseau', k:['reseau'], vieux:['suivie','mt','soutien']},   /* « Soutien » retiré : « ça veut pas dire grand-chose, c'est réseau » (03/11/2026) */
+  /* ⭐ LES DÉMARCHES À FAIRE, TOUT À LA FIN (Mag, 03/11/2026 : « démarches et ROI n'ont rien à voir avec le projet ; c'est les
+     démarches à faire, c'est très important, mets-le à la fin »). */
+  {p:'Démarches', pc:'#6cb392', s:'Démarches à faire', k:['demarches']},
+  {s:'ROI', k:['roi_copie','charte_signee'], depuis:'Documents'}
 ];
 /* RETIRÉES DE L'ENTRETIEN SOCIAL (Mag, 03/11/2026 : « retire ça de l'entretien » — Activités et Bien-être). Les questions
    restent dans ACC_CHAMPS ; elles ne s'affichent plus et ne partent plus dans la note. */
@@ -39259,11 +39271,14 @@ function vAccueilPersonne(volet){
      est en gras, cerclée de jaune. Un appui descend à la partie. Mis à jour sans redessiner (`accRailMaj`). */
   h+='<div class="accrailw"><nav class="accrail" aria-label="Les parties de l’entretien">'+JEU.map(function(g,i){
     if(g.horsRail) return '';
+    /* « Psy » puis « • Psy », « Projet » puis « • Projet d'orientation » : un doublon. Le bandeau devient alors le bouton. */
+    if(g.p && accMemeQueBandeau(g))
+      return '<button type="button" id="accrp-'+i+'" class="accrp-p accrp-pb'+(accGRempli(g)?' ok':'')+'" style="--pc:'+g.pc+'" onclick="accRailVa('+i+')">'+esc(g.p)+'</button>';
     return (g.p?'<span class="accrp-p" style="--pc:'+g.pc+'">'+esc(g.p)+'</span>':'')+'<button type="button" id="accrp-'+i+'" class="accrp'+(accGRempli(g)?' ok':'')+'" onclick="accRailVa('+i+')"><i></i>'+esc(g.s)+'</button>';
   }).join('')+'</nav>';
   h+='<div class="accform">'+JEU.map(function(g,i){
     return (g.p?'<div class="accpart" style="--pc:'+g.pc+'">'+esc(g.p)+'</div>':'')+
-      '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')">'+((g.p && g.p.replace(/^\d+\s*·\s*/,'')===g.s)?'':'<div class="acct">'+esc(g.s)+' :</div>')+
+      '<div class="accg" id="accg-'+i+'" onfocusin="accRailCur('+i+')">'+(accMemeQueBandeau(g)?'':'<div class="acct">'+esc(g.s)+' :</div>')+
       g.c.map(function(f){
         const v=esc(ACC[f.k]||'');
         /* ⚠ UNE BALISE `div`, PAS `label` : un `label` qui enveloppe des boutons
@@ -39297,7 +39312,8 @@ function vAccueilPersonne(volet){
                 '" onclick="accOuiNon(\''+f.k+'\',\''+x+'\')">'+x+'</button>';
             }).join('')+'</div></div>';
         }
-        return '<label class="accf">'+(f.l?'<span>'+esc(f.l)+'</span>':'')+
+        /* Pas d'étiquette qui répète le titre (« Langue » sous LANGUE, « téléphone » sous TÉLÉPHONE — Mag, 03/11/2026). */
+        return '<label class="accf">'+(f.l && accSansDoublon(f.l, g.s)?'<span>'+esc(f.l)+'</span>':'')+
           (f.tip?'<i class="acctip">'+esc(f.tip)+'</i>':'')+
           (f.b
             /* ⚠ LA FENÊTRE GRANDIT AVEC LE TEXTE (Mag, 26/08/2026). Deux lignes fixes
