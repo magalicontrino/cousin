@@ -5303,8 +5303,15 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .rap-jus{display:block;font-size:12px;font-weight:400;color:#6b6862;margin-top:1px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
-.ib.ppb{color:#2b2a28}.plact .ib.ppb.on,.ib.ppb.on{background:#fd8fd0!important;border-color:#fd8fd0!important;cursor:default}
-.chadd.ecrire .chadd-b .rapPass.rapPp{background:#fd8fd0;flex:0 0 auto;min-width:56px;display:inline-flex;align-items:center;justify-content:center}
+.plact .ib.ppb,.ib.ppb{background:#2b2a28!important;border-color:#2b2a28!important;color:#fdfdfc!important}
+.pcarte .pl.pl-pp{background:#2b2a28;color:#fdfdfc;border-radius:8px;padding:12px 12px;margin:6px 0;border-bottom:0}
+.pcarte .pl.pl-pp .pgc{background:transparent!important}
+.pcarte .pl.pl-pp .tx b{font-weight:600;color:#fdfdfc}
+.pcarte .pl.pl-pp .plbas{color:#c9c6c0}
+.pcarte .pl.pl-pp .plbas .plch,.pcarte .pl.pl-pp .binrep-b,.pcarte .pl.pl-pp .socpfo{color:#2b2a28}
+.pcarte .pl.pl-pp .plact .ib.ppb{border-color:#fdfdfc!important}
+.pcol.pcol-pp{color:#fdfdfc;width:28px;height:28px}
+.chadd.ecrire .chadd-b .rapPass.rapPp{background:#2b2a28;color:#fdfdfc;border:1px solid rgba(242,238,230,.5);flex:0 0 auto;min-width:56px;display:inline-flex;align-items:center;justify-content:center}
 .rapPass.rapPp svg{width:24px;height:24px}
 .prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
   padding:1px 6px;font:700 10px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;line-height:1.5;margin:0}
@@ -45061,6 +45068,7 @@ const COEUR_SVG='<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="current
 function passColonne(p, g, heure){
   /* Un ROND ROSE qui pulse lentement, plutôt qu'un cœur (Mag, 20/10/2026). */
   if(passEnAvant(p)) return '<i class="pcol" title="Mis en avant"><span class="rondrose"></span></i>';
+  if(p.pour===PASS_PUNAISE) return '<i class="pcol pcol-pp" title="Punaises">'+icon('punaise')+'</i>';
   const h=(heure!==undefined)?heure:(g.heure?p.heure:'');
   if(h) return esc(String(h).slice(0,5).replace(':',' h '));
   if(p.genre==='prevenir') return '<i class="pcol pcol-main" title="À prévenir">'+PREV_MAIN+'</i>';
@@ -45098,7 +45106,8 @@ function passLigne(p, mienne, role, heure, gauche){
   if(p.jour && p.jour!==agIso(new Date())) bas.push(esc(rappelQuandFr(p.jour)));
   if(ok && quiFait) bas.push('fait par '+esc(quiFait));
 
-  return '<div class="pl'+(ok?' faite':'')+'">'+
+  /* ⭐ LA LIGNE PUNAISE EST NOIRE (Mag, 04/11/2026 : « c'est pas juste une info, c'est un peu cracra […] il ne faut pas qu'on oublie »). */
+  return '<div class="pl'+(ok?' faite':'')+(p.pour===PASS_PUNAISE?' pl-pp':'')+'">'+
     /* Pour Afaf : la barre ROSE, EN POINTILLÉS (Mag, 20/10/2026). */
     (passEnAvant(p)?'<span class="pgc pgc-coeur"></span>':'<span class="pgc" style="background:'+g.c+'"></span>')+
     /* ⭐ PLUS DE « – » À GAUCHE (Mag, 19/10/2026 : « c'est pas là plutôt qu'il faudrait mettre la petite main, ou l'heure
@@ -45161,12 +45170,12 @@ function passLigne(p, mienne, role, heure, gauche){
       '<button class="ib" onclick="passCopier(\''+p.id+'\')" aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
       /* Nuit ⇄ Social, mêmes mots et couleurs que Ma liste (18/10/2026). */
       ((passGerable(p) && p.genre!=='reveil' && (p.pour===PASS_SOCIAL || p.pour===PASS_EQUIPE || p.pour===PASS_PUNAISE))
-        ? (p.pour!==PASS_EQUIPE?'<button class="rapPass mini lnuit" onclick="passDeplacer(\''+p.id+'\',\'nuit\')">Nuit</button>':'')+
-          (p.pour!==PASS_SOCIAL?'<button class="rapPass mini lsoc" onclick="passDeplacer(\''+p.id+'\',\'ts\')">Social</button>':'')+
-          /* La punaise : aux deux d'un appui. Allumée, elle dit que la ligne est déjà aux deux (04/11/2026). */
-          (p.pour!==PASS_PUNAISE
-            ? '<button class="ib ppb" onclick="passDeplacer(\''+p.id+'\',\'pp\')" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</button>'
-            : '<span class="ib ppb on" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</span>')
+        /* Punaise allumée : un seul bouton, noir, qui demande où la garder si on l'enlève (Mag, 04/11/2026 : « comment je fais pour changer ? »). */
+        ? (p.pour===PASS_PUNAISE
+            ? '<button class="ib ppb on" onclick="passPunaiseRetirer(\''+p.id+'\')" aria-label="Retirer la punaise" title="Retirer la punaise">'+icon('punaise')+'</button>'
+            : (p.pour!==PASS_EQUIPE?'<button class="rapPass mini lnuit" onclick="passDeplacer(\''+p.id+'\',\'nuit\')">Nuit</button>':'')+
+              (p.pour!==PASS_SOCIAL?'<button class="rapPass mini lsoc" onclick="passDeplacer(\''+p.id+'\',\'ts\')">Social</button>':'')+
+              '<button class="ib ppb" onclick="passDeplacer(\''+p.id+'\',\'pp\')" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</button>')
         : '')+
       (passGerable(p)
         ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
@@ -45184,11 +45193,18 @@ async function passDeplacer(id, vers){
   if(vers==='ts' && p.genre==='reveil'){ toast('Un réveil reste à l’équipe de nuit'); return; }
   if(vers==='pp' && p.genre==='reveil'){ toast('Un réveil reste à l’équipe de nuit'); return; }
   const maj={pour:(vers==='nuit'?PASS_EQUIPE:vers==='pp'?PASS_PUNAISE:PASS_SOCIAL), pour_qui:null};
+  if(vers==='pp') maj.genre='prevenir';   /* une punaise, c'est toujours « à prévenir » */
   if(vers==='nuit') maj.fait_note=null;   /* la coche PFO n'a de sens que dans le social */
   const {data,error}=await sb.from('passations').update(maj).eq('id',p.id).select('*');
   if(error||!data||!data.length){ confirmePop(false,'Pas déplacée',(error&&error.message)||'la base n’a pas répondu'); return; }
   Object.assign(p, data[0]); render();
   confirmePop(true,'Déplacée',vers==='nuit'?'dans l’équipe de nuit':vers==='pp'?'dans la nuit ET le service social':'dans le service social');
+}
+function passPunaiseRetirer(id){
+  ppChoix('Retirer la punaise', 'Elle reste dans une seule passation :', [
+    {t:'Équipe de nuit', fn:function(){ passDeplacer(id,'nuit'); }},
+    {t:'Service social', fn:function(){ passDeplacer(id,'ts'); }}
+  ]);
 }
 function passMenu(id, gerable){
   const B=[{t:'Copier le texte', fn:function(){ passCopier(id); }}];
@@ -45666,9 +45682,11 @@ function carteServiceSocial(){
   /* Les lignes PFO en haut (Mag, 17/10/2026) ; l'ordre reste le même à l'intérieur de chaque groupe. */
   const l0=passUnique(passSociales());
   /* ⭐ L'ORDRE (Mag, 20/10/2026 : « Afaf doit toujours être en haut, avant PFO ») : le cœur, puis PFO, puis le reste. */
+  /* Les punaises juste après Afaf (04/11/2026). */
   const l=l0.filter(passEnAvant)
-    .concat(l0.filter(function(p){ return !passEnAvant(p) && passEstPfo(p); }))
-    .concat(l0.filter(function(p){ return !passEnAvant(p) && !passEstPfo(p); }));
+    .concat(l0.filter(function(p){ return !passEnAvant(p) && p.pour===PASS_PUNAISE; }))
+    .concat(l0.filter(function(p){ return !passEnAvant(p) && p.pour!==PASS_PUNAISE && passEstPfo(p); }))
+    .concat(l0.filter(function(p){ return !passEnAvant(p) && p.pour!==PASS_PUNAISE && !passEstPfo(p); }));
   if(!l.length) return '';
   const der=l.concat(PASS_REPONSES).filter(binDeLautre)
     .reduce(function(m,x){ return String(x.cree_le||'')>m ? String(x.cree_le) : m; }, '');
@@ -45943,7 +45961,7 @@ function passationsHTML(){
            reste dite en petit à côté. */
         '<b>Équipe de nuit</b>'+
         (function(){
-          const eq=[]; toutes.forEach(function(p){ if(p.pour!==PASS_EQUIPE && eq.indexOf(p.pour)<0) eq.push(p.pour); });
+          const eq=[]; toutes.forEach(function(p){ if(p.pour!==PASS_EQUIPE && p.pour!==PASS_PUNAISE && eq.indexOf(p.pour)<0) eq.push(p.pour); });
           return eq.length ? '<span>'+esc(eq.map(function(k){ return passPourNom(k); }).join(' · '))+'</span>' : '';
         })()+
       '</button>'+
@@ -45984,7 +46002,9 @@ function passationsHTML(){
        elle, à la fin, comme avant. */
     const moments=passProgramme(toutes);
     const infos=toutes.filter(function(p){ return !passGenreDe(p.genre).heure && p.genre!=='prevenir'; });
-    const aprev=toutes.filter(function(p){ return p.genre==='prevenir'; });
+    /* Les punaises en haut des « À prévenir » (04/11/2026). */
+    const aprev=toutes.filter(function(p){ return p.genre==='prevenir' && p.pour===PASS_PUNAISE; })
+      .concat(toutes.filter(function(p){ return p.genre==='prevenir' && p.pour!==PASS_PUNAISE; }));
     if(moments.length){
       rien=false;
       /* ⚠ PAS DE `.rlist` AUTOUR : les rangées portent leur propre filet et se
@@ -46811,7 +46831,7 @@ function rapPrepHTML(){
 function passEnvoyeeVers(qui){ return qui==='nuit'?'à l’équipe de nuit':qui==='pp'?'à la nuit ET au service social':'au service social'; }
 /* Ce qui part dans la base, depuis le champ ou depuis une ligne rangée. */
 function passLignePrete(t, ch, qui, P){
-  const g=(P&&P.genre)||'passation';
+  const g=(qui==='pp')?'prevenir':((P&&P.genre)||'passation');   /* punaise = à prévenir */
   const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:qui==='pp'?PASS_PUNAISE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
            chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
            heure:(g==='reveil'?(P.heure||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
@@ -46820,9 +46840,9 @@ function passLignePrete(t, ch, qui, P){
   return l;
 }
 function passPrepManque(qui, P){
+  if(qui==='pp' && P && P.genre==='reveil') return 'Un réveil part à l’équipe de nuit';
   const g=(P&&P.genre)||'passation';
   if(P && P.coeur && qui!=='ts') return 'Le cœur part avec « Social »';
-  if(g==='reveil' && qui==='pp') return 'Un réveil part à l’équipe de nuit';
   if(g==='reveil' && qui!=='nuit') return 'Un réveil part à l’équipe de nuit';
   if(g==='reveil' && !(P&&P.heure)) return 'Il manque l’heure du réveil';
   return '';
