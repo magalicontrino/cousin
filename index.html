@@ -5303,6 +5303,9 @@ button.sectc.sectpl{width:100%;background:none;border:0;border-bottom:2px solid 
 .rap-jus{display:block;font-size:12px;font-weight:400;color:#6b6862;margin-top:1px}
 .rapPass.mini.lnuit{background:#a9c8e8;border-color:#a9c8e8}
 .rapPass.mini.lsoc{background:#6cb392;border-color:#6cb392}
+.ib.ppb{color:#2b2a28}.plact .ib.ppb.on,.ib.ppb.on{background:#fd8fd0!important;border-color:#fd8fd0!important;cursor:default}
+.chadd.ecrire .chadd-b .rapPass.rapPp{background:#fd8fd0;flex:0 0 auto;min-width:56px;display:inline-flex;align-items:center;justify-content:center}
+.rapPass.rapPp svg{width:24px;height:24px}
 .prepetq,.pcarte .pl2 b.prepetq,.pcarte .pl b.prepetq{display:inline-block;background:var(--gc);color:var(--noir);border-radius:4px;
   padding:1px 6px;font:700 10px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;line-height:1.5;margin:0}
 .chadd.ecrire .absa.avmi.on .bx{border-color:var(--noir);background:var(--noir)}
@@ -44472,7 +44475,7 @@ async function loadPassations(){
     /* Les réponses sous les passations du service social (07/10/2026). Une panne ici
        n'efface pas la passation : on garde ce qu'on avait. */
     try{
-      const ids=PASSATIONS.filter(function(p){ return p.pour===PASS_SOCIAL; }).map(function(p){ return p.id; });
+      const ids=PASSATIONS.filter(function(p){ return p.pour===PASS_SOCIAL || p.pour===PASS_PUNAISE; }).map(function(p){ return p.id; });
       if(ids.length && !SOC_MEMBRES) await loadSocMembres();
       if(ids.length){
         const q=await sb.from('passation_reponses').select('*').in('passation_id',ids).order('cree_le',{ascending:true});
@@ -44527,6 +44530,7 @@ function passEcrites(){ return PASSATIONS.filter(passMienne); }
    n'en a pas) — la passation serait partie dans le vide.
    ⏸ Elle doit encore donner LES NOMS : c'est ici qu'on restreindra. */
 function passPourEstAMoi(k){
+  if(k===PASS_PUNAISE) return passPourEstAMoi(PASS_EQUIPE) || passPourEstAMoi(PASS_SOCIAL);
   if((MES_LISTES||[]).indexOf(k)>=0) return true;
   return k===PASS_SOCIAL && !!PROFILE && PROFILE.equipe==='Travailleur social';
 }
@@ -44632,11 +44636,15 @@ const PASS_EQUIPE='pfo-nuit';
 /* ⚠ DEUX BOUTONS, PAS LE MENU DES DOUZE (Mag, 07/10/2026) : l'équipe de nuit, ou le
    service social. Rien d'autre. */
 const PASS_SOCIAL='ts';
+/* ⭐ LA PUNAISE VA AUX DEUX (Mag, 04/11/2026 : « quand on met punaise, ça va aux deux, parce qu'on doit faire le tour,
+   tous ») : une seule ligne, lue dans la carte de la nuit ET dans celle du service social. Clé `pp`. */
+const PASS_PUNAISE='pp';
 /* Le service social en premier, comme les cartes (07/10/2026). La nuit reste le choix par défaut. */
 function passRoles(){ return [PASS_SOCIAL, PASS_EQUIPE]; }
 /* Le nom affiché du destinataire d'une passation. Voir la note ci-dessus : ce n'est pas
    `LISTE_LABELS`, qui nomme des check-lists. */
 function passPourNom(k, dansUnePhrase){
+  if((k||PASS_POUR)===PASS_PUNAISE) return dansUnePhrase ? 'la nuit et le service social' : 'Nuit et social';
   if((k||PASS_POUR)===PASS_SOCIAL) return dansUnePhrase ? 'le service social' : 'Service social';
   if((k||PASS_POUR)!==PASS_EQUIPE) return LISTE_LABELS[k]||k;
   /* « Imprimer pour l'équipe de nuit » et non « pour L'équipe de nuit » : la majuscule
@@ -45082,7 +45090,7 @@ function passLigne(p, mienne, role, heure, gauche){
      là, il apprend quelque chose. */
   /* Le bloc « Service social » porte déjà son titre : on ne le répète pas. */
   /* Service social : « Mag → Afaf » (08/10/2026) — de qui ET pour qui, sur la même ligne. */
-  if(p.pour===PASS_SOCIAL) bas.push(esc(socDeVers(p)));
+  if(p.pour===PASS_SOCIAL || p.pour===PASS_PUNAISE) bas.push(esc(socDeVers(p)));
   else if(mienne){ if(p.pour!==PASS_POUR) bas.push('pour '+esc(passPourNom(p.pour, true))); }
   else if(qui) bas.push('de '+esc(qui));
   /* ⚠ LE JOUR SEULEMENT S'IL N'EST PAS AUJOURD'HUI : un réveil noté le samedi pour le
@@ -45152,10 +45160,13 @@ function passLigne(p, mienne, role, heure, gauche){
          Copier pour tout le monde ; modifier · revient dans ma liste · supprimer pour ce qu'on a écrit soi-même. */
       '<button class="ib" onclick="passCopier(\''+p.id+'\')" aria-label="Copier le texte" title="Copier le texte">'+icon('copyleger')+'</button>'+
       /* Nuit ⇄ Social, mêmes mots et couleurs que Ma liste (18/10/2026). */
-      ((passGerable(p) && (p.pour===PASS_SOCIAL || p.pour===PASS_EQUIPE))
-        ? (p.pour===PASS_SOCIAL
-            ? (p.genre==='reveil'?'':'<button class="rapPass mini lnuit" onclick="passDeplacer(\''+p.id+'\',\'nuit\')">Nuit</button>')
-            : (p.genre==='reveil'?'':'<button class="rapPass mini lsoc" onclick="passDeplacer(\''+p.id+'\',\'ts\')">Social</button>'))
+      ((passGerable(p) && p.genre!=='reveil' && (p.pour===PASS_SOCIAL || p.pour===PASS_EQUIPE || p.pour===PASS_PUNAISE))
+        ? (p.pour!==PASS_EQUIPE?'<button class="rapPass mini lnuit" onclick="passDeplacer(\''+p.id+'\',\'nuit\')">Nuit</button>':'')+
+          (p.pour!==PASS_SOCIAL?'<button class="rapPass mini lsoc" onclick="passDeplacer(\''+p.id+'\',\'ts\')">Social</button>':'')+
+          /* La punaise : aux deux d'un appui. Allumée, elle dit que la ligne est déjà aux deux (04/11/2026). */
+          (p.pour!==PASS_PUNAISE
+            ? '<button class="ib ppb" onclick="passDeplacer(\''+p.id+'\',\'pp\')" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</button>'
+            : '<span class="ib ppb on" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</span>')
         : '')+
       (passGerable(p)
         ? '<button class="ib" onclick="passModifier(\''+p.id+'\')" aria-label="Modifier" title="Modifier">'+icon('crayon')+'</button>'+
@@ -45171,12 +45182,13 @@ function passLigne(p, mienne, role, heure, gauche){
 async function passDeplacer(id, vers){
   const p=(PASSATIONS||[]).find(function(x){ return String(x.id)===String(id); }); if(!p) return;
   if(vers==='ts' && p.genre==='reveil'){ toast('Un réveil reste à l’équipe de nuit'); return; }
-  const maj={pour:(vers==='nuit'?PASS_EQUIPE:PASS_SOCIAL), pour_qui:null};
+  if(vers==='pp' && p.genre==='reveil'){ toast('Un réveil reste à l’équipe de nuit'); return; }
+  const maj={pour:(vers==='nuit'?PASS_EQUIPE:vers==='pp'?PASS_PUNAISE:PASS_SOCIAL), pour_qui:null};
   if(vers==='nuit') maj.fait_note=null;   /* la coche PFO n'a de sens que dans le social */
   const {data,error}=await sb.from('passations').update(maj).eq('id',p.id).select('*');
   if(error||!data||!data.length){ confirmePop(false,'Pas déplacée',(error&&error.message)||'la base n’a pas répondu'); return; }
   Object.assign(p, data[0]); render();
-  confirmePop(true,'Déplacée',vers==='nuit'?'dans l’équipe de nuit':'dans le service social');
+  confirmePop(true,'Déplacée',vers==='nuit'?'dans l’équipe de nuit':vers==='pp'?'dans la nuit ET le service social':'dans le service social');
 }
 function passMenu(id, gerable){
   const B=[{t:'Copier le texte', fn:function(){ passCopier(id); }}];
@@ -45217,7 +45229,7 @@ function passMenu(id, gerable){
    imprimée et SON mail : une note pour le service social n'a rien à y faire. Elle a
    sa carte à elle — voir `passSociales` et `carteServiceSocial`. */
 function passToutes(){ return passToutesBrut().filter(function(p){ return p.pour!==PASS_SOCIAL && p.pour!==PASS_PFO; }); }  /* `pfo` : l'ancienne carte, rangée au chargement */
-function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL; }); }
+function passSociales(){ return passToutesBrut().filter(function(p){ return p.pour===PASS_SOCIAL || p.pour===PASS_PUNAISE; }); }
 /* ═══ LE RÉVEIL SE MET TOUT SEUL (Mag, 13/10/2026 : « il faudrait directement qu'il soit dans les passations de nuit,
    les réveils, il n'y a même pas à discuter ; il n'y a plus de question de qui prend en charge le réveil ») ═══
    Un rendez-vous avec réveil apparaît dans la passation de nuit LA NUIT D'AVANT (et le matin même jusqu'à midi),
@@ -46796,10 +46808,11 @@ function rapPrepHTML(){
     '<button class="absa avmi'+(RAP_PREP.ajeun?' on':'')+'" onclick="rapPrepAjeun()"><span class="bx"></span>À jeun</button></div>';
   return h;
 }
+function passEnvoyeeVers(qui){ return qui==='nuit'?'à l’équipe de nuit':qui==='pp'?'à la nuit ET au service social':'au service social'; }
 /* Ce qui part dans la base, depuis le champ ou depuis une ligne rangée. */
 function passLignePrete(t, ch, qui, P){
   const g=(P&&P.genre)||'passation';
-  const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
+  const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:qui==='pp'?PASS_PUNAISE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
            chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
            heure:(g==='reveil'?(P.heure||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
   if(qui==='ts') l.pour_qui=(P&&P.coeur)?AFAF_MAILS.slice():null;
@@ -46809,6 +46822,7 @@ function passLignePrete(t, ch, qui, P){
 function passPrepManque(qui, P){
   const g=(P&&P.genre)||'passation';
   if(P && P.coeur && qui!=='ts') return 'Le cœur part avec « Social »';
+  if(g==='reveil' && qui==='pp') return 'Un réveil part à l’équipe de nuit';
   if(g==='reveil' && qui!=='nuit') return 'Un réveil part à l’équipe de nuit';
   if(g==='reveil' && !(P&&P.heure)) return 'Il manque l’heure du réveil';
   return '';
@@ -46828,7 +46842,7 @@ async function rapEnvoyerVers(qui){
   RAP_BROUILLON=''; RAP_CH_BROUILLON=''; rapPrepVide();
   RAP_TAGS={absence:false,desencodage:false,encoder:false,entretien:false,miparcours:false,info:false,note:false,vider:false};
   if(i) i.value=''; if(c) c.value='';
-  render(); confirmePop(true,'Envoyée',qui==='nuit'?'à l’équipe de nuit':'au service social');
+  render(); confirmePop(true,'Envoyée',passEnvoyeeVers(qui));
 }
 /* Une ligne rangée qui porte une préparation part d'un appui (Nuit / Social sur la ligne). Sans préparation, « Nuit »
    ouvre la feuille comme avant, « Social » l'envoie en info. */
@@ -46854,7 +46868,7 @@ async function rappelEnvoyerPrep(id, qui){
   if(res.error||!res.data||!res.data.length){ confirmePop(false,'PAS envoyée',(res.error&&res.error.message)||'la base n’a pas répondu'); return; }
   res.data[0]._pose=Date.now(); PASSATIONS.unshift(res.data[0]);
   MESRAPPELS=MESRAPPELS.filter(function(x){ return x.id!==id; });
-  rappelsSauver(); render(); confirmePop(true,'Envoyée',qui==='nuit'?'à l’équipe de nuit':'au service social');
+  rappelsSauver(); render(); confirmePop(true,'Envoyée',passEnvoyeeVers(qui));
 }
 /* L'étiquette d'une ligne préparée : seulement Réveil (et son heure) ou À prévenir — « info à passer : on sait que c'est
    une info, arrête avec les infos » (Mag, 18/10/2026). Ni « Info », ni « à passer ». */
@@ -50663,6 +50677,8 @@ function rappelsHTML(enCarte){
         '<button class="chaddbtn" onclick="rappelAjouter()">Ma liste</button>'+
         '<button class="rapPass rapNuit" onclick="rapEnvoyerVers(\'nuit\')">Nuit</button>'+
         '<button class="rapPass rapSoc" onclick="rapEnvoyerVers(\'ts\')">Social</button>'+
+        /* La punaise : nuit ET social d'un appui (Mag, 04/11/2026 : « ici tu rajoutes le picto »). */
+        '<button class="rapPass rapPp" onclick="rapEnvoyerVers(\'pp\')" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</button>'+
         /* (Activité retirée de la carte — Mag, 18/10/2026 : « retire l'activité ») */
         '</div>'+
         /* ⏸ LES QUATRE CASES RETIRÉES (Mag, 19/10/2026 : « retire ça, ça n'a plus aucun sens ») : Encoder, Absence,
@@ -50781,6 +50797,7 @@ function rappelsHTML(enCarte){
              Social, mêmes couleurs, un appui = c'est parti, avec ce qui a été préparé (sinon en Info). */
           '<button class="rapPass mini lnuit" onclick="rappelEnvoyerPrep(\''+r.id+'\',\'nuit\')">Nuit</button>'+
           '<button class="rapPass mini lsoc" onclick="rappelEnvoyerPrep(\''+r.id+'\',\'ts\')">Social</button>'+
+          '<button class="ib ppb" onclick="rappelEnvoyerPrep(\''+r.id+'\',\'pp\')" aria-label="Punaises : nuit et social" title="Punaises : nuit et social">'+icon('punaise')+'</button>'+
           /* Une note DÉSENCODER pas encore envoyée : « Vider la chambre » (Mag, 14/10/2026), « Envoyer » si rien à vider. */
           ((r.desencodage && !r.sortantId && !estGroupeD())
             ? '<button class="rapPass mini binvers" onclick="departEnvoyerNote(\''+r.id+'\')">'+((r.dep&&r.dep.aff===false)?'Envoyer':'Vider la chambre')+'</button>' : '')+
