@@ -2696,7 +2696,7 @@ button.accrp-pb.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* À L'INTÉRIEUR : l
 .accli input,.accli textarea{flex:1;min-width:0}
 .accli-x{flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--trait);background:#fff;font-size:18px;line-height:1;color:#6b6862;cursor:pointer}
 .accli-plus{margin-top:2px;background:#fff;border:1.5px dashed #9a978f;border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;color:#2b2a28;cursor:pointer}
-.accrail2{display:flex;flex-direction:column;justify-content:center;align-items:center;border-right:0;padding:0 6px}
+.accrail2{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;border-right:0;padding:0 6px}
 .accrail2 .accrp2{max-width:150px}
 .accrp2{display:flex;align-items:center;gap:6px;width:100%;background:#ecebe7;border:0;border-radius:8px;padding:5px 8px;margin:3px 0;font:inherit;font-size:10.5px;font-weight:600;line-height:1.15;color:#1b1b1b;text-align:left;cursor:pointer;transition:transform .15s}
 .accrp2:focus,.accrp2:focus-visible{outline:none}
@@ -2705,10 +2705,15 @@ button.accrp-pb.cur{box-shadow:inset 0 0 0 2px #2b2a28}   /* À L'INTÉRIEUR : l
 .accrp2.ok{background:var(--c)}.accrp2.ok b{display:inline}
 /* EN COURS : plus de gros cadre noir (Mag, 03/11/2026 : « au début tout est gras avec des gros bords, c'est dégueulasse ») —
    la barre est pleine de sa couleur, avec un trait fin à gauche. */
-.accrp2.cur{box-shadow:inset 3px 0 0 #2b2a28}   /* la couleur reste celle de l'état (gris ou rempli) : juste le trait */
+/* EN COURS : une petite boule de la couleur de la partie devant le mot (Mag, 04/11/2026 : « une petite boule devant celui
+   qu'on sélectionne, colorée »). */
+.accrp2.cur::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px #2b2a28;flex:none}
 .accrp2.apart{color:#55524c}.accrp2.apart.ok{background:#d8d5cf;color:#1b1b1b}
-.accrp2.apart.cur{box-shadow:inset 3px 0 0 #2b2a28;color:#1b1b1b}
+.accrp2.apart.cur{color:#1b1b1b}
 @media(min-width:900px){ .accrp2{font-size:12.5px;padding:6px 10px} }   /* plus fin : « un peu trop fat, ça fait pâté » (03/11/2026) */
+@media(min-width:900px){ .acccote{border-left:1.5px solid var(--trait);padding-left:22px} }   /* une ligne entre le formulaire et la note (04/11/2026) */
+.accsauve{display:block;width:100%;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.06em;color:#6b6862;margin-top:6px}
+.accli-rien{margin-left:8px;border-style:solid;color:#55524c;font-weight:600}
 .accrailw{display:grid;grid-template-columns:134px minmax(0,1fr);gap:10px;align-items:start}
 .accrail{position:sticky;top:10px;display:flex;flex-direction:column;border-right:1.5px solid var(--trait);padding-right:6px;max-height:calc(100dvh - 20px);overflow:auto}
 .accrp{display:flex;align-items:center;gap:6px;background:none;border:0;padding:5px 0;font:inherit;font-size:11px;line-height:1.15;color:#8a877f;text-align:left;cursor:pointer}
@@ -38444,6 +38449,10 @@ function accBrouillonSauver(){
     l=l.filter(function(b){ return b.id!==ACC_SESSION; });
     l.unshift({id:ACC_SESSION, maj:Date.now(), volet:(current&&current.volet)||'', acc:ACC});
     accBrouillonsEcrire(l);
+    /* ⭐ ON LE VOIT (Mag, 04/11/2026 : « comme un Google Doc, que ce soit toujours enregistré ») : c'était déjà enregistré à
+       chaque pause (appareil + compte) ; maintenant ça se lit sous les boutons. */
+    const ind=document.getElementById('accSauve'), d=new Date();
+    if(ind) ind.textContent='Enregistré à '+d.getHours()+' h '+String(d.getMinutes()).padStart(2,'0');
   },400);
 }
 function accBrouillonJeter(){
@@ -38623,7 +38632,15 @@ function accRailCaler(){
   const r=document.querySelector('.accrail'); if(!r) return;
   const h=document.querySelector('#view .hero'); let t=10;
   if(h && getComputedStyle(h).position==='sticky') t=(parseFloat(getComputedStyle(h).top)||0)+h.offsetHeight+10;
-  r.style.top=t+'px'; r.style.maxHeight='calc(100dvh - '+(t+10)+'px)'; r.style.height='calc(100dvh - '+(t+10)+'px)';   /* centrée en hauteur */
+  r.style.top=t+'px'; r.style.maxHeight='calc(100dvh - '+(t+10)+'px)'; r.style.height='calc(100dvh - '+(t+10)+'px)';
+  /* ⭐ TOUJOURS AU MILIEU DE L'ÉCRAN, MÊME EN HAUT DE PAGE (Mag, 04/11/2026 : « au début il est tout en bas ») : on pousse les
+     boutons pour que leur milieu tombe au milieu de la fenêtre, où que commence la colonne. */
+  let ch=0; [].forEach.call(r.children, function(c){ ch+=c.offsetHeight+6; });
+  r.style.transform=''; r.style.paddingTop='0px';
+  const haut=r.getBoundingClientRect().top, hb=h ? h.getBoundingClientRect().bottom+10 : 10;
+  const veut=Math.max(hb, Math.round(innerHeight/2 - ch/2)), d=veut-haut;
+  if(d>=0) r.style.paddingTop=d+'px';            /* collée en haut : on descend les boutons au milieu */
+  else r.style.transform='translateY('+d+'px)';   /* en haut de page : la colonne remonte, jamais sur le titre */
   /* (03/11/2026) Une colonne en position fixe « au milieu de l'espace libre » a été essayée puis retirée : sur son écran elle
      passait PAR-DESSUS le formulaire. La colonne reste à sa place, centrée dans sa propre largeur. */
 
@@ -38633,6 +38650,7 @@ let _accRailT=0;
 window.addEventListener('resize', function(){ if(document.querySelector('.accrail')) accRailCaler(); });
 window.addEventListener('scroll', function(){
   if(!document.querySelector('.accrail')) return;
+  requestAnimationFrame(accRailCaler);
   clearTimeout(_accRailT);
   _accRailT=setTimeout(function(){
     accRailCaler();
@@ -38722,7 +38740,9 @@ function accNoteA(volet, k, pourCopie){
          nationalité ressort (`gras`). Le médical garde sa forme. */
       if(!f.b && !accEstLong(f)){
         const val = f.gras ? '<b>'+esc(accVal(f))+'</b>' : esc(accVal(f));
-        h+=P+ici(f, e ? (volet==='med' ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(e)+' / '+val) : val)+'</p>'; return; }
+        /* `espace` : un petit blanc avant (nationalité · papiers · domicile se lisent en trois temps) ; `deux` : « Domicile : … ». */
+        const Pf = f.espace ? '<p style="margin:9px 0 3px">' : P;
+        h+=Pf+ici(f, e ? (volet==='med' ? esc(e)+' : <b>'+esc(accVal(f))+'</b>' : esc(e)+(f.deux?' : ':' / ')+val) : val)+'</p>'; return; }
       if(e) h+='<p style="margin:8px 0 1px">'+ici(f,'<b>'+esc(e)+'</b>')+'</p>';
       let ul=[];
       const fermer=function(){ if(ul.length){ h+='<ul style="margin:0 0 3px;padding-left:20px">'+ul.join('')+'</ul>'; ul=[]; } };
@@ -38809,7 +38829,10 @@ function accEnregistrer(){
 }
 function accFermer(){
   if(accVide()){ toast('La page est vide'); return; }
+  const nom=String(ACC.nom||'').trim();
   accEffacerOui(true);
+  /* Une fenêtre qui le dit (Mag, 04/11/2026 : « une pop-up pour dire que ça enregistre avant de fermer »). */
+  if(typeof confirmePop==='function') confirmePop(true,'Enregistré et fermé',(nom?nom+' — ':'')+'dans « Entretiens gardés », en bas de la page');
 }
 function accEffacerOui(enregistre){
   clearTimeout(_accEcritDans);
@@ -39200,7 +39223,7 @@ const ACC_CHAMPS=[
 const ACC_NOUVEAUX={
   /* (Mag, 03/11/2026) : « CI » plus court, plus de « Aucun » (on décoche), et « Autre » qui ouvre une case (annexe, 9ter…).
      Dans la note : les papiers sur une ligne, sans le mot « Papiers ». */
-  papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','CI','Titre de séjour','Autre'],autre:'papiers_autre',sep:' · ',n:''},
+  papiers_type:{k:'papiers_type',l:'Papiers',t:'choix',o:['Passeport','CI','Titre de séjour','Autre'],autre:'papiers_autre',sep:' · ',n:'',espace:1},
   mt:{k:'mt',l:'Médecin traitant · maison médicale',n:'Médecin traitant · maison médicale'},
   /* (Mag, 03/11/2026 : « ici, rajouter une petite case à cocher : à renouveler ») */
   /* LA FAMILLE EN UNE CASE (Mag, 03/11/2026 : « on ne fait jamais des trucs si séparés, on fait des grands textes ;
@@ -39269,7 +39292,8 @@ function accJeuSocial(){
   /* La note administrative (Mag, 03/11/2026) : la nationalité seule et en gras ; « NN ou SP » qu'on écrit soi-même ; la validité
      du papier sans titre. */
   /* (Mag, 03/11/2026) : « Adresse / AR · dernier domicile » au-dessus de la case ; « Adresse » dans la note. */
-  if(par.adresse) par.adresse=Object.assign({}, par.adresse, {l:'Adresse / AR · dernier domicile', n:'Adresse'});
+  /* Dans la note : « Domicile : … », avec un petit espace avant (Mag, 04/11/2026). */
+  if(par.adresse) par.adresse=Object.assign({}, par.adresse, {l:'Adresse / AR · dernier domicile', n:'Domicile', deux:1, espace:1});
   /* MUTUELLE ET CARTE MÉDICALE, SOBRES (Mag, 03/11/2026 : « si c'est oui, on met juste En ordre de mutuelle, et en dessous
      Mutuelle Solidaris ; c'est tout, proprement »). Un Non s'écrit aussi : c'est une information qui compte. */
   /* `joint` : les réponses qui se mettent sur la MÊME ligne, après un point (« Mutuelle OK · Solidaris »). */
@@ -39286,7 +39310,8 @@ function accJeuSocial(){
   if(par.prevenir) par.prevenir=Object.assign({}, par.prevenir, {n:'Qui prévenir en cas de problème', b:0, court:1});
   if(par.psy_com) par.psy_com=Object.assign({}, par.psy_com, {l:'', tip:'Suivi psy', n:'', b:1});
   /* LES DÉMARCHES EN LISTE (Mag, 03/11/2026 : « un + pour rajouter à la liste ») : une ligne par démarche. */
-  if(par.demarches) par.demarches=Object.assign({}, par.demarches, {t:'liste', l:'', n:'', plus:'+ Ajouter une démarche'});
+  /* « Aucune démarche » d'un appui (Mag, 04/11/2026 : « on doit toujours mettre quelque chose ; s'il n'y a rien à faire, Aucune démarche »). */
+  if(par.demarches) par.demarches=Object.assign({}, par.demarches, {t:'liste', l:'', n:'', plus:'+ Ajouter une démarche', aucune:'Aucune démarche'});
   /* LE PROJET EN LISTE AUSSI (Mag, 03/11/2026 : « on devrait pouvoir ajouter quelque chose, comme les démarches ; parfois c'est
      trouver une maison médicale, aller en cure… ») : pas de titre dans la note, le pense-bête reste au-dessus. */
   if(par.projet) par.projet=Object.assign({}, par.projet, {t:'liste', l:'', tip:'Ouverture des droits · orientation (logement, MA, MR, hospitalisation…)', n:'', plus:'+ Ajouter un projet'});
@@ -39314,6 +39339,10 @@ function accListeLigne(k, v){
   return '<div class="accli"><textarea rows="1" class="accgr accgr1" autocomplete="off" spellcheck="false" placeholder="…" '+
     'oninput="passGrandir(this);accListeMaj(\''+k+'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();accListePlus(\''+k+'\')}">'+esc(v||'')+'</textarea>'+
     '<button type="button" class="accli-x" aria-label="Retirer cette démarche" onclick="accListeMoins(this,\''+k+'\')">×</button></div>';
+}
+function accListeAucune(k, mot){
+  const w=document.getElementById('accli-'+k); if(!w) return;
+  w.innerHTML=accListeLigne(k, mot); accListeMaj(k);
 }
 function accListeMaj(k){
   const w=document.getElementById('accli-'+k); if(!w) return;
@@ -39403,7 +39432,8 @@ function vAccueilPersonne(volet){
              effacer, je trouve ça étrange »). */
           const I=accListeItems(ACC[f.k]);
           return '<div class="accf">'+(f.tip?'<i class="acctip">'+esc(f.tip)+'</i>':'')+'<div class="accliste" id="accli-'+f.k+'">'+I.map(function(x){ return accListeLigne(f.k,x); }).join('')+'</div>'+
-            '<button type="button" class="accli-plus" onclick="accListePlus(\''+f.k+'\')">'+esc(f.plus||'+ Ajouter')+'</button></div>';
+            '<button type="button" class="accli-plus" onclick="accListePlus(\''+f.k+'\')">'+esc(f.plus||'+ Ajouter')+'</button>'+
+            (f.aucune?'<button type="button" class="accli-plus accli-rien" onclick="accListeAucune(\''+f.k+'\',\''+f.aucune+'\')">'+esc(f.aucune)+'</button>':'')+'</div>';
         }
         if(f.t==='choix'){
           const L=String(ACC[f.k]||'').split(/\s*,\s*/);
@@ -39472,6 +39502,7 @@ function vAccueilPersonne(volet){
      '<button id="accDisq" class="accb accpic" onclick="accEnregistrer()" title="Enregistrer" aria-label="Enregistrer"'+(accVide()?' disabled':'')+'>'+icon('disquette')+'</button>'+
      '<button class="accb" onclick="accFermer()"'+(accVide()?' disabled':'')+'>Fermer</button>'+
      '<button class="accb" onclick="accEffacer()">Nouvel entretien</button>'+
+     '<span id="accSauve" class="accsauve"></span>'+
      '</div>';
   h+='<div id="accGardesW">'+accGardesHTML()+'</div>';
   h+='</div></div>';   /* .acccote puis .accdeux */
@@ -39603,7 +39634,8 @@ function accNote(volet){
     courts.forEach(function(f){
       if(f.t==='case'){ l.push('· '+accEtiq(f)); return; }
       const e=accSansDoublon(accEtiq(f), g.s);
-      l.push(e ? ('· '+e+' / '+accVal(f)) : ('· '+accVal(f)));
+      if(f.espace) l.push('');
+      l.push(e ? ('· '+e+(f.deux?' : ':' / ')+accVal(f)) : ('· '+accVal(f)));
     });
     longs.forEach(function(f){
       const e=accSansDoublon(accEtiq(f), g.s);
