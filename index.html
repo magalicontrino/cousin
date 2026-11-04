@@ -22444,6 +22444,7 @@ function feuilleImprimer(o){
     /* Les mêmes couleurs que l'écran (Mag, 20/10/2026 : « pourquoi ce ne sont pas les mêmes couleurs ? ») :
        « à prévenir » orange, « mis en avant » rose en pointillés. */
     '.l.k-pv{border-left-color:#f8763f}.l.k-avant{border-left-color:#e8308a;border-left-style:dotted}'+
+    '.l.k-pp{border-left-color:#2b2a28;border-left-width:9px}.l.k-pp .tx{font-weight:400}'+
     '.ch:has(.k-enc) .st{background:#6cb392}.ch:has(.k-des) .st{background:#e63329}'+
     '.ch:has(.k-abs) .st,.ch:has(.k-pre) .st,.ch:has(.k-rv) .st{background:#e8308a}'+
     '.ch:has(.k-not) .st{background:#b28b7a}.ch:has(.k-vid) .st{background:#f8763f}'+
@@ -45479,7 +45480,7 @@ function imprimerPassation(pour){
   const jour=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
   /* Le titre nomme les équipes RÉELLEMENT présentes sur la feuille, pas celle qui est
      sélectionnée : si la feuille en mélange deux, il faut que ça se voie. */
-  const eq=[]; liste.forEach(function(p){ if(eq.indexOf(p.pour)<0) eq.push(p.pour); });
+  const eq=[]; liste.forEach(function(p){ if(p.pour!==PASS_PUNAISE && eq.indexOf(p.pour)<0) eq.push(p.pour); });
   const qui=social ? 'le service social' : (eq.length ? eq.map(passPourNom).join(' · ') : passPourNom(pour||PASS_POUR));
 
   /* Une ligne : la case vide, l'heure alignée, le genre en petit, et le trait de
@@ -45490,8 +45491,9 @@ function imprimerPassation(pour){
     const bas=[];
     if(p.par) bas.push('par '+String(p.par).split(/\s+/)[0]);
     if(p.jour && p.jour!==agIso(new Date())) bas.push('pour le '+rappelQuandFr(p.jour));
-    if(p.genre==='prevenir' && prevSource(p)) bas.push(prevSource(p));
-    return '<div class="l'+(fait?' fait':'')+' '+(passEnAvant(p)?'k-avant':(p.genre==='prevenir'?'k-pv':(g.heure?'k-rv':'k-inf')))+'">'+
+    const pp=(p.pour===PASS_PUNAISE);   /* la punaise sur papier = le dessin A de l'écran (Mag, 04/11/2026) */
+    if(p.genre==='prevenir' && prevSource(p) && !pp) bas.push(prevSource(p));
+    return '<div class="l'+(fait?' fait':'')+' '+(pp?'k-pp':passEnAvant(p)?'k-avant':(p.genre==='prevenir'?'k-pv':(g.heure?'k-rv':'k-inf')))+'">'+
       '<span class="bx"></span>'+
       (g.heure?'<span class="hh">'+esc(p.heure||'—')+'</span>':'')+
       /* ⚠ LA CHAMBRE SORT DE LA PETITE LIGNE GRISE (Mag, 20/09/2026 : « quand j'imprime,
@@ -45501,10 +45503,11 @@ function imprimerPassation(pour){
       (g.chambre && p.chambre ? '<span class="chp"><i>CH.</i>'+esc(p.chambre)+'</span>' : '')+
       '<span class="tx">'+
         (passEnAvant(p)?'<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#e8308a;margin-right:6px;vertical-align:1px"></span>':'')+
-        (p.genre==='prevenir'?'<span style="display:inline-block;width:16px;height:16px;color:#f8763f;margin-right:4px;vertical-align:-3px">'+PREV_MAIN+'</span>':'')+
-        (g.court?'<span class="quoi" style="display:inline;min-width:0;padding-right:7px">'+
+        (pp?'<span style="display:inline-block;width:20px;height:20px;color:#2b2a28;margin-right:6px;vertical-align:-4px">'+icon('punaise')+'</span>'
+          :p.genre==='prevenir'?'<span style="display:inline-block;width:16px;height:16px;color:#f8763f;margin-right:4px;vertical-align:-3px">'+PREV_MAIN+'</span>':'')+
+        (g.court && !pp?'<span class="quoi" style="display:inline;min-width:0;padding-right:7px">'+
           esc(g.court)+'</span>':'')+
-        passRiche(p.texte,true)+
+        (pp ? passRiche(p.texte,true).replace(/(^|>)([^<]*)/g, function(m,a,t){ return a+t.replace(/rentokil/gi,'<b>$&</b>'); }) : passRiche(p.texte,true))+
         /* ⚠ SUR LE PAPIER, ON ÉCRIT LA RÈGLE EN ENTIER : l'écran a le contexte, la
            feuille non — elle est lue seule, dans un couloir, à 5 h du matin. */
         (p.a_jeun?' <b>À JEUN</b>':'')+
@@ -45528,7 +45531,8 @@ function imprimerPassation(pour){
   /* EN « ESCARGOT » (Mag, 11/10/2026) : sur le papier, les infos et les à prévenir dans l'ordre des chambres —
      étage par étage, 101 → 630 — pour faire le tour sans chercher. Les réveils restent à l'heure. */
   const infos=passParChambre(liste.filter(function(p){ return (p.genre||'passation')==='passation'; }));
-  const aprev=passParChambre(liste.filter(function(p){ return p.genre==='prevenir'; }));
+  const aprev=passParChambre(liste.filter(function(p){ return p.genre==='prevenir' && p.pour===PASS_PUNAISE; }))   /* les punaises d'abord */
+    .concat(passParChambre(liste.filter(function(p){ return p.genre==='prevenir' && p.pour!==PASS_PUNAISE; })));
   let corps='';
   if(moments.length)
     corps+='<section class="ch"><div class="st"><span>Réveil</span>'+
