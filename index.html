@@ -44710,6 +44710,7 @@ async function passAjouter(){
      caractères ci-dessous ne sont qu'un garde-fou contre un collage accidentel. */
   const l={texte:texte.slice(0,4000), pour:PASS_POUR, genre:PASS_GENRE, par:nomAffiche()};
   if(!PASS_EDIT && PASS_POUR===PASS_SOCIAL) l.pour_qui=socQui||null;
+  if(l.pour===PASS_PUNAISE) l.genre='prevenir';   /* une punaise reste « à prévenir » */
   /* ⚠ ON SIGNE CE QU'ON ÉCRIT (Mag, 24/08/2026) : sans `uid`, `passMienne` ne reconnaît
      jamais la ligne comme sienne et les boutons « modifier / annuler » ne s'affichent
      pas — on ne peut plus retirer une passation qu'on vient de poser. */
@@ -46059,11 +46060,14 @@ function passFeuilleHTML(){
   const g=passGenreDe(PASS_GENRE);
   /* Si l'on n'a qu'un seul destinataire possible, on ne DEMANDE pas : on le dit. Un
      choix à une seule option est une question à laquelle on a déjà répondu. */
-  if(roles.length===1 && PASS_POUR!==roles[0]) PASS_POUR=roles[0];
+  /* ⚠ UNE PUNAISE QU'ON MODIFIE RESTE UNE PUNAISE (Mag, 04/11/2026 : « t'as de nouveau remis l'ancien ») : `pp` n'est pas
+     dans `roles`, et les deux lignes ci-dessous la renvoyaient au service social à chaque crayon. */
+  const garderPp=(PASS_EDIT && PASS_POUR===PASS_PUNAISE);
+  if(!garderPp && roles.length===1 && PASS_POUR!==roles[0]) PASS_POUR=roles[0];
   /* ⚠ ET SI L'ÉQUIPE RETENUE N'EST PLUS PROPOSÉE, on retombe sur la première : sinon le
      défaut historique (`pfo-nuit`) resterait sélectionné pour un éducateur, sans qu'aucun
      bouton ne s'allume — et la passation partirait au PFO. */
-  if(roles.indexOf(PASS_POUR)<0) PASS_POUR=roles[0];
+  if(!garderPp && roles.indexOf(PASS_POUR)<0) PASS_POUR=roles[0];
   return '<div class="acform pass ouverte">'+
     /* ⚠ LE TITRE NE RÉPÈTE PLUS LE BOUTON (Mag, 22/08/2026). « Passer à l'équipe »
        était écrit en haut de la fenêtre ET sur le bouton du bas — le même problème que
