@@ -44910,7 +44910,7 @@ function passRetirer(id){
       if(p.chambre) ret.chambre=String(p.chambre).slice(0,12);
       /* Elle revient avec ce qu'elle était (réveil + heure, info, à prévenir) : la renvoyer = un appui (18/10/2026). */
       if(['reveil','passation','prevenir'].indexOf(p.genre)>=0){
-        ret.prep={genre:p.genre, heure:String(p.heure||'').slice(0,5), jour:p.jour||'', ajeun:!!p.a_jeun};
+        ret.prep={genre:p.genre, heure:String(p.heure||'').slice(0,5), jour:p.jour||'', ajeun:!!p.a_jeun, avant:!!p.en_avant};
         if(p.genre==='reveil'){ ret.reveilJ=p.jour||''; if(p.heure) ret.reveilH=String(p.heure).slice(0,5); } }
       /* ⚠⚠ D'ABORD LA BASE, ENSUITE MA LISTE (Mag, 18/10/2026 : « j'ai annulé la passation, c'est remonté dans ma liste
          perso… mais c'est Adam qui a pu l'avoir aussi »). La ligne entrait dans la liste AVANT de demander à la base, et
@@ -45079,7 +45079,10 @@ function passPourAfaf(p){ return !!(p && Array.isArray(p.pour_qui) && p.pour_qui
 const COEUR_SVG='<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="currentColor" d="M12 21s-7.5-4.6-10-9.3C.3 8.4 2 4 6 4c2.3 0 3.6 1.3 6 3.6C14.4 5.3 15.7 4 18 4c4 0 5.7 4.4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>';
 function passColonne(p, g, heure){
   /* Un ROND ROSE qui pulse lentement, plutôt qu'un cœur (Mag, 20/10/2026). */
-  if(passEnAvant(p)) return '<i class="pcol" title="Mis en avant"><span class="rondrose"></span></i>';
+  /* En avant ET à prévenir : les deux se voient (Mag, 12/11/2026 : « c'est pas possible, c'est l'un ou c'est l'autre »). */
+  if(passEnAvant(p)) return '<i class="pcol" title="Mis en avant"><span class="rondrose"></span></i>'+
+    (p.genre==='prevenir' && p.pour!==PASS_PUNAISE ? '<i class="pcol pcol-main" title="À prévenir">'+PREV_MAIN+'</i>' : '')+
+    (p.pour===PASS_PUNAISE ? '<i class="pcol pcol-pp" title="Punaises">'+icon('punaise')+'</i>' : '');
   if(p.pour===PASS_PUNAISE) return '<i class="pcol pcol-pp" title="Punaises">'+icon('punaise')+'</i>';
   const h=(heure!==undefined)?heure:(g.heure?p.heure:'');
   if(h) return esc(String(h).slice(0,5).replace(':',' h '));
@@ -46580,7 +46583,7 @@ function rappelAjouter(){
   /* La préparation (réveil + heure, info, à prévenir) reste sur la ligne : elle partira d'un appui (18/10/2026). */
   rapPrepGarder();
   if(RAP_PREP.genre==='passation') ligne.info=true;
-  if(RAP_PREP.genre||RAP_PREP.coeur){ ligne.prep={genre:RAP_PREP.genre||'passation', heure:RAP_PREP.heure||'', jour:RAP_PREP.jour||'', ajeun:!!RAP_PREP.ajeun, coeur:!!RAP_PREP.coeur};
+  if(RAP_PREP.genre||RAP_PREP.coeur||RAP_PREP.avant){ ligne.prep={genre:RAP_PREP.genre||'passation', heure:RAP_PREP.heure||'', jour:RAP_PREP.jour||'', ajeun:!!RAP_PREP.ajeun, coeur:!!RAP_PREP.coeur, avant:!!RAP_PREP.avant};
     if(RAP_PREP.genre==='reveil'){ ligne.reveilJ=RAP_PREP.jour||passDemain(); if(RAP_PREP.heure) ligne.reveilH=RAP_PREP.heure; } }
   rapPrepVide();
   MESRAPPELS.push(ligne);
@@ -46823,8 +46826,8 @@ async function rapEntEnvoyer(){
 }
 /* ═══ CE QU'ON PRÉPARE EN ÉCRIVANT (18/10/2026) : Réveil · Info · À prévenir — facultatif. ═══ */
 var PASS_COEUR=false;
-var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false};
-function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false}; }
+var RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false, avant:false};
+function rapPrepVide(){ RAP_PREP={genre:'', heure:'', jour:'', ajeun:false, coeur:false, avant:false}; }
 function rapPrepCoeur(){ rapPrepGarder(); const i=document.getElementById('rapTxt'); if(i) RAP_BROUILLON=i.value; RAP_PREP.coeur=!RAP_PREP.coeur; render(); }
 function rapPrepGarder(){
   const j=document.getElementById('rapPrepJour'), h=document.getElementById('rapPrepHeure');
@@ -46836,6 +46839,7 @@ function rapPrepGenre(g){
   render();
 }
 function rapPrepAjeun(){ rapPrepGarder(); RAP_PREP.ajeun=!RAP_PREP.ajeun; render(); }
+function rapPrepAvant(){ rapPrepGarder(); const i=document.getElementById('rapTxt'); if(i) RAP_BROUILLON=i.value; RAP_PREP.avant=!RAP_PREP.avant; render(); }
 function rapPrepHTML(){
   const G=[['reveil','Réveil','#E8308A'],['passation','Info','#a9c8e8'],['prevenir','À prévenir','#f8763f']];
   let h='<div class="rprep">'+G.map(function(g){ const on=RAP_PREP.genre===g[0];
@@ -46845,6 +46849,9 @@ function rapPrepHTML(){
   if(RAP_PREP.genre==='reveil') h+='<div class="rprep-rv"><input id="rapPrepJour" type="date" value="'+esc(RAP_PREP.jour||passDemain())+'" onchange="rapPrepGarder()">'+
     '<input id="rapPrepHeure" type="text" inputmode="numeric" data-heure="1" maxlength="5" autocomplete="off" enterkeyhint="done" placeholder="07:00" value="'+esc(RAP_PREP.heure||'')+'" aria-label="Heure du réveil" onchange="rapPrepGarder()">'+
     '<button class="absa avmi'+(RAP_PREP.ajeun?' on':'')+'" onclick="rapPrepAjeun()"><span class="bx"></span>À jeun</button></div>';
+  /* ⭐ METTRE EN AVANT DÈS L'ÉCRITURE, EN PLUS DU RESTE (Mag, 12/11/2026 : « à prévenir et aussi mettre en avant en même temps ») :
+     une case, pas un 4e bouton — elle s'ajoute à Réveil / Info / À prévenir au lieu de les remplacer. */
+  h+='<div class="rprep-rv" style="flex:1 1 100%;width:100%"><button class="absa avmi'+(RAP_PREP.avant?' on':'')+'" onclick="rapPrepAvant()"><span class="bx"></span>Mettre en avant</button></div>';
   return h;
 }
 /* ═══ L'HEURE SE TAPE À LA MAIN (Mag, 04/11/2026 : « de mon téléphone je n'arrive pas à mettre l'heure, ça dépasse ;
@@ -46887,6 +46894,7 @@ function passLignePrete(t, ch, qui, P){
            chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
            heure:(g==='reveil'?(P.heure||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
   if(qui==='ts') l.pour_qui=(P&&P.coeur)?AFAF_MAILS.slice():null;
+  if(P && P.avant) l.en_avant=true;
   if(g==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
   return l;
 }
@@ -46945,6 +46953,7 @@ async function rappelEnvoyerPrep(id, qui){
    une info, arrête avec les infos » (Mag, 18/10/2026). Ni « Info », ni « à passer ». */
 function rappelPrepTexte(P){
   if(!P||!P.genre) return '';
+  if(P.avant) return 'En avant'+(P.genre==='prevenir'?' · À prévenir':P.genre==='reveil'?' · Réveil'+(P.heure?' '+rdvHeureFr(P.heure):''):'');
   if(P.coeur) return '♥'+(P.genre==='prevenir'?' · À prévenir':'');
   if(P.genre==='reveil') return 'Réveil'+(P.heure?' '+rdvHeureFr(P.heure):'')+(P.ajeun?' · à jeun':'');
   if(P.genre==='prevenir') return 'À prévenir';
