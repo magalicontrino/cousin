@@ -44717,7 +44717,7 @@ async function passAjouter(){
      donc un réveil sans savoir quand réveiller — c'est-à-dire rien.
      On refuse ici, et on met le curseur dans le champ : la question se pose au moment où
      on peut y répondre. */
-  if(passGenreDe(PASS_GENRE).heure && !v('passHeure')){
+  if(passGenreDe(PASS_GENRE).heure && PASS_GENRE!=='reveil' && !v('passHeure')){   /* un réveil vide = 7 h (12/11/2026) */
     toast('Il manque l’heure du réveil');
     const e=document.getElementById('passHeure'); if(e) e.focus();
     return;
@@ -44758,7 +44758,7 @@ async function passAjouter(){
      · l'heure du RÉVEIL — variable, et c'est elle qu'on saisit et qu'on lit le matin.
      C'est celle-ci qui est enregistrée : c'est elle qui décide de la place de la ligne
      dans l'horaire de la nuit. */
-  l.heure = g.heure ? (v('passHeure')||null) : null;
+  l.heure = g.heure ? (heureTapee(v('passHeure'))||(PASS_GENRE==='reveil'?'07:00':null)) : null;   /* réveil : 7 h d'office (12/11/2026) */
   /* ⚠ LA CASE NE VAUT QUE SUR UN RÉVEIL. Sur les autres genres on l'écrit à FAUX, et
      pas « on n'y touche pas » : sans ça, une case cochée puis un changement de genre
      laisserait un « à jeun » invisible collé à une info — une consigne médicale qu'on
@@ -46812,12 +46812,12 @@ async function rapEntEnvoyer(){
   rapEntGarder(); const E=RAP_ENT; if(!E || !E.qui || RAP_ENT_ENVOI) return;
   const i=document.getElementById('rapTxt'), c=document.getElementById('rapCh');
   const t=((i&&i.value)||'').trim(); if(!t){ if(i) i.focus(); return; }
-  if(E.genre==='reveil' && !heureTapee(E.heure)){ toast('Il manque l’heure du réveil — écris par exemple 07:00'); const e=document.getElementById('rapEntHeure'); if(e) e.focus(); return; }
+  /* (plus de « il manque l'heure » : 7 h d'office — 12/11/2026) */
   if(!sb||!PROFILE||!PROFILE.uid){ confirmePop(false,'PAS envoyée','Pas de connexion — ta ligne reste écrite'); return; }
   const ch=((c&&c.value)||'').trim();
   const l={texte:t.slice(0,4000), pour:(E.qui==='nuit'?PASS_EQUIPE:PASS_SOCIAL), genre:E.genre, par:nomAffiche(), uid:PROFILE.uid,
            chambre:ch?ch.slice(0,12):null, jour:(E.genre==='reveil'?(E.jour||passDemain()):todayStr()),
-           heure:(E.genre==='reveil'?(heureTapee(E.heure)||null):null), a_jeun:(E.genre==='reveil'&&!!E.ajeun)};
+           heure:(E.genre==='reveil'?(heureTapee(E.heure)||'07:00'):null), a_jeun:(E.genre==='reveil'&&!!E.ajeun)};
   if(E.qui==='ts'){ l.pour_qui=null; if(E.pfo) l.fait_note='pfo'; }
   if(E.genre==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
   RAP_ENT_ENVOI=true;
@@ -46911,7 +46911,7 @@ function passLignePrete(t, ch, qui, P){
   const g=(qui==='pp')?'prevenir':((P&&P.genre)||'passation');   /* punaise = à prévenir */
   const l={texte:String(t).slice(0,4000), pour:(qui==='nuit'?PASS_EQUIPE:qui==='pp'?PASS_PUNAISE:PASS_SOCIAL), genre:g, par:nomAffiche(), uid:PROFILE.uid,
            chambre:ch?String(ch).slice(0,12):null, jour:(g==='reveil'?(P.jour||passDemain()):todayStr()),
-           heure:(g==='reveil'?(heureTapee(P.heure)||null):null), a_jeun:(g==='reveil'&&!!P.ajeun)};
+           heure:(g==='reveil'?(heureTapee(P.heure)||'07:00'):null), a_jeun:(g==='reveil'&&!!P.ajeun)};   /* 7 h si rien n'est écrit (Mag, 12/11/2026) */
   if(qui==='ts') l.pour_qui=(P&&P.coeur)?AFAF_MAILS.slice():null;
   if(P && P.avant) l.en_avant=true;
   if(g==='prevenir') l.source=String((PROFILE&&PROFILE.equipe)||'').slice(0,60)||null;
@@ -46922,7 +46922,6 @@ function passPrepManque(qui, P){
   const g=(P&&P.genre)||'passation';
   if(P && P.coeur && qui!=='ts') return 'Le cœur part avec « Social »';
   if(g==='reveil' && qui!=='nuit') return 'Un réveil part à l’équipe de nuit';
-  if(g==='reveil' && !heureTapee(P&&P.heure)) return 'Il manque l’heure du réveil — écris par exemple 07:00';
   return '';
 }
 var RAP_ENVOI=false;
@@ -46948,7 +46947,7 @@ async function rappelEnvoyerPrep(id, qui){
   const r=MESRAPPELS.find(function(x){ return x.id===id; }); if(!r) return;
   const P=r.prep||{genre:(r.absence && qui==='nuit')?'absence':'passation'};   /* une absence part comme une absence, comme avant */
   /* Un réveil sans heure : la feuille s'ouvre, déjà sur Réveil, pour la mettre (c'est le seul cas). */
-  if(qui==='nuit' && P.genre==='reveil' && !heureTapee(P.heure)){ rappelPasser(id); return; }
+  /* Un réveil sans heure part à 7 h (Mag, 12/11/2026 : « si on ne fait rien, c'est 7 heures d'office »). */
   /* ⚠ « SOCIAL » SUR UNE LIGNE RÉVEIL (Mag, 03/11/2026 : « ça me met que ça part en équipe de nuit, et au final ça part
      nulle part ») : le bouton affichait « Un réveil part à l'équipe de nuit » et ne faisait RIEN. Maintenant Social
      envoie le TEXTE au service social, comme une passation ; le réveil reste sur la ligne, à envoyer avec « Nuit ». */
