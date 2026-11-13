@@ -39373,11 +39373,19 @@ function accJeu(volet){ return volet==='med' ? accJeuMed() : accJeuSocial(); }
 /* ═══ UNE LIGNE PAR DÉMARCHE ═══ Rangées dans ACC en texte, une par ligne, précédées d'un tiret (« - Adresse de
    référence ») : la note en fait une liste à puces, la feuille imprimée une ligne chacune. On ne redessine jamais la page
    en écrivant — on ajoute ou retire juste la ligne. */
-function accListeItems(v){ return String(v||'').split('\n').map(function(x){ return x.replace(/^\s*[-–—•*·]\s*/,'').trim(); }).filter(Boolean); }
+/* Une démarche peut tenir sur PLUSIEURS LIGNES (Mag, 13/11/2026 : « quand je fais Enter, ça fait une nouvelle démarche,
+   mais je voudrais juste aller à la ligne »). Dans ACC, la suite d'une démarche est rangée sous elle, décalée de deux
+   espaces (« - Demande AMU\n  au CPAS de 1000 ») : la ligne décalée se recolle à la démarche du dessus. */
+function accListeItems(v){ const out=[];
+  String(v||'').split('\n').forEach(function(x){
+    if(/^\s{2,}\S/.test(x) && out.length){ out[out.length-1]+='\n'+x.trim(); return; }
+    x=x.replace(/^\s*[-–—•*·]\s*/,'').trim(); if(x) out.push(x); });
+  return out; }
 function accListeLigne(k, v){
-  /* Une case qui passe à la ligne au lieu de couper le texte (03/11/2026) ; Entrée = démarche suivante. */
+  /* Une case qui passe à la ligne au lieu de couper le texte (03/11/2026). Entrée = À LA LIGNE, dans la même démarche
+     (13/11/2026) — une nouvelle démarche, c'est le bouton « + ». */
   return '<div class="accli"><textarea rows="1" class="accgr accgr1" autocomplete="off" spellcheck="false" placeholder="…" '+
-    'oninput="passGrandir(this);accListeMaj(\''+k+'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();accListePlus(\''+k+'\')}">'+esc(v||'')+'</textarea>'+
+    'oninput="passGrandir(this);accListeMaj(\''+k+'\')">'+esc(v||'')+'</textarea>'+
     '<button type="button" class="accli-x" aria-label="Retirer cette démarche" onclick="accListeMoins(this,\''+k+'\')">×</button></div>';
 }
 function accListeAucune(k, mot){
@@ -39386,7 +39394,7 @@ function accListeAucune(k, mot){
 }
 function accListeMaj(k){
   const w=document.getElementById('accli-'+k); if(!w) return;
-  const L=[].map.call(w.querySelectorAll('textarea'), function(i){ return i.value.replace(/\n/g,' ').trim(); }).filter(Boolean);
+  const L=[].map.call(w.querySelectorAll('textarea'), function(i){ return i.value.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).join('\n  '); }).filter(Boolean);
   ACC[k]=L.map(function(x){ return '- '+x; }).join('\n');
   accNoteMaj(k); accBrouillonSauver(); accRailMaj();
 }
